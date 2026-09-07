@@ -2,6 +2,8 @@ package dev.hoi.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.hoi.protocol.ResearchProtocol;
+import dev.hoi.protocol.MenuProtocol;
+import dev.hoi.protocol.AgencyProtocol;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
@@ -18,14 +20,37 @@ public final class HoiClient implements ClientModInitializer {
     private static int awaiting;
     @Override public void onInitializeClient() {
         ResearchProtocol.registerPayloadTypes();
+        net.fabricmc.fabric.api.resource.v1.ResourceLoader.get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
+                .registerReloadListener(Identifier.fromNamespaceAndPath("hoi", "ui_image_dimensions"),
+                        (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> UiAssets.clear());
         var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("hoi", "strategy"));
         var key = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.hoi.research", InputConstants.Type.KEYSYM, InputConstants.KEY_R, category));
+        ClientTickEvents.START_CLIENT_TICK.register(SidebarMovement::tick);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (awaiting > 0 && --awaiting == 0) message("연구 화면 응답이 없습니다. 다시 열어주세요.");
             while (key.consumeClick()) if (client.player != null && client.gui.screen() == null) open();
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> registerCommands(dispatcher));
         ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.OpenScreen.TYPE, (packet, context) -> open());
+        ClientPlayNetworking.registerGlobalReceiver(MenuProtocol.OpenScreen.TYPE, (packet, context) -> {
+            try {
+                var view = packet.view();
+                awaiting = 0;
+                if (context.client().gui.screen() instanceof HoiMenuScreen menu) menu.update(view);
+                else context.client().gui.setScreen(new HoiMenuScreen(view));
+            } catch (RuntimeException e) { message("HOI 메뉴 데이터를 읽을 수 없습니다."); }
+        });
+        ClientPlayNetworking.registerGlobalReceiver(MenuProtocol.Update.TYPE, (packet, context) -> {
+            if (!(context.client().gui.screen() instanceof HoiMenuScreen menu) || !menu.token().equals(packet.screen())) return;
+            if (packet.json().isEmpty()) { context.client().gui.setScreen(null); return; }
+            try { menu.update(new MenuProtocol.OpenScreen(packet.json()).view()); }
+            catch (RuntimeException error) { message("HOI 메뉴 갱신 데이터를 읽을 수 없습니다."); }
+        });
+        ClientPlayNetworking.registerGlobalReceiver(AgencyProtocol.Response.TYPE, (packet, context) -> {
+            if (!(context.client().gui.screen() instanceof AgencyScreen agency)) return;
+            try { agency.update(packet.view()); }
+            catch (IllegalArgumentException error) { message("첩보기관 데이터를 읽을 수 없습니다."); }
+        });
         ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.Response.TYPE, (packet, context) -> {
             try {
                 var view = packet.view();
@@ -46,8 +71,9 @@ public final class HoiClient implements ClientModInitializer {
             } catch (IllegalArgumentException e) { awaiting = 0; message("HOI 연구 화면 데이터를 읽을 수 없습니다."); }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            SidebarMovement.release(client);
             awaiting = 0;
-            if (client.gui.screen() instanceof ResearchScreen) client.gui.setScreen(null);
+            if (client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen || client.gui.screen() instanceof AgencyScreen) client.gui.setScreen(null);
         });
     }
     static void registerCommands(com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> dispatcher) {

@@ -31,13 +31,29 @@ public record ResearchLayout(List<Node> nodes, List<Integer> years, int width, i
         if (filter.isEmpty()) yearSet.addAll(TIMELINES.getOrDefault(category, List.of()));
         selected.forEach(tech -> yearSet.add(tech.year()));
         var years = List.copyOf(yearSet);
-        var rows = new HashMap<Integer,Integer>(); var nodes = new ArrayList<Node>(); int maxRow = 0;
+        // Keep prerequisite families on a stable lane instead of independently sorting each year.
+        var ids = new HashMap<String, Tech>(); selected.forEach(t -> ids.put(t.id(), t));
+        var groups = new HashMap<String, String>(); selected.forEach(t -> groups.put(t.id(), t.id()));
+        for (var tech : selected) for (var parent : tech.prerequisites()) if (ids.containsKey(parent)) {
+            String a = root(groups, tech.id()), b = root(groups, parent);
+            if (!a.equals(b)) groups.put(a.compareTo(b) > 0 ? a : b, a.compareTo(b) > 0 ? b : a);
+        }
+        var sizes = new HashMap<String, Integer>(); selected.forEach(t -> sizes.merge(root(groups, t.id()), 1, Integer::sum));
+        var lanes = new TreeMap<String, Integer>();
+        sizes.entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey).sorted().forEach(id -> lanes.put(id, lanes.size()));
+        var occupied = new HashMap<Integer, Set<Integer>>(); var nodes = new ArrayList<Node>(); int maxRow = 0;
         for (var tech : selected) {
-            int column = years.indexOf(tech.year()), row = rows.getOrDefault(column, 0);
-            rows.put(column, row + 1); maxRow = Math.max(maxRow, row + 1);
+            int column = years.indexOf(tech.year()), row = lanes.getOrDefault(root(groups, tech.id()), lanes.size());
+            var used = occupied.computeIfAbsent(column, key -> new HashSet<>());
+            while (used.contains(row)) row++;
+            used.add(row); maxRow = Math.max(maxRow, row + 1);
             nodes.add(new Node(tech, 20 + column * COLUMN, 18 + row * ROW));
         }
         return new ResearchLayout(List.copyOf(nodes), years, Math.max(1, years.size()) * COLUMN + 20, maxRow * ROW + 28);
+    }
+    private static String root(Map<String, String> groups, String id) {
+        while (!groups.get(id).equals(id)) id = groups.get(id);
+        return id;
     }
     public Node at(double x, double y) { return nodes.stream().filter(n -> n.contains(x, y)).findFirst().orElse(null); }
     public static double clampScroll(double value, int content, int viewport) { return Math.clamp(value, 0, Math.max(0, content - viewport)); }

@@ -6,6 +6,17 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ResearchLayoutTest {
+    @Test void prerequisiteFamiliesKeepTheirRowsAcrossYearColumns() {
+        var first = tech("hoi:z_first", 2000);
+        var second = new ResearchView.Tech("hoi:a_next", "INFANTRY", "후속 연구", 2006, 2, 100, 0, 1,
+                List.of(first.id()), List.of(), List.of(), ResearchView.Status.LOCKED);
+        var layout = ResearchLayout.create(List.of(first, second, tech("hoi:other", 2006)), "INFANTRY", "");
+        var firstNode = layout.nodes().stream().filter(n -> n.tech().id().equals(first.id())).findFirst().orElseThrow();
+        var secondNode = layout.nodes().stream().filter(n -> n.tech().id().equals(second.id())).findFirst().orElseThrow();
+        var otherNode = layout.nodes().stream().filter(n -> n.tech().id().equals("hoi:other")).findFirst().orElseThrow();
+        assertEquals(firstNode.y(), secondNode.y());
+        assertNotEquals(firstNode.y(), otherNode.y());
+    }
     private ResearchView.Tech tech(String id, int year) {
         return new ResearchView.Tech(id, "INFANTRY", "보병 " + id, year, 1, 100, 0, 1,
                 List.of(), List.of(), List.of(), ResearchView.Status.AVAILABLE);

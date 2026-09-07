@@ -7,13 +7,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check resource pack access
+        env:
+          PACK_TOKEN: ${{ secrets.HOI_RESOURCEPACK_TOKEN }}
+        run: test -n "$PACK_TOKEN" || { echo 'Configure HOI_RESOURCEPACK_TOKEN with read access to the private resource pack repository'; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          repository: Kyarurung/HOI-resourcepack
+          token: ${{ secrets.HOI_RESOURCEPACK_TOKEN }}
+          path: .test-resourcepack
+          persist-credentials: false
+          sparse-checkout: |
+            pack
+            scripts
+      - run: python3 .test-resourcepack/scripts/build_pack.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
-      - run: xvfb-run -a ./gradlew test runGameTest remapJar --console=plain --no-daemon
+      - run: xvfb-run -a ./gradlew test runGameTest remapJar --console=plain --no-daemon -PhoiResourcePack="$GITHUB_WORKSPACE/.test-resourcepack/build/resources.zip"
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4

@@ -14,20 +14,26 @@ import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 /** Full-screen research workbench; all strategic state is received from the authoritative server. */
-public final class ResearchScreen extends Screen {
-    private static final String[] CATEGORIES = {"INFANTRY", "SUPPORT", "ARTILLERY", "ARMOR", "NAVY", "AIR", "ENGINEERING", "INDUSTRY"};
-    private static final String[] LABELS = {"보병", "부대지원", "포병", "기갑", "해군", "공군", "공학", "산업"};
+public final class ResearchScreen extends Screen implements SidebarMovement.Screen {
+    // NAVAL_SUPPORT is an empty presentation tab until the server provides classified technologies.
+    // The authoritative research model still has its original eight categories.
+    private static final String[] CATEGORIES = {"INFANTRY", "SUPPORT", "ARMOR", "ARTILLERY", "NAVY", "NAVAL_SUPPORT", "AIR", "ENGINEERING", "INDUSTRY"};
+    private static final String[] LABELS = {"보병", "지상 & 항공 지원", "기갑", "포", "해군", "해군 지원 장비", "공군", "공학", "산업"};
     private static final int GOLD = 0xFFE6C779, TEXT = 0xFFE0E6E8, MUTED = 0xFF9BABB4;
     private ResearchView view;
     private ResearchLayout layout;
     private String category = CATEGORIES[0], query = "", detail, focusedTech;
     private int selectedSlot, slotPage, treeTop, treeBottom, panelX, panelY, panelW, panelH, detailScroll, pending;
     private double scrollX, scrollY;
-    private boolean panning;
+    private boolean panning, overview = true;
+    private final java.util.function.Consumer<ResearchProtocol.Request> requests;
     private EditBox search;
     private final List<Button> baseButtons = new ArrayList<>();
 
-    public ResearchScreen(ResearchView view) { super(Component.literal("HOI · 연구")); this.view = view; }
+    public ResearchScreen(ResearchView view) { this(view, HoiClient::send); }
+    ResearchScreen(ResearchView view, java.util.function.Consumer<ResearchProtocol.Request> requests) {
+        super(Component.literal("HOI · 연구")); this.view = view; this.requests = requests;
+    }
     public String session() { return view.session(); }
     public void update(ResearchView next) {
         if (next.revision() < view.revision()) return;
@@ -37,50 +43,53 @@ public final class ResearchScreen extends Screen {
         rebuildWidgets();
     }
     @Override protected void init() {
+        if (!overview) SidebarMovement.release(minecraft);
         clearWidgets(); baseButtons.clear();
-        int tabColumns = width >= 640 ? 8 : 4, tabWidth = (width - 20) / tabColumns;
-        for (int i = 0; i < 8; i++) {
+        if (overview) { initOverview(); return; }
+        int tabColumns = 9, tabWidth = (width - 20) / tabColumns;
+        for (int i = 0; i < CATEGORIES.length; i++) {
             final int index = i;
-            baseButtons.add(button((category.equals(CATEGORIES[i]) ? "• " : "") + LABELS[i],
-                    10 + (i % tabColumns) * tabWidth, 30 + (i / tabColumns) * 23, tabWidth - 3, 20, () -> {
+            baseButtons.add(addRenderableWidget(new ResearchTabButton(LABELS[i], CATEGORIES[i], category.equals(CATEGORIES[i]),
+                    10 + i * tabWidth, 28, tabWidth + 1, () -> {
                         category = CATEGORIES[index]; scrollX = 0; scrollY = 0; focusedTech = null; detail = null; rebuildWidgets();
-                    }));
+                    })));
         }
-        int slotY = 35 + ((8 + tabColumns - 1) / tabColumns) * 23;
-        int count = slotsPerPage(); slotPage = Math.clamp(slotPage, 0, Math.max(0, (view.slots().size() - 1) / count));
-        baseButtons.add(button("<", 10, slotY, 18, 30, () -> { slotPage = Math.max(0, slotPage - 1); rebuildWidgets(); }));
-        int slotWidth = (width - 64) / count;
-        for (int n = 0; n < count; n++) {
-            int index = slotPage * count + n;
-            if (index >= view.slots().size()) break;
-            var slot = view.slots().get(index); var tech = view.technology(slot.technology());
-            String label = (selectedSlot == index ? "• " : "") + (index + 1) + "  " + (tech == null ? "빈 슬롯" : tech.name());
-            var slotButton = button(trim(label, slotWidth - 8), 32 + n * slotWidth, slotY, slotWidth - 4, 30, () -> {
-                selectedSlot = index;
-                if (tech != null) showDetail(tech.id()); else rebuildWidgets();
-            });
-            if (tech != null) ((ResearchButton)slotButton).progress(tech.fraction());
-            slotButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(tech == null
-                    ? "빈 슬롯 · 저장된 연구 " + slot.savedDays() + "일"
-                    : tech.name() + " · " + String.format(Locale.ROOT, "%.1f%%", tech.fraction() * 100)
-                    + " · 현재 속도 기준 약 " + tech.remainingDays(slot.savedDays()) + "일")));
-            baseButtons.add(slotButton);
-        }
-        baseButtons.add(button(">", width - 28, slotY, 18, 30, () -> {
-            slotPage = Math.min((view.slots().size() - 1) / count, slotPage + 1); rebuildWidgets();
-        }));
-        search = new EditBox(font, 10, slotY + 36, Math.min(180, width - 144), 18, Component.literal("기술 검색"));
+        int controlsY = 69;
+        search = new EditBox(font, 10, controlsY, Math.min(180, width - 186), 18, Component.literal("기술 검색"));
         search.setMaxLength(80); search.setHint(Component.literal("기술 이름 / ID 검색")); search.setValue(query);
         search.setResponder(value -> { query = value; scrollX = 0; scrollY = 0; relayout(); }); addRenderableWidget(search);
-        baseButtons.add(button("처음 위치", width - 130, slotY + 36, 74, 18, () -> { scrollX = 0; scrollY = 0; clearFocus(); }));
-        baseButtons.add(button("닫기", width - 52, slotY + 36, 42, 18, this::onClose));
-        treeTop = slotY + 76; treeBottom = Math.max(treeTop + 16, height - 36);
+        baseButtons.add(button("처음 위치", width - 168, controlsY, 70, 18, () -> { scrollX = 0; scrollY = 0; clearFocus(); }));
+        baseButtons.add(button("슬롯 목록", width - 94, controlsY, 84, 18, () -> { overview = true; rebuildWidgets(); }));
+        treeTop = controlsY + 46; treeBottom = Math.max(treeTop + 16, height - 36);
         relayout();
         if (detail != null) initDetail();
     }
-    private int slotsPerPage() { return Math.max(1, Math.min(view.slots().size(), (width - 64) / 120)); }
+    private int slotsPerPage() { return 6; }
+    private int overviewWidth() { return width * 3 / 10; }
+    private int slotPitch() { return Math.min(54, Math.max(17, (height - 119) / slotsPerPage())); }
+    private int bannerHeight() { return Math.max(28, height - 91 - slotsPerPage() * slotPitch()); }
+    private int slotsTop() { return 60 + bannerHeight(); }
+    private void initOverview() {
+        int pane = overviewWidth(), count = slotsPerPage();
+        slotPage = Math.clamp(slotPage, 0, (view.slots().size() - 1) / count);
+        button("×", pane - 28, 7, 20, 20, this::onClose);
+        for (int n = 0; n < count; n++) {
+            int index = slotPage * count + n;
+            if (index >= view.slots().size()) break;
+            var slot = view.slots().get(index); var technology = view.technology(slot.technology());
+            addRenderableWidget(new ResearchSlotButton(slot, technology, 6, slotsTop() + n * slotPitch(), pane - 12, slotPitch() - 4, () -> {
+                selectedSlot = index; overview = false; scrollX = 0; scrollY = 0; focusedTech = null;
+                if (technology != null) { category = technology.category(); showDetail(technology.id()); }
+                else rebuildWidgets();
+            }));
+        }
+        var previous = button("<", 10, height - 27, 25, 18, () -> { slotPage--; rebuildWidgets(); });
+        previous.active = slotPage > 0;
+        var next = button(">", pane - 35, height - 27, 25, 18, () -> { slotPage++; rebuildWidgets(); });
+        next.active = (slotPage + 1) * count < view.slots().size();
+    }
     private void relayout() {
-        layout = ResearchLayout.create(view.technologies(), category, query); clampScroll();
+        layout = ResearchPresentation.apply(ResearchLayout.create(view.technologies(), category, query), minecraft.getResourceManager(), width - 20); clampScroll();
     }
     private void clampScroll() {
         scrollX = ResearchLayout.clampScroll(scrollX, layout.width(), width - 20);
@@ -93,20 +102,20 @@ public final class ResearchScreen extends Screen {
     private void initDetail() {
         baseButtons.forEach(b -> { b.active = false; b.visible = false; }); search.setVisible(false);
         panelW = Math.min(366, width - 24); panelH = Math.min(350, height - 20);
-        panelX = (width - panelW) / 2; panelY = (height - panelH) / 2;
+        panelX = Math.min(Math.max(12, width / 5), width - panelW - 12); panelY = Math.min(74, (height - panelH) / 2);
         var tech = view.technology(detail);
         button("×", panelX + panelW - 28, panelY + 8, 20, 20, () -> { detail = null; rebuildWidgets(); });
-        button("슬롯 " + (selectedSlot + 1) + " ▸", panelX + 12, panelY + panelH - 52, panelW - 24, 18, () -> {
+        button("슬롯 " + (selectedSlot + 1) + " ▸", panelX + 12, panelY + panelH - 28, panelW - 24, 18, () -> {
             selectedSlot = (selectedSlot + 1) % view.slots().size(); rebuildWidgets();
         });
         var activeSlot = view.slots().stream().filter(s -> s.technology().equals(detail)).findFirst();
-        String action = tech.status() == ResearchView.Status.ACTIVE ? "연구 중단 · 진행도 보존"
+        String action = tech.status() == ResearchView.Status.ACTIVE ? "연구 중단"
                 : tech.status() == ResearchView.Status.COMPLETED ? "연구 완료"
                 : tech.status() == ResearchView.Status.LOCKED ? "선행 연구 필요"
-                : view.slots().get(selectedSlot).technology().isEmpty() ? "선택 슬롯에서 연구 시작" : "빈 연구 슬롯을 선택하세요";
-        var start = button(pending > 0 ? "서버 응답 대기…" : action, panelX + 12, panelY + panelH - 29, panelW - 24, 20, () -> {
+                : view.slots().get(selectedSlot).technology().isEmpty() ? "연구" : "빈 슬롯 필요";
+        var start = button(pending > 0 ? "응답 대기…" : action, panelX + panelW - 104, panelY + 37, 90, 22, () -> {
             pending = 100;
-            HoiClient.send(new ResearchProtocol.Request(activeSlot.isPresent() ? ResearchProtocol.Action.CANCEL : ResearchProtocol.Action.START,
+            requests.accept(new ResearchProtocol.Request(activeSlot.isPresent() ? ResearchProtocol.Action.CANCEL : ResearchProtocol.Action.START,
                     view.session(), view.revision(), activeSlot.map(ResearchView.Slot::index).orElse(selectedSlot), detail));
             rebuildWidgets();
         });
@@ -115,7 +124,8 @@ public final class ResearchScreen extends Screen {
     }
     @Override public void tick() { if (pending > 0 && --pending == 0) rebuildWidgets(); }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-        g.fillGradient(0, 0, width, height, 0xFF19232A, 0xFF0B1116);
+        if (overview) { drawOverview(g); super.extractRenderState(g, mouseX, mouseY, delta); return; }
+        g.fillGradient(0, 0, width, height, 0xFF1B201E, 0xFF060909);
         g.fill(0, 0, width, 26, 0xFF0A1015); g.horizontalLine(10, width - 10, 26, 0xFF756745);
         g.text(font, "HOI  /  연구", 12, 10, GOLD);
         var title = Component.literal(view.countryName()).append(dev.hoi.protocol.CampaignStyle.separator())
@@ -123,7 +133,8 @@ public final class ResearchScreen extends Screen {
         g.enableScissor(118, 0, width - 8, 25);
         g.text(font, title, 118, 10, TEXT);
         g.disableScissor();
-        g.fill(10, treeTop - 21, width - 10, treeBottom, 0xFF101A21);
+        g.fill(10, 63, width - 10, treeBottom, 0xFF101A21);
+        g.outline(10, 63, width - 20, treeBottom - 63, 0xFF778178);
         drawTree(g, mouseX, mouseY);
         g.text(font, "완료", 12, height - 24, color(ResearchView.Status.COMPLETED));
         g.text(font, "가능", 44, height - 24, color(ResearchView.Status.AVAILABLE));
@@ -132,6 +143,20 @@ public final class ResearchScreen extends Screen {
         g.text(font, trim(view.message().isEmpty() ? "휠: 세로  ·  가로 휠/우클릭 드래그: 이동  ·  방향키/Enter: 기술 선택" : view.message(), width - 24), 12, height - 12, MUTED);
         if (detail != null) drawDetail(g);
         super.extractRenderState(g, mouseX, mouseY, delta);
+    }
+    private void drawOverview(GuiGraphicsExtractor g) {
+        int pane = overviewWidth();
+        g.fillGradient(0, 0, pane, height, 0xFF242930, 0xFF0C0F13);
+        g.outline(0, 0, pane, height, 0xFF657078);
+        g.text(font, "연구", 12, 13, TEXT);
+        g.horizontalLine(8, pane - 8, 33, 0xFF657078);
+        g.fillGradient(6, 39, pane - 6, 39 + bannerHeight(), 0xFF4E315E, 0xFF172731);
+        if (!UiAssets.cover(g, "panel/research_banner", 6, 39, pane - 12, bannerHeight())) {
+            ResearchIcons.fallback(g, "ENGINEERING", pane / 2 - 10, 39 + bannerHeight() / 2 - 8, 0xFFBB98CD, 2);
+        }
+        g.outline(6, 39, pane - 12, bannerHeight(), 0xFFA070B5);
+        g.text(font, trim("연구 슬롯 " + view.slots().size() + "개", pane - 12), 6, slotsTop() - 13, MUTED);
+        g.centeredText(font, (slotPage + 1) + " / " + ((view.slots().size() - 1) / slotsPerPage() + 1), pane / 2, height - 22, MUTED);
     }
     private void drawTree(GuiGraphicsExtractor g, int mx, int my) {
         g.enableScissor(10, treeTop - 21, width - 10, treeTop - 1);
@@ -143,7 +168,7 @@ public final class ResearchScreen extends Screen {
         g.enableScissor(10, treeTop, width - 10, treeBottom);
         for (int i = 0; i <= layout.years().size(); i++) {
             int x = (int)(20 + i * ResearchLayout.COLUMN - scrollX);
-            g.verticalLine(x, treeTop, treeBottom, 0xFF24333E);
+            g.verticalLine(x, treeTop, treeBottom, 0xFF1C2421);
         }
         var byId = new HashMap<String,ResearchLayout.Node>(); layout.nodes().forEach(n -> byId.put(n.tech().id(), n));
         for (var node : layout.nodes()) for (var parentId : node.tech().prerequisites()) {
@@ -164,12 +189,11 @@ public final class ResearchScreen extends Screen {
             if (hover) hovered = n;
             g.fill(x, y, x + ResearchLayout.CARD_WIDTH, y + ResearchLayout.CARD_HEIGHT, hover ? 0xFF2B3C49 : 0xFF1B2933);
             g.outline(x, y, ResearchLayout.CARD_WIDTH, ResearchLayout.CARD_HEIGHT, focusedTech != null && focusedTech.equals(tech.id()) ? TEXT : color(tech.status()));
-            ResearchIcons.draw(g, tech.category(), x + 8, y + 8, color(tech.status()));
-            g.text(font, trim(tech.name(), 111), x + 32, y + 9, TEXT);
-            g.text(font, status(tech.status()) + " · " + tech.year(), x + 32, y + 23, color(tech.status()));
-            g.fill(x + 8, y + 41, x + 144, y + 45, 0xFF0D151A);
-            g.fill(x + 8, y + 41, x + 8 + (int)(136 * tech.fraction()), y + 45, color(tech.status()));
-            g.text(font, tech.status() == ResearchView.Status.COMPLETED ? "100%" : "기본 " + tech.baseDays() + "일", x + 8, y + 48, MUTED);
+            UiAssets.technology(g, tech, x + 24, y + 4, ResearchLayout.CARD_WIDTH - 48, 32, color(tech.status()));
+            g.fill(x + 2, y + 38, x + ResearchLayout.CARD_WIDTH - 2, y + 53, 0xFF101713);
+            g.centeredText(font, trim(tech.name(), ResearchLayout.CARD_WIDTH - 12), x + ResearchLayout.CARD_WIDTH / 2, y + 41, TEXT);
+            g.fill(x + 2, y + 54, x + ResearchLayout.CARD_WIDTH - 2, y + 57, 0xFF0D151A);
+            g.fill(x + 2, y + 54, x + 2 + (int)((ResearchLayout.CARD_WIDTH - 4) * tech.fraction()), y + 57, color(tech.status()));
         }
         if (layout.nodes().isEmpty()) g.text(font, "이 분야에 표시할 기술이 없습니다.", 28, treeTop + 28, MUTED);
         g.disableScissor();
@@ -191,47 +215,61 @@ public final class ResearchScreen extends Screen {
     }
     private void drawDetail(GuiGraphicsExtractor g) {
         g.nextStratum(); g.fill(0, 0, width, height, 0xB0000000);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xFF17242E);
-        g.outline(panelX, panelY, panelW, panelH, GOLD);
+        g.fillGradient(panelX, panelY, panelX + panelW, panelY + panelH, 0xFF343B43, 0xFF101416);
+        g.outline(panelX, panelY, panelW, panelH, 0xFF82909B);
         var tech = view.technology(detail);
-        ResearchIcons.draw(g, tech.category(), panelX + 12, panelY + 12, GOLD);
-        g.text(font, trim(tech.name(), panelW - 74), panelX + 34, panelY + 15, GOLD);
-        int contentHeight = panelH - 92;
+        if (panelY >= 26) {
+            int tabX = panelX + 10, tabY = panelY - 25;
+            g.fillGradient(tabX, tabY, tabX + 59, panelY + 2, 0xFF4D555B, 0xFF343B43);
+            g.horizontalLine(tabX, tabX + 58, tabY, 0xFF82909B);
+            g.verticalLine(tabX, tabY, panelY, 0xFF82909B);
+            g.verticalLine(tabX + 58, tabY, panelY, 0xFF82909B);
+            UiAssets.draw(g, "tabs/" + tech.category().toLowerCase(Locale.ROOT), tabX + 4, tabY + 1, 51, 24);
+        }
+        g.centeredText(font, trim(tech.name(), panelW - 70), panelX + panelW / 2 - 10, panelY + 14, TEXT);
+        g.horizontalLine(panelX + 8, panelX + panelW - 8, panelY + 30, 0xFF657078);
+        UiAssets.technology(g, tech, panelX + 12, panelY + 39, 52, 37, GOLD);
+        g.fill(panelX + 70, panelY + 37, panelX + panelW - 110, panelY + 59, 0xFF0C1014);
+        int bank = view.slots().stream().filter(slot -> slot.technology().equals(tech.id())).findFirst()
+                .map(ResearchView.Slot::savedDays).orElse(view.slots().get(selectedSlot).savedDays());
+        g.centeredText(font, tech.remainingDays(bank) + "일", panelX + (70 + panelW - 110) / 2, panelY + 44, GOLD);
+        g.text(font, status(tech.status()) + " · " + tech.year() + "년", panelX + 70, panelY + 65, MUTED);
+        int contentHeight = panelH - 126;
         var lines = detailLines(tech);
         var wrapped = new ArrayList<net.minecraft.util.FormattedCharSequence>();
         for (var line : lines) wrapped.addAll(font.split(Component.literal(line), panelW - 30));
         detailScroll = Math.clamp(detailScroll, 0, Math.max(0, wrapped.size() * 13 - contentHeight));
-        g.enableScissor(panelX + 10, panelY + 35, panelX + panelW - 10, panelY + panelH - 58);
-        int y = panelY + 38 - detailScroll;
+        g.enableScissor(panelX + 10, panelY + 88, panelX + panelW - 10, panelY + panelH - 38);
+        int y = panelY + 88 - detailScroll;
         for (var line : wrapped) { g.text(font, line, panelX + 14, y, TEXT); y += 13; }
         g.disableScissor();
         if (wrapped.size() * 13 > contentHeight) {
             int thumb = Math.max(10, contentHeight * contentHeight / (wrapped.size() * 13));
             int pos = detailScroll * (contentHeight - thumb) / Math.max(1, wrapped.size() * 13 - contentHeight);
-            g.fill(panelX + panelW - 7, panelY + 35 + pos, panelX + panelW - 4, panelY + 35 + pos + thumb, GOLD);
+            g.fill(panelX + panelW - 7, panelY + 88 + pos, panelX + panelW - 4, panelY + 88 + pos + thumb, GOLD);
         }
     }
     private List<String> detailLines(Tech tech) {
         var result = new ArrayList<String>();
-        result.add(status(tech.status()) + "  |  " + tech.year() + "년  |  " + tech.tier() + "단계");
+        result.add("연구 대상 정보 · " + tech.tier() + "단계");
         result.add(String.format(Locale.ROOT, "진행도 %.1f%%  ·  기본 연구 기간 %d일", tech.fraction() * 100, tech.baseDays()));
         int bank = tech.status() == ResearchView.Status.ACTIVE ? view.slots().stream().filter(s -> s.technology().equals(tech.id())).findFirst().map(ResearchView.Slot::savedDays).orElse(0)
                 : view.slots().get(selectedSlot).savedDays();
         result.add("현재 속도 기준 남은 기간: 약 " + tech.remainingDays(bank) + "일");
         result.add(String.format(Locale.ROOT, "하루 진행량 %.2f · 선택 슬롯 저장 %d일", tech.dailyRate(), bank));
         result.add("시간 경과·연구 보정 변경에 따라 예상 기간이 달라집니다.");
+        result.add(" "); result.add("업그레이드 · 연구 효과"); result.addAll(tech.effects().isEmpty() ? List.of("등록된 국가 보정 없음") : tech.effects());
+        result.add(" "); result.add("해금 장비"); result.addAll(tech.unlocks().isEmpty() ? List.of("없음") : tech.unlocks());
         result.add(" "); result.add("선행 연구");
         if (tech.prerequisites().isEmpty()) result.add("없음");
         for (String id : tech.prerequisites()) {
             var prerequisite = view.technology(id);
             result.add((prerequisite != null && prerequisite.status() == ResearchView.Status.COMPLETED ? "✓ " : "○ ") + (prerequisite == null ? id : prerequisite.name()));
         }
-        result.add(" "); result.add("연구 효과"); result.addAll(tech.effects().isEmpty() ? List.of("등록된 국가 보정 없음") : tech.effects());
-        result.add(" "); result.add("해금 장비"); result.addAll(tech.unlocks().isEmpty() ? List.of("없음") : tech.unlocks());
         result.add(" "); result.add(tech.id());
         return result;
     }
-    private boolean insideTree(double x, double y) { return x >= 10 && x < width - 10 && y >= treeTop && y < treeBottom; }
+    private boolean insideTree(double x, double y) { return !overview && x >= 10 && x < width - 10 && y >= treeTop && y < treeBottom; }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
         if (detail == null && insideTree(event.x(), event.y())) {
             clearFocus();
@@ -255,20 +293,27 @@ public final class ResearchScreen extends Screen {
         return super.mouseScrolled(x, y, horizontal, vertical);
     }
     @Override public boolean keyPressed(KeyEvent event) {
+        if (allowsMovement() && SidebarMovement.consumes(minecraft, event)) return true;
         if (event.key() == GLFW.GLFW_KEY_ESCAPE && detail != null) { detail = null; rebuildWidgets(); return true; }
-        if (detail == null && getFocused() == null && !layout.nodes().isEmpty()) {
+        if (event.key() == GLFW.GLFW_KEY_ESCAPE && !overview) { overview = true; rebuildWidgets(); return true; }
+        if (!overview && detail == null && getFocused() == null && !layout.nodes().isEmpty()) {
             int index = 0;
             for (int i = 0; i < layout.nodes().size(); i++) if (layout.nodes().get(i).tech().id().equals(focusedTech)) index = i;
             if (event.key() == GLFW.GLFW_KEY_ENTER && focusedTech != null) { showDetail(focusedTech); return true; }
             if (event.key() >= GLFW.GLFW_KEY_RIGHT && event.key() <= GLFW.GLFW_KEY_UP) {
-                index = Math.floorMod(index + (event.key() == GLFW.GLFW_KEY_LEFT || event.key() == GLFW.GLFW_KEY_UP ? -1 : 1), layout.nodes().size());
+                if (focusedTech != null) index = Math.floorMod(index + (event.key() == GLFW.GLFW_KEY_LEFT || event.key() == GLFW.GLFW_KEY_UP ? -1 : 1), layout.nodes().size());
                 var node = layout.nodes().get(index); focusedTech = node.tech().id();
                 scrollX = node.x() - 20; scrollY = node.y() - 18; clampScroll(); return true;
             }
         }
         return super.keyPressed(event);
     }
-    @Override public void removed() { HoiClient.send(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, "")); }
+    @Override public boolean keyReleased(KeyEvent event) {
+        if (allowsMovement() && SidebarMovement.consumes(minecraft, event)) return true;
+        return super.keyReleased(event);
+    }
+    @Override public boolean allowsMovement() { return overview && detail == null; }
+    @Override public void removed() { SidebarMovement.release(minecraft); requests.accept(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, "")); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private String trim(String value, int max) { return font.width(value) <= max ? value : font.plainSubstrByWidth(value, Math.max(1, max - font.width("…"))) + "…"; }

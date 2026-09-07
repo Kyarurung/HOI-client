@@ -19,3 +19,10 @@ fabricApi {
         enableClientGameTests = true
     }
 }
+// Assets are supplied externally; never add them to main resources or the published JAR.
+tasks.withType(JavaExec).configureEach {
+    if (name == 'runClientGameTest') {
+        def pack = providers.gradleProperty('hoiResourcePack').orElse(rootProject.file('../HOI-resourcepack/build/resources.zip').absolutePath)
+        systemProperty 'hoi.testResourcePack', pack.get()
+    }
+}

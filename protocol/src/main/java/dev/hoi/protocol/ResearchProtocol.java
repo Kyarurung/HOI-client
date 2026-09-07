@@ -43,6 +43,11 @@ public final class ResearchProtocol {
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE, Response.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(OpenScreen.TYPE, OpenScreen.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(MenuProtocol.OpenScreen.TYPE, MenuProtocol.OpenScreen.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(MenuProtocol.Refresh.TYPE, MenuProtocol.Refresh.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(MenuProtocol.Update.TYPE, MenuProtocol.Update.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(AgencyProtocol.Request.TYPE, AgencyProtocol.Request.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(AgencyProtocol.Response.TYPE, AgencyProtocol.Response.CODEC);
         registered = true;
     }
 }

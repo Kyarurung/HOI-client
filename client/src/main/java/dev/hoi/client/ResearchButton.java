@@ -6,7 +6,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 
 /** Flat strategy controls with vanilla focus, activation, sounds and narration behavior. */
-final class ResearchButton extends Button {
+class ResearchButton extends Button {
     private double progress = -1;
     ResearchButton(String label, int x, int y, int width, int height, Runnable action) {
         super(x, y, width, height, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
