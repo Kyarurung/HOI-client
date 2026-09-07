@@ -126,6 +126,18 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                         "Six-slot capacity still fits at compact resolution");
             });
             context.takeScreenshot("hoi-research-six-slot-capacity");
+            context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
+            var source = view.technologies().getFirst();
+            var active = new ResearchView.Tech(source.id(), source.category(), source.name(), source.year(), source.tier(),
+                    source.baseDays(), 30, source.dailyRate(), source.prerequisites(), source.effects(), source.unlocks(), ResearchView.Status.ACTIVE);
+            var centered = new ResearchView(view.session(), view.revision() + 1, view.country(), view.countryName(), view.day(), view.date(), view.speed(),
+                    java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ResearchView.Slot(i, i == 0 ? active.id() : "", 12)).toList(), List.of(active), "");
+            context.setScreen(() -> new ResearchScreen(centered, requests::add)); context.waitTicks(2);
+            context.takeScreenshot("hoi-research-centered-image");
+            context.runOnClient(client -> check(active.remainingDays(centered.slots().getFirst().savedDays()) == 58,
+                    "Hidden saved-day text does not change remaining-time calculation"));
+            context.getInput().resizeWindow(854, 480); context.waitTicks(2);
+            context.takeScreenshot("hoi-research-centered-image-compact");
             context.setScreen(() -> null);
         }
     }

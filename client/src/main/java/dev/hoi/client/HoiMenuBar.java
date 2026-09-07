@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 
 /** Shared navigation only: country statistics and campaign clock belong to their own views. */
 final class HoiMenuBar {
-    private static final int GOLD = 0xFFE6C779, TEXT = 0xFFE0E3DD;
+    private static final int GOLD = 0xFFE6C779;
 
     private HoiMenuBar() {}
 
@@ -25,17 +25,17 @@ final class HoiMenuBar {
     static List<TabButton> buttons(int width, String country, MenuTab selected, Consumer<MenuTab> select) {
         int tabWidth = Math.min(78, (width - 12) / MenuTab.ORDER.size());
         return MenuTab.ORDER.stream().map(tab -> new TabButton(tab, country, selected == tab,
-                6 + tab.ordinal() * tabWidth, tabWidth - 3, width >= 600, () -> select.accept(tab))).toList();
+                6 + tab.ordinal() * tabWidth, tabWidth - 3, height(width) - 6, () -> select.accept(tab))).toList();
     }
 
     static final class TabButton extends Button {
         private final MenuTab tab;
         private final String country;
-        private final boolean selected, labels;
+        private final boolean selected;
 
-        private TabButton(MenuTab tab, String country, boolean selected, int x, int width, boolean labels, Runnable action) {
-            super(x, 3, width, labels ? 36 : 26, Component.literal(tab.label() + " 메뉴"), b -> action.run(), DEFAULT_NARRATION);
-            this.tab = tab; this.country = country; this.selected = selected; this.labels = labels;
+        private TabButton(MenuTab tab, String country, boolean selected, int x, int width, int height, Runnable action) {
+            super(x, 3, width, height, Component.literal(tab.label() + " 메뉴"), b -> action.run(), DEFAULT_NARRATION);
+            this.tab = tab; this.country = country; this.selected = selected;
             setTooltip(Tooltip.create(Component.literal(tab.label())));
         }
 
@@ -46,14 +46,9 @@ final class HoiMenuBar {
             g.outline(x, y, w, h, isHoveredOrFocused() || selected ? GOLD : 0xFF596052);
             String texture = tab == MenuTab.POLITICS && !country.isEmpty()
                     ? "country/" + country.toLowerCase(Locale.ROOT) + "/flag" : "menu/" + tab.id();
-            int iconWidth = Math.min(30, w - 4);
-            if (!UiAssets.draw(g, texture, x + (w - iconWidth) / 2, y + (labels ? 2 : 3), iconWidth, 20))
-                g.centeredText(font, "◇", x + w / 2, y + 5, GOLD);
-            if (labels) {
-                String label = tab.label();
-                if (font.width(label) > w - 6) label = font.plainSubstrByWidth(label, Math.max(1, w - 15)) + "…";
-                g.centeredText(font, label, x + w / 2, y + 25, TEXT);
-            }
+            int iconWidth = Math.min(54, w - 8);
+            if (!UiAssets.draw(g, texture, x + (w - iconWidth) / 2, y + 3, iconWidth, h - 6))
+                g.centeredText(font, "◇", x + w / 2, y + (h - 8) / 2, GOLD);
         }
     }
 }
