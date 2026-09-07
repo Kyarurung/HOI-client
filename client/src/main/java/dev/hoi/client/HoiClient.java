@@ -1,0 +1,66 @@
+package dev.hoi.client;
+
+import com.mojang.blaze3d.platform.InputConstants;
+import dev.hoi.protocol.ResearchProtocol;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+
+public final class HoiClient implements ClientModInitializer {
+    private static int awaiting;
+    @Override public void onInitializeClient() {
+        ResearchProtocol.registerPayloadTypes();
+        var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("hoi", "strategy"));
+        var key = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.hoi.research", InputConstants.Type.KEYSYM, InputConstants.KEY_R, category));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (awaiting > 0 && --awaiting == 0) message("연구 화면 응답이 없습니다. 다시 열어주세요.");
+            while (key.consumeClick()) if (client.player != null && client.gui.screen() == null) open();
+        });
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> dispatcher.register(
+                ClientCommands.literal("hoi").then(ClientCommands.literal("research").executes(context -> { open(); return 1; }))));
+        ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.Response.TYPE, (packet, context) -> {
+            try {
+                var view = packet.view();
+                var current = context.client().gui.screen();
+                if (view.country().isEmpty()) {
+                    awaiting = 0;
+                    if (current instanceof ResearchScreen) context.client().gui.setScreen(null);
+                    message(view.message());
+                } else if (awaiting > 0) {
+                    awaiting = 0;
+                    context.client().gui.setScreen(new ResearchScreen(view));
+                } else if (current instanceof ResearchScreen screen && screen.session().equals(view.session())) {
+                    screen.update(view);
+                } else {
+                    // A response may arrive after Esc, disconnect or another screen supersedes the request.
+                    send(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, ""));
+                }
+            } catch (IllegalArgumentException e) { awaiting = 0; message("HOI 연구 화면 데이터를 읽을 수 없습니다."); }
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            awaiting = 0;
+            if (client.gui.screen() instanceof ResearchScreen) client.gui.setScreen(null);
+        });
+    }
+    public static void open() {
+        if (awaiting > 0 || Minecraft.getInstance().gui.screen() instanceof ResearchScreen) return;
+        if (!ClientPlayNetworking.canSend(ResearchProtocol.Request.TYPE)) { message("이 서버는 HOI 연구 UI를 지원하지 않습니다."); return; }
+        awaiting = 100;
+        send(new ResearchProtocol.Request(ResearchProtocol.Action.OPEN, "", 0, -1, ""));
+    }
+    static void send(ResearchProtocol.Request request) {
+        if (Minecraft.getInstance().getConnection() != null && ClientPlayNetworking.canSend(ResearchProtocol.Request.TYPE)) ClientPlayNetworking.send(request);
+    }
+    private static void message(String text) {
+        var player = Minecraft.getInstance().player;
+        if (player != null) player.sendSystemMessage(Component.literal(text));
+    }
+}

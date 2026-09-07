@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "hoi_protocol",
+  "version": "${version}",
+  "name": "HOI Research Protocol",
+  "environment": "*",
+  "depends": {"fabricloader": ">=0.19.5", "minecraft": "26.2", "java": ">=25", "fabric-api": "*"}
+}

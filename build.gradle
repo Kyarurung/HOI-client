@@ -1,0 +1,43 @@
+plugins { id 'base' }
+allprojects {
+    group = rootProject.maven_group
+    version = rootProject.mod_version
+    repositories { mavenCentral() }
+}
+subprojects {
+    apply plugin: 'java-library'
+    java {
+        toolchain.languageVersion = JavaLanguageVersion.of(25)
+        withSourcesJar()
+    }
+    tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+    tasks.withType(Test).configureEach { useJUnitPlatform() }
+    dependencies {
+        testImplementation platform('org.junit:junit-bom:5.14.0')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+    tasks.withType(AbstractArchiveTask).configureEach {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
+}
+
+
+tasks.register('test') {
+    group = 'verification'
+    dependsOn ':protocol:test', ':client:test'
+}
+tasks.register('runGameTest') {
+    group = 'verification'
+    description = 'Runs research UI tests on the actual Minecraft client.'
+    dependsOn ':client:runClientGameTest'
+}
+tasks.register('remapJar', Copy) {
+    group = 'build'
+    description = 'Stages only the client mod; Minecraft 26.2 is unobfuscated.'
+    dependsOn ':client:jar'
+    from project(':client').tasks.named('jar', Jar).flatMap { it.archiveFile }
+    into layout.buildDirectory.dir('libs')
+}
+tasks.named('assemble') { dependsOn tasks.named('remapJar') }

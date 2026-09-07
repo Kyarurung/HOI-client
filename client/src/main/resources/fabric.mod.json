@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "hoi_client",
+  "version": "${version}",
+  "name": "HOI Client",
+  "description": "Dedicated HOI research tree and country research slots",
+  "environment": "client",
+  "entrypoints": {"client": ["dev.hoi.client.HoiClient"]},
+  "depends": {"fabricloader": ">=0.19.5", "minecraft": "26.2", "java": ">=25", "fabric-api": "*", "hoi_protocol": "${version}"}
+}
