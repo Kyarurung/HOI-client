@@ -13,6 +13,12 @@ public final class ResearchProtocol {
     private ResearchProtocol() {}
     public static final int MAX_JSON = 200_000;
     public enum Action { OPEN, START, CANCEL, CLOSE }
+    /** Server command asks the client to use the normal authenticated OPEN request. */
+    public record OpenScreen() implements CustomPacketPayload {
+        public static final Type<OpenScreen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "research_open_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, OpenScreen> CODEC = StreamCodec.unit(new OpenScreen());
+        @Override public Type<OpenScreen> type() { return TYPE; }
+    }
     public record Request(Action action, String session, long revision, int slot, String technology) implements CustomPacketPayload {
         public static final Type<Request> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "research_request_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Request> CODEC = StreamCodec.of(
@@ -36,6 +42,7 @@ public final class ResearchProtocol {
         if (registered) return;
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE, Response.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(OpenScreen.TYPE, OpenScreen.CODEC);
         registered = true;
     }
 }

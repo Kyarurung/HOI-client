@@ -118,8 +118,11 @@ public final class ResearchScreen extends Screen {
         g.fillGradient(0, 0, width, height, 0xFF19232A, 0xFF0B1116);
         g.fill(0, 0, width, 26, 0xFF0A1015); g.horizontalLine(10, width - 10, 26, 0xFF756745);
         g.text(font, "HOI  /  연구", 12, 10, GOLD);
-        String title = view.countryName() + "  ·  " + view.date() + "  ·  " + view.speed();
-        g.text(font, trim(title, width - 126), 118, 10, TEXT);
+        var title = Component.literal(view.countryName()).append(dev.hoi.protocol.CampaignStyle.separator())
+                .append(dev.hoi.protocol.CampaignStyle.clock(view.date(), view.speed()));
+        g.enableScissor(118, 0, width - 8, 25);
+        g.text(font, title, 118, 10, TEXT);
+        g.disableScissor();
         g.fill(10, treeTop - 21, width - 10, treeBottom, 0xFF101A21);
         drawTree(g, mouseX, mouseY);
         g.text(font, "완료", 12, height - 24, color(ResearchView.Status.COMPLETED));

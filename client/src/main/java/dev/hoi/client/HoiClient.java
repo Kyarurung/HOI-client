@@ -24,8 +24,8 @@ public final class HoiClient implements ClientModInitializer {
             if (awaiting > 0 && --awaiting == 0) message("연구 화면 응답이 없습니다. 다시 열어주세요.");
             while (key.consumeClick()) if (client.player != null && client.gui.screen() == null) open();
         });
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> dispatcher.register(
-                ClientCommands.literal("hoi").then(ClientCommands.literal("research").executes(context -> { open(); return 1; }))));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> registerCommands(dispatcher));
+        ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.OpenScreen.TYPE, (packet, context) -> open());
         ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.Response.TYPE, (packet, context) -> {
             try {
                 var view = packet.view();
@@ -49,6 +49,10 @@ public final class HoiClient implements ClientModInitializer {
             awaiting = 0;
             if (client.gui.screen() instanceof ResearchScreen) client.gui.setScreen(null);
         });
+    }
+    static void registerCommands(com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> dispatcher) {
+        // A client root shadows ALL server subcommands. Keep /hoi exclusively server-owned.
+        dispatcher.register(ClientCommands.literal("hoi-research").executes(context -> { open(); return 1; }));
     }
     public static void open() {
         if (awaiting > 0 || Minecraft.getInstance().gui.screen() instanceof ResearchScreen) return;

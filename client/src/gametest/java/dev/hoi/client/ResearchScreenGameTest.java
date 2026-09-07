@@ -12,6 +12,10 @@ import java.util.*;
 public final class ResearchScreenGameTest implements FabricClientGameTest {
     @Override public void runTest(ClientGameTestContext context) {
         context.runOnClient(client -> {
+            var dispatcher = new com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>();
+            HoiClient.registerCommands(dispatcher);
+            if (dispatcher.getRoot().getChild("hoi") != null) throw new AssertionError("Client must not shadow /hoi start, /hoi map or /hoi stop");
+            if (dispatcher.getRoot().getChild("hoi-research") == null) throw new AssertionError("Research shortcut is registered separately");
             dev.hoi.protocol.ResearchProtocol.registerPayloadTypes();
             dev.hoi.protocol.ResearchProtocol.registerPayloadTypes();
         });
@@ -30,7 +34,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 "hoi:test/armor_" + i, "ARMOR", "기갑 연구 " + (i + 1), armorYears[i], 1, 180, 0, 1,
                 i == 0 ? List.of() : List.of("hoi:test/armor_" + (i - 1)), List.of(), List.of(),
                 ResearchView.Status.AVAILABLE));
-        var view = new ResearchView("ui-test", 1, "KOR", "대한민국", 72, "2020-03-13", "X1",
+        var view = new ResearchView("ui-test", 1, "KOR", "대한민국", 72, "2020년 3월 13일 01시", "X1",
                 List.of(new ResearchView.Slot(0, "", 12), new ResearchView.Slot(1, "hoi:test/infantry_2", 0),
                         new ResearchView.Slot(2, "", 0)), technologies, "UI 검증용 데이터");
         context.getInput().resizeWindow(1600, 1000);
