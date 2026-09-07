@@ -1,6 +1,5 @@
 package dev.hoi.client;
 
-import dev.hoi.protocol.CampaignStyle;
 import dev.hoi.protocol.MenuTab;
 import dev.hoi.protocol.MenuView;
 import dev.hoi.protocol.MenuProtocol;
@@ -18,6 +17,7 @@ import java.util.*;
 public final class HoiMenuScreen extends Screen implements SidebarMovement.Screen {
     private static final int TEXT = 0xFFE0E3DD, GOLD = 0xFFE6C779, MUTED = 0xFF9AABA8;
     private MenuView view;
+    private final Runnable researchOpen;
     private final String token = UUID.randomUUID().toString();
     private int refreshTicks;
     private MenuTab selected = MenuTab.POLITICS;
@@ -28,11 +28,16 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     private static final String[] COUNTRY_TABS = {"국가", "민간", "육군", "해군", "공군"};
     private static final String[] COUNTRY_ICONS = {"politics", "civilian", "army", "navy", "air"};
 
-    public HoiMenuScreen(MenuView view) { super(Component.literal("HOI · 국가 메뉴")); this.view = view; }
+    public HoiMenuScreen(MenuView view) { this(view, MenuTab.POLITICS, HoiClient::open); }
+    HoiMenuScreen(MenuTab selected) { this(null, selected, HoiClient::open); }
+    HoiMenuScreen(MenuView view, MenuTab selected, Runnable researchOpen) {
+        super(Component.literal("HOI · 국가 메뉴"));
+        this.view = view; this.selected = selected; this.researchOpen = researchOpen;
+    }
     String token() { return token; }
     public void update(MenuView next) {
-        if (view.equals(next)) return;
-        if (!view.country().equals(next.country())) { selected = MenuTab.POLITICS; collapsed.clear(); }
+        if (next.equals(view)) return;
+        if (view != null && !view.country().equals(next.country())) { selected = MenuTab.POLITICS; collapsed.clear(); }
         if (detail != null) {
             var old = detail;
             detail = next.page(selected).sections().stream().filter(s -> s.icon().equals(detailIcon))
@@ -46,30 +51,14 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     @Override protected void init() {
         pane = selected == MenuTab.POLITICS || selected == MenuTab.RECRUITMENT ? width * 4 / 10
                 : selected == MenuTab.TRADE ? width * 35 / 100 : width * 3 / 10;
-        int columns = width >= 600 ? 10 : 5;
-        int tabWidth = Math.min(78, (width - 12) / columns);
-        top = 22 + ((10 + columns - 1) / columns) * 39;
-        for (var tab : MenuTab.ORDER) {
-            int index = tab.ordinal();
-            var button = new Button(6 + index % columns * tabWidth, 21 + index / columns * 39, tabWidth - 3, 36,
-                    Component.literal(tab.label()), b -> {
-                        if (tab == MenuTab.RESEARCH) { HoiClient.open(); return; }
-                        selected = tab; scroll = 0; collapsed.clear(); detail = null; rebuildWidgets();
-                    }, supplier -> supplier.get()) {
-                @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-                    int x = getX(), y = getY(), w = getWidth();
-                    g.fillGradient(x, y, x + w, y + 36, selected == tab ? 0xFF526341 : 0xFF2B3227, 0xFF0B100C);
-                    g.outline(x, y, w, 36, isHoveredOrFocused() || selected == tab ? GOLD : 0xFF596052);
-                    String texture = tab == MenuTab.POLITICS ? "country/" + view.country().toLowerCase(Locale.ROOT) + "/flag" : "menu/" + tab.id();
-                    if (!UiAssets.draw(g, texture, x + w / 2 - 15, y + 2, 30, 20))
-                        g.centeredText(font, "◇", x + w / 2, y + 5, GOLD);
-                    g.centeredText(font, trim(tab.label(), w - 6), x + w / 2, y + 25, TEXT);
-                }
-            };
-            button.setTooltip(Tooltip.create(Component.literal(tab.label())));
-            addRenderableWidget(button);
-        }
+        top = HoiMenuBar.height(width);
+        HoiMenuBar.buttons(width, view == null ? "" : view.country(), selected, tab -> {
+            if (tab == MenuTab.RESEARCH) { researchOpen.run(); return; }
+            HoiClient.cancelOpen();
+            selected = tab; scroll = 0; collapsed.clear(); detail = null; rebuildWidgets();
+        }).forEach(this::addRenderableWidget);
         addRenderableWidget(new ResearchButton("×", pane - 25, top + 3, 19, 19, this::onClose));
+        if (view == null) return;
         if (selected == MenuTab.POLITICS) {
             for (int i = 0; i < COUNTRY_TABS.length; i++) {
                 final int next = i;
@@ -92,7 +81,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
                 refreshCooldown = 20; requestRefresh();
             }
         }));
-        if (selected == MenuTab.RESEARCH) addRenderableWidget(new ResearchButton("연구 선택", 90, height - 28, 88, 20, HoiClient::open));
+        if (selected == MenuTab.RESEARCH) addRenderableWidget(new ResearchButton("연구 선택", 90, height - 28, 88, 20, researchOpen));
         if (selected == MenuTab.INTELLIGENCE) addRenderableWidget(new ResearchButton("기관 관리", 90, height - 28, 80, 20, () -> {
             if (ClientPlayNetworking.canSend(dev.hoi.protocol.AgencyProtocol.Request.TYPE)) {
                 var screen = new AgencyScreen(this); minecraft.gui.setScreen(screen); screen.open();
@@ -162,17 +151,19 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     }
     @Override public void tick() {
         if (refreshCooldown > 0) refreshCooldown--;
-        if (++refreshTicks % 40 == 0) requestRefresh();
+        if (refreshTicks++ % 40 == 0) requestRefresh();
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-        g.fillGradient(0, 0, width, top, 0xFF343B41, 0xFF0B0E11);
-        g.text(font, trim(view.countryName() + " [" + view.country() + "]", width / 2), 9, 7, TEXT);
-        g.enableScissor(width / 2, 0, width - 6, 20);
-        g.text(font, CampaignStyle.clock(view.date(), view.speed()), width / 2, 7, MUTED); g.disableScissor();
+        HoiMenuBar.draw(g, width);
         g.fillGradient(0, top, pane, height, 0xFF23272C, 0xFF0E1114);
         g.outline(0, top, pane, height - top, 0xFF657078);
         g.text(font, selected.label(), 10, top + 8, TEXT);
         g.horizontalLine(8, pane - 8, top + 25, 0xFF657078);
+        if (view == null) {
+            g.text(font, "서버 정보 불러오는 중…", 10, top + 40, MUTED);
+            super.extractRenderState(g, mx, my, delta);
+            return;
+        }
         if (selected == MenuTab.POLITICS) {
             g.fillGradient(9, top + 30, pane - 9, top + 75, 0xFF353D45, 0xFF14181D);
             UiAssets.draw(g, "country/" + view.country().toLowerCase(Locale.ROOT) + "/flag", 16, top + 38, 51, 30);
@@ -232,7 +223,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         if (allowsMovement() && SidebarMovement.consumes(minecraft, event)) return true;
         return super.keyReleased(event);
     }
-    @Override public void removed() { SidebarMovement.release(minecraft); }
+    @Override public void removed() { SidebarMovement.release(minecraft); HoiClient.cancelOpen(); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private String trim(String text, int max) { return font.width(text) <= max ? text : font.plainSubstrByWidth(text, Math.max(1, max - 9)) + "…"; }

@@ -28,13 +28,15 @@ final class ResearchSlotButton extends Button {
         g.outline(x, y, w, h, color);
         String title = (slot.index() + 1) + ". " + (technology == null ? "연구 선택" : technology.name());
         if (font.width(title) > w - 8) title = font.plainSubstrByWidth(title, Math.max(1, w - 17)) + "…";
-        g.text(font, title, x + 4, y + 3, 0xFFE0E6E8);
+        g.text(font, title, x + 4, y + (h < 20 ? (h - 8) / 2 : 3), 0xFFE0E6E8);
         if (h >= 30) {
             String status = technology == null ? "저장 " + slot.savedDays() + "일" : technology.remainingDays(slot.savedDays()) + "일";
             g.text(font, status, x + 5, y + h - 18, color);
         }
         if (h >= 46 && technology != null) UiAssets.technology(g, technology, x + w - 51, y + 17, 44, h - 25, color);
-        g.fill(x + 4, y + h - 5, x + w - 4, y + h - 2, 0xFF0C1217);
-        if (technology != null) g.fill(x + 4, y + h - 5, x + 4 + (int)((w - 8) * technology.fraction()), y + h - 2, color);
+        if (h >= 20) {
+            g.fill(x + 4, y + h - 5, x + w - 4, y + h - 2, 0xFF0C1217);
+            if (technology != null) g.fill(x + 4, y + h - 5, x + 4 + (int)((w - 8) * technology.fraction()), y + h - 2, color);
+        }
     }
 }

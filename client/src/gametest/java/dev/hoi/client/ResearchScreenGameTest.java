@@ -37,7 +37,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 click(context, label); context.waitTicks(2); context.takeScreenshot("hoi-country-" + label);
             }
             for (var tab : MenuTab.ORDER) if (tab != MenuTab.RESEARCH) {
-                click(context, tab.label());
+                click(context, tab.label() + " 메뉴");
                 context.runOnClient(client -> {
                     var screen = (HoiMenuScreen)client.gui.screen();
                     check(screen.selectedTab() == tab, "Menu tab " + tab);
@@ -50,21 +50,27 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             agency(context);
             var requests = new ArrayList<ResearchProtocol.Request>();
             var view = fixtureResearch();
-            context.setScreen(() -> new ResearchScreen(view, requests::add)); context.waitTicks(3);
+            context.setScreen(() -> fixtureMainMenu(menu, MenuTab.RECRUITMENT, view, requests));
+            click(context, "연구 메뉴"); context.waitTicks(3);
             context.takeScreenshot("hoi-research-slots");
             context.runOnClient(client -> {
+                checkToolbar(client.gui.screen());
                 var slots = client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).map(c -> (ResearchSlotButton)c).toList();
-                check(slots.size() == 6, "Six visible slots");
-                check(slots.getFirst().getY() > 88, "Spare vertical space enlarges the top research banner");
-                check(slots.getLast().getBottom() <= client.gui.screen().height - 31, "Sixth slot stays above footer");
+                check(slots.size() == 5, "Only the five slots supplied by the server are displayed");
+                check(slots.getFirst().getY() > HoiMenuBar.height(client.gui.screen().width) + 88, "Spare vertical space enlarges the top research banner");
+                check(slots.getLast().getBottom() <= client.gui.screen().height - 8, "Slots fit below persistent menu");
+                check(client.gui.screen().children().stream().noneMatch(c -> c instanceof Button b
+                        && List.of("<", ">", "1 / 1").contains(b.getMessage().getString())), "No page count or page navigation buttons");
             });
             click(context, "슬롯 1 · 연구 선택"); context.waitTicks(2);
             context.runOnClient(client -> {
                 var screen = (ResearchScreen)client.gui.screen();
+                checkToolbar(screen);
                 check(!screen.allowsMovement(), "Full tree blocks world movement");
                 screen.clearFocus(); screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT, 0, 0)); screen.keyPressed(ENTER);
             });
             context.waitTicks(2); context.takeScreenshot("hoi-research-detail");
+            context.runOnClient(client -> checkToolbar(client.gui.screen()));
             click(context, "연구");
             context.runOnClient(client -> {
                 check(requests.size() == 1, "Exactly one request");
@@ -82,14 +88,44 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.takeScreenshot("hoi-research-compact");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
             context.waitTicks(2); context.takeScreenshot("hoi-research-compact-slots");
-            context.runOnClient(client -> check(client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).count() == 6, "Six compact slots"));
+            context.runOnClient(client -> {
+                checkToolbar(client.gui.screen());
+                check(client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).count() == 5, "Five actual compact slots");
+            });
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
             // A separate server snapshot starts the cancellation case; the START case had no server ACK.
-            context.setScreen(() -> new ResearchScreen(view, requests::add));
+            context.setScreen(() -> fixtureMainMenu(menu, MenuTab.POLITICS, view, requests));
+            click(context, "연구 메뉴");
             click(context, "슬롯 2 · 진행 연구");
             click(context, "연구 중단");
             context.runOnClient(client -> check(requests.getLast().action() == ResearchProtocol.Action.CANCEL
                     && requests.getLast().slot() == 1, "Cancel uses the actual active slot"));
+            click(context, "무역 & 경제 메뉴");
+            context.runOnClient(client -> {
+                check(client.gui.screen() instanceof HoiMenuScreen screen && screen.selectedTab() == MenuTab.TRADE,
+                        "Shared navigation works from research detail");
+                check(requests.getLast().action() == ResearchProtocol.Action.CLOSE, "Leaving research closes its private session");
+            });
+            click(context, "연구 메뉴");
+            context.runOnClient(client -> checkToolbar(client.gui.screen()));
+            context.setScreen(() -> new HoiMenuScreen(MenuTab.LOGISTICS));
+            context.waitTicks(2); context.takeScreenshot("hoi-menu-loading");
+            context.runOnClient(client -> {
+                var screen = (HoiMenuScreen)client.gui.screen(); checkToolbar(screen);
+                screen.update(menu);
+                check(screen.selectedTab() == MenuTab.LOGISTICS, "Fresh authenticated menu retains the requested tab");
+            });
+            var six = new ResearchView(view.session(), view.revision(), view.country(), view.countryName(), view.day(), view.date(), view.speed(),
+                    java.util.stream.IntStream.range(0, 6).mapToObj(i -> new ResearchView.Slot(i, "", 0)).toList(), List.of(), view.message());
+            context.getInput().resizeWindow(854, 480); context.waitTicks(2);
+            context.setScreen(() -> new ResearchScreen(six, requests::add)); context.waitTicks(2);
+            context.runOnClient(client -> {
+                checkToolbar(client.gui.screen());
+                var slots = client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).map(c -> (ResearchSlotButton)c).toList();
+                check(slots.size() == 6 && slots.getLast().getBottom() <= client.gui.screen().height - 8,
+                        "Six-slot capacity still fits at compact resolution");
+            });
+            context.takeScreenshot("hoi-research-six-slot-capacity");
             context.setScreen(() -> null);
         }
     }
@@ -142,7 +178,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.setScreen(() -> null);
     }
     private static void movement(ClientGameTestContext context) {
-        click(context, "국가 정보"); click(context, "• 공군");
+        click(context, "국가 정보 메뉴"); click(context, "• 공군");
         context.runOnClient(client -> {
             client.player.setPos(client.player.getX(), client.player.getY() + 8, client.player.getZ());
             client.player.setOnGround(false);
@@ -172,6 +208,16 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             button.onPress(ENTER);
         });
     }
+    private static void checkToolbar(net.minecraft.client.gui.screens.Screen screen) {
+        var tabs = screen.children().stream().filter(c -> c instanceof HoiMenuBar.TabButton).map(c -> (HoiMenuBar.TabButton)c).toList();
+        check(tabs.size() == MenuTab.ORDER.size() && tabs.stream().allMatch(b -> b.active && b.visible
+                && b.getY() == 3 && b.getBottom() < HoiMenuBar.height(screen.width)), "All common menu buttons remain usable without a status row");
+    }
+    private static HoiMenuScreen fixtureMainMenu(MenuView menu, MenuTab selected, ResearchView research, List<ResearchProtocol.Request> requests) {
+        return new HoiMenuScreen(menu, selected, () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(
+                new ResearchScreen(research, requests::add, tab -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(
+                        fixtureMainMenu(menu, tab, research, requests)))));
+    }
     private static MenuView fixtureMenu() {
         var pages = MenuTab.ORDER.stream().map(tab -> new MenuView.Page(tab, tab == MenuTab.POLITICS ? List.of(
                 new MenuView.Section("국가 현황", "politics", List.of(new MenuView.Entry("정치력", "72", "화면 검증용 데이터"))),
@@ -192,7 +238,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 new int[]{1980,2018,2020,2022,2024,2028,2032}[i % 7], 1, 180, 0, 1,
                 List.of(), List.of(), List.of(), ResearchView.Status.LOCKED));
         return new ResearchView("ui-test", 17, "KOR", "대한민국", 72, "2020년 1월 1일 00시", "PAUSED",
-                java.util.stream.IntStream.range(0, 6).mapToObj(i -> new ResearchView.Slot(i, i == 1 ? "hoi:test/active" : "", i == 0 ? 12 : 0)).toList(), technologies, "UI 검증용 데이터");
+                java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ResearchView.Slot(i, i == 1 ? "hoi:test/active" : "", i == 0 ? 12 : 0)).toList(), technologies, "UI 검증용 데이터");
     }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }
 }

@@ -86,6 +86,12 @@ public final class HoiClient implements ClientModInitializer {
         awaiting = 100;
         send(new ResearchProtocol.Request(ResearchProtocol.Action.OPEN, "", 0, -1, ""));
     }
+    static void cancelOpen() { awaiting = 0; }
+    static void openMenu(dev.hoi.protocol.MenuTab tab) {
+        if (!ClientPlayNetworking.canSend(MenuProtocol.Refresh.TYPE)) { message("이 서버는 HOI 국가 메뉴를 지원하지 않습니다."); return; }
+        cancelOpen();
+        Minecraft.getInstance().gui.setScreen(new HoiMenuScreen(tab));
+    }
     static void send(ResearchProtocol.Request request) {
         if (Minecraft.getInstance().getConnection() != null && ClientPlayNetworking.canSend(ResearchProtocol.Request.TYPE)) ClientPlayNetworking.send(request);
     }
