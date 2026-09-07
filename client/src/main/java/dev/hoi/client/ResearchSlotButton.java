@@ -29,9 +29,9 @@ final class ResearchSlotButton extends Button {
         UiAssets.draw(g, "panel/research_slot", x, y, w, h);
         g.outline(x, y, w, h, color);
         boolean compactActive = technology != null && h < 40;
-        String title = (slot.index() + 1) + "." + (compactActive ? "" : " " + (technology == null ? "연구 선택" : technology.name()));
+        String title = compactActive ? "" : technology == null ? "연구 선택" : technology.name();
         if (font.width(title) > w - 20) title = font.plainSubstrByWidth(title, Math.max(1, w - 29)) + "…";
-        int titleY = compactActive || h < 24 ? (h - 8) / 2 : technology == null ? 7 : 4;
+        int titleY = compactActive || h < 24 ? (h - 8) / 2 : technology == null ? Math.min(10, (h - 8) / 2) : 6;
         if (technology != null) {
             int imageWidth = Math.min(88, w / 2);
             int imageHeight = h >= 40 ? Math.min(30, h - 28) : Math.min(24, Math.max(6, h - (h >= 20 ? 12 : 4)));
