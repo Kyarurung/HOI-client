@@ -32,7 +32,7 @@ Windows PowerShell:
 .\gradlew.bat test runGameTest remapJar --console=plain --no-daemon
 ```
 
-출력물은 **`build/libs/hoi-client-0.1.0-SNAPSHOT.jar` 하나**입니다. `test`는 프로토콜·레이아웃 JUnit, `runGameTest`는 실제 Minecraft에서 외부 팩 로딩, 10개 메뉴, 패널 비율, 6개 기준 연구 슬롯, 첩보 선택·응답 대기·권한 만료, 키보드 비행과 창 크기 변경을 검사합니다. 개발 실행은 `./gradlew :client:runClient`입니다. Linux에서는 `xvfb-run -a ./gradlew test runGameTest remapJar`를 사용합니다. CI는 비공개 팩 읽기 권한이 있는 `HOI_RESOURCEPACK_TOKEN` 저장소 시크릿이 필요합니다. 이 시크릿을 사용할 수 없는 외부 PR에서는 전체 렌더링 검증을 실행할 수 없습니다.
+출력물은 **`build/libs/hoi-client-0.1.0-SNAPSHOT.jar` 하나**입니다. `test`는 프로토콜·레이아웃 JUnit, `runGameTest`는 실제 Minecraft에서 외부 팩 로딩, 10개 메뉴, 패널 비율, 6개 기준 연구 슬롯, 첩보 선택·응답 대기·권한 만료, 키보드 비행과 창 크기 변경을 검사합니다. 개발 실행은 `./gradlew :client:runClient`입니다. Linux에서는 `xvfb-run -a ./gradlew test runGameTest remapJar`를 사용합니다. CI는 `HOI-resourcepack`에 등록한 읽기 전용 배포 키의 개인 키를 `HOI_RESOURCEPACK_SSH_KEY` Actions 저장소 시크릿으로 사용합니다. 해당 키는 이 비공개 리소스팩 저장소에만 접근하며, 체크아웃 후 자격 증명을 유지하지 않습니다. 팩 버전은 워크플로의 커밋 SHA로 고정합니다. 팩을 갱신할 때 해당 SHA도 함께 갱신하고 렌더링을 검증합니다. 이 시크릿을 사용할 수 없는 외부 PR에서는 전체 렌더링 검증을 실행할 수 없습니다.
 
 테스트 이미지는 `client/build/run/clientGameTest/screenshots/`에 생성됩니다. UI 테스트는 시험용 데이터로 렌더링을 확인하며, 실제 다중 접속 서버에서 연구 완료까지의 전체 연동 검사는 별도입니다.
 
