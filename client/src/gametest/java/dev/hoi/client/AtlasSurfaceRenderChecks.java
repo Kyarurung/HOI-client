@@ -5,7 +5,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 
-/** Actual vanilla renderer: source VP sprites, army terrain/water, and non-army coast geometry. */
+/** Actual vanilla renderer: source VP sprites, terrain in all modes, army water and operational coasts. */
 final class AtlasSurfaceRenderChecks {
     private AtlasSurfaceRenderChecks() {}
     static void run(ClientGameTestContext context) {
@@ -49,36 +49,18 @@ final class AtlasSurfaceRenderChecks {
                 for(var entry:data.getAsJsonArray("relief")) {
                     var c=entry.getAsJsonArray();command.accept("setblock "+c.get(0).getAsInt()+" "+c.get(3).getAsInt()+" "+c.get(1).getAsInt()+" "+c.get(2).getAsString()+" strict");
                 }
-                for(var entry:data.getAsJsonArray("water")) {
-                    var c=entry.getAsJsonArray();
-                    for(var border:c.get(7).getAsJsonArray()) {
-                        var r=border.getAsJsonArray();
-                        command.accept("summon minecraft:block_display "+r.get(0)+" "+r.get(1)+" "+r.get(2)+" {block_state:{Name:\"minecraft:black_concrete\"},transformation:{translation:[0f,0f,0f],scale:["+r.get(3)+"f,"+r.get(4)+"f,"+r.get(5)+"f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:2f,height:2f,view_range:8f,brightness:{block:15,sky:15}}");
-                    }
-                    command.accept("summon minecraft:block_display "+c.get(0).getAsDouble()+" "+c.get(2).getAsDouble()+" "+c.get(1).getAsDouble()+" {block_state:"+blockState(scene.get("riverBlock").getAsString())+",transformation:{translation:[0f,0f,0f],scale:["+c.get(3).getAsDouble()+"f,"+c.get(4).getAsDouble()+"f,"+c.get(5).getAsDouble()+"f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:2f,height:2f,view_range:8f,brightness:{block:15,sky:15}}");
+                var boxes=new java.util.ArrayList<dev.hoi.protocol.AtlasSceneProtocol.Box>();
+                for(var entry:data.getAsJsonArray("meshes")) {
+                    var b=entry.getAsJsonArray();boxes.add(new dev.hoi.protocol.AtlasSceneProtocol.Box(
+                            b.get(0).getAsFloat(),b.get(1).getAsFloat(),b.get(2).getAsFloat(),b.get(3).getAsFloat(),b.get(4).getAsFloat(),b.get(5).getAsFloat(),b.get(6).getAsFloat(),
+                            dev.hoi.protocol.AtlasSceneProtocol.Material.valueOf(b.get(7).getAsString())));
                 }
-                // Use the exact clipped production faces, rather than expanding centerlines
-                // again in the fixture and accidentally extending caps across the coastline.
-                for(var entry:data.getAsJsonArray("strokes")) {
-                    var b=entry.getAsJsonArray();
-                    command.accept("summon minecraft:block_display "+b.get(0)+" "+b.get(2)+" "+b.get(1)+" {block_state:{Name:\"minecraft:black_concrete\"},transformation:{translation:[0f,0f,0f],scale:["+b.get(3)+"f,"+b.get(4)+"f,"+b.get(5)+"f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:120f,height:4f,view_range:8f,brightness:{block:15,sky:15}}");
-                }
-                for(var entry:data.getAsJsonArray("lines")) {
-                    var s=entry.getAsJsonArray();if(!s.get(5).getAsString().equals("CROSSING"))continue;
-                    double x=s.get(0).getAsDouble(),z=s.get(1).getAsDouble();
-                    double dx=s.get(2).getAsDouble()-x,dz=s.get(3).getAsDouble()-z,dy=s.get(7).getAsDouble()-s.get(6).getAsDouble(),length=Math.sqrt(dx*dx+dy*dy+dz*dz),width=s.get(4).getAsDouble();
-                    if(length<.00001)continue;
-                    boolean upright=dx==0&&dz==0;
-                    var rotation=new org.joml.Quaternionf().rotationTo(new org.joml.Vector3f(0,0,1),new org.joml.Vector3f((float)dx,(float)dy,(float)dz).normalize());
-                    double ox=x-dx*width/2/length-dz*width/2/length,oz=z-dz*width/2/length+dx*width/2/length;
-                    if(upright){ox=x-width/2;oz=z-width/2;rotation.identity();}
-                    String scale=upright?width+"f,"+(length+.025)+"f,"+width+"f":width+"f,0.025f,"+(length+width)+"f";
-                    String block=s.get(5).getAsString().equals("CROSSING")?"red_concrete":"black_concrete";
-                    command.accept("summon minecraft:block_display "+ox+" "+(s.get(6).getAsDouble()-(upright?0:dy*width/2/length))+" "+oz+" {block_state:{Name:\"minecraft:"+block+"\"},transformation:{translation:[0f,0f,0f],scale:["+scale+"],left_rotation:["+rotation.x+"f,"+rotation.y+"f,"+rotation.z+"f,"+rotation.w+"f],right_rotation:[0f,0f,0f,1f]},width:120f,height:2f,view_range:8f,brightness:{block:15,sky:15}}");
-                }
-                for(var entry:data.getAsJsonArray("terrain")) {
-                    var t=entry.getAsJsonArray();terrain(command,t.get(0).getAsDouble()+.1,t.get(1).getAsDouble()+.1,t.get(2).getAsString(),t.get(3).getAsString(),t.get(4).getAsDouble());
-                }
+                context.runOnClient(client->{
+                    AtlasSceneClient.clear();var id=java.util.UUID.randomUUID();int count=(boxes.size()+1023)/1024;
+                    for(int i=0;i<count;i++)AtlasSceneClient.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(id,"minecraft:overworld",i,count,boxes.subList(i*1024,Math.min((i+1)*1024,boxes.size()))));
+                    if(AtlasSceneClient.tileCount()==0)throw new AssertionError("Static scene did not assemble");
+                });
+                // The tested borders, rivers, saplings and cities contain no display entities.
                 command.accept("tp @a 28 111 28 180 90");context.waitTicks(25);
                 var screenshot=context.takeScreenshot("hoi-atlas-"+mode.toLowerCase()+"-coasts");checkPixels(screenshot,false);
                 if(mode.equals("ARMY")) {
@@ -102,21 +84,8 @@ final class AtlasSurfaceRenderChecks {
                     command.accept("tp @a "+cx+" "+(cy+5)+" "+(cz-11)+" 0 24");context.waitTicks(20);context.takeScreenshot("hoi-capital-name-terrain");
                 }
             }
-            context.runOnClient(client->{client.options.fov().set(70);});
+            context.runOnClient(client->{client.options.fov().set(70);AtlasSceneClient.clear();});
         }
-    }
-    private static String blockState(String value) {
-        int start=value.indexOf('[');
-        if(start<0)return "{Name:\""+value+"\"}";
-        var properties=new java.util.StringJoiner(",");
-        for(String pair:value.substring(start+1,value.length()-1).split(",")) {
-            var parts=pair.split("=");properties.add(parts[0]+":\""+parts[1]+"\"");
-        }
-        return "{Name:\""+value.substring(0,start)+"\",Properties:{"+properties+"}}";
-    }
-    private static void terrain(java.util.function.Consumer<String> command,double x,double z,String kind,String block,double height) {
-        if(kind.equals("urban"))command.accept("summon minecraft:item_display "+x+" 66 "+z+" {item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"hoi:map/terrain/city\"}},item_display:\"fixed\",transformation:{translation:[0.4f,0.4f,0.4f],scale:[0.8f,0.8f,0.8f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:2f,height:2f,view_range:8f}");
-        else command.accept("summon minecraft:block_display "+x+" 66 "+z+" {block_state:{Name:\""+block+"\""+(kind.equals("hills")?",Properties:{type:\"bottom\"}":"")+"},transformation:{translation:[0f,0f,0f],scale:[0.8f,"+height+"f,0.8f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:2f,height:2f,view_range:8f}");
     }
     private static void checkPixels(Path path,boolean victory) {
         try {
