@@ -47,7 +47,7 @@ final class AtlasSurfaceRenderChecks {
                     command.accept("fill "+x+" 65 "+z+" "+(end-1)+" 65 "+z+" "+blocks[z*size+x]+" strict");x=end;
                 }
                 for(var entry:data.getAsJsonArray("relief")) {
-                    var c=entry.getAsJsonArray();command.accept("setblock "+c.get(0).getAsInt()+" 66 "+c.get(1).getAsInt()+" "+c.get(2).getAsString()+" strict");
+                    var c=entry.getAsJsonArray();command.accept("setblock "+c.get(0).getAsInt()+" "+c.get(3).getAsInt()+" "+c.get(1).getAsInt()+" "+c.get(2).getAsString()+" strict");
                 }
                 for(var entry:data.getAsJsonArray("water")) {
                     var c=entry.getAsJsonArray();
