@@ -16,13 +16,15 @@ final class ResearchTabButton extends Button {
         setTooltip(Tooltip.create(Component.literal(label)));
     }
 
-    static int heightFor(int width) { return (int)Math.ceil(width * 61.0 / 91); }
+    static int heightFor(int width) { return (int)Math.ceil(width * 61.0 / 86); }
 
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth();
         if (selected) g.fill(x + 2, y + getHeight() - 5, x + w - 2, y + getHeight() + 1, 0xFF101A21);
         String art = "tabs/" + category.toLowerCase(java.util.Locale.ROOT) + (selected ? "_selected" : "");
-        if (!UiAssets.draw(g, art, x, y, w, getHeight()))
+        // The unselected 91px asset has 2px/3px transparent side gutters.
+        // Remove those gutters so adjacent buttons also have adjacent visible frames.
+        if (!UiAssets.draw(g, art, x, y, w, getHeight(), selected ? 0 : 2, selected ? 0 : 3))
             ResearchIcons.fallback(g, category, x + w / 2 - 10, y + 9, 0xFF92AD83, 2);
         if (isHoveredOrFocused()) g.outline(x + 2, y + 4, w - 4, getHeight() - 6, 0xFF9B9C96);
     }

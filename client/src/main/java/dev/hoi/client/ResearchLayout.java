@@ -71,6 +71,10 @@ public record ResearchLayout(List<Node> nodes, List<Integer> years, int width, i
         if(tech.source()!=null) ids.addAll(tech.source().anyOf());
         return List.copyOf(ids);
     }
+    ResearchLayout withVerticalPadding(int padding) {
+        return new ResearchLayout(nodes.stream().map(node -> new Node(node.tech(), node.x(), node.y() + padding, node.scale())).toList(),
+                years, width, height + padding * 2);
+    }
     public boolean sourceTree() { return nodes.stream().anyMatch(n->n.tech().source()!=null); }
     public boolean vertical() { return nodes.stream().filter(n->n.tech().source()!=null).findFirst().map(n->switch(n.tech().source().folder()) {
         case "nsb_armour_folder", "artillery_folder", "bba_air_techs_folder", "electronics_folder", "industry_folder" -> true;

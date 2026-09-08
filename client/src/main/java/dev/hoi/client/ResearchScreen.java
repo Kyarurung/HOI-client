@@ -23,8 +23,9 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     private ResearchView view;
     private ResearchLayout layout;
     private List<TfrResearchLayout.Connection> referenceConnections = List.of();
+    private List<ResearchTreeLabels.Label> referenceLabels = List.of();
     private String category = CATEGORIES[0], detail, focusedTech;
-    private int selectedSlot, slotOffset, treeTop, treeBottom, panelX, panelY, panelW, panelH, detailScroll, pending, hudScroll;
+    private int selectedSlot, slotOffset, treeTop, treeBottom, treePadding, panelX, panelY, panelW, panelH, detailScroll, pending, hudScroll;
     private double scrollX, scrollY;
     private boolean panning, overview = true;
     private final java.util.function.Consumer<ResearchProtocol.Request> requests;
@@ -100,6 +101,11 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     private void relayout() {
         layout = ResearchPresentation.apply(ResearchLayout.create(view.technologies(), category, ""), minecraft.getResourceManager(), width - 20);
+        referenceLabels = TfrResearchLayout.applies(layout) ? ResearchTreeLabels.create(layout, font::width, font.lineHeight) : List.of();
+        treePadding = font.lineHeight + 3;
+        layout = layout.withVerticalPadding(treePadding);
+        referenceLabels = referenceLabels.stream().map(label -> new ResearchTreeLabels.Label(label.text(), label.x(),
+                label.y() + treePadding, label.width(), label.height(), label.year())).toList();
         referenceConnections = TfrResearchLayout.applies(layout) ? TfrResearchLayout.connections(layout) : List.of();
         clampScroll();
     }
@@ -116,9 +122,9 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         detail = id; focusedTech = id; detailScroll = 0; rebuildWidgets(); }
     private void initDetail() {
         baseButtons.forEach(b -> { b.active = false; b.visible = false; });
-        panelW = Math.min(366, width - 24); panelH = Math.min(350, height - menuBottom() - 40);
+        panelW = Math.min(366, width - 24); panelH = Math.min(350, height - menuBottom() - 24);
         panelX = Math.min(Math.max(12, width / 5), width - panelW - 12);
-        panelY = menuBottom() + 28 + Math.max(0, (height - menuBottom() - 40 - panelH) / 2);
+        panelY = menuBottom() + Math.max(12, (height - menuBottom() - panelH) / 2);
         var tech = view.technology(detail);
         button("×", panelX + panelW - 28, panelY + 8, 20, 20, () -> { detail = null; rebuildWidgets(); });
         button("슬롯 " + (selectedSlot + 1) + " ▸", panelX + 12, panelY + panelH - 28, panelW - 24, 18, () -> {
@@ -168,10 +174,10 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         g.text(font, trim("연구 슬롯 " + view.slots().size() + "개", pane - 12), 6, slotsTop() - 13, MUTED);
     }
     private void drawTree(GuiGraphicsExtractor g, int mx, int my) {
-        g.enableScissor(10, treeTop, width - 10, treeTop + 16);
+        g.enableScissor(10, treeTop, width - 10, treeTop + treePadding + 16);
         for (int i = 0; !layout.sourceTree() && i < layout.years().size(); i++) {
             int x = (int)(30 + i * ResearchLayout.COLUMN - scrollX);
-            g.text(font, String.valueOf(layout.years().get(i)), x, treeTop + 3, GOLD);
+            g.text(font, String.valueOf(layout.years().get(i)), x, treeTop + treePadding + 3, GOLD);
         }
         g.disableScissor();
         g.enableScissor(10, treeTop, width - 10, treeBottom);
@@ -183,7 +189,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         if (reference) drawReferenceGuides(g);
         if(layout.sourceTree() && !reference) for(var guide:layout.yearGuides().entrySet()) {
             int gx=layout.vertical()?14:(int)(10+guide.getValue()-scrollX);
-            int gy=layout.vertical()?(int)(treeTop+guide.getValue()-scrollY):treeTop+2;
+            int gy=layout.vertical()?(int)(treeTop+guide.getValue()-scrollY):treeTop+treePadding+2;
             if(gy>=treeTop&&gy<treeBottom) g.text(font,guide.getKey()+"년",gx,gy,GOLD);
         }
         var byId = new HashMap<String,ResearchLayout.Node>(); layout.nodes().forEach(n -> byId.put(n.tech().id(), n));
@@ -217,28 +223,17 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             if (hover) hovered = n;
             g.fill(x, y, x + cardW, y + cardH, hover ? 0xFF2B3C49 : 0xFF1B2933);
             g.outline(x, y, cardW, cardH, focusedTech != null && focusedTech.equals(tech.id()) ? TEXT : color(tech.status()));
-            if (TfrResearchLayout.iconOnly(tech)) {
-                UiAssets.technology(g, tech, x + 2, y + 2, cardW - 4, cardH - 4, color(tech.status()));
-                if (tech.status() == ResearchView.Status.ACTIVE) {
-                    g.fill(x + 2, y + cardH - 4, x + cardW - 2, y + cardH - 1, 0xFF0D151A);
-                    g.fill(x + 2, y + cardH - 4, x + 2 + (int)((cardW - 4) * tech.fraction()), y + cardH - 1, color(tech.status()));
-                }
-            } else if (TfrResearchLayout.position(tech) != null) {
-                int inset = 2;
-                int labelHeight = 12;
-                UiAssets.technology(g, tech, x + inset, y + 2, cardW - 2 * inset, cardH - labelHeight - 3, color(tech.status()));
-                g.fill(x + 2, y + cardH - labelHeight, x + cardW - 2, y + cardH - 2, 0xFF101713);
-                g.centeredText(font, trim(tech.name(), cardW - 6), x + cardW / 2, y + cardH - labelHeight + 1, TEXT);
-                g.fill(x + 2, y + cardH - 2, x + cardW - 2, y + cardH - 1, 0xFF0D151A);
-                g.fill(x + 2, y + cardH - 2, x + 2 + (int)((cardW - 4) * tech.fraction()), y + cardH - 1, color(tech.status()));
-            } else {
-                int inset=tech.source()==null?24:5;
-                UiAssets.technology(g, tech, x + inset, y + 3, cardW - 2*inset, cardH - 22, color(tech.status()));
-                g.fill(x + 2, y + cardH - 20, x + cardW - 2, y + cardH - 5, 0xFF101713);
-                g.centeredText(font, trim(tech.name(), cardW - 8), x + cardW / 2, y + cardH - 17, TEXT);
+            UiAssets.technology(g, tech, x + 2, y + 2, cardW - 4, cardH - 4, color(tech.status()));
+            if (tech.status() == ResearchView.Status.ACTIVE) {
                 g.fill(x + 2, y + cardH - 4, x + cardW - 2, y + cardH - 1, 0xFF0D151A);
                 g.fill(x + 2, y + cardH - 4, x + 2 + (int)((cardW - 4) * tech.fraction()), y + cardH - 1, color(tech.status()));
             }
+        }
+        for (var label : referenceLabels) {
+            int x = (int)(10 + label.x() - scrollX), y = (int)(treeTop + label.y() - scrollY);
+            // A small backing keeps branch lines from crossing the text itself.
+            g.fill(x - 2, y - 1, x + label.width() + 2, y + label.height() + 1, 0xFF101A21);
+            g.text(font, label.text(), x, y, label.year() ? TEXT : MUTED);
         }
         if (layout.nodes().isEmpty()) g.text(font, "이 분야에 표시할 기술이 없습니다.", 28, treeTop + 28, MUTED);
         g.disableScissor();
@@ -261,16 +256,8 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     private void drawReferenceGuides(GuiGraphicsExtractor g) {
         double scale = TfrResearchLayout.scale(layout);
         for (int row = 0; layout.vertical() && row < (int)Math.ceil(layout.height() / (44 * scale)); row++) if (row % 2 == 0) {
-            int y = (int)(treeTop + (18 + row * 44) * scale - scrollY);
+            int y = (int)(treeTop + treePadding + (18 + row * 44) * scale - scrollY);
             g.fill(10, y, width - 10, y + (int)Math.round(44 * scale), 0xFF131C22);
-        }
-        for (var label : TfrResearchLayout.yearLabels(layout)) {
-            int x = (int)(10 + label.x() - scrollX), y = (int)(treeTop + label.y() - scrollY);
-            g.text(font, label.text(), x, y, TEXT);
-        }
-        for (var label : TfrResearchLayout.headings(layout)) {
-            int x = (int)(10 + label.x() - scrollX), y = (int)(treeTop + label.y() - scrollY);
-            g.centeredText(font, label.text(), x, y, MUTED);
         }
     }
     private void drawReferenceConnections(GuiGraphicsExtractor g) {
@@ -301,14 +288,6 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         g.fillGradient(panelX, panelY, panelX + panelW, panelY + panelH, 0xFF343B43, 0xFF101416);
         g.outline(panelX, panelY, panelW, panelH, 0xFF82909B);
         var tech = view.technology(detail);
-        if (panelY >= menuBottom() + 26) {
-            int tabX = panelX + 10, tabY = panelY - 25;
-            g.fillGradient(tabX, tabY, tabX + 59, panelY + 2, 0xFF4D555B, 0xFF343B43);
-            g.horizontalLine(tabX, tabX + 58, tabY, 0xFF82909B);
-            g.verticalLine(tabX, tabY, panelY, 0xFF82909B);
-            g.verticalLine(tabX + 58, tabY, panelY, 0xFF82909B);
-            UiAssets.draw(g, "tabs/" + tech.category().toLowerCase(Locale.ROOT), tabX + 4, tabY + 1, 51, 24);
-        }
         g.centeredText(font, trim(tech.name(), panelW - 70), panelX + panelW / 2 - 10, panelY + 14, TEXT);
         g.horizontalLine(panelX + 8, panelX + panelW - 8, panelY + 30, 0xFF657078);
         UiAssets.technology(g, tech, panelX + 12, panelY + 39, 52, 37, GOLD);

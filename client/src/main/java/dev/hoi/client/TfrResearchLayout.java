@@ -90,19 +90,24 @@ final class TfrResearchLayout {
         var nodes = new ArrayList<ResearchLayout.Node>();
         int width = category.equals("ARMOR") ? 856 : category.equals("INDUSTRY") ? 640 : 160;
         int height = category.equals("ARMOR") ? 346 : category.equals("INDUSTRY") ? 478 : 100;
+        int headingSpace = headingSpace(category);
         for (var tech : available) {
             var position = position(tech);
             if (position == null) continue;
             int w = position.hull() ? 64 : 28, h = position.hull() ? 32 : 28;
-            nodes.add(new ResearchLayout.Node(tech, position.centerX() - w / 2, position.centerY() - h / 2));
+            nodes.add(new ResearchLayout.Node(tech, position.centerX() - w / 2, position.centerY() + headingSpace - h / 2));
             width = Math.max(width, position.centerX() + w / 2 + 64);
-            height = Math.max(height, position.centerY() + h / 2 + 38);
+            height = Math.max(height, position.centerY() + headingSpace + h / 2 + 38);
         }
         // Saved/custom additions stay accessible below the reference, without moving its lanes.
         var extra = ResearchLayout.sourceLayout(available.stream().filter(t -> position(t) == null).toList());
         for (var node : extra.nodes()) nodes.add(new ResearchLayout.Node(node.tech(), node.x(), height + node.y()));
         if (!extra.nodes().isEmpty()) { width = Math.max(width, extra.width()); height += extra.height(); }
         nodes.sort(Comparator.comparingInt(ResearchLayout.Node::y).thenComparingInt(ResearchLayout.Node::x).thenComparing(n -> n.tech().id()));
+        // Reference timelines can extend beyond the last card (for example the air tree's 2040 guide).
+        var fullLayout = new ResearchLayout(nodes, List.of(), width, height);
+        for (var label : yearLabels(fullLayout)) height = Math.max(height, label.y() + 24);
+        for (var label : headings(fullLayout)) height = Math.max(height, label.y() + 24);
         var visible = nodes.stream().filter(n -> filter.isEmpty() || n.tech().name().toLowerCase(Locale.ROOT).contains(filter)
                 || n.tech().id().toLowerCase(Locale.ROOT).contains(filter)).toList();
         return new ResearchLayout(visible, available.stream().map(Tech::year).distinct().sorted().toList(), width, height);
@@ -142,11 +147,17 @@ final class TfrResearchLayout {
 
     static List<Label> headings(ResearchLayout layout) {
         String category = ResearchLayout.category(layout.nodes().getFirst().tech());
-        if (!Set.of("ARMOR", "INDUSTRY").contains(category)) return scaleLabels(referenceHeadings(category), layout);
+        if (!Set.of("ARMOR", "INDUSTRY").contains(category)) return scaleLabels(referenceHeadings(category).stream()
+                .map(label -> new Label(label.text(), label.x(), label.y() + headingSpace(category))).toList(), layout);
         return scaleLabels(layout.nodes().stream().anyMatch(n -> n.tech().category().equals("ARMOR"))
                 ? List.of(new Label("엔진", 80, 2), new Label("정찰전차", 202, 2), new Label("주력전차", 334, 2),
                     new Label("수륙양용", 422, 2), new Label("장갑", 570, 2), new Label("보조 무기 및 탄약", 722, 2))
                 : List.of(new Label("생산", 100, 2), new Label("산업", 210, 46), new Label("건설", 298, 46), new Label("합성 석유", 518, 2)), layout);
+    }
+
+    private static int headingSpace(String category) {
+        // Horizontal trees need a caption row between the year axis and the first equipment row.
+        return Set.of("INFANTRY", "SUPPORT", "NAVY", "NAVAL_SUPPORT").contains(category) ? 14 : 0;
     }
 
     static List<Connection> connections(ResearchLayout layout) {
@@ -266,7 +277,7 @@ final class TfrResearchLayout {
             case "INFANTRY" -> List.of(new Label("화기 & 장비",64,22),new Label("특수부대",64,448));
             case "SUPPORT" -> List.of(new Label("열차",64,426),new Label("다목적 / 공격 헬리콥터",160,608));
             case "ARTILLERY" -> List.of(new Label("자주대공포",64,74),new Label("대공포",176,74),new Label("자주포",260,74),new Label("야포",344,20),new Label("로켓포",428,74),new Label("대전차포",512,74),new Label("ATGM 탑재",624,74));
-            case "NAVY" -> List.of(new Label("초계함",64,52),new Label("구축함",64,150),new Label("방어력",64,210),new Label("미사일 순양함",82,288),new Label("항공모함",64,380),new Label("잠수함",64,472));
+            case "NAVY" -> List.of(new Label("초계함",96,52),new Label("구축함",96,150),new Label("방어력",96,210),new Label("미사일 순양함",96,288),new Label("항공모함",96,380),new Label("잠수함",96,472));
             case "NAVAL_SUPPORT" -> List.of(new Label("무장",64,22),new Label("어뢰",64,238),new Label("피해 통제",64,354),new Label("사격 통제 방식",64,408),new Label("수송선",64,466),new Label("기뢰전",64,522));
             case "AIR" -> List.of(new Label("기체",166,20),new Label("엔진",668,20),new Label("폭장",820,20),new Label("공대공 미사일",900,74),new Label("공대지 미사일",1060,74));
             case "ENGINEERING" -> List.of(new Label("전자공학",150,12),new Label("전력 생산",382,12));

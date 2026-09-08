@@ -27,15 +27,21 @@ final class UiAssets {
         return true;
     }
     static boolean draw(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
+        return draw(g, path, x, y, w, h, 0, 0);
+    }
+    /** Trim only known transparent side gutters; the remaining source keeps its aspect ratio. */
+    static boolean draw(GuiGraphicsExtractor g, String path, int x, int y, int w, int h, int trimLeft, int trimRight) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         if (id == null || w <= 0 || h <= 0) return false;
         int[] size = DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions);
         if (size[0] <= 0 || size[1] <= 0) return false;
         // Caller dimensions are a maximum box, never a stretched output size.
-        double scale = Math.min((double) w / size[0], (double) h / size[1]);
-        int fitW = Math.max(1, (int)Math.round(size[0] * scale)), fitH = Math.max(1, (int)Math.round(size[1] * scale));
+        int sourceW = size[0] - trimLeft - trimRight;
+        if (sourceW <= 0) return false;
+        double scale = Math.min((double) w / sourceW, (double) h / size[1]);
+        int fitW = Math.max(1, (int)Math.round(sourceW * scale)), fitH = Math.max(1, (int)Math.round(size[1] * scale));
         int left = x + (w - fitW) / 2, top = y + (h - fitH) / 2;
-        g.blit(id, left, top, left + fitW, top + fitH, 0, 1, 0, 1);
+        g.blit(id, left, top, left + fitW, top + fitH, (float)trimLeft / size[0], 1 - (float)trimRight / size[0], 0, 1);
         return true;
     }
     private static int[] dimensions(Identifier id) {

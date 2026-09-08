@@ -209,9 +209,9 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             click(context,tab);context.waitTicks(2);context.takeScreenshot("hoi-tfr-tree-"+List.of("보병","지상 & 항공 지원","기갑","포","해군","해군 지원 장비","공군","산업","공학").indexOf(tab));
         }
         context.getInput().resizeWindow(2560,1440); context.waitTicks(3);
-        for (var tab : List.of("기갑", "공학", "산업")) {
+        for (var tab : List.of("보병", "포", "해군", "공군", "기갑", "공학", "산업")) {
             click(context, tab); context.waitTicks(2);
-            context.takeScreenshot(tab.equals("기갑") ? "hoi-armor-rearranged" : tab.equals("공학") ? "hoi-engineering-reference" : "hoi-industry-rearranged");
+            context.takeScreenshot("hoi-research-labels-" + tab);
             context.runOnClient(client -> {
                 var screen = (ResearchScreen)client.gui.screen();
                 var tabs=screen.children().stream().filter(w -> w instanceof ResearchTabButton).map(w -> (ResearchTabButton)w).toList();
@@ -219,11 +219,24 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 check(screen.children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.EditBox),"Technology search is removed");
                 check(tabs.size()==9 && tabs.getFirst().getX()==10 && tabs.getLast().getRight()<screen.width/2,"Nine research tabs stay compact and left aligned");
                 for(int i=1;i<tabs.size();i++) check(tabs.get(i).getX()==tabs.get(i-1).getRight(),"Tabs are adjacent");
+                for (var category : List.of("INFANTRY", "SUPPORT", "ARMOR", "ARTILLERY", "NAVY", "NAVAL_SUPPORT", "AIR", "ENGINEERING", "INDUSTRY")) {
+                    var tree = ResearchPresentation.apply(ResearchLayout.create(view.technologies(), category, ""), client.getResourceManager(), screen.width - 20);
+                    checkResearchLabels(tree, client.font::width, client.font.lineHeight);
+                }
                 check(screen.children().stream().filter(w -> w instanceof Button).map(w -> ((Button)w).getMessage().getString())
                         .noneMatch(text -> text.equals("처음 위치") || text.equals("슬롯 목록")), "Removed tree controls stay absent");
             });
         }
         context.getInput().resizeWindow(854,480); context.waitTicks(3);
+        for (var tab : List.of("보병", "포", "해군", "공군", "산업")) {
+            click(context, tab); context.waitTicks(2); context.takeScreenshot("hoi-research-labels-compact-" + tab);
+        }
+        context.runOnClient(client -> {
+            for (var category : List.of("INFANTRY", "SUPPORT", "ARMOR", "ARTILLERY", "NAVY", "NAVAL_SUPPORT", "AIR", "ENGINEERING", "INDUSTRY")) {
+                var tree = ResearchPresentation.apply(ResearchLayout.create(view.technologies(), category, ""), client.getResourceManager(), client.gui.screen().width - 20);
+                checkResearchLabels(tree, client.font::width, client.font.lineHeight);
+            }
+        });
         context.takeScreenshot("hoi-industry-rearranged-compact");
         context.runOnClient(client -> {
             var screen = (ResearchScreen)client.gui.screen(); screen.clearFocus();
@@ -235,6 +248,32 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.runOnClient(client->{var screen=(ResearchScreen)client.gui.screen();screen.clearFocus();screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT,0,0));screen.keyPressed(ENTER);});
         context.waitTicks(2);context.takeScreenshot("hoi-tfr-source-detail");click(context,"연구");
         check(requests.size()==1&&requests.getFirst().slot()==1,"Occupied slot zero falls back to the first free slot without cancellation");
+    }
+
+    private static void checkResearchLabels(ResearchLayout tree, java.util.function.ToIntFunction<String> textWidth, int lineHeight) {
+        var labels = ResearchTreeLabels.create(tree, textWidth, lineHeight);
+        check(labels.size() == TfrResearchLayout.yearLabels(tree).size() + TfrResearchLayout.headings(tree).size(), "Every year and equipment heading remains visible");
+        for (var heading : TfrResearchLayout.headings(tree)) {
+            var label = labels.stream().filter(l -> !l.year() && l.text().equals(heading.text())).findFirst().orElseThrow();
+            check(label.y() <= heading.y(), "Equipment heading stays above its research row: " + label.text());
+            check(heading.y() - label.y() <= lineHeight * 3, "Equipment heading stays near its research row: " + label.text());
+        }
+        if (ResearchLayout.category(tree.nodes().getFirst().tech()).equals("NAVY")) {
+            var targets = java.util.Map.of("초계함", "early_ship_hull_light", "구축함", "early_ship_hull_cruiser", "방어력", "basic_cruiser_armor_scheme",
+                    "미사일 순양함", "early_ship_hull_heavy", "항공모함", "early_ship_hull_carrier", "잠수함", "early_ship_hull_submarine");
+            for (var target : targets.entrySet()) {
+                var label = labels.stream().filter(l -> l.text().equals(target.getKey())).findFirst().orElseThrow();
+                var card = tree.nodes().stream().filter(n -> n.tech().source().id().equals(target.getValue())).findFirst().orElseThrow();
+                check(label.y() + label.height() + 4 <= card.y(), "Naval heading is above its own equipment card: " + label.text());
+            }
+        }
+        for (var label : labels) {
+            check(label.x() >= 0 && label.y() >= 0 && label.y() + label.height() <= tree.height(), "Caption remains in scrollable tree: " + label.text());
+            for (var card : tree.nodes()) check(!(label.x() - 2 < card.x() + card.width() && label.x() + label.width() + 2 > card.x()
+                    && label.y() - 2 < card.y() + card.height() && label.y() + label.height() + 2 > card.y()), "Caption overlaps card: " + label.text());
+            for (var other : labels) if (label != other) check(!(label.x() - 2 < other.x() + other.width() && label.x() + label.width() + 2 > other.x()
+                    && label.y() - 2 < other.y() + other.height() && label.y() + label.height() + 2 > other.y()), "Captions overlap: " + label.text());
+        }
     }
 
     private static void loadPack(ClientGameTestContext context) {
