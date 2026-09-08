@@ -115,14 +115,18 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 g.text(font,trim(p.factories()+" / 15",q-44),38,y+20,HoiMenuStyle.MUTED);
                 int bw=Math.max(15,q-79);g.fill(10,y+38,10+bw,y+43,0xFF101511);
                 g.fill(10,y+38,10+(int)(bw*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1)),y+43,0xFF79945A);
-                if(mx>=6&&mx<q&&my>=y&&my<y+31)g.setTooltipForNextFrame(font,Component.literal(p.name()+" · "+p.building()+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.1f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기")),mx,my);
+                if(mx>=6&&mx<q&&my>=y&&my<y+31)HoiTooltips.draw(g,font,p.name()+" · "+p.building()+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.1f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"),mx,my);
             }
-            if(mx>=6&&mx<pane-6&&my>=top+24&&my<top+50)g.setTooltipForNextFrame(font,Component.literal("건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다."),mx,my);
-            if(mx>=6&&mx<pane-6&&my>=top+52&&my<top+92)g.setTooltipForNextFrame(font,Component.literal("민간공장 "+s.total()+"\n소비재 "+s.consumer()+" · 무역/기관 예약 "+s.reserved()+"\n건설 "+s.used()+" · 수리 "+s.repair()+" · 미사용 "+s.idle()+"\n사용 가능한 에너지 "+s.energy()+" / 필요량 "+s.demand()+"\n공장별 배정은 서버가 계산합니다."),mx,my);
-            if(view.projects().isEmpty())g.text(font,trim("건물 선택 후 지도에서 주 클릭",q-16),10,queueY()+12,HoiMenuStyle.MUTED);
+            if(mx>=6&&mx<pane-6&&my>=top+24&&my<top+50)HoiTooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
+            if(mx>=6&&mx<pane-6&&my>=top+52&&my<top+92)HoiTooltips.draw(g,font,"민간공장 "+s.total()+"\n소비재 "+s.consumer()+" · 무역/기관 예약 "+s.reserved()+"\n건설 "+s.used()+" · 수리 "+s.repair()+" · 미사용 "+s.idle()+"\n사용 가능한 에너지 "+HoiMenuBar.rawNumber(s.energy())+" / 필요량 "+HoiMenuBar.rawNumber(s.demand())+"\n공장별 배정은 서버가 계산합니다.",mx,my);
+            if(view.projects().isEmpty())g.text(font,trim("우클릭 건설 · 좌클릭 취소",q-16),10,queueY()+12,HoiMenuStyle.MUTED);
         } else g.text(font,"건설 현황을 불러오는 중…",10,top+40,HoiMenuStyle.MUTED);
         String msg=!localMessage.isEmpty()?localMessage:view==null?"":view.message();
         if(!msg.isEmpty())g.text(font,trim(msg,pane-16),8,height-20,HoiMenuStyle.TEXT);
+        else {
+            g.text(font,trim("우클릭 건설 · 좌클릭 취소",pane-16),8,height-20,HoiMenuStyle.MUTED);
+            if(mx<pane&&my>=height-24)HoiTooltips.draw(g,font,"건물 선택 후 자국 주 우클릭: 건설\n좌클릭: 해당 주에서 선택한 건물의 마지막 건설 예약 하나 취소",mx,my);
+        }
         super.extractRenderState(g,mx,my,delta);
     }
     private void send(ConstructionProtocol.Action action,String item,int amount,Vector3f ray) {
@@ -131,14 +135,14 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
         rebuildWidgets();
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
-        if(event.button()==0&&event.x()>=pane&&event.y()>top+22&&event.x()<HoiMenuBar.statsRight(width)) {
+        if((event.button()==0||event.button()==1)&&event.x()>=pane&&event.y()>top+22&&event.x()<HoiMenuBar.statsRight(width)) {
             if(view!=null&&pending==0&&minecraft.player!=null) {
                 if(!minecraft.options.getCameraType().isFirstPerson()) {
                     localMessage="1인칭 시점에서 지도 위의 주를 선택하세요.";return true;
                 }
                 var matrix=minecraft.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new Matrix4f()).invert();
                 var ray=matrix.transformProject(new Vector3f((float)(event.x()/width*2-1),(float)(1-event.y()/height*2),1)).normalize();
-                send(ConstructionProtocol.Action.PLACE,"",0,ray);
+                send(event.button()==1?ConstructionProtocol.Action.PLACE:ConstructionProtocol.Action.CANCEL_AT,"",0,ray);
             }
             return true;
         }

@@ -5,6 +5,7 @@
   "name": "HOI Client",
   "description": "Dedicated HOI research tree and country research slots",
   "environment": "client",
+  "mixins": ["hoi-client.mixins.json"],
   "entrypoints": {"client": ["dev.hoi.client.HoiClient"]},
   "depends": {"fabricloader": ">=0.19.5", "minecraft": "26.2", "java": ">=25", "fabric-api": "*", "hoi_protocol": "${version}"}
 }

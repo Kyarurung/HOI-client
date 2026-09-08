@@ -138,7 +138,6 @@ final class HoiMenuBar {
         if (value == null) return "—";
         double magnitude = Math.abs(value);
         if (magnitude >= 1_000_000) return String.format(Locale.ROOT, "%.1fM", value / 1_000_000);
-        if (magnitude >= 10_000) return String.format(Locale.ROOT, "%.0fK", value / 1000);
         return magnitude >= 1000 ? String.format(Locale.ROOT, "%.1fK", value / 1000) : rawNumber(value);
     }
 

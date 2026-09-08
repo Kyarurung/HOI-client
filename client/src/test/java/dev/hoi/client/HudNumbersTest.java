@@ -11,5 +11,8 @@ class HudNumbersTest {
         assertEquals("9223372036854775807",HoiMenuBar.rawNumber(Long.MAX_VALUE));
         assertEquals("-2.35",HoiMenuBar.rawNumber(-2.345));
         assertEquals("0",HoiMenuBar.rawNumber(-0.00001));
+        assertEquals("11.6K",HoiMenuBar.number(11600.0));
+        assertEquals("281.2K",HoiMenuBar.number(281200.0));
+        assertEquals("21.86",HoiMenuBar.rawNumber(21.862500000000004));
     }
 }
