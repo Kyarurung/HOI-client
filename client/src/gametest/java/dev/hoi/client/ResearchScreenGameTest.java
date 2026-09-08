@@ -30,7 +30,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         try (var world = context.worldBuilder().adjustSettings(settings -> settings.setGameMode(
                 net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.SelectedGameMode.CREATIVE)).create()) {
             var menu = fixtureMenu();
-            ConstructionScreenChecks.run(context,menu.hud());
+            ConstructionScreenChecks.run(context, menu.hud());
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(5);
             context.runOnClient(client -> check(((HoiMenuScreen)client.gui.screen()).panelWidth() == client.gui.screen().width * 726 / 2560, "Country panel follows the original 726-pixel container"));
             context.takeScreenshot("hoi-menu-country");
@@ -189,8 +189,51 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                     "Hidden saved-day text does not change remaining-time calculation"));
             context.getInput().resizeWindow(854, 480); context.waitTicks(2);
             context.takeScreenshot("hoi-research-centered-image-compact");
+            fullTfrCatalog(context);
             context.setScreen(() -> null);
         }
+    }
+
+    private static void fullTfrCatalog(ClientGameTestContext context) {
+        ResearchView view;
+        try(var in=ResearchScreenGameTest.class.getResourceAsStream("/tfr-research-view.json")) {
+            view=new ResearchProtocol.Response(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).view();
+        } catch(java.io.IOException e) {throw new java.io.UncheckedIOException(e);}
+        var requests=new ArrayList<ResearchProtocol.Request>();
+        context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
+        context.setScreen(()->new ResearchScreen(view,requests::add));context.waitTicks(2);context.takeScreenshot("hoi-tfr-benefits-slots");
+        click(context,"슬롯 1 · "+view.technology(view.slots().getFirst().technology()).name());context.waitTicks(2);
+        click(context,"×");context.waitTicks(2);
+        for(var tab:List.of("보병","지상 & 항공 지원","기갑","포","해군","해군 지원 장비","공군","산업","공학")) {
+            click(context,tab);context.waitTicks(2);context.takeScreenshot("hoi-tfr-tree-"+List.of("보병","지상 & 항공 지원","기갑","포","해군","해군 지원 장비","공군","산업","공학").indexOf(tab));
+        }
+        context.getInput().resizeWindow(2560,1440); context.waitTicks(3);
+        for (var tab : List.of("기갑", "공학", "산업")) {
+            click(context, tab); context.waitTicks(2);
+            context.takeScreenshot(tab.equals("기갑") ? "hoi-armor-rearranged" : tab.equals("공학") ? "hoi-engineering-reference" : "hoi-industry-rearranged");
+            context.runOnClient(client -> {
+                var screen = (ResearchScreen)client.gui.screen();
+                var tabs=screen.children().stream().filter(w -> w instanceof ResearchTabButton).map(w -> (ResearchTabButton)w).toList();
+                check(screen.treeTop()==tabs.getFirst().getBottom()-1,"Research tabs join the tree panel without a control-row gap");
+                check(screen.children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.EditBox),"Technology search is removed");
+                check(tabs.size()==9 && tabs.getFirst().getX()==10 && tabs.getLast().getRight()<screen.width/2,"Nine research tabs stay compact and left aligned");
+                for(int i=1;i<tabs.size();i++) check(tabs.get(i).getX()==tabs.get(i-1).getRight(),"Tabs are adjacent");
+                check(screen.children().stream().filter(w -> w instanceof Button).map(w -> ((Button)w).getMessage().getString())
+                        .noneMatch(text -> text.equals("처음 위치") || text.equals("슬롯 목록")), "Removed tree controls stay absent");
+            });
+        }
+        context.getInput().resizeWindow(854,480); context.waitTicks(3);
+        context.takeScreenshot("hoi-industry-rearranged-compact");
+        context.runOnClient(client -> {
+            var screen = (ResearchScreen)client.gui.screen(); screen.clearFocus();
+            for (int i=0;i<60;i++) screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT,0,0));
+            screen.keyPressed(ENTER);
+        });
+        context.waitTicks(2); context.takeScreenshot("hoi-industry-rearranged-compact-detail"); click(context,"×");
+        context.getInput().resizeWindow(1600,1000); context.waitTicks(3); click(context,"공학"); context.waitTicks(2);
+        context.runOnClient(client->{var screen=(ResearchScreen)client.gui.screen();screen.clearFocus();screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT,0,0));screen.keyPressed(ENTER);});
+        context.waitTicks(2);context.takeScreenshot("hoi-tfr-source-detail");click(context,"연구");
+        check(requests.size()==1&&requests.getFirst().slot()==1,"Occupied slot zero falls back to the first free slot without cancellation");
     }
 
     private static void loadPack(ClientGameTestContext context) {

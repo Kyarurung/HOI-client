@@ -10,6 +10,8 @@ import java.util.*;
 final class ResearchPresentation {
     private ResearchPresentation() {}
     static ResearchLayout apply(ResearchLayout fallback, ResourceManager resources, int viewport) {
+        if (TfrResearchLayout.applies(fallback)) return TfrResearchLayout.fit(fallback, viewport);
+        if(fallback.sourceTree()) return fallback;
         var asset = resources.getResource(Identifier.fromNamespaceAndPath("hoi", "ui/research_layout.json"));
         if (asset.isEmpty()) return fallback;
         try (var reader = asset.get().openAsReader()) {

@@ -17,6 +17,25 @@ class ResearchLayoutTest {
         assertEquals(firstNode.y(), secondNode.y());
         assertNotEquals(firstNode.y(), otherNode.y());
     }
+    @Test void fullSourceCatalogKeepsEveryNodeClickableAndNavalSupportSeparate() throws Exception {
+        ResearchView view;
+        try(var in=getClass().getResourceAsStream("/tfr-research-view.json")) {
+            view=new dev.hoi.protocol.ResearchProtocol.Response(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).view();
+        }
+        assertEquals(416,view.technologies().size());assertEquals(1,view.availableSlot(0));assertEquals(2,view.benefits().remainingUses());
+        var ids=new HashSet<String>();
+        for(var category:List.of("INFANTRY","SUPPORT","ARMOR","ARTILLERY","NAVY","NAVAL_SUPPORT","AIR","ENGINEERING","INDUSTRY")) {
+            var layout=ResearchLayout.create(view.technologies(),category,"");assertTrue(layout.sourceTree());assertFalse(layout.nodes().isEmpty());
+            assertEquals(Set.of("ARMOR","ARTILLERY","AIR","ENGINEERING","INDUSTRY").contains(category),layout.vertical());
+            if(category.equals("ARMOR")) assertTrue(layout.yearGuides().containsKey(1980));
+            if(category.equals("INFANTRY")) assertTrue(layout.width()<3000);
+            for(var node:layout.nodes()) {
+                assertTrue(ids.add(node.tech().id()));assertSame(node,layout.at(node.x()+20,node.y()+20));
+                assertEquals(1,layout.nodes().stream().filter(n->n.contains(node.x()+20,node.y()+20)).count());
+            }
+        }
+        assertEquals(416,ids.size());
+    }
     private ResearchView.Tech tech(String id, int year) {
         return new ResearchView.Tech(id, "INFANTRY", "보병 " + id, year, 1, 100, 0, 1,
                 List.of(), List.of(), List.of(), ResearchView.Status.AVAILABLE);
