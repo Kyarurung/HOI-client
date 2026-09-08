@@ -5,8 +5,13 @@ import java.util.Objects;
 
 /** Private, read-only presentation data. Contains no other country's state or executable effects. */
 public record ResearchView(String session, long revision, String country, String countryName,
-                           long day, String date, String speed, List<Slot> slots, List<Tech> technologies, String message) {
+                           long day, String date, String speed, List<Slot> slots, List<Tech> technologies, String message, CountryHud hud) {
+    public ResearchView(String session, long revision, String country, String countryName, long day, String date,
+                        String speed, List<Slot> slots, List<Tech> technologies, String message) {
+        this(session, revision, country, countryName, day, date, speed, slots, technologies, message, CountryHud.UNKNOWN);
+    }
     public ResearchView {
+        if (hud == null) hud = CountryHud.UNKNOWN;
         Objects.requireNonNull(session); Objects.requireNonNull(country); Objects.requireNonNull(countryName);
         Objects.requireNonNull(date); Objects.requireNonNull(speed); Objects.requireNonNull(message);
         slots = List.copyOf(slots); technologies = List.copyOf(technologies);

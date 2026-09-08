@@ -14,5 +14,11 @@ class ResearchViewTest {
         assertEquals(30, tech.remainingDays(10));
         assertEquals(.2, tech.fraction(), 1e-9);
         assertThrows(IllegalArgumentException.class, () -> new ResearchProtocol.Response("x".repeat(ResearchProtocol.MAX_JSON + 1)));
+        var hud = new CountryHud(1.0, 2.0, 3.0, null, null, .5, true, 0L);
+        var withHud = new ResearchView(view.session(), view.revision(), view.country(), view.countryName(), view.day(), view.date(),
+                view.speed(), view.slots(), view.technologies(), view.message(), hud);
+        assertEquals(hud, ResearchProtocol.Response.of(withHud).view().hud());
+        var legacy = com.google.gson.JsonParser.parseString(ResearchProtocol.Response.of(view).json()).getAsJsonObject(); legacy.remove("hud");
+        assertEquals(CountryHud.UNKNOWN, new ResearchProtocol.Response(legacy.toString()).view().hud());
     }
 }

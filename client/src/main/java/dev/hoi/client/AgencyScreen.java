@@ -59,13 +59,13 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     }
     @Override protected void init() {
         SidebarMovement.release(minecraft);
-        pane = width * 3 / 10;
+        pane = HoiPanelLayout.width(MenuTab.INTELLIGENCE, width);
         for (int i = 0; i < GROUPS.length; i++) {
             final int index = i;
-            addRenderableWidget(new ResearchButton(LABELS[i], 8 + (i % 2) * (pane - 16) / 2, 96 + (i / 2) * 24, (pane - 20) / 2, 21,
+            addRenderableWidget(new HoiMenuButton(LABELS[i], null, group.equals(GROUPS[i]), 8 + (i % 2) * (pane - 16) / 2, 96 + (i / 2) * 24, (pane - 20) / 2, 21,
                     () -> { group = GROUPS[index]; selectedId = null; choosing = -1; scroll = 0; rebuildWidgets(); }));
         }
-        addRenderableWidget(new ResearchButton("×", pane - 26, 10, 19, 19, this::onClose));
+        addRenderableWidget(new HoiMenuButton("×", pane - 25, 3, 19, 19, this::onClose));
         if (view == null) return;
         var items = visibleItems();
         boolean grid = group.equals("upgrades");
@@ -155,8 +155,8 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         } else if (++refreshTicks % 60 == 0 && pendingTicks == 0 && choosing < 0 && selectedId == null) send(AgencyProtocol.Kind.REFRESH, "", List.of());
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-        g.fillGradient(0, 0, pane, height, 0xFF31363E, 0xFF0F1419); g.outline(0, 0, pane, height, 0xFF727D85);
-        g.text(font, "정보기관", 10, 16, TEXT);
+        HoiMenuStyle.panel(g, 0, 0, pane, height);
+        g.text(font, "정보기관", 10, 9, HoiMenuStyle.TEXT);
         String flag = view == null ? "menu/intelligence" : view.country().equals("KOR") ? "country/kor/intelligence" : "menu/intelligence";
         UiAssets.draw(g, flag, 12, 40, 38, 39);
         g.text(font, trim(view == null ? "불러오는 중…" : view.name(), pane - 62), 56, 46, GOLD);

@@ -3,8 +3,12 @@ package dev.hoi.protocol;
 import java.util.List;
 
 /** Private read-only presentation. Contains no executable effects or commands. */
-public record MenuView(String country, String countryName, String date, String speed, List<Page> pages) {
+public record MenuView(String country, String countryName, String date, String speed, List<Page> pages, CountryHud hud) {
+    public MenuView(String country, String countryName, String date, String speed, List<Page> pages) {
+        this(country, countryName, date, speed, pages, CountryHud.UNKNOWN);
+    }
     public MenuView {
+        if (hud == null) hud = CountryHud.UNKNOWN;
         bounded(country, 64); bounded(countryName, 128); bounded(date, 64); bounded(speed, 16);
         pages = List.copyOf(pages);
         if (country.isBlank() || pages.size() != MenuTab.ORDER.size()) throw new IllegalArgumentException("Invalid menu pages");

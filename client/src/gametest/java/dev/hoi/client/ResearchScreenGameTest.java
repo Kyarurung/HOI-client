@@ -31,8 +31,24 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.SelectedGameMode.CREATIVE)).create()) {
             var menu = fixtureMenu();
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(5);
-            context.runOnClient(client -> check(((HoiMenuScreen)client.gui.screen()).panelWidth() == client.gui.screen().width * 4 / 10, "Country panel is 40 percent"));
+            context.runOnClient(client -> check(((HoiMenuScreen)client.gui.screen()).panelWidth() == client.gui.screen().width * 726 / 2560, "Country panel follows the original 726-pixel container"));
             context.takeScreenshot("hoi-menu-country");
+            check(HoiMenuBar.indicators(menu.hud()).stream().limit(13).map(HoiMenuBar.Indicator::icon).toList().equals(List.of(
+                    "political_power", "stability", "war_support", "manpower", "factories", "fuel", "supplies", "convoys", "command_power",
+                    "army_experience", "air_experience", "navy_experience", "party_support")), "National indicators follow the requested order");
+            check(HoiMenuBar.indicators(menu.hud()).stream().anyMatch(i -> i.icon().equals("nuclear") && i.label().equals("핵폭탄")), "Nuclear bombs appear from campaign start without research");
+            var armed = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational());
+            check(HoiMenuBar.indicators(armed).stream().anyMatch(i -> i.icon().equals("nuclear") && i.value().equals("0")), "Completed nuclear research shows zero inventory");
+            check(HoiMenuBar.maximumScroll(800, armed) == 0, "All national and financial indicators fit the normal viewport");
+            check(HoiMenuBar.scroll(427, armed, 0, 0, -100) == HoiMenuBar.maximumScroll(427, armed), "Compact HUD can reach the final indicators");
+            context.setScreen(() -> new HoiMenuScreen(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), armed)));
+            context.waitTicks(2); context.takeScreenshot("hoi-hud-nuclear-researched-zero");
+            var stocked = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 12L, fixtureNational());
+            context.setScreen(() -> new HoiMenuScreen(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), stocked)));
+            context.waitTicks(2); context.takeScreenshot("hoi-hud-nuclear-stockpile");
+            context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(2);
+            click(context, "정치력 · 72"); context.waitTicks(2); context.takeScreenshot("hoi-menu-country-detail");
+            context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
             for (String label : List.of("민간", "육군", "해군", "공군")) {
                 click(context, label); context.waitTicks(2); context.takeScreenshot("hoi-country-" + label);
             }
@@ -41,11 +57,31 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 context.runOnClient(client -> {
                     var screen = (HoiMenuScreen)client.gui.screen();
                     check(screen.selectedTab() == tab, "Menu tab " + tab);
-                    int percent = tab == MenuTab.POLITICS || tab == MenuTab.RECRUITMENT ? 40 : tab == MenuTab.TRADE ? 35 : 30;
-                    check(screen.panelWidth() == screen.width * percent / 100, "Panel width for " + tab);
+                    int sourceWidth = switch (tab) { case POLITICS -> 726; case TRADE -> 620; case LOGISTICS -> 560; default -> 550; };
+                    check(screen.panelWidth() == screen.width * sourceWidth / 2560, "Original container width for " + tab);
                 });
             }
             context.waitTicks(2); context.takeScreenshot("hoi-menu-officers");
+            click(context, "무역 & 경제 메뉴"); context.waitTicks(2); context.takeScreenshot("hoi-menu-economy");
+            click(context, "무역"); context.waitTicks(2); context.takeScreenshot("hoi-menu-trade");
+            context.getInput().resizeWindow(854, 480); context.waitTicks(3);
+            context.runOnClient(client -> client.gui.screen().mouseScrolled(100, 5, 0, -100));
+            context.waitTicks(2); context.takeScreenshot("hoi-hud-compact-final-indicators");
+            context.runOnClient(client -> client.gui.screen().mouseScrolled(100, 5, 0, 100));
+            for (var tab : List.of(MenuTab.POLITICS, MenuTab.TRADE, MenuTab.INTELLIGENCE, MenuTab.RECRUITMENT)) {
+                click(context, tab.label() + " 메뉴");
+                context.runOnClient(client -> {
+                    var screen = (HoiMenuScreen)client.gui.screen(); checkToolbar(screen);
+                    var controls = screen.children().stream().filter(c -> c instanceof HoiMenuButton).map(c -> (HoiMenuButton)c).toList();
+                    check(controls.stream().allMatch(b -> b.getX() >= 0 && b.getRight() <= screen.panelWidth()
+                            && b.getBottom() <= screen.height), "Compact menu controls remain inside the sidebar");
+                    for (var a : controls) for (var b : controls) if (a != b)
+                        check(a.getRight() <= b.getX() || b.getRight() <= a.getX() || a.getBottom() <= b.getY() || b.getBottom() <= a.getY(),
+                                "Compact controls do not overlap");
+                });
+                context.waitTicks(2); context.takeScreenshot("hoi-menu-compact-" + tab.id());
+            }
+            context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
             movement(context);
             agency(context);
             var requests = new ArrayList<ResearchProtocol.Request>();
@@ -131,7 +167,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             var active = new ResearchView.Tech(source.id(), source.category(), source.name(), source.year(), source.tier(),
                     source.baseDays(), 30, source.dailyRate(), source.prerequisites(), source.effects(), source.unlocks(), ResearchView.Status.ACTIVE);
             var centered = new ResearchView(view.session(), view.revision() + 1, view.country(), view.countryName(), view.day(), view.date(), view.speed(),
-                    java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ResearchView.Slot(i, i == 0 ? active.id() : "", 12)).toList(), List.of(active), "");
+                    java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ResearchView.Slot(i, i == 0 ? active.id() : "", 12)).toList(), List.of(active), "", view.hud());
             context.setScreen(() -> new ResearchScreen(centered, requests::add)); context.waitTicks(2);
             context.takeScreenshot("hoi-research-centered-image");
             context.runOnClient(client -> check(active.remainingDays(centered.slots().getFirst().savedDays()) == 58,
@@ -159,6 +195,13 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         reload.get().join();
         context.runOnClient(client -> check(client.getResourceManager().getResource(
                 Identifier.fromNamespaceAndPath("hoi", "textures/gui/panel/research_banner.png")).isPresent(), "External art loaded"));
+        context.runOnClient(client -> {
+            for (var item : HoiMenuBar.indicators(CountryHud.UNKNOWN))
+                check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/" + item.icon() + ".png")).isPresent(),
+                        "External HUD icon loaded: " + item.icon());
+            check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/world_tension.png")).isPresent(),
+                    "Large world tension icon loaded");
+        });
     }
     private static void agency(ClientGameTestContext context) {
         var items = new ArrayList<AgencyView.Item>();
@@ -190,7 +233,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.setScreen(() -> null);
     }
     private static void movement(ClientGameTestContext context) {
-        click(context, "국가 정보 메뉴"); click(context, "• 공군");
+        click(context, "국가 정보 메뉴"); click(context, "공군");
         context.runOnClient(client -> {
             client.player.setPos(client.player.getX(), client.player.getY() + 8, client.player.getZ());
             client.player.setOnGround(false);
@@ -223,7 +266,11 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
     private static void checkToolbar(net.minecraft.client.gui.screens.Screen screen) {
         var tabs = screen.children().stream().filter(c -> c instanceof HoiMenuBar.TabButton).map(c -> (HoiMenuBar.TabButton)c).toList();
         check(tabs.size() == MenuTab.ORDER.size() && tabs.stream().allMatch(b -> b.active && b.visible
-                && b.getY() == 3 && b.getBottom() < HoiMenuBar.height(screen.width)), "All common menu buttons remain usable without a status row");
+                && (b.getY() == 3 || b.getY() == 17) && b.getBottom() < HoiMenuBar.height(screen.width)), "Common navigation stays usable below the resource strip");
+        check(tabs.getLast().getRight() < HoiMenuBar.dockWidth(screen.width)
+                && HoiMenuBar.dockWidth(screen.width) <= screen.width, "Compact original-art toolbar fits the viewport");
+        check(HoiMenuBar.tensionX(screen.width) + 30 == screen.width - 4
+                && HoiMenuBar.tensionX(screen.width) > HoiMenuBar.dockWidth(screen.width), "Flag-sized tension display stays at the far right");
     }
     private static HoiMenuScreen fixtureMainMenu(MenuView menu, MenuTab selected, ResearchView research, List<ResearchProtocol.Request> requests) {
         return new HoiMenuScreen(menu, selected, () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(
@@ -232,13 +279,23 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
     }
     private static MenuView fixtureMenu() {
         var pages = MenuTab.ORDER.stream().map(tab -> new MenuView.Page(tab, tab == MenuTab.POLITICS ? List.of(
-                new MenuView.Section("국가 현황", "politics", List.of(new MenuView.Entry("정치력", "72", "화면 검증용 데이터"))),
+                new MenuView.Section("국가 현황", "politics", List.of(new MenuView.Entry("정치력", "72", "화면 검증용 데이터"),
+                        new MenuView.Entry("안정도", "62%", "화면 검증용 데이터"), new MenuView.Entry("전쟁 지지도", "48%", "화면 검증용 데이터"))),
                 new MenuView.Section("민간 정보", "civilian", List.of(new MenuView.Entry("민간공장", "20", "화면 검증용 데이터"))),
                 new MenuView.Section("육군", "army", List.of(new MenuView.Entry("육군 장비", "12", "화면 검증용 데이터"))),
                 new MenuView.Section("해군", "navy", List.of(new MenuView.Entry("해군 장비", "12", "화면 검증용 데이터"))),
                 new MenuView.Section("공군", "air", List.of(new MenuView.Entry("공군 장비", "12", "화면 검증용 데이터"))))
+                : tab == MenuTab.TRADE ? List.of(
+                        new MenuView.Section("경제 현황", "trade", List.of(new MenuView.Entry("민간공장", "20", "화면 검증용 데이터"),
+                                new MenuView.Entry("군수공장", "18", "화면 검증용 데이터"))),
+                        new MenuView.Section("자원 무역", "trade", List.of(new MenuView.Entry("석유", "38", "화면 검증용 데이터"),
+                                new MenuView.Entry("강철", "200", "화면 검증용 데이터"))))
                 : List.of(new MenuView.Section(tab.label(), tab.id(), List.of(new MenuView.Entry("진행 현황", "12", "검증용 데이터")))))).toList();
-        return new MenuView("KOR", "대한민국", "2020년 1월 1일 00시", "PAUSED", pages);
+        return new MenuView("KOR", "대한민국", "2020년 1월 1일 00시", "PAUSED", pages,
+                new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, false, null, fixtureNational()));
+    }
+    private static CountryHud.NationalIndicators fixtureNational() {
+        return new CountryHud.NationalIndicators(73.0, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 1000L, .95, 150.0, .36, 280_900L);
     }
     private static ResearchView fixtureResearch() {
         var technologies = new ArrayList<ResearchView.Tech>();
@@ -250,7 +307,8 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 new int[]{1980,2018,2020,2022,2024,2028,2032}[i % 7], 1, 180, 0, 1,
                 List.of(), List.of(), List.of(), ResearchView.Status.LOCKED));
         return new ResearchView("ui-test", 17, "KOR", "대한민국", 72, "2020년 1월 1일 00시", "PAUSED",
-                java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ResearchView.Slot(i, i == 1 ? "hoi:test/active" : "", i == 0 ? 12 : 0)).toList(), technologies, "UI 검증용 데이터");
+                java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ResearchView.Slot(i, i == 1 ? "hoi:test/active" : "", i == 0 ? 12 : 0)).toList(), technologies, "UI 검증용 데이터",
+                new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational()));
     }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }
 }

@@ -24,7 +24,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     private ResearchView view;
     private ResearchLayout layout;
     private String category = CATEGORIES[0], query = "", detail, focusedTech;
-    private int selectedSlot, slotOffset, treeTop, treeBottom, panelX, panelY, panelW, panelH, detailScroll, pending;
+    private int selectedSlot, slotOffset, treeTop, treeBottom, panelX, panelY, panelW, panelH, detailScroll, pending, hudScroll;
     private double scrollX, scrollY;
     private boolean panning, overview = true;
     private final java.util.function.Consumer<ResearchProtocol.Request> requests;
@@ -75,7 +75,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     private int visibleSlots() { return 6; }
     private int menuBottom() { return HoiMenuBar.height(width); }
-    private int overviewWidth() { return width * 3 / 10; }
+    private int overviewWidth() { return HoiPanelLayout.width(MenuTab.RESEARCH, width); }
     private int slotPitch() { return Math.min(54, Math.max(17, (height - menuBottom() - 96) / visibleSlots())); }
     private int bannerHeight() { return Math.max(28, height - menuBottom() - 68 - visibleSlots() * slotPitch()); }
     private int slotsTop() { return menuBottom() + 60 + bannerHeight(); }
@@ -131,7 +131,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     @Override public void tick() { if (pending > 0 && --pending == 0) rebuildWidgets(); }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-        if (overview) { drawOverview(g); HoiMenuBar.draw(g, width); super.extractRenderState(g, mouseX, mouseY, delta); return; }
+        if (overview) { drawOverview(g); HoiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll); super.extractRenderState(g, mouseX, mouseY, delta); return; }
         g.fillGradient(0, 0, width, height, 0xFF1B201E, 0xFF060909);
         g.fill(10, menuBottom() + 38, width - 10, treeBottom, 0xFF101A21);
         g.outline(10, menuBottom() + 38, width - 20, treeBottom - menuBottom() - 38, 0xFF778178);
@@ -142,15 +142,13 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         g.text(font, "잠김", 108, height - 24, color(ResearchView.Status.LOCKED));
         g.text(font, trim(view.message().isEmpty() ? "휠: 세로  ·  가로 휠/우클릭 드래그: 이동  ·  방향키/Enter: 기술 선택" : view.message(), width - 24), 12, height - 12, MUTED);
         if (detail != null) drawDetail(g);
-        HoiMenuBar.draw(g, width);
+        HoiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll);
         super.extractRenderState(g, mouseX, mouseY, delta);
     }
     private void drawOverview(GuiGraphicsExtractor g) {
         int pane = overviewWidth(), top = menuBottom(), bannerY = top + 39;
-        g.fillGradient(0, top, pane, height, 0xFF242930, 0xFF0C0F13);
-        g.outline(0, top, pane, height - top, 0xFF657078);
-        g.text(font, "연구", 12, top + 13, TEXT);
-        g.horizontalLine(8, pane - 8, top + 33, 0xFF657078);
+        HoiMenuStyle.panel(g, 0, top, pane, height - top);
+        g.text(font, "연구", 12, top + 9, HoiMenuStyle.TEXT);
         g.fillGradient(6, bannerY, pane - 6, bannerY + bannerHeight(), 0xFF4E315E, 0xFF172731);
         if (!UiAssets.cover(g, "panel/research_banner", 6, bannerY, pane - 12, bannerHeight())) {
             ResearchIcons.fallback(g, "ENGINEERING", pane / 2 - 10, bannerY + bannerHeight() / 2 - 8, 0xFFBB98CD, 2);
@@ -289,6 +287,10 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     @Override public boolean mouseReleased(MouseButtonEvent event) { panning = false; return super.mouseReleased(event); }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
+        if (x >= 40 && x < HoiMenuBar.statsRight(width) && y >= 0 && y < HoiMenuBar.STATS_HEIGHT) {
+            hudScroll = HoiMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical);
+            return true;
+        }
         if (overview && x < overviewWidth() && y >= slotsTop() && view.slots().size() > visibleSlots()) {
             slotOffset -= (int)Math.signum(vertical); rebuildWidgets(); return true;
         }

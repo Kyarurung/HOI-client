@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Kyarurung/HOI-resourcepack
-          ref: e9020e04ba52fc2150fc02a3215f335700ff1b65
+          ref: bc2757be7c1073d6d8ff6a2ea680c5057eb6200a
           ssh-key: ${{ secrets.HOI_RESOURCEPACK_SSH_KEY }}
           path: .test-resourcepack
           persist-credentials: false

@@ -25,4 +25,26 @@ class MenuViewTest {
         assertThrows(IllegalArgumentException.class, () -> new MenuView.Entry("name", "value", "", 1.01));
         assertThrows(IllegalArgumentException.class, () -> new MenuView.Section("x", "x", Collections.nCopies(65, new MenuView.Entry("x", "", ""))));
     }
+    @Test void optionalHudRetainsLegacySnapshotsAndNuclearInventoryBeforeResearch() {
+        var legacy = MenuProtocol.OpenScreen.of(new MenuView("KOR", "한국", "", "", pages())).json();
+        var object = com.google.gson.JsonParser.parseString(legacy).getAsJsonObject(); object.remove("hud");
+        assertEquals(CountryHud.UNKNOWN, new MenuProtocol.OpenScreen(object.toString()).view().hud());
+        var hud = new CountryHud(150.0, 119.0, 209.0, 1787.0, 704.315, .36, true, 0L);
+        assertEquals(hud, MenuProtocol.OpenScreen.of(new MenuView("KOR", "한국", "", "", pages(), hud)).view().hud());
+        assertEquals(5L, new CountryHud(null, null, null, null, null, null, false, 5L).nuclearStockpile());
+        assertThrows(IllegalArgumentException.class, () -> new CountryHud(Double.NaN, null, null, null, null, null, false, null));
+        assertThrows(IllegalArgumentException.class, () -> new CountryHud(null, null, null, null, null, 1.01, false, null));
+    }
+    @Test void nationalIndicatorsKeepUnknownDistinctFromZeroAndRejectInvalidRatios() {
+        var national = new CountryHud.NationalIndicators(-2.0, .62, .48, 45L, 0.0, 500.0, null, null, 0L, 1.0, 150.0, .36, 280_000L);
+        var hud = new CountryHud(150.0, 119.0, 209.0, null, null, .36, false, null, national);
+        var payload = MenuProtocol.OpenScreen.of(new MenuView("KOR", "한국", "", "", pages(), hud));
+        assertEquals(hud, payload.view().hud());
+        var object = com.google.gson.JsonParser.parseString(payload.json()).getAsJsonObject();
+        object.getAsJsonObject("hud").remove("national");
+        assertEquals(CountryHud.NationalIndicators.UNKNOWN, new MenuProtocol.OpenScreen(object.toString()).view().hud().national());
+        for (double invalid : new double[]{Double.NaN, Double.POSITIVE_INFINITY, -.01, 1.01})
+            assertThrows(IllegalArgumentException.class, () -> new CountryHud.NationalIndicators(
+                    null, null, null, null, null, null, null, invalid, null, null, null, null, null));
+    }
 }
