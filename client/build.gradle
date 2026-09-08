@@ -26,3 +26,6 @@ tasks.withType(JavaExec).configureEach {
         systemProperty 'hoi.testResourcePack', pack.get()
     }
 }
+
+// Complete source catalog fixture is shared by unit and renderer tests only.
+sourceSets.gametest.resources.srcDir("src/test/resources")
