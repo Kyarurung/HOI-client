@@ -24,7 +24,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private int pane, top, scroll, secondScroll, pickerScroll, hudScroll, pending, refresh;
     private int designerScroll;
     private int tradeTab = 1, tradeAmount = 1, selectedSlot = -1;
-    private boolean supportSlot, designer, closed;
+    private boolean supportSlot, designer, closed, background;
     private String group = "all", picker = "", switchLine = "", resource = "IRON", partner = "";
     private String location = "", recruitTemplate = "", draftName = "", localMessage = "";
     private EditBox nameBox;
@@ -90,7 +90,9 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (view == null) text("국가 현황을 불러오는 중…", 9, top + 37, pane - 18, MUTED);
         else {
             HoiMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
+            background = modal();
             layout();
+            background = false;
             if (designer) layoutDesigner();
             else if (!partner.isEmpty()) layoutContract();
             else if (!picker.isEmpty()) layoutPicker();
@@ -495,7 +497,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (!display.equals(value)) tip(value, x, y - 1, max, 11);
     }
     private void tip(String value, int x, int y, int w, int h) {
-        if (graphics != null && mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h)
+        if (graphics != null && !background && mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h)
             HoiTooltips.draw(graphics, font, value, mouseX, mouseY);
     }
     private void bar(int x, int y, int w, int h, double value, int color) {
