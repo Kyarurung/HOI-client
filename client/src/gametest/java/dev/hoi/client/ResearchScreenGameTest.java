@@ -25,6 +25,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             ResearchProtocol.registerPayloadTypes(); ResearchProtocol.registerPayloadTypes();
         });
         loadPack(context);
+        AtlasSurfaceRenderChecks.run(context);
         context.getInput().resizeWindow(1600, 1000);
         context.runOnClient(client -> client.options.guiScale().set(2));
         try (var world = context.worldBuilder().adjustSettings(settings -> settings.setGameMode(
