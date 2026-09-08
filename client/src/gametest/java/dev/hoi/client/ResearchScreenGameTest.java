@@ -30,6 +30,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         try (var world = context.worldBuilder().adjustSettings(settings -> settings.setGameMode(
                 net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.SelectedGameMode.CREATIVE)).create()) {
             var menu = fixtureMenu();
+            ConstructionScreenChecks.run(context,menu.hud());
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(5);
             context.runOnClient(client -> check(((HoiMenuScreen)client.gui.screen()).panelWidth() == client.gui.screen().width * 726 / 2560, "Country panel follows the original 726-pixel container"));
             context.takeScreenshot("hoi-menu-country");

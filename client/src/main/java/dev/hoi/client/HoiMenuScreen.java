@@ -53,6 +53,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         top = HoiMenuBar.height(width);
         HoiMenuBar.buttons(width, view == null ? "" : view.country(), selected, tab -> {
             if (tab == MenuTab.RESEARCH) { researchOpen.run(); return; }
+            if (tab == MenuTab.CONSTRUCTION && ClientPlayNetworking.canSend(dev.hoi.protocol.ConstructionProtocol.Request.TYPE)) { HoiClient.openConstruction(); return; }
             HoiClient.cancelOpen();
             selected = tab; scroll = 0; collapsed.clear(); detail = null; rebuildWidgets();
         }).forEach(this::addRenderableWidget);
