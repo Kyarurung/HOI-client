@@ -57,8 +57,15 @@ final class AtlasSurfaceRenderChecks {
                     }
                     command.accept("summon minecraft:block_display "+c.get(0).getAsDouble()+" "+c.get(2).getAsDouble()+" "+c.get(1).getAsDouble()+" {block_state:"+blockState(scene.get("riverBlock").getAsString())+",transformation:{translation:[0f,0f,0f],scale:["+c.get(3).getAsDouble()+"f,"+c.get(4).getAsDouble()+"f,"+c.get(5).getAsDouble()+"f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:2f,height:2f,view_range:8f,brightness:{block:15,sky:15}}");
                 }
+                // Use the exact clipped production faces, rather than expanding centerlines
+                // again in the fixture and accidentally extending caps across the coastline.
+                for(var entry:data.getAsJsonArray("strokes")) {
+                    var b=entry.getAsJsonArray();
+                    command.accept("summon minecraft:block_display "+b.get(0)+" "+b.get(2)+" "+b.get(1)+" {block_state:{Name:\"minecraft:black_concrete\"},transformation:{translation:[0f,0f,0f],scale:["+b.get(3)+"f,"+b.get(4)+"f,"+b.get(5)+"f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:120f,height:4f,view_range:8f,brightness:{block:15,sky:15}}");
+                }
                 for(var entry:data.getAsJsonArray("lines")) {
-                    var s=entry.getAsJsonArray();double x=s.get(0).getAsDouble(),z=s.get(1).getAsDouble();
+                    var s=entry.getAsJsonArray();if(!s.get(5).getAsString().equals("CROSSING"))continue;
+                    double x=s.get(0).getAsDouble(),z=s.get(1).getAsDouble();
                     double dx=s.get(2).getAsDouble()-x,dz=s.get(3).getAsDouble()-z,dy=s.get(7).getAsDouble()-s.get(6).getAsDouble(),length=Math.sqrt(dx*dx+dy*dy+dz*dz),width=s.get(4).getAsDouble();
                     if(length<.00001)continue;
                     boolean upright=dx==0&&dz==0;
