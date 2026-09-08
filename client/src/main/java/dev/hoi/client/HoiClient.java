@@ -20,11 +20,12 @@ public final class HoiClient implements ClientModInitializer {
     private static int awaiting;
     @Override public void onInitializeClient() {
         ResearchProtocol.registerPayloadTypes();
+        AtlasSceneClient.register();
         dev.hoi.protocol.ConstructionProtocol.registerPayloadTypes();
         dev.hoi.protocol.CountryProtocol.registerPayloadTypes();
         net.fabricmc.fabric.api.resource.v1.ResourceLoader.get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
                 .registerReloadListener(Identifier.fromNamespaceAndPath("hoi", "ui_image_dimensions"),
-                        (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> UiAssets.clear());
+                        (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> { UiAssets.clear(); AtlasSceneClient.resourcesReloaded(); });
         var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("hoi", "strategy"));
         var key = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.hoi.research", InputConstants.Type.KEYSYM, InputConstants.KEY_R, category));
         ClientTickEvents.START_CLIENT_TICK.register(SidebarMovement::tick);
