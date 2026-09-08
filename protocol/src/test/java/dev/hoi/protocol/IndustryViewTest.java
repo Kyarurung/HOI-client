@@ -7,6 +7,32 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndustryViewTest {
+    @Test void equipmentGenerationsAreOptionalAndNeverInferredForLegacyServers() {
+        var gson = new com.google.gson.Gson();
+        var old = new IndustryView.Equipment("old","Old","old","infantry",false,true,1,4,Map.of(),5,2,1,0);
+        var legacy = gson.fromJson(gson.toJson(old),IndustryView.Equipment.class);
+        assertNull(legacy.replacement()); assertNull(legacy.family()); assertFalse(legacy.outdated());
+        var versioned = new IndustryView.Equipment("old","Old","old","infantry",false,true,1,4,Map.of(),5,2,1,0,"new","rifles");
+        assertEquals(versioned,gson.fromJson(gson.toJson(versioned),IndustryView.Equipment.class));
+        assertTrue(versioned.outdated());
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.Equipment("old","Old","old","infantry",false,true,1,4,Map.of(),5,2,1,0,"old","rifles"));
+    }
+    @Test void optionalRepairReportDistinguishesLegacyUnknownFromAnEmptyQueue() {
+        var old = IndustryView.revoked("session", "");
+        assertNull(IndustryProtocol.Response.of(old).view().navalRepairs());
+        String legacy = IndustryProtocol.Response.of(old).json();
+        var json = com.google.gson.JsonParser.parseString(legacy).getAsJsonObject();
+        json.add("navalRepairs", com.google.gson.JsonParser.parseString("{\"availableDockyards\":3,\"ships\":[]}"));
+        var report = new IndustryProtocol.Response(json.toString()).view().navalRepairs();
+        assertNotNull(report);
+        assertEquals(3, report.availableDockyards());
+        assertNull(report.usedDockyards());
+        assertTrue(report.ships().isEmpty());
+        json.getAsJsonObject("navalRepairs").addProperty("usedDockyards", 2);
+        assertEquals(2, new IndustryProtocol.Response(json.toString()).view().navalRepairs().usedDockyards());
+        assertThrows(IllegalArgumentException.class, () -> new IndustryView.NavalRepairs(3, List.of(), 4));
+        assertThrows(IllegalArgumentException.class, () -> new IndustryView.NavalRepair("s","s","ship","port",60,50,"waiting"));
+    }
     @Test void requestsRejectMalformedAmountsAndIdentifiersWithoutAnArbitraryFactoryCap() {
         assertEquals(Integer.MAX_VALUE, new IndustryProtocol.Request(IndustryProtocol.Action.ASSIGN, "session", 1, "line", "", Integer.MAX_VALUE).amount());
         assertThrows(IllegalArgumentException.class, () -> new IndustryProtocol.Request(IndustryProtocol.Action.ASSIGN, "session", 1, "line", "", -1));

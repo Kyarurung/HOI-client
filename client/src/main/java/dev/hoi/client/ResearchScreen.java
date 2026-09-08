@@ -116,7 +116,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     private Button button(String label, int x, int y, int w, int h, Runnable action) {
         return addRenderableWidget(new ResearchButton(label, x, y, w, h, action));
     }
-    private void showDetail(String id) {
+    void showDetail(String id) {
         var chosen=view.technology(id); int free=view.availableSlot(selectedSlot);
         if(chosen!=null&&chosen.status()==ResearchView.Status.AVAILABLE&&free>=0) selectedSlot=free;
         detail = id; focusedTech = id; detailScroll = 0; rebuildWidgets(); }
@@ -127,9 +127,6 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         panelY = menuBottom() + Math.max(12, (height - menuBottom() - panelH) / 2);
         var tech = view.technology(detail);
         button("×", panelX + panelW - 28, panelY + 8, 20, 20, () -> { detail = null; rebuildWidgets(); });
-        button("슬롯 " + (selectedSlot + 1) + " ▸", panelX + 12, panelY + panelH - 28, panelW - 24, 18, () -> {
-            selectedSlot = (selectedSlot + 1) % view.slots().size(); rebuildWidgets();
-        });
         var activeSlot = view.slots().stream().filter(s -> s.technology().equals(detail)).findFirst();
         String action = tech.status() == ResearchView.Status.ACTIVE ? "연구 중단"
                 : tech.status() == ResearchView.Status.COMPLETED ? "연구 완료"
@@ -296,57 +293,72 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
                 .map(ResearchView.Slot::savedDays).orElse(view.slots().get(selectedSlot).savedDays());
         g.centeredText(font, tech.remainingDays(bank) + "일", panelX + (70 + panelW - 110) / 2, panelY + 44, GOLD);
         g.text(font, status(tech.status()) + " · " + tech.year() + "년", panelX + 70, panelY + 65, MUTED);
-        int contentHeight = panelH - 126;
-        var lines = detailLines(tech);
-        var wrapped = new ArrayList<net.minecraft.util.FormattedCharSequence>();
-        for (var line : lines) wrapped.addAll(font.split(Component.literal(line), panelW - 30));
-        detailScroll = Math.clamp(detailScroll, 0, Math.max(0, wrapped.size() * 13 - contentHeight));
-        g.enableScissor(panelX + 10, panelY + 88, panelX + panelW - 10, panelY + panelH - 38);
-        int y = panelY + 88 - detailScroll;
-        for (var line : wrapped) { g.text(font, line, panelX + 14, y, TEXT); y += 13; }
+        int contentHeight = panelH - 100;
+        int total = detailBody(null, tech, 0);
+        detailScroll = Math.clamp(detailScroll, 0, Math.max(0, total - contentHeight));
+        g.enableScissor(panelX + 10, panelY + 88, panelX + panelW - 10, panelY + panelH - 12);
+        detailBody(g, tech, panelY + 88 - detailScroll);
         g.disableScissor();
-        if (wrapped.size() * 13 > contentHeight) {
-            int thumb = Math.max(10, contentHeight * contentHeight / (wrapped.size() * 13));
-            int pos = detailScroll * (contentHeight - thumb) / Math.max(1, wrapped.size() * 13 - contentHeight);
+        if (total > contentHeight) {
+            int thumb = Math.max(10, contentHeight * contentHeight / total);
+            int pos = detailScroll * (contentHeight - thumb) / Math.max(1, total - contentHeight);
             g.fill(panelX + panelW - 7, panelY + 88 + pos, panelX + panelW - 4, panelY + 88 + pos + thumb, GOLD);
         }
     }
-    private List<String> detailLines(Tech tech) {
-        var result = new ArrayList<String>();
-        result.add("연구 대상 정보 · " + tech.year() + "년");
-        if(tech.source()!=null&&!tech.source().description().isBlank()) {result.add(tech.source().description());result.add(" ");}
-        result.add(String.format(Locale.ROOT, "진행도 %.1f%%  ·  기본 연구 기간 %d일", tech.fraction() * 100, tech.baseDays()));
-        int bank = tech.status() == ResearchView.Status.ACTIVE ? view.slots().stream().filter(s -> s.technology().equals(tech.id())).findFirst().map(ResearchView.Slot::savedDays).orElse(0)
-                : view.slots().get(selectedSlot).savedDays();
-        result.add("현재 속도 기준 남은 기간: 약 " + tech.remainingDays(bank) + "일");
-        result.add(String.format(Locale.ROOT, "하루 진행량 %.2f · 선택 슬롯 저장 %d일", tech.dailyRate(), bank));
-        result.add("시간 경과·연구 보정 변경에 따라 예상 기간이 달라집니다.");
-        result.add(" "); result.add("업그레이드 · 연구 효과"); result.addAll(tech.effects().isEmpty() ? List.of("등록된 국가 보정 없음") : tech.effects());
-        result.add(" "); result.add("해금 장비·시설"); result.addAll(tech.unlocks().isEmpty() ? List.of("없음") : tech.unlocks());
-        result.add(" "); result.add("선행 연구");
-        if (tech.prerequisites().isEmpty() && (tech.source()==null || tech.source().anyOf().isEmpty())) result.add("없음");
-        for (String id : tech.prerequisites()) {
-            var prerequisite = view.technology(id);
-            result.add((prerequisite != null && prerequisite.status() == ResearchView.Status.COMPLETED ? "✓ " : "○ ") + (prerequisite == null ? id : prerequisite.name()));
+    private int detailBody(GuiGraphicsExtractor g, Tech tech, int y) {
+        y = detailText(g, detailLines(tech), panelX + 14, y, panelW - 30, TEXT);
+        var cards = ResearchDetails.cards(tech);
+        if (!cards.isEmpty()) {
+            y = detailText(g, List.of("원본 장비·부품 참고"), panelX + 14, y + 5, panelW - 30, MUTED);
+            for (var card : cards) y = detailCard(g, card, y + 4);
         }
-        if(tech.source()!=null) {
-            if(!tech.source().anyOf().isEmpty()) {
-                result.add(" "); result.add("아래 선행 연구 중 하나 완료");
-                for(var id:tech.source().anyOf()) result.add(researchName(id));
-            }
-            if(!tech.source().excludes().isEmpty()) {
-                result.add(" "); result.add("동시에 선택할 수 없는 연구");
-                for(var id:tech.source().excludes()) result.add(researchName(id));
+        if (tech.source() != null && !tech.source().deferredEffects().isEmpty()) {
+            y = detailText(g, List.of(" ", "원본 추가 효과 · 적용 대기"), panelX + 14, y, panelW - 30, MUTED);
+            y = detailText(g, tech.source().deferredEffects(), panelX + 14, y, panelW - 30, TEXT);
+        }
+        return detailText(g, List.of(" ", String.format(Locale.ROOT, "진행도 %.1f%% · 기본 연구 기간 %d일", tech.fraction() * 100, tech.baseDays()),
+                "시간 경과·연구 보정에 따라 예상 기간이 달라집니다."), panelX + 14, y, panelW - 30, MUTED);
+    }
+    private int detailText(GuiGraphicsExtractor g, List<String> lines, int x, int y, int w, int color) {
+        for (var line : lines) {
+            var wrapped = font.split(Component.literal(line), w);
+            if (wrapped.isEmpty()) { y += 13; continue; }
+            for (var text : wrapped) { if (g != null) g.text(font, text, x, y, color); y += 13; }
+        }
+        return y;
+    }
+    private int detailCard(GuiGraphicsExtractor g, ResearchDetails.Card card, int y) {
+        int x = panelX + 14, w = panelW - 30;
+        boolean image = !card.texture().isEmpty();
+        int textX = x + (image ? 90 : 7), textW = w - (image ? 97 : 14);
+        int end = detailText(null, List.of(card.name(), card.kind() + (card.representative() ? " · 대표 이미지" : "")), textX, y + 7, textW, TEXT);
+        int statsY = Math.max(y + (image ? 64 : 34), end + 4);
+        int bottom = detailText(null, card.effects(), x + 7, statsY, w - 14, TEXT) + 7;
+        if (g != null) {
+            g.fill(x, y, x + w, bottom, 0xFF151C21);
+            g.outline(x, y, w, bottom - y, 0xFF52616B);
+            if (image) UiAssets.draw(g, card.texture(), x + 5, y + 5, 78, 52);
+            detailText(g, List.of(card.name(), card.kind() + (card.representative() ? " · 대표 이미지" : "")), textX, y + 7, textW, TEXT);
+            detailText(g, card.effects(), x + 7, statsY, w - 14, TEXT);
+        }
+        return bottom;
+    }
+    List<String> detailLines(Tech tech) {
+        var result = new ArrayList<String>();
+        if (tech.source() != null && !tech.source().description().isBlank()) {
+            result.add(tech.source().description()); result.add(" ");
+        }
+        if (tech.source() != null) {
+            if (!tech.source().excludes().isEmpty()) {
+                result.add("택일 연구 · 아래 연구와 동시에 선택할 수 없습니다.");
+                for (var id : tech.source().excludes()) result.add(researchName(id));
+                result.add(" ");
             }
             result.addAll(tech.source().conditions());
-            if(!tech.source().unlockLabels().isEmpty()) {
-                result.add(" ");result.add("원본 해금 목록 · 적용 대기");result.addAll(tech.source().unlockLabels());
-            }
-            if(!tech.source().deferredEffects().isEmpty()) {
-                result.add(" ");result.add("원본 추가 효과 · 적용 대기");result.addAll(tech.source().deferredEffects());
-            }
         }
-        result.add(" "); result.add(tech.id());
+        if (!tech.effects().isEmpty()) {
+            result.add("연구 효과"); result.addAll(tech.effects()); result.add(" ");
+        }
         return result;
     }
     private String researchName(String id) {

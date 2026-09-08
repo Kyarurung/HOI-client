@@ -177,6 +177,10 @@ final class HoiMenuBar {
                 height(width) - (tab == MenuTab.POLITICS ? 6 : 20), () -> select.accept(tab))).toList();
     }
 
+    static String flagTexture(String country) {
+        return country == null || country.isBlank() ? "" : "country/" + country.toLowerCase(Locale.ROOT) + "/flag";
+    }
+
     static final class TabButton extends Button {
         private final MenuTab tab;
         private final String country;
@@ -193,12 +197,12 @@ final class HoiMenuBar {
             var font = Minecraft.getInstance().font;
             // The external toolbar images already contain the original metal button frame.
             if (selected) g.fillGradient(x, y, x + w, y + h, 0xFF454B4C, 0xFF202526);
-            String texture = tab == MenuTab.POLITICS && !country.isEmpty()
-                    ? "country/" + country.toLowerCase(Locale.ROOT) + "/flag" : "menu/" + tab.id();
+            String texture = tab == MenuTab.POLITICS ? flagTexture(country) : "menu/" + tab.id();
             boolean flag = tab == MenuTab.POLITICS;
             if (flag) HoiMenuStyle.metal(g, x, y, w, h);
             int inset = flag ? 2 : 0;
-            if (!UiAssets.draw(g, texture, x + inset, y + inset, w - inset * 2, h - inset * 2))
+            if (texture.isEmpty()) g.fill(x + 2, y + 2, x + w - 2, y + h - 2, 0xFF4B5257);
+            else if (!UiAssets.draw(g, texture, x + inset, y + inset, w - inset * 2, h - inset * 2) && !flag)
                 g.centeredText(font, "◇", x + w / 2, y + (h - 8) / 2, HoiMenuStyle.ACCENT);
             if (selected) {
                 g.horizontalLine(x + 2, x + w - 3, y + h - 1, HoiMenuStyle.ACCENT);

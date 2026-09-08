@@ -61,7 +61,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
         }
         int repair=view.summary().repairPriority();
         for(int direction:new int[]{-1,1}) {
-            var button=new HoiMenuButton(direction<0?"−":"+",direction<0?pane-89:pane-29,top+27,21,19,
+            var button=new HoiMenuButton(direction<0?"−":"+",direction<0?pane-89:pane-29,bodyTop()+27,21,19,
                     ()->send(ConstructionProtocol.Action.REPAIR,"",Math.clamp(repair+direction,0,10000),null));
             button.active=pending==0&&(direction>0||repair>0);button.setTooltip(Tooltip.create(Component.literal("건설보다 수리를 우선하는 공장 수")));addRenderableWidget(button);
         }
@@ -78,6 +78,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
             }
         }
     }
+    private int bodyTop(){return top+5;}
     private int paletteSize(){return Math.min(29,Math.max(19,(height-top-137)/10-3));}
     private int paletteX(){return pane-2*(paletteSize()+2)-6;}
     private int queueY(){return top+120;}
@@ -89,15 +90,15 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
         if(view!=null) {
             HoiMenuBar.draw(g,width,view.hud(),mx,my,hudScroll);
             var s=view.summary();int q=paletteX()-5;
-            HoiMenuStyle.metal(g,6,top+24,pane-12,26);
-            g.text(font,"수리 우선",10,top+32,HoiMenuStyle.TEXT);
-            HoiMenuStyle.recess(g,pane-66,top+27,35,19);
+            HoiMenuStyle.metal(g,6,bodyTop()+24,pane-12,26);
+            g.text(font,"수리 우선",10,bodyTop()+32,HoiMenuStyle.TEXT);
+            HoiMenuStyle.recess(g,pane-66,bodyTop()+27,35,19);
             String repairCount=Integer.toString(s.repairPriority());
-            g.text(font,repairCount,pane-48-font.width(repairCount)/2,top+32,HoiMenuStyle.TEXT);
-            HoiMenuStyle.recess(g,6,top+52,pane-12,40);
-            UiAssets.draw(g,"construction/civilian_factory",10,top+54,19,19);
-            g.text(font,(s.used()+s.repair()+s.consumer()+s.reserved())+" / "+s.total(),33,top+57,HoiMenuStyle.TEXT);
-            g.text(font,"미사용 "+s.idle(),pane-65,top+57,HoiMenuStyle.MUTED);
+            g.text(font,repairCount,pane-48-font.width(repairCount)/2,bodyTop()+32,HoiMenuStyle.TEXT);
+            HoiMenuStyle.recess(g,6,bodyTop()+52,pane-12,35);
+            UiAssets.draw(g,"construction/civilian_factory",10,bodyTop()+54,19,19);
+            g.text(font,(s.used()+s.repair()+s.consumer()+s.reserved())+" / "+s.total(),33,bodyTop()+57,HoiMenuStyle.TEXT);
+            g.text(font,"미사용 "+s.idle(),pane-65,bodyTop()+57,HoiMenuStyle.MUTED);
             g.text(font,String.format(Locale.ROOT,"속도 %+.0f%%",(s.speed()-1)*100),10,top+78,HoiMenuStyle.TEXT);
             String energy=String.format(Locale.ROOT,"%.0f/%.0f",s.energy(),s.demand());
             int ex=pane-10-font.width(energy);UiAssets.draw(g,"construction/energy",ex-14,top+76,12,12);
@@ -117,8 +118,8 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 g.fill(10,y+38,10+(int)(bw*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1)),y+43,0xFF79945A);
                 if(mx>=6&&mx<q&&my>=y&&my<y+31)HoiTooltips.draw(g,font,p.name()+" · "+p.building()+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.1f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"),mx,my);
             }
-            if(mx>=6&&mx<pane-6&&my>=top+24&&my<top+50)HoiTooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
-            if(mx>=6&&mx<pane-6&&my>=top+52&&my<top+92)HoiTooltips.draw(g,font,"민간공장 "+s.total()+"\n소비재 "+s.consumer()+" · 무역/기관 예약 "+s.reserved()+"\n건설 "+s.used()+" · 수리 "+s.repair()+" · 미사용 "+s.idle()+"\n사용 가능한 에너지 "+HoiMenuBar.rawNumber(s.energy())+" / 필요량 "+HoiMenuBar.rawNumber(s.demand())+"\n공장별 배정은 서버가 계산합니다.",mx,my);
+            if(mx>=6&&mx<pane-6&&my>=bodyTop()+24&&my<bodyTop()+50)HoiTooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
+            if(mx>=6&&mx<pane-6&&my>=bodyTop()+52&&my<top+92)HoiTooltips.draw(g,font,"민간공장 "+s.total()+"\n소비재 "+s.consumer()+" · 무역/기관 예약 "+s.reserved()+"\n건설 "+s.used()+" · 수리 "+s.repair()+" · 미사용 "+s.idle()+"\n사용 가능한 에너지 "+HoiMenuBar.rawNumber(s.energy())+" / 필요량 "+HoiMenuBar.rawNumber(s.demand())+"\n공장별 배정은 서버가 계산합니다.",mx,my);
             if(view.projects().isEmpty())g.text(font,trim("우클릭 건설 · 좌클릭 취소",q-16),10,queueY()+12,HoiMenuStyle.MUTED);
         } else g.text(font,"건설 현황을 불러오는 중…",10,top+40,HoiMenuStyle.MUTED);
         String msg=!localMessage.isEmpty()?localMessage:view==null?"":view.message();

@@ -4,6 +4,12 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HudNumbersTest {
+    @Test void unknownCountryUsesNoDefaultNationalFlag() {
+        assertEquals("",HoiMenuBar.flagTexture(""));
+        assertEquals("",HoiMenuBar.flagTexture(null));
+        assertEquals("country/kor/flag",HoiMenuBar.flagTexture("KOR"));
+    }
+
     @Test void monetaryAndRawIndicatorsKeepAtMostTwoDecimals() {
         assertEquals("123.46",HoiMenuBar.number(123.456789));
         assertEquals("704.31B",HoiMenuBar.money(704.314));

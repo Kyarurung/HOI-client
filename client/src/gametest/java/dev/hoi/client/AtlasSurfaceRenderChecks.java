@@ -84,8 +84,64 @@ final class AtlasSurfaceRenderChecks {
                     command.accept("tp @a "+cx+" "+(cy+5)+" "+(cz-11)+" 0 24");context.waitTicks(20);context.takeScreenshot("hoi-capital-name-terrain");
                 }
             }
+            checkAntiAir(context,command);
+            checkDistance(context,command);
             context.runOnClient(client->{client.options.fov().set(70);AtlasSceneClient.clear();});
         }
+    }
+    private static void checkAntiAir(ClientGameTestContext context,java.util.function.Consumer<String> command) {
+        context.runOnClient(client->AtlasSceneClient.clear());
+        command.accept("kill @e[type=minecraft:item_display]");
+        command.accept("kill @e[type=minecraft:text_display]");
+        command.accept("fill 76 64 76 84 64 84 minecraft:stone");
+        command.accept("tp @a 80.4 65 77.4 0 25");
+        context.waitTicks(20);
+        var empty=context.takeScreenshot("hoi-anti-air-empty-ground");
+        // Match AtlasFacilityVisual: 0.8-block scale, FIXED context and half-size translation.
+        command.accept("summon minecraft:item_display 80 65 80 {item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"hoi:building/anti_air\"}},item_display:\"fixed\",transformation:{translation:[0.4f,0.4f,0.4f],scale:[0.8f,0.8f,0.8f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:1.6f,height:1.6f,view_range:8f,brightness:{block:15,sky:15}}");
+        context.waitTicks(20);
+        var visible=context.takeScreenshot("hoi-anti-air-grounded");
+        checkPixels(visible,false);
+        try {
+            var before=javax.imageio.ImageIO.read(empty.toFile());
+            var after=javax.imageio.ImageIO.read(visible.toFile());
+            int changed=0,sandbags=0;
+            for(int y=after.getHeight()/3;y<after.getHeight()*2/3;y++)
+                for(int x=after.getWidth()/3;x<after.getWidth()*2/3;x++) {
+                    int a=before.getRGB(x,y),b=after.getRGB(x,y);
+                    int difference=0;
+                    for(int shift:new int[]{0,8,16})difference+=Math.abs(((a>>shift)&255)-((b>>shift)&255));
+                    if(difference>60)changed++;
+                    int red=(b>>16)&255,green=(b>>8)&255,blue=b&255;
+                    if(red>green*1.12&&green>blue*1.05&&red-blue>20)sandbags++;
+                }
+            if(changed<150)throw new AssertionError("Anti-air model is invisible or buried: "+changed);
+            if(sandbags<20)throw new AssertionError("The anti-air model's low sandbag base is buried: "+sandbags);
+        } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
+        command.accept("kill @e[type=minecraft:item_display]");
+    }
+    private static void checkDistance(ClientGameTestContext context,java.util.function.Consumer<String> command) {
+        context.runOnClient(client->{
+            AtlasSceneClient.clear();
+            var boxes=new java.util.ArrayList<dev.hoi.protocol.AtlasSceneProtocol.Box>();
+            int index=0;
+            for(var material:dev.hoi.protocol.AtlasSceneProtocol.Material.values()) {
+                boxes.add(new dev.hoi.protocol.AtlasSceneProtocol.Box(4+index++*2,70,8,1,1,1,0,material));
+            }
+            AtlasSceneClient.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,boxes));
+        });
+        command.accept("tp @a 11 110 8 0 90");
+        context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
+        context.takeScreenshot("hoi-atlas-near-all-materials");
+        command.accept("tp @a 11 195 8 0 90");
+        context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
+        context.takeScreenshot("hoi-atlas-within-128-all-materials");
+        command.accept("tp @a 11 202 8 0 90");
+        context.waitFor(client->AtlasSceneClient.visibleTileCount()==0);
+        context.takeScreenshot("hoi-atlas-far-hidden");
+        command.accept("tp @a 11 110 8 0 90");
+        context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
+        context.takeScreenshot("hoi-atlas-return-near");
     }
     private static void checkPixels(Path path,boolean victory) {
         try {

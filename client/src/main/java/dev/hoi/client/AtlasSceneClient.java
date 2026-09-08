@@ -1,6 +1,7 @@
 package dev.hoi.client;
 
 import dev.hoi.protocol.AtlasSceneProtocol;
+import dev.hoi.protocol.AtlasVisibility;
 import dev.hoi.protocol.AtlasSceneProtocol.Box;
 import dev.hoi.protocol.AtlasSceneProtocol.Material;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -32,6 +33,7 @@ final class AtlasSceneClient {
     private static final AtlasSceneAssembler ASSEMBLER = new AtlasSceneAssembler();
     private static Scene active;
     private static ItemStackRenderState city;
+    private static int visibleTiles;
     private static final Map<Material, Identifier> TEXTURES = Map.of(
             Material.BLACK, Identifier.parse("minecraft:block/black_concrete"), Material.RED, Identifier.parse("minecraft:block/red_concrete"),
             Material.WATER, Identifier.parse("minecraft:block/water_still"), Material.FOREST, Identifier.parse("minecraft:block/oak_sapling"),
@@ -51,11 +53,12 @@ final class AtlasSceneClient {
         LevelExtractionEvents.END_EXTRACTION.register(context -> {
             var scene = active;
             if (scene == null || !context.level().dimension().identifier().toString().equals(scene.dimension())) {
-                context.levelState().setData(FRAME, null); return;
+                visibleTiles=0;context.levelState().setData(FRAME, null); return;
             }
             var camera = context.levelState().cameraRenderState;
-            var tiles = scene.tiles().stream().filter(tile -> tile.bounds().distanceToSqr(camera.pos) <= 192 * 192
+            var tiles = scene.tiles().stream().filter(tile -> tile.bounds().distanceToSqr(camera.pos) <= Math.pow(AtlasVisibility.range(tile.material()),2)
                     && camera.cullFrustum.isVisible(tile.bounds())).toList();
+            visibleTiles=tiles.size();
             var client = Minecraft.getInstance();
             var atlas = client.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
             var sprites = new EnumMap<Material, TextureAtlasSprite>(Material.class);
@@ -75,13 +78,14 @@ final class AtlasSceneClient {
         if (complete == null) return false;
         active = mesh(page.dimension(), complete); return true;
     }
-    static void clear() { active = null; city = null; ASSEMBLER.clear(); }
+    static void clear() { active = null; city = null; visibleTiles=0;ASSEMBLER.clear(); }
     static void resourcesReloaded() { city = null; }
     static int tileCount() { return active == null ? 0 : active.tiles().size(); }
+    static int visibleTileCount() { return visibleTiles; }
 
     private static Scene mesh(String dimension, List<Box> boxes) {
         var groups = new LinkedHashMap<Key, List<Box>>();
-        for (var box : boxes) groups.computeIfAbsent(new Key((int)Math.floor(box.x()/32), (int)Math.floor(box.z()/32), box.material()), unused -> new ArrayList<>()).add(box);
+        for (var box : boxes) groups.computeIfAbsent(new Key((int)Math.floor(box.x()/16), (int)Math.floor(box.z()/16), box.material()), unused -> new ArrayList<>()).add(box);
         var tiles = new ArrayList<Tile>();
         groups.forEach((key, group) -> {
             var vertices = new FloatArrayList();
@@ -128,6 +132,7 @@ final class AtlasSceneClient {
         for (var tile : frame.tiles()) {
             if (tile.material() == Material.CITY) {
                 for (var box : tile.cities()) {
+                    if(camera.distanceToSqr(box.x()+box.sx()/2,box.y()+box.sy()/2,box.z()+box.sz()/2)>AtlasVisibility.DETAIL_RANGE*AtlasVisibility.DETAIL_RANGE)continue;
                     pose.pushPose(); pose.translate(box.x()+box.sx()/2,box.y()+box.sy()/2,box.z()+box.sz()/2); pose.scale(box.sx(),box.sy(),box.sz());
                     frame.city().submit(pose,context.submitNodeCollector(),15728880,net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY,0);
                     pose.popPose();
@@ -135,14 +140,13 @@ final class AtlasSceneClient {
                 continue;
             }
             var sprite = frame.sprites().get(tile.material());
-            var type = tile.material() == Material.WATER ? RenderTypes.translucentMovingBlock()
-                    : tile.material() == Material.FOREST || tile.material() == Material.JUNGLE ? RenderTypes.cutoutMovingBlock() : RenderTypes.solidMovingBlock();
+            var type = tile.material() == Material.FOREST || tile.material() == Material.JUNGLE ? RenderTypes.cutoutMovingBlock() : RenderTypes.solidMovingBlock();
             context.submitNodeCollector().submitCustomGeometry(pose, type, (matrix, consumer) -> emit(tile, sprite, matrix, consumer));
         }
         pose.popPose();
     }
     private static void emit(Tile tile, TextureAtlasSprite sprite, PoseStack.Pose pose, VertexConsumer consumer) {
-        int color = tile.material() == Material.WATER ? 0xda3f76e4 : 0xffffffff;
+        int color = tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
         var v = tile.vertices();
         for (int i=0;i<v.length;i+=8) consumer.addVertex(pose,v[i],v[i+1],v[i+2]).setColor(color)
                 .setUv(sprite.getU(v[i+3]),sprite.getV(v[i+4])).setLight(15728880).setNormal(pose,v[i+5],v[i+6],v[i+7]);

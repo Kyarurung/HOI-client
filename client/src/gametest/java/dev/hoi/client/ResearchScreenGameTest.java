@@ -249,6 +249,32 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.runOnClient(client->{var screen=(ResearchScreen)client.gui.screen();screen.clearFocus();screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT,0,0));screen.keyPressed(ENTER);});
         context.waitTicks(2);context.takeScreenshot("hoi-tfr-source-detail");click(context,"연구");
         check(requests.size()==1&&requests.getFirst().slot()==1,"Occupied slot zero falls back to the first free slot without cancellation");
+        for (String id : List.of("advanced_ship_hull_light", "artillery2", "concentrated_industry", "tech_engineers4")) {
+            context.runOnClient(client -> {
+                var screen = (ResearchScreen)client.gui.screen(); screen.showDetail("hoi:tfr/technology/" + id);
+                var tech = view.technology("hoi:tfr/technology/" + id);
+                check(screen.children().stream().filter(w -> w instanceof Button).map(w -> ((Button)w).getMessage().getString())
+                        .noneMatch(text -> text.startsWith("슬롯 ") && text.contains("▸")), "Detail slot cycling button is absent");
+                var text = String.join("\n",screen.detailLines(tech));
+                check(!text.contains("해금 장비·시설") && !text.contains("아래 선행 연구") && !text.contains("hoi:"), "Internal IDs and general prerequisites stay hidden");
+                check(text.contains("택일 연구") == !tech.source().excludes().isEmpty(), "Only mutually exclusive choices receive the choice explanation");
+                if (id.equals("advanced_ship_hull_light")) {
+                    var cards = ResearchDetails.cards(tech);
+                    check(cards.size() == 2 && cards.get(1).effects().contains("속도: +35%"), "Source hull and engine cards retain their separate stats");
+                    for (var card : cards) check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/" + card.texture() + ".png")).isPresent(), "Source detail image exists");
+                }
+            });
+            context.waitTicks(2); context.takeScreenshot("hoi-detail-cards-" + id);
+            if (id.equals("advanced_ship_hull_light")) {
+                context.runOnClient(client -> { var screen = (ResearchScreen)client.gui.screen(); screen.mouseScrolled(screen.width/3.0,screen.height/2.0,0,-7); });
+                context.waitTicks(2); context.takeScreenshot("hoi-detail-engine-effects");
+            }
+        }
+        context.getInput().resizeWindow(854,480); context.waitTicks(2); context.takeScreenshot("hoi-detail-cards-compact");
+        context.setScreen(() -> new IndustryScreen(MenuTab.PRODUCTION,"loading",null,r -> {}));
+        context.waitTicks(2); context.takeScreenshot("hoi-loading-blank-flag");
+        context.runOnClient(client -> check(HoiMenuBar.flagTexture("").isEmpty() && HoiMenuBar.flagTexture("KOR").equals("country/kor/flag"), "Loading flag stays blank until the country is known"));
+
     }
 
     private static void checkResearchLabels(ResearchLayout tree, java.util.function.ToIntFunction<String> textWidth, int lineHeight) {

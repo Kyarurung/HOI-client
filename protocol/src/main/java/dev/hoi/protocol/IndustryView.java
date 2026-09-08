@@ -7,16 +7,52 @@ public record IndustryView(String session, long revision, String country, Countr
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
         List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
-        Template draft, String message) {
+        Template draft, String message, NavalRepairs navalRepairs) {
+    /** Additive, optional report: old servers omit it, rather than claiming an empty queue. */
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+            List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+            List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+            List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+            Template draft, String message) {
+        this(session, revision, country, hud, economy, resources, modifiers, equipment, lines, partners, trades,
+                templates, battalions, companies, locations, recruits, deployed, draft, message, null);
+    }
+    public record NavalRepair(String id, String name, String texture, String port, double hp, double maxHp, String status) {
+        public NavalRepair {
+            text(id,128); text(name,256); text(texture,160); text(port,256); text(status,128);
+            if (!Double.isFinite(hp) || !Double.isFinite(maxHp) || hp < 0 || maxHp <= 0 || hp > maxHp)
+                throw new IllegalArgumentException("Invalid ship condition");
+        }
+    }
+    public record NavalRepairs(int availableDockyards, List<NavalRepair> ships, Integer usedDockyards) {
+        public NavalRepairs(int availableDockyards, List<NavalRepair> ships) {
+            this(availableDockyards, ships, null);
+        }
+        public NavalRepairs {
+            if (availableDockyards < 0) throw new IllegalArgumentException("Invalid repair dockyards");
+            if (usedDockyards != null && (usedDockyards < 0 || usedDockyards > availableDockyards))
+                throw new IllegalArgumentException("Invalid used repair dockyards");
+            ships = bounded(ships,4096);
+        }
+    }
     public record Economy(int military, int dockyards, int civilian, int freeCivilian, int consumer,
             double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand) {}
     public record Resource(String id, String name, double extracted, double imported, double exported,
             double available, double demand) {}
     public record Modifier(String id, String name, double value, String detail) {}
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
-            double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit) {
+            double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+            String replacement, String family) {
+        /** Missing replacement information from older servers is unknown, not inferred from equipment names. */
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,null,null);
+        }
+        public boolean outdated() { return replacement != null && !replacement.isEmpty(); }
         public Equipment {
             text(id,128); text(name,128); text(texture,160); text(group,32);
+            if (replacement != null) { text(replacement,128); if (replacement.equals(id)) throw new IllegalArgumentException("Self replacement"); }
+            if (family != null) text(family,128);
             resources=boundedMap(resources,8);
             if (!Double.isFinite(cost) || cost <= 0 || factoryLimit < 1 || stockpile < 0 || reserved < 0 || deployed < 0 || deficit < 0)
                 throw new IllegalArgumentException("Invalid equipment amounts");

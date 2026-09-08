@@ -6,6 +6,7 @@ import static dev.hoi.protocol.IndustryProtocol.Action.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -24,7 +25,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private int pane, top, scroll, secondScroll, pickerScroll, hudScroll, pending, refresh;
     private int designerScroll;
     private int tradeTab = 1, tradeAmount = 1, selectedSlot = -1;
-    private boolean supportSlot, designer, closed, background;
+    private boolean supportSlot, designer, closed, background, showOutdated;
     private String group = "all", picker = "", switchLine = "", resource = "IRON", partner = "";
     private String location = "", recruitTemplate = "", draftName = "", localMessage = "";
     private EditBox nameBox;
@@ -111,61 +112,100 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     private void production() {
         var economy = view.economy();
-        int used = view.lines().stream().filter(l -> !equipment(l.equipment()).naval()).mapToInt(Line::factories).sum();
-        int naval = view.lines().stream().filter(l -> equipment(l.equipment()).naval()).mapToInt(Line::factories).sum();
-        rail(6, top + 27, pane - 12, 22);
-        art("construction/military_factory", 9, top + 29, 18, 17);
-        text(used + " / " + economy.military(), 29, top + 34, (pane - 20) / 2 - 22, TEXT);
-        art("construction/dockyard", pane / 2, top + 29, 18, 17);
-        text(naval + " / " + economy.dockyards(), pane / 2 + 21, top + 34, pane / 2 - 28, TEXT);
-        if (!compact()) resourceStrip(top + 52);
-        else tip(view.resources().stream().map(r -> r.name()+": "+decimal(r.available())+" / "+decimal(r.demand())).reduce((a,b)->a+"\n"+b).orElse("")
-                +"\n"+view.modifiers().stream().map(m->m.name()+": "+percent(m.value())).reduce((a,b)->a+"\n"+b).orElse(""),6,top+27,pane-12,22);
-        int count = Math.min(4, Math.max(1, view.modifiers().size())), mw = (pane - 12) / count;
-        for (int i = 0; !compact() && i < view.modifiers().size(); i++) {
-            var m = view.modifiers().get(i); int x = 6 + i % count * mw, y = top + 91 + i / count * 20;
-            recess(x, y, mw - 1, 19);
-            text(percent(m.value()), x + 3, y + 6, mw - 6, m.value() < 0 ? BAD : GOOD);
-            tip(m.name() + ": " + percent(m.value()) + "\n" + m.detail(), x, y, mw, 20);
+        var lines = view.lines();
+        int start = top + 155, h = productionRowHeight(start), bodyTop = top + 27;
+        if (compact()) scroll = Math.clamp(scroll, 0, Math.max(0, start + lines.size() * h - bottom()));
+        else scroll = clampScroll(scroll, lines.size(), h, start);
+        int offset = compact() ? scroll : 0;
+        if (graphics != null) graphics.enableScissor(0, bodyTop, pane, bottom());
+        resourceStrip(top + 27 - offset, 32);
+        var modifiers = productionIndicators();
+        int cell = (pane - 12) / 3;
+        for (int i = 0; i < modifiers.size(); i++) {
+            var m = modifiers.get(i); int x = 6 + i % 3 * cell, y = top + 62 + i / 3 * 20 - offset;
+            recess(x, y, cell - 1, 19);
+            art("production/modifiers/" + m.id(), x + 2, y + 3, 14, 12);
+            text(percent(m.value()), x + 18, y + 6, cell - 20, TEXT);
+            tip(m.name() + ": " + percent(m.value()) + "\n" + m.detail(), x, y, cell, 19);
         }
-        int filterY = top + (compact() ? 53 : 95 + (view.modifiers().size() + count - 1) / count * 20);
-        filters(filterY, false);
-        button("생산 라인 추가", "+", pane - 29, filterY, 22, 22, true,
-                () -> { picker = "equipment"; switchLine = ""; pickerScroll = 0; rebuildWidgets(); });
-        var lines = view.lines().stream().filter(l -> group.equals("all") || equipment(l.equipment()).group().equals(group)).toList();
-        int start = filterY + 26, h = 79;
-        scroll = clampScroll(scroll, lines.size(), h, start);
+        int used = lines.stream().filter(l -> !equipment(l.equipment()).naval()).mapToInt(Line::factories).sum();
+        int naval = lines.stream().filter(l -> equipment(l.equipment()).naval()).mapToInt(Line::factories).sum();
+        String[] icons = {"military_factory_icon", "dockyard_icon", "dockyard_icon_with_wrench"};
+        String[] names = {"군수공장 사용 / 전체", "조선소 사용 / 전체", "해군 수리용 조선소 사용 / 전체"};
+        String[] counts = {used + "/" + economy.military(), naval + "/" + economy.dockyards(), repairDockyards()};
+        int summaryY = top + 104 - offset;
+        for (int i = 0; i < 3; i++) {
+            int x = 6 + i * cell;
+            rail(x, summaryY, cell - 1, 22);
+            art("production/summary/" + icons[i], x + 2, summaryY + 3, 15, 15);
+            text(counts[i], x + 19, summaryY + 7, cell - 22, TEXT);
+            tip(names[i] + ": " + counts[i] + (i == 2 ? "\n함선 건조에 배정한 조선소를 제외한 수리 배정 현황" : ""), x, summaryY, cell, 22);
+        }
+        int filterY = top + 129 - offset;
+        if (filterY >= bodyTop && filterY + 22 <= bottom()) productionActions(filterY);
         for (int i = 0; i < lines.size(); i++) {
             var line = lines.get(i); var e = equipment(line.equipment()); int y = start + i * h - scroll;
-            if (!visible(y, h, start)) continue;
+            if (!visible(y, h, compact() ? bodyTop : start)) continue;
             rail(6, y, pane - 12, h - 3);
-            imageButton(e.name() + " · 장비 교체", e.texture(), 10, y + 4, 48, 30, true, () -> {
-                picker = "equipment"; switchLine = line.id(); pickerScroll = 0; rebuildWidgets();
+            imageButton(e.name() + " · 장비 교체", e.texture(), 10, y + 4, 48, Math.min(30, h - 32), true, () -> {
+                picker = "equipment"; group = e.group(); switchLine = line.id(); pickerScroll = 0; rebuildWidgets();
             });
-            text(e.name(), 62, y + 6, pane - 72, TEXT);
-            text(decimal(line.daily()) + " / 일", 62, y + 20, pane - 72, GOOD);
-            button("공장 줄이기", "−", 10, y + 38, 20, 18, line.factories() > 0,
+            text(equipmentName(e), 62, y + 6, pane - 72, TEXT);
+            text(decimal(line.daily()) + " / 일", 62, y + (h >= 65 ? 20 : 15), pane - 72, GOOD);
+            int controlsY = y + (h >= 79 ? 38 : h - 27), barY = y + (h >= 79 ? 62 : h - 7);
+            button("공장 줄이기", "−", 10, controlsY, 20, 18, line.factories() > 0,
                     () -> send(ASSIGN, line.id(), "", line.factories() - 1));
-            recess(32, y + 38, 42, 18); text(Integer.toString(line.factories()), 36, y + 43, 35, TEXT);
-            button("공장 늘리기 · 보유량 안에서 배정", "+", 76, y + 38, 20, 18, line.factories() < line.availableFactories(),
+            recess(32, controlsY, 42, 18); text(Integer.toString(line.factories()), 36, controlsY + 5, 35, TEXT);
+            button("공장 늘리기 · 보유량 안에서 배정", "+", 76, controlsY, 20, 18, line.factories() < line.availableFactories(),
                     () -> send(ASSIGN, line.id(), "", line.factories() + 1));
-            button("생산 우선순위 맨 위로", "↑", pane - 51, y + 38, 19, 18, i > 0, () -> send(FIRST, line.id(), "", 0));
-            button("생산 라인 삭제", "×", pane - 30, y + 38, 19, 18, true, () -> send(REMOVE, line.id(), "", 0));
-            bar(10, y + 62, pane - 20, 5, line.efficiency(), line.shortage() > 0 ? BAD : GOOD);
+            if (e.outdated()) {
+                tip("구형 장비 · " + e.name() + "\n장비 이미지를 눌러 신형으로 교체할 수 있습니다.\n교체 시 생산 효율이 변경되며 기존 재고는 유지됩니다.", 60, y + 3, pane - 65, 12);
+            }
+            button("생산 우선순위 맨 위로", "↑", pane - 51, controlsY, 19, 18, i > 0, () -> send(FIRST, line.id(), "", 0));
+            button("생산 라인 삭제", "×", pane - 30, controlsY, 19, 18, true, () -> send(REMOVE, line.id(), "", 0));
+            bar(10, barY, pane - 20, 5, line.efficiency(), line.shortage() > 0 ? BAD : GOOD);
             tip("생산 효율 " + percent(line.efficiency()) + "\n자원 부족으로 인한 감소 " + percent(line.shortage())
                     + "\n누적 생산 " + decimal(line.progress()) + " · 단가 " + decimal(e.cost()) + " IC\n"
-                    + resources(e.resources(), line.factories()) + "\n배정 가능 " + line.availableFactories(), 9, y + 59, pane - 18, 15);
+                    + resources(e.resources(), line.factories()) + "\n배정 가능 " + line.availableFactories(), 9, barY - 3, pane - 18, 9);
         }
-        if (lines.isEmpty()) text("+ 버튼으로 생산 라인을 추가하세요.", 10, start + 12, pane - 20, MUTED);
+        if (graphics != null) graphics.disableScissor();
+        if (lines.isEmpty()) text("제작할 장비 종류를 선택하세요.", 10, start + 12, pane - 20, MUTED);
     }
-    private void resourceStrip(int y) {
+    int productionRowHeight(int start) {
+        return compact() ? 79 : Math.max(52, Math.min(79, (bottom() - start) / 3));
+    }
+    String repairDockyards() {
+        var repairs = view.navalRepairs();
+        if (repairs == null) return "—/—";
+        return (repairs.usedDockyards() == null ? "—" : repairs.usedDockyards()) + "/" + repairs.availableDockyards();
+    }
+    List<Modifier> productionIndicators() {
+        var result = new ArrayList<Modifier>();
+        for (String id : List.of("dockyard", "factory", "cap", "retention", "growth", "damage"))
+            view.modifiers().stream().filter(m -> m.id().equals(id)).findFirst().ifPresent(result::add);
+        return List.copyOf(result);
+    }
+    private void productionActions(int y) {
+        String[] ids = {"infantry", "armor", "air", "navy", "repair"};
+        String[] names = {"보병 및 포병 장비 제작", "기갑 차량 제작", "항공기 제작", "함선 건조", "해군 수리 대기열"};
+        int cell = (pane - 12) / ids.length;
+        for (int i = 0; i < ids.length; i++) {
+            String id = ids[i];
+            originalButton(names[i], "production/actions/" + id, 6 + i * cell, y, cell - 1, 22, () -> {
+                group = id; picker = id.equals("repair") ? "repairs" : "equipment";
+                switchLine = ""; pickerScroll = 0; rebuildWidgets();
+            });
+        }
+    }
+    private void resourceStrip(int y) { resourceStrip(y, 36); }
+    private void resourceStrip(int y, int h) {
         int cell = (pane - 12) / Math.max(1, view.resources().size());
         for (int i = 0; i < view.resources().size(); i++) {
             var r = view.resources().get(i); int x = 6 + i * cell;
-            recess(x, y, cell - 1, 36); art(resourceArt(r.id()), x + (cell - 16) / 2, y + 2, 16, 16);
-            text(integer(r.available() - r.demand()), x + 2, y + 23, cell - 4, r.available() < r.demand() ? BAD : GOOD);
+            recess(x, y, cell - 1, h); art(resourceArt(r.id()), x + (cell - 16) / 2, y + 2, 16, 16);
+            text(integer(r.available() - r.demand()), x + 2, y + h - 11, cell - 4, r.available() < r.demand() ? BAD : GOOD);
             tip(r.name() + "\n점유지 추출 " + decimal(r.extracted()) + "\n수입 " + decimal(r.imported())
-                    + " · 수출 배정 " + decimal(r.exported()) + "\n생산용 " + decimal(r.available()) + " / 수요 " + decimal(r.demand()), x, y, cell, 36);
+                    + " · 수출 배정 " + decimal(r.exported()) + "\n생산용 " + decimal(r.available()) + " / 수요 " + decimal(r.demand()), x, y, cell, h);
         }
     }
     private void filters(int y, boolean full) {
@@ -187,7 +227,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             var e = items.get(i); int y = start + i * h - scroll;
             if (!visible(y, h, start)) continue;
             rail(6, y, pane - 12, h - 3); art(e.texture(), 10, y + 4, 46, 26);
-            text(e.name(), 60, y + 5, pane - 69, TEXT);
+            text(equipmentName(e), 60, y + 5, pane - 69, TEXT);
             double daily = view.lines().stream().filter(l -> l.equipment().equals(e.id())).mapToDouble(Line::daily).sum();
             text("+" + decimal(daily) + " / 일", 60, y + 19, pane - 69, GOOD);
             text("보관 " + e.stockpile() + "   훈련 " + e.reserved(), 10, y + 36, pane - 20, TEXT);
@@ -335,17 +375,18 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 if (by < y + 71 || by + 22 > y + h - 33) continue;
                 String unit = i < t.line().size() ? t.line().get(i) : "";
                 if (i > t.line().size()) {
-                    recess(bx, by, cell - 3, 22); text("·", bx + 10, by + 7, cell - 10, MUTED); continue;
+                    divisionSlot("앞선 빈 대대 칸부터 추가", "production/designer/locked", bx, by, cell - 3, false, () -> {}); continue;
                 }
-                if (unit.isEmpty()) button("대대 추가", "+", bx, by, cell - 3, 22, true, () -> selectSlot(slot, false));
-                else imageButton(unitName(unit, false), unitTexture(unit, false), bx, by, cell - 3, 22, true, () -> selectSlot(slot, false));
+                if (unit.isEmpty()) divisionSlot("대대 추가", "production/designer/add", bx, by, cell - 3, true, () -> selectSlot(slot, false));
+                else divisionSlot(unitName(unit, false), unitTexture(unit, false), bx, by, cell - 3, true, () -> selectSlot(slot, false));
             }
             if (designerScroll == 0) text("지원", x + 14 + 5 * cell, sy - 13, 32, MUTED);
-            for (int i = 0; i <= Math.min(4, t.support().size()); i++) {
+            for (int i = 0; i < 5; i++) {
                 int slot = i, bx = x + 12 + 5 * cell, by = sy + i * 25;
                 if (by < y + 71 || by + 22 > y + h - 33) continue;
-                if (i == t.support().size()) button("지원중대 추가", "+", bx, by, 30, 22, true, () -> selectSlot(slot, true));
-                else imageButton(unitName(t.support().get(i), true), unitTexture(t.support().get(i), true), bx, by, 30, 22, true, () -> selectSlot(slot, true));
+                if (i > t.support().size()) divisionSlot("앞선 빈 지원중대 칸부터 추가", "production/designer/locked", bx, by, 30, false, () -> {});
+                else if (i == t.support().size()) divisionSlot("지원중대 추가", "production/designer/add", bx, by, 30, true, () -> selectSlot(slot, true));
+                else divisionSlot(unitName(t.support().get(i), true), unitTexture(t.support().get(i), true), bx, by, 30, true, () -> selectSlot(slot, true));
             }
             if (sy + 133 >= y + 71 && sy + 145 < y + h - 33)
                 text("훈련 " + integer(t.days()) + "일 · 인력 " + manpower(t.manpower()), x + 10, sy + 133, left - 12, TEXT);
@@ -367,9 +408,11 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 if (row < 0 || by + 27 > y + h - 32) continue;
                 String id = i == 0 ? "" : choices.get(i - 1).id(); String label = i == 0 ? "제거" : choices.get(i - 1).name();
                 boolean enabled = i != 0 || selectedSlot < (supportSlot ? t.support().size() : t.line().size()) && (supportSlot || t.line().size() > 1);
-                button(label, label, bx, by, left / 2 - 5, 25, enabled, () -> {
+                Runnable choose = () -> {
                     send(supportSlot ? SUPPORT_SLOT : LINE_SLOT, id, "", selectedSlot); selectedSlot = -1;
-                });
+                };
+                if (i == 0) button(label, label, bx, by, left / 2 - 5, 25, enabled, choose);
+                else unitChoice(label, choices.get(i - 1).texture(), bx, by, left / 2 - 5, enabled, choose);
             }
         }
         int statsX = x + left + 12, statsWidth = w - left - 21, columns = 2, colWidth = statsWidth / columns;
@@ -388,21 +431,55 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private void layoutPicker() {
         int w = Math.min(270, width - 16), x = width - pane >= w + 8 ? pane + 4 : (width - w) / 2, y = top + 3;
         panel(x, y, w, height - y - 27);
-        text(picker.equals("locations") ? "배치 장소 선택" : "생산 장비 선택", x + 9, y + 8, w - 40, TEXT);
+        text(picker.equals("locations") ? "배치 장소 선택" : picker.equals("repairs") ? "해군 수리 대기열" : "생산 장비 선택", x + 9, y + 8, w - 40, TEXT);
         button("목록 닫기", "×", x + w - 25, y + 3, 19, 19, true, () -> { picker = ""; rebuildWidgets(); });
         int start = y + 29;
-        if (picker.equals("equipment")) {
+        if (picker.equals("repairs")) {
+            var repairs = view.navalRepairs();
+            if (repairs == null) {
+                text("수리 현황을 확인할 수 없습니다.", x + 9, start + 8, w - 18, MUTED);
+                return;
+            }
+            art("production/summary/dockyard_icon_with_wrench", x + 9, start, 20, 20);
+            text("수리용 조선소 " + repairDockyards(), x + 34, start + 6, w - 43, TEXT);
+            start += 28;
+            pickerScroll = clampScroll(pickerScroll, repairs.ships().size(), 58, start);
+            for (int i = 0; i < repairs.ships().size(); i++) {
+                var ship = repairs.ships().get(i); int by = start + i * 58 - pickerScroll;
+                if (!visible(by, 58, start)) continue;
+                recess(x + 6, by, w - 12, 55);
+                art(ship.texture(), x + 10, by + 4, 45, 24);
+                text(ship.name(), x + 60, by + 5, w - 70, TEXT);
+                text(ship.status(), x + 60, by + 19, w - 70, MUTED);
+                text(ship.port(), x + 10, by + 33, w - 20, MUTED);
+                bar(x + 10, by + 47, w - 20, 4, ship.hp() / ship.maxHp(), GOOD);
+                tip(ship.name() + "\n내구도 " + decimal(ship.hp()) + " / " + decimal(ship.maxHp()), x + 6, by, w - 12, 55);
+            }
+            if (repairs.ships().isEmpty()) text("수리가 필요한 함선이 없습니다.", x + 9, start + 10, w - 18, MUTED);
+        } else if (picker.equals("equipment")) {
+            if (graphics == null) {
+                var checkbox = Checkbox.builder(Component.literal("구형 장비 표시"), font).pos(x + 8, start)
+                        .selected(showOutdated).maxWidth(w - 16)
+                        .onValueChange((box, selected) -> { showOutdated = selected; pickerScroll = 0; rebuildWidgets(); }).build();
+                addRenderableWidget(checkbox);
+            }
+            start += 27;
+            var current = view.lines().stream().filter(l -> l.id().equals(switchLine)).map(l -> equipment(l.equipment())).findFirst().orElse(null);
             var items = view.equipment().stream().filter(e -> e.unlocked() && (group.equals("all") || e.group().equals(group)))
-                    .filter(e -> switchLine.isEmpty() || view.lines().stream().anyMatch(l -> l.id().equals(switchLine) && equipment(l.equipment()).naval() == e.naval())).toList();
+                    .filter(e -> showOutdated || !e.outdated())
+                    .filter(e -> switchLine.isEmpty() || current != null && current.naval() == e.naval()
+                            && (current.family() == null || e.family() == null || current.family().equals(e.family()))).toList();
             pickerScroll = clampScroll(pickerScroll, items.size(), 55, start);
             for (int i = 0; i < items.size(); i++) {
                 var e = items.get(i); int by = start + i * 55 - pickerScroll; if (!visible(by, 55, start)) continue;
-                imageButton(e.name(), e.texture(), x + 7, by, 55, 45, true, () -> chooseEquipment(e.id()));
-                text(e.name(), x + 67, by + 4, w - 76, TEXT);
+                boolean selected = current != null && current.id().equals(e.id());
+                imageButton(e.name(), e.texture(), x + 7, by, 55, 45, !selected, () -> chooseEquipment(e.id()));
+                text(equipmentName(e), x + 67, by + 4, w - 76, TEXT);
                 text(decimal(e.cost()) + " IC · 재고 " + e.stockpile(), x + 67, by + 18, w - 76, MUTED);
-                button("생산: " + e.name(), switchLine.isEmpty() ? "생산" : "교체", x + 67, by + 30, w - 76, 19, true, () -> chooseEquipment(e.id()));
+                button("생산: " + e.name(), selected ? "생산 중" : switchLine.isEmpty() ? "생산" : "교체", x + 67, by + 30, w - 76, 19, !selected, () -> chooseEquipment(e.id()));
                 tip(resources(e.resources(), 1), x + 6, by, w - 12, 28);
             }
+            if (items.isEmpty()) text("생산 가능한 장비가 없습니다.", x + 9, start + 9, w - 18, MUTED);
         } else {
             pickerScroll = clampScroll(pickerScroll, view.locations().size(), 25, start);
             for (int i = 0; i < view.locations().size(); i++) {
@@ -449,7 +526,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         else if (!picker.isEmpty()) pickerScroll -= (int) (vertical * 55);
         else if (modal()) return super.mouseScrolled(x, y, horizontal, vertical);
         else if (tab == MenuTab.RECRUITMENT && x >= pane) secondScroll -= (int) (vertical * 65);
-        else scroll -= (int) (vertical * (tab == MenuTab.PRODUCTION ? 79 : tab == MenuTab.RECRUITMENT ? (compact() ? 85 : 93) : tab == MenuTab.LOGISTICS ? 68 : tradeTab == 0 ? 35 : 34));
+        else scroll -= (int) (vertical * (tab == MenuTab.PRODUCTION ? productionRowHeight(top + 155) : tab == MenuTab.RECRUITMENT ? (compact() ? 85 : 93) : tab == MenuTab.LOGISTICS ? 68 : tradeTab == 0 ? 35 : 34));
         rebuildWidgets(); return true;
     }
     @Override public void removed() {
@@ -462,6 +539,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private Equipment equipment(String id) { return view.equipment().stream().filter(e -> e.id().equals(id)).findFirst().orElseThrow(); }
+    private static String equipmentName(Equipment e) { return e.outdated() ? "[구형] " + e.name() : e.name(); }
     private Template template(String id) { return view.templates().stream().filter(t -> t.id().equals(id)).findFirst().orElseThrow(); }
     private String partnerName(String id) { return view.partners().stream().filter(p -> p.id().equals(id)).map(Partner::name).findFirst().orElse(id); }
     private String locationName(String id) { return view.locations().stream().filter(l -> l.id().equals(id)).map(Choice::name).findFirst().orElse(id); }
@@ -521,5 +599,44 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (graphics != null) return;
         var button = new HoiMenuButton(name, texture, false, x, y, w, h, action);
         button.active = enabled && pending == 0; addRenderableWidget(button);
+    }
+    private void originalButton(String name, String texture, int x, int y, int w, int h, Runnable action) {
+        if (graphics != null) return;
+        var button = new ResearchButton(name, x, y, w, h, action) {
+            @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                UiAssets.draw(g, texture, x, y, w, h);
+                if (active && isHoveredOrFocused()) g.outline(x, y, w, h, 0xFFAAAAAA);
+            }
+        };
+        button.active = pending == 0;
+        button.setTooltip(Tooltip.create(Component.literal(name)));
+        addRenderableWidget(button);
+    }
+    private void divisionSlot(String name, String texture, int x, int y, int w, boolean enabled, Runnable action) {
+        if (graphics != null) return;
+        var button = new ResearchButton(name, x, y, w, 22, action) {
+            @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                HoiMenuStyle.recess(g, x, y, w, 22);
+                UiAssets.draw(g, "production/designer/slot", x + 1, y + 1, w - 2, 20);
+                UiAssets.draw(g, texture, x + 2, y + 2, w - 4, 18);
+                if (active && isHoveredOrFocused()) g.outline(x, y, w, 22, 0xFFAAAAAA);
+            }
+        };
+        button.active = enabled && pending == 0;
+        button.setTooltip(Tooltip.create(Component.literal(name)));
+        addRenderableWidget(button);
+    }
+    private void unitChoice(String name, String texture, int x, int y, int w, boolean enabled, Runnable action) {
+        if (graphics != null) return;
+        var button = new ResearchButton(name, x, y, w, 25, action) {
+            @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                HoiMenuStyle.control(g, x, y, w, 25, false, active && isHoveredOrFocused());
+                UiAssets.draw(g, texture, x + 4, y + 3, 26, 19);
+                g.text(font, font.plainSubstrByWidth(name, Math.max(1, w - 38)), x + 34, y + 9, active ? TEXT : MUTED);
+            }
+        };
+        button.active = enabled && pending == 0;
+        button.setTooltip(Tooltip.create(Component.literal(name)));
+        addRenderableWidget(button);
     }
 }
