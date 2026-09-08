@@ -283,7 +283,23 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.runOnClient(client -> {
             try {
                 var target = client.getResourcePackDirectory().resolve("hoi-test.zip");
-                Files.createDirectories(target.getParent()); Files.copy(pack, target, StandardCopyOption.REPLACE_EXISTING);
+                Files.createDirectories(target.getParent());
+                // Use the production server's actual native carrier allocations in this isolated render fixture.
+                com.google.gson.JsonObject overrides;
+                try(var input=ResearchScreenGameTest.class.getResourceAsStream("/atlas-client-scene.json")) {
+                    overrides=com.google.gson.JsonParser.parseString(new String(input.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject().getAsJsonObject("blockstates");
+                }
+                try(var input=new java.util.zip.ZipFile(pack.toFile());var output=new java.util.zip.ZipOutputStream(Files.newOutputStream(target))) {
+                    for(var entries=input.entries();entries.hasMoreElements();) {
+                        var entry=entries.nextElement();if(overrides.has(entry.getName()))continue;
+                        output.putNextEntry(new java.util.zip.ZipEntry(entry.getName()));
+                        try(var bytes=input.getInputStream(entry)){bytes.transferTo(output);}output.closeEntry();
+                    }
+                    for(var entry:overrides.entrySet()) {
+                        output.putNextEntry(new java.util.zip.ZipEntry(entry.getKey()));
+                        output.write(entry.getValue().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));output.closeEntry();
+                    }
+                }
             } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
             var repository = client.getResourcePackRepository(); repository.reload();
             var selected = new ArrayList<>(repository.getSelectedIds()); selected.add("file/hoi-test.zip");
