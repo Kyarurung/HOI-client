@@ -108,16 +108,18 @@ final class HoiMenuBar {
 
     private static void drawTension(GuiGraphicsExtractor g, int width, CountryHud hud, int mx, int my) {
         int x = tensionX(width), h = height(width) - 6;
-        HoiMenuStyle.metal(g, statsRight(width), 0, TENSION_DOCK_WIDTH, height(width));
+        var font = Minecraft.getInstance().font;
+        int percentY = 3 + h + 2, percentHeight = font.lineHeight + 4;
+        HoiMenuStyle.metal(g, statsRight(width), 0, TENSION_DOCK_WIDTH, percentY + percentHeight + 3);
         HoiMenuStyle.recess(g, x, 3, 30, h);
         UiAssets.draw(g, "hud/defcon/frame", x, 3, 30, h);
         int frame = defconFrame(hud.worldTension());
-        var font = Minecraft.getInstance().font;
-        if (frame >= 0) UiAssets.draw(g, "hud/defcon/" + frame, x + 2, 4, 26, h - 11);
-        else g.centeredText(font, "—", x + 15, 8, HoiMenuStyle.TEXT);
-        g.centeredText(font, hud.worldTension() == null ? "—" : percent(hud.worldTension()), x + 15, h - 6, HoiMenuStyle.TEXT);
-        if (mx >= x && mx < x + 30 && my >= 3 && my < 3 + h) {
-            g.outline(x, 3, 30, h, HoiMenuStyle.ACCENT);
+        if (frame >= 0) UiAssets.draw(g, "hud/defcon/" + frame, x + 2, 5, 26, h - 4);
+        else g.centeredText(font, "—", x + 15, 3 + (h - font.lineHeight) / 2, HoiMenuStyle.TEXT);
+        HoiMenuStyle.recess(g, x, percentY, 30, percentHeight);
+        g.centeredText(font, hud.worldTension() == null ? "—" : percent(hud.worldTension()), x + 15, percentY + 2, HoiMenuStyle.TEXT);
+        if (mx >= x && mx < x + 30 && my >= 3 && my < percentY + percentHeight) {
+            g.outline(x, my >= percentY ? percentY : 3, 30, my >= percentY ? percentHeight : h, HoiMenuStyle.ACCENT);
             g.setComponentTooltipForNextFrame(font, List.of(Component.literal("세계 긴장도 · DEFCON"),
                     Component.literal(frame >= 0 ? "DEFCON " + (5 - frame / 2) : "DEFCON 단계 알 수 없음"), Component.literal(
                     hud.worldTension() == null ? "서버에 기록된 값이 없습니다." : percent(hud.worldTension()))), mx, my);

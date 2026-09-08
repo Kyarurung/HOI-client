@@ -55,7 +55,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             else menus.accept(tab);
         }).forEach(this::addRenderableWidget);
         if (overview) { initOverview(); return; }
-        int tabColumns = 9, tabWidth = (width - 20) / tabColumns;
+        int tabColumns = 9, tabWidth = (HoiMenuBar.statsRight(width) - 20) / tabColumns;
         for (int i = 0; i < CATEGORIES.length; i++) {
             final int index = i;
             baseButtons.add(addRenderableWidget(new ResearchTabButton(LABELS[i], CATEGORIES[i], category.equals(CATEGORIES[i]),
