@@ -28,12 +28,16 @@ public record MenuView(String country, String countryName, String date, String s
             if (entries.size() > 64) throw new IllegalArgumentException("Too many menu entries");
         }
     }
-    public record Entry(String name, String value, String detail, double progress) {
+    public record Entry(String name, String value, String detail, double progress, String icon) {
         public Entry {
             bounded(name, 128); bounded(value, 128); bounded(detail, 2_000);
+            if (icon == null) icon = "";
+            bounded(icon, 128);
+            if (!icon.isEmpty() && !icon.matches("[a-z0-9_]+(?:/[a-z0-9_]+)*")) throw new IllegalArgumentException("Invalid menu icon");
             if (!Double.isFinite(progress) || progress < -1 || progress > 1) throw new IllegalArgumentException("Invalid menu progress");
         }
-        public Entry(String name, String value, String detail) { this(name, value, detail, -1); }
+        public Entry(String name, String value, String detail, double progress) { this(name, value, detail, progress, ""); }
+        public Entry(String name, String value, String detail) { this(name, value, detail, -1, ""); }
     }
     private static void bounded(String text, int limit) {
         if (text == null || text.length() > limit) throw new IllegalArgumentException("메뉴 데이터 한도 초과");

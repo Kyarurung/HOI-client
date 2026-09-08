@@ -14,7 +14,7 @@ final class HoiPanelLayout {
             case LOGISTICS -> 560;
             default -> 550;
         };
-        int minimum = tab == MenuTab.POLITICS ? 192 : tab == MenuTab.TRADE ? 184 : 168;
+        int minimum = tab == MenuTab.POLITICS ? 248 : tab == MenuTab.TRADE ? 184 : 168;
         // At high GUI scales retain legible controls instead of shrinking images or overflowing text.
         return Math.min(screenWidth - 16, Math.max(minimum, screenWidth * original / 2560));
     }

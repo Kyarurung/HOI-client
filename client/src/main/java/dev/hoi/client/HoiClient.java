@@ -21,6 +21,7 @@ public final class HoiClient implements ClientModInitializer {
     @Override public void onInitializeClient() {
         ResearchProtocol.registerPayloadTypes();
         dev.hoi.protocol.ConstructionProtocol.registerPayloadTypes();
+        dev.hoi.protocol.CountryProtocol.registerPayloadTypes();
         net.fabricmc.fabric.api.resource.v1.ResourceLoader.get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
                 .registerReloadListener(Identifier.fromNamespaceAndPath("hoi", "ui_image_dimensions"),
                         (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> UiAssets.clear());
@@ -40,6 +41,13 @@ public final class HoiClient implements ClientModInitializer {
                 if (context.client().gui.screen() instanceof HoiMenuScreen menu) menu.update(view);
                 else context.client().gui.setScreen(new HoiMenuScreen(view));
             } catch (RuntimeException e) { message("HOI 메뉴 데이터를 읽을 수 없습니다."); }
+        });
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.CountryProtocol.OpenScreen.TYPE, (packet, context) -> openCountry(packet.target()));
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.CountryProtocol.Response.TYPE, (packet, context) -> {
+            if (context.client().gui.screen() instanceof CountryScreen screen) {
+                try { screen.update(packet); }
+                catch (IllegalArgumentException error) { context.client().gui.setScreen(null); message("국가 정보를 읽을 수 없습니다."); }
+            }
         });
         ClientPlayNetworking.registerGlobalReceiver(MenuProtocol.Update.TYPE, (packet, context) -> {
             if (!(context.client().gui.screen() instanceof HoiMenuScreen menu) || !menu.token().equals(packet.screen())) return;
@@ -79,7 +87,7 @@ public final class HoiClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             SidebarMovement.release(client);
             awaiting = 0;
-            if (client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen || client.gui.screen() instanceof AgencyScreen || client.gui.screen() instanceof ConstructionScreen) client.gui.setScreen(null);
+            if (client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen || client.gui.screen() instanceof AgencyScreen || client.gui.screen() instanceof ConstructionScreen || client.gui.screen() instanceof CountryScreen) client.gui.setScreen(null);
         });
     }
     static void registerCommands(com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> dispatcher) {
@@ -93,6 +101,10 @@ public final class HoiClient implements ClientModInitializer {
         send(new ResearchProtocol.Request(ResearchProtocol.Action.OPEN, "", 0, -1, ""));
     }
     static void cancelOpen() { awaiting = 0; }
+    static void openCountry(String target) {
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.CountryProtocol.Request.TYPE)) { message("이 서버는 외국 정보 UI를 지원하지 않습니다."); return; }
+        cancelOpen(); Minecraft.getInstance().gui.setScreen(new CountryScreen(target));
+    }
     static void openConstruction() {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.ConstructionProtocol.Request.TYPE)) { message("이 서버는 건설 UI를 지원하지 않습니다."); return; }
         cancelOpen();var screen=new ConstructionScreen();Minecraft.getInstance().gui.setScreen(screen);screen.open();

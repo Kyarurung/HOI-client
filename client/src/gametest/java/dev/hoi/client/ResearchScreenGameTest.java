@@ -31,8 +31,9 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.SelectedGameMode.CREATIVE)).create()) {
             var menu = fixtureMenu();
             ConstructionScreenChecks.run(context,menu.hud());
+            CountryScreenChecks.run(context,menu.hud());
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(5);
-            context.runOnClient(client -> check(((HoiMenuScreen)client.gui.screen()).panelWidth() == client.gui.screen().width * 726 / 2560, "Country panel follows the original 726-pixel container"));
+            context.runOnClient(client -> check(((HoiMenuScreen)client.gui.screen()).panelWidth() == HoiPanelLayout.width(MenuTab.POLITICS,client.gui.screen().width), "Country panel follows the original 726-pixel container"));
             context.takeScreenshot("hoi-menu-country");
             check(HoiMenuBar.indicators(menu.hud()).stream().limit(13).map(HoiMenuBar.Indicator::icon).toList().equals(List.of(
                     "political_power", "stability", "war_support", "manpower", "factories", "fuel", "supplies", "convoys", "command_power",
@@ -62,18 +63,17 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 context.waitTicks(2); context.takeScreenshot("hoi-defcon-frame-" + HoiMenuBar.defconFrame(tension));
             }
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(2);
-            click(context, "정치력 · 72"); context.waitTicks(2); context.takeScreenshot("hoi-menu-country-detail");
+            click(context, "국가 현황"); context.waitTicks(2); context.takeScreenshot("hoi-menu-country-detail");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
-            for (String label : List.of("민간", "육군", "해군", "공군")) {
-                click(context, label); context.waitTicks(2); context.takeScreenshot("hoi-country-" + label);
-            }
+            click(context, "정부 선택 0 · 미지정"); context.waitTicks(2); context.takeScreenshot("hoi-politics-slot-detail");
+            context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
             for (var tab : MenuTab.ORDER) if (tab != MenuTab.RESEARCH) {
                 click(context, tab.label() + " 메뉴");
                 context.runOnClient(client -> {
                     var screen = (HoiMenuScreen)client.gui.screen();
                     check(screen.selectedTab() == tab, "Menu tab " + tab);
                     int sourceWidth = switch (tab) { case POLITICS -> 726; case TRADE -> 620; case LOGISTICS -> 560; default -> 550; };
-                    check(screen.panelWidth() == screen.width * sourceWidth / 2560, "Original container width for " + tab);
+                    check(screen.panelWidth() == HoiPanelLayout.width(tab,screen.width), "Original container width for " + tab);
                 });
             }
             context.waitTicks(2); context.takeScreenshot("hoi-menu-officers");
@@ -251,7 +251,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.setScreen(() -> null);
     }
     private static void movement(ClientGameTestContext context) {
-        click(context, "국가 정보 메뉴"); click(context, "공군");
+        click(context, "국가 정보 메뉴");
         context.runOnClient(client -> {
             client.player.setPos(client.player.getX(), client.player.getY() + 8, client.player.getZ());
             client.player.setOnGround(false);
@@ -269,7 +269,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.getInput().holdKey(o -> o.keyShift); context.waitTicks(12); context.getInput().releaseKey(o -> o.keyShift);
         context.runOnClient(client -> check(client.player.getY() < position[1] - .2, "Shift descends while sidebar open"));
         context.getInput().holdKey(o -> o.keyUp); context.waitTicks(2);
-        click(context, "공군 장비 · 12");
+        click(context, "국가 현황");
         context.runOnClient(client -> check(!client.options.keyUp.isDown() && !((HoiMenuScreen)client.gui.screen()).allowsMovement(), "Detail modal releases movement"));
         context.getInput().releaseKey(o -> o.keyUp); context.setScreen(() -> null); context.waitTicks(2);
         context.runOnClient(client -> check(!client.options.keyUp.isDown() && !client.options.keyJump.isDown() && !client.options.keyShift.isDown(), "No stuck movement on close"));
@@ -296,13 +296,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                         fixtureMainMenu(menu, tab, research, requests)))));
     }
     private static MenuView fixtureMenu() {
-        var pages = MenuTab.ORDER.stream().map(tab -> new MenuView.Page(tab, tab == MenuTab.POLITICS ? List.of(
-                new MenuView.Section("국가 현황", "politics", List.of(new MenuView.Entry("정치력", "72", "화면 검증용 데이터"),
-                        new MenuView.Entry("안정도", "62%", "화면 검증용 데이터"), new MenuView.Entry("전쟁 지지도", "48%", "화면 검증용 데이터"))),
-                new MenuView.Section("민간 정보", "civilian", List.of(new MenuView.Entry("민간공장", "20", "화면 검증용 데이터"))),
-                new MenuView.Section("육군", "army", List.of(new MenuView.Entry("육군 장비", "12", "화면 검증용 데이터"))),
-                new MenuView.Section("해군", "navy", List.of(new MenuView.Entry("해군 장비", "12", "화면 검증용 데이터"))),
-                new MenuView.Section("공군", "air", List.of(new MenuView.Entry("공군 장비", "12", "화면 검증용 데이터"))))
+        var pages = MenuTab.ORDER.stream().map(tab -> new MenuView.Page(tab, tab == MenuTab.POLITICS ? CountryScreenChecks.politics()
                 : tab == MenuTab.TRADE ? List.of(
                         new MenuView.Section("경제 현황", "trade", List.of(new MenuView.Entry("민간공장", "20", "화면 검증용 데이터"),
                                 new MenuView.Entry("군수공장", "18", "화면 검증용 데이터"))),
