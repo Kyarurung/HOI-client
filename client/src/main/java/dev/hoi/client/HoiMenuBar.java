@@ -97,7 +97,7 @@ final class HoiMenuBar {
             var lines = new ArrayList<Component>();
             lines.add(Component.literal(hovered.label()));
             lines.add(Component.literal(hovered.raw() == null ? "서버에 기록된 값이 없습니다." :
-                    hovered.format() == Format.PERCENT ? percent(hovered.raw().doubleValue()) : hovered.raw().toString()));
+                    hovered.format() == Format.PERCENT ? percent(hovered.raw().doubleValue()) : rawNumber(hovered.raw())));
             if (hovered.barLabel() != null) lines.add(Component.literal(hovered.barLabel() + ": " +
                     (hovered.ratio() == null ? "서버 값 없음" : percent(hovered.ratio()))));
             if (maxScroll > 0) lines.add(Component.literal("휠로 다른 지표 보기"));
@@ -134,19 +134,25 @@ final class HoiMenuBar {
         return 9;
     }
 
-    private static String number(Double value) {
+    static String number(Double value) {
         if (value == null) return "—";
         double magnitude = Math.abs(value);
         if (magnitude >= 1_000_000) return String.format(Locale.ROOT, "%.1fM", value / 1_000_000);
         if (magnitude >= 10_000) return String.format(Locale.ROOT, "%.0fK", value / 1000);
-        return magnitude >= 1000 ? String.format(Locale.ROOT, "%.1fK", value / 1000) : String.format(Locale.ROOT, "%.0f", value);
+        return magnitude >= 1000 ? String.format(Locale.ROOT, "%.1fK", value / 1000) : rawNumber(value);
+    }
+
+    static String rawNumber(Number value) {
+        if(value==null)return "—";
+        try {return new java.math.BigDecimal(value.toString()).setScale(2,java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();}
+        catch(NumberFormatException e){return value.toString();}
     }
 
     private static String percent(double value) { return String.format(Locale.ROOT, "%.0f%%", value * 100); }
 
-    private static String money(Double value) {
+    static String money(Double value) {
         if (value == null) return "—";
-        return value >= 1000 ? String.format(Locale.ROOT, "%.3f조", value / 1000) : String.format(Locale.ROOT, "%.3fB", value);
+        return value >= 1000 ? String.format(Locale.ROOT, "%.2f조", value / 1000) : String.format(Locale.ROOT, "%.2fB", value);
     }
 
     private static void stat(GuiGraphicsExtractor g, Indicator item, int x) {
