@@ -110,14 +110,26 @@ final class HoiMenuBar {
         int x = tensionX(width), h = height(width) - 6;
         HoiMenuStyle.metal(g, statsRight(width), 0, TENSION_DOCK_WIDTH, height(width));
         HoiMenuStyle.recess(g, x, 3, 30, h);
-        UiAssets.draw(g, "hud/world_tension", x + 3, 5, 24, h - 11);
+        UiAssets.draw(g, "hud/defcon/frame", x, 3, 30, h);
+        int frame = defconFrame(hud.worldTension());
         var font = Minecraft.getInstance().font;
+        if (frame >= 0) UiAssets.draw(g, "hud/defcon/" + frame, x + 2, 4, 26, h - 11);
+        else g.centeredText(font, "—", x + 15, 8, HoiMenuStyle.TEXT);
         g.centeredText(font, hud.worldTension() == null ? "—" : percent(hud.worldTension()), x + 15, h - 6, HoiMenuStyle.TEXT);
         if (mx >= x && mx < x + 30 && my >= 3 && my < 3 + h) {
             g.outline(x, 3, 30, h, HoiMenuStyle.ACCENT);
-            g.setComponentTooltipForNextFrame(font, List.of(Component.literal("세계 긴장도"), Component.literal(
+            g.setComponentTooltipForNextFrame(font, List.of(Component.literal("세계 긴장도 · DEFCON"),
+                    Component.literal(frame >= 0 ? "DEFCON " + (5 - frame / 2) : "DEFCON 단계 알 수 없음"), Component.literal(
                     hud.worldTension() == null ? "서버에 기록된 값이 없습니다." : percent(hud.worldTension()))), mx, my);
         }
+    }
+
+    /** The original ten-frame strip advances every 10%; 90..100% uses its final frame. */
+    static int defconFrame(Double tension) {
+        if (tension == null) return -1;
+        for (int frame = 0; frame < 9; frame++)
+            if (tension < (frame + 1) / 10.0) return frame;
+        return 9;
     }
 
     private static String number(Double value) {

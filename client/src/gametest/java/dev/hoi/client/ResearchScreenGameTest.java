@@ -46,6 +46,20 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             var stocked = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 12L, fixtureNational());
             context.setScreen(() -> new HoiMenuScreen(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), stocked)));
             context.waitTicks(2); context.takeScreenshot("hoi-hud-nuclear-stockpile");
+            check(HoiMenuBar.defconFrame(null) == -1, "Unknown tension must not imply DEFCON 5");
+            check(HoiMenuBar.defconFrame(0.0) == 0 && HoiMenuBar.defconFrame(1.0) == 9,
+                    "DEFCON endpoints use the first and final original frames");
+            for (int step = 1; step < 10; step++) {
+                double boundary = step / 10.0;
+                check(HoiMenuBar.defconFrame(boundary) == step
+                        && HoiMenuBar.defconFrame(Math.nextDown(boundary)) == step - 1,
+                        "DEFCON changes exactly at " + step * 10 + "%");
+            }
+            for (Double tension : new Double[]{0.0, .4, .6, 1.0, null}) {
+                var hud = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, tension, false, 0L, fixtureNational());
+                context.setScreen(() -> new HoiMenuScreen(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), hud)));
+                context.waitTicks(2); context.takeScreenshot("hoi-defcon-frame-" + HoiMenuBar.defconFrame(tension));
+            }
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(2);
             click(context, "정치력 · 72"); context.waitTicks(2); context.takeScreenshot("hoi-menu-country-detail");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
@@ -199,8 +213,11 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             for (var item : HoiMenuBar.indicators(CountryHud.UNKNOWN))
                 check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/" + item.icon() + ".png")).isPresent(),
                         "External HUD icon loaded: " + item.icon());
-            check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/world_tension.png")).isPresent(),
-                    "Large world tension icon loaded");
+            for (int frame = 0; frame < 10; frame++)
+                check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/defcon/" + frame + ".png")).isPresent(),
+                        "Original DEFCON frame loaded: " + frame);
+            check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/defcon/frame.png")).isPresent(),
+                    "Original DEFCON panel loaded");
         });
     }
     private static void agency(ClientGameTestContext context) {
