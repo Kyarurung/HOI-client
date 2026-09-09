@@ -56,6 +56,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                     if(!b.enabled())g.fill(bx+1,by+1,bx+icon-1,by+icon-1,0x88000000);
                 }
             };
+            button.sound(UiSounds.construction(b.id()));
             button.active=b.enabled()&&pending==0;
             button.setTooltip(Tooltip.create(Component.literal(b.name()+"\n"+b.reason())));addRenderableWidget(button);
         }

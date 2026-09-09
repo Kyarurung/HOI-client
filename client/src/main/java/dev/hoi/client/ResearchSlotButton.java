@@ -20,6 +20,7 @@ final class ResearchSlotButton extends Button {
                 + (technology == null ? "" : " · " + technology.remainingDays(slot.savedDays()) + "일"))));
     }
 
+    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { if (technology == null) UiSounds.play("ui.research.select"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         var font = Minecraft.getInstance().font;

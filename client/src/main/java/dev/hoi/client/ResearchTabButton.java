@@ -18,6 +18,7 @@ final class ResearchTabButton extends Button {
 
     static int heightFor(int width) { return (int)Math.ceil(width * 61.0 / 86); }
 
+    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play("ui.research.tab." + category.toLowerCase(java.util.Locale.ROOT)); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth();
         if (selected) g.fill(x + 2, y + getHeight() - 5, x + w - 2, y + getHeight() + 1, 0xFF101A21);

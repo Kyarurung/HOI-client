@@ -310,6 +310,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         };
     }
     private final class InvisibleButton extends Button {
+        @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) {
+            UiSounds.play(getMessage().getString().equals("국가 중점") ? "ui.focus.select" : "ui.click");
+        }
         InvisibleButton(String label, int x, int y, int w, int h, Runnable action) {
             super(x, y, w, h, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
             setTooltip(Tooltip.create(Component.literal(label)));

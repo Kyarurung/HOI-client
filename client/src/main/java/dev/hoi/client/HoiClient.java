@@ -20,6 +20,8 @@ public final class HoiClient implements ClientModInitializer {
     private static int awaiting;
     @Override public void onInitializeClient() {
         ResearchProtocol.registerPayloadTypes();
+        dev.hoi.protocol.AudioProtocol.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.AudioProtocol.Signal.TYPE, (packet, context) -> UiSounds.receive(packet.cue()));
         AtlasSceneClient.register();
         dev.hoi.protocol.ConstructionProtocol.registerPayloadTypes();
         dev.hoi.protocol.CountryProtocol.registerPayloadTypes();
@@ -31,6 +33,7 @@ public final class HoiClient implements ClientModInitializer {
         var key = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.hoi.research", InputConstants.Type.KEYSYM, InputConstants.KEY_R, category));
         ClientTickEvents.START_CLIENT_TICK.register(SidebarMovement::tick);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            UiSounds.tick();
             if (awaiting > 0 && --awaiting == 0) message("연구 화면 응답이 없습니다. 다시 열어주세요.");
             while (key.consumeClick()) if (client.player != null && client.gui.screen() == null) open();
         });
@@ -93,6 +96,7 @@ public final class HoiClient implements ClientModInitializer {
             } catch (IllegalArgumentException e) { awaiting = 0; message("HOI 연구 화면 데이터를 읽을 수 없습니다."); }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            UiSounds.reset();
             SidebarMovement.release(client);
             awaiting = 0;
             if (client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen || client.gui.screen() instanceof AgencyScreen || client.gui.screen() instanceof ConstructionScreen || client.gui.screen() instanceof CountryScreen || client.gui.screen() instanceof IndustryScreen) client.gui.setScreen(null);

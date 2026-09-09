@@ -182,6 +182,7 @@ final class HoiMenuBar {
     }
 
     static final class TabButton extends Button {
+        @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play("ui.menu_tab"); }
         private final MenuTab tab;
         private final String country;
         private final boolean selected;

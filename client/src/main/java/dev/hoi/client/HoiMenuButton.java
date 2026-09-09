@@ -21,6 +21,7 @@ final class HoiMenuButton extends Button {
         setTooltip(Tooltip.create(Component.literal(label)));
     }
 
+    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : "ui.click"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         HoiMenuStyle.control(g, x, y, w, h, selected, active && isHoveredOrFocused());

@@ -8,10 +8,13 @@ import net.minecraft.network.chat.Component;
 /** Flat strategy controls with vanilla focus, activation, sounds and narration behavior. */
 class ResearchButton extends Button {
     private double progress = -1;
+    private String clickSound = "ui.click";
+    void sound(String value) { clickSound = value; }
     ResearchButton(String label, int x, int y, int width, int height, Runnable action) {
         super(x, y, width, height, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
     }
     void progress(double value) { progress = value; }
+    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : clickSound); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         boolean focused = active && isHoveredOrFocused();

@@ -117,6 +117,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         return addRenderableWidget(new ResearchButton(label, x, y, w, h, action));
     }
     void showDetail(String id) {
+        UiSounds.play("ui.research.select");
         var chosen=view.technology(id); int free=view.availableSlot(selectedSlot);
         if(chosen!=null&&chosen.status()==ResearchView.Status.AVAILABLE&&free>=0) selectedSlot=free;
         detail = id; focusedTech = id; detailScroll = 0; rebuildWidgets(); }
@@ -138,6 +139,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
                     view.session(), view.revision(), activeSlot.map(ResearchView.Slot::index).orElse(view.availableSlot(selectedSlot)), detail));
             rebuildWidgets();
         });
+        ((ResearchButton)start).sound(activeSlot.isPresent() ? "ui.click" : "ui.research.select");
         start.active = pending == 0 && (activeSlot.isPresent() || tech.status() == ResearchView.Status.AVAILABLE
                 && view.availableSlot(selectedSlot)>=0);
     }
