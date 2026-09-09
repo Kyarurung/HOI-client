@@ -11,11 +11,12 @@ import net.minecraft.client.gui.components.Tooltip;
 final class ResearchSlotButton extends Button {
     private final ResearchView.Slot slot;
     private final ResearchView.Tech technology;
+    private final String country;
 
-    ResearchSlotButton(ResearchView.Slot slot, ResearchView.Tech technology, int x, int y, int width, int height, Runnable action) {
+    ResearchSlotButton(ResearchView.Slot slot, ResearchView.Tech technology, String country, int x, int y, int width, int height, Runnable action) {
         super(x, y, width, height, Component.literal("슬롯 " + (slot.index() + 1) + " · " + (technology == null ? "연구 선택" : technology.name())),
                 b -> action.run(), DEFAULT_NARRATION);
-        this.slot = slot; this.technology = technology;
+        this.slot = slot; this.technology = technology; this.country = country;
         setTooltip(Tooltip.create(Component.literal(getMessage().getString()
                 + (technology == null ? "" : " · " + technology.remainingDays(slot.savedDays()) + "일"))));
     }
@@ -36,7 +37,7 @@ final class ResearchSlotButton extends Button {
         if (technology != null) {
             int imageWidth = Math.min(88, w / 2);
             int imageHeight = h >= 40 ? Math.min(30, h - 28) : Math.min(24, Math.max(6, h - (h >= 20 ? 12 : 4)));
-            UiAssets.technology(g, technology, x + (w - imageWidth) / 2, y + (h - imageHeight) / 2,
+            UiAssets.technology(g, country, technology, x + (w - imageWidth) / 2, y + (h - imageHeight) / 2,
                     imageWidth, imageHeight, color);
             String status = technology.remainingDays(slot.savedDays()) + "일";
             int statusX = compactActive ? x + w - 10 - font.width(status) : x + 10;

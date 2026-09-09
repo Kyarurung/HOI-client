@@ -30,14 +30,16 @@ final class HoiMenuBar {
     static int tensionX(int width) { return width - 34; }
     static int statsRight(int width) { return width - TENSION_DOCK_WIDTH; }
 
-    enum Format { NUMBER, PERCENT, MONEY }
+    enum Format { NUMBER, POLITICAL_POWER, COMMAND_POWER, PERCENT, MONEY }
     record Indicator(String icon, String label, Number raw, Format format, String barLabel, Double ratio) {
         Indicator(String icon, String label, Number raw, Format format) { this(icon, label, raw, format, null, null); }
-        int width() { return format == Format.MONEY ? 66 : icon.equals("manpower") || icon.equals("fuel") ? 52 : 40; }
+        int width() { return format == Format.MONEY ? 66 : format == Format.POLITICAL_POWER ? 42 : icon.equals("manpower") || icon.equals("fuel") ? 52 : 40; }
         String value() {
             if (raw == null) return "—";
             return switch (format) {
                 case NUMBER -> number(raw.doubleValue());
+                case POLITICAL_POWER -> politicalPower(raw.doubleValue());
+                case COMMAND_POWER -> Long.toString(raw.longValue());
                 case PERCENT -> percent(raw.doubleValue());
                 case MONEY -> money(raw.doubleValue());
             };
@@ -47,7 +49,7 @@ final class HoiMenuBar {
     static List<Indicator> indicators(CountryHud hud) {
         var n = hud.national();
         var items = new ArrayList<>(List.of(
-                new Indicator("political_power", "정치력", n.politicalPower(), Format.NUMBER),
+                new Indicator("political_power", "정치력", n.politicalPower(), Format.POLITICAL_POWER),
                 new Indicator("stability", "안정도", n.stability(), Format.PERCENT),
                 new Indicator("war_support", "전쟁 지지도", n.warSupport(), Format.PERCENT),
                 new Indicator("manpower", "인력", n.manpower(), Format.NUMBER),
@@ -55,7 +57,7 @@ final class HoiMenuBar {
                 new Indicator("fuel", "연료", n.fuel(), Format.NUMBER),
                 new Indicator("supplies", "병참 상황", n.supplies(), Format.NUMBER, "보급 효율", n.supplyEfficiency()),
                 new Indicator("convoys", "수송", n.convoys(), Format.NUMBER, "수송 효율", n.transportEfficiency()),
-                new Indicator("command_power", "지휘력", n.commandPower(), Format.NUMBER),
+                new Indicator("command_power", "지휘력", n.commandPower(), Format.COMMAND_POWER),
                 new Indicator("army_experience", "육군 경험치", hud.armyExperience(), Format.NUMBER),
                 new Indicator("air_experience", "공군 경험치", hud.airExperience(), Format.NUMBER),
                 new Indicator("navy_experience", "해군 경험치", hud.navyExperience(), Format.NUMBER),
@@ -71,6 +73,7 @@ final class HoiMenuBar {
     }
 
     static int scroll(int width, CountryHud hud, int offset, double horizontal, double vertical) {
+        if (HudTooltip.scroll(vertical)) return offset;
         return Math.clamp(offset - (int)((horizontal != 0 ? horizontal : vertical) * 42), 0, maximumScroll(width, hud));
     }
 
@@ -93,16 +96,7 @@ final class HoiMenuBar {
             left += item.width();
         }
         g.disableScissor();
-        if (hovered != null) {
-            var lines = new ArrayList<Component>();
-            lines.add(Component.literal(hovered.label()));
-            lines.add(Component.literal(hovered.raw() == null ? "서버에 기록된 값이 없습니다." :
-                    hovered.format() == Format.PERCENT ? percent(hovered.raw().doubleValue()) : rawNumber(hovered.raw())));
-            if (hovered.barLabel() != null) lines.add(Component.literal(hovered.barLabel() + ": " +
-                    (hovered.ratio() == null ? "서버 값 없음" : percent(hovered.ratio()))));
-            if (maxScroll > 0) lines.add(Component.literal("휠로 다른 지표 보기"));
-            g.setComponentTooltipForNextFrame(Minecraft.getInstance().font, lines, mx, my);
-        }
+        HudTooltip.draw(g, width, hud, hovered, mx, my);
         drawTension(g, width, hud, mx, my);
     }
 
@@ -132,6 +126,12 @@ final class HoiMenuBar {
         for (int frame = 0; frame < 9; frame++)
             if (tension < (frame + 1) / 10.0) return frame;
         return 9;
+    }
+
+    static String politicalPower(Double value) {
+        if (value == null) return "—";
+        long whole = value.longValue();
+        return whole < 1000 ? Long.toString(whole) : whole / 1000 + "." + whole / 100 % 10 + "K";
     }
 
     static String number(Double value) {

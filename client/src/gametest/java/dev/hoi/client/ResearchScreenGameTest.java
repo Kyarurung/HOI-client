@@ -32,8 +32,11 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         try (var world = context.worldBuilder().adjustSettings(settings -> settings.setGameMode(
                 net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.SelectedGameMode.CREATIVE)).create()) {
             var menu = fixtureMenu();
+            ResearchArtChecks.run(context);
+            CompletionScreenChecks.run(context);
             ConstructionScreenChecks.run(context,menu.hud());
             CountryScreenChecks.run(context,menu.hud());
+            DialogScreenChecks.run(context);
             IndustryScreenChecks.run(context,menu.hud());
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(5);
             context.runOnClient(client -> check(((HoiMenuScreen)client.gui.screen()).panelWidth() == HoiPanelLayout.width(MenuTab.POLITICS,client.gui.screen().width), "Country panel follows the original 726-pixel container"));
@@ -45,7 +48,22 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             var armed = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational());
             check(HoiMenuBar.indicators(armed).stream().anyMatch(i -> i.icon().equals("nuclear") && i.value().equals("0")), "Completed nuclear research shows zero inventory");
             check(HoiMenuBar.maximumScroll(800, armed) == 0, "All national and financial indicators fit the normal viewport");
-            check(HoiMenuBar.scroll(427, armed, 0, 0, -100) == HoiMenuBar.maximumScroll(427, armed), "Compact HUD can reach the final indicators");
+            context.runOnClient(client -> {
+                for (var item : HoiMenuBar.indicators(armed)) {
+                    if (item.icon().equals("political_power") || item.icon().equals("command_power")) {
+                        check(item.value().equals(item.icon().equals("political_power") ? "1.3K" : "150"),
+                                "Power indicators truncate fractions without rounding");
+                        check(client.font.width(item.value()) <= item.width() - 18,
+                                "Power indicator fits without ellipsis: " + item.icon());
+                    }
+                }
+                for (double power : new double[]{-500, 999.99, 1000, 1350, 1999.99, 2000}) {
+                    var item = new HoiMenuBar.Indicator("political_power", "정치력", power, HoiMenuBar.Format.POLITICAL_POWER);
+                    check(item.value().length() <= 4 && client.font.width(item.value()) <= item.width() - 18,
+                            "Political power fits four characters throughout the server range");
+                }
+            });
+            context.runOnClient(client -> check(HoiMenuBar.scroll(427, armed, 0, 0, -100) == HoiMenuBar.maximumScroll(427, armed), "Compact HUD can reach the final indicators"));
             context.setScreen(() -> new HoiMenuScreen(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), armed)));
             context.waitTicks(2); context.takeScreenshot("hoi-hud-nuclear-researched-zero");
             var stocked = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 12L, fixtureNational());
@@ -434,7 +452,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, false, null, fixtureNational()));
     }
     private static CountryHud.NationalIndicators fixtureNational() {
-        return new CountryHud.NationalIndicators(73.0, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 1000L, .95, 150.0, .36, 280_900L);
+        return new CountryHud.NationalIndicators(1350.75, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 1000L, .95, 150.75, .36, 280_900L);
     }
     private static ResearchView fixtureResearch() {
         var technologies = new ArrayList<ResearchView.Tech>();

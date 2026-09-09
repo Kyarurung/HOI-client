@@ -55,9 +55,23 @@ final class UiAssets {
         } catch (IOException ignored) { }
         return new int[]{0, 0};
     }
-    static void technology(GuiGraphicsExtractor g, ResearchView.Tech tech, int x, int y, int w, int h, int color) {
-        String id = tech.id();
-        if (id.startsWith("hoi:") && draw(g, "technology/" + id.substring(4), x, y, w, h)) return;
+    /** Country art is selected from the authenticated snapshot; other countries keep their own fallback. */
+    static String technologyPath(String country, ResearchView.Tech tech) {
+        if (!tech.id().startsWith("hoi:")) return "";
+        String common = "technology/" + tech.id().substring(4);
+        if (country != null && country.matches("[A-Za-z0-9_]{1,16}")) {
+            String national = "technology/country/" + country.toLowerCase(Locale.ROOT) + "/" + tech.id().substring(4);
+            if (hasTexture(national)) return national;
+        }
+        return hasTexture(common) ? common : "";
+    }
+    private static boolean hasTexture(String path) {
+        var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
+        return id != null && DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions)[0] > 0;
+    }
+    static void technology(GuiGraphicsExtractor g, String country, ResearchView.Tech tech, int x, int y, int w, int h, int color) {
+        String path = technologyPath(country, tech);
+        if (!path.isEmpty() && draw(g, path, x, y, w, h)) return;
         if (draw(g, "category/" + tech.category().toLowerCase(Locale.ROOT), x, y, w, h)) return;
         ResearchIcons.fallback(g, tech.category(), x + w / 2 - 10, y + h / 2 - 8, color, 2);
     }

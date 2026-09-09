@@ -84,10 +84,69 @@ final class AtlasSurfaceRenderChecks {
                     command.accept("tp @a "+cx+" "+(cy+5)+" "+(cz-11)+" 0 24");context.waitTicks(20);context.takeScreenshot("hoi-capital-name-terrain");
                 }
             }
+            checkOkinawa(context,command);
             checkAntiAir(context,command);
             checkDistance(context,command);
             context.runOnClient(client->{client.options.fov().set(70);AtlasSceneClient.clear();});
         }
+    }
+    private static void checkOkinawa(ClientGameTestContext context,java.util.function.Consumer<String> command) {
+        JsonObject fixture;
+        try(var input=AtlasSurfaceRenderChecks.class.getResourceAsStream("/okinawa-client-scene.json")) {
+            if(input==null)throw new AssertionError("Production Okinawa geometry fixture missing");
+            fixture=JsonParser.parseString(new String(input.readAllBytes(),StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
+        var data=fixture.getAsJsonObject("scenes").getAsJsonObject("ARMY");
+        context.runOnClient(client->AtlasSceneClient.clear());
+        command.accept("kill @e[type=minecraft:item_display]");command.accept("kill @e[type=minecraft:text_display]");
+        command.accept("fill 0 66 0 55 68 55 minecraft:air");
+        command.accept("fill 0 64 0 55 64 55 minecraft:stone");
+        command.accept("fill 0 65 0 55 65 55 minecraft:water strict");
+        int size=fixture.get("size").getAsInt();var blocks=new String[size*size];
+        for(var entry:data.getAsJsonArray("cells")) {
+            var c=entry.getAsJsonArray();blocks[c.get(1).getAsInt()*size+c.get(0).getAsInt()]=c.get(2).getAsString();
+        }
+        for(int z=0;z<size;z++)for(int x=0;x<size;) {
+            int end=x+1;while(end<size&&blocks[z*size+end].equals(blocks[z*size+x]))end++;
+            command.accept("fill "+x+" 65 "+z+" "+(end-1)+" 65 "+z+" "+blocks[z*size+x]+" strict");x=end;
+        }
+        for(var entry:data.getAsJsonArray("relief")) {
+            var c=entry.getAsJsonArray();command.accept("setblock "+c.get(0).getAsInt()+" "+c.get(3).getAsInt()+" "+c.get(1).getAsInt()+" "+c.get(2).getAsString()+" strict");
+        }
+        var boxes=new java.util.ArrayList<dev.hoi.protocol.AtlasSceneProtocol.Box>();
+        for(var entry:data.getAsJsonArray("meshes")) {
+            var b=entry.getAsJsonArray();boxes.add(new dev.hoi.protocol.AtlasSceneProtocol.Box(
+                    b.get(0).getAsFloat(),b.get(1).getAsFloat(),b.get(2).getAsFloat(),b.get(3).getAsFloat(),b.get(4).getAsFloat(),b.get(5).getAsFloat(),b.get(6).getAsFloat(),
+                    dev.hoi.protocol.AtlasSceneProtocol.Material.valueOf(b.get(7).getAsString())));
+        }
+        if(boxes.stream().filter(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.RED).count()!=2)
+            throw new AssertionError("Okinawa must retain both original strait routes");
+        context.runOnClient(client->{
+            var id=java.util.UUID.randomUUID();int count=(boxes.size()+1023)/1024;
+            for(int i=0;i<count;i++)AtlasSceneClient.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(id,"minecraft:overworld",i,count,boxes.subList(i*1024,Math.min((i+1)*1024,boxes.size()))));
+        });
+        for(var f:data.getAsJsonArray("facilities"))summonFixtureModel(command,f.getAsJsonArray(),false);
+        for(var v:data.getAsJsonArray("victories")) {
+            var row=v.getAsJsonArray();summonFixtureModel(command,row,true);
+            double x=row.get(1).getAsDouble(),z=row.get(3).getAsDouble();
+            if(boxes.stream().noneMatch(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY
+                    &&Math.abs(b.x()+b.sx()/2-x)<.0001&&Math.abs(b.z()+b.sz()/2-z)<.0001))
+                throw new AssertionError("Victory marker lacks its centered city model");
+        }
+        command.accept("tp @a 18 96 16 180 90");context.waitTicks(25);
+        checkPixels(context.takeScreenshot("hoi-okinawa-land-and-straits"),false);
+        var point=data.getAsJsonArray("capital");double x=point.get(0).getAsDouble(),z=point.get(1).getAsDouble(),y=point.get(2).getAsDouble();
+        command.accept("tp @a "+x+" "+(y+4)+" "+(z-8)+" 0 32");context.waitTicks(20);
+        checkPixels(context.takeScreenshot("hoi-okinawa-city-and-port"),false);
+        context.runOnClient(client->AtlasSceneClient.clear());
+        command.accept("kill @e[type=minecraft:item_display]");
+    }
+    private static void summonFixtureModel(java.util.function.Consumer<String> command,JsonArray row,boolean victory) {
+        double size=row.get(4).getAsDouble(),offset=victory?0:size/2;
+        String nbt=String.format(java.util.Locale.ROOT,
+                "{item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"%s\"}},item_display:\"fixed\",billboard:\"%s\",transformation:{translation:[%sf,%sf,%sf],scale:[%sf,%sf,%sf],left_rotation:[0f,0f,0f,1f],right_rotation:%s},width:2f,height:2f,view_range:8f,brightness:{block:15,sky:15}}",
+                row.get(5).getAsString(),victory?"center":"fixed",offset,offset,offset,size,size,size,victory?"[0f,1f,0f,0f]":"[0f,0f,0f,1f]");
+        command.accept("summon minecraft:item_display "+row.get(1).getAsDouble()+" "+row.get(2).getAsDouble()+" "+row.get(3).getAsDouble()+" "+nbt);
     }
     private static void checkAntiAir(ClientGameTestContext context,java.util.function.Consumer<String> command) {
         context.runOnClient(client->AtlasSceneClient.clear());
@@ -133,10 +192,10 @@ final class AtlasSurfaceRenderChecks {
         command.accept("tp @a 11 110 8 0 90");
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
         context.takeScreenshot("hoi-atlas-near-all-materials");
-        command.accept("tp @a 11 195 8 0 90");
+        command.accept("tp @a 11 168 8 0 90");
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
-        context.takeScreenshot("hoi-atlas-within-128-all-materials");
-        command.accept("tp @a 11 202 8 0 90");
+        context.takeScreenshot("hoi-atlas-within-100-all-materials");
+        command.accept("tp @a 11 176 8 0 90");
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==0);
         context.takeScreenshot("hoi-atlas-far-hidden");
         command.accept("tp @a 11 110 8 0 90");

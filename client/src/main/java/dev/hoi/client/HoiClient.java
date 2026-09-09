@@ -1,6 +1,5 @@
 package dev.hoi.client;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import dev.hoi.protocol.ResearchProtocol;
 import dev.hoi.protocol.MenuProtocol;
 import dev.hoi.protocol.AgencyProtocol;
@@ -8,10 +7,8 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -20,6 +17,7 @@ public final class HoiClient implements ClientModInitializer {
     private static int awaiting;
     @Override public void onInitializeClient() {
         ResearchProtocol.registerPayloadTypes();
+        DialogClient.register();
         dev.hoi.protocol.AudioProtocol.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.AudioProtocol.Signal.TYPE, (packet, context) -> UiSounds.receive(packet.cue()));
         AtlasSceneClient.register();
@@ -29,13 +27,10 @@ public final class HoiClient implements ClientModInitializer {
         net.fabricmc.fabric.api.resource.v1.ResourceLoader.get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
                 .registerReloadListener(Identifier.fromNamespaceAndPath("hoi", "ui_image_dimensions"),
                         (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> { UiAssets.clear(); AtlasSceneClient.resourcesReloaded(); });
-        var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("hoi", "strategy"));
-        var key = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.hoi.research", InputConstants.Type.KEYSYM, InputConstants.KEY_R, category));
         ClientTickEvents.START_CLIENT_TICK.register(SidebarMovement::tick);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             UiSounds.tick();
             if (awaiting > 0 && --awaiting == 0) message("연구 화면 응답이 없습니다. 다시 열어주세요.");
-            while (key.consumeClick()) if (client.player != null && client.gui.screen() == null) open();
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> registerCommands(dispatcher));
         ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.OpenScreen.TYPE, (packet, context) -> open());

@@ -19,6 +19,12 @@ final class ResearchDetails {
         if (cached == null) cached = load();
         return cached.getOrDefault(tech.source().id(), List.of());
     }
+    static List<Card> cards(Tech tech, String country) {
+        String art = UiAssets.technologyPath(country, tech);
+        return cards(tech).stream().map(card -> !art.isEmpty() && card.kind().equals("장비")
+                && (card.texture().isEmpty() || card.representative())
+                ? new Card(card.name(), card.kind(), art, true, card.effects()) : card).toList();
+    }
     private static Map<String, List<Card>> load() {
         var asset = Minecraft.getInstance().getResourceManager().getResource(
                 Identifier.fromNamespaceAndPath("hoi", "ui/research_details.json"));

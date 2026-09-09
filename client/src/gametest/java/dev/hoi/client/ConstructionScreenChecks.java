@@ -11,7 +11,7 @@ final class ConstructionScreenChecks {
         var requests=new ArrayList<ConstructionProtocol.Request>();String token=UUID.randomUUID().toString();
         var buildings=new ArrayList<ConstructionView.Building>();
         for(String id:List.of("infrastructure","air_base","anti_air","radar","military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","nuclear_reactor","power_plant","energy_farm","fort","coastal_fort","port","hub","dam","dam_mountain"))
-            buildings.add(new ConstructionView.Building(id,id.equals("civilian_factory")?"민간공장":id,"construction/"+id,!Set.of("office_park","nuclear_reactor","power_plant","energy_farm","fort","coastal_fort","port","hub","dam","dam_mountain").contains(id),"주를 선택하세요."));
+            buildings.add(new ConstructionView.Building(id,id.equals("civilian_factory")?"민간공장":id.equals("military_factory")?"군수공장":id,"construction/"+id,!Set.of("office_park","nuclear_reactor","power_plant","energy_farm","fort","coastal_fort","port","hub","dam","dam_mountain").contains(id),"주를 선택하세요."));
         var projects=new ArrayList<ConstructionView.Project>();
         for(int i=0;i<16;i++)projects.add(new ConstructionView.Project("p"+i,"state"+i,i%2==0?"civilian_factory":"military_factory",i%2==0?"경상북도":"서울",1,i<2?15:0,2500,90,10800));
         var summary=new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,10,21.862500000000004);
@@ -33,6 +33,12 @@ final class ConstructionScreenChecks {
             for(String art:java.util.stream.Stream.concat(buildings.stream().map(ConstructionView.Building::texture),java.util.stream.Stream.of("construction/consumer_goods","construction/energy")).toList())
                 if(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+art+".png")).isEmpty())throw new AssertionError("Missing construction art: "+art);
             var screen=ref.get();if(screen.panelWidth()!=HoiPanelLayout.width(MenuTab.CONSTRUCTION,screen.width))throw new AssertionError("Construction sidebar ratio");
+            assertNoDams(screen);
+            var stateBottom=List.of("infrastructure","air_base","anti_air","radar").stream().map(id->buildingButton(screen,id)).mapToInt(b->b.getY()+b.getHeight()).max().orElseThrow();
+            var sharedTop=buildingButton(screen,"군수공장").getY();
+            var sharedBottom=buildingButton(screen,"energy_farm").getY()+buildingButton(screen,"energy_farm").getHeight();
+            var localTop=buildingButton(screen,"hub").getY();
+            if(sharedTop-stateBottom<7||localTop-sharedBottom<7)throw new AssertionError("State, shared, and local buildings need separate rows and divider space");
             var button=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("민간공장")).findFirst().orElseThrow();
             button.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));
             if(requests.size()!=1||requests.getFirst().action()!=ConstructionProtocol.Action.SELECT)throw new AssertionError("Building must issue a server selection");
@@ -45,8 +51,8 @@ final class ConstructionScreenChecks {
                 screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(screen.panelWidth()+50,screen.height/2.0,
                         new net.minecraft.client.input.MouseButtonInfo(mouseButton,0)),false);
                 var last=requests.getLast();
-                if(last.action()!=(mouseButton==1?ConstructionProtocol.Action.PLACE:ConstructionProtocol.Action.CANCEL_AT))
-                    throw new AssertionError("Right click builds and left click cancels on the map");
+                if(last.action()!=(mouseButton==0?ConstructionProtocol.Action.PLACE:ConstructionProtocol.Action.CANCEL_AT))
+                    throw new AssertionError("Left click builds and right click cancels on the map");
                 if(Math.abs(last.dx()*last.dx()+last.dy()*last.dy()+last.dz()*last.dz()-1)>.001)
                     throw new AssertionError("Map input sends a normalized ray, not a trusted province");
                 screen.update(new ConstructionView(token,last.revision()+1,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
@@ -62,7 +68,8 @@ final class ConstructionScreenChecks {
             if(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("↑")))throw new AssertionError("Last queue row must remain accessible after compact resize");
             for(var w:screen.children())if(w instanceof Button b && (b.getX()<0||b.getY()<0||b.getX()+b.getWidth()>screen.width||b.getY()+b.getHeight()>screen.height))throw new AssertionError("Construction control escaped viewport");
             screen.mouseScrolled(screen.panelWidth()-8,170,0,-100);
-            if(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("dam_mountain")))throw new AssertionError("Last building must remain accessible by palette scrolling");
+            if(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("coastal_fort")))throw new AssertionError("Last local building must remain accessible by palette scrolling");
+            assertNoDams(screen);
         });
         context.waitTicks(2);context.takeScreenshot("hoi-construction-palette-scrolled");
         context.runOnClient(client->{
@@ -70,5 +77,14 @@ final class ConstructionScreenChecks {
             if(client.gui.screen()!=null)throw new AssertionError("Revoked construction must close");
         });
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
+    }
+
+    private static Button buildingButton(ConstructionScreen screen,String name) {
+        return (Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(name)).findFirst().orElseThrow();
+    }
+
+    private static void assertNoDams(ConstructionScreen screen) {
+        if(screen.children().stream().anyMatch(w->w instanceof Button b&&Set.of("dam","dam_mountain").contains(b.getMessage().getString())))
+            throw new AssertionError("Neither dam type belongs in the construction palette");
     }
 }

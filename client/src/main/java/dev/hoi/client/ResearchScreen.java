@@ -92,7 +92,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             int index = slotOffset + n;
             if (index >= view.slots().size()) break;
             var slot = view.slots().get(index); var technology = view.technology(slot.technology());
-            addRenderableWidget(new ResearchSlotButton(slot, technology, 6, slotsTop() + n * slotPitch(), pane - 12, slotPitch() - 4, () -> {
+            addRenderableWidget(new ResearchSlotButton(slot, technology, view.country(), 6, slotsTop() + n * slotPitch(), pane - 12, slotPitch() - 4, () -> {
                 selectedSlot = index; overview = false; scrollX = 0; scrollY = 0; focusedTech = null;
                 if (technology != null) { category = ResearchLayout.category(technology); showDetail(technology.id()); }
                 else rebuildWidgets();
@@ -222,7 +222,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             if (hover) hovered = n;
             g.fill(x, y, x + cardW, y + cardH, hover ? 0xFF2B3C49 : 0xFF1B2933);
             g.outline(x, y, cardW, cardH, focusedTech != null && focusedTech.equals(tech.id()) ? TEXT : color(tech.status()));
-            UiAssets.technology(g, tech, x + 2, y + 2, cardW - 4, cardH - 4, color(tech.status()));
+            UiAssets.technology(g, view.country(), tech, x + 2, y + 2, cardW - 4, cardH - 4, color(tech.status()));
             if (tech.status() == ResearchView.Status.ACTIVE) {
                 g.fill(x + 2, y + cardH - 4, x + cardW - 2, y + cardH - 1, 0xFF0D151A);
                 g.fill(x + 2, y + cardH - 4, x + 2 + (int)((cardW - 4) * tech.fraction()), y + cardH - 1, color(tech.status()));
@@ -289,7 +289,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         var tech = view.technology(detail);
         g.centeredText(font, trim(tech.name(), panelW - 70), panelX + panelW / 2 - 10, panelY + 14, TEXT);
         g.horizontalLine(panelX + 8, panelX + panelW - 8, panelY + 30, 0xFF657078);
-        UiAssets.technology(g, tech, panelX + 12, panelY + 39, 52, 37, GOLD);
+        UiAssets.technology(g, view.country(), tech, panelX + 12, panelY + 39, 52, 37, GOLD);
         g.fill(panelX + 70, panelY + 37, panelX + panelW - 110, panelY + 59, 0xFF0C1014);
         int bank = view.slots().stream().filter(slot -> slot.technology().equals(tech.id())).findFirst()
                 .map(ResearchView.Slot::savedDays).orElse(view.slots().get(selectedSlot).savedDays());
@@ -309,7 +309,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     private int detailBody(GuiGraphicsExtractor g, Tech tech, int y) {
         y = detailText(g, detailLines(tech), panelX + 14, y, panelW - 30, TEXT);
-        var cards = ResearchDetails.cards(tech);
+        var cards = ResearchDetails.cards(tech, view.country());
         if (!cards.isEmpty()) {
             y = detailText(g, List.of("원본 장비·부품 참고"), panelX + 14, y + 5, panelW - 30, MUTED);
             for (var card : cards) y = detailCard(g, card, y + 4);

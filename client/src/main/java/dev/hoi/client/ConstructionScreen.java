@@ -16,10 +16,17 @@ import java.util.function.Consumer;
 
 /** A narrow construction queue beside the live atlas. Mouse rays never contain a trusted state or country. */
 public final class ConstructionScreen extends Screen implements SidebarMovement.Screen {
+    // Match the registered state/shared-slot/province categories in AtlasConstruction.Kind.
+    private static final List<List<String>> BUILDING_GROUPS=List.of(
+            List.of("infrastructure","air_base","anti_air","radar"),
+            List.of("military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","nuclear_reactor","power_plant","energy_farm"),
+            List.of("hub","port","fort","coastal_fort"));
+    private record PaletteEntry(Building building,int column,int offset) {}
     private final String token;
     private final Consumer<ConstructionProtocol.Request> transport;
     private ConstructionView view;
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
+    private List<Integer> paletteDividers=List.of();
     private String localMessage="";
     public ConstructionScreen() {
         this(UUID.randomUUID().toString(),null,r->{if(ClientPlayNetworking.canSend(ConstructionProtocol.Request.TYPE))ClientPlayNetworking.send(r);});
@@ -44,10 +51,20 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
         addRenderableWidget(new HoiMenuButton("×",pane-25,top+3,19,19,this::onClose));
         if(view==null)return;
         int icon=paletteSize(),x=paletteX(),y=top+96;
-        int paletteRows=Math.max(1,(height-y-30)/(icon+3));
-        paletteScroll=Math.clamp(paletteScroll/(icon+3),0,Math.max(0,(view.buildings().size()+1)/2-paletteRows))*(icon+3);
-        for(int i=0;i<view.buildings().size();i++) {
-            var b=view.buildings().get(i);int bx=x+(i%2)*(icon+2),by=y+(i/2)*(icon+3)-paletteScroll;
+        var entries=new ArrayList<PaletteEntry>();
+        var dividers=new ArrayList<Integer>();
+        int offset=0;
+        for(var ids:BUILDING_GROUPS) {
+            var group=ids.stream().flatMap(id->view.buildings().stream().filter(b->b.id().equals(id))).toList();
+            if(group.isEmpty())continue;
+            if(!entries.isEmpty()){dividers.add(offset+2);offset+=7;}
+            for(int i=0;i<group.size();i++)entries.add(new PaletteEntry(group.get(i),i%2,offset+(i/2)*(icon+3)));
+            offset+=((group.size()+1)/2)*(icon+3);
+        }
+        paletteDividers=List.copyOf(dividers);
+        paletteScroll=Math.clamp(paletteScroll,0,Math.max(0,offset-3-Math.max(0,height-y-30)));
+        for(var entry:entries) {
+            var b=entry.building();int bx=x+entry.column()*(icon+2),by=y+entry.offset()-paletteScroll;
             if(by<y||by+icon>height-30)continue;
             var button=new ResearchButton(b.name(),bx,by,icon,icon,()->send(ConstructionProtocol.Action.SELECT,b.id(),0,null)) {
                 @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
@@ -58,7 +75,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
             };
             button.sound(UiSounds.construction(b.id()));
             button.active=b.enabled()&&pending==0;
-            button.setTooltip(Tooltip.create(Component.literal(b.name()+"\n"+b.reason())));addRenderableWidget(button);
+            button.setTooltip(Tooltip.create(Component.literal(b.name()+"\n"+(b.enabled()?"자국 주 좌클릭: 건설 · 우클릭: 선택한 건물의 마지막 건설 예약 취소":b.reason()))));addRenderableWidget(button);
         }
         int repair=view.summary().repairPriority();
         for(int direction:new int[]{-1,1}) {
@@ -85,6 +102,9 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     private int queueY(){return top+120;}
     private int rowHeight(){return 55;}
     private String trim(String s,int width){return font.width(s)<=width?s:font.plainSubstrByWidth(s,Math.max(1,width-8))+"…";}
+    private String buildingName(String id) {
+        return view.buildings().stream().filter(b->b.id().equals(id)).map(Building::name).findFirst().orElse(id);
+    }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
         HoiMenuStyle.panel(g,0,top,pane,height-top);
         g.text(font,"건설",9,top+8,HoiMenuStyle.TEXT);
@@ -108,6 +128,13 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
             UiAssets.draw(g,"construction/consumer_goods",10,top+97,19,19);
             g.text(font,"소비재",33,top+102,HoiMenuStyle.TEXT);
             g.text(font,Integer.toString(s.consumer()),q-22,top+102,HoiMenuStyle.TEXT);
+            for(int divider:paletteDividers) {
+                int y=top+96+divider-paletteScroll;
+                if(y>=top+96&&y+1<height-30) {
+                    g.horizontalLine(paletteX(),pane-7,y,0xFF0B0D0F);
+                    g.horizontalLine(paletteX(),pane-7,y+1,0xFF55595D);
+                }
+            }
             for(int i=0;i<view.projects().size();i++) {
                 var p=view.projects().get(i);int y=queueY()+i*rowHeight()-scroll;
                 if(y<queueY()||y+rowHeight()>height-30)continue;
@@ -117,17 +144,17 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 g.text(font,trim(p.factories()+" / 15",q-44),38,y+20,HoiMenuStyle.MUTED);
                 int bw=Math.max(15,q-79);g.fill(10,y+38,10+bw,y+43,0xFF101511);
                 g.fill(10,y+38,10+(int)(bw*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1)),y+43,0xFF79945A);
-                if(mx>=6&&mx<q&&my>=y&&my<y+31)HoiTooltips.draw(g,font,p.name()+" · "+p.building()+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.1f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"),mx,my);
+                if(mx>=6&&mx<q&&my>=y&&my<y+31)HoiTooltips.draw(g,font,p.name()+" · "+buildingName(p.building())+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.1f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"),mx,my);
             }
             if(mx>=6&&mx<pane-6&&my>=bodyTop()+24&&my<bodyTop()+50)HoiTooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
             if(mx>=6&&mx<pane-6&&my>=bodyTop()+52&&my<top+92)HoiTooltips.draw(g,font,"민간공장 "+s.total()+"\n소비재 "+s.consumer()+" · 무역/기관 예약 "+s.reserved()+"\n건설 "+s.used()+" · 수리 "+s.repair()+" · 미사용 "+s.idle()+"\n사용 가능한 에너지 "+HoiMenuBar.rawNumber(s.energy())+" / 필요량 "+HoiMenuBar.rawNumber(s.demand())+"\n공장별 배정은 서버가 계산합니다.",mx,my);
-            if(view.projects().isEmpty())g.text(font,trim("우클릭 건설 · 좌클릭 취소",q-16),10,queueY()+12,HoiMenuStyle.MUTED);
+            if(view.projects().isEmpty())g.text(font,trim("좌클릭 건설 · 우클릭 취소",q-16),10,queueY()+12,HoiMenuStyle.MUTED);
         } else g.text(font,"건설 현황을 불러오는 중…",10,top+40,HoiMenuStyle.MUTED);
         String msg=!localMessage.isEmpty()?localMessage:view==null?"":view.message();
         if(!msg.isEmpty())g.text(font,trim(msg,pane-16),8,height-20,HoiMenuStyle.TEXT);
         else {
-            g.text(font,trim("우클릭 건설 · 좌클릭 취소",pane-16),8,height-20,HoiMenuStyle.MUTED);
-            if(mx<pane&&my>=height-24)HoiTooltips.draw(g,font,"건물 선택 후 자국 주 우클릭: 건설\n좌클릭: 해당 주에서 선택한 건물의 마지막 건설 예약 하나 취소",mx,my);
+            g.text(font,trim("좌클릭 건설 · 우클릭 취소",pane-16),8,height-20,HoiMenuStyle.MUTED);
+            if(mx<pane&&my>=height-24)HoiTooltips.draw(g,font,"건물 선택 후 자국 주 좌클릭: 건설\n우클릭: 해당 주에서 선택한 건물의 마지막 건설 예약 하나 취소",mx,my);
         }
         super.extractRenderState(g,mx,my,delta);
     }
@@ -144,7 +171,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 }
                 var matrix=minecraft.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new Matrix4f()).invert();
                 var ray=matrix.transformProject(new Vector3f((float)(event.x()/width*2-1),(float)(1-event.y()/height*2),1)).normalize();
-                send(event.button()==1?ConstructionProtocol.Action.PLACE:ConstructionProtocol.Action.CANCEL_AT,"",0,ray);
+                send(event.button()==0?ConstructionProtocol.Action.PLACE:ConstructionProtocol.Action.CANCEL_AT,"",0,ray);
             }
             return true;
         }

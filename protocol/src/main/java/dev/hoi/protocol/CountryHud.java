@@ -3,8 +3,16 @@ package dev.hoi.protocol;
 /** Optional private snapshot values. Missing data is unknown, never an inferred zero. */
 public record CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                          Double gdpBillions, Double debtBillions, Double worldTension,
-                         boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national) {
+                         boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national,
+                         java.util.Map<String, HudDetail> details) {
     public static final CountryHud UNKNOWN = new CountryHud(null, null, null, null, null, null, false, null);
+
+    public CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
+                      Double gdpBillions, Double debtBillions, Double worldTension,
+                      boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national) {
+        this(armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension,
+                nuclearResearched, nuclearStockpile, national, java.util.Map.of());
+    }
 
     public CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                       Double gdpBillions, Double debtBillions, Double worldTension,
@@ -19,6 +27,14 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
         if (worldTension != null && worldTension > 1 || nuclearStockpile != null && nuclearStockpile < 0)
             throw new IllegalArgumentException("Invalid HUD range");
         if (national == null) national = NationalIndicators.UNKNOWN;
+        details = details == null ? java.util.Map.of() : java.util.Map.copyOf(details);
+        if (details.size() > 16) throw new IllegalArgumentException("Too many HUD details");
+        int characters = 0;
+        for (var entry : details.entrySet()) {
+            if (!entry.getKey().matches("[a-z_]{1,32}")) throw new IllegalArgumentException("Invalid HUD detail key");
+            for (var row : entry.getValue().rows()) characters += row.label().length() + row.value().length();
+        }
+        if (characters > 24000) throw new IllegalArgumentException("HUD details exceed budget");
     }
 
     /** Ratios are 0..1. Null means unavailable; zero is a recorded value. */
