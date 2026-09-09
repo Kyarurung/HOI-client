@@ -1,0 +1,13 @@
+{
+  "exclude": [
+    ".agents/",
+    ".codex/",
+    "**/build/",
+    "**/run/",
+    "logs/",
+    "backups/",
+    "audit/",
+    "_workspace/",
+    "**/__pycache__/"
+  ]
+}

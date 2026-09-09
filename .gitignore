@@ -15,3 +15,9 @@ hs_err_pid*
 replay_pid*
 __pycache__/
 .test-resourcepack/
+
+# Local agent indexes and machine-specific MCP settings.
+.codegraph/
+.codegraph-*/
+/.codex/config.toml
+/_workspace/
