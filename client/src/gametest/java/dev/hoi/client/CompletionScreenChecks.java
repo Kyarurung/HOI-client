@@ -75,6 +75,9 @@ final class CompletionScreenChecks {
         context.setScreen(() -> new HoiMenuScreen(new MenuView("KOR", "대한민국", "2020-01-01", "PAUSED", pages, hud)));
         context.getInput().setCursorPos(135, 14); context.waitTicks(3);
         context.runOnClient(c -> {
+            var flag=(Button)c.gui.screen().children().stream().filter(w->w instanceof HoiMenuBar.TabButton b&&b.getX()==4).findFirst().orElseThrow();
+            check(flag.getWidth()>flag.getHeight(),"Country flag keeps a wide aspect ratio");
+            check(c.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/menu/flag_overlay.png")).isPresent(),"Original TFR flag overlay loads from the split UI pack");
             var lines = HudTooltip.body(c.font, c.gui.screen().width, hud, HoiMenuBar.indicators(hud).getFirst());
             check(lines.size() > HudTooltip.visibleRows(c.gui.screen().height, c.font), "Long HUD gets a scroll window");
             for (var line : lines) check(c.font.width(line) <= 310, "HUD lines wrap within viewport");

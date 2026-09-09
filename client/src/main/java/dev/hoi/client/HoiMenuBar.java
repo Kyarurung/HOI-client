@@ -22,10 +22,11 @@ final class HoiMenuBar {
         return Math.min(Math.min(28, Math.max(20, width * 7 / 200)), (width - 12) / MenuTab.ORDER.size());
     }
 
-    static int dockWidth(int width) { return 40 + tabWidth(width) * (MenuTab.ORDER.size() - 1); }
+    static int dockWidth(int width) { return statsLeft(width) + tabWidth(width) * (MenuTab.ORDER.size() - 1); }
 
     static final int STATS_HEIGHT = 14;
-    private static final int STATS_LEFT = 40;
+    static int flagWidth(int width) { return (height(width) - 6) * 98 / 67; }
+    static int statsLeft(int width) { return flagWidth(width) + 10; }
     private static final int TENSION_DOCK_WIDTH = 38;
     static int tensionX(int width) { return width - 34; }
     static int statsRight(int width) { return width - TENSION_DOCK_WIDTH; }
@@ -33,7 +34,7 @@ final class HoiMenuBar {
     enum Format { NUMBER, POLITICAL_POWER, COMMAND_POWER, PERCENT, MONEY }
     record Indicator(String icon, String label, Number raw, Format format, String barLabel, Double ratio) {
         Indicator(String icon, String label, Number raw, Format format) { this(icon, label, raw, format, null, null); }
-        int width() { return format == Format.MONEY ? 66 : format == Format.POLITICAL_POWER ? 42 : icon.equals("manpower") || icon.equals("fuel") ? 52 : 40; }
+        int width() { return format == Format.MONEY ? 59 : format == Format.POLITICAL_POWER ? 42 : icon.equals("manpower") || icon.equals("fuel") ? 52 : 40; }
         String value() {
             if (raw == null) return "—";
             return switch (format) {
@@ -69,7 +70,7 @@ final class HoiMenuBar {
     }
 
     static int maximumScroll(int width, CountryHud hud) {
-        return Math.max(0, indicators(hud).stream().mapToInt(Indicator::width).sum() - (statsRight(width) - STATS_LEFT - 3));
+        return Math.max(0, indicators(hud).stream().mapToInt(Indicator::width).sum() - (statsRight(width) - statsLeft(width) - 3));
     }
 
     static int scroll(int width, CountryHud hud, int offset, double horizontal, double vertical) {
@@ -81,17 +82,17 @@ final class HoiMenuBar {
         int dock = dockWidth(width), h = height(width);
         HoiMenuStyle.metal(g, 0, 0, width, STATS_HEIGHT + 1);
         HoiMenuStyle.metal(g, 0, STATS_HEIGHT, dock, h - STATS_HEIGHT);
-        HoiMenuStyle.recess(g, 37, 15, dock - 40, h - 17);
+        HoiMenuStyle.recess(g, statsLeft(width) - 3, 15, dock - statsLeft(width), h - 17);
         var items = indicators(hud);
-        int maxScroll = maximumScroll(width, hud), left = STATS_LEFT - Math.clamp(offset, 0, maxScroll);
+        int maxScroll = maximumScroll(width, hud), left = statsLeft(width) - Math.clamp(offset, 0, maxScroll);
         int contentWidth = items.stream().mapToInt(Indicator::width).sum();
         Indicator hovered = null;
         int right = statsRight(width);
-        g.enableScissor(STATS_LEFT, 0, right - 2, STATS_HEIGHT + 1);
+        g.enableScissor(statsLeft(width), 0, right - 2, STATS_HEIGHT + 1);
         for (var item : items) {
-            if (item.icon().equals("gdp") && maxScroll == 0) left += Math.max(0, right - STATS_LEFT - contentWidth - 3);
-            if (left + item.width() > STATS_LEFT && left < right - 2) stat(g, item, left);
-            if (mx >= Math.max(STATS_LEFT, left) && mx < Math.min(right - 2, left + item.width()) && my >= 1 && my < STATS_HEIGHT)
+            if (item.icon().equals("gdp") && maxScroll == 0) left += Math.max(0, right - statsLeft(width) - contentWidth - 3);
+            if (left + item.width() > statsLeft(width) && left < right - 2) stat(g, item, left);
+            if (mx >= Math.max(statsLeft(width), left) && mx < Math.min(right - 2, left + item.width()) && my >= 1 && my < STATS_HEIGHT)
                 hovered = item;
             left += item.width();
         }
@@ -114,9 +115,7 @@ final class HoiMenuBar {
         g.centeredText(font, hud.worldTension() == null ? "—" : percent(hud.worldTension()), x + 15, percentY + 2, HoiMenuStyle.TEXT);
         if (mx >= x && mx < x + 30 && my >= 3 && my < percentY + percentHeight) {
             g.outline(x, my >= percentY ? percentY : 3, 30, my >= percentY ? percentHeight : h, HoiMenuStyle.ACCENT);
-            g.setComponentTooltipForNextFrame(font, List.of(Component.literal("세계 긴장도 · DEFCON"),
-                    Component.literal(frame >= 0 ? "DEFCON " + (5 - frame / 2) : "DEFCON 단계 알 수 없음"), Component.literal(
-                    hud.worldTension() == null ? "서버에 기록된 값이 없습니다." : percent(hud.worldTension()))), mx, my);
+
         }
     }
 
@@ -172,8 +171,8 @@ final class HoiMenuBar {
     static List<TabButton> buttons(int width, String country, MenuTab selected, Consumer<MenuTab> select) {
         int tabWidth = tabWidth(width);
         return MenuTab.ORDER.stream().map(tab -> new TabButton(tab, country, selected == tab,
-                tab == MenuTab.POLITICS ? 4 : 40 + (tab.ordinal() - 1) * tabWidth,
-                tab == MenuTab.POLITICS ? 30 : tabWidth - 2, tab == MenuTab.POLITICS ? 3 : 17,
+                tab == MenuTab.POLITICS ? 4 : statsLeft(width) + (tab.ordinal() - 1) * tabWidth,
+                tab == MenuTab.POLITICS ? flagWidth(width) : tabWidth - 2, tab == MenuTab.POLITICS ? 3 : 17,
                 height(width) - (tab == MenuTab.POLITICS ? 6 : 20), () -> select.accept(tab))).toList();
     }
 
@@ -190,7 +189,7 @@ final class HoiMenuBar {
         private TabButton(MenuTab tab, String country, boolean selected, int x, int width, int y, int height, Runnable action) {
             super(x, y, width, height, Component.literal(tab.label() + " 메뉴"), b -> action.run(), DEFAULT_NARRATION);
             this.tab = tab; this.country = country; this.selected = selected;
-            setTooltip(Tooltip.create(Component.literal(tab.label())));
+            if (tab != MenuTab.POLITICS) setTooltip(Tooltip.create(Component.literal(tab.label())));
         }
 
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
@@ -201,10 +200,12 @@ final class HoiMenuBar {
             String texture = tab == MenuTab.POLITICS ? flagTexture(country) : "menu/" + tab.id();
             boolean flag = tab == MenuTab.POLITICS;
             if (flag) HoiMenuStyle.metal(g, x, y, w, h);
-            int inset = flag ? 2 : 0;
+            int artX = flag ? x + w * 8 / 98 : x, artY = flag ? y + h * 7 / 67 : y;
+            int artW = flag ? w * 82 / 98 : w, artH = flag ? h * 52 / 67 : h;
             if (texture.isEmpty()) g.fill(x + 2, y + 2, x + w - 2, y + h - 2, 0xFF4B5257);
-            else if (!UiAssets.draw(g, texture, x + inset, y + inset, w - inset * 2, h - inset * 2) && !flag)
+            else if (!UiAssets.draw(g, texture, artX, artY, artW, artH) && !flag)
                 g.centeredText(font, "◇", x + w / 2, y + (h - 8) / 2, HoiMenuStyle.ACCENT);
+            if (flag) UiAssets.draw(g, "menu/flag_overlay", x, y, w, h);
             if (selected) {
                 g.horizontalLine(x + 2, x + w - 3, y + h - 1, HoiMenuStyle.ACCENT);
             }

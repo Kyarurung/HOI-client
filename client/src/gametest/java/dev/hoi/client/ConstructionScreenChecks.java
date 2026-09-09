@@ -10,8 +10,8 @@ final class ConstructionScreenChecks {
     static void run(ClientGameTestContext context,CountryHud hud) {
         var requests=new ArrayList<ConstructionProtocol.Request>();String token=UUID.randomUUID().toString();
         var buildings=new ArrayList<ConstructionView.Building>();
-        for(String id:List.of("infrastructure","air_base","anti_air","radar","military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","nuclear_reactor","power_plant","energy_farm","fort","coastal_fort","port","hub","dam","dam_mountain"))
-            buildings.add(new ConstructionView.Building(id,id.equals("civilian_factory")?"민간공장":id.equals("military_factory")?"군수공장":id,"construction/"+id,!Set.of("office_park","nuclear_reactor","power_plant","energy_farm","fort","coastal_fort","port","hub","dam","dam_mountain").contains(id),"주를 선택하세요."));
+        for(String id:List.of("infrastructure","air_base","anti_air","radar","military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","nuclear_reactor","power_plant","energy_farm","fort","coastal_fort","port","hub","railway","dam","dam_mountain"))
+            buildings.add(new ConstructionView.Building(id,id.equals("civilian_factory")?"민간공장":id.equals("military_factory")?"군수공장":id,"construction/"+id,!Set.of("office_park","nuclear_reactor","power_plant","energy_farm","fort","coastal_fort","port","hub","railway","dam","dam_mountain").contains(id),"주를 선택하세요."));
         var projects=new ArrayList<ConstructionView.Project>();
         for(int i=0;i<16;i++)projects.add(new ConstructionView.Project("p"+i,"state"+i,i%2==0?"civilian_factory":"military_factory",i%2==0?"경상북도":"서울",1,i<2?15:0,2500,90,10800));
         var summary=new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,10,21.862500000000004);
@@ -38,6 +38,10 @@ final class ConstructionScreenChecks {
             var sharedTop=buildingButton(screen,"군수공장").getY();
             var sharedBottom=buildingButton(screen,"energy_farm").getY()+buildingButton(screen,"energy_farm").getHeight();
             var localTop=buildingButton(screen,"hub").getY();
+            var hub=buildingButton(screen,"hub");var rail=buildingButton(screen,"railway");
+            var port=buildingButton(screen,"port");var fort=buildingButton(screen,"fort");var coast=buildingButton(screen,"coastal_fort");
+            if(hub.getY()!=rail.getY()||hub.getX()>=rail.getX()||port.getY()!=fort.getY()||port.getX()>=fort.getX()||port.getY()<=hub.getY()||coast.getY()<=port.getY())
+                throw new AssertionError("Province palette order: hub/railway, port/fort, coastal fort");
             if(sharedTop-stateBottom<7||localTop-sharedBottom<7)throw new AssertionError("State, shared, and local buildings need separate rows and divider space");
             var button=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("민간공장")).findFirst().orElseThrow();
             button.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));

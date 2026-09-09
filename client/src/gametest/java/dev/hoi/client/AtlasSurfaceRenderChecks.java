@@ -210,20 +210,20 @@ final class AtlasSurfaceRenderChecks {
             AtlasSceneClient.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,boxes));
         });
         command.accept("tp @a 11 110 8 0 90");
-        context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
+        context.waitFor(client->AtlasSceneClient.visibleTileCount()==dev.hoi.protocol.AtlasSceneProtocol.Material.values().length);
         context.takeScreenshot("hoi-atlas-near-all-materials");
         context.runOnClient(client->{
             if(AtlasSceneClient.examinedTileCount()>=AtlasSceneClient.tileCount()/4)
                 throw new AssertionError("Distance selection scanned distant tiles");
         });
         command.accept("tp @a 11 132 8 0 90");
-        context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
+        context.waitFor(client->AtlasSceneClient.visibleTileCount()==dev.hoi.protocol.AtlasSceneProtocol.Material.values().length);
         context.takeScreenshot("hoi-atlas-within-64-all-materials");
         command.accept("tp @a 11 140 8 0 90");
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==0);
         context.takeScreenshot("hoi-atlas-far-hidden");
         command.accept("tp @a 11 110 8 0 90");
-        context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
+        context.waitFor(client->AtlasSceneClient.visibleTileCount()==dev.hoi.protocol.AtlasSceneProtocol.Material.values().length);
         context.takeScreenshot("hoi-atlas-return-near");
         context.runOnClient(client->{
             AtlasSceneClient.clear();

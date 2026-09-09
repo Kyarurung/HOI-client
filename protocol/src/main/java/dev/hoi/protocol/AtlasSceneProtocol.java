@@ -11,7 +11,7 @@ import java.util.*;
 public final class AtlasSceneProtocol {
     public static final int PAGE_SIZE = 1024;
     public static final int MAX_PAGES = 256;
-    public enum Material { BLACK, RED, WATER, FOREST, JUNGLE, MARSH, DESERT, CITY }
+    public enum Material { BLACK, RED, WATER, FOREST, JUNGLE, MARSH, DESERT, CITY, NAVY_RIVER, AIR_RIVER }
     public record Box(float x, float y, float z, float sx, float sy, float sz, float yaw, Material material) {
         public Box {
             for (float coordinate : new float[]{x, y, z, yaw})
@@ -28,7 +28,7 @@ public final class AtlasSceneProtocol {
         }
     }
     public record Page(UUID scene, String dimension, int index, int count, List<Box> boxes) implements CustomPacketPayload {
-        public static final Type<Page> TYPE = new Type<>(Identifier.parse("hoi:atlas_scene_v1"));
+        public static final Type<Page> TYPE = new Type<>(Identifier.parse("hoi:atlas_scene_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Page> CODEC = StreamCodec.of((b, p) -> {
             b.writeUUID(p.scene); b.writeUtf(p.dimension, 160); b.writeVarInt(p.index); b.writeVarInt(p.count); b.writeVarInt(p.boxes.size());
             p.boxes.forEach(box -> box.write(b));
@@ -49,7 +49,7 @@ public final class AtlasSceneProtocol {
         @Override public Type<Page> type() { return TYPE; }
     }
     public record Ready(UUID scene) implements CustomPacketPayload {
-        public static final Type<Ready> TYPE = new Type<>(Identifier.parse("hoi:atlas_scene_ready_v1"));
+        public static final Type<Ready> TYPE = new Type<>(Identifier.parse("hoi:atlas_scene_ready_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Ready> CODEC = StreamCodec.of((b, p) -> b.writeUUID(p.scene), b -> new Ready(b.readUUID()));
         @Override public Type<Ready> type() { return TYPE; }
     }

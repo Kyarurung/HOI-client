@@ -38,7 +38,9 @@ final class AtlasSceneClient {
             Material.BLACK, Identifier.parse("minecraft:block/black_concrete"), Material.RED, Identifier.parse("minecraft:block/red_concrete"),
             Material.WATER, Identifier.parse("minecraft:block/water_still"), Material.FOREST, Identifier.parse("minecraft:block/oak_sapling"),
             Material.JUNGLE, Identifier.parse("minecraft:block/jungle_sapling"), Material.MARSH, Identifier.parse("minecraft:block/mud"),
-            Material.DESERT, Identifier.parse("minecraft:block/sand"));
+            Material.DESERT, Identifier.parse("minecraft:block/sand"),
+            Material.NAVY_RIVER, Identifier.parse("minecraft:block/gray_concrete"),
+            Material.AIR_RIVER, Identifier.parse("minecraft:block/light_gray_concrete"));
     private record Tile(Material material, AABB bounds, float[] vertices, List<Box> cities) {}
     private record Scene(String dimension, List<Tile> tiles, Map<Long,List<Integer>> cells, List<Integer> large) {}
     private record Frame(List<Tile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city) {}

@@ -20,7 +20,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     private static final List<List<String>> BUILDING_GROUPS=List.of(
             List.of("infrastructure","air_base","anti_air","radar"),
             List.of("military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","nuclear_reactor","power_plant","energy_farm"),
-            List.of("hub","port","fort","coastal_fort"));
+            List.of("hub","railway","port","fort","coastal_fort"));
     private record PaletteEntry(Building building,int column,int offset) {}
     private final String token;
     private final Consumer<ConstructionProtocol.Request> transport;
@@ -74,7 +74,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 }
             };
             button.active=b.enabled()&&pending==0;
-            button.setTooltip(Tooltip.create(Component.literal(b.name()+"\n"+(b.enabled()?"자국 주 좌클릭: 건설 · 우클릭: 선택한 건물의 마지막 건설 예약 취소":b.reason()))));addRenderableWidget(button);
+            button.setTooltip(Tooltip.create(Component.literal(b.name()+"\n"+(b.enabled()?b.id().equals("railway")?"인접한 두 프로빈스 좌클릭: 철도 건설·증설 · 우클릭: 예약 취소":"자국 주 좌클릭: 건설 · 우클릭: 선택한 건물의 마지막 건설 예약 취소":b.reason()))));addRenderableWidget(button);
         }
         int repair=view.summary().repairPriority();
         for(int direction:new int[]{-1,1}) {
