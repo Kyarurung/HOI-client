@@ -275,13 +275,13 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     }
     private void drawPoliticsBanner(GuiGraphicsExtractor g) {
         int split = politicsSplit(), right = pane * 4 / 5;
-        HoiMenuStyle.recess(g, 7, top + 29, split - 11, 92);
+        HoiMenuStyle.recess(g, 7, top + 29, split - 11, 78);
         UiAssets.draw(g, politicsEntry("지도자").icon().isEmpty() ? "politics/empty/leader" : politicsEntry("지도자").icon(), 10, top + 32, split - 17, 75);
         String leaderName = politicsEntry("지도자").value();
-        int nameSpace = split - 17;
+        int nameSpace = Math.min(split - 17, leaderNameHeight() * 172 / 42 - 6);
         int nameWidth = Math.max(1, Math.min(nameSpace, (int)Math.ceil(font.width(leaderName) * .75f)));
-        HoiMenuStyle.recess(g, 10, top + 110, nameSpace, 11);
-        officerText(g, leaderName, 10 + (nameSpace - nameWidth) / 2, top + 113, nameWidth, TEXT);
+        UiAssets.draw(g, "politics/leader_nameplate", 7, top + 110, split - 11, leaderNameHeight());
+        officerText(g, leaderName, 7 + (split - 11 - nameWidth) / 2, top + 110 + (leaderNameHeight() - 7) / 2, nameWidth, TEXT);
         HoiMenuStyle.recess(g, split, top + 29, 33, 33);
         HoiMenuStyle.control(g, split + 36, top + 29, right - split - 39, 33, false, false);
         var focus = politicsFocus();
@@ -461,12 +461,14 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         }
     }
     int politicsSplit() { return pane / 4 + 8; }
+    private int leaderNameHeight() { return Math.clamp(Math.round((politicsSplit() - 11) * 42f / 172), 11, 23); }
     private int maximumSpiritScroll() { return Math.max(0, spirits.size() * 18 - (pane - politicsSplit() - 50)); }
     private int spiritStart() { return politicsSplit() + 38 + Math.max(0, (pane - politicsSplit() - 50 - spirits.size() * 18) / 2); }
     MenuView.Entry politicsHover(double x, double y) {
         if (view == null || selected != MenuTab.POLITICS || detail != null || manufacturerGroup != null) return null;
         int split = politicsSplit();
-        if (x >= 8 && x < split - 4 && y >= top + 29 && y < top + 121) {
+        if (x >= 7 && x < split - 4 && ((y >= top + 29 && y < top + 107)
+                || (y >= top + 110 && y < top + 110 + leaderNameHeight()))) {
             var leader = politicsEntry("지도자");
             return leader.detail().isBlank() ? null : leader;
         }

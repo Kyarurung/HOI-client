@@ -23,6 +23,7 @@ public final class CountryScreenChecks {
         context.runOnClient(c -> {
             var screen = (HoiMenuScreen)c.gui.screen(); int top = dev.hoi.client.ui.HoiMenuBar.height(screen.width);
             if (!screen.politicsHover(15, top + 45).equals(screen.politicsHover(15, top + 115))) throw new AssertionError("Portrait and name must share leader tooltip");
+            if (screen.politicsHover(15, top + 108) != null) throw new AssertionError("Separate portrait and name cells must leave a noninteractive gap");
             if (screen.children().stream().anyMatch(w -> w instanceof Button b && b.isMouseOver(15, top + 45)))
                 throw new AssertionError("Leader portrait must have no clickable or highlighting button");
             if (screen.politicsHover(screen.politicsSplit() + 15, top + 75) != null)
