@@ -13,7 +13,7 @@ public final class ResearchProtocol {
     private ResearchProtocol() {}
     public static final int MAX_JSON = 400_000;
     public enum Action { OPEN, START, CANCEL, CLOSE }
-    /** Server command asks the client to use the normal authenticated OPEN request. */
+
     public record OpenScreen() implements CustomPacketPayload {
         public static final Type<OpenScreen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "research_open_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf, OpenScreen> CODEC = StreamCodec.unit(new OpenScreen());
@@ -37,7 +37,7 @@ public final class ResearchProtocol {
         public ResearchView view() { return JSON.fromJson(json, ResearchView.class); }
         @Override public Type<Response> type() { return TYPE; }
     }
-    /** Consumers call this before their receivers; Fabric does not order independent mod entrypoints. */
+
     public static synchronized void registerPayloadTypes() {
         if (registered) return;
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);

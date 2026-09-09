@@ -2,12 +2,23 @@ package dev.hoi.protocol;
 
 import java.util.List;
 
-/** Private, bounded construction snapshot. No country, cost or capacity is accepted from the client. */
+
 public record ConstructionView(String session, long revision, String country, CountryHud hud, String selected,
         Summary summary, List<Building> buildings, List<Project> projects, String message) {
     public record Summary(int total, int consumer, int reserved, int used, int repair, int idle, int repairPriority,
-            double speed, double energy, double demand) {
+            double speed, double energy, double demand, Integer tradeGoods, String speedCalculation, String energyCalculation, String consumerCalculation) {
+        public Summary(int total, int consumer, int reserved, int used, int repair, int idle, int repairPriority,
+                double speed, double energy, double demand, Integer tradeGoods) {
+            this(total,consumer,reserved,used,repair,idle,repairPriority,speed,energy,demand,tradeGoods,null,null,null);
+        }
+        public Summary(int total, int consumer, int reserved, int used, int repair, int idle, int repairPriority,
+                double speed, double energy, double demand) {
+            this(total, consumer, reserved, used, repair, idle, repairPriority, speed, energy, demand, null);
+        }
         public Summary {
+            for (String explanation : new String[]{speedCalculation,energyCalculation,consumerCalculation})
+                if (explanation != null) text(explanation,8192);
+            if (tradeGoods != null && tradeGoods < 0) throw new IllegalArgumentException("Invalid trade factories");
             for (int n : new int[]{total,consumer,reserved,used,repair,idle,repairPriority}) if(n<0) throw new IllegalArgumentException("Invalid factories");
             for (double n : new double[]{speed,energy,demand}) if(!Double.isFinite(n)||n<0) throw new IllegalArgumentException("Invalid economy");
         }

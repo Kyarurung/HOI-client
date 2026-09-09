@@ -1,6 +1,6 @@
 package dev.hoi.protocol;
 
-/** Common camera-distance limits for the static client mesh and Polymer fallback. */
+
 public final class AtlasVisibility {
     public static final double BOUNDARY_RANGE = 64;
     public static final double DETAIL_RANGE = 64;

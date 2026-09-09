@@ -3,7 +3,7 @@ package dev.hoi.protocol;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
-/** Shared presentation; persisted/wire speed identifiers remain PAUSED and X1..X5. */
+
 public final class CampaignStyle {
     private CampaignStyle() {}
     public static final int SEPARATOR = 0x555555;

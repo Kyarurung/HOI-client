@@ -32,6 +32,20 @@ public final class DialogProtocol {
         public static final StreamCodec<RegistryFriendlyByteBuf,Action> CODEC=StreamCodec.of((b,p)->{b.writeUtf(p.token,36);b.writeVarLong(p.revision);b.writeUtf(p.choice,160);},b->new Action(b.readUtf(36),b.readVarLong(),b.readUtf(160)));
         @Override public Type<Action> type(){return TYPE;}
     }
+
+    public record Details(String token, String target) implements CustomPacketPayload {
+        public Details {
+            UUID.fromString(token);
+            if (target == null || target.length() > 256
+                    || !target.matches("(?:research|focus|story-focus)/[A-Za-z0-9_:/.-]+"))
+                throw new IllegalArgumentException("Invalid completion target");
+        }
+        public static final Type<Details> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "completion_details_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Details> CODEC = StreamCodec.of(
+                (b, p) -> { b.writeUtf(p.token, 36); b.writeUtf(p.target, 256); },
+                b -> new Details(b.readUtf(36), b.readUtf(256)));
+        @Override public Type<Details> type() { return TYPE; }
+    }
     public record MapClick() implements CustomPacketPayload {
         public static final MapClick INSTANCE=new MapClick();
         public static final Type<MapClick> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","map_state_click_v1"));
@@ -42,6 +56,7 @@ public final class DialogProtocol {
         if(registered)return;
         PayloadTypeRegistry.clientboundPlay().register(Show.TYPE,Show.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Close.TYPE,Close.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(Details.TYPE,Details.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(Action.TYPE,Action.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(MapClick.TYPE,MapClick.CODEC);
         registered=true;

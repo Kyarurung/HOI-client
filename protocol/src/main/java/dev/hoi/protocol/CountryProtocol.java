@@ -35,7 +35,7 @@ public final class CountryProtocol {
         public CountryView view() { var view = JSON.fromJson(json, CountryView.class); if (view == null) throw new IllegalArgumentException("Missing country view"); return view; }
         @Override public Type<Response> type() { return TYPE; }
     }
-    /** Opening a map target still requires the ordinary authenticated read request. */
+
     public record OpenScreen(String target) implements CustomPacketPayload {
         public OpenScreen { CountryView.tag(target); }
         public static final Type<OpenScreen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "country_open_v1"));

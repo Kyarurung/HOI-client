@@ -1,6 +1,6 @@
 package dev.hoi.protocol;
 
-/** Optional private snapshot values. Missing data is unknown, never an inferred zero. */
+
 public record CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                          Double gdpBillions, Double debtBillions, Double worldTension,
                          boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national,
@@ -37,7 +37,7 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
         if (characters > 24000) throw new IllegalArgumentException("HUD details exceed budget");
     }
 
-    /** Ratios are 0..1. Null means unavailable; zero is a recorded value. */
+
     public record NationalIndicators(Double politicalPower, Double stability, Double warSupport,
                                      Long factories, Double energyRatio, Double fuel, Double supplies,
                                      Double supplyEfficiency, Long convoys, Double transportEfficiency,

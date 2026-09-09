@@ -2,19 +2,32 @@ package dev.hoi.protocol;
 
 import java.util.List;
 
-/** Private read-only presentation. Contains no executable effects or commands. */
-public record MenuView(String country, String countryName, String date, String speed, List<Page> pages, CountryHud hud) {
+
+public record MenuView(String country, String countryName, String date, String speed, List<Page> pages, CountryHud hud, List<Manufacturer> manufacturers) {
+    public MenuView(String country, String countryName, String date, String speed, List<Page> pages, CountryHud hud) {
+        this(country, countryName, date, speed, pages, hud, List.of());
+    }
     public MenuView(String country, String countryName, String date, String speed, List<Page> pages) {
         this(country, countryName, date, speed, pages, CountryHud.UNKNOWN);
     }
     public MenuView {
         if (hud == null) hud = CountryHud.UNKNOWN;
+        manufacturers = manufacturers == null ? List.of() : List.copyOf(manufacturers);
+        if (manufacturers.size() > 64 || manufacturers.stream().map(Manufacturer::id).distinct().count() != manufacturers.size())
+            throw new IllegalArgumentException("Invalid manufacturer list");
         bounded(country, 64); bounded(countryName, 128); bounded(date, 64); bounded(speed, 16);
         pages = List.copyOf(pages);
         if (country.isBlank() || pages.size() != MenuTab.ORDER.size()) throw new IllegalArgumentException("Invalid menu pages");
         for (int i = 0; i < pages.size(); i++) if (pages.get(i).tab() != MenuTab.ORDER.get(i)) throw new IllegalArgumentException("Invalid menu order");
     }
     public Page page(MenuTab tab) { return pages.get(tab.ordinal()); }
+    public record Manufacturer(String id, List<String> groups, Entry entry) {
+        public Manufacturer {
+            bounded(id,128); groups=List.copyOf(groups);
+            if(id.isBlank() || entry==null || groups.isEmpty() || groups.size()>4
+                    || !List.of("armor","navy","air","materiel").containsAll(groups)) throw new IllegalArgumentException("Invalid manufacturer");
+        }
+    }
     public record Page(MenuTab tab, List<Section> sections) {
         public Page {
             if (tab == null) throw new IllegalArgumentException("Missing menu tab");

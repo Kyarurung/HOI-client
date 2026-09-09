@@ -2,7 +2,7 @@ package dev.hoi.protocol;
 
 import java.util.*;
 
-/** Already redacted by the server; never contains the target's full menu or HUD. */
+
 public record CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
         List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports) {
     public CountryView {

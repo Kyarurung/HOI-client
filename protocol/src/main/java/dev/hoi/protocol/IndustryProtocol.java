@@ -12,7 +12,8 @@ public final class IndustryProtocol {
     private static boolean registered;
     private IndustryProtocol() {}
     public enum Action { OPEN, REFRESH, CLOSE, ADD, ASSIGN, SWITCH, REMOVE, FIRST, TRADE, CANCEL_TRADE,
-        LOAD_TEMPLATE, NEW_TEMPLATE, LINE_SLOT, SUPPORT_SLOT, SAVE_TEMPLATE, RECRUIT, CANCEL_RECRUIT, PRIORITY, DEPLOY }
+        LOAD_TEMPLATE, NEW_TEMPLATE, LINE_SLOT, SUPPORT_SLOT, SAVE_TEMPLATE, RECRUIT, CANCEL_RECRUIT, PRIORITY, DEPLOY,
+        LINE_COLUMN, REGIMENT_SUPPORT, UP, DOWN }
     public static synchronized void registerPayloadTypes() {
         if(registered)return;
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE,Request.CODEC);

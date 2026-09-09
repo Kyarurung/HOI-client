@@ -6,13 +6,13 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-/** Additive payload; existing research payload IDs and wire layouts remain unchanged. */
+
 public final class MenuProtocol {
     public static final int MAX_JSON = 200_000;
     private static final Gson JSON = new Gson();
     private MenuProtocol() {}
 
-    /** Read-only refresh: the server resolves the player country, never a supplied tag. */
+
     public record Refresh(String screen) implements CustomPacketPayload {
         public Refresh { if (screen == null || screen.length() > 36) throw new IllegalArgumentException("Invalid screen token"); }
         public static final Type<Refresh> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "menu_refresh_v1"));
@@ -20,7 +20,7 @@ public final class MenuProtocol {
                 (b, p) -> b.writeUtf(p.screen, 36), b -> new Refresh(b.readUtf(36)));
         @Override public Type<Refresh> type() { return TYPE; }
     }
-    /** Empty JSON revokes an open view when its country is no longer authorized. */
+
     public record Update(String screen, String json) implements CustomPacketPayload {
         public Update { new Refresh(screen); new OpenScreen(json); }
         public static final Type<Update> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "menu_update_v1"));

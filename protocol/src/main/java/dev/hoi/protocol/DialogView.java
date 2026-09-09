@@ -2,7 +2,7 @@ package dev.hoi.protocol;
 
 import java.util.*;
 
-/** Bounded presentation only. Choice IDs are issued by the authenticated server session. */
+
 public record DialogView(String token,long revision,Kind kind,String title,String subtitle,String body,
         String flag,String image,String sound,List<Tile> tiles,List<Choice> choices,String presentation) {
     public DialogView(String token,long revision,Kind kind,String title,String subtitle,String body,

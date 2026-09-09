@@ -2,7 +2,7 @@ package dev.hoi.protocol;
 
 import java.util.List;
 
-/** TFR toolbar order specified by the project; this is also the menu_open_v1 section order. */
+
 public enum MenuTab {
     POLITICS("politics", "국가 정보"),
     DECISIONS("decisions", "결정"),

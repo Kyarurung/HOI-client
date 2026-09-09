@@ -5,6 +5,15 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ResearchViewTest {
+    @Test void localizedNamesAreOptionalBoundedPresentationMetadata() {
+        var source = new ResearchView.Source("infantry_weapons2", "infantry_folder", 0, 0, false,
+                List.of(), List.of(), List.of(), List.of("현대 보병장비"), "", List.of(), java.util.Map.of("현대 보병장비", "K2 돌격소총"));
+        var gson = new com.google.gson.Gson();
+        assertEquals(source, gson.fromJson(gson.toJson(source), ResearchView.Source.class));
+        var json = com.google.gson.JsonParser.parseString(gson.toJson(source)).getAsJsonObject();
+        json.remove("localizedNames");
+        assertTrue(gson.fromJson(json, ResearchView.Source.class).localizedNames().isEmpty());
+    }
     @Test void privateSnapshotRoundTripsAndEstimatesAccountForBankedDays() {
         var tech = new ResearchView.Tech("hoi:tech", "INFANTRY", "보병 연구", 2020, 1, 100, 20, 2,
                 List.of("hoi:prerequisite"), List.of("연구 속도 +5%"), List.of("장비"), ResearchView.Status.ACTIVE);

@@ -1,6 +1,6 @@
 package dev.hoi.client.mixin;
 
-import dev.hoi.client.MenuShortcut;
+import dev.hoi.client.input.MenuShortcut;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.KeyEvent;

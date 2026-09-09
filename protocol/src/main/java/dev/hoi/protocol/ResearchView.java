@@ -3,7 +3,7 @@ package dev.hoi.protocol;
 import java.util.List;
 import java.util.Objects;
 
-/** Private, read-only presentation data. Contains no other country's state or executable effects. */
+
 public record ResearchView(String session, long revision, String country, String countryName,
                            long day, String date, String speed, List<Slot> slots, List<Tech> technologies, String message, CountryHud hud, Benefits benefits) {
     public ResearchView(String session,long revision,String country,String countryName,long day,String date,
@@ -64,7 +64,7 @@ public record ResearchView(String session, long revision, String country, String
                     || !Double.isFinite(dailyRate) || dailyRate <= 0) throw new IllegalArgumentException("Invalid research progress");
         }
         public double fraction() { return status == Status.COMPLETED ? 1 : Math.clamp(progress / baseDays, 0, 1); }
-        /** Estimate at today's rate; future dates, modifiers and saved slot credit can change it. */
+
         public long remainingDays(int savedDays) {
             return status == Status.COMPLETED ? 0 : Math.max(1, (long)Math.ceil((baseDays - progress) / dailyRate - savedDays));
         }
@@ -72,10 +72,18 @@ public record ResearchView(String session, long revision, String country, String
     public Tech technology(String id) {
         return technologies.stream().filter(t -> t.id().equals(id)).findFirst().orElse(null);
     }
-    /** Optional source metadata; old saved/custom catalogs remain readable. */
+
     public record Source(String id,String folder,int x,int y,boolean vertical,List<String> anyOf,List<String> excludes,
-            List<String> conditions,List<String> unlockLabels,String description,List<String> deferredEffects) {
+            List<String> conditions,List<String> unlockLabels,String description,List<String> deferredEffects,
+            java.util.Map<String,String> localizedNames) {
+        public Source(String id,String folder,int x,int y,boolean vertical,List<String> anyOf,List<String> excludes,
+                List<String> conditions,List<String> unlockLabels,String description,List<String> deferredEffects) {
+            this(id,folder,x,y,vertical,anyOf,excludes,conditions,unlockLabels,description,deferredEffects,java.util.Map.of());
+        }
         public Source {
+            localizedNames = localizedNames == null ? java.util.Map.of() : java.util.Map.copyOf(localizedNames);
+            if (localizedNames.size() > 128 || localizedNames.entrySet().stream().anyMatch(e -> e.getKey().length() > 256 || e.getValue().length() > 256))
+                throw new IllegalArgumentException("Invalid localized research names");
             Objects.requireNonNull(id); Objects.requireNonNull(folder);
             description=description==null?"":description;deferredEffects=deferredEffects==null?List.of():List.copyOf(deferredEffects);
             anyOf=List.copyOf(anyOf); excludes=List.copyOf(excludes); conditions=List.copyOf(conditions); unlockLabels=List.copyOf(unlockLabels);

@@ -2,7 +2,7 @@ package dev.hoi.protocol;
 
 import java.util.List;
 
-/** Server-issued choices, never commands or client-calculated costs. */
+
 public record AgencyView(String session, long revision, String country, String name, String status,
         List<Item> items, String message) {
     public AgencyView {

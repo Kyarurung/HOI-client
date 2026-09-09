@@ -2,13 +2,13 @@ package dev.hoi.protocol;
 
 import java.util.*;
 
-/** Country-private production, trade, stockpile and recruitment data. All amounts are server-issued. */
+
 public record IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
         List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
         Template draft, String message, NavalRepairs navalRepairs) {
-    /** Additive, optional report: old servers omit it, rather than claiming an empty queue. */
+
     public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
             List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
             List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
@@ -43,7 +43,7 @@ public record IndustryView(String session, long revision, String country, Countr
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
             double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
             String replacement, String family) {
-        /** Missing replacement information from older servers is unknown, not inferred from equipment names. */
+
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit) {
             this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,null,null);
@@ -60,22 +60,48 @@ public record IndustryView(String session, long revision, String country, Countr
     }
     public record Line(String id, String equipment, int factories, int availableFactories, double efficiency,
             double daily, double progress, double shortage) {}
-    public record Partner(String id, String name, Map<String,Double> exports, boolean route) {
+    public record Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys) {
+        public Partner(String id, String name, Map<String,Double> exports, boolean route) { this(id,name,exports,route,null); }
         public Partner { text(id,32); text(name,128); exports=boundedMap(exports,8); }
     }
     public record Trade(String id, String partner, String resource, int factories, double delivered, boolean importing) {}
     public record Choice(String id, String name, String texture) {
         public Choice { text(id,128); text(name,256); text(texture,160); }
     }
-    public record Stat(String name, String group, double value, String unit) {}
+    public record Stat(String name, String group, double value, String unit, String id) {
+        public Stat(String name, String group, double value, String unit) { this(name,group,value,unit,null); }
+    }
     public record Template(String id, String name, List<String> line, List<String> support, List<Stat> stats,
-            Map<String,Long> equipment, double days, long manpower) {
+            Map<String,Long> equipment, double days, long manpower, List<Integer> columns, Map<Integer,String> regimentSupport) {
+        public Template(String id, String name, List<String> line, List<String> support, List<Stat> stats,
+                Map<String,Long> equipment, double days, long manpower) {
+            this(id,name,line,support,stats,equipment,days,manpower,null,null);
+        }
         public Template {
             text(id,128); text(name,128);
             line=bounded(line,25); support=bounded(support,5); stats=bounded(stats,64); equipment=boundedMap(equipment,512);
             if (line.isEmpty() || !Double.isFinite(days) || days < 0 || manpower < 0)
                 throw new IllegalArgumentException("Invalid division template");
+            if (columns != null) {
+                columns=List.copyOf(columns);
+                if (columns.size()!=5 || columns.stream().anyMatch(n->n<0||n>5)
+                        || columns.stream().mapToInt(Integer::intValue).sum()!=line.size())
+                    throw new IllegalArgumentException("Invalid regiment columns");
+            }
+            regimentSupport=regimentSupport==null?Map.of():boundedMap(regimentSupport,5);
+            for (var entry:regimentSupport.entrySet()) {
+                int column=entry.getKey(); text(entry.getValue(),128);
+                if (columns==null||column<0||column>=5||columns.get(column)<3||entry.getValue().isEmpty())
+                    throw new IllegalArgumentException("Invalid regiment support");
+            }
         }
+        public int columnSize(int column) { return columns==null?Math.clamp(line.size()-column*5,0,5):columns.get(column); }
+        public int lineIndex(int cell) {
+            int index=cell%5;
+            for (int column=0;column<cell/5;column++) index+=columnSize(column);
+            return index;
+        }
+        public String lineUnit(int cell) { return cell%5<columnSize(cell/5)?line.get(lineIndex(cell)):""; }
     }
     public record Recruit(String id, String template, String location, int priority, double progress,
             long manpower, Map<String,Long> equipment) {

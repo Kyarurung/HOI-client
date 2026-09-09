@@ -3,7 +3,7 @@ package dev.hoi.protocol;
 import java.util.List;
 import java.util.Objects;
 
-/** Bounded, literal display rows from the authenticated country's current calculation. */
+
 public record HudDetail(List<Row> rows) {
     public HudDetail {
         rows = List.copyOf(rows);

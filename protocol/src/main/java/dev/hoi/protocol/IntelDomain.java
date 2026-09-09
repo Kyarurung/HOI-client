@@ -2,7 +2,7 @@ package dev.hoi.protocol;
 
 import java.util.List;
 
-/** Display thresholds from the supplied TFR intelligence ledger. Server applies these before serialization. */
+
 public enum IntelDomain {
     CIVILIAN("민간", "intel/civilian", List.of(
             new Tier(10, "예상 건물·가용 인력·수송선 수, 무역 상대"),

@@ -7,7 +7,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import java.util.Objects;
 
-/** Server-issued local audio only; no client request or arbitrary resource identifier. */
+
 public final class AudioProtocol {
     private static boolean registered;
     private AudioProtocol() {}

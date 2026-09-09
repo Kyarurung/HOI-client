@@ -7,6 +7,20 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndustryViewTest {
+    @Test void regimentColumnsPreserveHolesBetweenIndependentColumns() {
+        var gson=new com.google.gson.Gson();
+        var line=List.of("INFANTRY","INFANTRY","INFANTRY","INFANTRY");
+        var template=new IndustryView.Template("draft","편제",line,List.of(),List.of(),Map.of(),0,0,List.of(1,0,3,0,0),Map.of(2,"ENGINEER"));
+        assertEquals(template,gson.fromJson(gson.toJson(template),IndustryView.Template.class));
+        assertEquals("",template.lineUnit(5));
+        assertEquals("INFANTRY",template.lineUnit(12));
+        assertEquals(1,template.lineIndex(10));
+        var json=gson.toJsonTree(template).getAsJsonObject();json.remove("columns");json.remove("regimentSupport");
+        var legacy=gson.fromJson(json,IndustryView.Template.class);
+        assertNull(legacy.columns()); assertTrue(legacy.regimentSupport().isEmpty());
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.Template("d","d",line,List.of(),List.of(),Map.of(),0,0,List.of(1,0,2,0,0),Map.of()));
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.Template("d","d",line,List.of(),List.of(),Map.of(),0,0,List.of(1,0,3,0,0),Map.of(0,"ENGINEER")));
+    }
     @Test void equipmentGenerationsAreOptionalAndNeverInferredForLegacyServers() {
         var gson = new com.google.gson.Gson();
         var old = new IndustryView.Equipment("old","Old","old","infantry",false,true,1,4,Map.of(),5,2,1,0);

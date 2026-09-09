@@ -1,6 +1,32 @@
 package dev.hoi.client;
 
+import dev.hoi.client.audio.AudioChecks;
+import dev.hoi.client.map.AtlasSurfaceRenderChecks;
+import dev.hoi.client.research.ResearchArtChecks;
+import dev.hoi.client.research.ResearchDetails;
+import dev.hoi.client.research.ResearchLayout;
+import dev.hoi.client.research.ResearchPresentation;
+import dev.hoi.client.research.ResearchScreen;
+import dev.hoi.client.research.ResearchSlotButton;
+import dev.hoi.client.research.ResearchTabButton;
+import dev.hoi.client.research.ResearchTextChecks;
+import dev.hoi.client.research.ResearchTreeLabels;
+import dev.hoi.client.research.TfrResearchLayout;
+import dev.hoi.client.screen.AgencyScreen;
+import dev.hoi.client.screen.CompletionScreenChecks;
+import dev.hoi.client.screen.ConstructionScreenChecks;
+import dev.hoi.client.screen.CountryScreenChecks;
+import dev.hoi.client.screen.DialogScreenChecks;
+import dev.hoi.client.screen.HoiMenuScreen;
+import dev.hoi.client.screen.IndustryScreen;
+import dev.hoi.client.screen.IndustryScreenChecks;
+import dev.hoi.client.screen.RegimentScreenChecks;
+import dev.hoi.client.ui.HoiMenuBar;
+import dev.hoi.client.ui.HoiMenuButton;
+import dev.hoi.client.ui.HoiPanelLayout;
+
 import dev.hoi.protocol.*;
+import net.minecraft.network.chat.Component;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
@@ -12,8 +38,15 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Actual rendering and vanilla movement; snapshots/requests are fixtures, not multiplayer proof. */
+
 public final class ResearchScreenGameTest implements FabricClientGameTest {
+    public static void gui3Screenshot(ClientGameTestContext context, String name) {
+        context.getInput().resizeWindow(2560, 1440);
+        context.runOnClient(client -> client.options.guiScale().set(3)); context.waitTicks(3);
+        context.takeScreenshot(name + "-gui3");
+        context.runOnClient(client -> client.options.guiScale().set(2));
+        context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
+    }
     private static final KeyEvent ENTER = new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0);
     private static final KeyEvent ESCAPE = new KeyEvent(GLFW.GLFW_KEY_ESCAPE, 0, 0);
     @Override public void runTest(ClientGameTestContext context) {
@@ -33,11 +66,13 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.SelectedGameMode.CREATIVE)).create()) {
             var menu = fixtureMenu();
             ResearchArtChecks.run(context);
+            ResearchTextChecks.run(context);
             CompletionScreenChecks.run(context);
             ConstructionScreenChecks.run(context,menu.hud());
             CountryScreenChecks.run(context,menu.hud());
             DialogScreenChecks.run(context);
             IndustryScreenChecks.run(context,menu.hud());
+            RegimentScreenChecks.run(context);
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(5);
             context.runOnClient(client -> check(((HoiMenuScreen)client.gui.screen()).panelWidth() == HoiPanelLayout.width(MenuTab.POLITICS,client.gui.screen().width), "Country panel follows the original 726-pixel container"));
             context.takeScreenshot("hoi-menu-country");
@@ -84,9 +119,20 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 context.waitTicks(2); context.takeScreenshot("hoi-defcon-frame-" + HoiMenuBar.defconFrame(tension));
             }
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(2);
-            click(context, "국가 현황"); context.waitTicks(2); context.takeScreenshot("hoi-menu-country-detail");
-            context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
+            context.takeScreenshot("hoi-menu-politics"); gui3Screenshot(context, "hoi-menu-politics");
+            CountryScreenChecks.politicsHover(context, menu);
             click(context, "정부 선택 0 · 미지정"); context.waitTicks(2); context.takeScreenshot("hoi-politics-slot-detail");
+            context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
+            click(context, "연구 & 생산 선택 0 · 적용 중");
+            context.runOnClient(client -> check(client.gui.screen().children().stream().filter(c -> c instanceof Button b
+                    && b.getMessage().getString().equals("세부 사항")).count() == 1, "Armor manufacturer filter"));
+            context.waitTicks(2); context.takeScreenshot("hoi-politics-manufacturers-armor");
+            click(context, "군수품 산업체");
+            context.runOnClient(client -> check(client.gui.screen().children().stream().filter(c -> c instanceof Button b
+                    && b.getMessage().getString().equals("세부 사항")).count() == 2, "Shared artillery manufacturer also appears in materiel"));
+            context.waitTicks(2); context.takeScreenshot("hoi-politics-manufacturers-materiel");
+            click(context, "세부 사항"); context.waitTicks(2); context.takeScreenshot("hoi-politics-manufacturer-detail");
+            context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
             for (var tab : MenuTab.ORDER) if (tab != MenuTab.RESEARCH) {
                 click(context, tab.label() + " 메뉴");
@@ -97,7 +143,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                     check(screen.panelWidth() == HoiPanelLayout.width(tab,screen.width), "Original container width for " + tab);
                 });
             }
-            context.waitTicks(2); context.takeScreenshot("hoi-menu-officers");
+            context.waitTicks(2); context.takeScreenshot("hoi-menu-officers"); gui3Screenshot(context, "hoi-menu-officers");
             click(context, "무역 & 경제 메뉴"); context.waitTicks(2); context.takeScreenshot("hoi-menu-economy");
             click(context, "무역"); context.waitTicks(2); context.takeScreenshot("hoi-menu-trade");
             context.getInput().resizeWindow(854, 480); context.waitTicks(3);
@@ -165,7 +211,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 check(client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).count() == 5, "Five actual compact slots");
             });
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
-            // A separate server snapshot starts the cancellation case; the START case had no server ACK.
+
             context.setScreen(() -> fixtureMainMenu(menu, MenuTab.POLITICS, view, requests));
             click(context, "연구 메뉴");
             click(context, "슬롯 2 · 진행 연구");
@@ -274,7 +320,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 var tech = view.technology("hoi:tfr/technology/" + id);
                 check(screen.children().stream().filter(w -> w instanceof Button).map(w -> ((Button)w).getMessage().getString())
                         .noneMatch(text -> text.startsWith("슬롯 ") && text.contains("▸")), "Detail slot cycling button is absent");
-                var text = String.join("\n",screen.detailLines(tech));
+                var text = screen.detailLines(tech).stream().map(Component::getString).collect(java.util.stream.Collectors.joining("\n"));
                 check(!text.contains("해금 장비·시설") && !text.contains("아래 선행 연구") && !text.contains("hoi:"), "Internal IDs and general prerequisites stay hidden");
                 check(text.contains("택일 연구") == !tech.source().excludes().isEmpty(), "Only mutually exclusive choices receive the choice explanation");
                 if (id.equals("advanced_ship_hull_light")) {
@@ -338,13 +384,13 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                     for (var row : data.getAsJsonArray("packs"))
                         parts.add(pack.resolveSibling(row.getAsJsonObject().get("file").getAsString()));
                 } else parts.add(pack);
-                // Exercise Minecraft's real pack stack, with each source ZIP independently selected.
+
                 for (int i = 0; i < parts.size(); i++) {
                     String name = "hoi-test-" + i + ".zip";
                     Files.copy(parts.get(i), client.getResourcePackDirectory().resolve(name), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     selected.add("file/" + name);
                 }
-                // Native carrier allocations and their generated palette assets belong together.
+
                 com.google.gson.JsonObject fixture;
                 try (var input = ResearchScreenGameTest.class.getResourceAsStream("/atlas-client-scene.json")) {
                     fixture = com.google.gson.JsonParser.parseString(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
@@ -386,8 +432,12 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
     private static void agency(ClientGameTestContext context) {
         var items = new ArrayList<AgencyView.Item>();
         items.add(new AgencyView.Item("recruit", "agents", "첩보원 고용", "1 / 2", "새로운 요원을 고용합니다.", "agency/recruit", "고용", true, -1, List.of()));
-        for (String upgrade : List.of("economy_intelligence", "army_intelligence", "navy_intelligence", "air_intelligence", "passive_defense", "form_cryptology"))
-            items.add(new AgencyView.Item("upgrade:" + upgrade, "upgrades", "기관 개선 " + items.size(), "0 / 1", "민간공장 5개 · 30일", "agency/" + upgrade, "개선", true, 0, List.of()));
+        items.add(new AgencyView.Item("spy_master", "agents", "세력 첩보장", "", "", "agency/spy_master", "취임", false, -1, List.of()));
+        String[] upgradeNames = {"외국 정보", "국내 정보", "군사 정보", "계획 및 지휘", "수집", "처리 및 활용", "분석", "전파", "인적 정보", "신호 정보", "계측기호정보", "공개출처정보", "지형공간정보", "점조직 체계", "통신 보안", "지원 서비스", "강화된 심문 기술", "제거", "전자정보", "통신정보", "암호 분석 공격 모델", "암호화 체계 연산법 개선", "양자 암호학"};
+        for (int i = 0; i < AgencyScreen.UPGRADE_ORDER.size(); i++) {
+            String upgrade = AgencyScreen.UPGRADE_ORDER.get(i);
+            items.add(new AgencyView.Item("upgrade:" + upgrade, "upgrades", upgradeNames[i], i % 3 == 0 ? "1 / 1" : "0 / 1", "민간공장 5개 · 30일", "agency/" + upgrade, "개선", i % 3 == 1, i % 3 == 0 ? 1 : 0, List.of()));
+        }
         items.add(new AgencyView.Item("decrypt:PRK", "cryptology", "북한 암호", "해독 중", "해독 진행: 1200 / 12000", "agency/cryptology", "일시 정지", true, .1, List.of()));
         items.add(new AgencyView.Item("operation:CAPTURE_CIPHER", "operations", "암호 탈취", "60일", "정보망 50과 대기 요원 2명이 필요합니다.\n민간공장 3개가 사용됩니다.", "agency/capture_cipher", "작전 준비", true, -1,
                 List.of(new AgencyView.Parameter("대상 국가", List.of(new AgencyView.Choice("PRK", "북한"), new AgencyView.Choice("JAP", "일본"))))));
@@ -395,14 +445,15 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         var requests = new ArrayList<AgencyProtocol.Request>();
         context.setScreen(() -> new AgencyScreen(null, fixture.session(), fixture, requests::add)); context.waitTicks(2);
         context.takeScreenshot("hoi-agency-operatives");
-        click(context, "첩보원 고용"); context.waitTicks(2); click(context, "고용");
+        click(context, "정보원 모집"); context.waitTicks(2); click(context, "고용");
         context.runOnClient(client -> {
             check(requests.size() == 1 && requests.getFirst().kind() == AgencyProtocol.Kind.CALL && requests.getFirst().revision() == 1, "Agency uses issued session and revision");
             check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b && !b.active && b.getMessage().getString().equals("응답 대기…")), "Pending agency action disabled");
             ((AgencyScreen)client.gui.screen()).update(new AgencyView(fixture.session(), 2, "KOR", fixture.name(), fixture.status(), items, "고용 완료"));
         });
-        click(context, "닫기"); click(context, "기관 개선"); context.waitTicks(2); context.takeScreenshot("hoi-agency-upgrades");
-        click(context, "암호학"); context.waitTicks(2); context.takeScreenshot("hoi-agency-cryptology");
+        click(context, "닫기"); click(context, "첩보기관 개선"); context.waitTicks(2); context.takeScreenshot("hoi-agency-upgrades"); gui3Screenshot(context, "hoi-agency-upgrades");
+        context.runOnClient(client -> check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b && b.getMessage().getString().equals("암호학") && !b.active), "Upgrade overlay blocks background tabs"));
+        click(context, "개선 창 닫기"); click(context, "암호학"); context.waitTicks(2); context.takeScreenshot("hoi-agency-cryptology"); gui3Screenshot(context, "hoi-agency-cryptology");
         click(context, "작전"); click(context, "암호 탈취"); context.waitTicks(2); context.takeScreenshot("hoi-agency-operation");
         click(context, "대상 국가: 북한"); context.waitTicks(1); click(context, "일본"); click(context, "작전 준비");
         context.runOnClient(client -> {
@@ -431,7 +482,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.getInput().holdKey(o -> o.keyShift); context.waitTicks(12); context.getInput().releaseKey(o -> o.keyShift);
         context.runOnClient(client -> check(client.player.getY() < position[1] - .2, "Shift descends while sidebar open"));
         context.getInput().holdKey(o -> o.keyUp); context.waitTicks(2);
-        click(context, "국가 현황");
+        click(context, "국가 중점");
         context.runOnClient(client -> check(!client.options.keyUp.isDown() && !((HoiMenuScreen)client.gui.screen()).allowsMovement(), "Detail modal releases movement"));
         context.getInput().releaseKey(o -> o.keyUp); context.setScreen(() -> null); context.waitTicks(2);
         context.runOnClient(client -> check(!client.options.keyUp.isDown() && !client.options.keyJump.isDown() && !client.options.keyShift.isDown(), "No stuck movement on close"));
@@ -464,9 +515,31 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                                 new MenuView.Entry("군수공장", "18", "화면 검증용 데이터"))),
                         new MenuView.Section("자원 무역", "trade", List.of(new MenuView.Entry("석유", "38", "화면 검증용 데이터"),
                                 new MenuView.Entry("강철", "200", "화면 검증용 데이터"))))
+                : tab == MenuTab.OFFICER_CORPS ? fixtureOfficers()
                 : List.of(new MenuView.Section(tab.label(), tab.id(), List.of(new MenuView.Entry("진행 현황", "12", "검증용 데이터")))))).toList();
         return new MenuView("KOR", "대한민국", "2020년 1월 1일 00시", "PAUSED", pages,
-                new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, false, null, fixtureNational()));
+                new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, false, null, fixtureNational()), List.of(
+                        new MenuView.Manufacturer("fixture:artillery", List.of("armor", "materiel"), new MenuView.Entry("포 제조사", "포 · 기갑", "검증용: 포 연구 +5% · 기갑 연구 +10%", -1, "politics/tank_manufacturer")),
+                        new MenuView.Manufacturer("fixture:infantry", List.of("materiel"), new MenuView.Entry("보병 장비 제조사", "보병", "검증용: 보병 연구 +15%", -1, "politics/materiel_manufacturer"))));
+    }
+    private static List<MenuView.Section> fixtureOfficers() {
+        var sections = new ArrayList<MenuView.Section>();
+        sections.add(new MenuView.Section("최고사령부", "high_command", java.util.stream.IntStream.range(0, 3)
+                .mapToObj(i -> new MenuView.Entry("최고사령부 " + (i + 1), "미지정", "정치에서 임명", 0, "politics/high_command")).toList()));
+        sections.add(new MenuView.Section("국가 선호 전술", "preferred_tactic", List.of(
+                new MenuView.Entry("국가 선호 전술", "미지정", "육군 교리", 0, "officer/preferred_tactic"))));
+        for (var branch : List.of("army", "navy", "air")) {
+            String name = branch.equals("army") ? "육군" : branch.equals("navy") ? "해군" : "공군";
+            var entries = new ArrayList<MenuView.Entry>();
+            entries.add(new MenuView.Entry(name + " 참모총장", "미지정", "정치에서 임명", 0, "politics/" + branch + "_chief"));
+            entries.add(new MenuView.Entry(name + " 교리", "미지정", "미지정 교리", 0, "officer/" + branch + "/doctrine"));
+            for (var medal : branch.equals("air") ? List.of("air", "command") : List.of("academy", branch, "command"))
+                entries.add(new MenuView.Entry("정신", "미지정", "정신 선택", 0, "officer/medal/" + medal));
+            sections.add(new MenuView.Section(name + " 사령부", branch, entries));
+        }
+        sections.add(new MenuView.Section("특수부대", "special", List.of(
+                new MenuView.Entry("특수부대 교리", "미지정", "미지정 교리", 0, "officer/special/doctrine"))));
+        return sections;
     }
     private static CountryHud.NationalIndicators fixtureNational() {
         return new CountryHud.NationalIndicators(1350.75, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 1000L, .95, 150.75, .36, 280_900L);
