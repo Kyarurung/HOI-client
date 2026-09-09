@@ -327,28 +327,45 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         check(Files.isRegularFile(pack), "Build HOI-resourcepack first, or pass -PhoiResourcePack=<resources.zip>");
         var reload = new AtomicReference<CompletableFuture<Void>>();
         context.runOnClient(client -> {
+            var selected = new ArrayList<>(client.getResourcePackRepository().getSelectedIds());
+            selected.removeIf(id -> id.startsWith("file/hoi-test"));
             try {
-                var target = client.getResourcePackDirectory().resolve("hoi-test.zip");
-                Files.createDirectories(target.getParent());
-                // Use the production server's actual native carrier allocations in this isolated render fixture.
-                com.google.gson.JsonObject overrides;
-                try(var input=ResearchScreenGameTest.class.getResourceAsStream("/atlas-client-scene.json")) {
-                    overrides=com.google.gson.JsonParser.parseString(new String(input.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject().getAsJsonObject("blockstates");
+                Files.createDirectories(client.getResourcePackDirectory());
+                var parts = new ArrayList<Path>();
+                var manifest = pack.resolveSibling("resource-packs.json");
+                if (Files.isRegularFile(manifest)) {
+                    var data = com.google.gson.JsonParser.parseString(Files.readString(manifest)).getAsJsonObject();
+                    for (var row : data.getAsJsonArray("packs"))
+                        parts.add(pack.resolveSibling(row.getAsJsonObject().get("file").getAsString()));
+                } else parts.add(pack);
+                // Exercise Minecraft's real pack stack, with each source ZIP independently selected.
+                for (int i = 0; i < parts.size(); i++) {
+                    String name = "hoi-test-" + i + ".zip";
+                    Files.copy(parts.get(i), client.getResourcePackDirectory().resolve(name), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    selected.add("file/" + name);
                 }
-                try(var input=new java.util.zip.ZipFile(pack.toFile());var output=new java.util.zip.ZipOutputStream(Files.newOutputStream(target))) {
-                    for(var entries=input.entries();entries.hasMoreElements();) {
-                        var entry=entries.nextElement();if(overrides.has(entry.getName()))continue;
-                        output.putNextEntry(new java.util.zip.ZipEntry(entry.getName()));
-                        try(var bytes=input.getInputStream(entry)){bytes.transferTo(output);}output.closeEntry();
-                    }
-                    for(var entry:overrides.entrySet()) {
+                // Native carrier allocations and their generated palette assets belong together.
+                com.google.gson.JsonObject fixture;
+                try (var input = ResearchScreenGameTest.class.getResourceAsStream("/atlas-client-scene.json")) {
+                    fixture = com.google.gson.JsonParser.parseString(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+                }
+                var target = client.getResourcePackDirectory().resolve("hoi-test-carriers.zip");
+                try (var output = new java.util.zip.ZipOutputStream(Files.newOutputStream(target))) {
+                    output.putNextEntry(new java.util.zip.ZipEntry("pack.mcmeta"));
+                    output.write("{\"pack\":{\"description\":\"HOI test carriers\",\"min_format\":88,\"max_format\":88}}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    output.closeEntry();
+                    for (var entry : fixture.getAsJsonObject("blockstates").entrySet()) {
                         output.putNextEntry(new java.util.zip.ZipEntry(entry.getKey()));
-                        output.write(entry.getValue().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));output.closeEntry();
+                        output.write(entry.getValue().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)); output.closeEntry();
+                    }
+                    for (var entry : fixture.getAsJsonObject("generatedAssets").entrySet()) {
+                        output.putNextEntry(new java.util.zip.ZipEntry(entry.getKey()));
+                        output.write(java.util.Base64.getDecoder().decode(entry.getValue().getAsString())); output.closeEntry();
                     }
                 }
+                selected.add("file/hoi-test-carriers.zip");
             } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
             var repository = client.getResourcePackRepository(); repository.reload();
-            var selected = new ArrayList<>(repository.getSelectedIds()); selected.add("file/hoi-test.zip");
             repository.setSelected(selected); reload.set(client.reloadResourcePacks());
         });
         context.waitFor(client -> reload.get().isDone());

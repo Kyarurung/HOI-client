@@ -33,14 +33,14 @@ final class AtlasSceneClient {
     private static final AtlasSceneAssembler ASSEMBLER = new AtlasSceneAssembler();
     private static Scene active;
     private static ItemStackRenderState city;
-    private static int visibleTiles;
+    private static int visibleTiles, examinedTiles;
     private static final Map<Material, Identifier> TEXTURES = Map.of(
             Material.BLACK, Identifier.parse("minecraft:block/black_concrete"), Material.RED, Identifier.parse("minecraft:block/red_concrete"),
             Material.WATER, Identifier.parse("minecraft:block/water_still"), Material.FOREST, Identifier.parse("minecraft:block/oak_sapling"),
             Material.JUNGLE, Identifier.parse("minecraft:block/jungle_sapling"), Material.MARSH, Identifier.parse("minecraft:block/mud"),
             Material.DESERT, Identifier.parse("minecraft:block/sand"));
     private record Tile(Material material, AABB bounds, float[] vertices, List<Box> cities) {}
-    private record Scene(String dimension, List<Tile> tiles) {}
+    private record Scene(String dimension, List<Tile> tiles, Map<Long,List<Integer>> cells, List<Integer> large) {}
     private record Frame(List<Tile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city) {}
     private record Key(int x, int z, Material material) {}
 
@@ -56,8 +56,7 @@ final class AtlasSceneClient {
                 visibleTiles=0;context.levelState().setData(FRAME, null); return;
             }
             var camera = context.levelState().cameraRenderState;
-            var tiles = scene.tiles().stream().filter(tile -> tile.bounds().distanceToSqr(camera.pos) <= Math.pow(AtlasVisibility.range(tile.material()),2)
-                    && camera.cullFrustum.isVisible(tile.bounds())).toList();
+            var tiles = nearby(scene, camera.pos).stream().filter(tile -> camera.cullFrustum.isVisible(tile.bounds())).toList();
             visibleTiles=tiles.size();
             var client = Minecraft.getInstance();
             var atlas = client.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
@@ -78,10 +77,11 @@ final class AtlasSceneClient {
         if (complete == null) return false;
         active = mesh(page.dimension(), complete); return true;
     }
-    static void clear() { active = null; city = null; visibleTiles=0;ASSEMBLER.clear(); }
+    static void clear() { active = null; city = null; visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
     static void resourcesReloaded() { city = null; }
     static int tileCount() { return active == null ? 0 : active.tiles().size(); }
     static int visibleTileCount() { return visibleTiles; }
+    static int examinedTileCount() { return examinedTiles; }
 
     private static Scene mesh(String dimension, List<Box> boxes) {
         var groups = new LinkedHashMap<Key, List<Box>>();
@@ -98,7 +98,33 @@ final class AtlasSceneClient {
             }
             tiles.add(new Tile(key.material(), bounds, vertices.toFloatArray(), key.material() == Material.CITY ? List.copyOf(group) : List.of()));
         });
-        return new Scene(dimension, List.copyOf(tiles));
+        var cells = new HashMap<Long,List<Integer>>();var large=new ArrayList<Integer>();
+        for (int i=0;i<tiles.size();i++) {
+            var bounds=tiles.get(i).bounds();
+            // Keep memory linear even for the largest legal network boxes; long tiles use exact fallback checks.
+            if((long)(cell(bounds.maxX)-cell(bounds.minX)+1)*(cell(bounds.maxZ)-cell(bounds.minZ)+1)>64) {
+                large.add(i);continue;
+            }
+            for(int z=cell(bounds.minZ);z<=cell(bounds.maxZ);z++)for(int x=cell(bounds.minX);x<=cell(bounds.maxX);x++)
+                cells.computeIfAbsent(cellKey(x,z),unused->new ArrayList<>()).add(i);
+        }
+        return new Scene(dimension, List.copyOf(tiles), cells, List.copyOf(large));
+    }
+
+    private static int cell(double value) { return (int)Math.floor(value/16); }
+    private static long cellKey(int x,int z) { return ((long)x<<32)|(z&0xffffffffL); }
+    private static List<Tile> nearby(Scene scene,Vec3 camera) {
+        double radius=Math.max(AtlasVisibility.BOUNDARY_RANGE,AtlasVisibility.DETAIL_RANGE);
+        var seen=new LinkedHashSet<Integer>(scene.large());var result=new ArrayList<Tile>();
+        for(int z=cell(camera.z-radius);z<=cell(camera.z+radius);z++)for(int x=cell(camera.x-radius);x<=cell(camera.x+radius);x++) {
+            var entries=scene.cells().get(cellKey(x,z));if(entries!=null)seen.addAll(entries);
+        }
+        for(int id:seen) {
+            var tile=scene.tiles().get(id);double range=AtlasVisibility.range(tile.material());
+            if(tile.bounds().distanceToSqr(camera)<=range*range)result.add(tile);
+        }
+        examinedTiles=seen.size();
+        return result;
     }
 
     private static void append(FloatArrayList output, Box box) {

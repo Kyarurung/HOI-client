@@ -9,6 +9,22 @@ import java.nio.charset.StandardCharsets;
 final class AtlasSurfaceRenderChecks {
     private AtlasSurfaceRenderChecks() {}
     static void run(ClientGameTestContext context) {
+        context.runOnClient(client -> {
+            for (String model : java.util.List.of("building/air_base", "building/naval_base", "building/radar_station", "map/terrain/city")) {
+                var id = net.minecraft.resources.Identifier.parse("hoi:models/" + model + ".json");
+                try (var input = client.getResourceManager().getResourceOrThrow(id).openAsReader()) {
+                    var data = JsonParser.parseReader(input).getAsJsonObject();
+                    int cubes = data.getAsJsonArray("elements").size();
+                    if (cubes == 0 || cubes > 100) throw new AssertionError(model + " exceeds the 100-cube budget");
+                    for (var texture : data.getAsJsonObject("textures").entrySet()) {
+                        var material = net.minecraft.resources.Identifier.parse(texture.getValue().getAsString());
+                        var path = material.withPath("textures/" + material.getPath() + ".png");
+                        if (client.getResourceManager().getResource(path).isEmpty())
+                            throw new AssertionError(model + " missing material " + path);
+                    }
+                } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+            }
+        });
         context.getInput().resizeWindow(1400,1000);
         try(var world=context.worldBuilder().adjustSettings(settings->settings.setGameMode(
                 net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.SelectedGameMode.CREATIVE)).create()) {
@@ -64,10 +80,9 @@ final class AtlasSurfaceRenderChecks {
                 command.accept("tp @a 28 111 28 180 90");context.waitTicks(25);
                 var screenshot=context.takeScreenshot("hoi-atlas-"+mode.toLowerCase()+"-coasts");checkPixels(screenshot,false);
                 if(mode.equals("ARMY")) {
-                    var city=java.util.stream.StreamSupport.stream(data.getAsJsonArray("terrain").spliterator(),false)
-                            .map(JsonElement::getAsJsonArray).filter(t->t.get(2).getAsString().equals("urban")).findFirst().orElseThrow();
-                    double cityX=city.get(0).getAsDouble()+.5,cityZ=city.get(1).getAsDouble()+.5;
-                    command.accept("tp @a "+cityX+" 66.4 "+(cityZ-2.6)+" 0 31");
+                    var city=boxes.stream().filter(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY).findFirst().orElseThrow();
+                    double cityX=city.x()+city.sx()/2,cityZ=city.z()+city.sz()/2;
+                    command.accept("tp @a "+cityX+" "+(city.y()+1)+" "+(cityZ-2.6)+" 0 35");
                     context.waitTicks(20);checkPixels(context.takeScreenshot("hoi-city-detail"),false);
                     var step=java.util.stream.StreamSupport.stream(data.getAsJsonArray("water").spliterator(),false)
                             .map(JsonElement::getAsJsonArray).filter(w->w.get(6).getAsBoolean())
@@ -85,7 +100,7 @@ final class AtlasSurfaceRenderChecks {
                 }
             }
             checkOkinawa(context,command);
-            checkAntiAir(context,command);
+            checkFacilities(context,command);
             checkDistance(context,command);
             context.runOnClient(client->{client.options.fov().set(70);AtlasSceneClient.clear();});
         }
@@ -148,23 +163,25 @@ final class AtlasSurfaceRenderChecks {
                 row.get(5).getAsString(),victory?"center":"fixed",offset,offset,offset,size,size,size,victory?"[0f,1f,0f,0f]":"[0f,0f,0f,1f]");
         command.accept("summon minecraft:item_display "+row.get(1).getAsDouble()+" "+row.get(2).getAsDouble()+" "+row.get(3).getAsDouble()+" "+nbt);
     }
-    private static void checkAntiAir(ClientGameTestContext context,java.util.function.Consumer<String> command) {
+    private static void checkFacilities(ClientGameTestContext context,java.util.function.Consumer<String> command) {
         context.runOnClient(client->AtlasSceneClient.clear());
         command.accept("kill @e[type=minecraft:item_display]");
         command.accept("kill @e[type=minecraft:text_display]");
         command.accept("fill 76 64 76 84 64 84 minecraft:stone");
         command.accept("tp @a 80.4 65 77.4 0 25");
         context.waitTicks(20);
-        var empty=context.takeScreenshot("hoi-anti-air-empty-ground");
+        var empty=context.takeScreenshot("hoi-radar-empty-ground");
+        for (String model : java.util.List.of("radar_station", "air_base", "naval_base", "city")) {
+        String path = model.equals("city") ? "map/terrain/city" : "building/"+model;
         // Match AtlasFacilityVisual: 0.8-block scale, FIXED context and half-size translation.
-        command.accept("summon minecraft:item_display 80 65 80 {item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"hoi:building/anti_air\"}},item_display:\"fixed\",transformation:{translation:[0.4f,0.4f,0.4f],scale:[0.8f,0.8f,0.8f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:1.6f,height:1.6f,view_range:8f,brightness:{block:15,sky:15}}");
+        command.accept("summon minecraft:item_display 80 65 80 {item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"hoi:"+path+"\"}},item_display:\"fixed\",transformation:{translation:[0.4f,0.4f,0.4f],scale:[0.8f,0.8f,0.8f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:1.6f,height:1.6f,view_range:8f,brightness:{block:15,sky:15}}");
         context.waitTicks(20);
-        var visible=context.takeScreenshot("hoi-anti-air-grounded");
+        var visible=context.takeScreenshot("hoi-"+model+"-grounded");
         checkPixels(visible,false);
         try {
             var before=javax.imageio.ImageIO.read(empty.toFile());
             var after=javax.imageio.ImageIO.read(visible.toFile());
-            int changed=0,sandbags=0;
+            int changed=0,greenPanel=0;
             for(int y=after.getHeight()/3;y<after.getHeight()*2/3;y++)
                 for(int x=after.getWidth()/3;x<after.getWidth()*2/3;x++) {
                     int a=before.getRGB(x,y),b=after.getRGB(x,y);
@@ -172,12 +189,13 @@ final class AtlasSurfaceRenderChecks {
                     for(int shift:new int[]{0,8,16})difference+=Math.abs(((a>>shift)&255)-((b>>shift)&255));
                     if(difference>60)changed++;
                     int red=(b>>16)&255,green=(b>>8)&255,blue=b&255;
-                    if(red>green*1.12&&green>blue*1.05&&red-blue>20)sandbags++;
+                    if(green>red*.98&&green>blue*1.2&&green-blue>10)greenPanel++;
                 }
-            if(changed<150)throw new AssertionError("Anti-air model is invisible or buried: "+changed);
-            if(sandbags<20)throw new AssertionError("The anti-air model's low sandbag base is buried: "+sandbags);
+            if(changed<150)throw new AssertionError(model+" model is invisible or buried: "+changed);
+            if(model.equals("radar_station")&&greenPanel<20)throw new AssertionError("The radar antenna's green panel is missing: "+greenPanel);
         } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
         command.accept("kill @e[type=minecraft:item_display]");
+        }
     }
     private static void checkDistance(ClientGameTestContext context,java.util.function.Consumer<String> command) {
         context.runOnClient(client->{
@@ -187,20 +205,32 @@ final class AtlasSurfaceRenderChecks {
             for(var material:dev.hoi.protocol.AtlasSceneProtocol.Material.values()) {
                 boxes.add(new dev.hoi.protocol.AtlasSceneProtocol.Box(4+index++*2,70,8,1,1,1,0,material));
             }
+            for(int i=0;i<256;i++)boxes.add(new dev.hoi.protocol.AtlasSceneProtocol.Box(
+                    512+(i%16)*32,70,512+(i/16)*32,1,1,1,0,dev.hoi.protocol.AtlasSceneProtocol.Material.BLACK));
             AtlasSceneClient.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,boxes));
         });
         command.accept("tp @a 11 110 8 0 90");
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
         context.takeScreenshot("hoi-atlas-near-all-materials");
-        command.accept("tp @a 11 168 8 0 90");
+        context.runOnClient(client->{
+            if(AtlasSceneClient.examinedTileCount()>=AtlasSceneClient.tileCount()/4)
+                throw new AssertionError("Distance selection scanned distant tiles");
+        });
+        command.accept("tp @a 11 132 8 0 90");
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
-        context.takeScreenshot("hoi-atlas-within-100-all-materials");
-        command.accept("tp @a 11 176 8 0 90");
+        context.takeScreenshot("hoi-atlas-within-64-all-materials");
+        command.accept("tp @a 11 140 8 0 90");
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==0);
         context.takeScreenshot("hoi-atlas-far-hidden");
         command.accept("tp @a 11 110 8 0 90");
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==8);
         context.takeScreenshot("hoi-atlas-return-near");
+        context.runOnClient(client->{
+            AtlasSceneClient.clear();
+            var longBox=new dev.hoi.protocol.AtlasSceneProtocol.Box(-512,70,8,1024,1,1,0,dev.hoi.protocol.AtlasSceneProtocol.Material.BLACK);
+            AtlasSceneClient.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,java.util.List.of(longBox)));
+        });
+        context.waitFor(client->AtlasSceneClient.visibleTileCount()==1);
     }
     private static void checkPixels(Path path,boolean victory) {
         try {

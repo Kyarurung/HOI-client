@@ -11,6 +11,7 @@ import net.minecraft.util.RandomSource;
 
 /** Audio stays in the external pack. UI cues are relative, never world-positioned. */
 final class UiSounds {
+    static final java.util.List<String> START_SOUNDS = java.util.List.of("ui.game_start", "ui.game_start_signal");
     private static final Identifier THEME = id("music.tfr_theme");
     private static SoundInstance theme;
     private static int retry;
@@ -26,7 +27,7 @@ final class UiSounds {
                     true, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
             client.getSoundManager().play(theme);
         }
-        public void playStart() { play("ui.game_start"); }
+        public void playStart() { START_SOUNDS.forEach(UiSounds::play); }
     });
     private UiSounds() {}
     static Identifier id(String path) { return Identifier.fromNamespaceAndPath("hoi", path); }
@@ -35,13 +36,6 @@ final class UiSounds {
         var id = id(path);
         if (sounds.getSoundEvent(id) != null)
             sounds.play(SimpleSoundInstance.forUI(SoundEvent.createVariableRangeEvent(id), 1, 1));
-    }
-    static String construction(String building) {
-        return "ui.construction." + switch (building) {
-            case "infrastructure", "air_base", "anti_air", "radar" -> "state";
-            case "hub", "port", "fort", "coastal_fort" -> "province";
-            default -> "shared";
-        };
     }
     static void receive(AudioProtocol.Cue cue) {
         switch (cue) {

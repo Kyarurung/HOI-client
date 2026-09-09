@@ -19,13 +19,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Kyarurung/HOI-resourcepack
-          ref: 81289262bfa548c4cc6de86e6cee82eddfc2bf3e
+          ref: 37086d92a3db1cedf0fe03d3e9bfbc4477ef15d5
           ssh-key: ${{ secrets.HOI_RESOURCEPACK_SSH_KEY }}
           path: .test-resourcepack
           persist-credentials: false
           sparse-checkout: |
             pack
             scripts
+            portraits
       - run: python3 .test-resourcepack/scripts/build_pack.py
       - uses: actions/setup-java@v4
         with:
