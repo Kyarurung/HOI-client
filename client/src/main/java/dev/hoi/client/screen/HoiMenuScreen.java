@@ -102,7 +102,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
                     .flatMap(s -> s.entries().stream()).filter(e -> !e.name().equals("없음")).toList();
             spiritScroll = Math.clamp(spiritScroll, 0, maximumSpiritScroll());
             int split = politicsSplit(), right = pane * 4 / 5;
-            addRenderableWidget(new InvisibleButton("국가 중점", split, top + 29, right - split - 3, 33,
+            addRenderableWidget(new InvisibleButton("국가 중점", split + 36, top + 29, right - split - 39, 33,
                     () -> showDetail(politicsFocus(), "research")));
             addRenderableWidget(new InvisibleButton("세력", 8 + (pane - 16) / 4, top + POLITICS_SUMMARY_TOP, (pane - 16) / 4 - 3, 40,
                     () -> HoiClient.openCountry("")));
@@ -270,25 +270,26 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     private MenuView.Entry politicsFocus() {
         var entries = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 중점")).flatMap(s -> s.entries().stream()).toList();
         var active = entries.stream().filter(e -> e.progress() >= 0 || e.value().contains("진행")).findFirst();
-        String label = active.map(MenuView.Entry::name).orElse("국가중점 선택");
+        String label = active.map(MenuView.Entry::name).orElse("국가 중점 선택");
         return new MenuView.Entry("국가 중점", label, fontSafe(entries.stream().map(e -> e.name() + " · " + e.value() + "\n" + e.detail()).collect(java.util.stream.Collectors.joining("\n\n"))), -1, active.map(MenuView.Entry::icon).orElse(""));
     }
     private void drawPoliticsBanner(GuiGraphicsExtractor g) {
         int split = politicsSplit(), right = pane * 4 / 5;
-        HoiMenuStyle.recess(g, 7, top + 29, split - 11, 78);
+        HoiMenuStyle.recess(g, 7, top + 29, split - 11, 84 + leaderNameHeight());
         UiAssets.draw(g, politicsEntry("지도자").icon().isEmpty() ? "politics/empty/leader" : politicsEntry("지도자").icon(), 10, top + 32, split - 17, 75);
         String leaderName = politicsEntry("지도자").value();
         int nameSpace = Math.min(split - 17, leaderNameHeight() * 172 / 42 - 6);
         int nameWidth = Math.max(1, Math.min(nameSpace, (int)Math.ceil(font.width(leaderName) * .75f)));
-        UiAssets.draw(g, "politics/leader_nameplate", 7, top + 110, split - 11, leaderNameHeight());
+        UiAssets.draw(g, "politics/leader_nameplate", 10, top + 110, split - 17, leaderNameHeight());
         officerText(g, leaderName, 7 + (split - 11 - nameWidth) / 2, top + 110 + (leaderNameHeight() - 7) / 2, nameWidth, TEXT);
-        HoiMenuStyle.recess(g, split, top + 29, 33, 33);
-        HoiMenuStyle.control(g, split + 36, top + 29, right - split - 39, 33, false, false);
+        UiAssets.draw(g, "politics/focus_background", split, top + 29, right - split - 3, 33);
+        UiAssets.draw(g, "politics/focus_select", split + 36, top + 29, right - split - 39, 33);
         var focus = politicsFocus();
         UiAssets.draw(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), split + 2, top + 31, 29, 29);
         int focusSpace = right - split - 47;
         int focusWidth = Math.max(1, Math.min(focusSpace, (int)Math.ceil(font.width(focus.value()) * .75f)));
-        officerText(g, focus.value(), split + 40 + (focusSpace - focusWidth) / 2, top + 42, focusWidth, GOLD);
+        officerText(g, focus.value(), split + 40 + (focusSpace - focusWidth) / 2, top + 42, focusWidth,
+                focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
         politicsCell(g, "경제-정치 연합", right, top + 29, pane - right - 8, 33);
         HoiMenuStyle.recess(g, split, top + 65, 31, 31);
         UiAssets.draw(g, politicsEntry("이념").icon().isEmpty() ? "politics/empty/ideology" : politicsEntry("이념").icon(), split + 3, top + 68, 25, 25);
@@ -461,14 +462,13 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         }
     }
     int politicsSplit() { return pane / 4 + 8; }
-    private int leaderNameHeight() { return Math.clamp(Math.round((politicsSplit() - 11) * 42f / 172), 11, 23); }
+    private int leaderNameHeight() { return Math.clamp(Math.round((politicsSplit() - 17) * 42f / 172), 11, 23); }
     private int maximumSpiritScroll() { return Math.max(0, spirits.size() * 18 - (pane - politicsSplit() - 50)); }
-    private int spiritStart() { return politicsSplit() + 38 + Math.max(0, (pane - politicsSplit() - 50 - spirits.size() * 18) / 2); }
+    private int spiritStart() { return politicsSplit() + 38; }
     MenuView.Entry politicsHover(double x, double y) {
         if (view == null || selected != MenuTab.POLITICS || detail != null || manufacturerGroup != null) return null;
         int split = politicsSplit();
-        if (x >= 7 && x < split - 4 && ((y >= top + 29 && y < top + 107)
-                || (y >= top + 110 && y < top + 110 + leaderNameHeight()))) {
+        if (x >= 7 && x < split - 4 && y >= top + 29 && y < top + 113 + leaderNameHeight()) {
             var leader = politicsEntry("지도자");
             return leader.detail().isBlank() ? null : leader;
         }
@@ -599,7 +599,8 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             setTooltip(Tooltip.create(Component.literal(label)));
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-            if (active && isHoveredOrFocused()) g.outline(getX(), getY(), getWidth(), getHeight(), GOLD);
+            if (active && isHoveredOrFocused() && !getMessage().getString().equals("국가 중점"))
+                g.outline(getX(), getY(), getWidth(), getHeight(), GOLD);
         }
     }
 }

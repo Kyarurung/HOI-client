@@ -23,7 +23,12 @@ public final class CountryScreenChecks {
         context.runOnClient(c -> {
             var screen = (HoiMenuScreen)c.gui.screen(); int top = dev.hoi.client.ui.HoiMenuBar.height(screen.width);
             if (!screen.politicsHover(15, top + 45).equals(screen.politicsHover(15, top + 115))) throw new AssertionError("Portrait and name must share leader tooltip");
-            if (screen.politicsHover(15, top + 108) != null) throw new AssertionError("Separate portrait and name cells must leave a noninteractive gap");
+            if (!screen.politicsHover(15, top + 45).equals(screen.politicsHover(15, top + 108)))
+                throw new AssertionError("Portrait and name must occupy one continuous leader cell");
+            var focus = screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("국가 중점"))
+                    .map(w -> (Button)w).findFirst().orElseThrow();
+            if (focus.isMouseOver(screen.politicsSplit() + 15, top + 45) || !focus.isMouseOver(screen.politicsSplit() + 45, top + 45))
+                throw new AssertionError("Only the focus title body must be clickable");
             if (screen.children().stream().anyMatch(w -> w instanceof Button b && b.isMouseOver(15, top + 45)))
                 throw new AssertionError("Leader portrait must have no clickable or highlighting button");
             if (screen.politicsHover(screen.politicsSplit() + 15, top + 75) != null)
@@ -55,6 +60,17 @@ public final class CountryScreenChecks {
         });
         context.getInput().setCursorPos(cursor[0], cursor[1]); context.waitTicks(3); context.takeScreenshot("hoi-politics-ideology-tooltip");
         context.getInput().setCursorPos(1500,800);
+        sections.set(1, new MenuView.Section("국가 정신", "politics", List.of(sections.get(1).entries().getFirst())));
+        sections.replaceAll(s -> s.title().equals("국가 중점") ? new MenuView.Section("국가 중점", "research", List.of()) : s);
+        var singleSpiritPages = source.pages().stream().map(p -> p.tab() == MenuTab.POLITICS ? new MenuView.Page(p.tab(), sections) : p).toList();
+        context.setScreen(() -> new HoiMenuScreen(new MenuView(source.country(), source.countryName(), source.date(), source.speed(), singleSpiritPages, source.hud())));
+        context.waitTicks(2);
+        context.runOnClient(c -> {
+            var screen = (HoiMenuScreen)c.gui.screen(); int top = dev.hoi.client.ui.HoiMenuBar.height(screen.width);
+            var spirit = screen.politicsHover(screen.politicsSplit() + 40, top + 75);
+            if (spirit == null || !spirit.name().equals("검증용 정신 0")) throw new AssertionError("A single spirit must start at the left edge");
+        });
+        context.takeScreenshot("hoi-politics-left-aligned-spirit");
         context.setScreen(() -> new HoiMenuScreen(source)); context.waitTicks(2);
     }
     public static List<MenuView.Section> politics() {
