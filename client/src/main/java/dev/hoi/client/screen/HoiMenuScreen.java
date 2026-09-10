@@ -101,6 +101,12 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         addRenderableWidget(new HoiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
         if (view == null) return;
         if (selected == MenuTab.POLITICS) {
+            for (int i = 0; i < 2; i++) {
+                var box = politicsLayout().status(i);
+                var entry = politicsEntry(i == 0 ? "점령지" : "협력정부");
+                addRenderableWidget(new InvisibleButton(entry.name(), box.x(), box.y(), box.width(), box.height(),
+                        () -> showDetail(entry, "politics")));
+            }
             if (view.balance() != null) {
                 var box = balanceButton();
                 addRenderableWidget(new InvisibleButton("권력의 균형", box.x(), box.y(), box.width(), box.height(), () -> {balanceOpen = !balanceOpen; rebuildWidgets();}));
@@ -249,7 +255,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             }
             int spirits = Math.max(0, entries.size() - 2);
             for (int i = 0; !special && i < spirits; i++) {
-                var entry = entries.get(i + 2); int bw = (pane - 32) / 3;
+                var entry = entries.get(i + 2); int bw = (pane - 44) / 3;
                 int bx = (pane - (spirits * bw + (spirits - 1) * 10)) / 2 + i * (bw + 10), by = y + 79;
                 if (g != null) {
                     HoiMenuStyle.recess(g, bx, by, bw, 28);
@@ -339,7 +345,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         politicsCell(g, "경제 모델", layout.economy());
         politicsCell(g, "세력", layout.faction());
         for (int i = 0; i < 2; i++) {
-            var entry = politicsEntry(i == 0 ? "점령지" : "순응도");
+            var entry = politicsEntry(i == 0 ? "점령지" : "협력정부");
             drawPoliticalArt(g, "politics/" + (i == 0 ? "occupied" : "collaboration") + (entry.progress() > 0 ? "_active" : "_inactive"), layout.status(i));
         }
         var chart = layout.partyChart();

@@ -27,7 +27,7 @@ public final class IndustryProtocol {
             IndustryView.text(session,36);IndustryView.text(item,128);IndustryView.text(other,128);
             if(action==null||revision<0||amount<0)throw new IllegalArgumentException("Invalid industry request");
         }
-        public static final Type<Request> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","industry_request_v3"));
+        public static final Type<Request> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","industry_request_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Request> CODEC=StreamCodec.of(
                 (b,p)->{b.writeEnum(p.action);b.writeUtf(p.session,36);b.writeVarLong(p.revision);b.writeUtf(p.item,128);b.writeUtf(p.other,128);b.writeVarInt(p.amount);b.writeDouble(p.dx);b.writeDouble(p.dy);b.writeDouble(p.dz);},
                 b->new Request(b.readEnum(Action.class),b.readUtf(36),b.readVarLong(),b.readUtf(128),b.readUtf(128),b.readVarInt(),b.readDouble(),b.readDouble(),b.readDouble()));
@@ -43,7 +43,7 @@ public final class IndustryProtocol {
     }
     public record Response(String json) implements CustomPacketPayload {
         public Response {IndustryView.text(json,800000);}
-        public static final Type<Response> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","industry_response_v3"));
+        public static final Type<Response> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","industry_response_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Response> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,800000),b->new Response(b.readUtf(800000)));
         public static Response of(IndustryView view){return new Response(JSON.toJson(view));}
         public IndustryView view(){var v=JSON.fromJson(json,IndustryView.class);if(v==null)throw new IllegalArgumentException("Missing industry view");return v;}

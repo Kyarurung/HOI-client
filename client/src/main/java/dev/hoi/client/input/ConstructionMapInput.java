@@ -13,11 +13,13 @@ public final class ConstructionMapInput {
     private ConstructionMapInput() {}
 
     private static boolean available(Minecraft client) {
-        if (client.player == null || client.gui.screen() != null
+        if (client.player == null || client.level == null || client.gui.screen() != null
                 || !ClientPlayNetworking.canSend(ConstructionProtocol.CancelMap.TYPE)) return false;
         var item = client.player.getMainHandItem();
-        return item.is(Items.CARROT_ON_A_STICK) && item.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
-                .copyTag().getIntOr("hoi_atlas_selector", 0) == 5;
+        var dimension = client.level.dimension().identifier();
+        int slot = item.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getIntOr("hoi_atlas_selector", 0);
+        return dimension.getNamespace().equals("hoi") && dimension.getPath().startsWith("atlas_construction_")
+                && item.is(Items.CARROT_ON_A_STICK) && slot >= 1 && slot <= 9;
     }
 
     public static boolean place(Minecraft client) {

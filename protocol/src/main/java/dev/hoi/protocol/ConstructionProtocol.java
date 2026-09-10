@@ -32,7 +32,7 @@ public final class ConstructionProtocol {
             for(double n:new double[]{dx,dy,dz})if(!Double.isFinite(n)||Math.abs(n)>1.001)throw new IllegalArgumentException("Invalid map ray");
             if((action==Action.PLACE||action==Action.CANCEL_AT) && Math.abs(dx*dx+dy*dy+dz*dz-1)>.001)throw new IllegalArgumentException("Invalid map ray length");
         }
-        public static final Type<Request> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","construction_request_v2"));
+        public static final Type<Request> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","construction_request_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Request> CODEC=StreamCodec.of(
                 (b,p)->{b.writeEnum(p.action);b.writeUtf(p.session,36);b.writeVarLong(p.revision);b.writeUtf(p.item,128);b.writeVarInt(p.amount);b.writeDouble(p.dx);b.writeDouble(p.dy);b.writeDouble(p.dz);},
                 b->new Request(b.readEnum(Action.class),b.readUtf(36),b.readVarLong(),b.readUtf(128),b.readVarInt(),b.readDouble(),b.readDouble(),b.readDouble()));
@@ -40,7 +40,7 @@ public final class ConstructionProtocol {
     }
     public record Response(String json) implements CustomPacketPayload {
         public Response { ConstructionView.text(json,160000); }
-        public static final Type<Response> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","construction_response_v2"));
+        public static final Type<Response> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","construction_response_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Response> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,160000),b->new Response(b.readUtf(160000)));
         public static Response of(ConstructionView view){return new Response(JSON.toJson(view));}
         public ConstructionView view(){var result=JSON.fromJson(json,ConstructionView.class);if(result==null)throw new IllegalArgumentException("Missing construction view");return result;}

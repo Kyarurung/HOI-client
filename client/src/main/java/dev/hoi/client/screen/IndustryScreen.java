@@ -68,7 +68,9 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     public void update(IndustryView next) {
         if (closed || !next.session().equals(token)) return;
         if (next.country().isEmpty() || view != null && !next.country().equals(view.country())) {
-            closed = true; minecraft.gui.setScreen(null); return;
+            closed = true; minecraft.gui.setScreen(null);
+            if (minecraft.player != null && !next.message().isBlank()) minecraft.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(next.message()));
+            return;
         }
         if (view != null && next.revision() <= view.revision()) return;
         if (nameBox != null) draftName = nameBox.getValue();

@@ -16,6 +16,26 @@ public final class HoiMenuStyle {
         }
     }
 
+    public static boolean symbol(GuiGraphicsExtractor g, String label, int x, int y, int w, int h, int color) {
+        if (label.equals("×") || label.equals("X")) { close(g, x, y, w, h, color); return true; }
+        if (!java.util.Set.of("−", "-", "+", "↑", "↓").contains(label)) return false;
+        int size = Math.min(7, Math.min(w, h) - 6);
+        if (size % 2 == 0) size--;
+        int left = x + (w - size) / 2, top = y + (h - size) / 2, middle = size / 2;
+        if (label.equals("↑") || label.equals("↓")) {
+            g.fill(left + middle, top, left + middle + 1, top + size, color);
+            for (int i = 1; i <= middle; i++) {
+                int row = label.equals("↑") ? top + i : top + size - i - 1;
+                g.fill(left + middle - i, row, left + middle - i + 1, row + 1, color);
+                g.fill(left + middle + i, row, left + middle + i + 1, row + 1, color);
+            }
+        } else {
+            g.fill(left, top + middle, left + size, top + middle + 1, color);
+            if (label.equals("+")) g.fill(left + middle, top, left + middle + 1, top + size, color);
+        }
+        return true;
+    }
+
     public static void bevel(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean inset) {
         g.outline(x, y, w, h, 0xFF08090A);
         g.horizontalLine(x + 1, x + w - 2, y + 1, inset ? 0xFF121316 : 0xFF73767B);
