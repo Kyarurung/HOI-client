@@ -23,7 +23,7 @@ public record DialogView(String token,long revision,Kind kind,String title,Strin
         if(revision<0)throw new IllegalArgumentException("Invalid dialog revision");
         Objects.requireNonNull(kind);text(title,240);text(subtitle,600);text(body,24000);asset(flag);asset(image);asset(sound);
         tiles=List.copyOf(tiles);choices=List.copyOf(choices);
-        if(tiles.size()>160||choices.size()>24)throw new IllegalArgumentException("Dialog limit exceeded");
+        if(tiles.size()>160||choices.size()>(kind==Kind.POLITICS?160:24))throw new IllegalArgumentException("Dialog limit exceeded");
         if(choices.stream().map(Choice::id).distinct().count()!=choices.size())throw new IllegalArgumentException("Duplicate dialog choice");
     }
     public DialogView issued(String id,long version) {return new DialogView(id,version,kind,title,subtitle,body,flag,image,sound,tiles,choices,presentation);}

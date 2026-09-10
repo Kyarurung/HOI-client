@@ -343,6 +343,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         }
     }
 
+    private double minimumTraining() { return view.recruitmentPolicy() == null || view.recruitmentPolicy().minimumTraining() == null ? .2 : view.recruitmentPolicy().minimumTraining(); }
     private void recruitment() {
         int secondX = pane + 3, secondW = rightWidth(), start = top + 28;
         if (graphics != null) HoiMenuStyle.panel(graphics, secondX, top, secondW, height - top);
@@ -423,7 +424,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 if (graphics == null) deploymentLocations.add(new DeploymentLocation(groupX + (int)(91 * gs), y + (int)(46 * gs), (int)(223 * gs), (int)(31 * gs), first.id(), locationName(first.location())));
                 tip("좌클릭하여 배치 프로빈스 선택 · 우클릭하여 장소 초기화", groupX + (int)(91 * gs), y + (int)(46 * gs), (int)(223 * gs), (int)(31 * gs));
                 textureButton(t.name() + " 부대 추가", "부대 추가", "recruitment/add", groupX + (int)(315 * gs), y + (int)(50 * gs), (int)(105 * gs), (int)(23 * gs), true, () -> send(RECRUIT, t.id(), first.location(), 0));
-                textureButton(t.name() + " 모든 라인 즉시 배치", "", "recruitment/deploy", groupX + (int)(421 * gs), y + (int)(47 * gs), (int)(27 * gs), (int)(27 * gs), !first.location().isEmpty() && rows.stream().anyMatch(r -> r.progress() >= .2), () -> send(DEPLOY_GROUP, first.id(), "", 0));
+                textureButton(t.name() + " 모든 라인 즉시 배치", "", "recruitment/deploy", groupX + (int)(421 * gs), y + (int)(47 * gs), (int)(27 * gs), (int)(27 * gs), !first.location().isEmpty() && rows.stream().anyMatch(r -> r.progress() >= minimumTraining()), () -> send(DEPLOY_GROUP, first.id(), "", 0));
                 textureButton(t.name() + " 모든 라인 생산 취소", "", "recruitment/cancel", groupX + (int)(450 * gs), y + (int)(47 * gs), (int)(27 * gs), (int)(27 * gs), true, () -> send(CANCEL_GROUP, first.id(), "", 0));
                 int summaryY = y + headerHeight;
                 art("recruitment/summary", 7, summaryY, pane - 14, lineHeight);
@@ -450,7 +451,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 tip("훈련 " + percent(r.progress()) + " · 인력 " + percent(manpowerRatio) + " · 장비 " + percent(equipped) + "\n" + equipmentList(t.equipment(), r.equipment()), 8, y, (int)(397 * gs), lineHeight);
                 centeredCompactText(r.seriesLabel(), lineX + (int)(398 * gs), y + (int)(20 * gs) - 3, (int)(55 * gs), r.seriesLimit() == 0 ? GOLD : TEXT);
                 tip("라인의 현재 연속 훈련 수 · " + r.seriesLabel(), lineX + (int)(398 * gs), y + (int)(7 * gs), (int)(57 * gs), (int)(26 * gs));
-                textureButton("즉시 배치 · 훈련 20% 이상", "", "recruitment/deploy_line", lineX + (int)(458 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), !r.location().isEmpty() && r.progress() >= .2, () -> send(DEPLOY, r.id(), "", 0));
+                textureButton("즉시 배치 · 훈련 " + Math.round(minimumTraining()*100) + "% 이상", "", "recruitment/deploy_line", lineX + (int)(458 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), !r.location().isEmpty() && r.progress() >= minimumTraining(), () -> send(DEPLOY, r.id(), "", 0));
                 textureButton("훈련 취소 · 지급 장비와 인력 반환", "", "recruitment/cancel_line", lineX + (int)(484 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), true, () -> send(CANCEL_RECRUIT, r.id(), "", 0));
             }
         }

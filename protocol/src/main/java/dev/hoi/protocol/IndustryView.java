@@ -33,8 +33,10 @@ public record IndustryView(String session, long revision, String country, Countr
         this(session, revision, country, hud, economy, resources, modifiers, equipment, lines, partners, trades,
                 templates, battalions, companies, locations, recruits, deployed, draft, message, navalRepairs, null);
     }
-    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds) {
+    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds, Double minimumTraining) {
+        public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,null);}
         public RecruitmentPolicy {
+            if(minimumTraining!=null&&(!Double.isFinite(minimumTraining)||minimumTraining<0||minimumTraining>1)) throw new IllegalArgumentException("Invalid training threshold");
             retiredTemplates=Set.copyOf(retiredTemplates);priorities=boundedMap(priorities,6);reinforcementNeeds=boundedMap(reinforcementNeeds,512);
             if(retiredTemplates.size()>256||priorities.values().stream().anyMatch(p->p<0||p>2)
                     ||reinforcementRatio!=null&&(!Double.isFinite(reinforcementRatio)||reinforcementRatio<0||reinforcementRatio>1))throw new IllegalArgumentException("Invalid recruitment policy");
