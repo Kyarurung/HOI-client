@@ -285,11 +285,22 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         drawPoliticalArt(g, "politics/leader_frame", leader);
         centeredPoliticsText(g, person.value(), new PoliticsLayout.Box(leader.x() + 4, leader.y() + leader.height() * 218 / 258,
                 leader.width() - 8, leader.height() * 34 / 258), TEXT);
-        drawPoliticalArt(g, "politics/focus_background", layout.focus());
+        var focusBox = layout.focus();
+        var focusBackground = net.minecraft.resources.Identifier.parse("hoi:textures/gui/politics/focus_background.png");
+        int frameLeft = (int)Math.round(focusBox.height() * 99.0 / 107);
+        int frameRight = Math.max(1, (int)Math.round(focusBox.height() * 12.0 / 107));
+        int left = focusBox.x(), right = left + focusBox.width(), bottom = focusBox.y() + focusBox.height();
+        g.blit(focusBackground, left, focusBox.y(), left + frameLeft, bottom, 0, 99f / 359, 0, 1);
+        g.blit(focusBackground, left + frameLeft, focusBox.y(), right - frameRight, bottom, 99f / 359, 347f / 359, 0, 1);
+        g.blit(focusBackground, right - frameRight, focusBox.y(), right, bottom, 347f / 359, 1, 0, 1);
         drawPoliticalArt(g, "politics/focus_select", layout.focusTitle());
         var focus = politicsFocus();
         drawPoliticalArt(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), layout.focusImage());
-        centeredPoliticsText(g, focus.value(), layout.focusTitle(), focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
+        var focusTitle = layout.focusTitle();
+        int focusWidth = Math.min(focusTitle.width(), (int)Math.round(focusTitle.height() * 258.0 / 83));
+        officerText(g, focus.value(), focusTitle.x() + (focusTitle.width() - focusWidth) / 2 + 14,
+                focusTitle.y() + (focusTitle.height() - 7) / 2, focusWidth - 28,
+                focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
         politicsCell(g, "경제-정치 연합", layout.union());
         var ideology = politicsEntry("세부 이념"); var ideologyBox = layout.ideology();
         HoiMenuStyle.recess(g, ideologyBox.x(), ideologyBox.y(), ideologyBox.width(), ideologyBox.height());
@@ -314,12 +325,11 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         var electionBox = layout.election();
         HoiMenuStyle.recess(g, electionBox.x(), electionBox.y(), electionBox.width(), electionBox.height());
         String election = politicsEntry("다음 선거").value();
-        int textY = electionBox.y() + (electionBox.height() - 7) / 2;
         if (election.equals("선거 없음")) centeredPoliticsText(g, election, electionBox, MUTED);
         else {
-            String label = "다음 선거 "; int labelWidth = (int)Math.ceil(font.width(label) * .75f);
-            officerText(g, label, electionBox.x() + 4, textY, labelWidth, TEXT);
-            officerText(g, election, electionBox.x() + 4 + labelWidth, textY, electionBox.width() - 8 - labelWidth, GOLD);
+            int middle = electionBox.y() + electionBox.height() / 2;
+            centeredPoliticsText(g, "다음 선거", new PoliticsLayout.Box(electionBox.x(), middle - 12, electionBox.width(), 10), TEXT);
+            centeredPoliticsText(g, election, new PoliticsLayout.Box(electionBox.x(), middle + 2, electionBox.width(), 10), GOLD);
         }
         politicsCell(g, "경제 모델", layout.economy());
         politicsCell(g, "세력", layout.faction());
@@ -327,9 +337,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             var entry = politicsEntry(i == 0 ? "점령지" : "순응도");
             drawPoliticalArt(g, "politics/" + (i == 0 ? "occupied" : "collaboration") + (entry.progress() > 0 ? "_active" : "_inactive"), layout.status(i));
         }
-        var chart = layout.partyChart(); int cy = chart.y() + chart.height() / 2;
+        var chart = layout.partyChart();
         HoiMenuStyle.recess(g, chart.x(), chart.y(), chart.width(), chart.height());
-        for (int[] span : partySpans) g.fill(chart.x() + chart.width() / 2 + span[0], cy + span[1], chart.x() + chart.width() / 2 + span[2], cy + 1 + span[1], span[3]);
+        for (int[] span : partySpans) g.fill(chart.x() + span[0], chart.y() + span[1], chart.x() + span[2], chart.y() + 1 + span[1], span[3]);
         var list = layout.parties();
         HoiMenuStyle.recess(g, list.x(), list.y(), list.width(), list.height());
         partyScroll = Math.clamp(partyScroll, 0, Math.max(0, parties.size() * 9 - list.height() + 8));
@@ -387,16 +397,37 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         parties = view.page(MenuTab.POLITICS).sections().stream().flatMap(s -> s.entries().stream())
                 .filter(e -> (e.icon().startsWith("politics/ideology/") || e.icon().startsWith("politics/party/")) && e.progress() >= 0).toList();
         partySpans.clear();
-        for (int y = -15; y <= 15; y++) {
-            int edge = (int)Math.sqrt(225 - y * y), start = -edge, previous = 0;
-            for (int x = -edge; x <= edge + 1; x++) {
-                int color = 0xFF34363A;
-                double angle = (Math.atan2(y, x) + Math.PI * 2.5) % (Math.PI * 2) / (Math.PI * 2), sum = 0;
-                for (var party : parties) { sum += party.progress(); if (angle < sum) { color = partyColor(party.icon()); break; } }
-                if (x == -edge) previous = color;
-                if (color != previous || x > edge) { partySpans.add(new int[]{start, y, x, previous}); start = x; previous = color; }
+        int size = politicsLayout().partyChart().width();
+        for (int y = 0; y < size; y++) {
+            int start = 0, previous = 0;
+            for (int x = 0; x <= size; x++) {
+                int color = x == size ? 0 : partyPixel(x, y, size);
+                if (color != previous) {
+                    if (previous != 0) partySpans.add(new int[]{start, y, x, previous});
+                    start = x; previous = color;
+                }
             }
         }
+    }
+    private int partyPixel(int x, int y, int size) {
+        int samples = 0, red = 0, green = 0, blue = 0;
+        double radius = size / 2.0 - 3;
+        for (int sy = 0; sy < 4; sy++) for (int sx = 0; sx < 4; sx++) {
+            double dx = x + (sx + .5) / 4 - size / 2.0, dy = y + (sy + .5) / 4 - size / 2.0;
+            double distance = Math.hypot(dx, dy);
+            if (distance > radius) continue;
+            int color = 0xFF34363A;
+            if (distance > radius - .8) color = dy < 0 ? 0xFFA5ABB0 : 0xFF454B51;
+            else {
+                double angle = (Math.atan2(dy, dx) + Math.PI * 2.5) % (Math.PI * 2) / (Math.PI * 2), sum = 0;
+                for (var party : parties) {
+                    sum += party.progress();
+                    if (angle < sum) { color = partyColor(party.icon()); break; }
+                }
+            }
+            samples++; red += (color >> 16) & 255; green += (color >> 8) & 255; blue += color & 255;
+        }
+        return samples == 0 ? 0 : (samples * 255 / 16 << 24) | (red / samples << 16) | (green / samples << 8) | blue / samples;
     }
     private void layoutPolitics(boolean widgets, GuiGraphicsExtractor g) {
         int row = Math.clamp((contentBottom() - contentTop()) / 7, 37, 68);

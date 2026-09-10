@@ -15,7 +15,9 @@ public final class CountryScreenChecks {
         overview.add(new MenuView.Entry("세부 이념", "공격적 자유주의", "세부 이념 설명을 확인하는 렌더링 검증 데이터입니다."));
         overview.removeIf(e -> e.icon().startsWith("politics/ideology/"));
         String[] names = {"민중민주당", "민주노동당", "민주노동당", "민주노동당", "더불어민주당", "국민의힘", "국민의힘", "우리공화당", "대한민국 국군", "자유의새벽당", "가자코리아"};
-        for (int i = 0; i < names.length; i++) overview.add(new MenuView.Entry(names[i], i == 0 ? "100%" : "0%", "목록 렌더링 검증용 분포", i == 0 ? 1 : 0, "politics/party/4267ce"));
+        int[] shares = {0,5,6,5,33,36,3,5,0,1,6};
+        String[] colors = {"640000","a40000","ce3b3b","e76d77","e4bf39","eddf58","3261d0","434b81","636369","70411d","312b20"};
+        for (int i = 0; i < names.length; i++) overview.add(new MenuView.Entry(names[i], shares[i] + "%", "목록 렌더링 검증용 분포와 색상", shares[i] / 100.0, "politics/party/" + colors[i]));
         sections.set(0, new MenuView.Section("국가 현황", "politics", overview));
         sections.set(1, new MenuView.Section("국가 정신", "politics", java.util.stream.IntStream.range(0, 24)
                 .mapToObj(i -> new MenuView.Entry("검증용 정신 " + i, "", "연구 속도: §a+5%§r\n안정도: §4-3%§r\n\n현재 아이콘에 해당하는 설명입니다.", -1, "menu/politics")).toList()));
@@ -24,6 +26,15 @@ public final class CountryScreenChecks {
         context.waitTicks(2);
         context.runOnClient(c -> {
             var screen = (HoiMenuScreen)c.gui.screen(); var layout = screen.politicsLayout();
+            for (int pane : new int[]{248,363,726}) {
+                var sizing = new dev.hoi.client.ui.PoliticsLayout(pane, 40);
+                for (var box : List.of(sizing.union(), sizing.ideology(), sizing.government()))
+                    if (box.width() != box.height()) throw new AssertionError("Political icon cells must stay square at every size");
+                if (sizing.government().x() + sizing.government().width() > sizing.election().x()
+                        || sizing.election().x() + sizing.election().width() >= sizing.parties().x()
+                        || sizing.partyChart().x() + sizing.partyChart().width() >= sizing.parties().x())
+                    throw new AssertionError("Square cells and chart must not overlap their neighbours");
+            }
             var leader = layout.leader(); var image = layout.focusImage(); var title = layout.focusTitle();
             if (layout.election().x() + layout.election().width() >= layout.parties().x()
                     || layout.government().x() + layout.government().width() >= layout.parties().x()
