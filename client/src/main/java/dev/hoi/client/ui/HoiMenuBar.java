@@ -16,7 +16,10 @@ import java.util.function.Consumer;
 
 
 public final class HoiMenuBar {
+    private static CountryHud cachedHud;
+    private static List<Indicator> cachedIndicators = List.of();
     private HoiMenuBar() {}
+    public static void clear() { cachedHud = null; cachedIndicators = List.of(); HudTooltip.clear(); }
 
     public static int height(int width) { return width >= 600 ? 36 : 34; }
 
@@ -35,10 +38,11 @@ public final class HoiMenuBar {
     public static int statsRight(int width) { return width - TENSION_DOCK_WIDTH; }
 
     public enum Format { NUMBER, POLITICAL_POWER, COMMAND_POWER, EXPERIENCE, NUCLEAR, PERCENT, MONEY }
-    public record Indicator(String icon, String label, Number raw, Format format, String barLabel, Double ratio) {
+    public record Indicator(String icon, String label, Number raw, Format format, String barLabel, Double ratio, String value) {
+        public Indicator(String icon, String label, Number raw, Format format, String barLabel, Double ratio) { this(icon, label, raw, format, barLabel, ratio, value(icon, raw, format)); }
         public Indicator(String icon, String label, Number raw, Format format) { this(icon, label, raw, format, null, null); }
         public int width() { return format == Format.MONEY ? 67 : format == Format.POLITICAL_POWER || format == Format.PERCENT ? 54 : format == Format.EXPERIENCE || format == Format.COMMAND_POWER ? 48 : icon.equals("manpower") || icon.equals("fuel") || icon.equals("convoys") || icon.equals("factories") ? 52 : 40; }
-        public String value() {
+        private static String value(String icon, Number raw, Format format) {
             if (raw == null) return "—";
             return switch (format) {
                 case NUMBER -> icon.equals("factories") ? Long.toString(raw.longValue()) : number(raw.doubleValue());
@@ -53,6 +57,7 @@ public final class HoiMenuBar {
     }
 
     public static List<Indicator> indicators(CountryHud hud) {
+        if (hud == cachedHud) return cachedIndicators;
         var n = hud.national();
         var items = new ArrayList<>(List.of(
                 new Indicator("political_power", "정치력", n.politicalPower(), Format.POLITICAL_POWER),
@@ -71,7 +76,8 @@ public final class HoiMenuBar {
         items.add(new Indicator("nuclear", "핵폭탄", hud.nuclearStockpile(), Format.NUCLEAR));
         items.add(new Indicator("gdp", "실질 GDP (십억 달러)", hud.gdpBillions(), Format.MONEY));
         items.add(new Indicator("debt", "국가부채 (십억 달러)", hud.debtBillions(), Format.MONEY));
-        return List.copyOf(items);
+        cachedHud = hud; cachedIndicators = List.copyOf(items);
+        return cachedIndicators;
     }
 
     public static int maximumScroll(int width, CountryHud hud) {
@@ -108,8 +114,11 @@ public final class HoiMenuBar {
 
     public static void drawPassive(GuiGraphicsExtractor g, int width, CountryHud hud, String country) {
         draw(g, width, hud, -1, -1, 0);
-        for (var button : buttons(width, country, null, tab -> {}))
-            if (button instanceof TabButton tab) tab.extractContents(g, -1, -1, 0);
+        int tabWidth = tabWidth(width);
+        for (var tab : MenuTab.ORDER) drawTab(g, tab, country, false,
+                tab == MenuTab.POLITICS ? 4 : statsLeft(width) + (tab.ordinal() - 1) * tabWidth,
+                tab == MenuTab.POLITICS ? 3 : 17, tab == MenuTab.POLITICS ? flagWidth(width) : tabWidth - 2,
+                height(width) - (tab == MenuTab.POLITICS ? 6 : 20));
     }
 
     private static void drawTension(GuiGraphicsExtractor g, int width, CountryHud hud, int mx, int my) {
@@ -216,6 +225,10 @@ public final class HoiMenuBar {
 
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
             int x = getX(), y = getY(), w = getWidth(), h = getHeight();
+            drawTab(g, tab, country, selected, x, y, w, h);
+        }
+    }
+    private static void drawTab(GuiGraphicsExtractor g, MenuTab tab, String country, boolean selected, int x, int y, int w, int h) {
             var font = Minecraft.getInstance().font;
 
             if (selected) g.fillGradient(x, y, x + w, y + h, 0xFF454B4C, 0xFF202526);
@@ -231,6 +244,5 @@ public final class HoiMenuBar {
             if (selected) {
                 g.horizontalLine(x + 2, x + w - 3, y + h - 1, HoiMenuStyle.ACCENT);
             }
-        }
     }
 }

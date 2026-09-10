@@ -38,7 +38,10 @@ public final class DialogClient {
         });
     }
     static void receive(DialogProtocol.Show packet) {
-        var view = packet.view(); var client = Minecraft.getInstance();
+        DialogView view;
+        try { view = packet.view(); }
+        catch (IllegalArgumentException error) { pending = null; return; }
+        var client = Minecraft.getInstance();
         if (client.gui.screen() instanceof DialogScreen screen && screen.view().token().equals(view.token())) {
             if (view.revision() >= screen.view().revision()) screen.update(view);
             return;

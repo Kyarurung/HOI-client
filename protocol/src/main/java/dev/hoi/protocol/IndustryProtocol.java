@@ -46,7 +46,7 @@ public final class IndustryProtocol {
         public static final Type<Response> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","industry_response_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Response> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,800000),b->new Response(b.readUtf(800000)));
         public static Response of(IndustryView view){return new Response(JSON.toJson(view));}
-        public IndustryView view(){var v=JSON.fromJson(json,IndustryView.class);if(v==null)throw new IllegalArgumentException("Missing industry view");return v;}
+        public IndustryView view() { return PayloadJson.read(JSON, json, IndustryView.class); }
         @Override public Type<Response> type(){return TYPE;}
     }
 }

@@ -3,9 +3,22 @@
   "id": "hoi_client",
   "version": "${version}",
   "name": "HOI Client",
-  "description": "Dedicated HOI research tree and country research slots",
+  "description": "하츠 오브 아이언 IV의 대체 역사 모드인 The Fire Rises와 The Fire Rises Korea Plus를 기반으로 제작한 마인크래프트 모드입니다.",
   "environment": "client",
-  "mixins": ["hoi-client.mixins.json"],
-  "entrypoints": {"client": ["dev.hoi.client.HoiClient"]},
-  "depends": {"fabricloader": ">=0.19.5", "minecraft": "26.2", "java": ">=25", "fabric-api": "*", "hoi_protocol": "${version}"}
+  "mixins": [
+    "hoi-client.mixins.json"
+  ],
+  "entrypoints": {
+    "client": [
+      "dev.hoi.client.HoiClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "26.2",
+    "java": ">=25",
+    "fabric-api": "*",
+    "hoi_protocol": "${version}"
+  },
+  "icon": "hoi-client-icon.png"
 }

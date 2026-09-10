@@ -12,6 +12,17 @@ public final class MenuProtocol {
     private static final Gson JSON = new Gson();
     private MenuProtocol() {}
 
+    public record SelectionPreview(String json) implements CustomPacketPayload {
+        public static final SelectionPreview HIDDEN = new SelectionPreview("");
+        public SelectionPreview { new OpenScreen(json); }
+        public static final Type<SelectionPreview> TYPE = new Type<>(Identifier.parse("hoi:selection_preview_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, SelectionPreview> CODEC = StreamCodec.of(
+                (b, p) -> b.writeUtf(p.json, MAX_JSON), b -> new SelectionPreview(b.readUtf(MAX_JSON)));
+        public static SelectionPreview of(MenuView view) { return new SelectionPreview(JSON.toJson(view)); }
+        public MenuView view() { return PayloadJson.read(JSON, json, MenuView.class); }
+        @Override public Type<SelectionPreview> type() { return TYPE; }
+    }
+
 
     public record Refresh(String screen) implements CustomPacketPayload {
         public Refresh { if (screen == null || screen.length() > 36) throw new IllegalArgumentException("Invalid screen token"); }
@@ -37,11 +48,7 @@ public final class MenuProtocol {
             if (json == null || json.length() > MAX_JSON) throw new IllegalArgumentException("메뉴 데이터 한도 초과");
         }
         public static OpenScreen of(MenuView view) { return new OpenScreen(JSON.toJson(view)); }
-        public MenuView view() {
-            var view = JSON.fromJson(json, MenuView.class);
-            if (view == null) throw new IllegalArgumentException("Invalid menu snapshot");
-            return view;
-        }
+        public MenuView view() { return PayloadJson.read(JSON, json, MenuView.class); }
         @Override public Type<OpenScreen> type() { return TYPE; }
     }
 }

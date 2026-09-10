@@ -37,7 +37,7 @@ public final class WorldTensionProtocol {
         public static final StreamCodec<RegistryFriendlyByteBuf, Response> CODEC = StreamCodec.of(
                 (b,p) -> { b.writeUtf(p.token,36); b.writeUtf(p.json,900_000); }, b -> new Response(b.readUtf(36),b.readUtf(900_000)));
         public static Response of(String token, WorldTensionView view) { return new Response(token, JSON.toJson(view)); }
-        public WorldTensionView view() { var value = JSON.fromJson(json, WorldTensionView.class); if (value == null) throw new IllegalArgumentException("Missing tension view"); return value; }
+        public WorldTensionView view() { return PayloadJson.read(JSON, json, WorldTensionView.class); }
         @Override public Type<Response> type() { return TYPE; }
     }
 }

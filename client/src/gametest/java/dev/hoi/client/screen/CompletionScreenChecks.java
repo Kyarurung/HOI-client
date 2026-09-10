@@ -72,8 +72,14 @@ public final class CompletionScreenChecks {
             try {
                 var method = net.minecraft.client.KeyboardHandler.class.getDeclaredMethod("keyPress", long.class, int.class, KeyEvent.class);
                 method.setAccessible(true);
+                check(!net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(MenuProtocol.Refresh.TYPE), "Fixture server has no HOI menu receiver");
+                var messagesField = net.minecraft.client.gui.components.ChatComponent.class.getDeclaredField("allMessages");
+                messagesField.setAccessible(true);
+                var messages = (java.util.List<?>) messagesField.get(c.gui.hud.getChat());
+                int messageCount = messages.size();
                 method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_PRESS, new KeyEvent(GLFW.GLFW_KEY_F, 0, GLFW.GLFW_MOD_SHIFT));
                 check(!c.options.keySwapOffhand.consumeClick(), "Shift+F is intercepted before vanilla queues an offhand swap");
+                check(messages.size() == messageCount && c.gui.screen() == null, "Shift+F on an unsupported server must not print chat or open a menu");
                 method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_RELEASE, new KeyEvent(GLFW.GLFW_KEY_F, 0, 0));
                 method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_PRESS, new KeyEvent(GLFW.GLFW_KEY_F, 0, 0));
                 check(c.options.keySwapOffhand.consumeClick(), "Plain F still queues vanilla offhand swap");

@@ -33,7 +33,7 @@ tasks.register('runGameTest') {
     description = 'Runs research UI tests on the actual Minecraft client.'
     dependsOn ':client:runClientGameTest'
 }
-tasks.register('remapJar', Copy) {
+tasks.register('remapJar', Sync) {
     group = 'build'
     description = 'Stages only the client mod; Minecraft 26.2 is unobfuscated.'
     dependsOn ':client:jar'

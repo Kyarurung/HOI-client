@@ -43,6 +43,8 @@ public record ResearchLayout(List<Node> nodes, List<Integer> years, int width, i
         if (filter.isEmpty()) yearSet.addAll(TIMELINES.getOrDefault(category, List.of()));
         selected.forEach(tech -> yearSet.add(tech.year()));
         var years = List.copyOf(yearSet);
+        var columns = new HashMap<Integer, Integer>();
+        for (int i = 0; i < years.size(); i++) columns.put(years.get(i), i);
 
         var ids = new HashMap<String, Tech>(); selected.forEach(t -> ids.put(t.id(), t));
         var groups = new HashMap<String, String>(); selected.forEach(t -> groups.put(t.id(), t.id()));
@@ -55,7 +57,7 @@ public record ResearchLayout(List<Node> nodes, List<Integer> years, int width, i
         sizes.entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey).sorted().forEach(id -> lanes.put(id, lanes.size()));
         var occupied = new HashMap<Integer, Set<Integer>>(); var nodes = new ArrayList<Node>(); int maxRow = 0;
         for (var tech : selected) {
-            int column = years.indexOf(tech.year()), row = lanes.getOrDefault(root(groups, tech.id()), lanes.size());
+            int column = columns.get(tech.year()), row = lanes.getOrDefault(root(groups, tech.id()), lanes.size());
             var used = occupied.computeIfAbsent(column, key -> new HashSet<>());
             while (used.contains(row)) row++;
             used.add(row); maxRow = Math.max(maxRow, row + 1);
@@ -117,7 +119,11 @@ public record ResearchLayout(List<Node> nodes, List<Integer> years, int width, i
         return new ResearchLayout(List.copyOf(nodes),selected.stream().map(Tech::year).distinct().sorted().toList(),width,height);
     }
     private static String root(Map<String, String> groups, String id) {
-        while (!groups.get(id).equals(id)) id = groups.get(id);
+        while (!groups.get(id).equals(id)) {
+            String parent = groups.get(id);
+            groups.put(id, groups.get(parent));
+            id = parent;
+        }
         return id;
     }
     public Node at(double x, double y) { return nodes.stream().filter(n -> n.contains(x, y)).findFirst().orElse(null); }

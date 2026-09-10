@@ -5,7 +5,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 
-/** Text sizes are measured in GUI pixels, independently of the window scale. */
 public final class UiText {
     public static final int MIN_HEIGHT = 10;
     private UiText() {}

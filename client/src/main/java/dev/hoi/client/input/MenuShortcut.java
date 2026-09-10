@@ -19,7 +19,8 @@ public final class MenuShortcut {
         if (window != client.getWindow().handle() || client.player == null || client.gui.screen() != null
                 || client.gui.overlay() != null || !client.isWindowActive() || !matches(event)) return false;
         if (action == GLFW.GLFW_PRESS) {
-            HoiClient.openMenu(MenuTab.POLITICS);
+            if (net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(dev.hoi.protocol.MenuProtocol.Refresh.TYPE))
+                HoiClient.openMenu(MenuTab.POLITICS);
             return true;
         }
         return action == GLFW.GLFW_REPEAT;

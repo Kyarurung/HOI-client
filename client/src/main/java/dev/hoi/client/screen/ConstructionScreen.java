@@ -48,8 +48,8 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     public void open(){send(ConstructionProtocol.Action.OPEN,"",0,null);}
     public void update(ConstructionView next) {
         if(!next.session().equals(token))return;
-        if(next.country().isEmpty()){minecraft.gui.setScreen(null);return;}
-        if(view!=null&&next.revision()<view.revision())return;
+        if(next.country().isEmpty() || view!=null&&!next.country().equals(view.country())){minecraft.gui.setScreen(null);return;}
+        if(view!=null&&next.revision()<=view.revision())return;
         view=next;pending=0;rebuildWidgets();
     }
     int panelWidth(){return pane;}

@@ -17,7 +17,7 @@ import java.io.IOException;
 public final class UiAssets {
     private static final Map<Identifier, int[]> DIMENSIONS = new HashMap<>();
     private UiAssets() {}
-    public static void clear() { DIMENSIONS.clear(); ResearchDetails.clear(); KeywordIcons.clear(); }
+    public static void clear() { DIMENSIONS.clear(); ResearchDetails.clear(); KeywordIcons.clear(); HoiMenuBar.clear(); }
 
     public static boolean cover(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");

@@ -32,7 +32,7 @@ public final class CountryProtocol {
         public static final StreamCodec<RegistryFriendlyByteBuf, Response> CODEC = StreamCodec.of(
                 (b,p) -> { b.writeUtf(p.token,36); b.writeUtf(p.json,200_000); }, b -> new Response(b.readUtf(36),b.readUtf(200_000)));
         public static Response of(String token, CountryView view) { return new Response(token, JSON.toJson(view)); }
-        public CountryView view() { var view = JSON.fromJson(json, CountryView.class); if (view == null) throw new IllegalArgumentException("Missing country view"); return view; }
+        public CountryView view() { return PayloadJson.read(JSON, json, CountryView.class); }
         @Override public Type<Response> type() { return TYPE; }
     }
 

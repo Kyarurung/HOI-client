@@ -53,7 +53,9 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     public String session() { return view.session(); }
     public void update(ResearchView next) {
-        if (next.revision() < view.revision()) return;
+        if (!next.session().equals(view.session())) return;
+        if (!next.country().equals(view.country())) { minecraft.gui.setScreen(null); return; }
+        if (next.revision() <= view.revision()) return;
         view = next; pending = 0;
         selectedSlot = Math.min(selectedSlot, view.slots().size() - 1);
         if (detail != null && view.technology(detail) == null) detail = null;
@@ -116,11 +118,13 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             }));
         }
     }
+    private final Map<String, ResearchLayout.Node> nodesById = new HashMap<>();
     private void relayout() {
         layout = ResearchPresentation.apply(ResearchLayout.create(view.technologies(), category, ""), minecraft.getResourceManager(), width - 20);
         referenceLabels = TfrResearchLayout.applies(layout) ? ResearchTreeLabels.create(layout, font::width, font.lineHeight) : List.of();
         treePadding = font.lineHeight + 3;
         layout = layout.withVerticalPadding(treePadding);
+        nodesById.clear(); layout.nodes().forEach(n -> nodesById.put(n.tech().id(), n));
         referenceLabels = referenceLabels.stream().map(label -> new ResearchTreeLabels.Label(label.text(), label.x(),
                 label.y() + treePadding, label.width(), label.height(), label.year())).toList();
         referenceConnections = TfrResearchLayout.applies(layout) ? TfrResearchLayout.connections(layout) : List.of();
@@ -223,7 +227,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             int gy=layout.vertical()?(int)(treeTop+guide.getValue()-scrollY):treeTop+treePadding+2;
             if(gy>=treeTop&&gy<treeBottom) g.text(font,guide.getKey()+"년",gx,gy,GOLD);
         }
-        var byId = new HashMap<String,ResearchLayout.Node>(); layout.nodes().forEach(n -> byId.put(n.tech().id(), n));
+        var byId = nodesById;
         if (reference) drawReferenceConnections(g);
         if (!reference) for (var node : layout.nodes()) for (var parentId : ResearchLayout.parents(node.tech())) {
             var parent = byId.get(parentId); if (parent == null) continue;

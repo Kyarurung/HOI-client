@@ -14,7 +14,16 @@ public final class HudTooltip {
     private static Object screen;
     private static String key;
     private static int offset, maximum;
+    private static Font cachedFont;
+    private static CountryHud cachedHud;
+    private static HoiMenuBar.Indicator cachedItem;
+    private static int cachedWidth;
+    private static List<FormattedCharSequence> cachedBody = List.of();
     private HudTooltip() {}
+    public static void clear() {
+        screen = null; key = null; offset = 0; maximum = 0;
+        cachedFont = null; cachedHud = null; cachedItem = null; cachedBody = List.of();
+    }
 
     public static boolean scroll(double amount) {
         var client = Minecraft.getInstance();
@@ -27,6 +36,7 @@ public final class HudTooltip {
     }
 
     public static List<FormattedCharSequence> body(Font font, int width, CountryHud hud, HoiMenuBar.Indicator item) {
+        if (font == cachedFont && hud == cachedHud && item.equals(cachedItem) && width == cachedWidth) return cachedBody;
         int wrap = Math.max(60, (int)(Math.min(310, width - 36) / UiText.scale(font)));
         var lines = new ArrayList<FormattedCharSequence>();
         String current = item.raw() == null ? "—" : item.format() == HoiMenuBar.Format.PERCENT
@@ -46,7 +56,8 @@ public final class HudTooltip {
                     + (item.ratio() == null ? "—" : HoiMenuBar.rawNumber(item.ratio() * 100) + "%")), wrap));
             lines.addAll(font.split(Component.literal("세부 내역 없음").withStyle(s -> s.withColor(0x9BABB4)), wrap));
         }
-        return List.copyOf(lines);
+        cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;
+        cachedBody = List.copyOf(lines); return cachedBody;
     }
 
     public static int visibleRows(int height, Font font) { return Math.max(1, (height - 76) / 12); }

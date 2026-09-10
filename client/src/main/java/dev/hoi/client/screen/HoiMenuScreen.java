@@ -29,6 +29,7 @@ import java.util.*;
 public final class HoiMenuScreen extends Screen implements SidebarMovement.Screen {
     private static final int TEXT = HoiMenuStyle.TEXT, GOLD = 0xFFFFAA00, MUTED = HoiMenuStyle.MUTED;
     private MenuView view;
+    private boolean selectionPreview;
     private final Runnable researchOpen;
     private final String token = UUID.randomUUID().toString();
     private int refreshTicks;
@@ -62,9 +63,18 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         super(Component.literal("HOI · 국가 메뉴"));
         this.view = view; this.selected = selected; this.researchOpen = researchOpen;
     }
+    public static HoiMenuScreen selection(MenuView view) {
+        var screen = new HoiMenuScreen(view);
+        screen.selectionPreview = true;
+        return screen;
+    }
+    public boolean selectionPreview() { return selectionPreview; }
+    public int selectionLeft() { return (width - pane) / 2; }
+    public int selectionTop() { return top; }
+    public int selectionHeight() { return politicsLayout().contentTop() - top; }
     public String token() { return token; }
     public void update(MenuView next) {
-        if (next.equals(view)) return;
+        if (selectionPreview || next.equals(view)) return;
         if (view != null && !view.country().equals(next.country())) { selected = MenuTab.POLITICS; collapsed.clear(); manufacturerGroup = null; manufacturerDetailId = null; }
         var old = detail;
         boolean sameCountry = view != null && view.country().equals(next.country());
@@ -87,10 +97,21 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     }
     public MenuTab selectedTab() { return selected; }
     public int panelWidth() { return pane; }
-    @Override public boolean allowsMovement() { return detail == null && manufacturerGroup == null; }
+    @Override public boolean allowsMovement() { return !selectionPreview && detail == null && manufacturerGroup == null; }
     @Override protected void init() {
         pane = HoiPanelLayout.width(selected, width);
         top = HoiMenuBar.height(width);
+        if (selectionPreview) {
+            pane = Math.min(width - 16, 726 / Math.max(1, minecraft.getWindow().getGuiScale()));
+            while (pane > 160 && new PoliticsLayout(pane, 0).contentTop() > height - 16) pane--;
+            top = (height - (new PoliticsLayout(pane, 0).contentTop())) / 2;
+            preparePartyChart();
+            spirits = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 정신"))
+                    .flatMap(s -> s.entries().stream()).filter(e -> !e.name().equals("없음")).toList();
+            spiritScroll = Math.clamp(spiritScroll, 0, maximumSpiritScroll());
+            addRenderableWidget(new HoiMenuButton("×", selectionLeft() + pane - 25, top + 3, 19, 19, this::onClose));
+            return;
+        }
         HoiMenuBar.buttons(width, view == null ? "" : view.country(), selected, tab -> {
             if (tab == MenuTab.INTELLIGENCE) { HoiClient.openAgency(); return; }
             if (tab == MenuTab.RESEARCH) { researchOpen.run(); return; }
@@ -298,11 +319,13 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         drawPoliticalArt(g, "politics/leader_frame", leader);
         centeredPoliticsText(g, person.value(), new PoliticsLayout.Box(leader.x() + 4, leader.y() + leader.height() * 218 / 258,
                 leader.width() - 8, leader.height() * 34 / 258), TEXT);
-        drawPoliticalArt(g, "politics/focus_background", layout.focus());
-        drawPoliticalArt(g, "politics/focus_select", layout.focusTitle());
-        var focus = politicsFocus();
-        drawPoliticalArt(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), layout.focusImage());
-        centeredPoliticsText(g, focus.value(), layout.focusTitle(), focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
+        if (!selectionPreview) {
+            drawPoliticalArt(g, "politics/focus_background", layout.focus());
+            drawPoliticalArt(g, "politics/focus_select", layout.focusTitle());
+            var focus = politicsFocus();
+            drawPoliticalArt(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), layout.focusImage());
+            centeredPoliticsText(g, focus.value(), layout.focusTitle(), focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
+        }
         politicsCell(g, "경제-정치 연합", layout.union());
         var ideology = politicsEntry("세부 이념"); var ideologyBox = layout.ideology();
         HoiMenuStyle.recess(g, ideologyBox.x(), ideologyBox.y(), ideologyBox.width(), ideologyBox.height());
@@ -333,7 +356,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             centeredPoliticsText(g, "다음 선거", new PoliticsLayout.Box(electionBox.x(), middle - 12, electionBox.width(), 10), TEXT);
             centeredPoliticsText(g, election, new PoliticsLayout.Box(electionBox.x(), middle + 2, electionBox.width(), 10), GOLD);
         }
-        if (view.balance() != null) {
+        if (!selectionPreview && view.balance() != null) {
             var b = balanceButton(); var balance = view.balance();
             HoiMenuStyle.recess(g, b.x(), b.y(), b.width(), b.height());
             UiAssets.draw(g, balance.value() < 0 ? balance.leftIcon() : balance.rightIcon(), b.x() + 2, b.y() + 2, Math.min(24, b.width()/2), b.height() - 4);
@@ -341,7 +364,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         }
         politicsCell(g, "경제 모델", layout.economy());
         politicsCell(g, "세력", layout.faction());
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; !selectionPreview && i < 2; i++) {
             var entry = politicsEntry(i == 0 ? "점령지" : "협력정부");
             drawPoliticalArt(g, "politics/" + (i == 0 ? "occupied" : "collaboration") + (entry.progress() > 0 ? "_active" : "_inactive"), layout.status(i));
         }
@@ -358,8 +381,10 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             if (py + 10 > list.y() + list.height()) break;
             int swatch = Math.max(2, (int)(pitch - 2));
             g.fill(list.x() + 4, py, list.x() + 4 + swatch, py + swatch, partyColor(party.icon()));
-            g.pose().pushMatrix(); g.pose().translate(list.x() + 12, py); g.pose().scale(scale);
-            g.text(font, font.plainSubstrByWidth(party.name() + " (" + party.value() + ")", (int)((list.width() - 16) / scale)), 0, 0, TEXT);
+            String label = party.name() + " (" + party.value() + ")";
+            float rowScale = Math.min(scale, (list.width() - 17f) / Math.max(1, font.width(label)));
+            g.pose().pushMatrix(); g.pose().translate(list.x() + 13, py); g.pose().scale(rowScale);
+            g.text(font, label, 0, 0, TEXT);
             g.pose().popMatrix();
         }
         if (parties.isEmpty()) officerText(g, "정보 없음", list.x() + 5, list.y() + 5, list.width() - 10, MUTED);
@@ -369,7 +394,13 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         UiAssets.draw(g, art, box.x(), box.y(), box.width(), box.height());
     }
     private void centeredPoliticsText(GuiGraphicsExtractor g, String text, PoliticsLayout.Box box, int color) {
-        dev.hoi.client.ui.UiText.centered(g, font, text, box.x() + 4, box.y(), box.width() - 8, Math.max(10, box.height()), color);
+        if (selectionPreview) {
+            float scale = Math.min(dev.hoi.client.ui.UiText.scale(font), (box.width() - 8f) / Math.max(1, font.width(text)));
+            scale = Math.min(scale, box.height() / (float)font.lineHeight);
+            g.pose().pushMatrix();
+            g.pose().translate(box.x() + (box.width() - font.width(text) * scale) / 2, box.y() + (box.height() - font.lineHeight * scale) / 2);
+            g.pose().scale(scale); g.text(font, text, 0, 0, color); g.pose().popMatrix();
+        } else dev.hoi.client.ui.UiText.centered(g, font, text, box.x() + 4, box.y(), box.width() - 8, Math.max(10, box.height()), color);
     }
     private void politicsCell(GuiGraphicsExtractor g, String label, PoliticsLayout.Box box) {
         politicsCell(g, label, box.x(), box.y(), box.width(), box.height());
@@ -480,9 +511,20 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         if (ClientPlayNetworking.canSend(MenuProtocol.Refresh.TYPE)) ClientPlayNetworking.send(new MenuProtocol.Refresh(token));
     }
     @Override public void tick() {
-        if (refreshTicks++ % 40 == 0) requestRefresh();
+        if (!selectionPreview && refreshTicks++ % 40 == 0) requestRefresh();
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
+        if (selectionPreview) {
+            g.pose().pushMatrix();
+            g.pose().translate(selectionLeft(), 0);
+            HoiMenuStyle.panel(g, 0, top, pane, selectionHeight());
+            HoiMenuStyle.heading(g, font, trim(view.countryName(), pane - 44), 10, top + 9, pane - 44, TEXT);
+            drawPoliticsBanner(g);
+            g.pose().popMatrix();
+            super.extractRenderState(g, mx, my, delta);
+            drawPoliticsTooltip(g, mx - selectionLeft(), my, mx);
+            return;
+        }
         HoiMenuBar.draw(g, width, view == null ? dev.hoi.protocol.CountryHud.UNKNOWN : view.hud(), mx, my, hudScroll);
         HoiMenuStyle.panel(g, 0, top, pane, height - top);
         HoiMenuStyle.heading(g, font, trim(selected == MenuTab.POLITICS ? "정치" : selected.label(), pane - 44), 10, top + 9, pane - 44, TEXT);
@@ -513,6 +555,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         if (detail != null) drawDetail(g);
         if (balanceOpen && selected == MenuTab.POLITICS && view.balance() != null) drawBalance(g, mx, my);
         super.extractRenderState(g, mx, my, delta);
+        drawPoliticsTooltip(g, mx, my, mx);
+    }
+    private void drawPoliticsTooltip(GuiGraphicsExtractor g, int mx, int my, int screenX) {
         var hovered = politicsHover(mx, my);
         if (!Objects.equals(hovered, hoveredPolitics)) tooltipScroll = 0;
         hoveredPolitics = hovered;
@@ -523,7 +568,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             lines.addAll(HoiTooltips.lines(font, hovered.detail(), width));
             int count = Math.max(1, (height - 48) / (font.lineHeight + 1));
             tooltipScroll = Math.clamp(tooltipScroll, 0, Math.max(0, lines.size() - count));
-            g.setTooltipForNextFrame(font, lines.subList(tooltipScroll, Math.min(lines.size(), tooltipScroll + count)), mx, my);
+            g.setTooltipForNextFrame(font, lines.subList(tooltipScroll, Math.min(lines.size(), tooltipScroll + count)), screenX, my);
         }
     }
     private PoliticsLayout.Box balanceButton() {
@@ -642,6 +687,13 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         }
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
+        if (selectionPreview) {
+            x -= selectionLeft();
+            if (politicsLayout().spirits().contains(x, y)) {
+                spiritScroll = Math.clamp(spiritScroll - (int)((horizontal != 0 ? horizontal : vertical) * spiritPitch()), 0, maximumSpiritScroll());
+            } else if (politicsHover(x, y) != null) tooltipScroll -= (int)(vertical * 3);
+            return true;
+        }
         if (view != null && selected == MenuTab.POLITICS && detail == null && manufacturerGroup == null && politicsLayout().parties().contains(x, y)) {
 
             return true;

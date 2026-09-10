@@ -2,7 +2,8 @@
   "schemaVersion": 1,
   "id": "hoi_protocol",
   "version": "${version}",
-  "name": "HOI Research Protocol",
+  "name": "HOI Protocol",
+  "description": "HOI 서버와 클라이언트 사이의 연구·국가 정보·지도·화면·소리 통신을 담당하는 공용 모듈입니다.",
   "environment": "*",
   "depends": {"fabricloader": ">=0.19.5", "minecraft": "26.2", "java": ">=25", "fabric-api": "*"}
 }

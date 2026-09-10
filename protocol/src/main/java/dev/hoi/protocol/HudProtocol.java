@@ -29,7 +29,7 @@ public final class HudProtocol {
         public static State of(String country, CountryHud hud) { return new State(country, JSON.toJson(hud)); }
         public CountryHud hud() {
             if (country.isEmpty()) return CountryHud.UNKNOWN;
-            var hud = JSON.fromJson(json, CountryHud.class);
+            var hud = PayloadJson.read(JSON, json, CountryHud.class);
             if (hud == null) throw new IllegalArgumentException("Missing HUD data");
             return hud;
         }

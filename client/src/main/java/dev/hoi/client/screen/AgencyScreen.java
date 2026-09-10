@@ -49,8 +49,8 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     public void open() { send(AgencyProtocol.Kind.OPEN, "", List.of()); }
     public void update(AgencyView next) {
         if (!next.session().equals(token)) return;
-        if (next.country().isEmpty()) { minecraft.gui.setScreen(null); return; }
-        if (view != null && next.revision() < view.revision()) return;
+        if (next.country().isEmpty() || view != null && !next.country().equals(view.country())) { minecraft.gui.setScreen(null); return; }
+        if (view != null && next.revision() <= view.revision()) return;
         if (minecraft.gui.screen() instanceof AgencyOperationScreen operation && operation.backdrop() == this) operation.update(next);
         pendingTicks = 0;
         view = next;
@@ -429,7 +429,6 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         UiText.centered(g,font,"첩보기관",12,top+95,(pane-12)*185/530-8,11,TEXT);
         UiAssets.nineSlice(g,"agency/ui/section",6,top+150,pane-12,17,5,.5);
         UiText.centered(g,font,"작전",12,top+153,(pane-12)*185/530-8,11,TEXT);
-        // Preserve the source slanted divider and the three inset counter wells.
         UiAssets.nineSlice(g,"agency/ui/operatives",6,top+168,pane-12,46,3,.5);
         if(view == null)return;
         String[] ids={"recruit","captured_count","killed_count"};

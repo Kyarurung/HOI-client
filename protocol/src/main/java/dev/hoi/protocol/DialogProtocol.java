@@ -17,7 +17,7 @@ public final class DialogProtocol {
         public static final Type<Show> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","dialog_show_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Show> CODEC=StreamCodec.of((b,p)->{b.writeUtf(p.json,220000);b.writeBoolean(p.open);},b->new Show(b.readUtf(220000),b.readBoolean()));
         public static Show of(DialogView view,boolean open){return new Show(JSON.toJson(view),open);}
-        public DialogView view(){return Objects.requireNonNull(JSON.fromJson(json,DialogView.class));}
+        public DialogView view() { return PayloadJson.read(JSON, json, DialogView.class); }
         @Override public Type<Show> type(){return TYPE;}
     }
     public record Close(String token) implements CustomPacketPayload {

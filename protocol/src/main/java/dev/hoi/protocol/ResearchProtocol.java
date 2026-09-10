@@ -20,6 +20,11 @@ public final class ResearchProtocol {
         @Override public Type<OpenScreen> type() { return TYPE; }
     }
     public record Request(Action action, String session, long revision, int slot, String technology) implements CustomPacketPayload {
+        public Request {
+            if (action == null || session == null || session.length() > 36 || revision < 0 || slot < -1
+                    || technology == null || technology.length() > 160)
+                throw new IllegalArgumentException("Invalid research request");
+        }
         public static final Type<Request> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "research_request_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Request> CODEC = StreamCodec.of(
                 (b, p) -> { b.writeEnum(p.action); b.writeUtf(p.session, 36); b.writeVarLong(p.revision); b.writeVarInt(p.slot); b.writeUtf(p.technology, 160); },
@@ -34,7 +39,7 @@ public final class ResearchProtocol {
             if (json == null || json.length() > MAX_JSON) throw new IllegalArgumentException("연구 화면 데이터 한도 초과");
         }
         public static Response of(ResearchView view) { return new Response(JSON.toJson(view)); }
-        public ResearchView view() { return JSON.fromJson(json, ResearchView.class); }
+        public ResearchView view() { return PayloadJson.read(JSON, json, ResearchView.class); }
         @Override public Type<Response> type() { return TYPE; }
     }
 
@@ -46,6 +51,7 @@ public final class ResearchProtocol {
         PayloadTypeRegistry.clientboundPlay().register(MenuProtocol.OpenScreen.TYPE, MenuProtocol.OpenScreen.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(MenuProtocol.Refresh.TYPE, MenuProtocol.Refresh.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MenuProtocol.Update.TYPE, MenuProtocol.Update.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(MenuProtocol.SelectionPreview.TYPE, MenuProtocol.SelectionPreview.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(AgencyProtocol.Request.TYPE, AgencyProtocol.Request.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AgencyProtocol.Response.TYPE, AgencyProtocol.Response.CODEC);
         registered = true;

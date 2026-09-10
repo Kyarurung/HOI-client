@@ -79,6 +79,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             });
             context.setScreen(() -> null); context.waitTicks(3); gui2Screenshot(context, "hoi-map-selector-icons");
             var menu = fixtureMenu();
+            dev.hoi.client.screen.SelectionPreviewChecks.run(context, menu);
             context.runOnClient(client -> CampaignHud.accept(HudProtocol.State.of("KOR",menu.hud())));
             context.setScreen(() -> null); context.waitTicks(3); context.takeScreenshot("hoi-persistent-country-hud");
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(2);

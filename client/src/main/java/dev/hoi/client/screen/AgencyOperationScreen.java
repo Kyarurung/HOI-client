@@ -9,7 +9,6 @@ import net.minecraft.network.chat.Component;
 import java.util.*;
 import java.util.function.Consumer;
 
-/** Preparation uses only the choices issued by the private agency session. */
 final class AgencyOperationScreen extends Screen {
     private final AgencyScreen parent;
     private AgencyView.Item item;
