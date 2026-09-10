@@ -37,15 +37,22 @@ public final class DialogScreenChecks {
             context.setScreen(() -> new DialogScreen(view)); context.waitTicks(4);
             context.takeScreenshot("hoi-dialog-" + view.kind().name().toLowerCase(Locale.ROOT));
         }
-        for (int[] size : new int[][]{{854, 480}, {640, 360}}) {
+        for (int[] size : new int[][]{{2560, 1440}, {1600, 1000}, {854, 480}, {640, 360}}) {
+            context.runOnClient(client -> client.options.guiScale().set(2));
             context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(3);
             for (var view : views) {
                 context.setScreen(() -> new DialogScreen(view)); context.waitTicks(2);
                 context.runOnClient(client -> {
                     var screen = (DialogScreen) client.gui.screen();
+                    if (size[0] >= 1600 && (screen.width != size[0] / 2 || screen.height != size[1] / 2))
+                        throw new AssertionError("Reference captures require effective GUI scale 2");
                     float expectedScale=view.kind()==DialogView.Kind.EVENT||view.kind()==DialogView.Kind.GLOBAL_EVENT?0.9f:1;
                     if (screen.textScale()!=expectedScale) throw new AssertionError("Only country and global event text is reduced");
                     if (Math.abs(screen.panelLeft() * 2 + screen.panelWidth() - screen.width) > 1) throw new AssertionError("Dialog is not centered");
+                    if (size[0] == 2560 && view.kind() == DialogView.Kind.SUPER_EVENT && screen.panelWidth() <= screen.panelHeight())
+                        throw new AssertionError("Super event keeps the wide reference proportions");
+                    if (size[0] == 2560 && (view.kind() == DialogView.Kind.EVENT || view.kind() == DialogView.Kind.GLOBAL_EVENT) && screen.panelWidth() >= screen.panelHeight())
+                        throw new AssertionError("Country and global events keep portrait proportions");
                     if (screen.bodyViewportHeight() <= 0) throw new AssertionError("Choices must leave a visible body viewport");
                     for (var child : screen.children()) if (child instanceof Button b && (b.getX() < 0 || b.getY() < 0 || b.getRight() > screen.width || b.getBottom() > screen.height))
                         throw new AssertionError("Dialog control outside compact screen");
@@ -65,7 +72,7 @@ public final class DialogScreenChecks {
                         if (reached.size() != 11) throw new AssertionError("Every server choice must remain accessible in a compact viewport");
                     }
                 });
-                context.waitTicks(2); context.takeScreenshot("hoi-dialog-" + view.kind().name().toLowerCase(Locale.ROOT) + "-" + size[0]);
+                context.waitTicks(2); context.takeScreenshot("hoi-dialog-" + view.kind().name().toLowerCase(Locale.ROOT) + "-" + size[0] + (size[0] >= 1600 ? "-gui2" : "-compact"));
             }
         }
         context.runOnClient(client -> {

@@ -64,7 +64,8 @@ public final class DialogClient {
         var parent = contentScreen();
         suspending = view.completion() && menuScreen(parent);
         try {
-            client.gui.setScreen(view.completion() ? new CompletionScreen(view, suspending ? parent : null) : new DialogScreen(view));
+            client.gui.setScreen(view.completion() ? new CompletionScreen(view, suspending ? parent : null)
+                    : view.kind() == DialogView.Kind.POLITICS ? new PoliticsChoiceScreen(view, parent) : new DialogScreen(view));
         } finally { suspending = false; }
         if (view.kind() == DialogView.Kind.SUPER_EVENT) SuperEventAudio.play(view.token(), view.sound());
     }
@@ -73,6 +74,7 @@ public final class DialogClient {
         var client = Minecraft.getInstance();
         if (client.gui.screen() instanceof DialogScreen screen && screen.view().token().equals(token)) {
             if (screen instanceof CompletionScreen completion) completion.dismiss();
+            else if (screen instanceof PoliticsChoiceScreen politics) politics.dismiss();
             else client.gui.setScreen(null);
         }
     }

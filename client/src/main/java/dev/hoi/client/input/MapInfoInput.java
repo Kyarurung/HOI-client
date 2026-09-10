@@ -13,7 +13,7 @@ public final class MapInfoInput {
         if (client.player == null || client.gui.screen() != null || !ClientPlayNetworking.canSend(DialogProtocol.MapClick.TYPE)) return false;
         var item = client.player.getMainHandItem();
         int selector = item.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getIntOr("hoi_atlas_selector", 0);
-        if (!item.is(Items.CARROT_ON_A_STICK) || selector < 1 || selector > 4) return false;
+        if (!item.is(Items.CARROT_ON_A_STICK) || selector < 1 || selector > 9) return false;
         ClientPlayNetworking.send(DialogProtocol.MapClick.INSTANCE); return true;
     }
 }

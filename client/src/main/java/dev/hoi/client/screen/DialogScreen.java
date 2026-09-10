@@ -20,6 +20,7 @@ public class DialogScreen extends Screen {
     DialogView view() { return view; }
     int panelLeft() { return left; }
     int panelWidth() { return pane; }
+    int panelHeight() { return panelHeight; }
     int bodyViewportHeight() { return bodyBottom - bodyTop; }
     int scrollOffset() { return scroll; }
     void update(DialogView next) {
@@ -30,10 +31,16 @@ public class DialogScreen extends Screen {
     float textScale() { return paper() ? 0.9f : 1; }
     @Override protected void init() {
         boolean event = paper() || view.kind() == DialogView.Kind.SUPER_EVENT;
-        int availableWidth = event ? Math.max(280, (width - 16) * 85 / 100) : width - 16;
-        int availableHeight = event ? Math.max(240, (height - 16) * 85 / 100) : height - 16;
-        pane = Math.min(width - 16, Math.min(availableWidth, view.kind() == DialogView.Kind.SUPER_EVENT ? 510 : paper() ? 382 : view.kind() == DialogView.Kind.STATE ? 440 : 450));
-        panelHeight = Math.min(height - 16, Math.min(availableHeight, view.kind() == DialogView.Kind.SUPER_EVENT ? pane * 3 / 5 + 41 : paper() ? 450 : 530));
+        if (event) {
+            // Original 2560x1440 reference: super 1000x640, paper 620x800.
+            double scale = Math.min(width / 1280.0, height / 720.0);
+            boolean wide = view.kind() == DialogView.Kind.SUPER_EVENT;
+            pane = Math.min(width - 16, Math.max(wide ? 320 : 240, (int)Math.round((wide ? 500 : 310) * scale)));
+            panelHeight = Math.min(height - 16, Math.max(220, (int)Math.round(pane * (wide ? .64 : 800.0 / 620))));
+        } else {
+            pane = Math.min(width - 16, view.kind() == DialogView.Kind.STATE ? 440 : 450);
+            panelHeight = Math.min(height - 16, 530);
+        }
         left = (width - pane) / 2; top = (height - panelHeight) / 2;
 
         int capacity = 2 * Math.clamp((panelHeight - 60 - 40 - 34) / 24, 1, 3);
@@ -70,7 +77,7 @@ public class DialogScreen extends Screen {
         } else HoiMenuStyle.panel(g, left, top, pane, panelHeight);
         String caption = switch (view.kind()) {
             case STATE -> "주 정보"; case DIPLOMACY -> "외교 알림"; case EVENT -> "국가 이벤트 · 자국";
-            case GLOBAL_EVENT -> "국제 뉴스 · 전 세계"; case SUPER_EVENT -> "SUPER EVENT · 전 세계"; case IDEOLOGIES -> "TFR 이념";
+            case GLOBAL_EVENT -> "국제 뉴스 · 전 세계"; case SUPER_EVENT -> "SUPER EVENT · 전 세계"; case IDEOLOGIES -> "TFR 이념"; case POLITICS -> "정치";
         };
         text(g, Component.literal(caption).getVisualOrderText(), left + 12, top + 11, HoiMenuStyle.TEXT);
         int ink = paper() ? 0xff29212b : HoiMenuStyle.TEXT;
@@ -133,8 +140,9 @@ public class DialogScreen extends Screen {
     }
     private int image(GuiGraphicsExtractor g, int y) {
         if (view.image().isEmpty()) return y;
-        int imageHeight = Math.min(view.kind() == DialogView.Kind.SUPER_EVENT ? 230 : 180, Math.max(75, panelHeight * 2 / 5));
-        if (UiAssets.draw(g, view.image(), left + 16, y, pane - 32, imageHeight)) return y + imageHeight + 12;
+        int imageWidth = paper() ? pane * 2 / 3 : pane - 32;
+        int imageHeight = paper() ? Math.max(48, panelHeight / 5) : Math.min(180, Math.max(75, panelHeight * 2 / 5));
+        if (UiAssets.draw(g, view.image(), left + (pane - imageWidth) / 2, y, imageWidth, imageHeight)) return y + imageHeight + 12;
         return y;
     }
     private String trim(String text, int space) { return font.width(text) <= space ? text : font.plainSubstrByWidth(text, Math.max(1, space - 9)) + "…"; }

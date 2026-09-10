@@ -28,7 +28,7 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
             throw new IllegalArgumentException("Invalid HUD range");
         if (national == null) national = NationalIndicators.UNKNOWN;
         details = details == null ? java.util.Map.of() : java.util.Map.copyOf(details);
-        if (details.size() > 16) throw new IllegalArgumentException("Too many HUD details");
+        if (details.size() > 17) throw new IllegalArgumentException("Too many HUD details");
         int characters = 0;
         for (var entry : details.entrySet()) {
             if (!entry.getKey().matches("[a-z_]{1,32}")) throw new IllegalArgumentException("Invalid HUD detail key");
@@ -51,7 +51,10 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
             for (Double value : new Double[]{fuel, supplies, commandPower})
                 if (value != null && (!Double.isFinite(value) || value < 0))
                     throw new IllegalArgumentException("Invalid national amount");
-            for (Double value : new Double[]{stability, warSupport, energyRatio, supplyEfficiency, transportEfficiency, rulingPartySupport})
+            for (Double value : new Double[]{stability, warSupport})
+                if (value != null && (!Double.isFinite(value) || value < -1 || value > 1))
+                    throw new IllegalArgumentException("Invalid national support ratio");
+            for (Double value : new Double[]{energyRatio, supplyEfficiency, transportEfficiency, rulingPartySupport})
                 if (value != null && (!Double.isFinite(value) || value < 0 || value > 1))
                     throw new IllegalArgumentException("Invalid national ratio");
             if (factories != null && factories < 0 || convoys != null && convoys < 0 || manpower != null && manpower < 0)

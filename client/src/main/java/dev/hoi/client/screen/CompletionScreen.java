@@ -35,15 +35,15 @@ final class CompletionScreen extends DialogScreen {
     @Override int panelWidth() { return pane; }
     int scrollOffset() { return scroll; }
     @Override protected void init() {
-        pane = Math.min(width - 16, 310); panelHeight = Math.min(height - 16, 168);
+        pane = Math.min(width - 16, 250); panelHeight = Math.min(height - 16, 130);
         left = (width - pane) / 2; top = (height - panelHeight) / 2;
-        bodyTop = top + 34; bodyBottom = top + panelHeight - 34;
-        int buttonWidth = Math.min(96, (pane - 38) / 2);
-        var details = addRenderableWidget(new HoiMenuButton("세부 사항", left + 14, bodyBottom + 7, buttonWidth, 20,
-                () -> send.accept(view(), "details")));
+        bodyTop = top + 36; bodyBottom = top + panelHeight - 30;
+        int buttonWidth = Math.min(62, (pane - 38) / 2);
+        var details = addRenderableWidget(new HoiMenuButton("세부 사항", left + 20, bodyBottom + 1, buttonWidth, 17,
+                () -> send.accept(view(), "details")).background("completion/button"));
         details.active = view().choices().stream().anyMatch(c -> c.id().equals("details"));
-        addRenderableWidget(new HoiMenuButton("확인", left + pane - buttonWidth - 14, bodyBottom + 7, buttonWidth, 20,
-                () -> send.accept(view(), "ack")));
+        addRenderableWidget(new HoiMenuButton("확인", left + pane - buttonWidth - 18, bodyBottom + 1, buttonWidth, 17,
+                () -> send.accept(view(), "ack")).background("completion/button"));
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         if (backdrop != null) {
@@ -51,25 +51,20 @@ final class CompletionScreen extends DialogScreen {
             g.nextStratum();
         }
         var view = view();
-        g.fill(0, 0, width, height, 0x50000000);
         HoiMenuStyle.panel(g, left, top, pane, panelHeight);
-        g.centeredText(font, view.presentation().equals("research_complete") ? "연구 완료!" : "국가 중점 완료", left + pane / 2, top + 12, HoiMenuStyle.TEXT);
+        UiAssets.draw(g, "completion/header", left + 1, top + 4, pane - 2, 43);
+        UiAssets.draw(g, "completion/" + (view.presentation().equals("research_complete") ? "research" : "focus"), left + 7, bodyTop, pane - 14, 63);
+        UiAssets.draw(g, "completion/bottom", left + 2, top + 95, pane - 4, 36);
+        g.centeredText(font, view.presentation().equals("research_complete") ? "기술 완료" : "국가중점 완료", left + pane / 2, top + 20 - font.lineHeight / 2, HoiMenuStyle.TEXT);
         g.enableScissor(left + 8, bodyTop, left + pane - 8, bodyBottom);
         int y = bodyTop + 2 - scroll;
-        if (!UiAssets.draw(g, view.image(), left + pane / 2 - 56, y, 112, 52))
+        if (!UiAssets.draw(g, view.image(), left + pane / 2 - 56, y - 4, 112, 52))
             UiAssets.draw(g, view.presentation().equals("research_complete") ? "menu/research" : "menu/focus", left + pane / 2 - 22, y + 4, 44, 44);
-        y += 57;
-        for (var line : font.split(Component.literal(view.title()), pane - 30)) {
-            g.centeredText(font, line, left + pane / 2, y, 0xFFE6C779); y += 13;
-        }
-        total = y + 6 + scroll - bodyTop;
+        g.pose().pushMatrix(); g.pose().translate(left + pane / 2f, bodyTop + 48); g.pose().scale(.75f);
+        g.centeredText(font, font.plainSubstrByWidth(view.title(), (int)((pane - 30) / .75)), 0, 0, 0xFFE6C779);
+        g.pose().popMatrix();
+        total = bodyBottom - bodyTop;
         g.disableScissor();
-        int available = bodyBottom - bodyTop;
-        if (total > available) {
-            int thumb = Math.max(8, available * available / total);
-            int sy = bodyTop + (available - thumb) * scroll / Math.max(1, total - available);
-            g.fill(left + pane - 6, sy, left + pane - 3, sy + thumb, 0xff969997);
-        }
         for (var child : children()) if (child instanceof net.minecraft.client.gui.components.Renderable widget)
             widget.extractRenderState(g, mx, my, delta);
     }

@@ -19,9 +19,10 @@ public final class IndustryScreenChecks {
             fixture = new IndustryProtocol.Response(new String(Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8)).view();
         } catch (java.io.IOException e) { throw new RuntimeException(e); }
         var v = copy(fixture, hud, fixture.revision(), null);
+        var empty = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), List.of(), List.of(), null, "", v.navalRepairs(), v.specialForces());
         var requests = new ArrayList<IndustryProtocol.Request>();
         for (var tab : List.of(MenuTab.PRODUCTION, MenuTab.TRADE, MenuTab.LOGISTICS, MenuTab.RECRUITMENT)) {
-            context.setScreen(() -> new IndustryScreen(tab, v.session(), v, requests::add));
+            context.setScreen(() -> new IndustryScreen(tab, v.session(), tab == MenuTab.RECRUITMENT ? empty : v, requests::add));
             context.waitTicks(3); context.takeScreenshot("hoi-industry-" + tab.id()); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-" + tab.id());
             context.runOnClient(client -> {
                 var screen = (IndustryScreen) client.gui.screen();
@@ -86,14 +87,47 @@ public final class IndustryScreenChecks {
         context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
         checkGenerations(context,hud);
-        context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, v.session(), v, requests::add)); context.waitTicks(2);
+        context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, empty.session(), empty, requests::add)); context.waitTicks(2);
+        context.runOnClient(client -> check(client.gui.screen().children().stream().noneMatch(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소 · 지급 장비와 인력 반환")), "No training rows before a server-issued recruit exists"));
         String template = v.templates().getFirst().name();
         click(context, template + " 훈련");
         context.runOnClient(client -> {
-            check(requests.getLast().action() == IndustryProtocol.Action.RECRUIT && !requests.getLast().other().isEmpty(), "Training includes an issued deployment location");
+            check(requests.getLast().action() == IndustryProtocol.Action.RECRUIT && requests.getLast().other().isEmpty(), "Training starts with no deployment location");
             ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 1, null));
+            check(client.gui.screen().children().stream().anyMatch(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소 · 지급 장비와 인력 반환")), "Authoritative recruit response creates a training line");
         });
-        click(context, template + " 편제 편집");
+        context.waitTicks(2); ResearchScreenGameTest.gui2Screenshot(context, "hoi-recruitment-after-training");
+        var trainingRows = new ArrayList<IndustryView.Recruit>();
+        for (int group = 0; group < 2; group++) {
+            var t = v.templates().get(group);
+            for (int row = 0; row < 4; row++) trainingRows.add(new IndustryView.Recruit("alignment-" + group + "-" + row,
+                    t.id(), group == 0 ? "" : v.recruits().getFirst().location(), row % 3, .25 + row * .2, t.manpower(), t.equipment(), group == 0 ? 0 : 5, row));
+        }
+        var trainingView = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), trainingRows, List.of(), null, "", v.navalRepairs(), v.specialForces(), new IndustryView.RecruitmentPolicy(Set.of(), Map.of("reinforcement", 2, "upgrade", 1, "supply", 1, "operation", 1, "garrison", 1, "raid", 0), .65, Map.of()));
+        for (int[] size : new int[][]{{1600, 1000}, {2560, 1440}}) {
+            context.getInput().resizeWindow(size[0], size[1]);
+            context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, trainingView.session(), trainingView, requests::add));
+            context.runOnClient(client -> client.options.guiScale().set(2));
+            context.waitTicks(3);
+            context.runOnClient(client -> check(client.gui.screen().width == size[0] / 2 && client.gui.screen().height == size[1] / 2, "Reference captures require effective GUI scale 2"));
+            context.takeScreenshot("hoi-recruitment-multiple-lines-" + size[0] + "-gui2");
+            context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
+            click(context, "클릭하여 접기");
+            context.waitTicks(2); context.takeScreenshot("hoi-recruitment-collapsed-" + size[0] + "-gui2");
+            context.runOnClient(client -> {
+                var screen = (IndustryScreen)client.gui.screen();
+                check(screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소 · 지급 장비와 인력 반환")).count() == 4, "Collapse hides only the chosen group's training rows");
+                for (String asset : List.of("collapse", "expand", "cancel_line", "delete_template", "increase", "decrease", "icon_bg"))
+                    check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/recruitment/" + asset + ".png")).isPresent(), "Original recruitment asset " + asset);
+            });
+            click(context, "클릭하여 펼치기");
+            click(context, v.templates().getFirst().name() + " 연속 훈련 횟수 증가");
+            context.runOnClient(client -> check(requests.getLast().action() == IndustryProtocol.Action.SERIES && requests.getLast().amount() == 1, "Infinity increments to one, without adding a line"));
+        }
+        context.getInput().resizeWindow(1600, 1000);
+        context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, v.session(), v, requests::add));
+        context.waitTicks(2);
+        click(context, template + " 편제");
         context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 2, v.templates().getFirst())));
         context.waitTicks(3); context.takeScreenshot("hoi-industry-division-designer"); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-division-designer");
         context.getInput().setCursorPos(220,615); context.waitTicks(2); context.takeScreenshot("hoi-industry-division-equipment-tooltip");
@@ -181,7 +215,7 @@ public final class IndustryScreenChecks {
                 v.battalions(), v.companies(), v.locations(), v.recruits(), v.deployed(), draft, "",
                 new IndustryView.NavalRepairs(3, List.of(
                         new IndustryView.NavalRepair("fixture-ship-1", "초계함 · 렌더링 예제", "production/equipment/destroyer", "부산", 30, 50, "정박 · 수리 대기"),
-                        new IndustryView.NavalRepair("fixture-ship-2", "잠수함 · 렌더링 예제", "production/equipment/submarine", "진해", 12, 40, "귀항 중")), 2));
+                        new IndustryView.NavalRepair("fixture-ship-2", "잠수함 · 렌더링 예제", "production/equipment/submarine", "진해", 12, 40, "귀항 중")), 2), new IndustryView.SpecialForces(3, 6));
     }
     private static Button button(IndustryScreen screen, String name) {
         return (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow(() -> new AssertionError("Missing control: " + name));

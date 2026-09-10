@@ -46,6 +46,16 @@ public final class DialogProtocol {
                 b -> new Details(b.readUtf(36), b.readUtf(256)));
         @Override public Type<Details> type() { return TYPE; }
     }
+    public record PoliticsOpen(String section, int slot) implements CustomPacketPayload {
+        public PoliticsOpen {
+            if (!Set.of("government", "economic_laws", "military_laws", "social_laws", "development", "military_staff").contains(section)
+                    || slot < 0 || slot >= 6) throw new IllegalArgumentException("Invalid politics slot");
+        }
+        public static final Type<PoliticsOpen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "politics_open_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, PoliticsOpen> CODEC = StreamCodec.of(
+                (b, p) -> { b.writeUtf(p.section, 24); b.writeVarInt(p.slot); }, b -> new PoliticsOpen(b.readUtf(24), b.readVarInt()));
+        @Override public Type<PoliticsOpen> type() { return TYPE; }
+    }
     public record MapClick() implements CustomPacketPayload {
         public static final MapClick INSTANCE=new MapClick();
         public static final Type<MapClick> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","map_state_click_v1"));
@@ -59,6 +69,7 @@ public final class DialogProtocol {
         PayloadTypeRegistry.clientboundPlay().register(Details.TYPE,Details.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(Action.TYPE,Action.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(MapClick.TYPE,MapClick.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(PoliticsOpen.TYPE,PoliticsOpen.CODEC);
         registered=true;
     }
 }

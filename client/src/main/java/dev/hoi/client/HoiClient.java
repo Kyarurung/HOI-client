@@ -38,6 +38,13 @@ public final class HoiClient implements ClientModInitializer {
         AtlasSceneClient.register();
         dev.hoi.protocol.ConstructionProtocol.registerPayloadTypes();
         dev.hoi.protocol.CountryProtocol.registerPayloadTypes();
+        dev.hoi.protocol.WorldTensionProtocol.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.WorldTensionProtocol.Response.TYPE, (packet, context) -> {
+            if (DialogClient.contentScreen() instanceof dev.hoi.client.screen.WorldTensionScreen screen) {
+                try { screen.update(packet); }
+                catch (IllegalArgumentException error) { context.client().gui.setScreen(null); message("세계 긴장도 정보를 읽을 수 없습니다."); }
+            }
+        });
         dev.hoi.protocol.IndustryProtocol.registerPayloadTypes();
         net.fabricmc.fabric.api.resource.v1.ResourceLoader.get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
                 .registerReloadListener(Identifier.fromNamespaceAndPath("hoi", "ui_image_dimensions"),
@@ -94,7 +101,7 @@ public final class HoiClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(AgencyProtocol.Response.TYPE, (packet, context) -> {
             if (!(DialogClient.contentScreen() instanceof AgencyScreen agency)) return;
             try { agency.update(packet.view()); }
-            catch (IllegalArgumentException error) { message("첩보기관 데이터를 읽을 수 없습니다."); }
+            catch (IllegalArgumentException error) { message("정보기관 데이터를 읽을 수 없습니다."); }
         });
         ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.Response.TYPE, (packet, context) -> {
             try {
@@ -122,6 +129,7 @@ public final class HoiClient implements ClientModInitializer {
             UiSounds.reset();
             SidebarMovement.release(client);
             cancelOpen();
+            if (client.gui.screen() instanceof dev.hoi.client.screen.WorldTensionScreen) client.gui.setScreen(null);
             if (client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen || client.gui.screen() instanceof AgencyScreen || client.gui.screen() instanceof ConstructionScreen || client.gui.screen() instanceof CountryScreen || client.gui.screen() instanceof IndustryScreen) client.gui.setScreen(null);
         });
     }
@@ -144,6 +152,10 @@ public final class HoiClient implements ClientModInitializer {
     public static void openCountry(String target) {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.CountryProtocol.Request.TYPE)) { message("이 서버는 외국 정보 UI를 지원하지 않습니다."); return; }
         cancelOpen(); Minecraft.getInstance().gui.setScreen(new CountryScreen(target));
+    }
+    public static void openWorldTension() {
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.WorldTensionProtocol.Request.TYPE)) { message("이 서버는 세계 긴장도 이력 UI를 지원하지 않습니다."); return; }
+        cancelOpen(); Minecraft.getInstance().gui.setScreen(new dev.hoi.client.screen.WorldTensionScreen());
     }
     public static void openConstruction() {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.ConstructionProtocol.Request.TYPE)) { message("이 서버는 건설 UI를 지원하지 않습니다."); return; }

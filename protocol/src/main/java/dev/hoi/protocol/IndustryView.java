@@ -7,7 +7,15 @@ public record IndustryView(String session, long revision, String country, Countr
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
         List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
-        Template draft, String message, NavalRepairs navalRepairs) {
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy) {
+
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,null);
+    }
 
     public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
             List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
@@ -16,6 +24,26 @@ public record IndustryView(String session, long revision, String country, Countr
             Template draft, String message) {
         this(session, revision, country, hud, economy, resources, modifiers, equipment, lines, partners, trades,
                 templates, battalions, companies, locations, recruits, deployed, draft, message, null);
+    }
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+            List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+            List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+            List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+            Template draft, String message, NavalRepairs navalRepairs) {
+        this(session, revision, country, hud, economy, resources, modifiers, equipment, lines, partners, trades,
+                templates, battalions, companies, locations, recruits, deployed, draft, message, navalRepairs, null);
+    }
+    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds) {
+        public RecruitmentPolicy {
+            retiredTemplates=Set.copyOf(retiredTemplates);priorities=boundedMap(priorities,6);reinforcementNeeds=boundedMap(reinforcementNeeds,512);
+            if(retiredTemplates.size()>256||priorities.values().stream().anyMatch(p->p<0||p>2)
+                    ||reinforcementRatio!=null&&(!Double.isFinite(reinforcementRatio)||reinforcementRatio<0||reinforcementRatio>1))throw new IllegalArgumentException("Invalid recruitment policy");
+        }
+    }
+    public record SpecialForces(int used, int capacity) {
+        public SpecialForces {
+            if (used < 0 || capacity < 0) throw new IllegalArgumentException("Invalid special forces limit");
+        }
     }
     public record NavalRepair(String id, String name, String texture, String port, double hp, double maxHp, String status) {
         public NavalRepair {
@@ -104,8 +132,16 @@ public record IndustryView(String session, long revision, String country, Countr
         public String lineUnit(int cell) { return cell%5<columnSize(cell/5)?line.get(lineIndex(cell)):""; }
     }
     public record Recruit(String id, String template, String location, int priority, double progress,
-            long manpower, Map<String,Long> equipment) {
-        public Recruit { equipment=boundedMap(equipment,512); }
+            long manpower, Map<String,Long> equipment, Integer seriesLimit, Integer completed) {
+        public Recruit(String id,String template,String location,int priority,double progress,long manpower,Map<String,Long> equipment) {
+            this(id,template,location,priority,progress,manpower,equipment,1,0);
+        }
+        public Recruit {
+            equipment=boundedMap(equipment,512);
+            seriesLimit=seriesLimit==null?1:seriesLimit; completed=completed==null?0:completed;
+            if(seriesLimit<0||seriesLimit>999||completed<0||completed==Integer.MAX_VALUE)throw new IllegalArgumentException("Invalid training series");
+        }
+        public String seriesLabel() {return (completed+1)+"/"+(seriesLimit==0?"∞":seriesLimit); }
     }
     public record Deployed(String id, String name, String location, long manpower, Map<String,Long> equipment) {
         public Deployed { equipment=boundedMap(equipment,512); }

@@ -3,12 +3,24 @@ package dev.hoi.protocol;
 import java.util.List;
 
 
-public record MenuView(String country, String countryName, String date, String speed, List<Page> pages, CountryHud hud, List<Manufacturer> manufacturers) {
+public record MenuView(String country, String countryName, String date, String speed, List<Page> pages, CountryHud hud, List<Manufacturer> manufacturers, Balance balance) {
     public MenuView(String country, String countryName, String date, String speed, List<Page> pages, CountryHud hud) {
         this(country, countryName, date, speed, pages, hud, List.of());
     }
     public MenuView(String country, String countryName, String date, String speed, List<Page> pages) {
         this(country, countryName, date, speed, pages, CountryHud.UNKNOWN);
+    }
+    public MenuView(String country, String countryName, String date, String speed, List<Page> pages, CountryHud hud, List<Manufacturer> manufacturers) {
+        this(country, countryName, date, speed, pages, hud, manufacturers, null);
+    }
+    public record Balance(String id, String name, String left, String right, String leftIcon, String rightIcon, double value, List<Entry> ranges) {
+        public Balance {
+            bounded(id, 128); bounded(name, 256); bounded(left, 256); bounded(right, 256);
+            bounded(leftIcon, 160); bounded(rightIcon, 160);
+            if (!Double.isFinite(value) || value < -1 || value > 1) throw new IllegalArgumentException("Invalid power balance");
+            ranges = List.copyOf(ranges);
+            if (ranges.size() > 64) throw new IllegalArgumentException("Too many power ranges");
+        }
     }
     public MenuView {
         if (hud == null) hud = CountryHud.UNKNOWN;

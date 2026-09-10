@@ -14,9 +14,11 @@ public final class HoiMenuButton extends Button {
     private final boolean selected;
     private float textScale = 1;
     private String caption;
+    private String background;
 
     public void textScale(float scale) { textScale = scale; }
     public HoiMenuButton caption(String value) { caption = value; return this; }
+    public HoiMenuButton background(String value) { background = value; return this; }
 
     public HoiMenuButton(String label, int x, int y, int w, int h, Runnable action) {
         this(label, null, false, x, y, w, h, action);
@@ -31,7 +33,7 @@ public final class HoiMenuButton extends Button {
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : "ui.click"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
-        HoiMenuStyle.control(g, x, y, w, h, selected, false);
+        if (background == null || !UiAssets.draw(g, background, x, y, w, h)) HoiMenuStyle.control(g, x, y, w, h, selected, false);
         String displayed = caption == null ? getMessage().getString() : caption;
         if (displayed.equals("×") || displayed.equals("X")) {
             HoiMenuStyle.close(g, x, y, w, h, active ? HoiMenuStyle.TEXT : HoiMenuStyle.MUTED);
@@ -44,10 +46,10 @@ public final class HoiMenuButton extends Button {
         } else {
             String label = font.plainSubstrByWidth(caption == null ? getMessage().getString() : caption, Math.max(1, (int)((w - 8) / textScale)));
             if (textScale == 1) {
-                g.centeredText(font, label, x + w / 2, y + (h - 8) / 2, active ? HoiMenuStyle.TEXT : HoiMenuStyle.MUTED);
+                g.centeredText(font, label, x + w / 2, y + (h - font.lineHeight) / 2, active ? HoiMenuStyle.TEXT : HoiMenuStyle.MUTED);
                 return;
             }
-            g.pose().pushMatrix(); g.pose().translate(x + w / 2f, y + (h - 8 * textScale) / 2f); g.pose().scale(textScale);
+            g.pose().pushMatrix(); g.pose().translate(x + w / 2f, y + (h - font.lineHeight * textScale) / 2f); g.pose().scale(textScale);
             g.centeredText(font, label, 0, 0, active ? HoiMenuStyle.TEXT : HoiMenuStyle.MUTED);
             g.pose().popMatrix();
         }

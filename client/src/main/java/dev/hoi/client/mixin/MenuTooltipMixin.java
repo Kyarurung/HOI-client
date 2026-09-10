@@ -12,6 +12,7 @@ public abstract class MenuTooltipMixin {
     @Inject(method = "setTooltipForNextFrame", at = @At("HEAD"), cancellable = true)
     private void hideMenuTooltip(CallbackInfo callback) {
         var screen = Minecraft.getInstance().gui.screen();
+        if (dev.hoi.client.ui.HoiMenuBar.showingTensionTooltip) return;
         if (screen instanceof dev.hoi.client.screen.ConstructionScreen construction && construction.showingConsumerTooltip()) return;
         if (screen != null && screen.getClass().getPackageName().startsWith("dev.hoi.client.")) callback.cancel();
     }

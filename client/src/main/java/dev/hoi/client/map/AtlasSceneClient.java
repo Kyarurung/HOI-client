@@ -31,17 +31,18 @@ import java.util.*;
 public final class AtlasSceneClient {
     private static final RenderStateDataKey<Frame> FRAME = RenderStateDataKey.create(() -> "hoi:atlas_scene");
     private static final AtlasSceneAssembler ASSEMBLER = new AtlasSceneAssembler();
-    private static Scene active;
+    private static Scene active, deployment;
+    private static final AtlasSceneAssembler DEPLOYMENT = new AtlasSceneAssembler();
     private static ItemStackRenderState city;
     private static int visibleTiles, examinedTiles;
-    private static final Map<Material, Identifier> TEXTURES = Map.of(
-            Material.BLACK, Identifier.parse("minecraft:block/black_concrete"), Material.RED, Identifier.parse("minecraft:block/red_concrete"),
-            Material.WATER, Identifier.parse("minecraft:block/water_still"), Material.FOREST, Identifier.parse("minecraft:block/oak_sapling"),
-            Material.JUNGLE, Identifier.parse("minecraft:block/jungle_sapling"), Material.MARSH, Identifier.parse("minecraft:block/mud"),
-            Material.DESERT, Identifier.parse("minecraft:block/sand"),
-            Material.NAVY_RIVER, Identifier.parse("minecraft:block/gray_concrete"),
-            Material.AIR_RIVER, Identifier.parse("minecraft:block/light_gray_concrete"),
-            Material.GRAY, Identifier.parse("minecraft:block/gray_concrete"));
+    private static final Map<Material, Identifier> TEXTURES = Map.ofEntries(
+            Map.entry(Material.BLACK, Identifier.parse("minecraft:block/black_concrete")), Map.entry(Material.RED, Identifier.parse("minecraft:block/red_concrete")),
+            Map.entry(Material.WATER, Identifier.parse("minecraft:block/water_still")), Map.entry(Material.FOREST, Identifier.parse("minecraft:block/oak_sapling")),
+            Map.entry(Material.JUNGLE, Identifier.parse("minecraft:block/jungle_sapling")), Map.entry(Material.MARSH, Identifier.parse("minecraft:block/mud")),
+            Map.entry(Material.DESERT, Identifier.parse("minecraft:block/sand")),
+            Map.entry(Material.NAVY_RIVER, Identifier.parse("minecraft:block/gray_concrete")),
+            Map.entry(Material.AIR_RIVER, Identifier.parse("minecraft:block/light_gray_concrete")),
+            Map.entry(Material.GRAY, Identifier.parse("minecraft:block/gray_concrete")), Map.entry(Material.DEPLOYMENT, Identifier.parse("minecraft:block/lime_concrete")));
     private record Tile(Material material, AABB bounds, float[] vertices, List<Box> cities) {}
     private record Scene(String dimension, List<Tile> tiles, Map<Long,List<Integer>> cells, List<Integer> large) {}
     private record Frame(List<Tile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city) {}
@@ -52,14 +53,25 @@ public final class AtlasSceneClient {
         ClientPlayNetworking.registerGlobalReceiver(AtlasSceneProtocol.Page.TYPE, (page, context) -> {
             if (receive(page)) ClientPlayNetworking.send(new AtlasSceneProtocol.Ready(page.scene()));
         });
+        dev.hoi.protocol.IndustryProtocol.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.IndustryProtocol.DeploymentOverlay.TYPE, (packet, context) -> {
+            if (!(context.client().gui.screen() instanceof dev.hoi.client.screen.IndustryScreen screen) || !screen.acceptsDeploymentOverlay(packet.session(), packet.revision())) return;
+            var boxes = DEPLOYMENT.accept(packet.page());
+            if (boxes != null) deployment = mesh(packet.page().dimension(), boxes);
+        });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
         LevelExtractionEvents.END_EXTRACTION.register(context -> {
             var scene = active;
-            if (scene == null || !context.level().dimension().identifier().toString().equals(scene.dimension())) {
+            String dimension = context.level().dimension().identifier().toString();
+            if (!(Minecraft.getInstance().gui.screen() instanceof dev.hoi.client.screen.IndustryScreen screen) || !screen.selectingDeployment()) clearDeployment();
+            if ((scene == null || !dimension.equals(scene.dimension())) && (deployment == null || !dimension.equals(deployment.dimension()))) {
                 visibleTiles=0;context.levelState().setData(FRAME, null); return;
             }
             var camera = context.levelState().cameraRenderState;
-            var tiles = nearby(scene, camera.pos).stream().filter(tile -> camera.cullFrustum.isVisible(tile.bounds())).toList();
+            var tiles = new ArrayList<Tile>();
+            if (scene != null && dimension.equals(scene.dimension())) tiles.addAll(nearby(scene, camera.pos));
+            if (deployment != null && dimension.equals(deployment.dimension())) tiles.addAll(nearby(deployment, camera.pos));
+            tiles.removeIf(tile -> !camera.cullFrustum.isVisible(tile.bounds()));
             visibleTiles=tiles.size();
             var client = Minecraft.getInstance();
             var atlas = client.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
@@ -80,7 +92,8 @@ public final class AtlasSceneClient {
         if (complete == null) return false;
         active = mesh(page.dimension(), complete); return true;
     }
-    static void clear() { active = null; city = null; visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
+    public static void clearDeployment() {deployment = null; DEPLOYMENT.clear();}
+    static void clear() { clearDeployment(); active = null; city = null; visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
     public static void resourcesReloaded() { city = null; }
     static int tileCount() { return active == null ? 0 : active.tiles().size(); }
     static int visibleTileCount() { return visibleTiles; }

@@ -9,7 +9,7 @@ public record DialogView(String token,long revision,Kind kind,String title,Strin
             String flag,String image,String sound,List<Tile> tiles,List<Choice> choices) {
         this(token,revision,kind,title,subtitle,body,flag,image,sound,tiles,choices,"");
     }
-    public enum Kind { STATE, DIPLOMACY, EVENT, GLOBAL_EVENT, SUPER_EVENT, IDEOLOGIES }
+    public enum Kind { STATE, DIPLOMACY, EVENT, GLOBAL_EVENT, SUPER_EVENT, IDEOLOGIES, POLITICS }
     public record Tile(String section,String name,String value,String icon,String detail) {
         public Tile {text(section,80);text(name,160);text(value,160);asset(icon);text(detail,3000);}
     }

@@ -36,8 +36,14 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private int tradeTab = 1, tradeAmount = 1, selectedSlot = -1;
     private boolean supportSlot, designer, closed, background, showOutdated;
     private String group = "all", picker = "", switchLine = "", resource = "IRON", partner = "";
-    private String location = "", recruitTemplate = "", draftName = "";
+    private String location = "", locationRecruit = "", recruitTemplate = "", draftName = "";
+    private record DeploymentLocation(int x,int y,int width,int height,String recruit,String label) {}
+    private final List<DeploymentLocation> deploymentLocations = new ArrayList<>();
+    private boolean selectingDeployment;
+    public boolean selectingDeployment() {return selectingDeployment && !closed;}
+    public boolean acceptsDeploymentOverlay(String session,long revision) {return selectingDeployment() && token.equals(session) && view != null && revision >= view.revision();}
     private EditBox nameBox;
+    private final Set<String> collapsedRecruitment = new HashSet<>();
     private GuiGraphicsExtractor graphics;
     private int mouseX, mouseY;
 
@@ -49,7 +55,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     public IndustryScreen(MenuTab tab, String token, IndustryView fixture, Consumer<IndustryProtocol.Request> transport) {
         super(Component.literal(title(tab)));
         this.tab = tab; this.token = token; this.view = fixture; this.transport = transport;
-        if (fixture != null && !fixture.locations().isEmpty()) location = fixture.locations().getFirst().id();
+
     }
     public static boolean supports(MenuTab tab) {
         return tab == MenuTab.PRODUCTION || tab == MenuTab.TRADE || tab == MenuTab.LOGISTICS || tab == MenuTab.RECRUITMENT;
@@ -69,8 +75,11 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (next.draft() != null && (view == null || view.draft() == null)) draftName = next.draft().name();
         if (designer && next.draft() == null) designer = false;
         view = next; pending = 0;
+        if (selectingDeployment && (next.message().equals("배치 장소를 지정했습니다.") || next.recruits().stream().noneMatch(r -> r.id().equals(locationRecruit)))) {
+            selectingDeployment = false; dev.hoi.client.map.AtlasSceneClient.clearDeployment();
+        }
         if (view.locations().stream().noneMatch(l -> l.id().equals(location)))
-            location = view.locations().isEmpty() ? "" : view.locations().getFirst().id();
+            location = "";
         rebuildWidgets();
     }
     int panelWidth() { return pane; }
@@ -80,7 +89,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private boolean modal() { return designer || !picker.isEmpty() || !partner.isEmpty(); }
     @Override protected void init() {
         pane = HoiPanelLayout.width(tab, width); top = HoiMenuBar.height(width);
-        graphics = null; nameBox = null;
+        graphics = null; nameBox = null; deploymentLocations.clear();
         HoiMenuBar.buttons(width, view == null ? "" : view.country(), tab, next -> {
             if (next == tab) return;
             if (next == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(next);
@@ -272,7 +281,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     {"민간공장", "" + e.civilian()}, {"무역 가용 공장", "" + e.freeCivilian()},
                     {"소비재 공장", "" + e.consumer()}, {"군수공장", "" + e.military()}, {"조선소", "" + e.dockyards()},
                     {"전력 공급 / 수요", decimal(e.energy()) + " / " + decimal(e.energyDemand())},
-                    {"연료 비축", decimal(e.fuel())}, {"가용 인력", manpower(e.manpower())}};
+                    {"연료 비축", decimal(e.fuel())}, {"인력", manpower(e.manpower())}};
             int start = top + 55; scroll = clampScroll(scroll, rows.length, 35, start);
             for (int i = 0; i < rows.length; i++) {
                 int y = start + i * 35 - scroll; if (!visible(y, 35, start)) continue;
@@ -333,55 +342,164 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
 
     private void recruitment() {
-        int secondX = pane + 3, secondW = rightWidth(), start = top + 89, h = compact() ? 85 : 93;
+        int secondX = pane + 3, secondW = rightWidth(), start = top + 28;
         if (graphics != null) HoiMenuStyle.panel(graphics, secondX, top, secondW, height - top);
-        text("사단 편제", secondX + 8, top + 8, secondW - 16, TEXT);
-        recess(6, top + 28, pane - 12, 27);
-        text("가용 인력 " + manpower(view.economy().manpower()), 10, top + 37, pane - 20, TEXT);
-        button("배치 장소 선택", locationName(location), 6, top + 60, pane - 12, 22, true,
-                () -> { picker = "locations"; pickerScroll = 0; rebuildWidgets(); });
-        scroll = clampScroll(scroll, view.recruits().size() + view.deployed().size(), h, start);
-        int index = 0;
-        for (var r : view.recruits()) {
-            int y = start + index++ * h - scroll; if (!visible(y, h, start)) continue;
-            var t = template(r.template());
-            rail(6, y, pane - 12, h - 3);
-            text(t.name(), 10, y + 5, pane - 20, TEXT);
-            text(locationName(r.location()), 10, y + 18, pane - 20, MUTED);
-            bar(10, y + 34, pane - 20, 5, r.progress(), GOOD);
-            double manpower = t.manpower() == 0 ? 1 : (double) r.manpower() / t.manpower();
-            double equipped = fillRatio(t.equipment(), r.equipment());
-            text("인력 " + percent(manpower) + " · 장비 " + percent(equipped), 10, y + 44, pane - 20, equipped < 1 || manpower < 1 ? BAD : GOOD);
-            tip("훈련 " + percent(r.progress()) + "\n인력 " + manpower(r.manpower()) + " / " + manpower(t.manpower()) + "\n" + equipmentList(t.equipment(), r.equipment()), 8, y + 30, pane - 16, 29);
-            button("훈련 우선순위", priority(r.priority()), 10, y + 64, 43, 20, true, () -> send(PRIORITY, r.id(), "", (r.priority() + 1) % 3));
-            button("조기 배치 · 훈련 20% 이상", "배치", 56, y + 64, 43, 20, r.progress() >= .2, () -> send(DEPLOY, r.id(), "", 0));
-            button("훈련 취소 · 지급 장비와 인력 반환", "×", pane - 30, y + 64, 19, 20, true, () -> send(CANCEL_RECRUIT, r.id(), "", 0));
+        centeredCompactText("사단 편제", secondX + 8, top + 8, secondW - 16, TEXT);
+        var groups = new LinkedHashMap<String, List<Recruit>>();
+        for (var r : view.recruits()) groups.computeIfAbsent(r.template() + "|" + r.location(), key -> new ArrayList<>()).add(r);
+        double scale = (pane - 14) / 493.0;
+        int rowHeight = Math.max(23, (int)Math.round(47 * scale)), pitch = rowHeight + 2, prioritiesHeight = 6 * pitch + 4;
+        double gs = (pane - 14) / 518.0;
+        int headerHeight = (int)Math.round(84 * gs), lineHeight = (int)Math.round(40 * gs);
+        int groupHeight = headerHeight + lineHeight + 3, linePitch = lineHeight + 1;
+        int groupX = 7 + (int)Math.round(14 * gs);
+        int content = prioritiesHeight + groups.entrySet().stream().mapToInt(e -> groupHeight + (collapsedRecruitment.contains(e.getKey()) ? 0 : e.getValue().size() * linePitch)).sum();
+        scroll = Math.clamp(scroll, 0, Math.max(0, content - (bottom() - start)));
+        String[] names = {"증원", "업그레이드", "보급 트럭", "작전", "주둔군", "습격"};
+        String[] icons = {"reinforcement", "upgrade", "supply", "operation", "garrison", "raid"};
+        String[] entries = {"reinforcements", "upgrades", "reinforcements", "operations", "garrisons", "upgrades"};
+        int backgroundHeight = (int)Math.round(57 * scale);
+        double backgroundScale = Math.min(scale, backgroundHeight / 57.0);
+        int backgroundLeft = 7 + (pane - 14 - (int)Math.round(493 * backgroundScale)) / 2;
+        for (int i = 0; i < names.length; i++) {
+            int y = start + i * pitch - scroll;
+            if (!visible(y, rowHeight, start)) continue;
+            art("recruitment/" + entries[i], 7, y - (int)(5 * scale), pane - 14, backgroundHeight);
+            // The outer icon cell occupies (0, 4)..(96, 55) in the 493x57 row artwork.
+            int iconCenterX = backgroundLeft + (int)Math.round(48 * backgroundScale);
+            int iconCenterY = y - (int)(5 * scale) + (int)Math.round(29.5 * backgroundScale);
+            int iconBgWidth = (int)(77 * scale), iconBgHeight = (int)(40 * scale), iconWidth = (int)(54 * scale);
+            int iconBgX = iconCenterX - iconBgWidth / 2, iconBgY = iconCenterY - iconBgHeight / 2;
+            if (graphics != null) UiAssets.nineSlice(graphics, "recruitment/icon_bg", iconBgX, iconBgY, iconBgWidth, iconBgHeight, 16, scale);
+            art("recruitment/" + icons[i] + "_icon", iconCenterX - iconWidth / 2, iconBgY, iconWidth, iconBgHeight);
+            int labelX = 7 + (int)(110 * scale), labelWidth = (int)(159 * scale);
+            art("recruitment/title", labelX, y + (int)(12 * scale), labelWidth, (int)(26 * scale));
+            centeredCompactText(names[i], labelX + 2, y + (int)(25 * scale) - 3, labelWidth - 4, TEXT);
+            art("recruitment/meter", 7 + (int)(280 * scale), y + (int)(10 * scale), (int)(108 * scale), (int)(33 * scale));
+            art("recruitment/equipment", 7 + (int)(285 * scale), y + (int)(15 * scale), (int)(23 * scale), (int)(23 * scale));
+            var policy = view.recruitmentPolicy();
+            String category = icons[i];
+            for (int dot = 0; dot < 3; dot++) {
+                int priority = dot;
+                boolean selected = policy != null && Objects.equals(policy.priorities().get(category), dot);
+                textureButton(names[i] + " · " + priorityName(dot) + " 우선순위", "", priorityTexture(dot, selected), 7 + (int)((415 + dot * 20) * scale), y + (int)(15 * scale), (int)(20 * scale), (int)(21 * scale), policy != null,
+                        () -> send(ALLOCATION_PRIORITY, category, "", priority));
+            }
+            if (i == 0 && policy != null && policy.reinforcementRatio() != null) {
+                bar(7 + (int)(310 * scale), y + (int)(19 * scale), (int)(72 * scale), Math.max(2, (int)(12 * scale)), policy.reinforcementRatio(), 0xFF7EAF69);
+                String needs = policy.reinforcementNeeds().entrySet().stream().map(e -> equipment(e.getKey()).name() + " · 부족 " + e.getValue()).collect(java.util.stream.Collectors.joining("\n"));
+                tip("증원 · 장비 충족률 " + percent(policy.reinforcementRatio()) + (needs.isEmpty() ? "\n부족한 장비 없음" : "\n" + needs), 7, y, (int)(400 * scale), rowHeight);
+            } else tip(names[i] + " · 배정 현황이 제공되지 않았습니다.", 7, y, (int)(400 * scale), rowHeight);
         }
-        for (var d : view.deployed()) {
-            int y = start + index++ * h - scroll; if (!visible(y, h, start)) continue;
-            rail(6, y, pane - 12, h - 3);
-            art("menu/recruitment", 10, y + 5, 25, 25); text("배치 완료", 40, y + 13, pane - 50, GOOD);
-            text(d.name(), 10, y + 36, pane - 20, TEXT);
-            text(locationName(d.location()), 10, y + 50, pane - 20, MUTED);
-            text("인력 " + manpower(d.manpower()) + " · 장비 " + d.equipment().values().stream().mapToLong(Long::longValue).sum(), 10, y + 66, pane - 20, TEXT);
-            tip(equipmentList(d.equipment(), d.equipment()), 6, y, pane - 12, h - 3);
+        int cursor = start + prioritiesHeight - scroll;
+        for (var entry : groups.entrySet()) {
+            var rows = entry.getValue(); var first = rows.getFirst(); var t = template(first.template());
+            int y = cursor; cursor += groupHeight;
+            if (visible(y, groupHeight, start)) {
+                art("recruitment/conveyor", groupX, y, (int)Math.round(490 * gs), headerHeight);
+                if (!t.line().isEmpty()) art(unitTexture(t.line().getFirst(), false), groupX + 2 + (int)(10 * gs), y + (int)(17 * gs), (int)(70 * gs), (int)(50 * gs));
+                centeredCompactText(t.name(), groupX + (int)(95 * gs), y + (int)(29 * gs) - 3, (int)(214 * gs), TEXT);
+                int amountSize = Math.max(8, (int)Math.round(26 * gs)), amountY = y + 2 + (int)Math.round(10 * gs);
+                int minusX = groupX + 2 + (int)Math.round(312 * gs), plusX = groupX + 2 + (int)Math.round(383 * gs);
+                textureButton(t.name() + " 연속 훈련 횟수 증가", "", "recruitment/increase", plusX, amountY, amountSize, amountSize, first.seriesLimit() < 999, () -> send(SERIES, first.id(), "", first.seriesLimit() + 1));
+                textureButton(t.name() + " 연속 훈련 횟수 감소 · 0은 무한대", "", "recruitment/decrease", minusX, amountY, amountSize, amountSize, first.seriesLimit() > 0, () -> send(SERIES, first.id(), "", first.seriesLimit() - 1));
+                if (graphics != null) {
+                    String amount = first.seriesLimit() == 0 ? "∞" : first.seriesLimit().toString();
+                    graphics.pose().pushMatrix();
+                    graphics.pose().translate((minusX + amountSize + plusX - font.width(amount) * .75f) / 2, amountY + (amountSize - font.lineHeight * .75f) / 2);
+                    graphics.pose().scale(.75f);
+                    graphics.text(font, amount, 0, 0, first.seriesLimit() == 0 ? GOLD : TEXT);
+                    graphics.pose().popMatrix();
+                }
+                tip("연속 훈련 횟수 · 0은 무한대", minusX + amountSize, amountY, plusX - minusX - amountSize, amountSize);
+                for (int dot = 0; dot < 3; dot++) {
+                    int priority = dot;
+                    textureButton(t.name() + " · " + priorityName(dot) + " 우선순위", "", priorityTexture(dot, first.priority() == dot), groupX + (int)((420 + 20 * dot) * gs), y + (int)(17 * gs), (int)(20 * gs), (int)(21 * gs), true, () -> send(GROUP_PRIORITY, first.id(), "", priority));
+                }
+                art("recruitment/location", groupX + (int)(91 * gs), y + (int)(46 * gs), (int)(223 * gs), (int)(31 * gs));
+                art("recruitment/location_frame", groupX + (int)(94 * gs), y + (int)(48 * gs), (int)(27 * gs), (int)(27 * gs));
+                centeredCompactText(locationName(first.location()), groupX + (int)(119 * gs), y + (int)(61 * gs) - 3, (int)(188 * gs), first.location().isEmpty() ? BAD : TEXT);
+                if (graphics == null) deploymentLocations.add(new DeploymentLocation(groupX + (int)(91 * gs), y + (int)(46 * gs), (int)(223 * gs), (int)(31 * gs), first.id(), locationName(first.location())));
+                tip("좌클릭하여 배치 프로빈스 선택 · 우클릭하여 장소 초기화", groupX + (int)(91 * gs), y + (int)(46 * gs), (int)(223 * gs), (int)(31 * gs));
+                textureButton(t.name() + " 부대 추가", "부대 추가", "recruitment/add", groupX + (int)(315 * gs), y + (int)(50 * gs), (int)(105 * gs), (int)(23 * gs), true, () -> send(RECRUIT, t.id(), first.location(), 0));
+                textureButton(t.name() + " 모든 라인 즉시 배치", "", "recruitment/deploy", groupX + (int)(421 * gs), y + (int)(47 * gs), (int)(27 * gs), (int)(27 * gs), !first.location().isEmpty() && rows.stream().anyMatch(r -> r.progress() >= .2), () -> send(DEPLOY_GROUP, first.id(), "", 0));
+                textureButton(t.name() + " 모든 라인 생산 취소", "", "recruitment/cancel", groupX + (int)(450 * gs), y + (int)(47 * gs), (int)(27 * gs), (int)(27 * gs), true, () -> send(CANCEL_GROUP, first.id(), "", 0));
+                int summaryY = y + headerHeight;
+                art("recruitment/summary", 7, summaryY, pane - 14, lineHeight);
+                art("recruitment/equipment_state", 8 + (int)(212 * gs), summaryY + 1 + (int)(3 * gs), (int)(27 * gs), (int)(27 * gs));
+                bar(7 + (int)(238 * gs), summaryY + (int)(10 * gs), (int)(65 * gs), Math.max(3, (int)(11 * gs)), rows.stream().mapToDouble(r -> fillRatio(t.equipment(), r.equipment())).average().orElse(0), 0xFF7EAF69);
+                centeredCompactText(rows.size() + "개 사단", 7 + (int)(315 * gs), summaryY + (int)(18 * gs) - 3, (int)(150 * gs), TEXT);
+                textureButton(collapsedRecruitment.contains(entry.getKey()) ? "클릭하여 펼치기" : "클릭하여 접기", "", collapsedRecruitment.contains(entry.getKey()) ? "recruitment/expand" : "recruitment/collapse", 7 + (int)(481 * gs), summaryY + (int)(4 * gs), (int)(26 * gs), (int)(26 * gs), true,
+                        () -> { if (!collapsedRecruitment.add(entry.getKey())) collapsedRecruitment.remove(entry.getKey()); rebuildWidgets(); });
+            }
+            if (collapsedRecruitment.contains(entry.getKey())) continue;
+            int number = 0;
+            for (var r : rows) {
+                y = cursor; cursor += linePitch; number++;
+                if (!visible(y, lineHeight, start)) continue;
+                int lineX = 7 + (int)Math.round(2 * gs);
+                art("recruitment/line", lineX, y, (int)Math.round(514 * gs), lineHeight);
+                compactText(t.name() + " " + number, lineX + (int)(9 * gs), y + (int)(20 * gs) - 3, (int)(190 * gs), TEXT);
+                double manpowerRatio = t.manpower() == 0 ? 1 : (double) r.manpower() / t.manpower();
+                double equipped = fillRatio(t.equipment(), r.equipment());
+                art("recruitment/equipment_state", lineX + 1 + (int)(211 * gs), y + 1 + (int)(7 * gs), (int)(27 * gs), (int)(27 * gs));
+                art("recruitment/training", lineX + 1 + (int)(307 * gs), y + (int)(7 * gs), (int)(27 * gs), (int)(27 * gs));
+                bar(lineX + (int)(237 * gs), y + (int)(14 * gs), (int)(64 * gs), Math.max(3, (int)(11 * gs)), equipped, 0xFF7EAF69);
+                bar(lineX + (int)(333 * gs), y + (int)(14 * gs), (int)(64 * gs), Math.max(3, (int)(11 * gs)), r.progress(), 0xFF7EAF69);
+                tip("훈련 " + percent(r.progress()) + " · 인력 " + percent(manpowerRatio) + " · 장비 " + percent(equipped) + "\n" + equipmentList(t.equipment(), r.equipment()), 8, y, (int)(397 * gs), lineHeight);
+                centeredCompactText(r.seriesLabel(), lineX + (int)(398 * gs), y + (int)(20 * gs) - 3, (int)(55 * gs), r.seriesLimit() == 0 ? GOLD : TEXT);
+                tip("라인의 현재 연속 훈련 수 · " + r.seriesLabel(), lineX + (int)(398 * gs), y + (int)(7 * gs), (int)(57 * gs), (int)(26 * gs));
+                textureButton("즉시 배치 · 훈련 20% 이상", "", "recruitment/deploy_line", lineX + (int)(458 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), !r.location().isEmpty() && r.progress() >= .2, () -> send(DEPLOY, r.id(), "", 0));
+                textureButton("훈련 취소 · 지급 장비와 인력 반환", "", "recruitment/cancel_line", lineX + (int)(484 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), true, () -> send(CANCEL_RECRUIT, r.id(), "", 0));
+            }
         }
-        if (index == 0) text("편제를 골라 훈련을 시작하세요.", 10, start + 10, pane - 20, MUTED);
-        button("새 사단 편제 설계", "사단 설계", secondX + 7, top + 29, secondW - 14, 22, !view.templates().isEmpty(),
+        var special = view.specialForces();
+        art("recruitment/special", secondX + 11, top + 30, 20, 20);
+        centeredCompactText(special == null ? "—/—" : special.used() + "/" + special.capacity(), secondX + 32, top + 36, secondW - 128, TEXT);
+        tip("특수부대 대대 · 사용량 / 한도" + (special == null ? " · 정보 없음" : "\n" + special.used() + " / " + special.capacity() + " · 훈련 대기 포함"), secondX + 7, top + 28, secondW - 100, 23);
+        button("새 사단 편제 설계", "사단 설계", secondX + secondW - 90, top + 29, 83, 22, !view.templates().isEmpty(),
                 () -> loadDesigner(view.templates().getFirst().id()));
-        int ts = top + 59, th = 65; secondScroll = clampScroll(secondScroll, view.templates().size(), th, ts);
-        for (int i = 0; i < view.templates().size(); i++) {
-            var t = view.templates().get(i); int y = ts + i * th - secondScroll;
+        var retired = view.recruitmentPolicy() == null ? Set.<String>of() : view.recruitmentPolicy().retiredTemplates();
+        var templates = view.templates().stream().filter(t -> !retired.contains(t.id())).toList();
+        int ts = top + 55, th = Math.max(36, (secondW - 10) * 78 / 344); secondScroll = clampScroll(secondScroll, templates.size(), th + 3, ts);
+        for (int i = 0; i < templates.size(); i++) {
+            var t = templates.get(i); int y = ts + i * (th + 3) - secondScroll;
             if (!visible(y, th, ts)) continue;
-            rail(secondX + 6, y, secondW - 12, th - 3);
-            if (!t.line().isEmpty()) art(unitTexture(t.line().getFirst(), false), secondX + 10, y + 4, 30, 26);
-            text(t.name(), secondX + 43, y + 5, secondW - 53, TEXT);
-            text(manpower(t.manpower()) + "명 · " + integer(t.days()) + "일", secondX + 43, y + 20, secondW - 53, MUTED);
-            button(t.name() + " 훈련", "훈련", secondX + 10, y + 38, (secondW - 25) / 2, 19, !location.isEmpty(),
-                    () -> send(RECRUIT, t.id(), location, 0));
-            button(t.name() + " 편제 편집", "편집", secondX + secondW / 2, y + 38, (secondW - 25) / 2, 19, true, () -> loadDesigner(t.id()));
-            tip(equipmentList(t.equipment(), Map.of()), secondX + 7, y, secondW - 14, 33);
+            art("recruitment/queue", secondX + 5, y, secondW - 10, th);
+            double cardScale = (secondW - 10) / 346.0;
+            int iconWidth = (int)(72 * cardScale), nameX = secondX + 5 + (int)(97 * cardScale), nameWidth = (int)(234 * cardScale);
+            if (!t.line().isEmpty()) art(unitTexture(t.line().getFirst(), false), secondX + 7 + (int)(9 * cardScale), y + (int)(12 * cardScale), iconWidth, (int)(52 * cardScale));
+            centeredCompactText(t.name(), nameX, y + (int)(32 * cardScale) - 3, nameWidth, TEXT);
+            int buttonWidth = (int)(71 * cardScale), buttonY = y + (int)(49 * cardScale), buttonHeight = Math.max(10, (int)(26 * cardScale));
+            textureButton(t.name() + " 훈련", "훈련", "recruitment/button", secondX + 5 + (int)(158 * cardScale), buttonY, buttonWidth, buttonHeight, !retired.contains(t.id()), () -> send(RECRUIT, t.id(), "", 0));
+            textureButton(t.name() + " 편제", "편제", "recruitment/button", secondX + 5 + (int)(229 * cardScale), buttonY, buttonWidth, buttonHeight, true, () -> loadDesigner(t.id()));
+            textureButton(t.name() + " 편제를 목록에서 삭제", "", "recruitment/delete_template", secondX + 5 + (int)(300 * cardScale), y + (int)(48 * cardScale), (int)(26 * cardScale), (int)(26 * cardScale), true, () -> send(RETIRE_TEMPLATE, t.id(), "", 1));
+            tip(t.name() + " · " + manpower(t.manpower()) + "명 · " + integer(t.days()) + "일\n" + equipmentList(t.equipment(), Map.of()), nameX, y, nameWidth, th - 14);
         }
+    }
+    private static String priorityName(int priority) {return switch(priority) {case 0 -> "낮음"; case 1 -> "보통"; default -> "높음";};}
+    private static String priorityTexture(int priority, boolean selected) {return "recruitment/priority" + (selected ? switch(priority) {case 0 -> "_low"; case 1 -> "_normal"; default -> "_high";} : "");}
+    private void textureButton(String name, String label, String background, int x, int y, int w, int h, boolean enabled, Runnable action) {
+        if (graphics != null) return;
+        var control = new dev.hoi.client.ui.HoiMenuButton(name, x, y, w, h, action).caption(label).background(background);
+        if (name.startsWith("클릭하여")) control.setTooltip(Tooltip.create(Component.literal("클릭").withStyle(net.minecraft.ChatFormatting.GREEN).append(Component.literal(name.substring(2)).withStyle(net.minecraft.ChatFormatting.WHITE))));
+        control.textScale(.75f); control.active = enabled && pending == 0; addRenderableWidget(control);
+    }
+    private void centeredCompactText(String value, int x, int y, int width, int color) {
+        String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)(width / .75)));
+        compactText(clipped, x + Math.max(0, (width - (int)Math.ceil(font.width(clipped) * .75)) / 2), y, width, color);
+    }
+    private void compactText(String value, int x, int y, int width, int color) {
+        if (graphics == null) return;
+        graphics.pose().pushMatrix(); graphics.pose().translate(x, y); graphics.pose().scale(.75f);
+        graphics.text(font, font.plainSubstrByWidth(value, Math.max(1, (int)(width / .75))), 0, 0, color); graphics.pose().popMatrix();
+    }
+    private void smallText(String value, int x, int y, int color) {
+        if (graphics == null) return;
+        int edge = x < pane ? pane - 10 : pane + 3 + rightWidth() - 10;
+        String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)((edge - x) / .75)));
+        graphics.pose().pushMatrix(); graphics.pose().translate(x, y); graphics.pose().scale(.75f);
+        graphics.text(font, clipped, 0, 0, color); graphics.pose().popMatrix();
     }
     private void loadDesigner(String id) {
         selectedSlot = -1; designerScroll = 0; picker = ""; recruitTemplate = id;
@@ -390,7 +508,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     private int modalWidth() { return Math.min(820, width - 16); }
     private int modalX() { return (width - modalWidth()) / 2; }
-    private int modalY() { return Math.max(top + 4, (height - 350) / 2); }
+    private int modalY() { return Math.max(top + 18, (height - 350) / 2); }
     private int modalHeight() { return Math.min(350, height - modalY() - 8); }
     private void layoutDesigner() {
         var t = view.draft(); if (t == null) return;
@@ -505,7 +623,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private void layoutPicker() {
         int w = Math.min(270, width - 16), x = width - pane >= w + 8 ? pane + 4 : (width - w) / 2, y = top + 3;
         panel(x, y, w, height - y - 27);
-        text(picker.equals("locations") ? "배치 장소 선택" : picker.equals("repairs") ? "해군 수리 대기열" : "생산 장비 선택", x + 9, y + 8, w - 40, TEXT);
+        text(picker.equals("locations") ? "배치 장소 지정" : picker.equals("repairs") ? "해군 수리 대기열" : "생산 장비 선택", x + 9, y + 8, w - 40, TEXT);
         button("목록 닫기", "×", x + w - 25, y + 3, 19, 19, true, () -> { picker = ""; rebuildWidgets(); });
         int start = y + 29;
         if (picker.equals("repairs")) {
@@ -555,7 +673,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             for (int i = 0; i < view.locations().size(); i++) {
                 var l = view.locations().get(i); int by = start + i * 25 - pickerScroll;
                 if (!visible(by, 25, start)) continue;
-                button(l.name(), l.name(), x + 7, by, w - 14, 22, true, () -> { location = l.id(); picker = ""; rebuildWidgets(); });
+                button(l.name(), l.name(), x + 7, by, w - 14, 22, true, () -> { location = l.id(); picker = ""; send(LOCATION, locationRecruit, l.id(), 0); rebuildWidgets(); });
             }
         }
     }
@@ -606,15 +724,36 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         else if (designer) designerScroll -= (int) (vertical * 25);
         else if (!picker.isEmpty()) pickerScroll -= (int) (vertical * 55);
         else if (modal()) return super.mouseScrolled(x, y, horizontal, vertical);
-        else if (tab == MenuTab.RECRUITMENT && x >= pane) secondScroll -= (int) (vertical * 65);
+        else if (tab == MenuTab.RECRUITMENT && x >= pane) secondScroll -= (int) (vertical * 40);
         else scroll -= (int) (vertical * (tab == MenuTab.PRODUCTION ? productionRowHeight(top + 155) : tab == MenuTab.RECRUITMENT ? (compact() ? 85 : 93) : tab == MenuTab.LOGISTICS ? 68 : tradeTab == 0 ? 35 : 34));
         rebuildWidgets(); return true;
     }
     @Override public void removed() {
         SidebarMovement.release(minecraft);
         if (DialogClient.suspending()) return;
-        closed = true;
+        closed = true; selectingDeployment = false; dev.hoi.client.map.AtlasSceneClient.clearDeployment();
         transport.accept(new IndustryProtocol.Request(CLOSE, token, view == null ? 0 : view.revision(), "", "", 0));
+    }
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean twice) {
+        if (!modal() && (event.button() == 0 || event.button() == 1) && view != null && pending == 0) {
+            for (var slot : deploymentLocations) if (event.x() >= slot.x() && event.x() < slot.x() + slot.width() && event.y() >= slot.y() && event.y() < slot.y() + slot.height()) {
+                locationRecruit = slot.recruit();
+                selectingDeployment = event.button() == 0;
+                dev.hoi.client.map.AtlasSceneClient.clearDeployment();
+                send(selectingDeployment ? SELECT_LOCATION : LOCATION, slot.recruit(), "", 0);
+                return true;
+            }
+            if (selectingDeployment && event.x() >= pane + 3 + rightWidth() && event.y() > top + 22 && minecraft.player != null) {
+                if (event.button() == 1) {selectingDeployment = false; dev.hoi.client.map.AtlasSceneClient.clearDeployment(); return true;}
+                if (!minecraft.options.getCameraType().isFirstPerson()) return true;
+                var matrix = minecraft.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
+                var ray = matrix.transformProject(new org.joml.Vector3f((float)(event.x() / width * 2 - 1), (float)(1 - event.y() / height * 2), 1)).normalize();
+                pending = 100;
+                transport.accept(new IndustryProtocol.Request(LOCATION_AT, token, view.revision(), locationRecruit, "", 0, ray.x, ray.y, ray.z));
+                rebuildWidgets();return true;
+            }
+        }
+        return super.mouseClicked(event, twice);
     }
     @Override public boolean allowsMovement() { return !modal(); }
     @Override public boolean keyPressed(KeyEvent e) { return !modal() && SidebarMovement.consumes(minecraft, e) || super.keyPressed(e); }
@@ -629,9 +768,9 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     private static String equipmentName(Equipment e) { return e.name(); }
     private Template template(String id) { return view.templates().stream().filter(t -> t.id().equals(id)).findFirst().orElseThrow(); }
-    private String locationName(String id) { return view.locations().stream().filter(l -> l.id().equals(id)).map(Choice::name).findFirst().orElse(id); }
+    private String locationName(String id) { if (id.isEmpty()) return "장소 미지정"; return view.locations().stream().filter(l -> l.id().equals(id)).map(Choice::name).map(n -> n.replace("수도 · ", "").split(" · ", 2)[0]).findFirst().orElse(id); }
     private String resourceName(String id) { return view.resources().stream().filter(r -> r.id().equals(id)).map(Resource::name).findFirst().orElse(id); }
-    private String unitName(String id, boolean support) { return (support ? view.companies() : view.battalions()).stream().filter(c -> c.id().equals(id)).map(Choice::name).findFirst().orElse(id); }
+    private String unitName(String id, boolean support) { return (support ? view.companies() : view.battalions()).stream().filter(c -> c.id().equals(id)).map(Choice::name).map(n -> n.replace("수도 · ", "").split(" · ", 2)[0]).findFirst().orElse(id); }
     private String unitTexture(String id, boolean support) { return (support ? view.companies() : view.battalions()).stream().filter(c -> c.id().equals(id)).map(Choice::texture).findFirst().orElse("menu/recruitment"); }
     private String resources(Map<String,Double> resources, int count) {
         return resources.entrySet().stream().map(e -> resourceName(e.getKey()) + " " + decimal(e.getValue() * count)).reduce((a, b) -> a + " · " + b).orElse("자원 소모 없음");
@@ -685,7 +824,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                 HoiMenuStyle.control(g, x, y, w, h, false, false);
                 String caption = font.plainSubstrByWidth(label, Math.max(1, w - 6));
-                g.centeredText(font, caption, x + w / 2, y + (h - 8) / 2, active ? TEXT : MUTED);
+                g.centeredText(font, caption, x + w / 2, y + (h - font.lineHeight) / 2, active ? TEXT : MUTED);
             }
         };
         button.active = enabled && pending == 0; button.setTooltip(Tooltip.create(Component.literal(accessible)));
@@ -736,7 +875,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                 HoiMenuStyle.control(g, x, y, w, 25, false, false);
                 UiAssets.draw(g, texture, x + 4, y + 3, 26, 19);
-                g.text(font, font.plainSubstrByWidth(name, Math.max(1, w - 38)), x + 34, y + 9, active ? TEXT : MUTED);
+                g.centeredText(font, font.plainSubstrByWidth(name, Math.max(1, w - 38)), x + 34 + (w - 38) / 2, y + (25 - font.lineHeight) / 2, active ? TEXT : MUTED);
             }
         };
         button.active = enabled && pending == 0;

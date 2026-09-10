@@ -5,10 +5,10 @@ import java.util.List;
 
 public enum IntelDomain {
     CIVILIAN("민간", "intel/civilian", List.of(
-            new Tier(10, "예상 건물·가용 인력·수송선 수, 무역 상대"),
+            new Tier(10, "예상 건물·인력·수송선 수, 무역 상대"),
             new Tier(30, "예상 연료, 손상 건물 이력"),
             new Tier(50, "건물 수·자원 흐름, 완료한 중점, 민간 기술 수"),
-            new Tier(70, "연료·가용 인력·수송선 수, 진행 중인 중점, 연구한 민간 기술"),
+            new Tier(70, "연료·인력·수송선 수, 진행 중인 중점, 연구한 민간 기술"),
             new Tier(80, "비축 기록, 진행 중인 민간 연구"), new Tier(90, "수송선 경로 상세"))),
     ARMY("육군", "intel/army", List.of(
             new Tier(5, "예상 사단 수"), new Tier(10, "예상 배치 인력, 발사 시 습격 식별"),

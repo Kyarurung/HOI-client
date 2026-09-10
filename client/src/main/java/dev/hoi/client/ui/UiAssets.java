@@ -47,6 +47,17 @@ public final class UiAssets {
         g.blit(id, left, top, left + fitW, top + fitH, (float)trimLeft / size[0], 1 - (float)trimRight / size[0], 0, 1);
         return true;
     }
+    public static void nineSlice(GuiGraphicsExtractor g, String path, int x, int y, int w, int h, int border, double scale) {
+        var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
+        if (id == null || w <= 0 || h <= 0) return;
+        int[] size = DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions);
+        if (size[0] <= 2 * border || size[1] <= 2 * border) {draw(g, path, x, y, w, h); return;}
+        int edge = Math.min(Math.min(w, h) / 2, Math.max(1, (int)Math.round(border * scale)));
+        int[] xs = {x, x + edge, x + w - edge, x + w}, ys = {y, y + edge, y + h - edge, y + h};
+        float[] us = {0, (float)border / size[0], 1 - (float)border / size[0], 1}, vs = {0, (float)border / size[1], 1 - (float)border / size[1], 1};
+        for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++)
+            g.blit(id, xs[col], ys[row], xs[col + 1], ys[row + 1], us[col], us[col + 1], vs[row], vs[row + 1]);
+    }
     private static int[] dimensions(Identifier id) {
         var resource = Minecraft.getInstance().getResourceManager().getResource(id);
         if (resource.isPresent()) try (var input = new DataInputStream(resource.get().open())) {

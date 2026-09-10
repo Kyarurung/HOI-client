@@ -77,11 +77,27 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new HoiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
         if (view == null) return;
-        if (view.items().stream().anyMatch(i -> i.id().equals("create"))) {
-            var create = view.items().stream().filter(i -> i.id().equals("create")).findFirst().orElseThrow();
-            var button = new HoiMenuButton("정보기관 창설", 8, top + 99, pane - 16, 26,
-                    () -> send(AgencyProtocol.Kind.CALL, create.id(), List.of()));
-            button.active = create.enabled() && pendingTicks == 0; addRenderableWidget(button); return;
+        if (unestablished()) {
+            var action = view.items().stream().filter(i -> i.id().equals("create") || i.id().equals("cancel_project")).findFirst().orElse(null);
+            if (action != null) {
+                var button = new PanelButton(action.id().equals("create") ? "정보기관 창설" : "기관 창설 취소", 10, top + 29, pane - 20, 59,
+                        () -> send(AgencyProtocol.Kind.CALL, action.id(), List.of())) {
+                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                        if (isHoveredOrFocused()) g.outline(getX(),getY(),getWidth(),getHeight(),HoiMenuStyle.ACCENT);
+                    }
+                };
+                button.active = action.enabled() && pendingTicks == 0; addRenderableWidget(button);
+            }
+            for (int i=0;i<UPGRADE_GROUPS.length;i++) {
+                var button=new HoiMenuButton(UPGRADE_GROUPS[i],8+i*(pane-16)/5,top+108,(pane-20)/5,28,()->{});
+                button.textScale(.65f);button.active=false;addRenderableWidget(button);
+            }
+            for(int i=0;i<2;i++) {
+                String id=i==0?"operations":"cryptology";
+                var button=new HoiMenuButton(i==0?"작전":"암호학",null,group.equals(id),8+i*(pane-16)/2,top+199,(pane-20)/2,23,()->changeGroup(id));
+                button.textScale(.8f);addRenderableWidget(button);
+            }
+            return;
         }
         if (view.items().stream().noneMatch(i -> i.id().equals("recruit"))) return;
         view.items().stream().filter(i -> i.id().equals("spy_master")).findFirst().ifPresent(master ->
@@ -270,6 +286,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         HoiMenuStyle.panel(g, 0, top, pane, height - top);
         HoiMenuBar.draw(g, width, parent instanceof HoiMenuScreen menu ? menu.hud() : CountryHud.UNKNOWN, mx, my, 0);
         g.text(font, "정보기관", 10, top + 9, HoiMenuStyle.TEXT);
+        if (unestablished()) { drawUnestablished(g); super.extractRenderState(g,mx,my,delta); return; }
         String flag = view == null ? "menu/intelligence" : view.country().equals("KOR") ? "country/kor/intelligence" : "menu/intelligence";
         UiAssets.cover(g, "agency/ui/header", 6, top + 29, pane - 12, 62);
         UiAssets.draw(g, flag, 12, top + 40, 38, 39);
@@ -297,7 +314,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         if (view != null && group.equals("upgrades") && selectedId == null) {
             int ux = upgradeX(), uw = upgradeWidth();
             HoiMenuStyle.panel(g, ux, upgradeY(), uw, Math.min(410, height - upgradeY() - 36));
-            g.text(font, "첩보기관 개선", ux + 12, upgradeY() + 10, TEXT);
+            g.text(font, "정보기관 개선", ux + 12, upgradeY() + 10, TEXT);
             var items = visibleItems(); int columns = Math.max(1, Math.min(5, (uw - 16) / 100));
             String[] titles = {"정보공동체", "정보 순환", "정보 수집 분야", "휴민트", "신호 정보"};
             for (int i = 0; i < items.size(); i++) if (i == 0 || upgradeCategory(items.get(i - 1)) != upgradeCategory(items.get(i))) {
@@ -342,6 +359,32 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
                 g.text(font, value, 0, 0, TEXT); g.pose().popMatrix();
             }
         }
+    }
+    private boolean unestablished() { return view != null && view.items().stream().noneMatch(i -> i.id().equals("recruit")); }
+    private void drawUnestablished(GuiGraphicsExtractor g) {
+        var project=view.items().stream().filter(i->i.id().equals("cancel_project")).findFirst().orElse(null);
+        UiAssets.draw(g,"agency/ui/create",10,top+29,pane-20,59);
+        smallCentered(g,project==null?"기관 창설":"기관 창설 중",pane/2,top+51,TEXT);
+        UiAssets.draw(g,"hud/factories",34,top+57,13,13);
+        smallCentered(g,"5",54,top+60,0xFFCC4444);
+        smallCentered(g,project==null?"30일":project.value().substring(project.value().lastIndexOf('·')+1).trim(),pane-52,top+60,GOLD);
+        HoiMenuStyle.recess(g,34,top+77,pane-68,4);
+        if(project!=null&&project.progress()>=0)g.fill(35,top+78,35+(int)((pane-70)*project.progress()),top+80,0xFF97AC6C);
+        HoiMenuStyle.metal(g,6,top+92,pane-12,14); smallCentered(g,"정보기관",49,top+95,TEXT);
+        HoiMenuStyle.metal(g,6,top+150,pane-12,16); smallCentered(g,"작전",49,top+154,TEXT);
+        HoiMenuStyle.metal(g,6,top+168,pane-12,29);
+        String[] icons={"total_operatives","arrested_operatives","dead_operatives"};
+        for(int i=0;i<3;i++) {
+            UiAssets.draw(g,"agency/"+icons[i],14+i*35,top+170,21,20);
+            smallCentered(g,i==0?"0/0":"0",24+i*35,top+190,MUTED);
+        }
+        smallCentered(g,"기관을 창설하기 전에는 정보원을",(pane+110)/2,top+176,TEXT);
+        smallCentered(g,"모집할 수 없습니다.",(pane+110)/2,top+184,TEXT);
+        smallCentered(g,group.equals("cryptology")?"기관을 창설하면 암호 해독을 시작할 수 있습니다.":"작전은 정보원이 첩보망을 구축하여야",pane/2,top+274,TEXT);
+        if(!group.equals("cryptology"))smallCentered(g,"시행할 수 있습니다.",pane/2,top+283,TEXT);
+    }
+    private void smallCentered(GuiGraphicsExtractor g,String value,int x,int y,int color) {
+        g.pose().pushMatrix();g.pose().translate(x,y);g.pose().scale(.65f);g.centeredText(font,value,0,0,color);g.pose().popMatrix();
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
         if (choosing >= 0) choiceScroll -= (int)(vertical * 3);

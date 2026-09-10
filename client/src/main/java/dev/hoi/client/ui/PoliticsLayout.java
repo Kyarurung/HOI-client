@@ -24,7 +24,7 @@ public record PoliticsLayout(int pane, int top) {
     public Box election() { var b = government(); int x = b.x() + b.width() + 4; return new Box(x, b.y(), parties().x() - x - 6, b.height()); }
     public int summaryY() { return leader().y() + leader().height() + 6; }
     public int summaryHeight() { return Math.max(36, usable() * 15 / 100); }
-    public Box economy() { return new Box(8, summaryY(), usable() * 16 / 100, summaryHeight()); }
+    public Box economy() { return new Box(8, summaryY(), summaryHeight(), summaryHeight()); }
     public Box faction() { var b = economy(); return new Box(b.x() + b.width() + 6, b.y(), b.width(), b.height()); }
     public Box parties() { int x = 8 + usable() * 64 / 100; return new Box(x, rowY(2), pane - 8 - x, summaryY() + summaryHeight() - rowY(2)); }
     public Box partyChart() {

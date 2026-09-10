@@ -20,7 +20,7 @@ public final class RegimentScreenChecks {
                 context.getInput().resizeWindow(size[0],size[1]);context.waitTicks(2);
                 context.setScreen(()->new IndustryScreen(MenuTab.RECRUITMENT,v.session(),copy(v,template,null,1),requests::add));
                 context.runOnClient(client->{
-                    var s=(IndustryScreen)client.gui.screen();press(button(s,"열별 편제 편제 편집"));
+                    var s=(IndustryScreen)client.gui.screen();press(button(s,"열별 편제 편제"));
                     s.update(copy(v,template,v.draft(),2));
                 });
                 context.waitTicks(3);context.takeScreenshot("hoi-"+fixture.replace(".json","")+"-"+size[0]);

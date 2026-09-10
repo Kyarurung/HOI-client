@@ -70,6 +70,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             CompletionScreenChecks.run(context);
             ConstructionScreenChecks.run(context,menu.hud());
             CountryScreenChecks.run(context,menu.hud());
+            dev.hoi.client.screen.WorldTensionChecks.run(context,menu.hud());
             DialogScreenChecks.run(context);
             IndustryScreenChecks.run(context,menu.hud());
             RegimentScreenChecks.run(context);
@@ -82,7 +83,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             check(HoiMenuBar.indicators(menu.hud()).stream().anyMatch(i -> i.icon().equals("nuclear") && i.label().equals("핵폭탄")), "Nuclear bombs appear from campaign start without research");
             var armed = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational());
             check(HoiMenuBar.indicators(armed).stream().anyMatch(i -> i.icon().equals("nuclear") && i.value().equals("0")), "Completed nuclear research shows zero inventory");
-            check(HoiMenuBar.maximumScroll(900, armed) == 0, "All national and financial indicators fit the normal viewport");
+            check(HoiMenuBar.maximumScroll(1024, armed) == 0, "All national and financial indicators fit the normal viewport");
             context.runOnClient(client -> {
                 for (var item : HoiMenuBar.indicators(armed)) {
                     if (item.icon().equals("political_power") || item.icon().equals("command_power")) {
@@ -95,10 +96,10 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 var convoys = new HoiMenuBar.Indicator("convoys", "수송", 10000L, HoiMenuBar.Format.NUMBER);
                 check(convoys.value().equals("10.0K") && client.font.width(convoys.value()) <= convoys.width() - 18,
                         "Ten thousand convoys fit without ellipsis");
-                for (double power : new double[]{-500, 999.99, 1000, 1350, 1999.99, 2000}) {
+                for (double power : new double[]{-2000, 999.99, 1000, 1350, 1999.99, 2000}) {
                     var item = new HoiMenuBar.Indicator("political_power", "정치력", power, HoiMenuBar.Format.POLITICAL_POWER);
-                    check(item.value().length() <= 4 && client.font.width(item.value()) <= item.width() - 18,
-                            "Political power fits four characters throughout the server range");
+                    check(item.value().length() <= 5 && client.font.width(item.value()) <= item.width() - 18,
+                            "Political power fits five characters throughout the server range");
                 }
             });
             context.runOnClient(client -> check(HoiMenuBar.scroll(427, armed, 0, 0, -100) == HoiMenuBar.maximumScroll(427, armed), "Compact HUD can reach the final indicators"));
@@ -123,6 +124,14 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             }
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(2);
             context.takeScreenshot("hoi-menu-politics"); gui2Screenshot(context, "hoi-menu-politics");
+            context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(child -> child instanceof Button b && b.getMessage().getString().equals("권력의 균형")), "Inactive power balance remains hidden"));
+            var balance = new MenuView.Balance("PRC_Liberal_Conservative_power_balance", "민주주의의 바람", "보수파", "개혁파", "bop/prc_conservate_side", "bop/prc_liberal_side", .985,
+                    List.of(new MenuView.Entry("보수파의 통제", "-100% ~ -15%", "", -1), new MenuView.Entry("균형", "-15% ~ 15%", "", -.15), new MenuView.Entry("개혁파의 통제", "15% ~ 100%", "", .15)));
+            context.setScreen(() -> new HoiMenuScreen(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), menu.hud(), menu.manufacturers(), balance)));
+            click(context, "권력의 균형"); context.waitTicks(2); gui2Screenshot(context, "hoi-politics-power-balance");
+            context.runOnClient(c -> ((HoiMenuScreen)c.gui.screen()).update(menu));
+            context.waitTicks(2);
+            context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(child -> child instanceof Button b && b.getMessage().getString().equals("권력의 균형")), "Revoked power balance closes its controls"));
             CountryScreenChecks.politicsHover(context, menu);
             click(context, "정부 선택 0 · 미지정"); context.waitTicks(2); context.takeScreenshot("hoi-politics-slot-detail");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
@@ -146,6 +155,10 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                     check(screen.panelWidth() == HoiPanelLayout.width(tab,screen.width), "Original container width for " + tab);
                 });
             }
+            for (var captureTab : List.of(MenuTab.DECISIONS, MenuTab.LOGISTICS)) {
+                click(context, captureTab.label() + " 메뉴"); context.waitTicks(2); gui2Screenshot(context, "hoi-menu-" + captureTab.id());
+            }
+            click(context, MenuTab.OFFICER_CORPS.label() + " 메뉴");
             context.waitTicks(2); context.takeScreenshot("hoi-menu-officers"); gui2Screenshot(context, "hoi-menu-officers");
             click(context, "무역 & 경제 메뉴"); context.waitTicks(2); context.takeScreenshot("hoi-menu-economy");
             click(context, "무역"); context.waitTicks(2); context.takeScreenshot("hoi-menu-trade");
@@ -433,6 +446,21 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         });
     }
     private static void agency(ClientGameTestContext context) {
+        var create = new AgencyView.Item("create", "agents", "정보기관 설립", "민간공장 5개 · 30일", "", "agency/recruit", "설립", true, -1, List.of());
+        var before = new AgencyView("agency-create", 1, "KOR", "국가정보원", "미설립", List.of(create), "");
+        var creationRequests = new ArrayList<AgencyProtocol.Request>();
+        context.setScreen(() -> new AgencyScreen(null, before.session(), before, creationRequests::add)); context.waitTicks(2);
+        gui2Screenshot(context, "hoi-agency-before-creation");
+        context.runOnClient(client -> check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b && b.getMessage().getString().equals("정보공동체") && !b.active), "Unestablished agency disables upgrades"));
+        click(context, "정보기관 창설");
+        context.runOnClient(client -> {
+            check(creationRequests.getLast().item().equals("create") && creationRequests.getLast().revision() == 1, "Creation uses issued action and revision");
+            var project = new AgencyView.Item("cancel_project", "upgrades", "기관 설립", "기관 설립 · 15일 남음", "", "agency/upgrade", "취소", true, .5, List.of());
+            ((AgencyScreen) client.gui.screen()).update(new AgencyView(before.session(), 2, "KOR", before.name(), "창설 중", List.of(project), ""));
+        });
+        context.waitTicks(2); gui2Screenshot(context, "hoi-agency-creation-progress");
+        click(context, "기관 창설 취소");
+        context.runOnClient(client -> check(creationRequests.getLast().item().equals("cancel_project") && creationRequests.getLast().revision() == 2, "Creation cancellation uses latest revision"));
         var items = new ArrayList<AgencyView.Item>();
         items.add(new AgencyView.Item("recruit", "agents", "첩보원 고용", "1 / 2", "새로운 요원을 고용합니다.", "agency/recruit", "고용", true, -1, List.of()));
         items.add(new AgencyView.Item("spy_master", "agents", "세력 첩보장", "", "", "agency/spy_master", "취임", false, -1, List.of()));
