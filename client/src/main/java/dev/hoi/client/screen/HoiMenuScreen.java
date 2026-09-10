@@ -285,21 +285,13 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         drawPoliticalArt(g, "politics/leader_frame", leader);
         centeredPoliticsText(g, person.value(), new PoliticsLayout.Box(leader.x() + 4, leader.y() + leader.height() * 218 / 258,
                 leader.width() - 8, leader.height() * 34 / 258), TEXT);
-        var focusBox = layout.focus();
-        var focusBackground = net.minecraft.resources.Identifier.parse("hoi:textures/gui/politics/focus_background.png");
-        int frameLeft = (int)Math.round(focusBox.height() * 99.0 / 107);
-        int frameRight = Math.max(1, (int)Math.round(focusBox.height() * 12.0 / 107));
-        int left = focusBox.x(), right = left + focusBox.width(), bottom = focusBox.y() + focusBox.height();
-        g.blit(focusBackground, left, focusBox.y(), left + frameLeft, bottom, 0, 99f / 359, 0, 1);
-        g.blit(focusBackground, left + frameLeft, focusBox.y(), right - frameRight, bottom, 99f / 359, 347f / 359, 0, 1);
-        g.blit(focusBackground, right - frameRight, focusBox.y(), right, bottom, 347f / 359, 1, 0, 1);
+        drawPoliticalArt(g, "politics/focus_background", layout.focus());
         drawPoliticalArt(g, "politics/focus_select", layout.focusTitle());
         var focus = politicsFocus();
         drawPoliticalArt(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), layout.focusImage());
         var focusTitle = layout.focusTitle();
-        int focusWidth = Math.min(focusTitle.width(), (int)Math.round(focusTitle.height() * 258.0 / 83));
-        officerText(g, focus.value(), focusTitle.x() + (focusTitle.width() - focusWidth) / 2 + 14,
-                focusTitle.y() + (focusTitle.height() - 7) / 2, focusWidth - 28,
+        officerText(g, focus.value(), focusTitle.x() + 8,
+                focusTitle.y() + (focusTitle.height() - 7) / 2, focusTitle.width() - 16,
                 focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
         politicsCell(g, "경제-정치 연합", layout.union());
         var ideology = politicsEntry("세부 이념"); var ideologyBox = layout.ideology();

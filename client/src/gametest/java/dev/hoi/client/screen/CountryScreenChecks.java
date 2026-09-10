@@ -28,6 +28,13 @@ public final class CountryScreenChecks {
             var screen = (HoiMenuScreen)c.gui.screen(); var layout = screen.politicsLayout();
             for (int pane : new int[]{248,363,726}) {
                 var sizing = new dev.hoi.client.ui.PoliticsLayout(pane, 40);
+                var focusBox = sizing.focus(); var focusImage = sizing.focusImage();
+                if (Math.abs(focusBox.width() - focusBox.height() * 359.0 / 107) > .5
+                        || focusBox.x() != sizing.ideology().x()
+                        || sizing.ideology().y() - focusBox.y() - focusBox.height() != 4
+                        || focusImage.width() != focusImage.height()
+                        || focusImage.height() != sizing.ideology().height())
+                    throw new AssertionError("Focus must preserve source proportions, icon size and ideology alignment");
                 for (var box : List.of(sizing.union(), sizing.ideology(), sizing.government()))
                     if (box.width() != box.height()) throw new AssertionError("Political icon cells must stay square at every size");
                 if (sizing.government().x() + sizing.government().width() > sizing.election().x()
