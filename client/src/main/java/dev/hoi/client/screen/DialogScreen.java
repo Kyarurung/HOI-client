@@ -32,7 +32,6 @@ public class DialogScreen extends Screen {
     @Override protected void init() {
         boolean event = paper() || view.kind() == DialogView.Kind.SUPER_EVENT;
         if (event) {
-            // Original 2560x1440 reference: super 1000x640, paper 620x800.
             double scale = Math.min(width / 1280.0, height / 720.0);
             boolean wide = view.kind() == DialogView.Kind.SUPER_EVENT;
             pane = Math.min(width - 16, Math.max(wide ? 320 : 240, (int)Math.round((wide ? 500 : 310) * scale)));
