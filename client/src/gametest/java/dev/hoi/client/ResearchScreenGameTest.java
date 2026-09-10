@@ -40,10 +40,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 
 public final class ResearchScreenGameTest implements FabricClientGameTest {
-    public static void gui3Screenshot(ClientGameTestContext context, String name) {
+    public static void gui2Screenshot(ClientGameTestContext context, String name) {
         context.getInput().resizeWindow(2560, 1440);
-        context.runOnClient(client -> client.options.guiScale().set(3)); context.waitTicks(3);
-        context.takeScreenshot(name + "-gui3");
+        context.runOnClient(client -> client.options.guiScale().set(2)); context.waitTicks(3);
+        context.takeScreenshot(name + "-gui2");
         context.runOnClient(client -> client.options.guiScale().set(2));
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
     }
@@ -119,7 +119,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 context.waitTicks(2); context.takeScreenshot("hoi-defcon-frame-" + HoiMenuBar.defconFrame(tension));
             }
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(2);
-            context.takeScreenshot("hoi-menu-politics"); gui3Screenshot(context, "hoi-menu-politics");
+            context.takeScreenshot("hoi-menu-politics"); gui2Screenshot(context, "hoi-menu-politics");
             CountryScreenChecks.politicsHover(context, menu);
             click(context, "정부 선택 0 · 미지정"); context.waitTicks(2); context.takeScreenshot("hoi-politics-slot-detail");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
@@ -143,7 +143,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                     check(screen.panelWidth() == HoiPanelLayout.width(tab,screen.width), "Original container width for " + tab);
                 });
             }
-            context.waitTicks(2); context.takeScreenshot("hoi-menu-officers"); gui3Screenshot(context, "hoi-menu-officers");
+            context.waitTicks(2); context.takeScreenshot("hoi-menu-officers"); gui2Screenshot(context, "hoi-menu-officers");
             click(context, "무역 & 경제 메뉴"); context.waitTicks(2); context.takeScreenshot("hoi-menu-economy");
             click(context, "무역"); context.waitTicks(2); context.takeScreenshot("hoi-menu-trade");
             context.getInput().resizeWindow(854, 480); context.waitTicks(3);
@@ -434,10 +434,13 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         items.add(new AgencyView.Item("recruit", "agents", "첩보원 고용", "1 / 2", "새로운 요원을 고용합니다.", "agency/recruit", "고용", true, -1, List.of()));
         items.add(new AgencyView.Item("spy_master", "agents", "세력 첩보장", "", "", "agency/spy_master", "취임", false, -1, List.of()));
         String[] upgradeNames = {"외국 정보", "국내 정보", "군사 정보", "계획 및 지휘", "수집", "처리 및 활용", "분석", "전파", "인적 정보", "신호 정보", "계측기호정보", "공개출처정보", "지형공간정보", "점조직 체계", "통신 보안", "지원 서비스", "강화된 심문 기술", "제거", "전자정보", "통신정보", "암호 분석 공격 모델", "암호화 체계 연산법 개선", "양자 암호학"};
+        int[] maxima = {4,4,4,1,1,1,1,1,1,1,2,2,3,3,3,3,3,2,1,3,4,4,3};
         for (int i = 0; i < AgencyScreen.UPGRADE_ORDER.size(); i++) {
             String upgrade = AgencyScreen.UPGRADE_ORDER.get(i);
-            items.add(new AgencyView.Item("upgrade:" + upgrade, "upgrades", upgradeNames[i], i % 3 == 0 ? "1 / 1" : "0 / 1", "민간공장 5개 · 30일", "agency/" + upgrade, "개선", i % 3 == 1, i % 3 == 0 ? 1 : 0, List.of()));
+            int level = i % 3 == 0 ? maxima[i] : i % 3 == 1 ? maxima[i] / 2 : 0;
+            items.add(new AgencyView.Item("upgrade:" + upgrade, "upgrades", upgradeNames[i], level + " / " + maxima[i], "민간공장 5개 · 30일", "agency/" + upgrade, "개선", i % 3 == 1, level / (double)maxima[i], List.of()));
         }
+        dev.hoi.client.screen.AgencyScreenChecks.run(context, items);
         items.add(new AgencyView.Item("decrypt:PRK", "cryptology", "북한 암호", "해독 중", "해독 진행: 1200 / 12000", "agency/cryptology", "일시 정지", true, .1, List.of()));
         items.add(new AgencyView.Item("operation:CAPTURE_CIPHER", "operations", "암호 탈취", "60일", "정보망 50과 대기 요원 2명이 필요합니다.\n민간공장 3개가 사용됩니다.", "agency/capture_cipher", "작전 준비", true, -1,
                 List.of(new AgencyView.Parameter("대상 국가", List.of(new AgencyView.Choice("PRK", "북한"), new AgencyView.Choice("JAP", "일본"))))));
@@ -451,9 +454,9 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b && !b.active && b.getMessage().getString().equals("응답 대기…")), "Pending agency action disabled");
             ((AgencyScreen)client.gui.screen()).update(new AgencyView(fixture.session(), 2, "KOR", fixture.name(), fixture.status(), items, "고용 완료"));
         });
-        click(context, "닫기"); click(context, "첩보기관 개선"); context.waitTicks(2); context.takeScreenshot("hoi-agency-upgrades"); gui3Screenshot(context, "hoi-agency-upgrades");
+        click(context, "닫기"); click(context, "정보공동체"); context.waitTicks(2); context.takeScreenshot("hoi-agency-upgrades"); gui2Screenshot(context, "hoi-agency-upgrades");
         context.runOnClient(client -> check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b && b.getMessage().getString().equals("암호학") && !b.active), "Upgrade overlay blocks background tabs"));
-        click(context, "개선 창 닫기"); click(context, "암호학"); context.waitTicks(2); context.takeScreenshot("hoi-agency-cryptology"); gui3Screenshot(context, "hoi-agency-cryptology");
+        click(context, "개선 창 닫기"); click(context, "암호학"); context.waitTicks(2); context.takeScreenshot("hoi-agency-cryptology"); gui2Screenshot(context, "hoi-agency-cryptology");
         click(context, "작전"); click(context, "암호 탈취"); context.waitTicks(2); context.takeScreenshot("hoi-agency-operation");
         click(context, "대상 국가: 북한"); context.waitTicks(1); click(context, "일본"); click(context, "작전 준비");
         context.runOnClient(client -> {

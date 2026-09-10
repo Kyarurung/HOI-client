@@ -31,7 +31,12 @@ public final class HoiMenuButton extends Button {
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : "ui.click"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
-        HoiMenuStyle.control(g, x, y, w, h, selected, active && isHoveredOrFocused());
+        HoiMenuStyle.control(g, x, y, w, h, selected, false);
+        String displayed = caption == null ? getMessage().getString() : caption;
+        if (displayed.equals("×") || displayed.equals("X")) {
+            HoiMenuStyle.close(g, x, y, w, h, active ? HoiMenuStyle.TEXT : HoiMenuStyle.MUTED);
+            return;
+        }
         var font = Minecraft.getInstance().font;
         if (icon != null) {
             if (!UiAssets.draw(g, icon, x + 5, y + 3, w - 10, h - 7))

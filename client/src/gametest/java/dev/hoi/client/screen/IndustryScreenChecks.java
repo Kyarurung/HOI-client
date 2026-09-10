@@ -22,7 +22,7 @@ public final class IndustryScreenChecks {
         var requests = new ArrayList<IndustryProtocol.Request>();
         for (var tab : List.of(MenuTab.PRODUCTION, MenuTab.TRADE, MenuTab.LOGISTICS, MenuTab.RECRUITMENT)) {
             context.setScreen(() -> new IndustryScreen(tab, v.session(), v, requests::add));
-            context.waitTicks(3); context.takeScreenshot("hoi-industry-" + tab.id()); ResearchScreenGameTest.gui3Screenshot(context, "hoi-industry-" + tab.id());
+            context.waitTicks(3); context.takeScreenshot("hoi-industry-" + tab.id()); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-" + tab.id());
             context.runOnClient(client -> {
                 var screen = (IndustryScreen) client.gui.screen();
                 check(screen.panelWidth() == HoiPanelLayout.width(tab, screen.width), "Original sidebar proportions");
@@ -54,7 +54,7 @@ public final class IndustryScreenChecks {
         }
         context.setScreen(() -> new IndustryScreen(MenuTab.TRADE, v.session(), v, requests::add)); context.waitTicks(2);
         var seller = v.partners().stream().filter(p -> p.route() && p.exports().getOrDefault("IRON", 0.0) > 0).findFirst().orElseThrow();
-        click(context, seller.name() + "에서 수입"); context.waitTicks(2); context.takeScreenshot("hoi-industry-trade-contract"); ResearchScreenGameTest.gui3Screenshot(context, "hoi-industry-trade-contract");
+        click(context, seller.name() + "에서 수입"); context.waitTicks(2); context.takeScreenshot("hoi-industry-trade-contract"); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-trade-contract");
         context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
         click(context, "수입 계약 체결");
         context.runOnClient(client -> {
@@ -95,7 +95,7 @@ public final class IndustryScreenChecks {
         });
         click(context, template + " 편제 편집");
         context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 2, v.templates().getFirst())));
-        context.waitTicks(3); context.takeScreenshot("hoi-industry-division-designer"); ResearchScreenGameTest.gui3Screenshot(context, "hoi-industry-division-designer");
+        context.waitTicks(3); context.takeScreenshot("hoi-industry-division-designer"); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-division-designer");
         context.getInput().setCursorPos(220,615); context.waitTicks(2); context.takeScreenshot("hoi-industry-division-equipment-tooltip");
         context.getInput().setCursorPos(1500,800);
         context.runOnClient(client -> { var s = (IndustryScreen)client.gui.screen(); check(!s.allowsMovement(), "Designer blocks movement"); checkBounds(s); });

@@ -1,6 +1,8 @@
 package dev.hoi.client.screen;
 
 import dev.hoi.client.input.SidebarMovement;
+import dev.hoi.client.HoiClient;
+import dev.hoi.client.ui.HoiMenuBar;
 import dev.hoi.client.ui.PanelButton;
 import dev.hoi.client.ui.HoiMenuButton;
 import dev.hoi.client.ui.HoiMenuStyle;
@@ -23,15 +25,14 @@ import java.util.function.Consumer;
 public final class AgencyScreen extends Screen implements SidebarMovement.Screen {
     private static final int TEXT = 0xFFE0E3DD, GOLD = 0xFFFFAA00, MUTED = 0xFF9AABA8;
     public static final List<String> UPGRADE_ORDER = List.of("foreign_intelligence", "domestic_intelligence", "military_intelligence", "planning_and_direction", "collection", "processing_and_exploitation", "analysis", "dissemination", "humint", "sigint", "masint", "osint", "geoint", "cell_system", "communication_security", "support_services", "enhanced_interrogation_techniques", "termination", "elint", "comint", "advanced_cryptoanalytical_attack_models", "cryptosystem_algorithm_upgrade", "quantum_cryptography");
-    private static final String[] GROUPS = {"agents", "upgrades", "cryptology", "operations"};
-    private static final String[] LABELS = {"첩보원", "기관 개선", "암호학", "작전"};
+    private static final String[] UPGRADE_GROUPS = {"정보공동체", "정보 순환", "정보 수집 분야", "휴민트", "신호 정보"};
     private final Screen parent;
     private final Consumer<AgencyProtocol.Request> transport;
     private final String token;
     private AgencyView view;
     private String group = "operations", selectedId;
     private final List<String> arguments = new ArrayList<>();
-    private int pane, scroll, detailScroll, choosing = -1, choiceScroll, pendingTicks, refreshTicks, overlayStart;
+    private int pane, top, scroll, detailScroll, choosing = -1, choiceScroll, pendingTicks, refreshTicks, overlayStart;
     private String searchText = "";
     private EditBox search;
 
@@ -69,29 +70,44 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         overlayStart = 0;
         SidebarMovement.release(minecraft);
         pane = HoiPanelLayout.width(MenuTab.INTELLIGENCE, width);
-        addRenderableWidget(new HoiMenuButton("×", pane - 25, 3, 19, 19, this::onClose));
+        top = HoiMenuBar.height(width);
+        HoiMenuBar.buttons(width, view == null ? "" : view.country(), MenuTab.INTELLIGENCE, tab -> {
+            if (tab == MenuTab.INTELLIGENCE) return;
+            if (tab == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
+        }).forEach(this::addRenderableWidget);
+        addRenderableWidget(new HoiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
         if (view == null) return;
         if (view.items().stream().anyMatch(i -> i.id().equals("create"))) {
             var create = view.items().stream().filter(i -> i.id().equals("create")).findFirst().orElseThrow();
-            var button = new HoiMenuButton("정보기관 창설", 8, 99, pane - 16, 26,
+            var button = new HoiMenuButton("정보기관 창설", 8, top + 99, pane - 16, 26,
                     () -> send(AgencyProtocol.Kind.CALL, create.id(), List.of()));
             button.active = create.enabled() && pendingTicks == 0; addRenderableWidget(button); return;
         }
         if (view.items().stream().noneMatch(i -> i.id().equals("recruit"))) return;
         view.items().stream().filter(i -> i.id().equals("spy_master")).findFirst().ifPresent(master ->
-                addRenderableWidget(new HoiMenuButton("세력 첩보장", "agency/spy_master", false, pane - 39, 40, 29, 29, () -> selectItem(master))));
-        int actionWidth = (pane - 20) / 2;
-        var improveButton = new HoiMenuButton("첩보기관 개선", 8, 96, actionWidth, 23, () -> changeGroup("upgrades"));
-        improveButton.textScale(.8f); addRenderableWidget(improveButton);
+                addRenderableWidget(new HoiMenuButton("세력 첩보장", "agency/spy_master", false, pane - 39, top + 40, 29, 29, () -> selectItem(master))));
+        for (int i = 0; i < UPGRADE_GROUPS.length; i++) {
+            int category = i;
+            var improveButton = new HoiMenuButton(UPGRADE_GROUPS[i], 8 + i * (pane - 16) / 5, top + 108, (pane - 20) / 5, 28, () -> {
+                changeGroup("upgrades");
+                var items = visibleItems();
+                for (int n = 0; n < items.size(); n++) if (upgradeCategory(items.get(n)) == category) {
+                    int columns = Math.max(1, Math.min(5, (upgradeWidth() - 16) / 100));
+                    scroll = upgradeOffset(items, n, columns) - 16;
+                    rebuildWidgets(); break;
+                }
+            });
+            improveButton.textScale(.65f); addRenderableWidget(improveButton);
+        }
         for (int i = 0; i < 2; i++) {
             String id = i == 0 ? "operations" : "cryptology", label = i == 0 ? "작전" : "암호학";
-            addRenderableWidget(new HoiMenuButton(label, null, group.equals(id), 8 + i * (pane - 16) / 2, 149, (pane - 20) / 2, 23, () -> changeGroup(id)));
+            addRenderableWidget(new HoiMenuButton(label, null, group.equals(id), 8 + i * (pane - 16) / 2, top + 199, (pane - 20) / 2, 23, () -> changeGroup(id)));
         }
-        addRenderableWidget(new HoiMenuButton("모집된 요원", "agency/total_operatives", group.equals("agents"), 8, 122, 28, 23, () -> changeGroup("agents")));
-        addRenderableWidget(new HoiMenuButton("적에게 포획된 정보원", "agency/arrested_operatives", false, 43, 122, 28, 23, () -> changeGroup("agents")));
-        addRenderableWidget(new HoiMenuButton("적에게 사살당한 정보원", "agency/dead_operatives", false, 78, 122, 28, 23, () -> changeGroup("agents")));
+        addRenderableWidget(new HoiMenuButton("모집된 요원", "agency/total_operatives", group.equals("agents"), 8, top + 169, 28, 23, () -> changeGroup("agents")));
+        addRenderableWidget(new HoiMenuButton("적에게 포획된 정보원", "agency/arrested_operatives", false, 43, top + 169, 28, 23, () -> changeGroup("agents")));
+        addRenderableWidget(new HoiMenuButton("적에게 사살당한 정보원", "agency/dead_operatives", false, 78, top + 169, 28, 23, () -> changeGroup("agents")));
         var recruit = view.items().stream().filter(i -> i.id().equals("recruit")).findFirst().orElseThrow();
-        var recruitButton = new HoiMenuButton("정보원 모집", 12 + actionWidth, 96, actionWidth, 23, () -> selectItem(recruit));
+        var recruitButton = new HoiMenuButton("정보원 모집", 113, top + 169, pane - 121, 23, () -> selectItem(recruit));
         recruitButton.textScale(.8f); addRenderableWidget(recruitButton);
         overlayStart = children().size();
         if (group.equals("upgrades")) {
@@ -100,10 +116,10 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         }
         var items = visibleItems();
         boolean grid = group.equals("upgrades");
-        int x = grid ? upgradeX() + 8 : 8, y = grid ? upgradeY() + 39 : 180;
+        int x = grid ? upgradeX() + 8 : 8, y = grid ? upgradeY() + 39 : top + 227;
         int areaWidth = grid ? upgradeWidth() - 16 : pane - 16;
         int columns = grid ? Math.max(1, Math.min(5, areaWidth / 100)) : 1;
-        int pitch = grid ? 48 : 51;
+        int pitch = grid ? 56 : 51;
         int contentHeight = grid ? (items.isEmpty() ? 0 : upgradeOffset(items, items.size() - 1, columns) + pitch) : items.size() * pitch;
         scroll = Math.clamp(scroll, 0, Math.max(0, contentHeight - (height - y - 40)));
         if (selectedId == null || !grid) for (int i = 0; i < items.size(); i++) {
@@ -115,21 +131,23 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
             }) {
                 @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                     int w = getWidth(), h = getHeight();
-                    g.fillGradient(bx, by, bx + w, by + h, item.enabled() ? 0xFF354036 : 0xFF292C31, 0xFF101519);
-                    g.outline(bx, by, w, h, grid ? upgradeColor(item) : isHoveredOrFocused() || item.id().equals(selectedId) ? GOLD : 0xFF62696F);
-                    int art = grid ? 24 : 34;
-                    int ax = grid ? bx + (w - art) / 2 : bx + 5;
-                    if (!UiAssets.draw(g, item.texture(), ax, by + 2, art, art)) UiAssets.draw(g, "menu/intelligence", ax, by + 2, art, art);
-                    int tx = grid ? bx + 5 : bx + 44, ty = grid ? by + 29 : by + 7;
+                    int labelY = grid ? by + 34 : by;
+                    int labelHeight = grid ? 15 : h;
+                    g.fillGradient(bx, labelY, bx + w, labelY + labelHeight, item.enabled() ? 0xFF354036 : 0xFF292C31, 0xFF101519);
+                    g.outline(bx, labelY, w, labelHeight, grid ? upgradeColor(item) : 0xFF62696F);
+                    int artWidth = grid ? w : 40, artHeight = 34;
+                    int ax = grid ? bx : bx + 2;
+                    if (!UiAssets.draw(g, item.texture(), ax, by, artWidth, artHeight)) UiAssets.draw(g, "menu/intelligence", ax, by, artWidth, artHeight);
+                    int tx = grid ? bx + w / 2 : bx + 44, ty = grid ? by + 37 : by + 7;
                     if (grid) {
                         float scale = Math.min(.8f, (w - 10) / (float)Math.max(1, font.width(item.title())));
                         g.pose().pushMatrix(); g.pose().translate(tx, ty); g.pose().scale(scale);
-                        g.text(font, item.title(), 0, 0, TEXT); g.pose().popMatrix();
+                        g.text(font, item.title(), -font.width(item.title()) / 2, 0, TEXT); g.pose().popMatrix();
                         int stages = upgradeStages(item);
-                        int completed = (int)Math.round(Math.max(0, item.progress()) * stages);
-                        for (int stage = 0; stage < stages; stage++)
+                        int completed = upgradeLevel(item);
+                        for (int stage = 0; stages > 1 && stage < stages; stage++)
                             UiAssets.draw(g, stage < completed ? "agency/stage_complete" : "agency/stage_empty",
-                                    bx + (w - stages * 7) / 2 + stage * 7, by + h - 7, 7, 7);
+                                    bx + (w - (stages - 1) * 6 - 11) / 2 + stage * 6, by + h - 5, 11, 11);
                     } else {
                         g.text(font, trim(item.title(), w - 49), tx, ty, TEXT);
                         g.text(font, trim(item.value(), w - 49), tx, ty + 13, GOLD);
@@ -188,9 +206,9 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     }
     private void changeGroup(String next) { group = next; selectedId = null; choosing = -1; scroll = 0; rebuildWidgets(); }
     private void selectItem(Item item) { selectedId = item.id(); arguments.clear(); normalizeArguments(item); detailScroll = 0; rebuildWidgets(); }
-    private int upgradeWidth() { return Math.min(650, width - 16); }
+    private int upgradeWidth() { return Math.min(540, width - 16); }
     private int upgradeX() { return (width - upgradeWidth()) / 2; }
-    private int upgradeY() { return 38; }
+    private int upgradeY() { return Math.max(top + 4, (height - 410) / 2); }
     static int upgradeOrder(Item item) {
         int index = UPGRADE_ORDER.indexOf(item.id().replace("upgrade:", "").toLowerCase(Locale.ROOT));
         return index < 0 ? UPGRADE_ORDER.size() : index;
@@ -207,6 +225,16 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
             return count > 0 && count <= 8 ? count : 0;
         } catch (NumberFormatException ignored) { return 0; }
     }
+    static int upgradeLevel(Item item) {
+        int slash = item.value().indexOf('/');
+        if (slash < 0) return 0;
+        try { return Math.clamp(Integer.parseInt(item.value().substring(0, slash).trim()), 0, upgradeStages(item)); }
+        catch (NumberFormatException ignored) { return 0; }
+    }
+    static String upgradeIndicator(Item item) {
+        int maximum = upgradeStages(item);
+        return maximum < 1 || maximum > 4 ? "" : "agency/researched/" + (maximum * (maximum + 1) / 2 - 1 + upgradeLevel(item));
+    }
     private static int upgradeCategory(Item item) {
         int index = upgradeOrder(item);
         return index < 3 ? 0 : index < 8 ? 1 : index < 13 ? 2 : index < 18 ? 3 : 4;
@@ -222,7 +250,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     private static int upgradeOffset(List<Item> items, int index, int columns) {
         int headers = 1;
         for (int i = 1; i <= index; i++) if (upgradeCategory(items.get(i - 1)) != upgradeCategory(items.get(i))) headers++;
-        return upgradePosition(items, index, columns) / columns * 48 + headers * 16;
+        return upgradePosition(items, index, columns) / columns * 56 + headers * 16;
     }
     private int detailX() { return Math.min(pane + 12, width - 260); }
     private int detailWidth() { return Math.min(540, width - detailX() - 12); }
@@ -239,13 +267,27 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         } else if (++refreshTicks % 60 == 0 && pendingTicks == 0 && choosing < 0 && selectedId == null) send(AgencyProtocol.Kind.REFRESH, "", List.of());
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-        HoiMenuStyle.panel(g, 0, 0, pane, height);
-        g.text(font, "정보기관", 10, 9, HoiMenuStyle.TEXT);
+        HoiMenuStyle.panel(g, 0, top, pane, height - top);
+        HoiMenuBar.draw(g, width, parent instanceof HoiMenuScreen menu ? menu.hud() : CountryHud.UNKNOWN, mx, my, 0);
+        g.text(font, "정보기관", 10, top + 9, HoiMenuStyle.TEXT);
         String flag = view == null ? "menu/intelligence" : view.country().equals("KOR") ? "country/kor/intelligence" : "menu/intelligence";
-        UiAssets.cover(g, "agency/ui/header", 6, 29, pane - 12, 62);
-        UiAssets.draw(g, flag, 12, 40, 38, 39);
-        g.text(font, trim(view == null ? "불러오는 중…" : view.name(), pane - 98), 56, 46, TEXT);
-        g.text(font, trim(view == null ? "" : view.status(), pane - 16), 8, 81, MUTED);
+        UiAssets.cover(g, "agency/ui/header", 6, top + 29, pane - 12, 62);
+        UiAssets.draw(g, flag, 12, top + 40, 38, 39);
+        g.text(font, trim(view == null ? "불러오는 중…" : view.name(), pane - 98), 56, top + 46, TEXT);
+        g.text(font, trim(view == null ? "" : view.status(), pane - 16), 8, top + 81, MUTED);
+        HoiMenuStyle.metal(g, 6, top + 92, pane - 12, 14);
+        g.text(font, "정보기관", 12, top + 95, TEXT);
+        HoiMenuStyle.metal(g, 6, top + 150, pane - 12, 16);
+        g.text(font, "작전", 12, top + 154, TEXT);
+        if (view != null) for (int i = 0; i < UPGRADE_GROUPS.length; i++) {
+            int category = i;
+            var upgrades = view.items().stream().filter(item -> item.group().equals("upgrades") && upgradeCategory(item) == category)
+                    .sorted(Comparator.comparingInt(AgencyScreen::upgradeOrder)).toList();
+            int count = upgrades.size(), size = Math.min(10, (pane - 20) / 5 / Math.max(1, count));
+            int x = 8 + i * (pane - 16) / 5;
+            for (int j = 0; j < count; j++)
+                UiAssets.draw(g, upgradeIndicator(upgrades.get(j)), x + j * size, top + 138, size, size);
+        }
         boolean overlay = view != null && group.equals("upgrades");
         if (overlay) {
             for (int i = 0; i < overlayStart; i++) if (children().get(i) instanceof net.minecraft.client.gui.components.Renderable widget)
@@ -254,7 +296,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         }
         if (view != null && group.equals("upgrades") && selectedId == null) {
             int ux = upgradeX(), uw = upgradeWidth();
-            HoiMenuStyle.panel(g, ux, upgradeY(), uw, height - upgradeY() - 36);
+            HoiMenuStyle.panel(g, ux, upgradeY(), uw, Math.min(410, height - upgradeY() - 36));
             g.text(font, "첩보기관 개선", ux + 12, upgradeY() + 10, TEXT);
             var items = visibleItems(); int columns = Math.max(1, Math.min(5, (uw - 16) / 100));
             String[] titles = {"정보공동체", "정보 순환", "정보 수집 분야", "휴민트", "신호 정보"};
@@ -296,7 +338,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
             for (int i = 0; i < ids.length; i++) {
                 String id = ids[i];
                 var value = view.items().stream().filter(v -> v.id().equals(id)).map(AgencyView.Item::value).findFirst().orElse("—");
-                g.pose().pushMatrix(); g.pose().translate(10 + 35 * i, 139); g.pose().scale(.65f);
+                g.pose().pushMatrix(); g.pose().translate(10 + 35 * i, top + 187); g.pose().scale(.65f);
                 g.text(font, value, 0, 0, TEXT); g.pose().popMatrix();
             }
         }

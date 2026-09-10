@@ -211,7 +211,6 @@ public final class HoiMenuBar {
             if (selected) {
                 g.horizontalLine(x + 2, x + w - 3, y + h - 1, HoiMenuStyle.ACCENT);
             }
-            if (isHoveredOrFocused()) g.outline(x, y, w, h, HoiMenuStyle.ACCENT);
         }
     }
 }

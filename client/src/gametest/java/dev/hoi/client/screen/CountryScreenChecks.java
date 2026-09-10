@@ -13,52 +13,44 @@ public final class CountryScreenChecks {
         var overview = new ArrayList<>(sections.getFirst().entries());
         overview.set(1, new MenuView.Entry("지도자", "검증용 지도자", "검증용 특성\n안정도: §a+5%§r\n정치력: §4-3%§r\n\n지도자 설명 줄바꿈과 호버 영역을 확인하는 렌더링 검증 데이터입니다.", -1, "politics/empty/leader"));
         overview.add(new MenuView.Entry("세부 이념", "공격적 자유주의", "세부 이념 설명을 확인하는 렌더링 검증 데이터입니다."));
+        overview.removeIf(e -> e.icon().startsWith("politics/ideology/"));
+        String[] names = {"민중민주당", "민주노동당", "민주노동당", "민주노동당", "더불어민주당", "국민의힘", "국민의힘", "우리공화당", "대한민국 국군", "자유의새벽당", "가자코리아"};
+        for (int i = 0; i < names.length; i++) overview.add(new MenuView.Entry(names[i], i == 0 ? "100%" : "0%", "목록 렌더링 검증용 분포", i == 0 ? 1 : 0, "politics/party/4267ce"));
         sections.set(0, new MenuView.Section("국가 현황", "politics", overview));
         sections.set(1, new MenuView.Section("국가 정신", "politics", java.util.stream.IntStream.range(0, 24)
                 .mapToObj(i -> new MenuView.Entry("검증용 정신 " + i, "", "연구 속도: §a+5%§r\n안정도: §4-3%§r\n\n현재 아이콘에 해당하는 설명입니다.", -1, "menu/politics")).toList()));
         var pages = source.pages().stream().map(p -> p.tab() == MenuTab.POLITICS ? new MenuView.Page(p.tab(), sections) : p).toList();
         context.setScreen(() -> new HoiMenuScreen(new MenuView(source.country(), source.countryName(), source.date(), source.speed(), pages, source.hud())));
         context.waitTicks(2);
-        double[] cursor = new double[2];
         context.runOnClient(c -> {
-            var screen = (HoiMenuScreen)c.gui.screen(); int top = dev.hoi.client.ui.HoiMenuBar.height(screen.width);
-            if (!screen.politicsHover(15, top + 45).equals(screen.politicsHover(15, top + 115))) throw new AssertionError("Portrait and name must share leader tooltip");
-            if (!screen.politicsHover(15, top + 45).equals(screen.politicsHover(15, top + 108)))
-                throw new AssertionError("Portrait and name must occupy one continuous leader cell");
+            var screen = (HoiMenuScreen)c.gui.screen(); var layout = screen.politicsLayout();
+            var leader = layout.leader(); var image = layout.focusImage(); var title = layout.focusTitle();
+            if (layout.election().x() + layout.election().width() >= layout.parties().x()
+                    || layout.government().x() + layout.government().width() >= layout.parties().x()
+                    || layout.parties().y() >= layout.summaryY())
+                throw new AssertionError("Party names need the space beside government and election");
+            if (!screen.politicsHover(leader.x()+5,leader.y()+10).equals(screen.politicsHover(leader.x()+5,leader.y()+leader.height()-8)))
+                throw new AssertionError("Portrait and name must occupy one continuous cell");
             var focus = screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("국가 중점"))
                     .map(w -> (Button)w).findFirst().orElseThrow();
-            if (focus.isMouseOver(screen.politicsSplit() + 15, top + 45) || !focus.isMouseOver(screen.politicsSplit() + 45, top + 45))
-                throw new AssertionError("Only the focus title body must be clickable");
-            if (screen.children().stream().anyMatch(w -> w instanceof Button b && b.isMouseOver(15, top + 45)))
-                throw new AssertionError("Leader portrait must have no clickable or highlighting button");
-            if (screen.politicsHover(screen.politicsSplit() + 15, top + 75) != null)
-                throw new AssertionError("Ideology space must not expose a national spirit tooltip");
-            double scale = c.getWindow().getWidth() / (double)screen.width;
-            cursor[0] = 15 * scale; cursor[1] = (top + 45) * scale;
+            if (focus.isMouseOver(image.x()+2,image.y()+2) || !focus.isMouseOver(title.x()+2,title.y()+2))
+                throw new AssertionError("Only focus title must be clickable");
+            var strip=layout.spirits(); int x=strip.x()+6,y=strip.y()+strip.height()/2;
+            var first=screen.politicsHover(x,y);screen.mouseScrolled(x,y,-3,0);
+            var last=screen.politicsHover(x,y);
+            if(first==null||last==null||first.equals(last))throw new AssertionError("Horizontal scroll must expose later spirits");
+            if(screen.politicsHover(strip.x()+1,y)!=null)throw new AssertionError("Spirit spacer must stay empty");
+            screen.mouseScrolled(x,y,0,100);
+            if(!first.equals(screen.politicsHover(x,y)))throw new AssertionError("Vertical wheel must restore strip");
         });
-        context.getInput().setCursorPos(cursor[0], cursor[1]); context.waitTicks(3); context.takeScreenshot("hoi-politics-leader-tooltip");
+        context.takeScreenshot("hoi-politics-layout");
+        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-politics-party-names");
         context.runOnClient(c -> {
-            var screen = (HoiMenuScreen)c.gui.screen(); int top = dev.hoi.client.ui.HoiMenuBar.height(screen.width), x = screen.politicsSplit() + 40;
-            var first = screen.politicsHover(x, top + 75);
-            screen.mouseScrolled(x, top + 75, -3, 0);
-            var last = screen.politicsHover(x, top + 75);
-            if (first == null || last == null || first.equals(last)) throw new AssertionError("Horizontal wheel must reveal later spirits");
-            if (screen.politicsHover(screen.politicsSplit() + 32, top + 75) != null)
-                throw new AssertionError("Scrolled spirits must stay out of left spacer");
-            screen.mouseScrolled(x, top + 75, 0, 100);
-            if (!first.equals(screen.politicsHover(x, top + 75))) throw new AssertionError("Vertical wheel must scroll spirit strip back");
-            double scale = c.getWindow().getWidth()/(double)screen.width;
-            cursor[0] = x * scale; cursor[1] = (top + 75) * scale;
+            var screen = (HoiMenuScreen)c.gui.screen(); var list = screen.politicsLayout().parties();
+            if (!screen.mouseScrolled(list.x() + 10, list.y() + 10, 0, -20))
+                throw new AssertionError("Party list must scroll independently");
         });
-        context.getInput().setCursorPos(cursor[0], cursor[1]); context.waitTicks(3); context.takeScreenshot("hoi-politics-spirit-tooltip");
-        context.runOnClient(c -> {
-            var screen = (HoiMenuScreen)c.gui.screen(); int top = dev.hoi.client.ui.HoiMenuBar.height(screen.width);
-            if (!screen.politicsHover(screen.politicsSplit()+5, top+103).value().equals("공격적 자유주의"))
-                throw new AssertionError("Subtype label and tooltip must use the same server entry");
-            double scale = c.getWindow().getWidth()/(double)screen.width;
-            cursor[0] = (screen.politicsSplit()+5)*scale; cursor[1] = (top+103)*scale;
-        });
-        context.getInput().setCursorPos(cursor[0], cursor[1]); context.waitTicks(3); context.takeScreenshot("hoi-politics-ideology-tooltip");
+        context.waitTicks(2); context.takeScreenshot("hoi-politics-party-list-scrolled");
         context.getInput().setCursorPos(1500,800);
         sections.set(1, new MenuView.Section("국가 정신", "politics", List.of(sections.get(1).entries().getFirst())));
         sections.replaceAll(s -> s.title().equals("국가 중점") ? new MenuView.Section("국가 중점", "research", List.of()) : s);
@@ -67,7 +59,7 @@ public final class CountryScreenChecks {
         context.waitTicks(2);
         context.runOnClient(c -> {
             var screen = (HoiMenuScreen)c.gui.screen(); int top = dev.hoi.client.ui.HoiMenuBar.height(screen.width);
-            var spirit = screen.politicsHover(screen.politicsSplit() + 40, top + 75);
+            var spirit = screen.politicsHover(screen.politicsLayout().spirits().x() + 6, screen.politicsLayout().spirits().y() + screen.politicsLayout().spirits().height()/2);
             if (spirit == null || !spirit.name().equals("검증용 정신 0")) throw new AssertionError("A single spirit must start at the left edge");
         });
         context.takeScreenshot("hoi-politics-left-aligned-spirit");

@@ -26,7 +26,7 @@ public final class ConstructionScreenChecks {
         var ref=new AtomicReference<ConstructionScreen>();
         context.setScreen(()->{var screen=new ConstructionScreen(token,view,requests::add);ref.set(screen);return screen;});
         context.waitTicks(3);context.takeScreenshot("hoi-construction-queue");
-        ResearchScreenGameTest.gui3Screenshot(context,"hoi-construction-queue");
+        ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-queue");
         context.runOnClient(client -> ref.get().update(new ConstructionView(token,1,"KOR",hud,"civilian_factory",
                 new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,30,21.8625,2),buildings,projects,"")));
         context.waitTicks(2); context.takeScreenshot("hoi-construction-energy-surplus");

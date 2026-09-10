@@ -150,17 +150,17 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             var line = lines.get(i); var e = equipment(line.equipment()); int y = start + i * h - scroll;
             if (!visible(y, h, compact() ? bodyTop : start)) continue;
             rail(6, y, pane - 12, h - 3);
-            imageButton(e.name() + " · 장비 교체", e.texture(), 10, y + 4, 48, Math.min(30, h - 32), true, () -> {
+            equipmentButton(e, e.name() + " · 장비 교체", 10, y + 4, 48, Math.min(30, h - 32), true, () -> {
                 picker = "equipment"; group = e.group(); switchLine = line.id(); pickerScroll = 0; rebuildWidgets();
             });
             text(equipmentName(e), 62, y + 6, pane - 72, TEXT);
             text(decimal(line.daily()) + " / 일", 62, y + (h >= 65 ? 20 : 15), pane - 72, GOOD);
             int controlsY = y + (h >= 79 ? 38 : h - 27), barY = y + (h >= 79 ? 62 : h - 7);
             button("공장 줄이기", "−", 10, controlsY, 18, 18, line.factories() > 0,
-                    () -> send(ASSIGN, line.id(), "", line.factories() - 1));
+                    () -> send(ASSIGN, line.id(), "", Math.max(0, line.factories() - factoryStep())));
             recess(30, controlsY, 23, 18); text(Integer.toString(line.factories()), 32, controlsY + 5, 19, TEXT);
             button("공장 늘리기 · 보유량 안에서 배정", "+", 55, controlsY, 18, 18, line.factories() < line.availableFactories(),
-                    () -> send(ASSIGN, line.id(), "", line.factories() + 1));
+                    () -> send(ASSIGN, line.id(), "", Math.min(line.availableFactories(), line.factories() + factoryStep())));
             if (e.outdated()) {
                 tip("구형 장비 · " + e.name() + "\n장비 이미지를 눌러 신형으로 교체할 수 있습니다.\n교체 시 생산 효율이 변경되며 기존 재고는 유지됩니다.", 60, y + 3, pane - 65, 12);
             }
@@ -174,7 +174,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     + resources(e.resources(), line.factories()) + "\n배정 가능 " + line.availableFactories(), 9, barY - 3, pane - 18, 9);
         }
         if (graphics != null) graphics.disableScissor();
-        if (lines.isEmpty()) text("제작할 장비 종류를 선택하세요.", 10, start + 12, pane - 20, MUTED);
+
     }
     int productionRowHeight(int start) {
         return compact() ? 79 : Math.max(52, Math.min(79, (bottom() - start) / 3));
@@ -543,7 +543,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             for (int i = 0; i < items.size(); i++) {
                 var e = items.get(i); int by = start + i * 55 - pickerScroll; if (!visible(by, 55, start)) continue;
                 boolean selected = current != null && current.id().equals(e.id());
-                imageButton(e.name(), e.texture(), x + 7, by, 55, 45, !selected, () -> chooseEquipment(e.id()));
+                equipmentButton(e, e.name(), x + 7, by, 55, 45, !selected, () -> chooseEquipment(e.id()));
                 text(equipmentName(e), x + 67, by + 4, w - 76, TEXT);
                 text(decimal(e.cost()) + " IC · 재고 " + e.stockpile(), x + 67, by + 18, w - 76, MUTED);
                 button("생산: " + e.name(), selected ? "생산 중" : switchLine.isEmpty() ? "생산" : "교체", x + 67, by + 30, w - 76, 19, !selected, () -> chooseEquipment(e.id()));
@@ -622,7 +622,12 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private Equipment equipment(String id) { return view.equipment().stream().filter(e -> e.id().equals(id)).findFirst().orElseThrow(); }
-    private static String equipmentName(Equipment e) { return e.outdated() ? "[구형] " + e.name() : e.name(); }
+    private int factoryStep() {
+        long window = minecraft.getWindow().handle();
+        return org.lwjgl.glfw.GLFW.glfwGetKey(window, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) == 1
+                || org.lwjgl.glfw.GLFW.glfwGetKey(window, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT) == 1 ? 10 : 1;
+    }
+    private static String equipmentName(Equipment e) { return e.name(); }
     private Template template(String id) { return view.templates().stream().filter(t -> t.id().equals(id)).findFirst().orElseThrow(); }
     private String locationName(String id) { return view.locations().stream().filter(l -> l.id().equals(id)).map(Choice::name).findFirst().orElse(id); }
     private String resourceName(String id) { return view.resources().stream().filter(r -> r.id().equals(id)).map(Resource::name).findFirst().orElse(id); }
@@ -678,13 +683,23 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (graphics != null) return;
         var button = new PanelButton(accessible, x, y, w, h, action) {
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-                HoiMenuStyle.control(g, x, y, w, h, false, active && isHoveredOrFocused());
+                HoiMenuStyle.control(g, x, y, w, h, false, false);
                 String caption = font.plainSubstrByWidth(label, Math.max(1, w - 6));
                 g.centeredText(font, caption, x + w / 2, y + (h - 8) / 2, active ? TEXT : MUTED);
             }
         };
         button.active = enabled && pending == 0; button.setTooltip(Tooltip.create(Component.literal(accessible)));
         addRenderableWidget(button);
+    }
+    private void equipmentButton(Equipment equipment, String name, int x, int y, int w, int h, boolean enabled, Runnable action) {
+        if (graphics != null) return;
+        var button = new PanelButton(name, x, y, w, h, action) {
+            @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                UiAssets.draw(g, equipment.texture(), x, y, w, h);
+                if (equipment.outdated()) UiAssets.draw(g, "production/outdated_overlay", x, y, w, h);
+            }
+        };
+        button.active = enabled && pending == 0; addRenderableWidget(button);
     }
     private void imageButton(String name, String texture, int x, int y, int w, int h, boolean enabled, Runnable action) {
         if (graphics != null) return;
@@ -696,7 +711,6 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         var button = new PanelButton(name, x, y, w, h, action) {
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                 UiAssets.draw(g, texture, x, y, w, h);
-                if (active && isHoveredOrFocused()) g.outline(x, y, w, h, 0xFFAAAAAA);
             }
         };
         button.active = pending == 0;
@@ -710,7 +724,6 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 HoiMenuStyle.recess(g, x, y, w, 22);
                 UiAssets.draw(g, "production/designer/slot", x + 1, y + 1, w - 2, 20);
                 UiAssets.draw(g, texture, x + 2, y + 2, w - 4, 18);
-                if (active && isHoveredOrFocused()) g.outline(x, y, w, 22, 0xFFAAAAAA);
             }
         };
         button.active = enabled && pending == 0;
@@ -721,7 +734,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (graphics != null) return;
         var button = new PanelButton(name, x, y, w, 25, action) {
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-                HoiMenuStyle.control(g, x, y, w, 25, false, active && isHoveredOrFocused());
+                HoiMenuStyle.control(g, x, y, w, 25, false, false);
                 UiAssets.draw(g, texture, x + 4, y + 3, 26, 19);
                 g.text(font, font.plainSubstrByWidth(name, Math.max(1, w - 38)), x + 34, y + 9, active ? TEXT : MUTED);
             }

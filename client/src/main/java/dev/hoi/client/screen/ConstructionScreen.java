@@ -37,6 +37,8 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     private ConstructionView view;
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
     private List<Integer> paletteDividers=List.of();
+    private boolean consumerTooltip;
+    public boolean showingConsumerTooltip() { return consumerTooltip; }
     public ConstructionScreen() {
         this(UUID.randomUUID().toString(),null,r->{if(ClientPlayNetworking.canSend(ConstructionProtocol.Request.TYPE))ClientPlayNetworking.send(r);});
     }
@@ -114,6 +116,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
         return view.buildings().stream().filter(b->b.id().equals(id)).map(Building::name).findFirst().orElse(id);
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
+        consumerTooltip=false;
         HoiMenuStyle.panel(g,0,top,pane,height-top);
         g.text(font,"건설",9,top+8,HoiMenuStyle.TEXT);
         if(view!=null) {
@@ -162,7 +165,11 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
             if(mx>=pane-123&&mx<pane-27&&my>=top+3&&my<top+23)HoiTooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
             if(mx>=6&&mx<pane-6&&my>=bodyTop()+24&&my<top+52)HoiTooltips.draw(g,font,"민간공장 "+s.total()+"\n소비재 "+s.consumer()+" · 무역/기관 예약 "+s.reserved()+"\n건설 "+s.used()+" · 수리 "+s.repair()+" · 미사용 "+s.idle(),mx,my);
             if(my>=top+52&&my<top+68&&mx>=6&&mx<pane-6)HoiTooltips.draw(g,font,mx<pane/2?calculation(s.speedCalculation(),"건설 속도"):calculation(s.energyCalculation(),"사용 가능한 에너지"),mx,my);
-            if(mx>=6&&mx<q&&my>=top+72&&my<top+93)HoiTooltips.draw(g,font,calculation(s.consumerCalculation(),"소비재"),mx,my);
+            if(mx>=6&&mx<q&&my>=top+72&&my<top+93) {
+                consumerTooltip=true;
+                HoiTooltips.draw(g,font,calculation(s.consumerCalculation(),"소비재"),mx,my);
+                consumerTooltip=false;
+            }
             if(mx>=6&&mx<q&&my>=top+96&&my<top+117)HoiTooltips.draw(g,font,"무역 상품\n자원 수입 대가로 배정된 민간공장: "+(s.tradeGoods()==null?"—":s.tradeGoods())+"\n기관 개선·작전 예약 공장은 포함하지 않습니다.",mx,my);
         } else g.text(font,"건설 현황을 불러오는 중…",10,top+40,HoiMenuStyle.MUTED);
         super.extractRenderState(g,mx,my,delta);

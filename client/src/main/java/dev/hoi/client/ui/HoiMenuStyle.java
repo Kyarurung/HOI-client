@@ -7,6 +7,15 @@ public final class HoiMenuStyle {
     public static final int TEXT = 0xFFE3E1D8, ACCENT = 0xFFB8BDB6, MUTED = 0xFF9B9D97;
     private HoiMenuStyle() {}
 
+    public static void close(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
+        int size = Math.min(9, Math.min(w, h) - 6);
+        int left = x + (w - size) / 2, top = y + (h - size) / 2;
+        for (int i = 0; i < size; i++) {
+            g.fill(left + i, top + i, left + i + 1, top + i + 1, color);
+            g.fill(left + size - i - 1, top + i, left + size - i, top + i + 1, color);
+        }
+    }
+
     public static void bevel(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean inset) {
         g.outline(x, y, w, h, 0xFF08090A);
         g.horizontalLine(x + 1, x + w - 2, y + 1, inset ? 0xFF121316 : 0xFF73767B);

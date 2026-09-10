@@ -2,6 +2,6 @@
   "required": true,
   "package": "dev.hoi.client.mixin",
   "compatibilityLevel": "JAVA_25",
-  "client": ["ConstructionClickMixin", "KeyboardShortcutMixin"],
+  "client": ["ConstructionClickMixin", "KeyboardShortcutMixin", "MenuTooltipMixin"],
   "injectors": {"defaultRequire": 1}
 }

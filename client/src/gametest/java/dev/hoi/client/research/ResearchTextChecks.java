@@ -21,6 +21,7 @@ public final class ResearchTextChecks {
             var bonus = ResearchText.effect("월간 인구 증가: +7.0%");
             check(bonus.getString().equals("월간 인구 증가: +7%"), "Integral percentages have no decimal suffix");
             color(bonus, "+7%", ChatFormatting.GREEN);
+            color(ResearchText.effect("기갑 비율: 0.05"), "+5%", ChatFormatting.GREEN);
             color(ResearchText.effect("속도: -1%"), "-1%", ChatFormatting.DARK_RED);
             var cost = ResearchText.effect("민간공장 건설 비용: +2.5%");
             color(cost, "-2.5%", ChatFormatting.DARK_RED);

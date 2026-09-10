@@ -28,7 +28,7 @@ public final class ResearchSlotButton extends Button {
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         var font = Minecraft.getInstance().font;
-        int color = isHoveredOrFocused() ? 0xFFE6C779 : 0xFF94B4C4;
+        int color = 0xFF94B4C4;
         g.fillGradient(x, y, x + w, y + h, 0xFF3E5A70, 0xFF172731);
 
         UiAssets.draw(g, "panel/research_slot", x, y, w, h);

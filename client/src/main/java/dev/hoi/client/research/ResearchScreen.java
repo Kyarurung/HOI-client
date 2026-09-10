@@ -84,8 +84,8 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     private int visibleSlots() { return 6; }
     private int menuBottom() { return HoiMenuBar.height(width); }
     private int overviewWidth() { return HoiPanelLayout.width(MenuTab.RESEARCH, width); }
-    private int slotPitch() { return Math.min(54, Math.max(17, (height - menuBottom() - 110) / visibleSlots())); }
-    private int bannerHeight() { return Math.max(28, height - menuBottom() - 82 - visibleSlots() * slotPitch()); }
+    private int slotPitch() { return Math.min(54, Math.max(17, (height - slotsTop() - 8) / visibleSlots())); }
+    private int bannerHeight() { return Math.max(1, Math.min((overviewWidth() - 12) * 138 / 532, height - menuBottom() - 80 - visibleSlots() * 17)); }
     private int slotsTop() { return menuBottom() + 72 + bannerHeight(); }
     private void initOverview() {
         int pane = overviewWidth(), count = visibleSlots();
@@ -342,8 +342,14 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         y = detailText(g, detailLines(tech), panelX + 14, y, panelW - 30, TEXT);
         var cards = ResearchDetails.cards(tech, view.country());
         if (!cards.isEmpty()) {
+            for (var card : cards) if (!card.kind().equals("부대")) y = detailCard(g, card, y + 4);
+        }
+        var units = cards.stream().filter(card -> card.kind().equals("부대")).toList();
+        var otherUnlocks = unlockNames(tech).stream().filter(label -> cards.stream().noneMatch(card -> card.name().equals(label))).toList();
+        if (!units.isEmpty() || !otherUnlocks.isEmpty()) {
             y = detailText(g, List.of(ResearchText.white("잠금 해제")), panelX + 14, y + 5, panelW - 30, TEXT);
-            for (var card : cards) y = detailCard(g, card, y + 4);
+            for (var card : units) y = detailCard(g, card, y + 4);
+            y = detailText(g, otherUnlocks.stream().map(this::unlockName).toList(), panelX + 14, y + 4, panelW - 30, TEXT);
         }
         if (tech.source() != null && !tech.source().deferredEffects().isEmpty()) {
             y = detailText(g, List.of(Component.empty(), Component.literal("원본 추가 효과 · 적용 대기")), panelX + 14, y, panelW - 30, MUTED);
@@ -393,7 +399,6 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         if (!tech.effects().isEmpty()) {
             result.add(ResearchText.gold("효과:")); tech.effects().stream().map(ResearchText::effect).forEach(result::add); result.add(Component.empty());
         }
-        for (String label : unlockNames(tech)) result.add(ResearchText.white("사용 가능 ").append(unlockName(label)));
         return result;
     }
     private Component unlockName(String label) {

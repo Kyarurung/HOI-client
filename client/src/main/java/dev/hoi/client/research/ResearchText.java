@@ -32,6 +32,11 @@ final class ResearchText {
         String label = match.group(1), raw = match.group(2), unit = match.group(3);
         var value = new BigDecimal(raw);
         boolean signed = raw.startsWith("+") || raw.startsWith("-");
+        if (label.contains("기갑 비율") && unit == null) {
+            value = value.multiply(BigDecimal.valueOf(100));
+            unit = "%";
+            signed = true;
+        }
 
         if (signed && LOWER_IS_BETTER.stream().anyMatch(label::contains)) value = value.negate();
         String number = (signed && value.signum() > 0 ? "+" : "") + value.stripTrailingZeros().toPlainString();
