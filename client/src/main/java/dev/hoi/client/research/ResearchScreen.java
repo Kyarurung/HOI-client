@@ -91,9 +91,9 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         int pane = overviewWidth(), count = visibleSlots();
         slotOffset = Math.clamp(slotOffset, 0, Math.max(0, view.slots().size() - count));
         button("×", pane - 28, menuBottom() + 7, 20, 20, this::onClose);
-        var benefitsButton = new PanelButton("제한된 혜택: " + view.benefits().remainingUses(), 6, slotsTop()-30, pane/2-8, 15, () -> {}) {
+        var benefitsButton = new PanelButton("제한된 혜택: " + view.benefits().remainingUses(), 12, slotsTop()-30, pane/2-18, 18, () -> {}) {
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                researchIndicator(g,"제한된 혜택:","research/limited_benefits",Integer.toString(view.benefits().remainingUses()),6,slotsTop()-27,pane/2-8,GOLD);
+                researchIndicator(g,"제한된 혜택:","research/limited_benefits",Integer.toString(view.benefits().remainingUses()),12,slotsTop()-25,pane/2-18,GOLD,false);
             }
         };
         addRenderableWidget(benefitsButton);
@@ -188,19 +188,19 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     private void drawOverview(GuiGraphicsExtractor g) {
         int pane = overviewWidth(), top = menuBottom(), bannerY = top + 39;
         HoiMenuStyle.panel(g, 0, top, pane, height - top);
-        g.text(font, "연구", 12, top + 9, HoiMenuStyle.TEXT);
+        HoiMenuStyle.heading(g, font, "연구", 12, top + 9, pane - 44, HoiMenuStyle.TEXT);
         g.fillGradient(6, bannerY, pane - 6, bannerY + bannerHeight(), 0xFF4E315E, 0xFF172731);
         if (!UiAssets.cover(g, "panel/research_banner", 6, bannerY, pane - 12, bannerHeight())) {
             ResearchIcons.fallback(g, "ENGINEERING", pane / 2 - 10, bannerY + bannerHeight() / 2 - 8, 0xFFBB98CD, 2);
         }
         g.outline(6, bannerY, pane - 12, bannerHeight(), 0xFFA070B5);
         double researchSpeed=view.benefits().researchSpeed();
-        researchIndicator(g,"연구 속도:","research/speed",String.format(Locale.ROOT,"%+.0f%%",researchSpeed*100),pane/2,slotsTop()-27,pane/2-8,researchSpeed>=0?0xFF55FF55:0xFFAA0000);
+        researchIndicator(g,"연구 속도:","research/speed",String.format(Locale.ROOT,"%+.0f%%",researchSpeed*100),pane/2+6,slotsTop()-25,pane/2-18,researchSpeed>=0?0xFF55FF55:0xFFAA0000,true);
     }
-    private void researchIndicator(GuiGraphicsExtractor g,String label,String icon,String value,int x,int y,int max,int color) {
+    private void researchIndicator(GuiGraphicsExtractor g,String label,String icon,String value,int x,int y,int max,int color,boolean right) {
         int natural=font.width(label)+15+font.width(value);
         float scale=Math.min(1f,max/(float)Math.max(1,natural));
-        g.pose().pushMatrix();g.pose().translate(x,y);g.pose().scale(scale);
+        g.pose().pushMatrix();g.pose().translate(right?x+max-natural*scale:x,y);g.pose().scale(scale);
         g.text(font,label,0,0,TEXT);UiAssets.draw(g,icon,font.width(label)+2,-2,11,11);
         g.text(font,value,font.width(label)+15,0,color);g.pose().popMatrix();
     }

@@ -12,6 +12,9 @@ public final class AgencyScreenChecks {
                 || !AgencyScreen.upgradeIndicator(partial).equals("agency/researched/11"))
             throw new AssertionError("Two of four agency levels must use the original two-stripe indicator");
         context.runOnClient(client -> {
+            for(String path:List.of("section","operatives","tab0","tab1","operation_row0","operation_row1","target","clipboard_top","operation_bottom"))
+                if(client.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/agency/ui/"+path+".png")).isEmpty())
+                    throw new AssertionError("Missing original agency UI asset " + path);
             for (int i = 0; i < 14; i++)
                 if (client.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/agency/researched/" + i + ".png")).isEmpty())
                     throw new AssertionError("Missing original agency indicator frame " + i);

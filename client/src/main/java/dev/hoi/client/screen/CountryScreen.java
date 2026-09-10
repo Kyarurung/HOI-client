@@ -103,17 +103,17 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         HoiMenuBar.draw(g, width, view == null ? CountryHud.UNKNOWN : view.hud(), mx, my, hudScroll);
         HoiMenuStyle.panel(g, 0, top, pane, height - top);
-        g.text(font, "외교", 10, top + 9, HoiMenuStyle.TEXT);
-        if (view == null) g.text(font, "서버 정보 불러오는 중…", 12, top + 38, HoiMenuStyle.MUTED);
+        HoiMenuStyle.heading(g, font, "외교", 10, top + 9, pane - 44, HoiMenuStyle.TEXT);
+        if (view == null) dev.hoi.client.ui.UiText.text(g, font, "서버 정보 불러오는 중…", 12, top + 38, HoiMenuStyle.MUTED);
         else {
             HoiMenuStyle.recess(g, 7, top + 30, pane - 14, 38);
             if (!UiAssets.draw(g, "country/" + view.target().toLowerCase(Locale.ROOT) + "/flag", 11, top + 34, 39, 29))
-                g.text(font, view.target(), 12, top + 43, HoiMenuStyle.TEXT);
-            g.text(font, trim(view.name(), pane - 69), 58, top + 37, HoiMenuStyle.TEXT);
-            g.text(font, view.viewer().equals(view.target()) ? "통제 국가" : view.shared() ? "동맹 정보 공유" : "외국 정보", 58, top + 52, HoiMenuStyle.MUTED);
+                dev.hoi.client.ui.UiText.text(g, font, view.target(), 12, top + 43, HoiMenuStyle.TEXT);
+            dev.hoi.client.ui.UiText.text(g, font, trim(view.name(), pane - 69), 58, top + 37, HoiMenuStyle.TEXT);
+            dev.hoi.client.ui.UiText.text(g, font, view.viewer().equals(view.target()) ? "통제 국가" : view.shared() ? "동맹 정보 공유" : "외국 정보", 58, top + 52, HoiMenuStyle.MUTED);
             if (ledger && !choosing) for (var d : IntelDomain.values()) {
                 int cell = (pane - 16) / 4, x = 8 + d.ordinal() * cell;
-                g.text(font, (int)view.report(d).percent() + "%", x + 10, top + 129, HoiMenuStyle.TEXT);
+                dev.hoi.client.ui.UiText.text(g, font, (int)view.report(d).percent() + "%", x + 10, top + 129, HoiMenuStyle.TEXT);
             }
             HoiMenuStyle.recess(g, 5, bodyTop() - 3, pane - 10, Math.max(6, height - 30 - bodyTop()));
             g.enableScissor(6, bodyTop(), pane - 6, height - 33);
@@ -128,19 +128,19 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
                 UiAssets.draw(g, icon, 12, y + 5, 27, 25);
                 String name = choosing ? view.countries().get(i).name() : entries().get(i).name();
                 String value = choosing ? view.countries().get(i).tag() : entries().get(i).value();
-                g.text(font, trim(name, pane - 64), 46, y + 6, HoiMenuStyle.TEXT);
-                g.text(font, trim(value, pane - 64), 46, y + 21, HoiMenuStyle.MUTED);
+                dev.hoi.client.ui.UiText.text(g, font, trim(name, pane - 64), 46, y + 6, HoiMenuStyle.TEXT);
+                dev.hoi.client.ui.UiText.text(g, font, trim(value, pane - 64), 46, y + 21, HoiMenuStyle.MUTED);
             }
             g.disableScissor();
             if (detail != null) {
                 int x = detailX(), w = detailWidth();
                 g.nextStratum(); HoiMenuStyle.panel(g, x, top, w, height - top - 31);
-                g.text(font, trim(detail.name(), w - 55), x + 9, top + 9, HoiMenuStyle.TEXT);
+                HoiMenuStyle.heading(g, font, trim(detail.name(), w - 55), x + 9, top + 9, w - 44, HoiMenuStyle.TEXT);
                 var lines = font.split(Component.literal(detail.value() + "\n\n" + (detail.detail().isEmpty() ? "추가 정보 없음" : detail.detail())), w - 22);
                 detailScroll = Math.clamp(detailScroll, 0, Math.max(0, lines.size() * 13 - (height - top - 78)));
                 g.enableScissor(x + 7, top + 32, x + w - 7, height - 37);
                 int y = top + 34 - detailScroll;
-                for (var line : lines) { g.text(font, line, x + 11, y, HoiMenuStyle.TEXT); y += 13; }
+                for (var line : lines) { dev.hoi.client.ui.UiText.text(g, font, line, x + 11, y, HoiMenuStyle.TEXT); y += 13; }
                 g.disableScissor();
             }
         }

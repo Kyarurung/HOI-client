@@ -32,6 +32,7 @@ public final class HoiClient implements ClientModInitializer {
     private static int menuWait;
     @Override public void onInitializeClient() {
         ResearchProtocol.registerPayloadTypes();
+        CampaignHud.register();
         DialogClient.register();
         dev.hoi.protocol.AudioProtocol.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.AudioProtocol.Signal.TYPE, (packet, context) -> UiSounds.receive(packet.cue()));
@@ -61,8 +62,7 @@ public final class HoiClient implements ClientModInitializer {
             try {
                 var view = packet.view();
                 awaiting = 0;
-                if (DialogClient.contentScreen() instanceof HoiMenuScreen menu) menu.update(view);
-                else context.client().gui.setScreen(new HoiMenuScreen(view));
+                context.client().gui.setScreen(new HoiMenuScreen(view));
             } catch (RuntimeException e) { message("HOI 메뉴 데이터를 읽을 수 없습니다."); }
         });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.CountryProtocol.OpenScreen.TYPE, (packet, context) -> openCountry(packet.target()));
@@ -165,7 +165,12 @@ public final class HoiClient implements ClientModInitializer {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.IndustryProtocol.Request.TYPE)) { message("이 서버는 산업 UI를 지원하지 않습니다."); return; }
         cancelOpen(); var screen = new IndustryScreen(tab); Minecraft.getInstance().gui.setScreen(screen); screen.open();
     }
+    public static void openAgency() {
+        if (!ClientPlayNetworking.canSend(AgencyProtocol.Request.TYPE)) { message("이 서버는 HOI 정보기관을 지원하지 않습니다."); return; }
+        cancelOpen(); var screen = new AgencyScreen(null); Minecraft.getInstance().gui.setScreen(screen); screen.open();
+    }
     public static void openMenu(dev.hoi.protocol.MenuTab tab) {
+        if (tab == dev.hoi.protocol.MenuTab.INTELLIGENCE) { openAgency(); return; }
         if (IndustryScreen.supports(tab)) { openIndustry(tab); return; }
         if(tab==dev.hoi.protocol.MenuTab.CONSTRUCTION){openConstruction();return;}
         if (!ClientPlayNetworking.canSend(MenuProtocol.Refresh.TYPE)) { message("이 서버는 HOI 국가 메뉴를 지원하지 않습니다."); return; }

@@ -46,8 +46,8 @@ public final class DialogScreenChecks {
                     var screen = (DialogScreen) client.gui.screen();
                     if (size[0] >= 1600 && (screen.width != size[0] / 2 || screen.height != size[1] / 2))
                         throw new AssertionError("Reference captures require effective GUI scale 2");
-                    float expectedScale=view.kind()==DialogView.Kind.EVENT||view.kind()==DialogView.Kind.GLOBAL_EVENT?0.9f:1;
-                    if (screen.textScale()!=expectedScale) throw new AssertionError("Only country and global event text is reduced");
+                    float expectedScale=dev.hoi.client.ui.UiText.scale(client.font);
+                    if (screen.textScale()!=expectedScale) throw new AssertionError("Every event uses the minimum 10 GUI font height");
                     if (Math.abs(screen.panelLeft() * 2 + screen.panelWidth() - screen.width) > 1) throw new AssertionError("Dialog is not centered");
                     if (size[0] == 2560 && view.kind() == DialogView.Kind.SUPER_EVENT && screen.panelWidth() <= screen.panelHeight())
                         throw new AssertionError("Super event keeps the wide reference proportions");

@@ -3,6 +3,7 @@ package dev.hoi.client.screen;
 import dev.hoi.client.input.SidebarMovement;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.ui.HoiMenuBar;
+import dev.hoi.client.ui.UiText;
 import dev.hoi.client.ui.PanelButton;
 import dev.hoi.client.ui.HoiMenuButton;
 import dev.hoi.client.ui.HoiMenuStyle;
@@ -45,11 +46,12 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         super(Component.literal("정보기관")); this.parent = parent; this.token = token; this.view = fixture; this.transport = transport;
     }
     String session() { return token; }
-    void open() { send(AgencyProtocol.Kind.OPEN, "", List.of()); }
+    public void open() { send(AgencyProtocol.Kind.OPEN, "", List.of()); }
     public void update(AgencyView next) {
         if (!next.session().equals(token)) return;
         if (next.country().isEmpty()) { minecraft.gui.setScreen(null); return; }
         if (view != null && next.revision() < view.revision()) return;
+        if (minecraft.gui.screen() instanceof AgencyOperationScreen operation && operation.backdrop() == this) operation.update(next);
         pendingTicks = 0;
         view = next;
         var item = selected();
@@ -69,7 +71,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     @Override protected void init() {
         overlayStart = 0;
         SidebarMovement.release(minecraft);
-        pane = HoiPanelLayout.width(MenuTab.INTELLIGENCE, width);
+        pane = Math.min(width - 16, Math.max(360, HoiPanelLayout.width(MenuTab.INTELLIGENCE, width)));
         top = HoiMenuBar.height(width);
         HoiMenuBar.buttons(width, view == null ? "" : view.country(), MenuTab.INTELLIGENCE, tab -> {
             if (tab == MenuTab.INTELLIGENCE) return;
@@ -77,6 +79,12 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new HoiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
         if (view == null) return;
+        String[] countLabels = {"모집된 요원", "적에게 포획된 요원", "적에게 사살당한 정보원"};
+        String[] countIcons = {"total_operatives", "arrested_operatives", "dead_operatives"};
+        for (int i = 0; i < countLabels.length; i++) {
+            var indicator = new HoiMenuButton(countLabels[i], "agency/" + countIcons[i], false, counterX(i), top + 169, counterWidth(), 28, () -> {});
+            indicator.background("none"); indicator.active = false; addRenderableWidget(indicator);
+        }
         if (unestablished()) {
             var action = view.items().stream().filter(i -> i.id().equals("create") || i.id().equals("cancel_project")).findFirst().orElse(null);
             if (action != null) {
@@ -90,18 +98,22 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
             }
             for (int i=0;i<UPGRADE_GROUPS.length;i++) {
                 var button=new HoiMenuButton(UPGRADE_GROUPS[i],8+i*(pane-16)/5,top+108,(pane-20)/5,28,()->{});
-                button.textScale(.65f);button.active=false;addRenderableWidget(button);
+                button.textScale(.8f);button.active=false;addRenderableWidget(button);
             }
             for(int i=0;i<2;i++) {
                 String id=i==0?"operations":"cryptology";
-                var button=new HoiMenuButton(i==0?"작전":"암호학",null,group.equals(id),8+i*(pane-16)/2,top+199,(pane-20)/2,23,()->changeGroup(id));
-                button.textScale(.8f);addRenderableWidget(button);
+                var button=new HoiMenuButton(i==0?"작전":"암호학",null,group.equals(id),8+i*(pane-16)/2,top+217,(pane-20)/2,23,()->changeGroup(id));
+                button.background("agency/ui/tab" + i); button.textScale(.8f);addRenderableWidget(button);
             }
             return;
         }
         if (view.items().stream().noneMatch(i -> i.id().equals("recruit"))) return;
-        view.items().stream().filter(i -> i.id().equals("spy_master")).findFirst().ifPresent(master ->
-                addRenderableWidget(new HoiMenuButton("세력 첩보장", "agency/spy_master", false, pane - 39, top + 40, 29, 29, () -> selectItem(master))));
+        var master = new HoiMenuButton("세력 첩보장", "agency/spy_master", false, pane - 39, top + 40, 29, 29, () -> {});
+        master.active = false;
+        master.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+                Component.literal("첩보장").withStyle(style -> style.withColor(0xFFCC33))
+                        .append(Component.literal("은 현재 없습니다.").withStyle(style -> style.withColor(0xFFFFFF)))));
+        addRenderableWidget(master);
         for (int i = 0; i < UPGRADE_GROUPS.length; i++) {
             int category = i;
             var improveButton = new HoiMenuButton(UPGRADE_GROUPS[i], 8 + i * (pane - 16) / 5, top + 108, (pane - 20) / 5, 28, () -> {
@@ -113,18 +125,22 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
                     rebuildWidgets(); break;
                 }
             });
-            improveButton.textScale(.65f); addRenderableWidget(improveButton);
+            improveButton.textScale(.8f); addRenderableWidget(improveButton);
         }
         for (int i = 0; i < 2; i++) {
             String id = i == 0 ? "operations" : "cryptology", label = i == 0 ? "작전" : "암호학";
-            addRenderableWidget(new HoiMenuButton(label, null, group.equals(id), 8 + i * (pane - 16) / 2, top + 199, (pane - 20) / 2, 23, () -> changeGroup(id)));
+            addRenderableWidget(new HoiMenuButton(label, null, group.equals(id), 8 + i * (pane - 16) / 2, top + 217, (pane - 20) / 2, 23, () -> changeGroup(id)).background("agency/ui/tab" + i));
         }
-        addRenderableWidget(new HoiMenuButton("모집된 요원", "agency/total_operatives", group.equals("agents"), 8, top + 169, 28, 23, () -> changeGroup("agents")));
-        addRenderableWidget(new HoiMenuButton("적에게 포획된 정보원", "agency/arrested_operatives", false, 43, top + 169, 28, 23, () -> changeGroup("agents")));
-        addRenderableWidget(new HoiMenuButton("적에게 사살당한 정보원", "agency/dead_operatives", false, 78, top + 169, 28, 23, () -> changeGroup("agents")));
         var recruit = view.items().stream().filter(i -> i.id().equals("recruit")).findFirst().orElseThrow();
-        var recruitButton = new HoiMenuButton("정보원 모집", 113, top + 169, pane - 121, 23, () -> selectItem(recruit));
+        var recruitButton = new HoiMenuButton("정보원 모집", recruitX(), top + 190, pane - recruitX() - 10, 20, () -> selectItem(recruit));
         recruitButton.textScale(.8f); addRenderableWidget(recruitButton);
+        var project = view.items().stream().filter(v -> v.id().equals("cancel_project")).findFirst().orElse(null);
+        if (project != null) {
+            recruitButton.setY(top + 191); recruitButton.setHeight(18);
+            var cancel = new HoiMenuButton(project.title() + " · " + project.value(), recruitX(), top + 169, pane - recruitX() - 10, 20,
+                    () -> send(AgencyProtocol.Kind.CALL, project.id(), List.of()));
+            cancel.active = pendingTicks == 0; addRenderableWidget(cancel);
+        }
         overlayStart = children().size();
         if (group.equals("upgrades")) {
             for (var child : children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget button) button.active = false;
@@ -132,10 +148,10 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         }
         var items = visibleItems();
         boolean grid = group.equals("upgrades");
-        int x = grid ? upgradeX() + 8 : 8, y = grid ? upgradeY() + 39 : top + 227;
+        int x = grid ? upgradeX() + 8 : 8, y = grid ? upgradeY() + 39 : top + 245;
         int areaWidth = grid ? upgradeWidth() - 16 : pane - 16;
         int columns = grid ? Math.max(1, Math.min(5, areaWidth / 100)) : 1;
-        int pitch = grid ? 56 : 51;
+        int pitch = grid ? 72 : pane < 250 && group.equals("operations") ? 73 : 51;
         int contentHeight = grid ? (items.isEmpty() ? 0 : upgradeOffset(items, items.size() - 1, columns) + pitch) : items.size() * pitch;
         scroll = Math.clamp(scroll, 0, Math.max(0, contentHeight - (height - y - 40)));
         if (selectedId == null || !grid) for (int i = 0; i < items.size(); i++) {
@@ -147,8 +163,42 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
             }) {
                 @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                     int w = getWidth(), h = getHeight();
+                    if (item.group().equals("operations")) {
+                        UiAssets.nineSlice(g, "agency/ui/operation_row" + (item.progress() >= 0 ? 1 : 0), bx, by, w, h, 4, .5);
+                        int imageRight = bx + Math.round(w * 96f / 519) - 3;
+                        int textX = imageRight + 8, flagX = bx + w - 26;
+                        int actionX = bx + w - 69, actionY = by + h - 25;
+                        g.enableScissor(bx + 4, by + 4, bx + w - 4, by + h - 4);
+                        UiAssets.cover(g, item.texture(), bx + 5, by + 5, imageRight - bx - 5, h - 10);
+                        UiText.text(g, font, trim(item.title(), (int)((flagX - textX - 6)/UiText.scale(font))), textX, by + 7, TEXT);
+                        String target=item.parameters().isEmpty()?"":item.parameters().getFirst().choices().stream().findFirst().map(Choice::value).orElse("");
+                        if(!target.isEmpty())UiAssets.draw(g,"country/"+target.toLowerCase(Locale.ROOT)+"/flag",flagX,by+7,16,11);
+                        if(item.id().startsWith("operation:")) {
+                            int requirementY = pane < 250 ? by + 24 : actionY + 2;
+                            UiAssets.draw(g,"agency/ui/required",textX,requirementY,13,13);
+                            UiText.text(g,font,"2",textX+14,requirementY+2,TEXT);
+                            UiAssets.draw(g,"agency/ui/network",textX+25,requirementY,13,13);
+                            UiText.text(g,font,"50%",textX+39,requirementY+2,TEXT);
+                            UiText.text(g,font,"60일",pane < 250 ? textX : actionX-42,actionY+4,GOLD);
+                        } else UiText.text(g,font,trim(item.value(),(int)((actionX-textX-6)/UiText.scale(font))),textX,actionY+4,GOLD);
+                        HoiMenuStyle.control(g, actionX, actionY, 62, 18, false, false);
+                        UiText.centered(g, font, item.id().startsWith("cancel_") ? "진행 중" : item.id().startsWith("network:") ? "정보망" : "준비하기", actionX, actionY, 62, 18, TEXT);
+                        g.disableScissor();
+                        return;
+                    }
+                    if (item.group().equals("cryptology")) {
+                        HoiMenuStyle.metal(g, bx, by, w, h);
+                        UiAssets.draw(g, "agency/cryptology", bx + 4, by + 4, 15, 15);
+                        UiText.text(g, font, trim(item.title() + (item.id().equals("cipher_level") ? " " + item.value() : ""), (int)((w-28)/UiText.scale(font))), bx+23, by+5, TEXT);
+                        if (!item.id().equals("cipher_level")) {
+                            g.fill(bx+4,by+28,bx+w-120,by+40,0xFF16111C);
+                            g.fill(bx+4,by+28,bx+4+(int)((w-124)*Math.max(0,item.progress())),by+40,0xFF795698);
+                            UiText.centered(g,font,item.value(),bx+4,by+27,w-124,14,GOLD);
+                        }
+                        return;
+                    }
                     int labelY = grid ? by + 34 : by;
-                    int labelHeight = grid ? 15 : h;
+                    int labelHeight = grid ? 26 : h;
                     g.fillGradient(bx, labelY, bx + w, labelY + labelHeight, item.enabled() ? 0xFF354036 : 0xFF292C31, 0xFF101519);
                     g.outline(bx, labelY, w, labelHeight, grid ? upgradeColor(item) : 0xFF62696F);
                     int artWidth = grid ? w : 40, artHeight = 34;
@@ -156,17 +206,15 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
                     if (!UiAssets.draw(g, item.texture(), ax, by, artWidth, artHeight)) UiAssets.draw(g, "menu/intelligence", ax, by, artWidth, artHeight);
                     int tx = grid ? bx + w / 2 : bx + 44, ty = grid ? by + 37 : by + 7;
                     if (grid) {
-                        float scale = Math.min(.8f, (w - 10) / (float)Math.max(1, font.width(item.title())));
-                        g.pose().pushMatrix(); g.pose().translate(tx, ty); g.pose().scale(scale);
-                        g.text(font, item.title(), -font.width(item.title()) / 2, 0, TEXT); g.pose().popMatrix();
+                        UiText.centered(g, font, item.title(), bx + 3, by + 34, w - 6, 26, TEXT);
                         int stages = upgradeStages(item);
                         int completed = upgradeLevel(item);
                         for (int stage = 0; stages > 1 && stage < stages; stage++)
                             UiAssets.draw(g, stage < completed ? "agency/stage_complete" : "agency/stage_empty",
                                     bx + (w - (stages - 1) * 6 - 11) / 2 + stage * 6, by + h - 5, 11, 11);
                     } else {
-                        g.text(font, trim(item.title(), w - 49), tx, ty, TEXT);
-                        g.text(font, trim(item.value(), w - 49), tx, ty + 13, GOLD);
+                        UiText.text(g, font, trim(item.title(), w - 49), tx, ty, TEXT);
+                        UiText.text(g, font, trim(item.value(), w - 49), tx, ty + 13, GOLD);
                     }
                     if (!grid && item.progress() >= 0) {
                         g.fill(bx + 3, by + h - 4, bx + w - 3, by + h - 2, 0xFF151A13);
@@ -174,7 +222,18 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
                     }
                 }
             };
-            button.active = selectedId == null; addRenderableWidget(button);
+            button.active = selectedId == null && !item.group().equals("cryptology"); addRenderableWidget(button);
+            if (item.id().startsWith("decrypt:") || item.id().startsWith("pause:")) {
+                int rowWidth = areaWidth - 4;
+                var toggle = new HoiMenuButton(item.button(), bx + rowWidth - 113, by + 23, 53, 19, () -> selectItem(item));
+                toggle.active = item.enabled() && pendingTicks == 0; addRenderableWidget(toggle);
+                var reveal = view.items().stream().filter(v -> v.id().equals("reveal:" + item.id().split(":", 2)[1])).findFirst().orElse(null);
+                if (reveal != null) {
+                    var action = new HoiMenuButton("암호 공개", bx + rowWidth - 57, by + 23, 53, 19, () -> selectItem(reveal));
+                    action.active = reveal.enabled() && pendingTicks == 0; addRenderableWidget(action);
+                }
+            }
+
         }
         var item = selected();
         if (item != null) {
@@ -218,10 +277,20 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     }
     private Item selected() { return view == null ? null : view.items().stream().filter(i -> i.id().equals(selectedId)).findFirst().orElse(null); }
     private List<Item> visibleItems() {
-        return view.items().stream().filter(i -> i.group().equals(group) && !i.id().equals("spy_master")).sorted(group.equals("upgrades") ? Comparator.comparingInt(AgencyScreen::upgradeOrder) : Comparator.comparingInt(i -> 0)).toList();
+        return view.items().stream().filter(i -> i.group().equals(group) && !i.id().equals("cancel_project") && !i.id().equals("spy_master") && !i.id().startsWith("reveal:")).sorted(group.equals("upgrades") ? Comparator.comparingInt(AgencyScreen::upgradeOrder) : Comparator.comparingInt(i -> 0)).toList();
     }
     private void changeGroup(String next) { group = next; selectedId = null; choosing = -1; scroll = 0; rebuildWidgets(); }
-    private void selectItem(Item item) { selectedId = item.id(); arguments.clear(); normalizeArguments(item); detailScroll = 0; rebuildWidgets(); }
+    private void selectItem(Item item) {
+        if ((item.id().startsWith("upgrade:") || item.group().equals("cryptology")) && item.parameters().isEmpty()) {
+            if (item.enabled() && pendingTicks == 0) send(AgencyProtocol.Kind.CALL, item.id(), List.of());
+            return;
+        }
+        if (item.id().startsWith("operation:")) {
+            minecraft.gui.setScreen(new AgencyOperationScreen(this, item, args -> send(AgencyProtocol.Kind.CALL, item.id(), args)));
+            return;
+        }
+        selectedId = item.id(); arguments.clear(); normalizeArguments(item); detailScroll = 0; rebuildWidgets();
+    }
     private int upgradeWidth() { return Math.min(540, width - 16); }
     private int upgradeX() { return (width - upgradeWidth()) / 2; }
     private int upgradeY() { return Math.max(top + 4, (height - 410) / 2); }
@@ -266,7 +335,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     private static int upgradeOffset(List<Item> items, int index, int columns) {
         int headers = 1;
         for (int i = 1; i <= index; i++) if (upgradeCategory(items.get(i - 1)) != upgradeCategory(items.get(i))) headers++;
-        return upgradePosition(items, index, columns) / columns * 56 + headers * 16;
+        return upgradePosition(items, index, columns) / columns * 72 + headers * 16;
     }
     private int detailX() { return Math.min(pane + 12, width - 260); }
     private int detailWidth() { return Math.min(540, width - detailX() - 12); }
@@ -285,20 +354,21 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         HoiMenuStyle.panel(g, 0, top, pane, height - top);
         HoiMenuBar.draw(g, width, parent instanceof HoiMenuScreen menu ? menu.hud() : CountryHud.UNKNOWN, mx, my, 0);
-        g.text(font, "정보기관", 10, top + 9, HoiMenuStyle.TEXT);
+        HoiMenuStyle.heading(g, font, "정보기관", 10, top + 9, pane - 44, HoiMenuStyle.TEXT);
         if (unestablished()) { drawUnestablished(g); super.extractRenderState(g,mx,my,delta); return; }
         String flag = view == null ? "menu/intelligence" : view.country().equals("KOR") ? "country/kor/intelligence" : "menu/intelligence";
         UiAssets.cover(g, "agency/ui/header", 6, top + 29, pane - 12, 62);
         UiAssets.draw(g, flag, 12, top + 40, 38, 39);
-        g.text(font, trim(view == null ? "불러오는 중…" : view.name(), pane - 98), 56, top + 46, TEXT);
-        g.text(font, trim(view == null ? "" : view.status(), pane - 16), 8, top + 81, MUTED);
-        HoiMenuStyle.metal(g, 6, top + 92, pane - 12, 14);
-        g.text(font, "정보기관", 12, top + 95, TEXT);
-        HoiMenuStyle.metal(g, 6, top + 150, pane - 12, 16);
-        g.text(font, "작전", 12, top + 154, TEXT);
+        UiText.text(g, font, trim(view == null ? "불러오는 중…" : view.name(), pane - 98), 56, top + 46, TEXT);
+        UiAssets.draw(g, "agency/passive_defense", 56, top + 68, 14, 14);
+        UiText.text(g, font, "방첩 활동:", 73, top + 70, TEXT);
+        String defense = view == null ? "—" : view.items().stream().filter(i -> i.id().equals("counter_intelligence"))
+                .map(Item::value).findFirst().orElse("—");
+        UiText.text(g, font, defense, 76 + Math.round(font.width("방첩 활동:") * UiText.scale(font)), top + 70, GOLD);
+        drawOperationsChrome(g);
         if (view != null) for (int i = 0; i < UPGRADE_GROUPS.length; i++) {
             int category = i;
-            var upgrades = view.items().stream().filter(item -> item.group().equals("upgrades") && upgradeCategory(item) == category)
+            var upgrades = view.items().stream().filter(item -> item.group().equals("upgrades") && !item.id().equals("cancel_project") && upgradeCategory(item) == category)
                     .sorted(Comparator.comparingInt(AgencyScreen::upgradeOrder)).toList();
             int count = upgrades.size(), size = Math.min(10, (pane - 20) / 5 / Math.max(1, count));
             int x = 8 + i * (pane - 16) / 5;
@@ -313,25 +383,25 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         }
         if (view != null && group.equals("upgrades") && selectedId == null) {
             int ux = upgradeX(), uw = upgradeWidth();
-            HoiMenuStyle.panel(g, ux, upgradeY(), uw, Math.min(410, height - upgradeY() - 36));
-            g.text(font, "정보기관 개선", ux + 12, upgradeY() + 10, TEXT);
+            HoiMenuStyle.panel(g, ux, upgradeY(), uw, height - upgradeY() - 36);
+            HoiMenuStyle.heading(g, font, "정보기관 개선", ux + 12, upgradeY() + 10, upgradeWidth() - 44, TEXT);
             var items = visibleItems(); int columns = Math.max(1, Math.min(5, (uw - 16) / 100));
             String[] titles = {"정보공동체", "정보 순환", "정보 수집 분야", "휴민트", "신호 정보"};
             for (int i = 0; i < items.size(); i++) if (i == 0 || upgradeCategory(items.get(i - 1)) != upgradeCategory(items.get(i))) {
                 int by = upgradeY() + 39 + upgradeOffset(items, i, columns) - scroll - 16;
                 if (by < upgradeY() + 34 || by + 17 > height - 37) continue;
                 HoiMenuStyle.metal(g, ux + 8, by, uw - 16, 17);
-                g.text(font, titles[upgradeCategory(items.get(i))], ux + 13, by + 4, TEXT);
+                UiText.text(g, font, titles[upgradeCategory(items.get(i))], ux + 13, by + 4, TEXT);
             }
         }
         var item = selected();
         if (item != null) {
             int dx = detailX(), dw = detailWidth();
             g.fillGradient(dx, 38, dx + dw, height - 36, 0xFF343D46, 0xFF10151B); g.outline(dx, 38, dw, height - 74, 0xFF88919A);
-            g.text(font, trim(item.title(), dw - 73), dx + 10, 51, GOLD);
+            UiText.text(g, font, trim(item.title(), dw - 73), dx + 10, 51, GOLD);
             if (choosing < 0) {
                 if (!UiAssets.draw(g, item.texture(), dx + 12, 77, 72, 58)) UiAssets.draw(g, "menu/intelligence", dx + 12, 77, 72, 58);
-                g.text(font, trim(item.value(), dw - 109), dx + 97, 86, TEXT);
+                UiText.text(g, font, trim(item.value(), dw - 109), dx + 97, 86, TEXT);
                 if (item.group().equals("operations") && dw >= 360) {
                     String[] phases = {"phase_border", "phase_bribe", "phase_escape"};
                     int artWidth = Math.min(70, (dw - 124) / 3);
@@ -342,7 +412,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
                 detailScroll = Math.clamp(detailScroll, 0, Math.max(0, lines.size() * 13 - Math.max(0, bottom - 148)));
                 g.enableScissor(dx + 10, 146, dx + dw - 10, Math.max(146, bottom));
                 int y = 148 - detailScroll;
-                for (var line : lines) { g.text(font, line, dx + 13, y, TEXT); y += 13; }
+                for (var line : lines) { UiText.text(g, font, line, dx + 13, y, TEXT); y += 13; }
                 g.disableScissor();
             }
         }
@@ -350,15 +420,28 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
             for (int i = overlayStart; i < children().size(); i++) if (children().get(i) instanceof net.minecraft.client.gui.components.Renderable widget)
                 widget.extractRenderState(g, mx, my, delta);
         } else super.extractRenderState(g, mx, my, delta);
-        if (!overlay && view != null) {
-            String[] ids = {"recruit", "captured_count", "killed_count"};
-            for (int i = 0; i < ids.length; i++) {
-                String id = ids[i];
-                var value = view.items().stream().filter(v -> v.id().equals(id)).map(AgencyView.Item::value).findFirst().orElse("—");
-                g.pose().pushMatrix(); g.pose().translate(10 + 35 * i, top + 187); g.pose().scale(.65f);
-                g.text(font, value, 0, 0, TEXT); g.pose().popMatrix();
-            }
+    }
+    private int counterWidth() { return Math.round((pane - 12) * 52f / 522); }
+    private int counterX(int i) { return 6 + Math.round((pane - 12) * (i == 0 ? 59f : i == 1 ? 136f : 203.5f) / 522) - counterWidth() / 2; }
+    private int recruitX() { return Math.round(pane * .54f); }
+    private void drawOperationsChrome(GuiGraphicsExtractor g) {
+        UiAssets.nineSlice(g,"agency/ui/section",6,top+92,pane-12,17,5,.5);
+        UiText.centered(g,font,"첩보기관",12,top+95,(pane-12)*185/530-8,11,TEXT);
+        UiAssets.nineSlice(g,"agency/ui/section",6,top+150,pane-12,17,5,.5);
+        UiText.centered(g,font,"작전",12,top+153,(pane-12)*185/530-8,11,TEXT);
+        // Preserve the source slanted divider and the three inset counter wells.
+        UiAssets.nineSlice(g,"agency/ui/operatives",6,top+168,pane-12,46,3,.5);
+        if(view == null)return;
+        String[] ids={"recruit","captured_count","killed_count"};
+        for(int i=0;i<ids.length;i++) {
+            String id=ids[i];
+            String value=view.items().stream().filter(v->v.id().equals(id)).map(Item::value).findFirst().orElse(i==0?"0/0":"0");
+            UiText.centered(g,font,value.replace(" ",""),counterX(i),top+201,counterWidth(),10,TEXT);
         }
+        if(!unestablished() && view.items().stream().noneMatch(v->v.id().equals("cancel_project")))
+            UiText.centered(g,font,pane < 250 ? "개선 없음" : "진행 중인 개선 없음",recruitX(),top+170,pane-recruitX()-10,17,TEXT);
+        if(!unestablished() && group.equals("operations") && visibleItems().isEmpty())
+            wrappedNotice(g,"작전은 정보원이 첩보망을 구축하여야 시행할 수 있습니다.",16,top+282,pane-32);
     }
     private boolean unestablished() { return view != null && view.items().stream().noneMatch(i -> i.id().equals("recruit")); }
     private void drawUnestablished(GuiGraphicsExtractor g) {
@@ -370,21 +453,16 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         smallCentered(g,project==null?"30일":project.value().substring(project.value().lastIndexOf('·')+1).trim(),pane-52,top+60,GOLD);
         HoiMenuStyle.recess(g,34,top+77,pane-68,4);
         if(project!=null&&project.progress()>=0)g.fill(35,top+78,35+(int)((pane-70)*project.progress()),top+80,0xFF97AC6C);
-        HoiMenuStyle.metal(g,6,top+92,pane-12,14); smallCentered(g,"정보기관",49,top+95,TEXT);
-        HoiMenuStyle.metal(g,6,top+150,pane-12,16); smallCentered(g,"작전",49,top+154,TEXT);
-        HoiMenuStyle.metal(g,6,top+168,pane-12,29);
-        String[] icons={"total_operatives","arrested_operatives","dead_operatives"};
-        for(int i=0;i<3;i++) {
-            UiAssets.draw(g,"agency/"+icons[i],14+i*35,top+170,21,20);
-            smallCentered(g,i==0?"0/0":"0",24+i*35,top+190,MUTED);
-        }
-        smallCentered(g,"기관을 창설하기 전에는 정보원을",(pane+110)/2,top+176,TEXT);
-        smallCentered(g,"모집할 수 없습니다.",(pane+110)/2,top+184,TEXT);
-        smallCentered(g,group.equals("cryptology")?"기관을 창설하면 암호 해독을 시작할 수 있습니다.":"작전은 정보원이 첩보망을 구축하여야",pane/2,top+274,TEXT);
-        if(!group.equals("cryptology"))smallCentered(g,"시행할 수 있습니다.",pane/2,top+283,TEXT);
+        drawOperationsChrome(g);
+        wrappedNotice(g,"기관을 창설하기 전에는 정보원을 모집할 수 없습니다.",recruitX(),top+178,pane-recruitX()-12);
+        wrappedNotice(g,group.equals("cryptology")?"기관을 창설하면 암호 해독을 시작할 수 있습니다.":"작전은 정보원이 첩보망을 구축하여야 시행할 수 있습니다.",16,top+282,pane-32);
+    }
+    private void wrappedNotice(GuiGraphicsExtractor g,String value,int x,int y,int width) {
+        var lines=font.split(Component.literal(value),Math.max(1,(int)(width/UiText.scale(font))));
+        for(int i=0;i<lines.size();i++) UiText.text(g, font,lines.get(i),x+Math.round((width-font.width(lines.get(i))*UiText.scale(font))/2),y+i*(font.lineHeight+2),TEXT);
     }
     private void smallCentered(GuiGraphicsExtractor g,String value,int x,int y,int color) {
-        g.pose().pushMatrix();g.pose().translate(x,y);g.pose().scale(.65f);g.centeredText(font,value,0,0,color);g.pose().popMatrix();
+        g.pose().pushMatrix();g.pose().translate(x,y);g.pose().scale(1f);UiText.centered(g,font,value,-100,0,200,10,color);g.pose().popMatrix();
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
         if (choosing >= 0) choiceScroll -= (int)(vertical * 3);

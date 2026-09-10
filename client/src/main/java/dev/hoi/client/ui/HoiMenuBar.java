@@ -106,6 +106,12 @@ public final class HoiMenuBar {
         drawTension(g, width, hud, mx, my);
     }
 
+    public static void drawPassive(GuiGraphicsExtractor g, int width, CountryHud hud, String country) {
+        draw(g, width, hud, -1, -1, 0);
+        for (var button : buttons(width, country, null, tab -> {}))
+            if (button instanceof TabButton tab) tab.extractContents(g, -1, -1, 0);
+    }
+
     private static void drawTension(GuiGraphicsExtractor g, int width, CountryHud hud, int mx, int my) {
         int x = tensionX(width), h = height(width) - 6;
         var font = Minecraft.getInstance().font;

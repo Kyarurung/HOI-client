@@ -8,12 +8,15 @@ public final class HoiMenuStyle {
     private HoiMenuStyle() {}
 
     public static void close(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
-        int size = Math.min(9, Math.min(w, h) - 6);
-        int left = x + (w - size) / 2, top = y + (h - size) / 2;
-        for (int i = 0; i < size; i++) {
-            g.fill(left + i, top + i, left + i + 1, top + i + 1, color);
-            g.fill(left + size - i - 1, top + i, left + size - i, top + i + 1, color);
-        }
+        UiAssets.draw(g, "menu/close", x + 2, y + 2, w - 4, h - 4);
+    }
+
+    public static void heading(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font,
+                               String text, int x, int y, int width, int color) {
+        float scale = (font.lineHeight + 2f) / font.lineHeight;
+        String label = font.plainSubstrByWidth(text, Math.max(1, (int)(width / scale)));
+        g.pose().pushMatrix(); g.pose().translate(x, y - 1); g.pose().scale(scale);
+        g.text(font, label, 0, 0, 0xFFFFFFFF); g.pose().popMatrix();
     }
 
     public static boolean symbol(GuiGraphicsExtractor g, String label, int x, int y, int w, int h, int color) {

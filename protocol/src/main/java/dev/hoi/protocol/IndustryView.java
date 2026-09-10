@@ -102,7 +102,11 @@ public record IndustryView(String session, long revision, String country, Countr
         public Stat(String name, String group, double value, String unit) { this(name,group,value,unit,null); }
     }
     public record Template(String id, String name, List<String> line, List<String> support, List<Stat> stats,
-            Map<String,Long> equipment, double days, long manpower, List<Integer> columns, Map<Integer,String> regimentSupport) {
+            Map<String,Long> equipment, double days, long manpower, List<Integer> columns, Map<Integer,String> regimentSupport, Integer experienceCost) {
+        public Template(String id,String name,List<String> line,List<String> support,List<Stat> stats,Map<String,Long> equipment,double days,long manpower,List<Integer> columns,Map<Integer,String> regimentSupport) {
+            this(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,0);
+        }
+        public Template withExperienceCost(int cost) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,cost); }
         public Template(String id, String name, List<String> line, List<String> support, List<Stat> stats,
                 Map<String,Long> equipment, double days, long manpower) {
             this(id,name,line,support,stats,equipment,days,manpower,null,null);
@@ -110,7 +114,8 @@ public record IndustryView(String session, long revision, String country, Countr
         public Template {
             text(id,128); text(name,128);
             line=bounded(line,25); support=bounded(support,5); stats=bounded(stats,64); equipment=boundedMap(equipment,512);
-            if (line.isEmpty() || !Double.isFinite(days) || days < 0 || manpower < 0)
+            experienceCost = experienceCost == null ? 0 : experienceCost;
+            if (experienceCost < 0 || line.isEmpty() && !id.equals("draft") || !Double.isFinite(days) || days < 0 || manpower < 0)
                 throw new IllegalArgumentException("Invalid division template");
             if (columns != null) {
                 columns=List.copyOf(columns);

@@ -37,6 +37,7 @@ public final class RegimentScreenChecks {
                         check(s.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("연대 지원 · 같은 열에 대대 3개 필요")&&!b.active).count()==5,
                                 "All regiment support cells stay locked with fewer than three battalions");
                         press(adds.getLast());
+                        press(button(s,"보병 대대"));
                         String unit=v.battalions().stream().filter(b->b.id().equals("INFANTRY")).findFirst().orElseThrow().name();
                         press(button(s,unit));
                         check(requests.getLast().action()==IndustryProtocol.Action.LINE_COLUMN&&requests.getLast().amount()==20,"Fifth column submits its own cell, not the flattened end");

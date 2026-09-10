@@ -64,7 +64,30 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.runOnClient(client -> client.options.guiScale().set(2));
         try (var world = context.worldBuilder().adjustSettings(settings -> settings.setGameMode(
                 net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.SelectedGameMode.CREATIVE)).create()) {
+            context.runOnClient(client -> {
+                String[] modes = {"army", "navy", "air", "operatives", "supply", "resistance", "compliance", "resources", "factions"};
+                String[] names = {"기본", "전략 해군", "전략 공군", "공작원", "보급", "저항도", "순응도", "자원", "세력"};
+                for (int slot = 0; slot < modes.length; slot++) {
+                    var item = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CARROT_ON_A_STICK);
+                    item.set(net.minecraft.core.component.DataComponents.ITEM_MODEL, Identifier.parse("hoi:map/selector/" + modes[slot]));
+                    item.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, Component.literal(names[slot]).withStyle(style -> style.withColor(net.minecraft.ChatFormatting.GOLD).withItalic(false))
+                            .append(Component.literal(" 지도 모드").withStyle(net.minecraft.ChatFormatting.WHITE)));
+                    client.player.getInventory().setItem(slot, item);
+                    check(client.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/map_selector/" + modes[slot] + ".png")).isPresent(), "Map selector icon is packaged: " + modes[slot]);
+                }
+                client.player.getInventory().setSelectedSlot(0);
+            });
+            context.setScreen(() -> null); context.waitTicks(3); gui2Screenshot(context, "hoi-map-selector-icons");
             var menu = fixtureMenu();
+            context.runOnClient(client -> CampaignHud.accept(HudProtocol.State.of("KOR",menu.hud())));
+            context.setScreen(() -> null); context.waitTicks(3); context.takeScreenshot("hoi-persistent-country-hud");
+            context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(2);
+            context.setScreen(() -> null); context.waitTicks(2);
+            context.runOnClient(client -> {
+                check(CampaignHud.visible(), "Closing politics keeps the country HUD");
+                CampaignHud.accept(HudProtocol.State.HIDDEN);
+                check(!CampaignHud.visible(), "Stop/unassignment immediately hides the country HUD");
+            });
             ResearchArtChecks.run(context);
             ResearchTextChecks.run(context);
             CompletionScreenChecks.run(context);
@@ -146,7 +169,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             click(context, "세부 사항"); context.waitTicks(2); context.takeScreenshot("hoi-politics-manufacturer-detail");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
-            for (var tab : MenuTab.ORDER) if (tab != MenuTab.RESEARCH) {
+            for (var tab : MenuTab.ORDER) if (tab != MenuTab.RESEARCH && tab != MenuTab.INTELLIGENCE) {
                 click(context, tab.label() + " 메뉴");
                 context.runOnClient(client -> {
                     var screen = (HoiMenuScreen)client.gui.screen();
@@ -166,7 +189,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.runOnClient(client -> client.gui.screen().mouseScrolled(100, 5, 0, -100));
             context.waitTicks(2); context.takeScreenshot("hoi-hud-compact-final-indicators");
             context.runOnClient(client -> client.gui.screen().mouseScrolled(100, 5, 0, 100));
-            for (var tab : List.of(MenuTab.POLITICS, MenuTab.TRADE, MenuTab.INTELLIGENCE, MenuTab.RECRUITMENT)) {
+            for (var tab : List.of(MenuTab.POLITICS, MenuTab.TRADE, MenuTab.RECRUITMENT)) {
                 click(context, tab.label() + " 메뉴");
                 context.runOnClient(client -> {
                     var screen = (HoiMenuScreen)client.gui.screen(); checkToolbar(screen);
@@ -479,6 +502,12 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         var requests = new ArrayList<AgencyProtocol.Request>();
         context.setScreen(() -> new AgencyScreen(null, fixture.session(), fixture, requests::add)); context.waitTicks(2);
         context.takeScreenshot("hoi-agency-operatives");
+        context.runOnClient(client -> {
+            for (var label : List.of("모집된 요원", "적에게 포획된 요원", "적에게 사살당한 정보원")) {
+                var indicator = client.gui.screen().children().stream().filter(c -> c instanceof Button b && b.getMessage().getString().equals(label)).map(c -> (Button)c).findFirst().orElseThrow();
+                check(!indicator.active, "Operative indicators keep tooltips without accepting clicks");
+            }
+        });
         click(context, "정보원 모집"); context.waitTicks(2); click(context, "고용");
         context.runOnClient(client -> {
             check(requests.size() == 1 && requests.getFirst().kind() == AgencyProtocol.Kind.CALL && requests.getFirst().revision() == 1, "Agency uses issued session and revision");
@@ -489,7 +518,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.runOnClient(client -> check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b && b.getMessage().getString().equals("암호학") && !b.active), "Upgrade overlay blocks background tabs"));
         click(context, "개선 창 닫기"); click(context, "암호학"); context.waitTicks(2); context.takeScreenshot("hoi-agency-cryptology"); gui2Screenshot(context, "hoi-agency-cryptology");
         click(context, "작전"); click(context, "암호 탈취"); context.waitTicks(2); context.takeScreenshot("hoi-agency-operation");
-        click(context, "대상 국가: 북한"); context.waitTicks(1); click(context, "일본"); click(context, "작전 준비");
+        click(context, "대상 국가: 북한"); context.waitTicks(1); context.takeScreenshot("hoi-agency-operation-target-japan"); click(context, "준비하기");
         context.runOnClient(client -> {
             check(requests.getLast().arguments().equals(List.of("JAP")), "Choice picker sends selected target without country authority");
             ((AgencyScreen)client.gui.screen()).update(new AgencyView(fixture.session(), 0, "", "", "", List.of(), "권한 만료"));

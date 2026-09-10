@@ -97,6 +97,26 @@ public final class IndustryScreenChecks {
             check(client.gui.screen().children().stream().anyMatch(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소 · 지급 장비와 인력 반환")), "Authoritative recruit response creates a training line");
         });
         context.waitTicks(2); ResearchScreenGameTest.gui2Screenshot(context, "hoi-recruitment-after-training");
+        context.runOnClient(client -> {
+            var screen = (IndustryScreen)client.gui.screen();
+            var cancel = (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().endsWith(" 부대 추가")).findFirst().orElseThrow();
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(cancel.getX() - 20, cancel.getY() + cancel.getHeight()/2,
+                    new net.minecraft.client.input.MouseButtonInfo(0, 0)), false);
+            check(screen.selectingDeployment() && screen.children().isEmpty(), "Location selection hides the client menu");
+            check(requests.getLast().action() == IndustryProtocol.Action.SELECT_LOCATION, "Selection starts with an authenticated request");
+            screen.update(copy(v, hud, v.revision() + 2, null));
+        });
+        context.waitTicks(2); context.takeScreenshot("hoi-deployment-menu-hidden");
+        context.runOnClient(client -> {
+            var screen = (IndustryScreen)client.gui.screen();
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(screen.width / 2, screen.height / 2,
+                    new net.minecraft.client.input.MouseButtonInfo(0, 0)), false);
+            check(!screen.selectingDeployment() && !screen.children().isEmpty(), "Map left-click restores recruitment menu");
+            check(requests.getLast().action() == IndustryProtocol.Action.LOCATION_AT, "Map click submits the selected ray");
+            check(!screen.acceptsDeploymentOverlay(v.session(), Long.MAX_VALUE), "Late green hatch cannot reappear after assignment");
+        });
+        context.waitTicks(2); context.takeScreenshot("hoi-deployment-menu-restored");
+
         var trainingRows = new ArrayList<IndustryView.Recruit>();
         for (int group = 0; group < 2; group++) {
             var t = v.templates().get(group);
@@ -134,7 +154,11 @@ public final class IndustryScreenChecks {
         context.getInput().setCursorPos(1500,800);
         context.runOnClient(client -> { var s = (IndustryScreen)client.gui.screen(); check(!s.allowsMovement(), "Designer blocks movement"); checkBounds(s); });
         click(context, v.battalions().stream().filter(c -> c.id().equals(v.templates().getFirst().line().getFirst())).findFirst().orElseThrow().name());
+        context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-categories");
+        click(context, "보병 대대");
         context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-choices");
+        click(context, "대대 목록 닫기");
+        context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-categories");
         click(context, "대대 목록 닫기");
         context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 3, v.templates().get(1))));
         context.waitTicks(2); context.takeScreenshot("hoi-industry-support-add-and-lock");
@@ -144,6 +168,9 @@ public final class IndustryScreenChecks {
             check(!button(s,"앞선 빈 지원중대 칸부터 추가").active,"Locked support slots cannot issue edits");
             checkBounds(s);
         });
+        click(context,"지원중대 추가"); context.waitTicks(2); context.takeScreenshot("hoi-industry-support-choices");
+        context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
+        click(context,"대대 목록 닫기");
         context.getInput().resizeWindow(854, 480); context.waitTicks(3);
         context.runOnClient(client -> { var s = (IndustryScreen)client.gui.screen(); checkBounds(s); s.mouseScrolled(150, 160, 0, -100); checkBounds(s); });
         context.waitTicks(2); context.takeScreenshot("hoi-industry-compact-designer");

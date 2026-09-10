@@ -44,13 +44,31 @@ public final class AtlasSurfaceRenderChecks {
             var victory=context.takeScreenshot("hoi-victory-original-direction");
             checkPixels(victory,true);
             command.accept("kill @e[type=minecraft:item_display]");
+            command.accept("time set midnight");
+            String[] statuses={"empty","occupied","unknown","selected_empty","selected_occupied"};
+            for(int row=0;row<2;row++)for(int col=0;col<statuses.length;col++) {
+                String base=row==0?"naval":"air";
+                command.accept("summon minecraft:item_display "+(col*3)+" "+(73-row*4)+" 8 {item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"hoi:base/"+base+"_"+statuses[col]+"\"}},item_display:\"fixed\",billboard:\"center\",transformation:{translation:[0f,0f,0f],scale:[2.4f,2.4f,2.4f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,1f,0f,0f]},brightness:{block:15,sky:15}}");
+            }
+            context.waitTicks(4);context.takeScreenshot("hoi-base-empty-occupied-unknown-selected");
+            command.accept("kill @e[type=minecraft:item_display]");command.accept("time set noon");
+            context.runOnClient(client -> {
+                AtlasSceneClient.clear();
+                AtlasSceneClient.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(java.util.UUID.randomUUID(), "minecraft:overworld", 0, 1, java.util.List.of(
+                    new dev.hoi.protocol.AtlasSceneProtocol.Box(0, 72, 8, 12, .2f, .2f, 0, dev.hoi.protocol.AtlasSceneProtocol.Material.DMZ),
+                    new dev.hoi.protocol.AtlasSceneProtocol.Box(0, 69, 8, 12, .2f, .2f, 0, dev.hoi.protocol.AtlasSceneProtocol.Material.RED))));
+            });
+            command.accept("time set midnight"); context.waitTicks(5); context.takeScreenshot("hoi-dmz-emissive-night");
+            context.runOnClient(client -> AtlasSceneClient.clear()); command.accept("time set noon");
+
+
             JsonObject scene;
             try(var input=AtlasSurfaceRenderChecks.class.getResourceAsStream("/atlas-client-scene.json")) {
                 if(input==null)throw new AssertionError("Production atlas geometry fixture missing");
                 scene=JsonParser.parseString(new String(input.readAllBytes(),StandardCharsets.UTF_8)).getAsJsonObject();
             } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
             int size=scene.get("size").getAsInt();
-            for(String mode:new String[]{"ARMY","NAVY","AIR"}) {
+            for(String mode:new String[]{"ARMY","NAVY","AIR","SUPPLY"}) {
                 command.accept("kill @e[type=minecraft:block_display]");command.accept("kill @e[type=minecraft:item_display]");command.accept("kill @e[type=minecraft:text_display]");
                 command.accept("fill 0 66 0 "+(size-1)+" 68 "+(size-1)+" minecraft:air");
                 command.accept("fill 0 64 0 "+(size-1)+" 64 "+(size-1)+" minecraft:stone");

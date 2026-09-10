@@ -92,6 +92,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         pane = HoiPanelLayout.width(selected, width);
         top = HoiMenuBar.height(width);
         HoiMenuBar.buttons(width, view == null ? "" : view.country(), selected, tab -> {
+            if (tab == MenuTab.INTELLIGENCE) { HoiClient.openAgency(); return; }
             if (tab == MenuTab.RESEARCH) { researchOpen.run(); return; }
             if (tab == MenuTab.CONSTRUCTION && ClientPlayNetworking.canSend(dev.hoi.protocol.ConstructionProtocol.Request.TYPE)) { HoiClient.openConstruction(); return; }
             if (IndustryScreen.supports(tab) && ClientPlayNetworking.canSend(dev.hoi.protocol.IndustryProtocol.Request.TYPE)) { HoiClient.openIndustry(tab); return; }
@@ -136,11 +137,6 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         scroll = Math.clamp(scroll, 0, Math.max(0, total - (contentBottom() - contentTop())));
         layoutRows(true, null);
         if (selected == MenuTab.RESEARCH) addRenderableWidget(new HoiMenuButton("연구 선택", 8, height - 27, 88, 20, researchOpen));
-        if (selected == MenuTab.INTELLIGENCE) addRenderableWidget(new HoiMenuButton("기관 관리", 8, height - 27, Math.min(80, pane - 16), 20, () -> {
-            if (ClientPlayNetworking.canSend(dev.hoi.protocol.AgencyProtocol.Request.TYPE)) {
-                var screen = new AgencyScreen(this); minecraft.gui.setScreen(screen); screen.open();
-            }
-        }));
         if (manufacturerGroup != null && detail == null) layoutManufacturers(true, null);
         if (detail != null) {
             SidebarMovement.release(minecraft);
@@ -166,8 +162,8 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             if (g != null) {
                 HoiMenuStyle.metal(g, 8, y, pane - 16, 21);
                 UiAssets.draw(g, texture(section.icon()), 13, y + 3, 19, 15);
-                g.text(font, trim(section.title(), pane - 68), 37, y + 6, TEXT);
-                g.text(font, collapsed.contains(index) ? "+" : "−", pane - 25, y + 6, GOLD);
+                dev.hoi.client.ui.UiText.text(g, font, trim(section.title(), pane - 68), 37, y + 6, TEXT);
+                dev.hoi.client.ui.UiText.text(g, font, collapsed.contains(index) ? "+" : "−", pane - 25, y + 6, GOLD);
             }
             if (widgets && y >= contentTop() && y + 21 <= contentBottom()) {
                 var header = new InvisibleButton(section.title(), 8, y, pane - 16, 21, () -> {
@@ -185,8 +181,8 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
                     String texture = texture(icon);
                     HoiMenuStyle.recess(g, 13, y + 3, 32, h - 9);
                     UiAssets.draw(g, texture, 16, y + 5, 26, h - 13);
-                    g.text(font, trim(entry.name(), pane - 67), 51, y + 6, TEXT);
-                    g.text(font, trim(entry.value(), pane - 67), 51, y + 19, GOLD);
+                    dev.hoi.client.ui.UiText.text(g, font, trim(entry.name(), pane - 67), 51, y + 6, TEXT);
+                    dev.hoi.client.ui.UiText.text(g, font, trim(entry.value(), pane - 67), 51, y + 19, GOLD);
                     if (entry.progress() >= 0) {
                         g.fill(50, y + h - 8, pane - 17, y + h - 5, 0xFF090C08);
                         g.fillGradient(50, y + h - 8, 50 + (int)((pane - 67) * entry.progress()), y + h - 5, 0xFFADB872, 0xFF52602F);
@@ -271,14 +267,15 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     private void officerControl(boolean widgets, MenuView.Entry entry, String section, int x, int y, int w, int h) {
         if (!widgets || y < contentTop() || y + h > contentBottom()) return;
         var button = new InvisibleButton(entry.name() + " · " + entry.value(), x, y, w, h, () -> showDetail(entry, section));
-        if (!entry.value().equals("미지정") && !section.equals("preferred_tactic") && !entry.name().endsWith("교리"))
+        if (!entry.value().equals("공석") && !entry.icon().equals("politics/vacant") && !entry.value().equals("미지정") && !section.equals("preferred_tactic") && !entry.name().endsWith("교리"))
             button.setTooltip(Tooltip.create(Component.literal(entry.name() + "\n" + entry.value())));
         else button.setTooltip(null);
         button.active = detail == null;
         addRenderableWidget(button);
     }
     private void officerText(GuiGraphicsExtractor g, String value, int x, int y, int available, int color) {
-        float scale = Math.min(.75f, available / (float)Math.max(1, font.width(value)));
+        float scale = dev.hoi.client.ui.UiText.scale(font);
+        value = font.plainSubstrByWidth(value, Math.max(1, (int)(available / scale)));
         g.pose().pushMatrix(); g.pose().translate(x, y); g.pose().scale(scale);
         g.text(font, value, 0, 0, color); g.pose().popMatrix();
     }
@@ -353,11 +350,12 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         for (int[] span : partySpans) g.fill(chart.x() + span[0], chart.y() + span[1], chart.x() + span[2], chart.y() + 1 + span[1], span[3]);
         var list = layout.parties();
         HoiMenuStyle.recess(g, list.x(), list.y(), list.width(), list.height());
-        double pitch = Math.min(9, (list.height() - 8.0) / Math.max(1, parties.size()));
-        float scale = (float)Math.min(.75, pitch / 10);
+        double pitch = 11;
+        float scale = dev.hoi.client.ui.UiText.scale(font);
         int index = 0;
         for (var party : parties) {
             int py = list.y() + 4 + (int)(index++ * pitch);
+            if (py + 10 > list.y() + list.height()) break;
             int swatch = Math.max(2, (int)(pitch - 2));
             g.fill(list.x() + 4, py, list.x() + 4 + swatch, py + swatch, partyColor(party.icon()));
             g.pose().pushMatrix(); g.pose().translate(list.x() + 12, py); g.pose().scale(scale);
@@ -371,8 +369,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         UiAssets.draw(g, art, box.x(), box.y(), box.width(), box.height());
     }
     private void centeredPoliticsText(GuiGraphicsExtractor g, String text, PoliticsLayout.Box box, int color) {
-        int textWidth = Math.max(1, Math.min(box.width() - 8, (int)Math.ceil(font.width(text) * .75f)));
-        officerText(g, text, box.x() + (box.width() - textWidth) / 2, box.y() + (box.height() - 7) / 2, textWidth, color);
+        dev.hoi.client.ui.UiText.centered(g, font, text, box.x() + 4, box.y(), box.width() - 8, Math.max(10, box.height()), color);
     }
     private void politicsCell(GuiGraphicsExtractor g, String label, PoliticsLayout.Box box) {
         politicsCell(g, label, box.x(), box.y(), box.width(), box.height());
@@ -447,7 +444,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             if (g != null) {
                 HoiMenuStyle.metal(g, 9, y, pane - 22, 15);
                 UiAssets.draw(g, "politics/header/" + new int[]{2, 1, 4, 5, 6, 7, 8}[i], 13, y + 1, 21, 13);
-                g.text(font, section.title(), 39, y + 4, TEXT);
+                HoiMenuStyle.heading(g, font, section.title(), 39, y + 2, pane - 50, TEXT);
             }
             int columns = 6, cell = (pane - 36) / columns, iconSize = Math.min(cell - 4, row - 21);
             var entries = section.entries();
@@ -471,7 +468,8 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
                             ClientPlayNetworking.send(new dev.hoi.protocol.DialogProtocol.PoliticsOpen(section.icon(), position));
                         } else showDetail(entry, section.icon());
                     });
-                    button.active = detail == null; addRenderableWidget(button);
+                    if (entry.value().equals("공석") || entry.value().equals("미지정") || entry.icon().equals("politics/vacant")) button.setTooltip(null);
+                    button.active = true; addRenderableWidget(button);
                 }
             }
             y += row + (count - 1) / columns * (row - 17);
@@ -487,9 +485,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         HoiMenuBar.draw(g, width, view == null ? dev.hoi.protocol.CountryHud.UNKNOWN : view.hud(), mx, my, hudScroll);
         HoiMenuStyle.panel(g, 0, top, pane, height - top);
-        g.text(font, trim(selected == MenuTab.POLITICS ? "정치" : selected.label(), pane - 44), 10, top + 9, TEXT);
+        HoiMenuStyle.heading(g, font, trim(selected == MenuTab.POLITICS ? "정치" : selected.label(), pane - 44), 10, top + 9, pane - 44, TEXT);
         if (view == null) {
-            g.text(font, trim("서버 정보 불러오는 중…", pane - 20), 10, top + 40, MUTED);
+            dev.hoi.client.ui.UiText.text(g, font, trim("서버 정보 불러오는 중…", pane - 20), 10, top + 40, MUTED);
             super.extractRenderState(g, mx, my, delta);
             return;
         }
@@ -498,8 +496,8 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             HoiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);
             if (!view.country().equals("KOR") || !UiAssets.draw(g, "country/kor/intelligence", 18, top + 33, 42, 40))
                 UiAssets.draw(g, "menu/intelligence", 18, top + 33, 42, 40);
-            g.text(font, trim("정보기관", pane - 86), 76, top + 43, TEXT);
-            g.text(font, trim(view.countryName(), pane - 86), 76, top + 58, MUTED);
+            dev.hoi.client.ui.UiText.text(g, font, trim("정보기관", pane - 86), 76, top + 43, TEXT);
+            dev.hoi.client.ui.UiText.text(g, font, trim(view.countryName(), pane - 86), 76, top + 58, MUTED);
         }
         HoiMenuStyle.recess(g, 5, contentTop() - 3, pane - 10, Math.max(6, contentBottom() - contentTop() + 5));
         g.enableScissor(6, contentTop(), pane - 6, contentBottom()); layoutRows(false, g); g.disableScissor();
@@ -537,7 +535,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     private void drawBalance(GuiGraphicsExtractor g, int mx, int my) {
         var balance = view.balance(); int x = balancePanelX(), w = balancePanelWidth(), y = top + 30;
         HoiMenuStyle.panel(g, x, top, w, Math.min(height - top, 300));
-        g.text(font, "권력의 균형", x + 9, top + 9, TEXT);
+        HoiMenuStyle.heading(g, font, "권력의 균형", x + 9, top + 9, w - 44, TEXT);
         officerText(g, balance.name(), x + 10, y + 4, w - 20, TEXT);
         UiAssets.draw(g, balance.leftIcon(), x + 8, y + 22, 36, 36);
         UiAssets.draw(g, balance.rightIcon(), x + w - 44, y + 22, 36, 36);
@@ -588,17 +586,17 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         int x = detailX(), w = detailWidth();
         g.nextStratum();
         HoiMenuStyle.panel(g, x, top, w, height - top - 34);
-        g.text(font, trim(detail.name(), w - 48), x + 10, top + 9, TEXT);
+        HoiMenuStyle.heading(g, font, trim(detail.name(), w - 48), x + 10, top + 9, w - 44, TEXT);
         HoiMenuStyle.recess(g, x + 8, top + 31, w - 16, 38);
         UiAssets.draw(g, detail.icon().isEmpty() ? texture(detailIcon) : detail.icon(), x + 12, top + 36, 34, 26);
-        g.text(font, trim(detail.value(), w - 64), x + 55, top + 44, TEXT);
+        dev.hoi.client.ui.UiText.text(g, font, trim(detail.value(), w - 64), x + 55, top + 44, TEXT);
         g.horizontalLine(x + 10, x + w - 10, top + 74, 0xFF4E4F52);
         var lines = font.split(Component.literal(detail.detail().isBlank() ? "추가 정보 없음" : detail.detail()), w - 28);
         int visible = Math.max(1, height - top - 128);
         detailScroll = Math.clamp(detailScroll, 0, Math.max(0, lines.size() * 13 - visible));
         g.enableScissor(x + 10, top + 84, x + w - 10, height - 44);
         int y = top + 84 - detailScroll;
-        for (var line : lines) { g.text(font, line, x + 14, y, TEXT); y += 13; }
+        for (var line : lines) { dev.hoi.client.ui.UiText.text(g, font, line, x + 14, y, TEXT); y += 13; }
         g.disableScissor();
     }
     private void layoutManufacturers(boolean widgets, GuiGraphicsExtractor g) {
@@ -611,7 +609,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         manufacturerScroll = Math.clamp(manufacturerScroll, 0, Math.max(0, rows.size() * 49 - available));
         if (g != null) {
             g.nextStratum(); HoiMenuStyle.panel(g, x, top, w, bottom - top);
-            g.text(font, "군수산업체", x + 10, top + 9, TEXT);
+            HoiMenuStyle.heading(g, font, "군수산업체", x + 10, top + 9, w - 44, TEXT);
         }
         if (widgets) {
             addRenderableWidget(new HoiMenuButton("×", x + w - 25, top + 3, 19, 19, () -> { manufacturerGroup = null; rebuildWidgets(); }));

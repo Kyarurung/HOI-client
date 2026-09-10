@@ -15,6 +15,7 @@ public final class DialogClient {
     public static boolean suspending() { return suspending; }
     public static net.minecraft.client.gui.screens.Screen contentScreen() {
         var current = Minecraft.getInstance().gui.screen();
+        if (current instanceof AgencyOperationScreen operation) return operation.backdrop();
         return current instanceof CompletionScreen completion && completion.backdrop() != null ? completion.backdrop() : current;
     }
     static boolean menuScreen(net.minecraft.client.gui.screens.Screen screen) {
@@ -62,6 +63,7 @@ public final class DialogClient {
         pending = null; HoiClient.cancelOpen();
         var client = Minecraft.getInstance();
         var parent = contentScreen();
+        if (parent instanceof PoliticsChoiceScreen politics) parent = politics.backdrop();
         suspending = view.completion() && menuScreen(parent);
         try {
             client.gui.setScreen(view.completion() ? new CompletionScreen(view, suspending ? parent : null)

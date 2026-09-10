@@ -28,7 +28,7 @@ public class DialogScreen extends Screen {
         view = next; rebuildWidgets();
     }
     private boolean paper() { return view.kind() == DialogView.Kind.EVENT || view.kind() == DialogView.Kind.GLOBAL_EVENT; }
-    float textScale() { return paper() ? 0.9f : 1; }
+    float textScale() { return dev.hoi.client.ui.UiText.scale(font); }
     @Override protected void init() {
         boolean event = paper() || view.kind() == DialogView.Kind.SUPER_EVENT;
         if (event) {
@@ -78,7 +78,7 @@ public class DialogScreen extends Screen {
             case STATE -> "주 정보"; case DIPLOMACY -> "외교 알림"; case EVENT -> "국가 이벤트 · 자국";
             case GLOBAL_EVENT -> "국제 뉴스 · 전 세계"; case SUPER_EVENT -> "SUPER EVENT · 전 세계"; case IDEOLOGIES -> "TFR 이념"; case POLITICS -> "정치";
         };
-        text(g, Component.literal(caption).getVisualOrderText(), left + 12, top + 11, HoiMenuStyle.TEXT);
+        HoiMenuStyle.heading(g, font, caption, left + 12, top + 11, pane - 48, HoiMenuStyle.TEXT);
         int ink = paper() ? 0xff29212b : HoiMenuStyle.TEXT;
         int start = left + 12;
         if (!view.flag().isEmpty() && UiAssets.draw(g, view.flag(), start, top + 34, 27, 18)) start += 35;

@@ -36,6 +36,7 @@ public final class AtlasSceneClient {
     private static ItemStackRenderState city;
     private static int visibleTiles, examinedTiles;
     private static final Map<Material, Identifier> TEXTURES = Map.ofEntries(
+            Map.entry(Material.DMZ, Identifier.parse("minecraft:block/white_concrete")),
             Map.entry(Material.BLACK, Identifier.parse("minecraft:block/black_concrete")), Map.entry(Material.RED, Identifier.parse("minecraft:block/red_concrete")),
             Map.entry(Material.WATER, Identifier.parse("minecraft:block/water_still")), Map.entry(Material.FOREST, Identifier.parse("minecraft:block/oak_sapling")),
             Map.entry(Material.JUNGLE, Identifier.parse("minecraft:block/jungle_sapling")), Map.entry(Material.MARSH, Identifier.parse("minecraft:block/mud")),
@@ -182,16 +183,16 @@ public final class AtlasSceneClient {
                 continue;
             }
             var sprite = frame.sprites().get(tile.material());
-            var type = tile.material() == Material.FOREST || tile.material() == Material.JUNGLE ? RenderTypes.cutoutMovingBlock() : RenderTypes.solidMovingBlock();
+            var type = tile.material() == Material.DMZ ? RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")) : tile.material() == Material.FOREST || tile.material() == Material.JUNGLE ? RenderTypes.cutoutMovingBlock() : RenderTypes.solidMovingBlock();
             context.submitNodeCollector().submitCustomGeometry(pose, type, (matrix, consumer) -> emit(tile, sprite, matrix, consumer));
         }
         pose.popPose();
     }
     private static void emit(Tile tile, TextureAtlasSprite sprite, PoseStack.Pose pose, VertexConsumer consumer) {
-        int color = tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
+        int color = tile.material() == Material.DMZ ? 0xfeff0000 : tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
         var v = tile.vertices();
         for (int i=0;i<v.length;i+=8) consumer.addVertex(pose,v[i],v[i+1],v[i+2]).setColor(color)
-                .setUv(sprite.getU(v[i+3]),sprite.getV(v[i+4])).setLight(15728880).setNormal(pose,v[i+5],v[i+6],v[i+7]);
+                .setUv(sprite.getU(v[i+3]),sprite.getV(v[i+4])).setLight(15728880).setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).setNormal(pose,v[i+5],v[i+6],v[i+7]);
     }
     private AtlasSceneClient() {}
 }

@@ -24,7 +24,7 @@ final class PoliticsChoiceScreen extends DialogScreen {
         if (pane < 170) { pane = Math.min(240, width - 12); left = width - pane - 6; }
         bottom = Math.min(height - 10, top + 300);
         addRenderableWidget(new HoiMenuButton("×", left + pane - 23, top + 3, 19, 19, this::onClose));
-        int start = top + 48;
+        int start = top + 29;
         scroll = Math.clamp(scroll, 0, Math.max(0, view().tiles().size() * 39 - (bottom - start)));
         for (int i = 0; i < view().tiles().size(); i++) {
             var tile = view().tiles().get(i); int y = start + i * 39 - scroll;
@@ -32,30 +32,37 @@ final class PoliticsChoiceScreen extends DialogScreen {
             var button = new HoiMenuButton(tile.name(), left + 6, y, pane - 12, 36,
                     () -> DialogClient.choose(view(), tile.section())).caption("");
             button.active = view().choices().stream().anyMatch(c -> c.id().equals(tile.section()));
-            button.setTooltip(Tooltip.create(Component.literal(tile.name() + "\n" + tile.detail())));
+            button.setTooltip(tile.name().equals("공석") || tile.icon().equals("politics/vacant") ? null : Tooltip.create(Component.literal(tile.name() + "\n" + tile.detail())));
             addRenderableWidget(button);
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-        if (parent != null) { parent.extractRenderState(g, -1, -1, delta); g.nextStratum(); }
+        if (parent != null) { parent.extractRenderState(g, mx < left ? mx : -1, mx < left ? my : -1, delta); g.nextStratum(); }
         HoiMenuStyle.panel(g, left, top, pane, bottom - top + 4);
-        g.centeredText(font, view().title(), left + (pane - 24) / 2, top + (25 - font.lineHeight) / 2, HoiMenuStyle.TEXT);
-        g.centeredText(font, font.plainSubstrByWidth(view().subtitle(), pane - 16), left + pane / 2, top + 27, HoiMenuStyle.ACCENT);
+        dev.hoi.client.ui.UiText.centeredAt(g, font, view().title(), left + (pane - 24) / 2, top + (25 - font.lineHeight) / 2, HoiMenuStyle.TEXT);
         superWidgets(g, mx, my, delta);
-        int start = top + 48;
+        int start = top + 29;
         for (int i = 0; i < view().tiles().size(); i++) {
             var tile = view().tiles().get(i); int y = start + i * 39 - scroll;
             if (y < start || y + 36 > bottom) continue;
             if (tile.value().equals("적용 중")) g.fill(left + 7, y + 1, left + pane - 7, y + 35, 0x603F6D1D);
             UiAssets.draw(g, tile.icon(), left + 9, y + 3, 30, 30);
             int textLeft = left + 43, textWidth = pane - 53;
-            g.centeredText(font, font.plainSubstrByWidth(tile.name(), textWidth), textLeft + textWidth / 2, y + 7, HoiMenuStyle.TEXT);
-            g.centeredText(font, tile.value(), textLeft + textWidth / 2, y + 21, HoiMenuStyle.ACCENT);
+            dev.hoi.client.ui.UiText.centered(g, font, tile.name(), textLeft, y + 3, textWidth, 13, HoiMenuStyle.TEXT);
+            dev.hoi.client.ui.UiText.centered(g, font, tile.value(), textLeft, y + 20, textWidth, 12, HoiMenuStyle.ACCENT);
         }
-        if (view().tiles().isEmpty()) g.centeredText(font, font.plainSubstrByWidth(view().body(), pane - 12), left + pane / 2, start + 12, HoiMenuStyle.MUTED);
+        if (view().tiles().isEmpty()) dev.hoi.client.ui.UiText.centeredAt(g, font, font.plainSubstrByWidth(view().body(), pane - 12), left + pane / 2, start + 12, HoiMenuStyle.MUTED);
     }
     private void superWidgets(GuiGraphicsExtractor g, int mx, int my, float delta) {
         for (var child : children()) if (child instanceof net.minecraft.client.gui.components.Renderable widget) widget.extractRenderState(g, mx, my, delta);
+    }
+    Screen backdrop() { return parent; }
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean twice) {
+        if (parent != null && event.x() < left) {
+            dismiss();
+            return parent.mouseClicked(event, twice);
+        }
+        return super.mouseClicked(event, twice);
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
         if (x < left || x > left + pane) return false;

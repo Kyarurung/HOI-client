@@ -108,7 +108,7 @@ public final class WorldTensionScreen extends Screen {
     private void begin(GuiGraphicsExtractor g) { g.pose().pushMatrix(); g.pose().translate(x,y); g.pose().scale(scale); }
     private void end(GuiGraphicsExtractor g) { g.pose().popMatrix(); }
     private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int color,boolean centered) {
-        float fontScale=1.6f; String line=font.plainSubstrByWidth(value,Math.max(1,(int)(w/fontScale)));
+        float fontScale=Math.max(1.6f, 10f / (font.lineHeight * scale)); String line=font.plainSubstrByWidth(value,Math.max(1,(int)(w/fontScale)));
         g.pose().pushMatrix(); g.pose().translate(px+(centered?w/2f:0),py); g.pose().scale(fontScale);
         if(centered) g.centeredText(font,line,0,0,color); else g.text(font,line,0,0,color);
         g.pose().popMatrix();
@@ -141,7 +141,7 @@ public final class WorldTensionScreen extends Screen {
                 text(g,percent(e.initial()),244,py+4,49,e.initial()!=null&&e.initial()>0?0xFFCF4545:0xFF6DAD64,false);
                 text(g,percent(e.current()),244,py+22,49,0xFFC5C7BF,false);
                 var lines=font.split(Component.literal(e.reason()),145);
-                for(int j=0;j<Math.min(2,lines.size());j++) { g.pose().pushMatrix();g.pose().translate(295,py+4+j*17);g.pose().scale(1.25f);g.text(font,lines.get(j),0,0,0xFFE0E0DA);g.pose().popMatrix(); }
+                for(int j=0;j<Math.min(2,lines.size());j++) { g.pose().pushMatrix();g.pose().translate(295,py+4+j*17);g.pose().scale(Math.max(1.25f, 10f / (font.lineHeight * scale)));g.text(font,lines.get(j),0,0,0xFFE0E0DA);g.pose().popMatrix(); }
             }
         }
         scrollbar(g,503,133,328,offset,view.total(),7);

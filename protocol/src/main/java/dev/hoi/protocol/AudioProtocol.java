@@ -22,7 +22,8 @@ public final class AudioProtocol {
         FOCUS_SELECT("ui.focus.select"), DIVISION_SELECT("ui.division.select"),
         CONSTRUCTION_PLACE("ui.construction.place"),
         MAP_ARMY("ui.map.army"), MAP_NAVY("ui.map.navy"), MAP_AIR("ui.map.air"),
-        MAP_SUPPLY("ui.map.supply"), MAP_CONSTRUCTION("ui.map.construction");
+        MAP_SUPPLY("ui.map.supply"), MAP_CONSTRUCTION("ui.map.construction"),
+        POLITICS_APPOINT("ui.politics.appoint"), POLITICS_LAW("ui.politics.law"), UI_CLICK("ui.click");
         private final String sound;
         Cue(String sound) { this.sound = sound; }
         public String sound() { return sound; }
