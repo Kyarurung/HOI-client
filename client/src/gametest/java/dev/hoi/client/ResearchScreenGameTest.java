@@ -82,16 +82,19 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             check(HoiMenuBar.indicators(menu.hud()).stream().anyMatch(i -> i.icon().equals("nuclear") && i.label().equals("핵폭탄")), "Nuclear bombs appear from campaign start without research");
             var armed = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational());
             check(HoiMenuBar.indicators(armed).stream().anyMatch(i -> i.icon().equals("nuclear") && i.value().equals("0")), "Completed nuclear research shows zero inventory");
-            check(HoiMenuBar.maximumScroll(800, armed) == 0, "All national and financial indicators fit the normal viewport");
+            check(HoiMenuBar.maximumScroll(900, armed) == 0, "All national and financial indicators fit the normal viewport");
             context.runOnClient(client -> {
                 for (var item : HoiMenuBar.indicators(armed)) {
                     if (item.icon().equals("political_power") || item.icon().equals("command_power")) {
-                        check(item.value().equals(item.icon().equals("political_power") ? "1.3K" : "150"),
+                        check(item.value().equals(item.icon().equals("political_power") ? "1350" : "150"),
                                 "Power indicators truncate fractions without rounding");
                         check(client.font.width(item.value()) <= item.width() - 18,
                                 "Power indicator fits without ellipsis: " + item.icon());
                     }
                 }
+                var convoys = new HoiMenuBar.Indicator("convoys", "수송", 10000L, HoiMenuBar.Format.NUMBER);
+                check(convoys.value().equals("10.0K") && client.font.width(convoys.value()) <= convoys.width() - 18,
+                        "Ten thousand convoys fit without ellipsis");
                 for (double power : new double[]{-500, 999.99, 1000, 1350, 1999.99, 2000}) {
                     var item = new HoiMenuBar.Indicator("political_power", "정치력", power, HoiMenuBar.Format.POLITICAL_POWER);
                     check(item.value().length() <= 4 && client.font.width(item.value()) <= item.width() - 18,
@@ -545,7 +548,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         return sections;
     }
     private static CountryHud.NationalIndicators fixtureNational() {
-        return new CountryHud.NationalIndicators(1350.75, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 1000L, .95, 150.75, .36, 280_900L);
+        return new CountryHud.NationalIndicators(1350.75, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 10000L, .95, 150.75, .36, 280_900L);
     }
     private static ResearchView fixtureResearch() {
         var technologies = new ArrayList<ResearchView.Tech>();

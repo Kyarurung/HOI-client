@@ -289,10 +289,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         drawPoliticalArt(g, "politics/focus_select", layout.focusTitle());
         var focus = politicsFocus();
         drawPoliticalArt(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), layout.focusImage());
-        var focusTitle = layout.focusTitle();
-        officerText(g, focus.value(), focusTitle.x() + 8,
-                focusTitle.y() + (focusTitle.height() - 7) / 2, focusTitle.width() - 16,
-                focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
+        centeredPoliticsText(g, focus.value(), layout.focusTitle(), focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
         politicsCell(g, "경제-정치 연합", layout.union());
         var ideology = politicsEntry("세부 이념"); var ideologyBox = layout.ideology();
         HoiMenuStyle.recess(g, ideologyBox.x(), ideologyBox.y(), ideologyBox.width(), ideologyBox.height());

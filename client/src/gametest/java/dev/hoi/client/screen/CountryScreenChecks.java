@@ -30,11 +30,15 @@ public final class CountryScreenChecks {
                 var sizing = new dev.hoi.client.ui.PoliticsLayout(pane, 40);
                 var focusBox = sizing.focus(); var focusImage = sizing.focusImage();
                 if (Math.abs(focusBox.width() - focusBox.height() * 359.0 / 107) > .5
-                        || focusBox.x() != sizing.ideology().x()
+                        || Math.abs(focusBox.x() + focusBox.height() * 49.5 / 107
+                                - focusImage.x() - focusImage.width() / 2.0) > .5
+                        || focusImage.x() != sizing.ideology().x()
+                        || sizing.spirits().x() != sizing.election().x()
+                        || sizing.spirits().x() + sizing.spirits().width() != pane - 8
                         || sizing.ideology().y() - focusBox.y() - focusBox.height() != 4
                         || focusImage.width() != focusImage.height()
                         || focusImage.height() != sizing.ideology().height())
-                    throw new AssertionError("Focus must preserve source proportions, icon size and ideology alignment");
+                    throw new AssertionError("Focus must center its original frame on the icon and spirits must align with election");
                 for (var box : List.of(sizing.union(), sizing.ideology(), sizing.government()))
                     if (box.width() != box.height()) throw new AssertionError("Political icon cells must stay square at every size");
                 if (sizing.government().x() + sizing.government().width() > sizing.election().x()

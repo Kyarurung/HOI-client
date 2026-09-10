@@ -36,7 +36,7 @@ public final class HoiMenuBar {
     public enum Format { NUMBER, POLITICAL_POWER, COMMAND_POWER, PERCENT, MONEY }
     public record Indicator(String icon, String label, Number raw, Format format, String barLabel, Double ratio) {
         public Indicator(String icon, String label, Number raw, Format format) { this(icon, label, raw, format, null, null); }
-        public int width() { return format == Format.MONEY ? 59 : format == Format.POLITICAL_POWER ? 42 : icon.equals("manpower") || icon.equals("fuel") ? 52 : 40; }
+        public int width() { return format == Format.MONEY ? 59 : format == Format.POLITICAL_POWER ? 48 : icon.equals("manpower") || icon.equals("fuel") || icon.equals("convoys") ? 52 : 40; }
         public String value() {
             if (raw == null) return "—";
             return switch (format) {
@@ -131,8 +131,7 @@ public final class HoiMenuBar {
 
     static String politicalPower(Double value) {
         if (value == null) return "—";
-        long whole = value.longValue();
-        return whole < 1000 ? Long.toString(whole) : whole / 1000 + "." + whole / 100 % 10 + "K";
+        return Long.toString(value.longValue());
     }
 
     public static String number(Double value) {

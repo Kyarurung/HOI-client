@@ -10,11 +10,11 @@ class HudNumbersTest {
         assertEquals("0",HoiMenuBar.politicalPower(-0.5));
         assertEquals("73",HoiMenuBar.politicalPower(73.99));
         assertEquals("999",HoiMenuBar.politicalPower(999.99));
-        assertEquals("1.0K",HoiMenuBar.politicalPower(1000.0));
-        assertEquals("1.0K",HoiMenuBar.politicalPower(1099.99));
-        assertEquals("1.3K",HoiMenuBar.politicalPower(1350.0));
-        assertEquals("1.9K",HoiMenuBar.politicalPower(1999.99));
-        assertEquals("2.0K",HoiMenuBar.politicalPower(2000.0));
+        assertEquals("1000",HoiMenuBar.politicalPower(1000.0));
+        assertEquals("1099",HoiMenuBar.politicalPower(1099.99));
+        assertEquals("1350",HoiMenuBar.politicalPower(1350.0));
+        assertEquals("1999",HoiMenuBar.politicalPower(1999.99));
+        assertEquals("2000",HoiMenuBar.politicalPower(2000.0));
     }
 
     @Test void commandPowerDropsDecimalsWithoutRoundingOrInventingUnknownValues() {
