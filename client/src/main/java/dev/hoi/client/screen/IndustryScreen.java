@@ -367,13 +367,13 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             art("recruitment/" + entries[i], 7, y - (int)(5 * scale), pane - 14, backgroundHeight);
             // The outer icon cell occupies (0, 4)..(96, 55) in the 493x57 row artwork.
             int iconCenterX = backgroundLeft + (int)Math.round(48 * backgroundScale);
-            int iconCenterY = y - (int)(5 * scale) + (int)Math.round(29.5 * backgroundScale);
+            int iconCenterY = y - (int)(5 * scale) + (int)Math.round(29.5 * backgroundScale) - 2;
             int iconBgWidth = (int)(77 * scale), iconBgHeight = (int)(40 * scale), iconWidth = (int)(54 * scale);
             int iconBgX = iconCenterX - iconBgWidth / 2, iconBgY = iconCenterY - iconBgHeight / 2;
             if (graphics != null) UiAssets.nineSlice(graphics, "recruitment/icon_bg", iconBgX, iconBgY, iconBgWidth, iconBgHeight, 16, scale);
             art("recruitment/" + icons[i] + "_icon", iconCenterX - iconWidth / 2, iconBgY, iconWidth, iconBgHeight);
             int labelX = 7 + (int)(110 * scale), labelWidth = (int)(159 * scale);
-            art("recruitment/title", labelX, y + (int)(12 * scale), labelWidth, (int)(26 * scale));
+            art("recruitment/title", labelX, y + 1 + (int)(12 * scale), labelWidth, (int)(26 * scale));
             centeredCompactText(names[i], labelX + 2, y + (int)(25 * scale) - 3, labelWidth - 4, TEXT);
             art("recruitment/meter", 7 + (int)(280 * scale), y + (int)(10 * scale), (int)(108 * scale), (int)(33 * scale));
             art("recruitment/equipment", 7 + (int)(285 * scale), y + (int)(15 * scale), (int)(23 * scale), (int)(23 * scale));
@@ -455,7 +455,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         }
         var special = view.specialForces();
         art("recruitment/special", secondX + 11, top + 30, 20, 20);
-        centeredCompactText(special == null ? "—/—" : special.used() + "/" + special.capacity(), secondX + 32, top + 36, secondW - 128, TEXT);
+        compactText(special == null ? "—/—" : special.used() + "/" + special.capacity(), secondX + 35, top + 36, secondW - 128, TEXT);
         tip("특수부대 대대 · 사용량 / 한도" + (special == null ? " · 정보 없음" : "\n" + special.used() + " / " + special.capacity() + " · 훈련 대기 포함"), secondX + 7, top + 28, secondW - 100, 23);
         button("새 사단 편제 설계", "사단 설계", secondX + secondW - 90, top + 29, 83, 22, !view.templates().isEmpty(),
                 () -> loadDesigner(view.templates().getFirst().id()));
