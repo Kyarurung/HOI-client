@@ -30,7 +30,7 @@ public final class KoreanMusicScreen extends Screen {
         int controlWidth = (w - 32) / 4;
         var prev = addRenderableWidget(new PanelButton("이전 곡", x + 10, y + h - 32, controlWidth, 23, () -> { if (!items.isEmpty()) KoreanMusic.play(Math.floorMod(playback.selected() - 1, items.size())); }));
         var start = addRenderableWidget(new PanelButton("재생", x + 14 + controlWidth, y + h - 32, controlWidth, 23, () -> { if (!items.isEmpty()) KoreanMusic.play(playback.selected()); }));
-        addRenderableWidget(new PanelButton("정지", x + 18 + controlWidth * 2, y + h - 32, controlWidth, 23, playback::stop));
+        addRenderableWidget(new PanelButton("정지", x + 18 + controlWidth * 2, y + h - 32, controlWidth, 23, KoreanMusic::stop));
         var next = addRenderableWidget(new PanelButton("다음 곡", x + 22 + controlWidth * 3, y + h - 32, controlWidth, 23, () -> { if (!items.isEmpty()) KoreanMusic.play((playback.selected() + 1) % items.size()); }));
         prev.active = start.active = next.active = !items.isEmpty();
     }

@@ -12,6 +12,7 @@ import java.util.List;
 public final class KoreanMusic {
     private record Catalog(int version, List<PlaylistPlayback.Track> tracks) {}
     private static SoundInstance sound;
+    private static boolean enabled;
     public static final PlaylistPlayback PLAYBACK = new PlaylistPlayback(new PlaylistPlayback.Output() {
         public boolean start(PlaylistPlayback.Track track) {
             var client = Minecraft.getInstance(); var id = UiSounds.id(track.event());
@@ -40,10 +41,20 @@ public final class KoreanMusic {
         var loaded = tracks;
         Minecraft.getInstance().execute(() -> PLAYBACK.replace(loaded));
     }
-    public static void play(int index) { UiSounds.reset(); StoryMusicAudio.reset(); PLAYBACK.play(index); }
+    public static void enable(){enabled=true;}
+    public static void stop(){enabled=false;PLAYBACK.stop();}
+    public static void suspend(){PLAYBACK.tick(false);}
+    public static void mapChanged() {
+        enabled=true;StoryMusicAudio.reset();SuperEventAudio.reset();
+        if(!PLAYBACK.tracks().isEmpty())PLAYBACK.step(1);
+    }
+    public static void play(int index){enabled=true;StoryMusicAudio.reset();SuperEventAudio.reset();PLAYBACK.play(index);}
+    static SoundInstance playing(){return sound;}
     public static void tick() {
         var client = Minecraft.getInstance();
-        boolean allowed = client.level != null && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0 && client.options.getSoundSourceVolume(SoundSource.MUSIC) > 0 && !SuperEventAudio.active() && !StoryMusicAudio.active();
+        if(client.level==null){stop();return;}
+        if(enabled&&!PLAYBACK.requested()&&!PLAYBACK.tracks().isEmpty())PLAYBACK.play(PLAYBACK.selected());
+        boolean allowed = enabled && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0 && client.options.getSoundSourceVolume(SoundSource.MUSIC) > 0 && !SuperEventAudio.active() && !StoryMusicAudio.active();
         PLAYBACK.tick(allowed);
         if (allowed && sound != null && client.getSoundManager().isActive(sound)) client.getMusicManager().stopPlaying();
     }

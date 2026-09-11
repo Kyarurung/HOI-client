@@ -866,6 +866,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         }
         return super.mouseClicked(event, twice);
     }
+    @Override public int unitHudLeft(){return tab==MenuTab.RECRUITMENT?pane+3+rightWidth():pane;}
     @Override public boolean allowsMovement() { return !modal(); }
     @Override public boolean keyPressed(KeyEvent e) { return !modal() && SidebarMovement.consumes(minecraft, e) || super.keyPressed(e); }
     @Override public boolean keyReleased(KeyEvent e) { return !modal() && SidebarMovement.consumes(minecraft, e) || super.keyReleased(e); }

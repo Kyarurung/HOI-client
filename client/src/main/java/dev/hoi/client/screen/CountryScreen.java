@@ -210,6 +210,7 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
         return super.keyPressed(event);
     }
     @Override public boolean keyReleased(KeyEvent event) { return allowsMovement() && SidebarMovement.consumes(minecraft, event) || super.keyReleased(event); }
+    @Override public int unitHudLeft(){return pane;}
     @Override public boolean allowsMovement() { return detail == null && confirmation == null; }
     @Override public void removed() { SidebarMovement.release(minecraft); }
     @Override public boolean isPauseScreen() { return false; }

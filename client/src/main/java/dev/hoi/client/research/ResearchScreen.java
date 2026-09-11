@@ -501,6 +501,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         if (allowsMovement() && SidebarMovement.consumes(minecraft, event)) return true;
         return super.keyReleased(event);
     }
+    @Override public int unitHudLeft(){return overviewWidth();}
     @Override public boolean allowsMovement() { return overview && detail == null; }
     @Override public void removed() { SidebarMovement.release(minecraft); if (DialogClient.suspending()) return; requests.accept(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, "")); }
     @Override public boolean isPauseScreen() { return false; }

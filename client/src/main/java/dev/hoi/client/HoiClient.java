@@ -19,6 +19,7 @@ public final class HoiClient implements ClientModInitializer {
     @Override public void onInitializeClient() {
         ResearchProtocol.registerPayloadTypes();
         CampaignHud.register();
+        dev.hoi.client.map.UnitHud.register();
         DialogClient.register();
         dev.hoi.protocol.AudioProtocol.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.AudioProtocol.Signal.TYPE, (packet, context) -> UiSounds.receive(packet.cue()));
@@ -34,7 +35,7 @@ public final class HoiClient implements ClientModInitializer {
         ClientTickEvents.START_CLIENT_TICK.register(SidebarMovement::tick);
         ScreenNetworking.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> registerCommands(dispatcher));
-        ClientTickEvents.END_CLIENT_TICK.register(client -> { UiSounds.tick(); dev.hoi.client.audio.UnitAudio.tick(); dev.hoi.client.audio.StoryMusicAudio.tick(); dev.hoi.client.audio.KoreanMusic.tick(); });
+        ClientTickEvents.END_CLIENT_TICK.register(client -> { dev.hoi.client.audio.UnitAudio.tick(); dev.hoi.client.audio.StoryMusicAudio.tick(); dev.hoi.client.audio.KoreanMusic.tick(); });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             UiSounds.reset(); dev.hoi.client.audio.UnitAudio.reset(); dev.hoi.client.audio.StoryMusicAudio.reset(); dev.hoi.client.audio.KoreanMusic.PLAYBACK.stop(); SidebarMovement.release(client); dev.hoi.client.ui.HoiMenuBar.clear();
         });

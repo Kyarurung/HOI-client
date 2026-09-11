@@ -3,59 +3,25 @@ package dev.hoi.client.audio;
 import dev.hoi.protocol.AudioProtocol;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
-
 
 public final class UiSounds {
-    static final java.util.List<String> START_SOUNDS = java.util.List.of("ui.game_start", "ui.game_start_signal");
-    private static final Identifier THEME = id("music.tfr_theme");
-    private static SoundInstance theme;
-    private static int retry;
-    private static final LobbyAudio LOBBY = new LobbyAudio(new LobbyAudio.Output() {
-        public void stopTheme() {
-            if (theme != null) Minecraft.getInstance().getSoundManager().stop(theme);
-            theme = null; retry = 0;
-        }
-        public void playTheme() {
-            var client = Minecraft.getInstance();
-            client.getMusicManager().stopPlaying();
-            theme = new SimpleSoundInstance(THEME, SoundSource.MASTER, 1, 1, RandomSource.create(),
-                    true, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
-            client.getSoundManager().play(theme);
-        }
-        public void playStart() { START_SOUNDS.forEach(UiSounds::play); }
-    });
+    static final java.util.List<String> START_SOUNDS=java.util.List.of("ui.game_start","ui.game_start_signal");
     private UiSounds() {}
-    static Identifier id(String path) { return Identifier.fromNamespaceAndPath("hoi", path); }
+    static Identifier id(String path){return Identifier.fromNamespaceAndPath("hoi",path);}
     public static void play(String path) {
-        var sounds = Minecraft.getInstance().getSoundManager();
-        var id = id(path);
-        if (sounds.getSoundEvent(id) != null)
-            sounds.play(SimpleSoundInstance.forUI(SoundEvent.createVariableRangeEvent(id), 1, 1));
+        var sounds=Minecraft.getInstance().getSoundManager();var id=id(path);
+        if(sounds.getSoundEvent(id)!=null)sounds.play(SimpleSoundInstance.forUI(SoundEvent.createVariableRangeEvent(id),1,1));
     }
     public static void receive(AudioProtocol.Cue cue) {
-        switch (cue) {
-            case SELECT -> { KoreanMusic.PLAYBACK.stop(); LOBBY.select(); retry = 0; tick(); }
-            case START -> LOBBY.start();
+        switch(cue) {
+            case SELECT -> KoreanMusic.enable();
+            case START -> {KoreanMusic.enable();START_SOUNDS.forEach(UiSounds::play);}
             case STOP -> reset();
+            case MAP_ARMY,MAP_NAVY,MAP_AIR,MAP_SUPPLY,MAP_CONSTRUCTION -> {KoreanMusic.mapChanged();play(cue.sound());}
             default -> play(cue.sound());
         }
     }
-    public static void tick() {
-        if (!LOBBY.requested()) return;
-        var client = Minecraft.getInstance();
-        var sounds = client.getSoundManager();
-        boolean ready = sounds.getSoundEvent(THEME) != null
-                && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0;
-        if (ready) client.getMusicManager().stopPlaying();
-
-        if (retry > 0) { retry--; return; }
-        retry = 100;
-        LOBBY.tick(ready, theme != null && sounds.isActive(theme));
-    }
-    public static void reset() { LOBBY.reset(); }
+    public static void reset(){KoreanMusic.stop();StoryMusicAudio.reset();SuperEventAudio.reset();}
 }

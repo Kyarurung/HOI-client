@@ -80,7 +80,9 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             });
             context.setScreen(() -> null); context.waitTicks(3); gui2Screenshot(context, "hoi-map-selector-icons");
             dev.hoi.client.audio.KoreanMusicChecks.run(context);
+            dev.hoi.client.audio.MusicRoutingChecks.run(context);
             dev.hoi.client.audio.UnitAudioChecks.run(context);
+            dev.hoi.client.map.UnitHudChecks.run(context);
             var menu = fixtureMenu();
             dev.hoi.client.screen.SelectionPreviewChecks.run(context, menu);
             context.runOnClient(client -> CampaignHud.accept(HudProtocol.State.of("KOR",menu.hud())));

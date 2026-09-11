@@ -131,5 +131,6 @@ public final class DecisionScreen extends Screen implements SidebarMovement.Scre
         return super.mouseScrolled(x,y,horizontal,vertical);
     }
     @Override public boolean isPauseScreen() { return false; }
+    @Override public int unitHudLeft(){return pane;}
     @Override public boolean allowsMovement() { return true; }
 }

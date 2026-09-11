@@ -113,6 +113,7 @@ public final class HoiMenuBar {
     }
 
     public static void drawPassive(GuiGraphicsExtractor g, int width, CountryHud hud, String country) {
+        MusicButton.draw(g, width);
         draw(g, width, hud, -1, -1, 0);
         int tabWidth = tabWidth(width);
         for (var tab : MenuTab.ORDER) drawTab(g, tab, country, false,
@@ -204,12 +205,7 @@ public final class HoiMenuBar {
                 b -> dev.hoi.client.HoiClient.openWorldTension(), message -> message.get()) {
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
         });
-        if (dockWidth(width) + 35 < tensionX(width)) {
-            var music = new PanelButton("음악", dockWidth(width) + 4, 17, 29, height(width) - 20,
-                    () -> { var client = Minecraft.getInstance(); client.gui.setScreen(new dev.hoi.client.screen.KoreanMusicScreen(client.gui.screen())); });
-            music.setTooltip(Tooltip.create(Component.literal("한국 음악 재생 목록")));
-            buttons.add(music);
-        }
+        buttons.add(new MusicButton(width));
         return List.copyOf(buttons);
     }
 

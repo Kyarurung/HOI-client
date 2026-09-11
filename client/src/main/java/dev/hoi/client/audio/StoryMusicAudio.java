@@ -8,9 +8,9 @@ import net.minecraft.util.RandomSource;
 public final class StoryMusicAudio {
     private static String requested="";
     private static SoundInstance sound;
-    private static int retries;
+    private static int retries, startup;
     private StoryMusicAudio() {}
-    public static void play(String event) {reset();UiSounds.reset();requested=event;}
+    public static void play(String event) {reset();KoreanMusic.enable();KoreanMusic.suspend();requested=event;}
     public static boolean active() {return !requested.isEmpty();}
     public static void tick() {
         if(requested.isEmpty())return;
@@ -20,7 +20,7 @@ public final class StoryMusicAudio {
             if(sound!=null)client.getSoundManager().stop(sound);sound=null;return;
         }
         if(sound!=null) {
-            if(!client.getSoundManager().isActive(sound))reset();
+            if(!client.getSoundManager().isActive(sound)&&startup--<=0)reset();
             else client.getMusicManager().stopPlaying();
             return;
         }
@@ -29,7 +29,8 @@ public final class StoryMusicAudio {
         if(client.getSoundManager().getSoundEvent(id)==null){if(++retries>200)reset();return;}
         client.getMusicManager().stopPlaying();
         sound=new SimpleSoundInstance(id,SoundSource.MUSIC,1,1,RandomSource.create(),false,0,SoundInstance.Attenuation.NONE,0,0,0,true);
-        client.getSoundManager().play(sound);
+        startup=20;client.getSoundManager().play(sound);
     }
-    public static void reset() {if(sound!=null)Minecraft.getInstance().getSoundManager().stop(sound);sound=null;requested="";retries=0;}
+    public static void suspend(){if(sound!=null)Minecraft.getInstance().getSoundManager().stop(sound);sound=null;startup=0;}
+    public static void reset() {if(sound!=null)Minecraft.getInstance().getSoundManager().stop(sound);sound=null;requested="";retries=0;startup=0;}
 }

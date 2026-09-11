@@ -97,6 +97,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     }
     public MenuTab selectedTab() { return selected; }
     public int panelWidth() { return pane; }
+    @Override public int unitHudLeft(){return pane;}
     @Override public boolean allowsMovement() { return !selectionPreview && detail == null && manufacturerGroup == null; }
     @Override protected void init() {
         pane = HoiPanelLayout.width(selected, width);

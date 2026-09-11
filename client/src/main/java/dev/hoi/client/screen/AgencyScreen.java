@@ -513,6 +513,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         minecraft.gui.setScreen(parent);
     }
     @Override public void removed() { SidebarMovement.release(minecraft); }
+    @Override public int unitHudLeft(){return choosing<0?pane:width;}
     @Override public boolean allowsMovement() { return selectedId == null && !group.equals("upgrades"); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
