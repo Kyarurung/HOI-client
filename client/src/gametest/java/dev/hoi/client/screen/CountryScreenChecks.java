@@ -14,7 +14,8 @@ public final class CountryScreenChecks {
         overview.set(1, new MenuView.Entry("지도자", "검증용 지도자", "검증용 특성\n안정도: §a+5%§r\n정치력: §4-3%§r\n\n지도자 설명 줄바꿈과 호버 영역을 확인하는 렌더링 검증 데이터입니다.", -1, "politics/empty/leader"));
         overview.add(new MenuView.Entry("점령지", "0개 주", "점령지 없음", 0));
         overview.add(new MenuView.Entry("협력정부", "1개국", "검증용 종속국", 1));
-        overview.add(new MenuView.Entry("세부 이념", "공격적 자유주의", "세부 이념 설명을 확인하는 렌더링 검증 데이터입니다."));
+        overview.removeIf(e -> e.name().equals("이념"));
+        overview.add(new MenuView.Entry("세부 이념", "공격적 자유주의", "[image:politics/banner/gfx_ideology_ultra_conservatism]\n\n설명 이미지는 툴팁 안에 표시합니다.\n\n긴 설명은 화면 폭에 맞춰 줄바꿈합니다."));
         overview.removeIf(e -> e.icon().startsWith("politics/ideology/"));
         String[] names = {"민중민주당", "민주노동당", "민주노동당", "민주노동당", "더불어민주당", "국민의힘", "국민의힘", "우리공화당", "대한민국 국군", "자유의새벽당", "가자코리아"};
         int[] shares = {0,5,6,5,33,36,3,5,0,1,6};
@@ -73,6 +74,21 @@ public final class CountryScreenChecks {
             screen.mouseScrolled(x,y,0,100);
             if(!first.equals(screen.politicsHover(x,y)))throw new AssertionError("Vertical wheel must restore strip");
         });
+        context.runOnClient(c -> {
+            var screen = (HoiMenuScreen)c.gui.screen(); var box = screen.politicsLayout().ideology();
+            var entry = screen.politicsHover(box.x()+2, box.y()+2);
+            if (entry == null || !entry.detail().contains("[image:politics/banner/")) throw new AssertionError("Description image is tooltip content");
+            var id = net.minecraft.resources.Identifier.fromNamespaceAndPath("hoi", "textures/gui/politics/banner/gfx_ideology_ultra_conservatism.png");
+            if (c.getResourceManager().getResource(id).isEmpty()) throw new AssertionError("Original description image must exist");
+        });
+        var point = context.computeOnClient(c -> {
+            var screen = (HoiMenuScreen)c.gui.screen(); var box = screen.politicsLayout().ideology();
+            double scale = c.getWindow().getGuiScale();
+            return new double[]{(box.x()+3)*scale, (box.y()+3)*scale};
+        });
+        context.getInput().setCursorPos(point[0],point[1]);
+        context.waitTicks(2); context.takeScreenshot("hoi-politics-description-image");
+        context.getInput().setCursorPos(1500,800);
         context.takeScreenshot("hoi-politics-layout");
         dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-politics-party-names");
         context.runOnClient(c -> {

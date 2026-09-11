@@ -13,6 +13,7 @@ import dev.hoi.client.ui.HoiTooltips;
 
 import dev.hoi.protocol.MenuTab;
 import dev.hoi.protocol.MenuView;
+import dev.hoi.client.ui.PoliticalTooltip;
 import dev.hoi.protocol.CountryHud;
 import dev.hoi.protocol.MenuProtocol;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -565,7 +566,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         var hovered = politicsHover(mx, my);
         if (!Objects.equals(hovered, hoveredPolitics)) tooltipScroll = 0;
         hoveredPolitics = hovered;
-        if (hovered != null) {
+        if (hovered != null && hovered.detail().contains("[image:")) {
+            tooltipScroll = PoliticalTooltip.draw(g, font, hovered, screenX, my, width, height, tooltipScroll);
+        } else if (hovered != null) {
             String title = hovered.name().equals("지도자") ? hovered.value() : hovered.name();
             var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
             lines.add(Component.literal(title).withStyle(net.minecraft.ChatFormatting.GOLD).getVisualOrderText());
@@ -629,6 +632,12 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         }
         if (layout.ideology().contains(x, y)) return politicsEntry("세부 이념");
         if (layout.economy().contains(x, y)) return politicsEntry("경제 모델");
+        if (layout.government().contains(x, y)) return politicsEntry("정치 체제");
+        var partyList = layout.parties();
+        if (partyList.contains(x, y)) {
+            int index = (int)(y - partyList.y() - 4) / 11;
+            if (index >= 0 && index < parties.size()) return parties.get(index);
+        }
         if (layout.faction().contains(x, y)) return politicsEntry("세력");
         return null;
     }
