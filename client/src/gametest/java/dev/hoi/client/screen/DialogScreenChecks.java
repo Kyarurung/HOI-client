@@ -109,6 +109,25 @@ public final class DialogScreenChecks {
             DialogClient.receive(DialogProtocol.Show.of(one.issued(one.token(), 1), false));
             if (client.gui.screen() != null) throw new AssertionError("Late refresh reopened a revoked private dialog");
         });
+        context.runOnClient(client -> {
+            var event = fixture.views().stream().filter(v -> v.kind() == DialogView.Kind.SUPER_EVENT).findFirst().orElseThrow()
+                    .issued(UUID.randomUUID().toString(), 0);
+            DialogClient.receive(DialogProtocol.Show.of(event, true));
+            if (!(client.gui.screen() instanceof DialogScreen)) throw new AssertionError("Super event must be visible before stop");
+            dev.hoi.client.audio.UiSounds.receive(AudioProtocol.Cue.STOP);
+            if (client.gui.screen() != null || dev.hoi.client.audio.SuperEventAudio.active())
+                throw new AssertionError("Stop must dismiss visible super event and its audio");
+            client.gui.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true));
+            DialogClient.receive(DialogProtocol.Show.of(event.issued(UUID.randomUUID().toString(), 0), true));
+            if (client.gui.screen() instanceof DialogScreen) throw new AssertionError("Pause menu must defer super event");
+            dev.hoi.client.audio.UiSounds.receive(AudioProtocol.Cue.STOP);
+            client.gui.setScreen(null);
+        });
+        context.waitTicks(3);
+        context.runOnClient(client -> {
+            if (client.gui.screen() != null || dev.hoi.client.audio.SuperEventAudio.active())
+                throw new AssertionError("Stopped deferred super event must not reopen on the next tick");
+        });
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
     }
 }

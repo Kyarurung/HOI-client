@@ -28,14 +28,16 @@ public final class DialogClient {
         ClientPlayNetworking.registerGlobalReceiver(DialogProtocol.Show.TYPE, (p, c) -> receive(p));
         ClientPlayNetworking.registerGlobalReceiver(DialogProtocol.Close.TYPE, (p, c) -> close(p.token()));
         ClientPlayNetworking.registerGlobalReceiver(DialogProtocol.Details.TYPE, (p, c) -> details(p));
-        ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> {
-            pending = null; SuperEventAudio.reset();
-            if (c.gui.screen() instanceof DialogScreen) c.gui.setScreen(null);
-        });
+        ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> reset());
         ClientTickEvents.END_CLIENT_TICK.register(c -> {
             if (pending != null && c.gui.screen() == null) show(pending);
             SuperEventAudio.tick();
         });
+    }
+    public static void reset() {
+        pending = null; suspending = false; HoiClient.cancelOpen(); SuperEventAudio.reset();
+        var client = Minecraft.getInstance();
+        if (client.gui.screen() instanceof DialogScreen) client.gui.setScreen(null);
     }
     static void receive(DialogProtocol.Show packet) {
         DialogView view;
