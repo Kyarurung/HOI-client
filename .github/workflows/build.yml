@@ -27,6 +27,7 @@ jobs:
             pack
             scripts
             portraits
+      - run: python3 -m pip install numpy==2.3.5 Pillow==12.3.0
       - run: python3 .test-resourcepack/scripts/build_pack.py
       - uses: actions/setup-java@v4
         with:

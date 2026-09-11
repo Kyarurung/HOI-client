@@ -30,7 +30,7 @@ Minecraft **26.2 · Fabric · Java 25**용 HOI 전용 클라이언트입니다. 
 
 ## 빌드와 테스트
 
-먼저 인접한 `HOI-resourcepack` 저장소에서 `python scripts/build_pack.py`를 실행합니다. 이미 변환한 PNG가 포함되어 있어 재빌드에는 Steam이나 Pillow가 필요하지 않습니다. 다른 위치의 팩은 Gradle에 `-PhoiResourcePack=<resources.zip의 절대 경로>`로 지정합니다. 이후 Java 25로 실행합니다.
+먼저 인접한 `HOI-resourcepack` 저장소에서 `python scripts/build_pack.py`를 실행합니다. 육군 모델 검증을 위해 먼저 `python -m pip install numpy==2.3.5 Pillow==12.3.0`으로 의존성을 설치합니다. 이미 변환한 에셋이 포함되어 있어 Steam 설치는 필요하지 않습니다. 다른 위치의 팩은 Gradle에 `-PhoiResourcePack=<resources.zip의 절대 경로>`로 지정합니다. 이후 Java 25로 실행합니다.
 
 ```bash
 ./gradlew test runGameTest remapJar --console=plain --no-daemon
