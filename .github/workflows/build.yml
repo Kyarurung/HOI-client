@@ -36,6 +36,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
       - run: xvfb-run -a ./gradlew test runGameTest remapJar --console=plain --no-daemon -PhoiResourcePack="$GITHUB_WORKSPACE/.test-resourcepack/build/resources.zip"
+        env:
+          ALSOFT_DRIVERS: 'null'
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
