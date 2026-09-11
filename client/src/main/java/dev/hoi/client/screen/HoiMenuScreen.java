@@ -114,6 +114,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         }
         HoiMenuBar.buttons(width, view == null ? "" : view.country(), selected, tab -> {
             if (tab == MenuTab.INTELLIGENCE) { HoiClient.openAgency(); return; }
+            if (tab == MenuTab.DECISIONS && ClientPlayNetworking.canSend(dev.hoi.protocol.DecisionProtocol.Request.TYPE)) { HoiClient.openMenu(tab); return; }
             if (tab == MenuTab.RESEARCH) { researchOpen.run(); return; }
             if (tab == MenuTab.CONSTRUCTION && ClientPlayNetworking.canSend(dev.hoi.protocol.ConstructionProtocol.Request.TYPE)) { HoiClient.openConstruction(); return; }
             if (IndustryScreen.supports(tab) && ClientPlayNetworking.canSend(dev.hoi.protocol.IndustryProtocol.Request.TYPE)) { HoiClient.openIndustry(tab); return; }
@@ -126,8 +127,10 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             for (int i = 0; i < 2; i++) {
                 var box = politicsLayout().status(i);
                 var entry = politicsEntry(i == 0 ? "점령지" : "협력정부");
-                addRenderableWidget(new InvisibleButton(entry.name(), box.x(), box.y(), box.width(), box.height(),
-                        () -> showDetail(entry, "politics")));
+                var button = new InvisibleButton(entry.name(), box.x(), box.y(), box.width(), box.height(),
+                        () -> showDetail(entry, "politics"));
+                button.active = entry.progress() > 0;
+                addRenderableWidget(button);
             }
             if (view.balance() != null) {
                 var box = balanceButton();
@@ -143,7 +146,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             spiritScroll = Math.clamp(spiritScroll, 0, maximumSpiritScroll());
             var focusBox = politicsLayout().focusTitle();
             addRenderableWidget(new InvisibleButton("국가 중점", focusBox.x(), focusBox.y(), focusBox.width(), focusBox.height(),
-                    () -> showDetail(politicsFocus(), "research")));
+                    () -> minecraft.gui.setScreen(new FocusScreen())));
             var factionBox = politicsLayout().faction();
             addRenderableWidget(new InvisibleButton("세력", factionBox.x(), factionBox.y(), factionBox.width(), factionBox.height(),
                     () -> HoiClient.openCountry("")));
@@ -317,7 +320,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
                 leader.x() + leader.width() * 7 / 172, leader.y() + leader.height() * 6 / 258,
                 leader.width() * 158 / 172, leader.height() * 210 / 258);
         drawPoliticalArt(g, "politics/leader_frame", leader);
-        centeredPoliticsText(g, person.value(), new PoliticsLayout.Box(leader.x() + 4, leader.y() + leader.height() * 218 / 258,
+        centeredPoliticsText(g, person.value(), new PoliticsLayout.Box(leader.x() + 4, leader.y() + leader.height() * 218 / 258 + 2,
                 leader.width() - 8, leader.height() * 34 / 258), TEXT);
         if (!selectionPreview) {
             drawPoliticalArt(g, "politics/focus_background", layout.focus());
@@ -407,7 +410,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     }
     private MenuView.Entry politicsEntry(String name) {
         return view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 현황"))
-                .flatMap(s -> s.entries().stream()).filter(e -> e.name().equals(name)).findFirst()
+                .flatMap(s -> s.entries().stream()).filter(e -> e.name().equals(name) || name.equals("세부 이념") && e.name().equals("이념")).findFirst()
                 .orElse(new MenuView.Entry(name, "정보 없음", ""));
     }
     private void politicsCell(GuiGraphicsExtractor g, String label, int x, int y, int w, int h) {
@@ -562,10 +565,12 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         if (!Objects.equals(hovered, hoveredPolitics)) tooltipScroll = 0;
         hoveredPolitics = hovered;
         if (hovered != null) {
-            String title = hovered.name().equals("지도자") || hovered.name().equals("세부 이념") ? hovered.value() : hovered.name();
+            String title = hovered.name().equals("지도자") ? hovered.value() : hovered.name();
             var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
             lines.add(Component.literal(title).withStyle(net.minecraft.ChatFormatting.GOLD).getVisualOrderText());
-            lines.addAll(HoiTooltips.lines(font, hovered.detail(), width));
+            if (!hovered.name().equals("지도자") && !hovered.value().isBlank())
+                lines.add(Component.literal(hovered.value()).getVisualOrderText());
+            if (!hovered.detail().isBlank()) lines.addAll(HoiTooltips.lines(font, hovered.detail(), width));
             int count = Math.max(1, (height - 48) / (font.lineHeight + 1));
             tooltipScroll = Math.clamp(tooltipScroll, 0, Math.max(0, lines.size() - count));
             g.setTooltipForNextFrame(font, lines.subList(tooltipScroll, Math.min(lines.size(), tooltipScroll + count)), screenX, my);
@@ -621,10 +626,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             int position = (int)x - spiritStart() + spiritScroll, index = position / spiritPitch();
             if (position >= 0 && position % spiritPitch() >= 1 && position % spiritPitch() < spiritPitch() - 2 && index < spirits.size()) return spirits.get(index);
         }
-        if (layout.ideology().contains(x, y)) {
-            var ideology = politicsEntry("세부 이념");
-            return ideology.detail().isBlank() ? null : ideology;
-        }
+        if (layout.ideology().contains(x, y)) return politicsEntry("세부 이념");
+        if (layout.economy().contains(x, y)) return politicsEntry("경제 모델");
+        if (layout.faction().contains(x, y)) return politicsEntry("세력");
         return null;
     }
     private void drawDetail(GuiGraphicsExtractor g) {

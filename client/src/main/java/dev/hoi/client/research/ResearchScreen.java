@@ -9,7 +9,6 @@ import dev.hoi.client.screen.DialogClient;
 import dev.hoi.client.ui.HoiMenuBar;
 import dev.hoi.client.ui.HoiMenuStyle;
 import dev.hoi.client.ui.HoiPanelLayout;
-import dev.hoi.client.ui.KeywordIcons;
 import dev.hoi.client.ui.UiAssets;
 
 import dev.hoi.protocol.ResearchProtocol;
@@ -283,7 +282,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         }
         if (hovered != null) {
             var t = hovered.tech();
-            var lines = tooltipLines(t).stream().flatMap(line -> font.split(KeywordIcons.decorate(line), Math.min(310, width - 24)).stream()).toList();
+            var lines = tooltipLines(t).stream().flatMap(line -> font.split(ResearchText.decorateEffect(line), Math.min(310, width - 24)).stream()).toList();
             g.setTooltipForNextFrame(font, lines, mx, my);
         }
     }
@@ -363,7 +362,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     private int detailText(GuiGraphicsExtractor g, List<? extends Component> lines, int x, int y, int w, int color) {
         for (var line : lines) {
-            var wrapped = font.split(KeywordIcons.decorate(line), w);
+            var wrapped = font.split(ResearchText.decorateEffect(line), w);
             if (wrapped.isEmpty()) { y += 13; continue; }
             for (var text : wrapped) { if (g != null) g.text(font, text, x, y, color); y += 13; }
         }

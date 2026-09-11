@@ -204,6 +204,12 @@ public final class HoiMenuBar {
                 b -> dev.hoi.client.HoiClient.openWorldTension(), message -> message.get()) {
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
         });
+        if (dockWidth(width) + 35 < tensionX(width)) {
+            var music = new PanelButton("음악", dockWidth(width) + 4, 17, 29, height(width) - 20,
+                    () -> { var client = Minecraft.getInstance(); client.gui.setScreen(new dev.hoi.client.screen.KoreanMusicScreen(client.gui.screen())); });
+            music.setTooltip(Tooltip.create(Component.literal("한국 음악 재생 목록")));
+            buttons.add(music);
+        }
         return List.copyOf(buttons);
     }
 

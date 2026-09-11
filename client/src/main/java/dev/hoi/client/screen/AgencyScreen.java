@@ -36,6 +36,8 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     private int pane, top, scroll, detailScroll, choosing = -1, choiceScroll, pendingTicks, refreshTicks, overlayStart;
     private String searchText = "";
     private EditBox search;
+    private AgencyProtocol.Kind pendingKind;
+    private String queuedUpgrade;
 
     public AgencyScreen(Screen parent) {
         this(parent, UUID.randomUUID().toString(), null, request -> {
@@ -53,11 +55,16 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         if (view != null && next.revision() <= view.revision()) return;
         if (minecraft.gui.screen() instanceof AgencyOperationScreen operation && operation.backdrop() == this) operation.update(next);
         pendingTicks = 0;
+        pendingKind = null;
         view = next;
         var item = selected();
         if (item == null) { selectedId = null; choosing = -1; }
         else normalizeArguments(item);
-        rebuildWidgets();
+        String queued = queuedUpgrade;
+        queuedUpgrade = null;
+        if (queued != null && view.items().stream().anyMatch(i -> i.id().equals(queued) && i.enabled() && i.parameters().isEmpty())) {
+            send(AgencyProtocol.Kind.CALL, queued, List.of());
+        } else rebuildWidgets();
     }
     private void normalizeArguments(Item item) {
         while (arguments.size() > item.parameters().size()) arguments.removeLast();
@@ -67,6 +74,11 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
             String value = arguments.get(i);
             if (choices.stream().noneMatch(c -> c.value().equals(value))) arguments.set(i, choices.isEmpty() ? "" : choices.getFirst().value());
         }
+    }
+    @Override protected void rebuildWidgets() {
+        var focused = getFocused();
+        super.rebuildWidgets();
+        if (focused != null && children().contains(focused)) setFocused(focused);
     }
     @Override protected void init() {
         overlayStart = 0;
@@ -91,7 +103,6 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
                 var button = new PanelButton(action.id().equals("create") ? "정보기관 창설" : "기관 창설 취소", 10, top + 29, pane - 20, 59,
                         () -> send(AgencyProtocol.Kind.CALL, action.id(), List.of())) {
                     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-                        if (isHoveredOrFocused()) g.outline(getX(),getY(),getWidth(),getHeight(),HoiMenuStyle.ACCENT);
                     }
                 };
                 button.active = action.enabled() && pendingTicks == 0; addRenderableWidget(button);
@@ -137,7 +148,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         var project = view.items().stream().filter(v -> v.id().equals("cancel_project")).findFirst().orElse(null);
         if (project != null) {
             recruitButton.setY(top + 191); recruitButton.setHeight(18);
-            var cancel = new HoiMenuButton(project.title() + " · " + project.value(), recruitX(), top + 169, pane - recruitX() - 10, 20,
+            var cancel = new HoiMenuButton(project.value(), recruitX(), top + 169, pane - recruitX() - 10, 20,
                     () -> send(AgencyProtocol.Kind.CALL, project.id(), List.of()));
             cancel.active = pendingTicks == 0; addRenderableWidget(cancel);
         }
@@ -257,9 +268,13 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     }
     private void initChoices(Item item) {
         int dx = detailX(), dw = detailWidth();
-        search = new EditBox(font, dx + 12, 84, dw - 92, 20, Component.literal("검색"));
-        search.setMaxLength(128); search.setValue(searchText);
-        search.setResponder(value -> { searchText = value; choiceScroll = 0; rebuildWidgets(); });
+        if (search == null) {
+            search = new EditBox(font, dx + 12, 84, dw - 92, 20, Component.literal("검색"));
+            search.setMaxLength(128);
+            search.setResponder(value -> { searchText = value; choiceScroll = 0; rebuildWidgets(); });
+        }
+        search.setPosition(dx + 12, 84); search.setWidth(dw - 92);
+        if (!search.getValue().equals(searchText)) search.setValue(searchText);
         addRenderableWidget(search); setInitialFocus(search);
         addRenderableWidget(new PanelButton("뒤로", dx + dw - 74, 84, 62, 20, () -> { choosing = -1; rebuildWidgets(); }));
         var choices = matchingChoices(item);
@@ -279,10 +294,13 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     private List<Item> visibleItems() {
         return view.items().stream().filter(i -> i.group().equals(group) && !i.id().equals("cancel_project") && !i.id().equals("spy_master") && !i.id().startsWith("reveal:")).sorted(group.equals("upgrades") ? Comparator.comparingInt(AgencyScreen::upgradeOrder) : Comparator.comparingInt(i -> 0)).toList();
     }
-    private void changeGroup(String next) { group = next; selectedId = null; choosing = -1; scroll = 0; rebuildWidgets(); }
+    private void changeGroup(String next) { queuedUpgrade = null; group = next; selectedId = null; choosing = -1; scroll = 0; rebuildWidgets(); }
     private void selectItem(Item item) {
         if ((item.id().startsWith("upgrade:") || item.group().equals("cryptology")) && item.parameters().isEmpty()) {
-            if (item.enabled() && pendingTicks == 0) send(AgencyProtocol.Kind.CALL, item.id(), List.of());
+            if (item.enabled()) {
+                if (pendingTicks == 0) send(AgencyProtocol.Kind.CALL, item.id(), List.of());
+                else if (pendingKind == AgencyProtocol.Kind.REFRESH && item.id().startsWith("upgrade:") && queuedUpgrade == null) queuedUpgrade = item.id();
+            }
             return;
         }
         if (item.id().startsWith("operation:")) {
@@ -342,6 +360,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     private void send(AgencyProtocol.Kind kind, String item, List<String> args) {
         if (pendingTicks > 0 && kind == AgencyProtocol.Kind.CALL) return;
         pendingTicks = 100;
+        pendingKind = kind;
         transport.accept(new AgencyProtocol.Request(kind, token, view == null ? 0 : view.revision(), item, args));
         rebuildWidgets();
     }
@@ -416,6 +435,8 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
                 g.disableScissor();
             }
         }
+        if (view != null && !view.message().isBlank())
+            UiText.text(g, font, trim(view.message(), (int)((width - 24) / UiText.scale(font))), 12, height - 24, GOLD);
         if (overlay) {
             for (int i = overlayStart; i < children().size(); i++) if (children().get(i) instanceof net.minecraft.client.gui.components.Renderable widget)
                 widget.extractRenderState(g, mx, my, delta);
@@ -430,12 +451,17 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         UiAssets.nineSlice(g,"agency/ui/section",6,top+150,pane-12,17,5,.5);
         UiText.centered(g,font,"작전",12,top+153,(pane-12)*185/530-8,11,TEXT);
         UiAssets.nineSlice(g,"agency/ui/operatives",6,top+168,pane-12,46,3,.5);
+        for (int i = 0; i < 3; i++) {
+            g.enableScissor(counterX(i) - 3, top + 194, counterX(i) + counterWidth() + 4, top + 212);
+            UiAssets.nineSlice(g,"agency/ui/operatives",7,top+168,pane-12,46,3,.5);
+            g.disableScissor();
+        }
         if(view == null)return;
         String[] ids={"recruit","captured_count","killed_count"};
         for(int i=0;i<ids.length;i++) {
             String id=ids[i];
             String value=view.items().stream().filter(v->v.id().equals(id)).map(Item::value).findFirst().orElse(i==0?"0/0":"0");
-            UiText.centered(g,font,value.replace(" ",""),counterX(i),top+201,counterWidth(),10,TEXT);
+            UiText.centered(g,font,value.replace(" ",""),counterX(i),top+198,counterWidth(),10,TEXT);
         }
         if(!unestablished() && view.items().stream().noneMatch(v->v.id().equals("cancel_project")))
             UiText.centered(g,font,pane < 250 ? "개선 없음" : "진행 중인 개선 없음",recruitX(),top+170,pane-recruitX()-10,17,TEXT);
@@ -447,9 +473,9 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         var project=view.items().stream().filter(i->i.id().equals("cancel_project")).findFirst().orElse(null);
         UiAssets.draw(g,"agency/ui/create",10,top+29,pane-20,59);
         smallCentered(g,project==null?"기관 창설":"기관 창설 중",pane/2,top+51,TEXT);
-        UiAssets.draw(g,"hud/factories",34,top+57,13,13);
-        smallCentered(g,"5",54,top+60,0xFFCC4444);
-        smallCentered(g,project==null?"30일":project.value().substring(project.value().lastIndexOf('·')+1).trim(),pane-52,top+60,GOLD);
+        UiAssets.draw(g,"hud/factories",pane/2-65,top+57,13,13);
+        smallCentered(g,"5",pane/2-45,top+60,0xFFCC4444);
+        smallCentered(g,project==null?"30일":project.value().substring(project.value().lastIndexOf('·')+1).trim(),pane/2+55,top+60,GOLD);
         HoiMenuStyle.recess(g,34,top+77,pane-68,4);
         if(project!=null&&project.progress()>=0)g.fill(35,top+78,35+(int)((pane-70)*project.progress()),top+80,0xFF97AC6C);
         drawOperationsChrome(g);

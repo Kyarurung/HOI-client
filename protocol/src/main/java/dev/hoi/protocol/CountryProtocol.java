@@ -14,11 +14,20 @@ public final class CountryProtocol {
     public static synchronized void registerPayloadTypes() {
         if (registered) return;
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(Action.TYPE, Action.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE, Response.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(OpenScreen.TYPE, OpenScreen.CODEC);
         registered = true;
     }
     private static void token(String value) { CountryView.text(value, 36); java.util.UUID.fromString(value); }
+    public record Action(String token, String session, long revision, String id) implements CustomPacketPayload {
+        public Action { CountryProtocol.token(token); CountryProtocol.token(session); CountryView.text(id, 64); if (revision < 0) throw new IllegalArgumentException("Invalid revision"); }
+        public static final Type<Action> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "country_action_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Action> CODEC = StreamCodec.of(
+                (b,p) -> { b.writeUtf(p.token,36); b.writeUtf(p.session,36); b.writeLong(p.revision); b.writeUtf(p.id,64); },
+                b -> new Action(b.readUtf(36), b.readUtf(36), b.readLong(), b.readUtf(64)));
+        @Override public Type<Action> type() { return TYPE; }
+    }
     public record Request(String token, String target) implements CustomPacketPayload {
         public Request { CountryProtocol.token(token); if (!target.isEmpty()) CountryView.tag(target); }
         public static final Type<Request> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "country_request_v1"));

@@ -21,6 +21,17 @@ final class ScreenNetworking {
     private static final PendingResearch pendingResearch = new PendingResearch();
     static void register() {
         ResearchProtocol.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.FocusProtocol.Response.TYPE, (packet, context) -> {
+            if (DialogClient.contentScreen() instanceof dev.hoi.client.screen.FocusScreen screen) {
+                try { screen.update(packet); } catch (IllegalArgumentException e) { context.client().gui.setScreen(null); message("중점 정보를 읽을 수 없습니다."); }
+            }
+        });
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.DecisionProtocol.Response.TYPE, (packet, context) -> {
+            if (DialogClient.contentScreen() instanceof dev.hoi.client.screen.DecisionScreen screen) {
+                try { screen.update(packet); }
+                catch (IllegalArgumentException error) { context.client().gui.setScreen(null); message("결정 정보를 읽을 수 없습니다."); }
+            }
+        });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.WorldTensionProtocol.Response.TYPE, (packet, context) -> {
             if (DialogClient.contentScreen() instanceof dev.hoi.client.screen.WorldTensionScreen screen) {
                 try { screen.update(packet); }
@@ -106,7 +117,7 @@ final class ScreenNetworking {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             cancelOpen();
             if (client.gui.screen() instanceof dev.hoi.client.screen.WorldTensionScreen) client.gui.setScreen(null);
-            if (client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen || client.gui.screen() instanceof AgencyScreen || client.gui.screen() instanceof ConstructionScreen || client.gui.screen() instanceof CountryScreen || client.gui.screen() instanceof IndustryScreen) client.gui.setScreen(null);
+            if (client.gui.screen() instanceof dev.hoi.client.screen.FocusScreen || client.gui.screen() instanceof dev.hoi.client.screen.DecisionScreen || client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen || client.gui.screen() instanceof AgencyScreen || client.gui.screen() instanceof ConstructionScreen || client.gui.screen() instanceof CountryScreen || client.gui.screen() instanceof IndustryScreen) client.gui.setScreen(null);
         });
     }
     public static void open() {
@@ -142,6 +153,9 @@ final class ScreenNetworking {
     }
     public static void openMenu(dev.hoi.protocol.MenuTab tab) {
         if (tab == dev.hoi.protocol.MenuTab.INTELLIGENCE) { openAgency(); return; }
+        if (tab == dev.hoi.protocol.MenuTab.DECISIONS && ClientPlayNetworking.canSend(dev.hoi.protocol.DecisionProtocol.Request.TYPE)) {
+            cancelOpen(); Minecraft.getInstance().gui.setScreen(new dev.hoi.client.screen.DecisionScreen()); return;
+        }
         if (IndustryScreen.supports(tab)) { openIndustry(tab); return; }
         if(tab==dev.hoi.protocol.MenuTab.CONSTRUCTION){openConstruction();return;}
         if (!ClientPlayNetworking.canSend(MenuProtocol.Refresh.TYPE)) { message("이 서버는 HOI 국가 메뉴를 지원하지 않습니다."); return; }

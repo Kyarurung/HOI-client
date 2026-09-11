@@ -12,6 +12,15 @@ final class LogisticsRows {
         long deployed() { return models.stream().mapToLong(Equipment::deployed).sum(); }
         long deficit() { return models.stream().mapToLong(Equipment::deficit).sum(); }
     }
+    static String stockLabel(long value) {
+        if (value < 1000) return Long.toString(value);
+        String[] units = {"K", "M", "B", "T", "P", "E"};
+        double scaled = value / 1000.0;
+        int unit = 0;
+        while (scaled >= 999.5 && unit < units.length - 1) { scaled /= 1000; unit++; }
+        String number = String.format(Locale.ROOT, scaled < 9.95 ? "%.1f" : "%.0f", scaled);
+        return (number.endsWith(".0") ? number.substring(0, number.length() - 2) : number) + units[unit];
+    }
     static List<Row> create(List<Equipment> equipment, List<IndustryView.Line> lines, String group) {
         var linesByEquipment = new HashMap<String, List<IndustryView.Line>>();
         for (var line : lines) linesByEquipment.computeIfAbsent(line.equipment(), key -> new ArrayList<>()).add(line);

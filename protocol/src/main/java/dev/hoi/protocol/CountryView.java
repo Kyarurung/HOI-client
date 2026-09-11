@@ -4,7 +4,17 @@ import java.util.*;
 
 
 public record CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
-        List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports) {
+        List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions) {
+    public CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
+            List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports) {
+        this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, null);
+    }
+    public record Actions(String session, long revision, String message, List<Action> entries) {
+        public Actions { UUID.fromString(session); if (revision < 0) throw new IllegalArgumentException("Invalid revision"); text(message, 1000); entries = bounded(entries, 24); }
+    }
+    public record Action(String id, String name, String detail, boolean enabled) {
+        public Action { text(id, 64); text(name, 128); text(detail, 1000); }
+    }
     public CountryView {
         tag(viewer); tag(target); text(name, 128); Objects.requireNonNull(hud);
         countries = bounded(countries, 64); diplomacy = bounded(diplomacy, 64); focuses = bounded(focuses, 64); reports = bounded(reports, 4);

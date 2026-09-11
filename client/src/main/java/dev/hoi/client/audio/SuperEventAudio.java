@@ -20,6 +20,7 @@ public final class SuperEventAudio {
         sound = new SimpleSoundInstance(id, SoundSource.MASTER, 1, 1, RandomSource.create(), false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
         client.getSoundManager().play(sound);
     }
+    public static boolean active() { return sound != null && Minecraft.getInstance().getSoundManager().isActive(sound); }
     public static void tick() { if (sound != null && Minecraft.getInstance().getSoundManager().isActive(sound)) Minecraft.getInstance().getMusicManager().stopPlaying(); }
     public static void stop(String session) { if (token.equals(session)) reset(); }
     public static void reset() { if (sound != null) Minecraft.getInstance().getSoundManager().stop(sound); sound = null; token = ""; }

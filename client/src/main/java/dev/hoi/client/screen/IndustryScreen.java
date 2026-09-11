@@ -9,6 +9,7 @@ import dev.hoi.client.ui.HoiMenuStyle;
 import dev.hoi.client.ui.HoiPanelLayout;
 import dev.hoi.client.ui.HoiTooltips;
 import dev.hoi.client.ui.UiAssets;
+import dev.hoi.client.ui.UiText;
 
 import dev.hoi.protocol.*;
 import dev.hoi.protocol.IndustryView.*;
@@ -90,9 +91,14 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private int bottom() { return height - 25; }
     private int rightWidth() { return Math.min(Math.max(176, width * 380 / 2560), width - pane - 8); }
     private boolean modal() { return designer || !picker.isEmpty() || !partner.isEmpty(); }
+    @Override protected void rebuildWidgets() {
+        var focused = getFocused();
+        super.rebuildWidgets();
+        if (focused != null && children().contains(focused)) setFocused(focused);
+    }
     @Override protected void init() {
         pane = HoiPanelLayout.width(tab, width); top = HoiMenuBar.height(width);
-        graphics = null; nameBox = null; deploymentLocations.clear();
+        graphics = null; if (!designer) nameBox = null; deploymentLocations.clear();
         if (selectingDeployment) return;
         HoiMenuBar.buttons(width, view == null ? "" : view.country(), tab, next -> {
             if (next == tab) return;
@@ -238,6 +244,18 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     + " · 수출 배정 " + decimal(r.exported()) + "\n생산용 " + decimal(r.available()) + " / 수요 " + decimal(r.demand()), x, y, cell, h);
         }
     }
+    private void efficiencyBar(int x, int y, int width, int height, double value) {
+        if (graphics == null) return;
+        int barWidth = Math.min(width, Math.max(2, Math.round(height * 6f / 28)));
+        int filled = (int)Math.round(height * Math.clamp(value, 0, 1));
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x + (width - barWidth) / 2f, y + height);
+        graphics.pose().rotate(-(float)Math.PI / 2);
+        UiAssets.draw(graphics, "logistics/efficiency_bg", 0, 0, height, barWidth);
+        if (filled > 0) graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/logistics/efficiency_bar.png"),
+                0, 0, filled, barWidth, 0, filled / (float)height, 0, 1);
+        graphics.pose().popMatrix();
+    }
     static final List<String> LOGISTICS_HEADERS = List.of("평균 생산 효율", "장비 유형", "생산", "상태", "수요", "균형", "비축량", "자원");
     private void logistics() {
         int[] fractions = {0, 7, 32, 42, 52, 62, 73, 85, 100};
@@ -259,10 +277,10 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             var row = items.get(i); var e = row.representative(); int y = start + i * h - scroll;
             if (!visible(y, h, start)) continue;
             rail(6, y, pane - 12, h - 2);
-            bar(cols[0] + 2, y + 3, Math.max(2, cols[1] - cols[0] - 4), h - 8, row.efficiency() == null ? 0 : row.efficiency(), GOLD);
+            efficiencyBar(cols[0] + 2, y + 3, Math.max(2, cols[1] - cols[0] - 4), h - 8, row.efficiency() == null ? 0 : row.efficiency());
             art(e.texture(), cols[1] + 1, y + 2, cols[2] - cols[1] - 2, 23);
             fitted(equipmentName(e), cols[1] + 1, y + 27, cols[2] - cols[1] - 2, GOLD);
-            String[] values = {decimal(row.daily()), "—", "—", "—", HoiMenuBar.rawNumber(row.stockpile())};
+            String[] values = {decimal(row.daily()), "—", "—", "—", LogisticsRows.stockLabel(row.stockpile())};
             for (int j = 0; j < values.length; j++) {
                 int col = j + 2; recess(cols[col] + 1, y + 8, cols[col + 1] - cols[col] - 2, 17);
                 fitted(values[j], cols[col] + 2, y + 13, cols[col + 1] - cols[col] - 4, j == 0 || j == 4 ? GOOD : MUTED);
@@ -391,7 +409,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             art("recruitment/" + icons[i] + "_icon", iconCenterX - iconWidth / 2, iconBgY, iconWidth, iconBgHeight);
             int labelX = 7 + (int)(110 * scale), labelWidth = (int)(159 * scale);
             art("recruitment/title", labelX, y + 1 + (int)(12 * scale), labelWidth, (int)(26 * scale));
-            centeredCompactText(names[i], labelX + 2, y + (int)(25 * scale) - 3, labelWidth - 4, TEXT);
+            centeredCompactText(names[i], labelX + 2, y + (int)(25 * scale) - 5, labelWidth - 4, TEXT);
             art("recruitment/meter", 7 + (int)(280 * scale), y + (int)(10 * scale), (int)(108 * scale), (int)(33 * scale));
             art("recruitment/equipment", 7 + (int)(285 * scale), y + (int)(15 * scale), (int)(23 * scale), (int)(23 * scale));
             var policy = view.recruitmentPolicy();
@@ -415,7 +433,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             if (visible(y, groupHeight, start)) {
                 art("recruitment/conveyor", groupX, y, (int)Math.round(490 * gs), headerHeight);
                 if (!t.line().isEmpty()) art(unitTexture(t.line().getFirst(), false), groupX + 2 + (int)(10 * gs), y + (int)(17 * gs), (int)(70 * gs), (int)(50 * gs));
-                centeredCompactText(t.name(), groupX + (int)(95 * gs), y + (int)(29 * gs) - 3, (int)(214 * gs), TEXT);
+                centeredCompactText(t.name(), groupX + (int)(95 * gs), y + (int)(29 * gs) - 5, (int)(214 * gs), TEXT);
                 int amountSize = Math.max(8, (int)Math.round(26 * gs)), amountY = y + 2 + (int)Math.round(10 * gs);
                 int minusX = groupX + 2 + (int)Math.round(312 * gs), plusX = groupX + 2 + (int)Math.round(383 * gs);
                 textureButton(t.name() + " 연속 훈련 횟수 증가", "", "recruitment/increase", plusX, amountY, amountSize, amountSize, first.seriesLimit() < 999, () -> send(SERIES, first.id(), "", first.seriesLimit() + 1));
@@ -486,7 +504,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             double cardScale = (secondW - 10) / 346.0;
             int iconWidth = (int)(72 * cardScale), nameX = secondX + 5 + (int)(97 * cardScale), nameWidth = (int)(234 * cardScale);
             if (!t.line().isEmpty()) art(unitTexture(t.line().getFirst(), false), secondX + 7 + (int)(9 * cardScale), y + (int)(12 * cardScale), iconWidth, (int)(52 * cardScale));
-            centeredCompactText(t.name(), nameX, y + (int)(32 * cardScale) - 3, nameWidth, TEXT);
+            centeredCompactText(t.name(), nameX, y + (int)(32 * cardScale) - 5, nameWidth, TEXT);
             int buttonWidth = (int)(71 * cardScale), buttonY = y + (int)(49 * cardScale), buttonHeight = Math.max(10, (int)(26 * cardScale));
             textureButton(t.name() + " 훈련", "훈련", "recruitment/button", secondX + 5 + (int)(158 * cardScale), buttonY, buttonWidth, buttonHeight, !retired.contains(t.id()), () -> send(RECRUIT, t.id(), "", 0));
             textureButton(t.name() + " 편제", "편제", "recruitment/button", secondX + 5 + (int)(229 * cardScale), buttonY, buttonWidth, buttonHeight, true, () -> loadDesigner(t.id()));
@@ -536,8 +554,13 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         panel(x, y, w, h); heading("사단 설계", x + 8, y + 8, w - 40, TEXT);
         button("편제 창 닫기", "×", x + w - 25, y + 3, 19, 19, true, () -> { designer = false; selectedSlot = -1; rebuildWidgets(); });
         if (selectedSlot < 0 && graphics == null) {
-            nameBox = new EditBox(font, x + 9, y + 29, left - 8, 20, Component.literal("편제 이름"));
-            nameBox.setMaxLength(80); nameBox.setValue(draftName); nameBox.setResponder(value -> draftName = value); addRenderableWidget(nameBox);
+            if (nameBox == null) {
+                nameBox = new EditBox(font, x + 9, y + 29, left - 8, 20, Component.literal("편제 이름"));
+                nameBox.setMaxLength(80); nameBox.setValue(draftName); nameBox.setResponder(value -> draftName = value);
+            }
+            nameBox.setPosition(x + 9, y + 29); nameBox.setWidth(left - 8);
+            if (!nameBox.getValue().equals(draftName)) nameBox.setValue(draftName);
+            addRenderableWidget(nameBox);
         }
         if (selectedSlot < 0) {
         if (graphics != null) {
@@ -668,10 +691,28 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             if (e == null) known = false; else cost += e.cost() * need.getValue();
         }
         art("keywords/stat_common_build_cost_ic", statsX, y + h - 49, 14, 14);
-        text("예상 생산 비용: " + (known ? decimal(cost) + " IC" : "—"), statsX + 18, y + h - 45, statsWidth - 20, TEXT);
-        text("총 육군 경험치: " + t.experienceCost() + " ★", x + 10, y + h - 44, left - 12, GOLD);
-        button("새 편제로 저장 · 기존 사단과 훈련 편제 유지", "★ " + t.experienceCost() + " 저장", x + w / 2 - 65, y + h - 27, 130, 21, !draftName.isBlank() && !t.line().isEmpty() && view.economy().armyXp() >= t.experienceCost(),
-                () -> send(SAVE_TEMPLATE, draftName, "", 0));
+        text("예상 생산 비용: " + (known ? ic(cost) + " IC" : "—"), statsX + 18, y + h - 45, statsWidth - 20, TEXT);
+        art("hud/army_experience", x + 10, y + h - 46, 14, 14);
+        text(integer(view.economy().armyXp()), x + 28, y + h - 44, left - 30, 0xFFFFFFFF);
+        tip("보유 육군 경험치", x + 10, y + h - 47, left - 12, 17);
+        if (graphics == null) {
+            int bx = x + w / 2 - 65, by = y + h - 27;
+            var save = new PanelButton("새 편제로 저장 · 기존 사단과 훈련 편제 유지", bx, by, 130, 21,
+                    () -> send(SAVE_TEMPLATE, draftName, "", 0)) {
+                @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                    HoiMenuStyle.control(g, bx, by, 130, 21, false, false);
+                    var label = Component.literal(integer(t.experienceCost())).withStyle(style -> style.withColor(0xFFFF00))
+                            .append(Component.literal(" 저장").withStyle(style -> style.withColor(0xFFFFFF)));
+                    int labelWidth = Math.round(font.width(label) * UiText.scale(font));
+                    int start = bx + (130 - 17 - labelWidth) / 2;
+                    UiAssets.draw(g, "hud/army_experience", start, by + 3, 14, 14);
+                    UiText.text(g, font, label, start + 17, by + 5, 0xFFFFFFFF);
+                }
+            };
+            save.active = pending == 0 && !draftName.isBlank() && !t.line().isEmpty() && view.economy().armyXp() >= t.experienceCost();
+            save.setTooltip(Tooltip.create(Component.literal("새 편제로 저장 · 기존 사단과 훈련 편제 유지")));
+            addRenderableWidget(save);
+        }
     }
     private static String statValue(IndustryView.Stat stat) {
         String value = stat.unit().equals("PEOPLE") ? manpower(stat.value()) : stat.unit().equals("PERCENT") ? percent(stat.value()) : stat.unit().equals("DAYS") ? integer(stat.value()) : decimal(stat.value());
@@ -732,7 +773,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 boolean selected = current != null && current.id().equals(e.id());
                 equipmentButton(e, e.name(), x + 7, by, 55, 45, !selected, () -> chooseEquipment(e.id()));
                 text(equipmentName(e), x + 67, by + 4, w - 76, TEXT);
-                text(decimal(e.cost()) + " IC · 재고 " + e.stockpile(), x + 67, by + 18, w - 76, MUTED);
+                text(ic(e.cost()) + " IC · 재고 " + e.stockpile(), x + 67, by + 18, w - 76, MUTED);
                 button("생산: " + e.name(), selected ? "생산 중" : switchLine.isEmpty() ? "생산" : "교체", x + 67, by + 30, w - 76, 19, !selected, () -> chooseEquipment(e.id()));
                 tip(resources(e.resources(), 1), x + 6, by, w - 12, 28);
             }
@@ -853,6 +894,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     private static String priority(int i) { return switch (i) { case 0 -> "낮음"; case 2 -> "높음"; default -> "보통"; }; }
     private static String resourceArt(String id) { return "production/resources/" + id.toLowerCase(Locale.ROOT); }
+    private static String ic(double n) { return java.math.BigDecimal.valueOf(n).setScale(0, java.math.RoundingMode.DOWN).toPlainString(); }
     private static String integer(double n) { return String.format(Locale.ROOT, "%.0f", n == 0 ? 0 : n); }
     private static String decimal(double n) { return String.format(Locale.ROOT, "%,.1f", n); }
     private static String percent(double n) { return integer(n * 100) + "%"; }

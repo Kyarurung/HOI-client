@@ -2,18 +2,22 @@ package dev.hoi.client.mixin;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.tooltip.TooltipRenderUtil;
+import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class MenuTooltipMixin {
-    @Inject(method = "setTooltipForNextFrame", at = @At("HEAD"), cancellable = true)
-    private void hideMenuTooltip(CallbackInfo callback) {
+    @Redirect(method = "tooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;extractTooltipBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIIILnet/minecraft/resources/Identifier;)V"))
+    private void menuTooltipBackground(GuiGraphicsExtractor graphics, int x, int y, int width, int height, Identifier style) {
         var screen = Minecraft.getInstance().gui.screen();
-        if (dev.hoi.client.ui.HoiMenuBar.showingTensionTooltip) return;
-        if (screen instanceof dev.hoi.client.screen.ConstructionScreen construction && construction.showingConsumerTooltip()) return;
-        if (screen != null && screen.getClass().getPackageName().startsWith("dev.hoi.client.")) callback.cancel();
+        if (screen != null && screen.getClass().getPackageName().startsWith("dev.hoi.client.")) {
+            graphics.fill(x - 3, y - 3, x + width + 3, y + height + 3, 0xF0100812);
+            graphics.outline(x - 3, y - 3, width + 6, height + 6, 0xFF873B98);
+        } else {
+            TooltipRenderUtil.extractTooltipBackground(graphics, x, y, width, height, style);
+        }
     }
 }

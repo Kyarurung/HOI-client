@@ -17,11 +17,8 @@ public class PanelButton extends Button {
         if (label.equals("×") || label.equals("x") || label.equals("X")) setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("닫기")));
     }
     public void progress(double value) { progress = value; }
-    private net.minecraft.client.gui.components.Tooltip requestedTooltip;
-    @Override public void setTooltip(net.minecraft.client.gui.components.Tooltip value) { super.setTooltip(value); requestedTooltip = value; }
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : clickSound); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-        HoiTooltips.requested(g, this, requestedTooltip, mouseX, mouseY);
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         boolean focused = false;
         g.fill(x, y, x + w, y + h, focused ? 0xFF344755 : active ? 0xFF24343F : 0xFF1A242C);

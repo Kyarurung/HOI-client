@@ -60,6 +60,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         loadPack(context);
         AudioChecks.run(context);
         AtlasSurfaceRenderChecks.run(context);
+        dev.hoi.client.map.ArmyModelRenderChecks.run(context);
         context.getInput().resizeWindow(1600, 1000);
         context.runOnClient(client -> client.options.guiScale().set(2));
         try (var world = context.worldBuilder().adjustSettings(settings -> settings.setGameMode(
@@ -78,6 +79,8 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 client.player.getInventory().setSelectedSlot(0);
             });
             context.setScreen(() -> null); context.waitTicks(3); gui2Screenshot(context, "hoi-map-selector-icons");
+            dev.hoi.client.audio.KoreanMusicChecks.run(context);
+            dev.hoi.client.audio.UnitAudioChecks.run(context);
             var menu = fixtureMenu();
             dev.hoi.client.screen.SelectionPreviewChecks.run(context, menu);
             context.runOnClient(client -> CampaignHud.accept(HudProtocol.State.of("KOR",menu.hud())));
@@ -94,6 +97,8 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             CompletionScreenChecks.run(context);
             ConstructionScreenChecks.run(context,menu.hud());
             CountryScreenChecks.run(context,menu.hud());
+            dev.hoi.client.screen.DecisionScreenChecks.run(context,menu.hud());
+            dev.hoi.client.screen.FocusScreenChecks.run(context);
             dev.hoi.client.screen.WorldTensionChecks.run(context,menu.hud());
             DialogScreenChecks.run(context);
             IndustryScreenChecks.run(context,menu.hud());
@@ -483,6 +488,11 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             ((AgencyScreen) client.gui.screen()).update(new AgencyView(before.session(), 2, "KOR", before.name(), "창설 중", List.of(project), ""));
         });
         context.waitTicks(2); gui2Screenshot(context, "hoi-agency-creation-progress");
+        context.getInput().setCursorPos(220, 155); context.waitTicks(3);
+        context.takeScreenshot("hoi-agency-creation-hover");
+        context.getInput().setCursorPos(520, 96); context.waitTicks(3);
+        context.takeScreenshot("hoi-agency-close-tooltip");
+        context.getInput().setCursorPos(1500, 800);
         click(context, "기관 창설 취소");
         context.runOnClient(client -> check(creationRequests.getLast().item().equals("cancel_project") && creationRequests.getLast().revision() == 2, "Creation cancellation uses latest revision"));
         var items = new ArrayList<AgencyView.Item>();
@@ -547,7 +557,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.runOnClient(client -> check(client.player.getY() < position[1] - .2, "Shift descends while sidebar open"));
         context.getInput().holdKey(o -> o.keyUp); context.waitTicks(2);
         click(context, "국가 중점");
-        context.runOnClient(client -> check(!client.options.keyUp.isDown() && !((HoiMenuScreen)client.gui.screen()).allowsMovement(), "Detail modal releases movement"));
+        context.runOnClient(client -> check(!client.options.keyUp.isDown() && client.gui.screen() instanceof dev.hoi.client.screen.FocusScreen, "Full focus tree releases sidebar movement"));
         context.getInput().releaseKey(o -> o.keyUp); context.setScreen(() -> null); context.waitTicks(2);
         context.runOnClient(client -> check(!client.options.keyUp.isDown() && !client.options.keyJump.isDown() && !client.options.keyShift.isDown(), "No stuck movement on close"));
     }

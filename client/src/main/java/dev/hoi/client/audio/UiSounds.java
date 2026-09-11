@@ -39,7 +39,7 @@ public final class UiSounds {
     }
     public static void receive(AudioProtocol.Cue cue) {
         switch (cue) {
-            case SELECT -> { LOBBY.select(); retry = 0; tick(); }
+            case SELECT -> { KoreanMusic.PLAYBACK.stop(); LOBBY.select(); retry = 0; tick(); }
             case START -> LOBBY.start();
             case STOP -> reset();
             default -> play(cue.sound());

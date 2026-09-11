@@ -45,6 +45,8 @@ public final class ResearchProtocol {
 
     public static synchronized void registerPayloadTypes() {
         if (registered) return;
+        DecisionProtocol.registerPayloadTypes();
+        FocusProtocol.registerPayloadTypes();
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE, Response.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(OpenScreen.TYPE, OpenScreen.CODEC);
