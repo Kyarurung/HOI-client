@@ -13,12 +13,13 @@ public final class KoreanMusic {
     private record Catalog(int version, List<PlaylistPlayback.Track> tracks) {}
     private static SoundInstance sound;
     private static boolean enabled;
+    private static boolean selected;
     public static final PlaylistPlayback PLAYBACK = new PlaylistPlayback(new PlaylistPlayback.Output() {
         public boolean start(PlaylistPlayback.Track track) {
             var client = Minecraft.getInstance(); var id = UiSounds.id(track.event());
             if (client.getSoundManager().getSoundEvent(id) == null) return false;
             client.getMusicManager().stopPlaying();
-            sound = new SimpleSoundInstance(id, SoundSource.MUSIC, 1, 1, RandomSource.create(),
+            sound = new SimpleSoundInstance(id, SoundSource.MASTER, 1, 1, RandomSource.create(),
                     false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
             client.getSoundManager().play(sound); return true;
         }
@@ -41,8 +42,13 @@ public final class KoreanMusic {
         var loaded = tracks;
         Minecraft.getInstance().execute(() -> PLAYBACK.replace(loaded));
     }
+    public static void select(){
+        enable();
+        if (!selected) { selected=true; StoryMusicAudio.play("music.tfr_theme"); }
+    }
     public static void enable(){enabled=true;}
     public static void stop(){enabled=false;PLAYBACK.stop();}
+    public static void reset(){stop();selected=false;}
     public static void suspend(){PLAYBACK.tick(false);}
     public static void mapChanged() {
         enabled=true;StoryMusicAudio.reset();SuperEventAudio.reset();
@@ -54,7 +60,7 @@ public final class KoreanMusic {
         var client = Minecraft.getInstance();
         if(client.level==null){stop();return;}
         if(enabled&&!PLAYBACK.requested()&&!PLAYBACK.tracks().isEmpty())PLAYBACK.play(PLAYBACK.selected());
-        boolean allowed = enabled && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0 && client.options.getSoundSourceVolume(SoundSource.MUSIC) > 0 && !SuperEventAudio.active() && !StoryMusicAudio.active();
+        boolean allowed = enabled && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0 && !SuperEventAudio.active() && !StoryMusicAudio.active();
         PLAYBACK.tick(allowed);
         if (allowed && sound != null && client.getSoundManager().isActive(sound)) client.getMusicManager().stopPlaying();
     }

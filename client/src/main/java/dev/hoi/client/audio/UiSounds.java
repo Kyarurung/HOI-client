@@ -16,12 +16,12 @@ public final class UiSounds {
     }
     public static void receive(AudioProtocol.Cue cue) {
         switch(cue) {
-            case SELECT -> KoreanMusic.enable();
+            case SELECT -> KoreanMusic.select();
             case START -> {KoreanMusic.enable();START_SOUNDS.forEach(UiSounds::play);}
             case STOP -> { reset(); dev.hoi.client.screen.DialogClient.reset(); }
             case MAP_ARMY,MAP_NAVY,MAP_AIR,MAP_SUPPLY,MAP_CONSTRUCTION -> {KoreanMusic.mapChanged();play(cue.sound());}
             default -> play(cue.sound());
         }
     }
-    public static void reset(){KoreanMusic.stop();StoryMusicAudio.reset();SuperEventAudio.reset();}
+    public static void reset(){KoreanMusic.reset();StoryMusicAudio.reset();SuperEventAudio.reset();}
 }

@@ -9,7 +9,15 @@ import net.minecraft.sounds.SoundSource;
 public final class MusicRoutingChecks {
     public static void run(ClientGameTestContext context) {
         var volume=new double[1];
-        context.runOnClient(client->{volume[0]=client.options.getSoundSourceVolume(SoundSource.MUSIC);client.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(1.0);});
+        context.runOnClient(client->{volume[0]=client.options.getSoundSourceVolume(SoundSource.MUSIC);client.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(0.0);});
+        context.runOnClient(client -> { UiSounds.reset(); UiSounds.receive(AudioProtocol.Cue.SELECT); });
+        context.waitTicks(25);
+        context.runOnClient(client -> {
+            if (!StoryMusicAudio.active()) throw new AssertionError("Selection starts theme");
+            UiSounds.receive(AudioProtocol.Cue.START);
+            if (!StoryMusicAudio.active()) throw new AssertionError("Start preserves the theme");
+            UiSounds.reset();
+        });
         for(String country:new String[]{"KOR","PRK","JAP","PRC"}) {
             context.runOnClient(client->{
                 UiSounds.reset();CampaignHud.accept(HudProtocol.State.HIDDEN);
@@ -19,6 +27,7 @@ public final class MusicRoutingChecks {
             });
             context.waitTicks(25);
             context.runOnClient(client->{
+                if(KoreanMusic.playing()!=null && KoreanMusic.playing().getSource()!=SoundSource.MASTER) throw new AssertionError("Playlist uses master volume");
                 if(!KoreanMusic.PLAYBACK.requested()||KoreanMusic.playing()==null||!client.getSoundManager().isActive(KoreanMusic.playing()))
                     throw new AssertionError("Every country must automatically start Korean playlist: "+country);
             });
@@ -31,7 +40,7 @@ public final class MusicRoutingChecks {
         context.runOnClient(client->{
             if(!StoryMusicAudio.active()||KoreanMusic.playing()!=null)throw new AssertionError("Source focus priority");
             SuperEventAudio.play("routing-super","super_event/prc_invasion_of_taiwan_super_event");
-            if(!SuperEventAudio.active()||KoreanMusic.playing()!=null)throw new AssertionError("Source super event priority");
+            if(!SuperEventAudio.active()||KoreanMusic.playing()!=null||StoryMusicAudio.active())throw new AssertionError("Super event replaces previous focus music");
         });
         context.waitTicks(25);
         context.runOnClient(client->{

@@ -173,7 +173,6 @@ public class DialogScreen extends Screen {
         }
         return super.keyPressed(event);
     }
-    @Override public void removed() { SuperEventAudio.stop(view.token()); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
 }

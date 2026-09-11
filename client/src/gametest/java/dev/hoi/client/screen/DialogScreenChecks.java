@@ -114,6 +114,10 @@ public final class DialogScreenChecks {
                     .issued(UUID.randomUUID().toString(), 0);
             DialogClient.receive(DialogProtocol.Show.of(event, true));
             if (!(client.gui.screen() instanceof DialogScreen)) throw new AssertionError("Super event must be visible before stop");
+            DialogClient.close(event.token());
+            if (!dev.hoi.client.audio.SuperEventAudio.active()) throw new AssertionError("Closing a popup must preserve event music");
+            dev.hoi.client.audio.StoryMusicAudio.play("music.korea.extinction");
+            if (dev.hoi.client.audio.SuperEventAudio.active()) throw new AssertionError("New focus music replaces super event music");
             dev.hoi.client.audio.UiSounds.receive(AudioProtocol.Cue.STOP);
             if (client.gui.screen() != null || dev.hoi.client.audio.SuperEventAudio.active())
                 throw new AssertionError("Stop must dismiss visible super event and its audio");

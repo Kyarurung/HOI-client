@@ -83,8 +83,8 @@ public final class KoreanMusicChecks {
             try {
                 var field=StoryMusicAudio.class.getDeclaredField("sound");field.setAccessible(true);
                 var sound=(net.minecraft.client.resources.sounds.SoundInstance)field.get(null);
-                if(sound==null || sound.getSource()!=net.minecraft.sounds.SoundSource.MUSIC || !client.getSoundManager().isActive(sound))
-                    throw new AssertionError("Source focus music must play through Music volume");
+                if(sound==null || sound.getSource()!=net.minecraft.sounds.SoundSource.MASTER || !client.getSoundManager().isActive(sound))
+                    throw new AssertionError("Source focus music must play through Master volume");
                 StoryMusicAudio.reset();
                 if(StoryMusicAudio.active())throw new AssertionError("Source music reset retains pending cue");
             }catch(ReflectiveOperationException ex){throw new AssertionError(ex);}
