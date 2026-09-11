@@ -201,10 +201,16 @@ public final class HoiMenuBar {
                 tab == MenuTab.POLITICS ? 4 : statsLeft(width) + (tab.ordinal() - 1) * tabWidth,
                 tab == MenuTab.POLITICS ? flagWidth(width) : tabWidth - 2, tab == MenuTab.POLITICS ? 3 : 17,
                 height(width) - (tab == MenuTab.POLITICS ? 6 : 20), () -> select.accept(tab))).toList());
-        buttons.add(new Button(tensionX(width), 3, 30, height(width) + 12, Component.literal("세계 긴장도 이력"),
-                b -> dev.hoi.client.HoiClient.openWorldTension(), message -> message.get()) {
-            @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
-        });
+        int defconHeight = height(width) - 6;
+        for (int part = 0; part < 2; part++) {
+            int buttonY = part == 0 ? 3 : 3 + defconHeight + 2;
+            int buttonHeight = part == 0 ? defconHeight : Minecraft.getInstance().font.lineHeight + 4;
+            buttons.add(new Button(tensionX(width), buttonY, 30, buttonHeight, Component.literal(part == 0 ? "데프콘" : "세계 긴장도 %"),
+                    b -> dev.hoi.client.HoiClient.openWorldTension(), message -> message.get()) {
+                @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play("ui.click"); }
+                @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
+            });
+        }
         buttons.add(new MusicButton(width));
         return List.copyOf(buttons);
     }

@@ -95,12 +95,16 @@ public final class WorldTensionScreen extends Screen {
     }
     private void button(String label,int px,int py,int w,int h,String art,Runnable action) {
         addRenderableWidget(new Button(x+s(px),y+s(py),s(w),s(h),Component.literal(label),b -> action.run(),message -> message.get()) {
+            @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { dev.hoi.client.audio.UiSounds.play("ui.click"); }
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                 if (art != null && art.isEmpty()) return;
                 if (art == null) HoiMenuStyle.control(g,getX(),getY(),getWidth(),getHeight(),false,false);
                 else UiAssets.draw(g,art.equals("tension/sort") ? "tension/sort_selected" : art.equals("tension/sort_selected") ? "tension/sort" : art,getX(),getY(),getWidth(),getHeight());
                 if(label.equals("×")) HoiMenuStyle.close(g,getX(),getY(),getWidth(),getHeight(),HoiMenuStyle.TEXT);
-                else { begin(g); text(g,label,px,py+(h-12)/2,w,0xFFE0E0DA,true); end(g); }
+                else {
+                    int lift = label.equals("닫기") ? Math.clamp(Math.round((Math.max(1.6f * font.lineHeight * scale, 10f) - 12 * scale) / 2), 1, 3) : 0;
+                    begin(g); text(g,label,px,py+(h-12)/2-Math.round(lift/scale),w,0xFFE0E0DA,true); end(g);
+                }
             }
         });
     }
