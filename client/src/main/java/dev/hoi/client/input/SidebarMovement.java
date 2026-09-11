@@ -10,7 +10,7 @@ import java.util.function.Predicate;
 
 
 public final class SidebarMovement {
-    public interface Screen { boolean allowsMovement(); }
+    public interface Screen { boolean allowsMovement(); default int unitHudLeft(){return Integer.MAX_VALUE;} }
     private static boolean controlled;
     private SidebarMovement() {}
     private static List<KeyMapping> keys(Minecraft client) {

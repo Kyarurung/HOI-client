@@ -149,6 +149,17 @@ public final class IndustryScreenChecks {
         context.waitTicks(2);
         click(context, template + " 편제");
         context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 2, v.templates().getFirst())));
+        context.waitTicks(2);
+        context.runOnClient(client -> {
+            var screen = (IndustryScreen)client.gui.screen();
+            var input = (net.minecraft.client.gui.components.EditBox)screen.children().stream().filter(c -> c instanceof net.minecraft.client.gui.components.EditBox).findFirst().orElseThrow();
+            screen.setFocused(input); input.setValue("입력 중인 편제"); input.setCursorPosition(3); input.setHighlightPos(6);
+            screen.update(copy(v, hud, v.revision() + 3, v.templates().getFirst()));
+            check(screen.children().contains(input) && screen.getFocused() == input && input.isFocused(), "Daily refresh must retain the live editor and focus");
+            check(input.getValue().equals("입력 중인 편제") && input.getCursorPosition() == 3 && input.getHighlighted().equals("중인 "), "Daily refresh must retain text, cursor and selection");
+            input.insertText("새 "); check(input.getValue().equals("입력 새 편제"), "Typing continues at the retained selection");
+            input.setValue(v.templates().getFirst().name());
+        });
         context.waitTicks(3); context.takeScreenshot("hoi-industry-division-designer"); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-division-designer");
         context.getInput().setCursorPos(220,615); context.waitTicks(2); context.takeScreenshot("hoi-industry-division-equipment-tooltip");
         context.getInput().setCursorPos(1500,800);
@@ -160,7 +171,7 @@ public final class IndustryScreenChecks {
         click(context, "대대 목록 닫기");
         context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-categories");
         click(context, "대대 목록 닫기");
-        context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 3, v.templates().get(1))));
+        context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 4, v.templates().get(1))));
         context.waitTicks(2); context.takeScreenshot("hoi-industry-support-add-and-lock");
         context.runOnClient(client -> {
             var s = (IndustryScreen)client.gui.screen();

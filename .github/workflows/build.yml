@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Kyarurung/HOI-resourcepack
-          ref: 611b4a71ad8cb630afa2a05c356ad4b9f674ac79
+          ref: 74f7f5b8b5e897d5e12ed23d0f08e83203cc47dd
           ssh-key: ${{ secrets.HOI_RESOURCEPACK_SSH_KEY }}
           path: .test-resourcepack
           persist-credentials: false
@@ -27,6 +27,7 @@ jobs:
             pack
             scripts
             portraits
+      - run: python3 -m pip install numpy==2.3.5 Pillow==12.3.0
       - run: python3 .test-resourcepack/scripts/build_pack.py
       - uses: actions/setup-java@v4
         with:
@@ -35,6 +36,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
       - run: xvfb-run -a ./gradlew test runGameTest remapJar --console=plain --no-daemon -PhoiResourcePack="$GITHUB_WORKSPACE/.test-resourcepack/build/resources.zip"
+        env:
+          ALSOFT_DRIVERS: 'null'
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4

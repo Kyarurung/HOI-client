@@ -10,17 +10,25 @@ import net.minecraft.util.RandomSource;
 public final class SuperEventAudio {
     private static String token = "";
     private static SoundInstance sound;
+    private static int startup;
     private SuperEventAudio() {}
     public static void play(String session, String path) {
         if (session.equals(token)) return;
         reset(); if (path.isEmpty()) return;
         var client = Minecraft.getInstance(); var id = Identifier.fromNamespaceAndPath("hoi", path);
         if (client.getSoundManager().getSoundEvent(id) == null) return;
-        token = session; client.getMusicManager().stopPlaying();
+        token = session; KoreanMusic.enable();KoreanMusic.suspend();StoryMusicAudio.suspend();client.getMusicManager().stopPlaying();
         sound = new SimpleSoundInstance(id, SoundSource.MASTER, 1, 1, RandomSource.create(), false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
-        client.getSoundManager().play(sound);
+        startup=20;client.getSoundManager().play(sound);
     }
-    public static void tick() { if (sound != null && Minecraft.getInstance().getSoundManager().isActive(sound)) Minecraft.getInstance().getMusicManager().stopPlaying(); }
+    public static boolean active() { return sound != null; }
+    public static void tick() {
+        if(sound==null)return;
+        var client=Minecraft.getInstance();
+        if(client.level==null){reset();return;}
+        if(client.getSoundManager().isActive(sound))client.getMusicManager().stopPlaying();
+        else if(startup--<=0){sound=null;}
+    }
     public static void stop(String session) { if (token.equals(session)) reset(); }
     public static void reset() { if (sound != null) Minecraft.getInstance().getSoundManager().stop(sound); sound = null; token = ""; }
 }

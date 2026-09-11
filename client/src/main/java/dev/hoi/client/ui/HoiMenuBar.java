@@ -113,6 +113,7 @@ public final class HoiMenuBar {
     }
 
     public static void drawPassive(GuiGraphicsExtractor g, int width, CountryHud hud, String country) {
+        MusicButton.draw(g, width);
         draw(g, width, hud, -1, -1, 0);
         int tabWidth = tabWidth(width);
         for (var tab : MenuTab.ORDER) drawTab(g, tab, country, false,
@@ -204,6 +205,7 @@ public final class HoiMenuBar {
                 b -> dev.hoi.client.HoiClient.openWorldTension(), message -> message.get()) {
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
         });
+        buttons.add(new MusicButton(width));
         return List.copyOf(buttons);
     }
 

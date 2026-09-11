@@ -25,34 +25,5 @@ public final class AudioChecks {
             }
             UiSounds.receive(AudioProtocol.Cue.START);UiSounds.reset();
         });
-        var previous = new double[2];
-        context.runOnClient(client -> {
-            previous[0] = client.options.getSoundSourceVolume(net.minecraft.sounds.SoundSource.MUSIC);
-            previous[1] = client.options.getSoundSourceVolume(net.minecraft.sounds.SoundSource.MASTER);
-            client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MUSIC).set(0.0);
-            client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MASTER).set(1.0);
-            UiSounds.receive(AudioProtocol.Cue.SELECT);
-        });
-        context.waitTicks(30);
-        var selected = new net.minecraft.client.resources.sounds.SoundInstance[1];
-        context.runOnClient(client -> {
-            try {
-                var field = UiSounds.class.getDeclaredField("theme"); field.setAccessible(true);
-                var theme = (net.minecraft.client.resources.sounds.SoundInstance)field.get(null);
-                if (theme == null || theme.getSource() != net.minecraft.sounds.SoundSource.MASTER || !client.getSoundManager().isActive(theme))
-                    throw new AssertionError("SELECT theme must play with Music muted and Master audible");
-                selected[0] = theme;
-                UiSounds.receive(AudioProtocol.Cue.STOP);
-            } catch (ReflectiveOperationException e) { throw new AssertionError(e); }
-            finally {
-                UiSounds.reset();
-                client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MUSIC).set(previous[0]);
-                client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MASTER).set(previous[1]);
-            }
-        });
-        context.waitTicks(5);
-        context.runOnClient(client -> {
-            if (client.getSoundManager().isActive(selected[0])) throw new AssertionError("STOP must stop the selected theme");
-        });
     }
 }

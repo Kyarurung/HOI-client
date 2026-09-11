@@ -212,6 +212,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     @Override public boolean keyPressed(KeyEvent e){return SidebarMovement.consumes(minecraft,e)||super.keyPressed(e);}
     @Override public boolean keyReleased(KeyEvent e){return SidebarMovement.consumes(minecraft,e)||super.keyReleased(e);}
     @Override public void removed(){SidebarMovement.release(minecraft);if(DialogClient.suspending())return;transport.accept(new ConstructionProtocol.Request(ConstructionProtocol.Action.CLOSE,token,view==null?0:view.revision(),"",0,0,0,0));}
+    @Override public int unitHudLeft(){return pane;}
     @Override public boolean allowsMovement(){return true;}
     @Override public boolean isPauseScreen(){return false;}
     @Override public boolean isInGameUi(){return true;}

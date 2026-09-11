@@ -13,7 +13,9 @@ public final class AudioProtocol {
     private AudioProtocol() {}
     public static synchronized void registerPayloadTypes() {
         if (registered) return;
+        UnitAudioProtocol.registerPayloadTypes();
         PayloadTypeRegistry.clientboundPlay().register(Signal.TYPE, Signal.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(Music.TYPE, Music.CODEC);
         registered = true;
     }
     public enum Cue {
@@ -35,5 +37,13 @@ public final class AudioProtocol {
         public static final StreamCodec<RegistryFriendlyByteBuf, Signal> CODEC = StreamCodec.of(
                 (b,p) -> b.writeEnum(p.cue()), b -> new Signal(b.readEnum(Cue.class)));
         @Override public Type<Signal> type() { return TYPE; }
+    }
+    public record Music(String event) implements CustomPacketPayload {
+        public Music {
+            if(event==null || event.length()>128 || !event.matches("music\\.(korea|story)\\.[a-z0-9_.]+"))throw new IllegalArgumentException("Invalid music event");
+        }
+        public static final Type<Music> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","story_music_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf,Music> CODEC=StreamCodec.of((b,p) -> b.writeUtf(p.event(),128),b -> new Music(b.readUtf(128)));
+        @Override public Type<Music> type(){return TYPE;}
     }
 }

@@ -62,7 +62,10 @@ public class DialogScreen extends Screen {
             var next = new HoiMenuButton("다음 선택지", left + pane - 112, y, 100, 20, () -> { choicePage++; rebuildWidgets(); }); next.active = choicePage + 1 < pages; addRenderableWidget(next);
         }
         scroll = Math.clamp(scroll, 0, Math.max(0, total - (bodyBottom - bodyTop)));
-        for (var child : children()) if (child instanceof HoiMenuButton button) button.textScale(textScale());
+        for (var child : children()) if (child instanceof HoiMenuButton button) {
+            button.textScale(textScale());
+            if (view.kind() == DialogView.Kind.SUPER_EVENT && button.getY() >= bodyBottom) button.setTooltip(null);
+        }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         g.fill(0, 0, width, height, 0x70000000);

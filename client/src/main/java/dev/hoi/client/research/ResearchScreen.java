@@ -9,7 +9,6 @@ import dev.hoi.client.screen.DialogClient;
 import dev.hoi.client.ui.HoiMenuBar;
 import dev.hoi.client.ui.HoiMenuStyle;
 import dev.hoi.client.ui.HoiPanelLayout;
-import dev.hoi.client.ui.KeywordIcons;
 import dev.hoi.client.ui.UiAssets;
 
 import dev.hoi.protocol.ResearchProtocol;
@@ -283,7 +282,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         }
         if (hovered != null) {
             var t = hovered.tech();
-            var lines = tooltipLines(t).stream().flatMap(line -> font.split(KeywordIcons.decorate(line), Math.min(310, width - 24)).stream()).toList();
+            var lines = tooltipLines(t).stream().flatMap(line -> font.split(ResearchText.decorateEffect(line), Math.min(310, width - 24)).stream()).toList();
             g.setTooltipForNextFrame(font, lines, mx, my);
         }
     }
@@ -363,7 +362,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     private int detailText(GuiGraphicsExtractor g, List<? extends Component> lines, int x, int y, int w, int color) {
         for (var line : lines) {
-            var wrapped = font.split(KeywordIcons.decorate(line), w);
+            var wrapped = font.split(ResearchText.decorateEffect(line), w);
             if (wrapped.isEmpty()) { y += 13; continue; }
             for (var text : wrapped) { if (g != null) g.text(font, text, x, y, color); y += 13; }
         }
@@ -502,6 +501,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         if (allowsMovement() && SidebarMovement.consumes(minecraft, event)) return true;
         return super.keyReleased(event);
     }
+    @Override public int unitHudLeft(){return overviewWidth();}
     @Override public boolean allowsMovement() { return overview && detail == null; }
     @Override public void removed() { SidebarMovement.release(minecraft); if (DialogClient.suspending()) return; requests.accept(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, "")); }
     @Override public boolean isPauseScreen() { return false; }

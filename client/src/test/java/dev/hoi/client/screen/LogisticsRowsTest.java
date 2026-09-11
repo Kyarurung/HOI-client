@@ -6,6 +6,16 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LogisticsRowsTest {
+    @org.junit.jupiter.api.Test void stockLabelsKeepFourCharactersAcrossUnitBoundaries() {
+        org.junit.jupiter.api.Assertions.assertEquals("3.3K", LogisticsRows.stockLabel(3300));
+        org.junit.jupiter.api.Assertions.assertEquals("3.3M", LogisticsRows.stockLabel(3300000));
+        org.junit.jupiter.api.Assertions.assertEquals("10K", LogisticsRows.stockLabel(9950));
+        org.junit.jupiter.api.Assertions.assertEquals("1M", LogisticsRows.stockLabel(999500));
+        org.junit.jupiter.api.Assertions.assertEquals("999", LogisticsRows.stockLabel(999));
+        for (long value : new long[]{0, 1000, 9999, 10000, 99949, 999499, 999500, 999999, 1000000, Long.MAX_VALUE})
+            org.junit.jupiter.api.Assertions.assertTrue(LogisticsRows.stockLabel(value).length() <= 4, Long.toString(value));
+    }
+
     @Test void onlyResearchedOrStockedModelsAppearWithLatestResearchedImageAndCombinedAmounts() {
         var old = equipment("old", true, 20, "new", "rifles");
         var current = equipment("new", true, 0, "", "rifles");

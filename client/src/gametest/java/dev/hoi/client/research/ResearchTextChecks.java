@@ -24,10 +24,22 @@ public final class ResearchTextChecks {
             color(ResearchText.effect("기갑 비율: 0.05"), "+5%", ChatFormatting.GREEN);
             color(ResearchText.effect("속도: -1%"), "-1%", ChatFormatting.DARK_RED);
             var cost = ResearchText.effect("민간공장 건설 비용: +2.5%");
-            color(cost, "-2.5%", ChatFormatting.DARK_RED);
+            color(cost, "+2.5%", ChatFormatting.DARK_RED);
             color(cost, "민간공장", ChatFormatting.GOLD);
             color(cost, " 건설 비용: ", ChatFormatting.WHITE);
-            color(ResearchText.effect("연료 사용량: -100%"), "+100%", ChatFormatting.GREEN);
+            color(ResearchText.effect("연료 사용량: -100%"), "-100%", ChatFormatting.GREEN);
+            for (String label : List.of("공장 폭격 취약도", "건설 비용", "유지비 변동치", "연료 사용량", "소비재", "가시성", "훈련 시간", "항공기 사고 확률", "치명타 입을 확률", "치명타 지속 효과", "상륙 준비 시간", "어뢰 발각 확률", "이동시 조직력 손실", "적의 공중 지원")) {
+                for (String value : List.of("-5%", "+5%")) {
+                    var effect = ResearchText.effect(label + ": " + value);
+                    check(effect.getString().equals(label + ": " + value), "Benefit colors must never reverse the source sign");
+                    color(effect, value, value.startsWith("-") ? ChatFormatting.GREEN : ChatFormatting.DARK_RED);
+                }
+            }
+            for (String title : List.of("장갑 화물 열차", "장갑 화물 열차 II", "장갑 화물 열차 3", "공격 헬리콥터"))
+                check(ResearchText.decorateEffect(ResearchText.gold(title)).getString().equals(title), "Names never acquire stat icons");
+            check(ResearchText.decorateEffect(ResearchText.effect("건설 속도: +15%")).getString().charAt(0) >= 0xe000, "Beneficial upgrade retains its stat icon");
+            check(ResearchText.decorateEffect(ResearchText.effect("건설 속도: -15%")).getString().equals("건설 속도: -15%"), "Penalty has no beneficial-upgrade icon");
+            check(ResearchText.effect("속도: +2.555%").getString().equals("속도: +2.5%"), "Displayed precision truncates to one decimal after conversion");
             var attack = ResearchText.effect("대물 공격: 0.5");
             check(attack.getString().equals("대물 공격: 0.5"), "Absolute equipment stats are never multiplied by 100");
             color(attack, "0.5", ChatFormatting.GOLD);

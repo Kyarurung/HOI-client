@@ -31,11 +31,8 @@ public final class HoiMenuButton extends Button {
         setTooltip(Tooltip.create(Component.literal(isClose(label) ? "닫기" : label)));
     }
 
-    private net.minecraft.client.gui.components.Tooltip requestedTooltip;
-    @Override public void setTooltip(net.minecraft.client.gui.components.Tooltip value) { super.setTooltip(value); requestedTooltip = value; }
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : "ui.click"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-        HoiTooltips.requested(g, this, requestedTooltip, mx, my);
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         if (!"none".equals(background) && (background == null || !UiAssets.draw(g, background, x, y, w, h))) HoiMenuStyle.control(g, x, y, w, h, selected, false);
         String displayed = caption == null ? getMessage().getString() : caption;

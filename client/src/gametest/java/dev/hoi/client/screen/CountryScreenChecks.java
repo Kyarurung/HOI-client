@@ -12,6 +12,8 @@ public final class CountryScreenChecks {
         var sections = new ArrayList<>(politics());
         var overview = new ArrayList<>(sections.getFirst().entries());
         overview.set(1, new MenuView.Entry("지도자", "검증용 지도자", "검증용 특성\n안정도: §a+5%§r\n정치력: §4-3%§r\n\n지도자 설명 줄바꿈과 호버 영역을 확인하는 렌더링 검증 데이터입니다.", -1, "politics/empty/leader"));
+        overview.add(new MenuView.Entry("점령지", "0개 주", "점령지 없음", 0));
+        overview.add(new MenuView.Entry("협력정부", "1개국", "검증용 종속국", 1));
         overview.add(new MenuView.Entry("세부 이념", "공격적 자유주의", "세부 이념 설명을 확인하는 렌더링 검증 데이터입니다."));
         overview.removeIf(e -> e.icon().startsWith("politics/ideology/"));
         String[] names = {"민중민주당", "민주노동당", "민주노동당", "민주노동당", "더불어민주당", "국민의힘", "국민의힘", "우리공화당", "대한민국 국군", "자유의새벽당", "가자코리아"};
@@ -45,6 +47,12 @@ public final class CountryScreenChecks {
                         || sizing.election().x() + sizing.election().width() >= sizing.parties().x()
                         || sizing.partyChart().x() + sizing.partyChart().width() >= sizing.parties().x())
                     throw new AssertionError("Square cells and chart must not overlap their neighbours");
+            }
+            for (var box : List.of(layout.economy(), layout.ideology(), layout.faction()))
+                if (screen.politicsHover(box.x() + 2, box.y() + 2) == null) throw new AssertionError("Political information cells must expose their tooltip even without extra details");
+            for (var child : screen.children()) if (child instanceof Button button) {
+                if (button.getMessage().getString().equals("점령지") && button.active) throw new AssertionError("Empty occupation list must be disabled");
+                if (button.getMessage().getString().equals("협력정부") && !button.active) throw new AssertionError("Existing subject list must be enabled");
             }
             var leader = layout.leader(); var image = layout.focusImage(); var title = layout.focusTitle();
             if (layout.election().x() + layout.election().width() >= layout.parties().x()

@@ -16,6 +16,7 @@ public final class CampaignHud {
     private CampaignHud() {}
     public static void accept(HudProtocol.State state) {
         var next = state.hud();
+        if(!state.country().isEmpty()&&!state.country().equals(country))dev.hoi.client.audio.KoreanMusic.enable();
         country = state.country(); hud = next;
     }
     public static boolean visible() { return !country.isEmpty(); }
