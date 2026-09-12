@@ -8,6 +8,25 @@ import net.minecraft.util.FormattedCharSequence;
 public final class UiText {
     public static final int MIN_HEIGHT = 9;
     private UiText() {}
+    public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right) {
+        float scale = scale(font);
+        String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)(width / scale)));
+        float remaining = width - font.width(clipped) * scale;
+        g.pose().pushMatrix();
+        g.pose().translate(x + (right ? remaining : remaining / 2), y + (height - font.lineHeight * scale) / 2);
+        g.pose().scale(scale);
+        g.text(font, clipped, 0, 0, color);
+        g.pose().popMatrix();
+    }
+    public static void iconText(GuiGraphicsExtractor g, Font font, String icon, String value, int x, int y, int width, int height, int iconSize, int color) {
+        float scale = scale(font);
+        int size = Math.min(iconSize, Math.min(height, Math.max(1, width - 4)));
+        String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)((width - size - 3) / scale)));
+        int textWidth = Math.round(font.width(clipped) * scale);
+        int left = x + (width - size - 3 - textWidth) / 2;
+        UiAssets.draw(g, icon, left, y + (height - size) / 2, size, size);
+        cell(g, font, clipped, left + size + 3, y, textWidth, height, color, false);
+    }
     public static float scale(Font font) { return Math.max(1f, MIN_HEIGHT / (float)font.lineHeight); }
     public static void text(GuiGraphicsExtractor g, Font font, String text, int x, int y, int color) {
         text(g, font, Component.literal(text).getVisualOrderText(), x, y, color);

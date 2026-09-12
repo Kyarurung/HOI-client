@@ -45,6 +45,8 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     private boolean balanceOpen;
     private MenuView.Entry hoveredPolitics;
     private List<MenuView.Entry> spirits = List.of();
+    private record PolicyHover(PoliticsLayout.Box box, MenuView.Entry entry) {}
+    private final List<PolicyHover> policies = new ArrayList<>();
     private int pane, top, scroll, total, detailScroll, tradeTab, hudScroll;
     private List<MenuView.Entry> parties = List.of();
 
@@ -207,8 +209,8 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
                     String texture = texture(icon);
                     HoiMenuStyle.recess(g, 13, y + 3, 32, h - 9);
                     UiAssets.draw(g, texture, 16, y + 5, 26, h - 13);
-                    dev.hoi.client.ui.UiText.text(g, font, trim(entry.name(), pane - 67), 51, y + 6, TEXT);
-                    dev.hoi.client.ui.UiText.text(g, font, trim(entry.value(), pane - 67), 51, y + 19, GOLD);
+                    dev.hoi.client.ui.UiText.cell(g, font, entry.name(), 51, y + 3, pane - 67, 14, TEXT, false);
+                    dev.hoi.client.ui.UiText.cell(g, font, entry.value(), 51, y + 17, pane - 67, 14, GOLD, false);
                     if (entry.progress() >= 0) {
                         g.fill(50, y + h - 8, pane - 17, y + h - 5, 0xFF090C08);
                         g.fillGradient(50, y + h - 8, 50 + (int)((pane - 67) * entry.progress()), y + h - 5, 0xFFADB872, 0xFF52602F);
@@ -471,6 +473,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         return samples == 0 ? 0 : (samples * 255 / 16 << 24) | (red / samples << 16) | (green / samples << 8) | blue / samples;
     }
     private void layoutPolitics(boolean widgets, GuiGraphicsExtractor g) {
+        if (widgets) policies.clear();
         int row = Math.clamp((contentBottom() - contentTop()) / 7, 37, 68);
         int y = contentTop() - scroll;
         for (int i = 0; i < POLITICS_IDS.length; i++) {
@@ -504,7 +507,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
                             ClientPlayNetworking.send(new dev.hoi.protocol.DialogProtocol.PoliticsOpen(section.icon(), position));
                         } else showDetail(entry, section.icon());
                     });
-                    if (entry.value().equals("공석") || entry.value().equals("미지정") || entry.icon().equals("politics/vacant")) button.setTooltip(null);
+                    button.setTooltip(null);
+                    if (!entry.value().equals("공석") && !entry.value().equals("미지정") && !entry.icon().equals("politics/vacant"))
+                        policies.add(new PolicyHover(new PoliticsLayout.Box(x, cy, cell - 4, iconSize), entry));
                     button.active = true; addRenderableWidget(button);
                 }
             }
@@ -639,6 +644,8 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             if (index >= 0 && index < parties.size()) return parties.get(index);
         }
         if (layout.faction().contains(x, y)) return politicsEntry("세력");
+        if (!selectionPreview && y >= contentTop() && y < contentBottom())
+            for (var policy : policies) if (policy.box().contains(x, y)) return policy.entry();
         return null;
     }
     private void drawDetail(GuiGraphicsExtractor g) {

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class HudNumbersTest {
     @Test void suppliesUseTheAuthoritativeRatioAndFactoriesKeepFiveDigits() {
+        assertEquals("0", new HoiMenuBar.Indicator("supplies", "보급", null, HoiMenuBar.Format.PERCENT).value());
         var full = new HoiMenuBar.Indicator("supplies", "보급", 1.0, HoiMenuBar.Format.PERCENT);
         var shortfall = new HoiMenuBar.Indicator("supplies", "보급", .99, HoiMenuBar.Format.PERCENT);
         assertEquals("100%", full.value());
@@ -19,7 +20,7 @@ class HudNumbersTest {
         assertEquals("100%", new HoiMenuBar.Indicator("party", "정당 인기도", 1.0, HoiMenuBar.Format.PERCENT).value());
         assertEquals("1000", new HoiMenuBar.Indicator("army_xp", "육군 경험치", 1000.0, HoiMenuBar.Format.EXPERIENCE).value());
         assertEquals("999", new HoiMenuBar.Indicator("nuclear", "핵", 1200.0, HoiMenuBar.Format.NUCLEAR).value());
-        assertEquals("—", new HoiMenuBar.Indicator("nuclear", "핵", null, HoiMenuBar.Format.NUCLEAR).value());
+        assertEquals("0", new HoiMenuBar.Indicator("nuclear", "핵", null, HoiMenuBar.Format.NUCLEAR).value());
     }
     @Test void politicalPowerTruncatesAtTheRequestedBoundaries() {
         assertEquals("—",HoiMenuBar.politicalPower(null));
@@ -34,8 +35,8 @@ class HudNumbersTest {
         assertEquals("2000",HoiMenuBar.politicalPower(2000.0));
     }
 
-    @Test void commandPowerDropsDecimalsWithoutRoundingOrInventingUnknownValues() {
-        assertEquals("—",new HoiMenuBar.Indicator("command_power","지휘력",null,HoiMenuBar.Format.COMMAND_POWER).value());
+    @Test void commandPowerDropsDecimalsAndMissingIndicatorsDisplayZero() {
+        assertEquals("0",new HoiMenuBar.Indicator("command_power","지휘력",null,HoiMenuBar.Format.COMMAND_POWER).value());
         assertEquals("0",new HoiMenuBar.Indicator("command_power","지휘력",0.99,HoiMenuBar.Format.COMMAND_POWER).value());
         assertEquals("150",new HoiMenuBar.Indicator("command_power","지휘력",150.75,HoiMenuBar.Format.COMMAND_POWER).value());
         assertEquals("999",new HoiMenuBar.Indicator("command_power","지휘력",999.99,HoiMenuBar.Format.COMMAND_POWER).value());

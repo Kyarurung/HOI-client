@@ -24,11 +24,18 @@ public final class CountryScreenChecks {
         sections.set(0, new MenuView.Section("국가 현황", "politics", overview));
         sections.set(1, new MenuView.Section("국가 정신", "politics", java.util.stream.IntStream.range(0, 24)
                 .mapToObj(i -> new MenuView.Entry("검증용 정신 " + i, "", "연구 속도: §a+5%§r\n안정도: §4-3%§r\n\n현재 아이콘에 해당하는 설명입니다.", -1, "menu/politics")).toList()));
+        sections.removeIf(section -> section.icon().equals("government"));
+        sections.add(new MenuView.Section("정부", "government", List.of(new MenuView.Entry("정부 수반", "검증용 관료", "안정도: §a+5%§r\n정치력: §4-3%§r", -1, "politics/empty/leader"))));
         var pages = source.pages().stream().map(p -> p.tab() == MenuTab.POLITICS ? new MenuView.Page(p.tab(), sections) : p).toList();
         context.setScreen(() -> new HoiMenuScreen(new MenuView(source.country(), source.countryName(), source.date(), source.speed(), pages, source.hud())));
         context.waitTicks(2);
         context.runOnClient(c -> {
             var screen = (HoiMenuScreen)c.gui.screen(); var layout = screen.politicsLayout();
+            var policy = screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().contains("검증용 관료"))
+                    .map(w -> (Button)w).findFirst().orElseThrow();
+            var effects = screen.politicsHover(policy.getX() + 2, policy.getY() + 2);
+            if (effects == null || !effects.detail().contains("+5%")) throw new AssertionError("Government hover exposes current effect values");
+
             for (int pane : new int[]{248,363,726}) {
                 var sizing = new dev.hoi.client.ui.PoliticsLayout(pane, 40);
                 var focusBox = sizing.focus(); var focusImage = sizing.focusImage();

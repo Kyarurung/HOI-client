@@ -16,6 +16,11 @@ class LogisticsRowsTest {
             org.junit.jupiter.api.Assertions.assertTrue(LogisticsRows.stockLabel(value).length() <= 4, Long.toString(value));
     }
 
+    @Test void productionUsesOneDecimalAndCompactUnits() {
+        double[] values = {0, 1, 1.24, 1.26, 999.9, 999.99, 1000, 1100, 10100, 999949, 999950, 1000000};
+        String[] labels = {"0", "1", "1.2", "1.3", "999.9", "1K", "1K", "1.1K", "10.1K", "999.9K", "1M", "1M"};
+        for (int i = 0; i < values.length; i++) assertEquals(labels[i], LogisticsRows.productionLabel(values[i]), Double.toString(values[i]));
+    }
     @Test void onlyResearchedOrStockedModelsAppearWithLatestResearchedImageAndCombinedAmounts() {
         var old = equipment("old", true, 20, "new", "rifles");
         var current = equipment("new", true, 0, "", "rifles");
@@ -44,6 +49,24 @@ class LogisticsRowsTest {
         assertEquals(1, rows.size());
         assertEquals(30, rows.getFirst().deficit());
         assertEquals("보병 장비", rows.getFirst().representative().familyName());
+    }
+    @Test void currentDemandDrivesStatusAndSignedBalanceAcrossGenerations() {
+        var old = new IndustryView.Equipment("old", "old", "image/old", "infantry", false, false, 1, 1,
+                Map.of(), 10, 0, 0, 0, "new", "rifles", "보병 장비", 60L);
+        var modern = new IndustryView.Equipment("new", "new", "image/new", "infantry", false, true, 1, 1,
+                Map.of(), 20, 0, 0, 0, "", "rifles", "보병 장비", 0L);
+        var rows = LogisticsRows.create(List.of(old, modern), List.of(), "all");
+        assertEquals(60L, rows.getFirst().demand());
+        assertEquals(-30L, rows.getFirst().balance());
+        assertEquals("부족", rows.getFirst().status());
+        var line = new IndustryView.Line("line", "new", 1, 1, 1, 10, 0, 0);
+        var producing = LogisticsRows.create(List.of(old, modern), List.of(line), "all").getFirst();
+        assertEquals("생산", producing.status());
+        assertTrue(producing.supplyDetail().contains("3일"));
+        assertNull(LogisticsRows.create(List.of(equipment("legacy", true, 10, "", "rifles")), List.of(), "all").getFirst().balance());
+        var covered = LogisticsRows.create(List.of(modern), List.of(), "all").getFirst();
+        assertEquals("충족", covered.status());
+        assertEquals(20L, covered.balance());
     }
     private static IndustryView.Equipment equipment(String id, boolean unlocked, long stock, String replacement, String family) {
         return new IndustryView.Equipment(id, id, "image/" + id, "infantry", false, unlocked, 1, 1,

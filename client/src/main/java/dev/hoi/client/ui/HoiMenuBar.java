@@ -43,7 +43,7 @@ public final class HoiMenuBar {
         public Indicator(String icon, String label, Number raw, Format format) { this(icon, label, raw, format, null, null); }
         public int width() { return format == Format.MONEY ? 67 : format == Format.POLITICAL_POWER || format == Format.PERCENT ? 54 : format == Format.EXPERIENCE || format == Format.COMMAND_POWER ? 48 : icon.equals("manpower") || icon.equals("fuel") || icon.equals("convoys") || icon.equals("factories") ? 52 : 40; }
         private static String value(String icon, Number raw, Format format) {
-            if (raw == null) return "—";
+            if (raw == null) return "0";
             return switch (format) {
                 case NUMBER -> icon.equals("factories") ? Long.toString(raw.longValue()) : number(raw.doubleValue());
                 case POLITICAL_POWER -> politicalPower(raw.doubleValue());
@@ -178,12 +178,12 @@ public final class HoiMenuBar {
     private static void stat(GuiGraphicsExtractor g, Indicator item, int x) {
         int w = item.width();
         HoiMenuStyle.recess(g, x, 1, w - 1, STATS_HEIGHT - 1);
-        UiAssets.draw(g, "hud/" + item.icon(), x + 2, 2, 11, 10);
+        UiAssets.draw(g, "hud/" + item.icon(), x + 2, 1 + (STATS_HEIGHT - 1 - 10) / 2, 11, 10);
         var font = Minecraft.getInstance().font;
         String value = item.value();
         String fit = font.width(value) <= w - 18 ? value : font.plainSubstrByWidth(value, Math.max(1, w - 27)) + "…";
         int color = indicatorColor(item);
-        g.text(font, fit, x + 15, 2, color);
+        UiText.cell(g, font, fit, x + 15, 1, w - 18, item.barLabel() == null ? STATS_HEIGHT - 1 : 10, color, true);
         if (item.barLabel() != null) {
             g.fill(x + 15, 11, x + w - 3, 13, 0xFF18201A);
             if (item.ratio() != null) g.fill(x + 15, 11, x + 15 + (int)Math.round((w - 18) * item.ratio()), 13, 0xFF6D9C61);

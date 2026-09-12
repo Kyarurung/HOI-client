@@ -25,11 +25,21 @@ class IndustryViewTest {
         var gson = new com.google.gson.Gson();
         var old = new IndustryView.Equipment("old","Old","old","infantry",false,true,1,4,Map.of(),5,2,1,0);
         var legacy = gson.fromJson(gson.toJson(old),IndustryView.Equipment.class);
-        assertNull(legacy.replacement()); assertNull(legacy.family()); assertFalse(legacy.outdated());
+        assertNull(legacy.demand()); assertNull(legacy.replacement()); assertNull(legacy.family()); assertFalse(legacy.outdated());
         var versioned = new IndustryView.Equipment("old","Old","old","infantry",false,true,1,4,Map.of(),5,2,1,0,"new","rifles");
         assertEquals(versioned,gson.fromJson(gson.toJson(versioned),IndustryView.Equipment.class));
         assertTrue(versioned.outdated());
         assertThrows(IllegalArgumentException.class,()->new IndustryView.Equipment("old","Old","old","infantry",false,true,1,4,Map.of(),5,2,1,0,"old","rifles"));
+    }
+    @Test void outstandingDemandPreservesZeroAndRejectsInvalidAmounts() {
+        var gson = new com.google.gson.Gson();
+        var equipment = new IndustryView.Equipment("rifle","Rifle","rifle","infantry",false,true,1,4,Map.of(),5,2,1,3,null,"infantry","보병 장비",8L);
+        assertEquals(equipment, gson.fromJson(gson.toJson(equipment),IndustryView.Equipment.class));
+        var json = gson.toJsonTree(equipment).getAsJsonObject();
+        json.addProperty("demand",-1);
+        assertThrows(RuntimeException.class, () -> gson.fromJson(json,IndustryView.Equipment.class));
+        json.addProperty("demand",0);
+        assertEquals(0L,gson.fromJson(json,IndustryView.Equipment.class).demand());
     }
     @Test void optionalRepairReportDistinguishesLegacyUnknownFromAnEmptyQueue() {
         var old = IndustryView.revoked("session", "");

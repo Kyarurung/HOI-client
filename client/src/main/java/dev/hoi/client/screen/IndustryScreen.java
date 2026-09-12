@@ -151,8 +151,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         for (int i = 0; i < modifiers.size(); i++) {
             var m = modifiers.get(i); int x = 6 + i % 3 * cell, y = top + 62 + i / 3 * 20 - offset;
             recess(x, y, cell - 1, 19);
-            art("production/modifiers/" + m.id(), x + 2, y + 3, 14, 12);
-            text(percent(m.value()), x + 18, y + 6, cell - 20, TEXT);
+            iconText("production/modifiers/" + m.id(), percent(m.value()), x + 2, y + 1, cell - 5, 17, 14, TEXT);
             tip(m.name() + ": " + percent(m.value()) + "\n" + m.detail(), x, y, cell, 19);
         }
         int used = lines.stream().filter(l -> !equipment(l.equipment()).naval()).mapToInt(Line::factories).sum();
@@ -164,8 +163,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         for (int i = 0; i < 3; i++) {
             int x = 6 + i * cell;
             rail(x, summaryY, cell - 1, 22);
-            art("production/summary/" + icons[i], x + 2, summaryY + 3, 15, 15);
-            text(counts[i], x + 19, summaryY + 7, cell - 22, TEXT);
+            iconText("production/summary/" + icons[i], counts[i], x + 2, summaryY + 1, cell - 5, 20, 15, TEXT);
             tip(names[i] + ": " + counts[i] + (i == 2 ? "\n함선 건조에 배정한 조선소를 제외한 수리 배정 현황" : ""), x, summaryY, cell, 22);
         }
         int filterY = top + 129 - offset;
@@ -174,10 +172,10 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             var line = lines.get(i); var e = equipment(line.equipment()); int y = start + i * h - scroll;
             if (!visible(y, h, compact() ? bodyTop : start)) continue;
             rail(6, y, pane - 12, h - 3);
-            text((view.lines().indexOf(line) + 1) + "  " + equipmentName(e), 11, y + 5, pane - 111, TEXT);
+            leftText((i + 1) + "  " + equipmentName(e), 11, y + 5, pane - 111, TEXT);
             button("공장 줄이기", "−", pane - 97, y + 2, 18, 18, line.factories() > 0,
                     () -> send(ASSIGN, line.id(), "", Math.max(0, line.factories() - factoryStep())));
-            recess(pane - 78, y + 2, 30, 18); text(Integer.toString(line.factories()), pane - 75, y + 6, 25, TEXT);
+            recess(pane - 78, y + 2, 30, 18); cellText(Integer.toString(line.factories()), pane - 76, y + 3, 26, 16, TEXT, false);
             button("공장 늘리기 · 보유량 안에서 배정", "+", pane - 47, y + 2, 18, 18, line.factories() < line.availableFactories(),
                     () -> send(ASSIGN, line.id(), "", Math.min(line.availableFactories(), line.factories() + factoryStep())));
             button("생산 라인 삭제", "×", pane - 28, y + 2, 18, 18, true, () -> send(REMOVE, line.id(), "", 0));
@@ -185,8 +183,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 picker = "equipment"; group = e.group(); switchLine = line.id(); pickerScroll = 0; rebuildWidgets();
             });
             text(decimal(line.daily()) + " / 일", 103, y + 25, pane - 113, line.daily() > 0 ? GOOD : BAD);
-            priorityButton(true, 101, y + 40, view.lines().indexOf(line) > 0, line.id());
-            priorityButton(false, 101, y + 59, view.lines().indexOf(line) < view.lines().size() - 1, line.id());
+            priorityButton(true, 101, y + 40, i > 0, line.id());
+            priorityButton(false, 101, y + 59, i < view.lines().size() - 1, line.id());
             int gridX = 124, gridWidth = Math.max(25, pane - gridX - 43), factoryCell = gridWidth / 5;
             for (int factory = 0; factory < 15; factory++) {
                 int fx = gridX + factory % 5 * factoryCell, fy = y + 40 + factory / 5 * 12;
@@ -238,8 +236,10 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         int cell = (pane - 12) / Math.max(1, view.resources().size());
         for (int i = 0; i < view.resources().size(); i++) {
             var r = view.resources().get(i); int x = 6 + i * cell;
-            recess(x, y, cell - 1, h); art(resourceArt(r.id()), x + (cell - 16) / 2, y + 2, 16, 16);
-            text(integer(r.available() - r.demand()), x + 2, y + h - 11, cell - 4, r.available() < r.demand() ? BAD : GOOD);
+            recess(x, y, cell - 1, h);
+            int contentY = y + (h - 27) / 2;
+            art(resourceArt(r.id()), x + (cell - 1 - 16) / 2, contentY, 16, 16);
+            cellText(integer(r.available() - r.demand()), x + 2, contentY + 18, cell - 5, 9, r.available() < r.demand() ? BAD : GOOD, false);
             tip(r.name() + "\n점유지 추출 " + decimal(r.extracted()) + "\n수입 " + decimal(r.imported())
                     + " · 수출 배정 " + decimal(r.exported()) + "\n생산용 " + decimal(r.available()) + " / 수요 " + decimal(r.demand()), x, y, cell, h);
         }
@@ -258,16 +258,16 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     static final List<String> LOGISTICS_HEADERS = List.of("평균 생산 효율", "장비 유형", "생산", "상태", "수요", "균형", "비축량", "자원");
     private void logistics() {
-        int[] fractions = {0, 5, 39, 49, 59, 69, 79, 90, 100};
+        int[] fractions = {0, 5, 39, 53, 60, 70, 81, 91, 100};
         int[] cols = new int[9];
         for (int i = 0; i < cols.length; i++) cols[i] = 6 + (pane - 12) * fractions[i] / 100;
         String[] icons = {"efficiency", "", "production", "", "need", "balance", "stockpile", ""};
-        String[] descriptions = {"가동 중인 공장 수로 가중한 평균 생산 효율", "장비 유형", "각 장비의 하루 생산량", "일일 필요량 중 생산으로 충당되는 비율", "장비 유형별 일일 수요", "매일 장비 균형", "현재 보관 중인 장비 총량", "배정된 생산 공장이 요구하는 자원"};
+        String[] descriptions = {"가동 중인 공장 수로 가중한 평균 생산 효율", "장비 유형", "각 장비의 하루 생산량", "충족: 재고 충분 · 생산: 부족분 생산 중 · 부족: 생산 없음", "훈련·배치 사단과 자동 보충 비행단의 현재 미지급 장비", "비축량에서 현재 충원 수요를 뺀 수량", "현재 보관 중인 장비 총량", "배정된 생산 공장이 요구하는 자원"};
         int heading = top + 29, start = heading + 22, h = 39;
         rail(6, heading, pane - 12, 20);
         for (int i = 0; i < LOGISTICS_HEADERS.size(); i++) {
             int w = cols[i + 1] - cols[i];
-            if (icons[i].isEmpty()) centeredCompactText(LOGISTICS_HEADERS.get(i), cols[i] + 1, heading + 6, w - 2, TEXT);
+            if (icons[i].isEmpty()) cellText(LOGISTICS_HEADERS.get(i), cols[i] + 1, heading, w - 2, 20, TEXT, false);
             else art("logistics/" + icons[i], cols[i] + 1, heading + 3, w - 2, 14);
             tip(LOGISTICS_HEADERS.get(i) + "\n" + descriptions[i], cols[i], heading, w, 20);
         }
@@ -278,33 +278,30 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             if (!visible(y, h, start)) continue;
             rail(6, y, pane - 12, h - 2);
             efficiencyBar(cols[0] + 2, y + 3, Math.max(2, cols[1] - cols[0] - 4), h - 8, row.efficiency() == null ? 0 : row.efficiency());
-            art(e.texture(), cols[1] + 1, y + 2, cols[2] - cols[1] - 2, 23);
-            fitted(familyName(e), cols[1] + 1, y + 27, cols[2] - cols[1] - 2, GOLD);
-            String[] values = {decimal(row.daily()), "—", "—", "—", LogisticsRows.stockLabel(row.stockpile())};
+            int equipmentY = y + (h - 2 - 34) / 2;
+            art(e.texture(), cols[1] + 1, equipmentY, cols[2] - cols[1] - 2, 23);
+            cellText(familyName(e), cols[1] + 1, equipmentY + 24, cols[2] - cols[1] - 2, 10, GOLD, false);
+            String[] values = {LogisticsRows.productionLabel(row.daily()), row.status(), row.demandLabel(), row.balanceLabel(), LogisticsRows.stockLabel(row.stockpile())};
             for (int j = 0; j < values.length; j++) {
                 int col = j + 2; recess(cols[col] + 1, y + 8, cols[col + 1] - cols[col] - 2, 17);
-                fitted(values[j], cols[col] + 2, y + 13, cols[col + 1] - cols[col] - 4, j == 0 || j == 4 ? GOOD : MUTED);
+                cellText(values[j], cols[col] + 2, y + 8, cols[col + 1] - cols[col] - 4, 17, j == 0 || j == 4 ? GOOD : row.balance() == null ? MUTED : row.balance() >= 0 ? GOOD : j == 1 && row.daily() > 0 ? GOLD : BAD, false);
             }
             int n = 0, size = Math.min(12, Math.max(7, (cols[8] - cols[7] - 2) / 2));
+            int resourceRows = (row.resources().size() + 1) / 2;
             for (var resource : row.resources().entrySet()) {
-                art(resourceArt(resource.getKey()), cols[7] + 1 + n % 2 * size, y + 3 + n / 2 * size, size, size); n++;
+                int rowCount = Math.min(2, row.resources().size() - n / 2 * 2);
+                int resourceX = cols[7] + (cols[8] - cols[7] - rowCount * size) / 2;
+                art(resourceArt(resource.getKey()), resourceX + n % 2 * size, y + (h - 2 - resourceRows * size) / 2 + n / 2 * size, size, size); n++;
             }
             tip("평균 생산 효율: " + (row.efficiency() == null ? "—" : String.format(Locale.ROOT, "%.1f%%", row.efficiency() * 100)), cols[0], y, cols[1] - cols[0], h);
-            tip("일일 수요·충당률·균형 정보가 제공되지 않았습니다.", cols[3], y, cols[6] - cols[3], h);
+            tip(row.supplyDetail(), cols[3], y, cols[6] - cols[3], h);
             tip(familyName(e) + "\n충원에 추가로 필요한 수량: " + row.deficit() + "\n\n" + row.models().stream().map(model -> model.name() + "\n보관 재고: " + model.stockpile()
-                    + "\n훈련에 지급: " + model.reserved() + "\n배치 사단 휴대: " + model.deployed()
+                    + "\n훈련에 지급: " + model.reserved() + "\n배치 부대 보유: " + model.deployed()
                     ).collect(java.util.stream.Collectors.joining("\n\n")), cols[1], y, cols[2] - cols[1], h);
             tip("비축량: " + row.stockpile(), cols[6], y, cols[7] - cols[6], h);
             tip(row.resources().entrySet().stream().map(r -> resourceName(r.getKey()) + ": " + decimal(r.getValue())).collect(java.util.stream.Collectors.joining("\n")), cols[7], y, cols[8] - cols[7], h);
         }
         if (items.isEmpty()) text("연구 완료 또는 비축된 장비가 없습니다.", 10, start + 6, pane - 20, MUTED);
-    }
-    private void fitted(String value, int x, int y, int max, int color) {
-        if (graphics == null) return;
-        float scale = dev.hoi.client.ui.UiText.scale(font);
-        value = font.plainSubstrByWidth(value, Math.max(1,(int)(max / scale)));
-        graphics.pose().pushMatrix(); graphics.pose().translate(x, y); graphics.pose().scale(scale);
-        graphics.text(font, value, 0, 0, color); graphics.pose().popMatrix();
     }
     private void trade() {
         int half = (pane - 14) / 2;
@@ -327,8 +324,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         }
         rail(6, top + 54, pane - 12, 21);
         art("construction/civilian_factory", 9, top + 57, 15, 15);
-        text("민간공장", 28, top + 61, 45, TEXT); text("" + e.civilian(), 74, top + 61, pane/2-78, GOLD);
-        text("이용 가능:", pane/2+4, top + 61, pane/2-34, TEXT); text("" + e.freeCivilian(), pane - 28, top + 61, 21, GOLD);
+        leftText("민간공장", 28, top + 61, 45, TEXT); leftText("" + e.civilian(), 74, top + 61, pane/2-78, GOLD);
+        leftText("이용 가능:", pane/2+4, top + 61, pane/2-34, TEXT); leftText("" + e.freeCivilian(), pane - 28, top + 61, 21, GOLD);
         int labelWidth = compact() ? 0 : 36, cell = Math.max(16, (pane - 12 - labelWidth) / Math.max(1, view.resources().size()));
         String[] labels = {"추출", "수입", "수출", "생산", "잔여"};
         for (int i = 0; i < view.resources().size(); i++) {
@@ -338,29 +335,28 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             double[] values = {r.extracted(), r.imported(), -r.exported(), -r.demand(), r.available() - r.demand()};
             for (int j = 0; !compact() && j < values.length; j++) {
                 recess(x, top + 102 + j * 13, cell - 1, 12);
-                text(integer(values[j]), x + 1, top + 104 + j * 13, cell - 2, values[j] < 0 ? BAD : GOOD);
+                cellText(integer(values[j]), x + 2, top + 102 + j * 13, cell - 5, 12, values[j] < 0 ? BAD : GOOD, true);
             }
             tip(r.name() + "\n추출 " + decimal(r.extracted()) + " · 수입 " + decimal(r.imported()) + "\n수출 배정 " + decimal(r.exported())
                     + "\n생산 수요 " + decimal(r.demand()) + " · 잔여 " + decimal(r.available() - r.demand()), x, top + 79, cell, compact() ? 20 : 88);
         }
-        for (int j = 0; !compact() && j < labels.length; j++) text(labels[j], 8, top + 104 + j * 13, labelWidth - 2, MUTED);
+        for (int j = 0; !compact() && j < labels.length; j++) cellText(labels[j], 8, top + 102 + j * 13, labelWidth - 4, 12, MUTED, true);
         int heading = top + (compact() ? 104 : 172);
-        text(resourceName(resource) + " 수입 · 민간공장으로 거래", 9, heading, pane - 18, TEXT);
-        var contracts = view.trades().stream().filter(t -> t.importing() && t.resource().equals(resource)).toList();
-        int start = heading + 34, h = 29;
+        var contracts = view.trades().stream().filter(t -> t.importing() && t.resource().equals(resource))
+                .collect(java.util.stream.Collectors.groupingBy(IndustryView.Trade::partner));
+        int start = heading + 18, h = 29;
         int[] cols = {8, pane * 44 / 100, pane * 65 / 100, pane * 83 / 100};
         String[] headers = {"국가", "수출", "운송됨", "수송선"};
-        for (int i = 0; i < 4; i++) text(headers[i], cols[i], heading + 18, (i == 3 ? pane - 7 : cols[i + 1]) - cols[i] - 3, TEXT);
+        for (int i = 0; i < 4; i++) cellText(headers[i], cols[i], heading, (i == 3 ? pane - 7 : cols[i + 1]) - cols[i] - 3, 16, TEXT, false);
         scroll = clampScroll(scroll, view.partners().size(), h, start);
         for (int i = 0; i < view.partners().size(); i++) {
             var p = view.partners().get(i); int y = start + i * h - scroll; if (!visible(y, h, start)) continue;
-            var active = contracts.stream().filter(t -> t.partner().equals(p.id())).toList();
+            var active = contracts.getOrDefault(p.id(), List.of());
             int color = !p.route() ? BAD : active.isEmpty() ? GOLD : GOOD;
             double delivered = active.stream().mapToDouble(IndustryView.Trade::delivered).sum();
             recess(6, y, pane - 12, h - 3);
             if (graphics != null) graphics.outline(6, y, pane - 12, h - 3, color);
-            art(HoiMenuBar.flagTexture(p.id()), 9, y + 4, 20, 15);
-            text(p.name(), 33, y + 9, cols[1] - 38, TEXT);
+            iconText(HoiMenuBar.flagTexture(p.id()), p.name(), 9, y + 1, cols[1] - 14, h - 5, 20, TEXT);
             text(decimal(p.exports().getOrDefault(resource, 0.0)), cols[1], y + 9, cols[2] - cols[1] - 3, color);
             text(decimal(delivered), cols[2], y + 9, cols[3] - cols[2] - 3, color);
             text(p.convoys() == null || p.convoys() < 0 ? "—" : Integer.toString(p.convoys()), cols[3], y + 9, pane - cols[3] - 8, color);
@@ -438,14 +434,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 int minusX = groupX + 2 + (int)Math.round(312 * gs), plusX = groupX + 2 + (int)Math.round(383 * gs);
                 textureButton(t.name() + " 연속 훈련 횟수 증가", "", "recruitment/increase", plusX, amountY, amountSize, amountSize, first.seriesLimit() < 999, () -> send(SERIES, first.id(), "", first.seriesLimit() + 1));
                 textureButton(t.name() + " 연속 훈련 횟수 감소 · 0은 무한대", "", "recruitment/decrease", minusX, amountY, amountSize, amountSize, first.seriesLimit() > 0, () -> send(SERIES, first.id(), "", first.seriesLimit() - 1));
-                if (graphics != null) {
-                    String amount = first.seriesLimit() == 0 ? "∞" : first.seriesLimit().toString();
-                    graphics.pose().pushMatrix();
-                    graphics.pose().translate((minusX + amountSize + plusX - font.width(amount) * dev.hoi.client.ui.UiText.scale(font)) / 2, amountY + (amountSize - font.lineHeight * dev.hoi.client.ui.UiText.scale(font)) / 2);
-                    graphics.pose().scale(dev.hoi.client.ui.UiText.scale(font));
-                    graphics.text(font, amount, 0, 0, first.seriesLimit() == 0 ? GOLD : TEXT);
-                    graphics.pose().popMatrix();
-                }
+                String amount = first.seriesLimit() == 0 ? "∞" : first.seriesLimit().toString();
+                cellText(amount, minusX + amountSize, amountY, plusX - minusX - amountSize, amountSize, first.seriesLimit() == 0 ? GOLD : TEXT, false);
 
                 for (int dot = 0; dot < 3; dot++) {
                     int priority = dot;
@@ -463,7 +453,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 art("recruitment/summary", 7, summaryY, pane - 14, lineHeight);
                 art("recruitment/equipment_state", 8 + (int)(212 * gs), summaryY + 1 + (int)(3 * gs), (int)(27 * gs), (int)(27 * gs));
                 bar(7 + (int)(238 * gs), summaryY + (int)(10 * gs), (int)(65 * gs), Math.max(3, (int)(11 * gs)), rows.stream().mapToDouble(r -> fillRatio(t.equipment(), r.equipment())).average().orElse(0), 0xFF7EAF69);
-                centeredCompactText(rows.size() + "개 사단", 7 + (int)(315 * gs), summaryY + (int)(18 * gs) - 3, (int)(150 * gs), TEXT);
+                cellText(rows.size() + "개 사단", 7 + (int)(315 * gs), summaryY, (int)(150 * gs), lineHeight, TEXT, false);
                 textureButton(collapsedRecruitment.contains(entry.getKey()) ? "클릭하여 펼치기" : "클릭하여 접기", "", collapsedRecruitment.contains(entry.getKey()) ? "recruitment/expand" : "recruitment/collapse", 7 + (int)(481 * gs), summaryY + (int)(4 * gs), (int)(26 * gs), (int)(26 * gs), true,
                         () -> { if (!collapsedRecruitment.add(entry.getKey())) collapsedRecruitment.remove(entry.getKey()); rebuildWidgets(); });
             }
@@ -482,7 +472,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 bar(lineX + (int)(237 * gs), y + (int)(14 * gs), (int)(64 * gs), Math.max(3, (int)(11 * gs)), equipped, 0xFF7EAF69);
                 bar(lineX + (int)(333 * gs), y + (int)(14 * gs), (int)(64 * gs), Math.max(3, (int)(11 * gs)), r.progress(), 0xFF7EAF69);
                 tip("훈련 " + percent(r.progress()) + " · 인력 " + percent(manpowerRatio) + " · 장비 " + percent(equipped) + "\n" + equipmentList(t.equipment(), r.equipment()), 8, y, (int)(397 * gs), lineHeight);
-                centeredCompactText(r.seriesLabel(), lineX + (int)(398 * gs), y + (int)(20 * gs) - 3, (int)(55 * gs), r.seriesLimit() == 0 ? GOLD : TEXT);
+                cellText(r.seriesLabel(), lineX + (int)(398 * gs), y + (int)(7 * gs), (int)(57 * gs), (int)(26 * gs), r.seriesLimit() == 0 ? GOLD : TEXT, false);
                 tip("라인의 현재 연속 훈련 수 · " + r.seriesLabel(), lineX + (int)(398 * gs), y + (int)(7 * gs), (int)(57 * gs), (int)(26 * gs));
                 textureButton("즉시 배치 · 훈련 " + Math.round(minimumTraining()*100) + "% 이상", "", "recruitment/deploy_line", lineX + (int)(458 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), !r.location().isEmpty() && r.progress() >= minimumTraining(), () -> send(DEPLOY, r.id(), "", 0));
                 textureButton("훈련 취소 · 지급 장비와 인력 반환", "", "recruitment/cancel_line", lineX + (int)(484 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), true, () -> send(CANCEL_RECRUIT, r.id(), "", 0));
@@ -574,8 +564,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             String id = summary[i]; int bx = x + 10 + i * (left - 12) / 4;
             var stat = t.stats().stream().filter(v -> id.equals(v.id())).findFirst().orElse(null);
             recess(bx, y + 67, (left - 16) / 4, 17);
-            art("stats/" + id.toLowerCase(Locale.ROOT), bx + 2, y + 69, 12, 12);
-            text(stat == null ? "—" : statValue(stat), bx + 16, y + 72, (left - 16) / 4 - 18, GOLD);
+            iconText("stats/" + id.toLowerCase(Locale.ROOT), stat == null ? "—" : statValue(stat), bx + 2, y + 68, (left - 16) / 4 - 4, 15, 12, GOLD);
             tip(stat == null ? id : stat.name() + ": " + statValue(stat), bx, y + 67, (left - 16) / 4, 17);
         }
         }
@@ -673,15 +662,15 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 if (sy < y + 48 || sy + 12 > y + h - 58) continue;
                 art("stats/" + (stat.id() == null ? "" : stat.id().toLowerCase(Locale.ROOT)), sx + 2, sy - 2, 11, 11);
                 int valueWidth = Math.min(colWidth / 2, Math.max(35, font.width(statValue(stat))));
-                text(stat.name(), sx + 15, sy, colWidth - valueWidth - 19, MUTED);
-                text(statValue(stat), sx + colWidth - valueWidth - 3, sy, valueWidth, TEXT);
+                leftText(stat.name(), sx + 15, sy, colWidth - valueWidth - 19, MUTED);
+                leftText(statValue(stat), sx + colWidth - valueWidth - 3, sy, valueWidth, TEXT);
                 tip(stat.name() + ": " + statValue(stat), sx, sy - 2, colWidth - 1, 15);
             }
             if (col == 2) for (var need : t.equipment().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
                 int sy = y + 51 + row++ * 18 - designerScroll;
                 if (sy < y + 48 || sy + 15 > y + h - 58) continue;
                 var e = equipment(need.getKey());
-                text(familyName(e), sx + 3, sy, colWidth - 41, MUTED); text(integer(need.getValue()), sx + colWidth - 37, sy, 34, TEXT);
+                leftText(familyName(e), sx + 3, sy, colWidth - 41, MUTED); leftText(integer(need.getValue()), sx + colWidth - 37, sy, 34, TEXT);
                 tip(familyName(e) + ": " + need.getValue(), sx, sy - 2, colWidth - 1, 18);
             }
         }
@@ -796,7 +785,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (p == null) { partner = ""; return; }
         var contracts = view.trades().stream().filter(v -> v.importing() && v.partner().equals(partner) && v.resource().equals(resource)).toList();
         int w = Math.min(340, width - 16), h = Math.min(225, height - top - 12), x = (width - w) / 2, y = Math.max(top + 4, (height - h) / 2);
-        panel(x, y, w, h); text(p.name(), x + 10, y + 9, w - 67, TEXT);
+        panel(x, y, w, h); leftText(p.name(), x + 10, y + 9, w - 67, TEXT);
         art(HoiMenuBar.flagTexture(p.id()), x + w - 60, y + 5, 25, 16);
         button("계약 창 닫기", "×", x + w - 25, y + 3, 19, 19, true, () -> { partner = ""; rebuildWidgets(); });
         art(resourceArt(resource), x + 10, y + 35, 20, 20);
@@ -908,12 +897,24 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private void recess(int x, int y, int w, int h) { if (graphics != null) HoiMenuStyle.recess(graphics, x, y, w, h); }
     private void panel(int x, int y, int w, int h) { if (graphics != null) HoiMenuStyle.panel(graphics, x, y, w, h); }
     private void art(String path, int x, int y, int w, int h) { if (graphics != null) UiAssets.draw(graphics, path, x, y, w, h); }
+    private void cellText(String value, int x, int y, int width, int height, int color, boolean right) {
+        if (graphics != null) UiText.cell(graphics, font, value, x, y, width, height, color, right);
+    }
+    private void iconText(String icon, String value, int x, int y, int width, int height, int size, int color) {
+        if (graphics != null) UiText.iconText(graphics, font, icon, value, x, y, width, height, size, color);
+    }
     private void heading(String value, int x, int y, int max, int color) { if (graphics != null) HoiMenuStyle.heading(graphics, font, value, x, y, max, color); }
+    private void leftText(String value, int x, int y, int max, int color) {
+        if (graphics == null) return;
+        String display = font.plainSubstrByWidth(value, Math.max(1, (int)(max / UiText.scale(font))));
+        UiText.text(graphics, font, display, x, y, color);
+        if (!display.equals(value)) tip(value, x, y - 1, max, 11);
+    }
     private void text(String value, int x, int y, int max, int color) {
         if (graphics == null) return;
         float scale=dev.hoi.client.ui.UiText.scale(font);
         String display=font.plainSubstrByWidth(value,Math.max(1,(int)(max/scale)));
-        dev.hoi.client.ui.UiText.text(graphics,font,display,x,y,color);
+        UiText.cell(graphics, font, display, x, y, max, UiText.MIN_HEIGHT, color, false);
         if(!display.equals(value))tip(value,x,y-1,max,11);
     }
 

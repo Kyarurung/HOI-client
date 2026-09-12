@@ -85,7 +85,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 }
             };
             button.active=b.enabled()&&pending==0;
-            button.setTooltip(Tooltip.create(Component.literal(b.name()+"\n"+(b.enabled()?b.id().equals("railway")?"인접한 두 프로빈스 좌클릭: 철도 건설·증설 · 우클릭: 예약 취소":"자국 주 좌클릭: 건설 · 우클릭: 선택한 건물의 마지막 건설 예약 취소":b.reason()))));addRenderableWidget(button);
+            button.setTooltip(Tooltip.create(Component.literal(b.name()+"\n"+(b.enabled()?"좌클릭: 건설 · 우클릭: 취소":b.reason()))));addRenderableWidget(button);
         }
         int repair=view.summary().repairPriority();
         for(int direction:new int[]{-1,1}) {
@@ -125,11 +125,10 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
             UiAssets.draw(g,"construction/summary/civilian_factory_repair",pane-123,top+5,18,16);
             HoiMenuStyle.recess(g,pane-78,top+3,29,19);
             String repairCount=Integer.toString(s.repairPriority());
-            dev.hoi.client.ui.UiText.text(g, font,repairCount,pane-64-font.width(repairCount)/2,top+8,HoiMenuStyle.TEXT);
+            dev.hoi.client.ui.UiText.cell(g,font,repairCount,pane-76,top+4,25,17,HoiMenuStyle.TEXT,false);
             HoiMenuStyle.recess(g,6,bodyTop()+24,pane-12,40);
-            UiAssets.draw(g,"construction/summary/civilian_factory",10,bodyTop()+26,19,19);
             int assigned=s.used()+s.repair()+s.consumer()+s.reserved();
-            dev.hoi.client.ui.UiText.text(g, font,assigned+" / "+s.total(),33,bodyTop()+29,assigned==s.total()?0xFF55FF55:0xFFFFAA00);
+            dev.hoi.client.ui.UiText.iconText(g,font,"construction/summary/civilian_factory",assigned+" / "+s.total(),8,bodyTop()+25,pane-16,20,19,assigned==s.total()?0xFF55FF55:0xFFFFAA00);
             UiAssets.draw(g,"construction/speed",10,top+53,12,12);
             long speedPercent=Math.round((s.speed()-1)*100);
             fitted(g,String.format(Locale.ROOT,"%+d%%",speedPercent),24,top+55,pane/2-28,speedPercent>=0?0xFF55FF55:0xFFAA0000);

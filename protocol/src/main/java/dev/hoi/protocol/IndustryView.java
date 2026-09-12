@@ -72,7 +72,13 @@ public record IndustryView(String session, long revision, String country, Countr
     public record Modifier(String id, String name, double value, String detail) {}
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
             double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
-            String replacement, String family, String familyName) {
+            String replacement, String family, String familyName, Long demand) {
+
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,null);
+        }
 
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
@@ -91,7 +97,7 @@ public record IndustryView(String session, long revision, String country, Countr
             if (family != null) text(family,128);
             if (familyName != null) text(familyName,128);
             resources=boundedMap(resources,8);
-            if (!Double.isFinite(cost) || cost <= 0 || factoryLimit < 1 || stockpile < 0 || reserved < 0 || deployed < 0 || deficit < 0)
+            if (!Double.isFinite(cost) || cost <= 0 || factoryLimit < 1 || stockpile < 0 || reserved < 0 || deployed < 0 || deficit < 0 || demand != null && demand < 0)
                 throw new IllegalArgumentException("Invalid equipment amounts");
         }
     }

@@ -32,7 +32,7 @@ final class PoliticsChoiceScreen extends DialogScreen {
             var button = new HoiMenuButton(tile.name(), left + 6, y, pane - 12, 36,
                     () -> DialogClient.choose(view(), tile.section())).caption("");
             button.active = view().choices().stream().anyMatch(c -> c.id().equals(tile.section()));
-            button.setTooltip(tile.name().equals("공석") || tile.icon().equals("politics/vacant") ? null : Tooltip.create(Component.literal(tile.name() + "\n" + tile.detail())));
+            button.setTooltip(tile.name().equals("공석") || tile.icon().equals("politics/vacant") ? null : Tooltip.create(Component.literal(tile.name() + "\n" + tile.detail().replace("적용 중\n", ""))));
             addRenderableWidget(button);
         }
     }
@@ -49,7 +49,8 @@ final class PoliticsChoiceScreen extends DialogScreen {
             UiAssets.draw(g, tile.icon(), left + 9, y + 3, 30, 30);
             int textLeft = left + 43, textWidth = pane - 53;
             dev.hoi.client.ui.UiText.centered(g, font, tile.name(), textLeft, y + 3, textWidth, 13, HoiMenuStyle.TEXT);
-            dev.hoi.client.ui.UiText.centered(g, font, tile.value(), textLeft, y + 20, textWidth, 12, HoiMenuStyle.ACCENT);
+            if (!tile.value().equals("적용 중"))
+                dev.hoi.client.ui.UiText.centered(g, font, tile.value(), textLeft, y + 20, textWidth, 12, HoiMenuStyle.ACCENT);
         }
         if (view().tiles().isEmpty()) dev.hoi.client.ui.UiText.centeredAt(g, font, font.plainSubstrByWidth(view().body(), pane - 12), left + pane / 2, start + 12, HoiMenuStyle.MUTED);
     }
