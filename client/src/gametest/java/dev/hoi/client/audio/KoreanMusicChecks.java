@@ -5,7 +5,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 
 public final class KoreanMusicChecks {
-    public static void run(ClientGameTestContext context) {
+    public static void run(ClientGameTestContext context, dev.hoi.protocol.MenuView menu) {
         double[] previousMusic=new double[1];
         context.runOnClient(client -> {
             previousMusic[0]=client.options.getSoundSourceVolume(net.minecraft.sounds.SoundSource.MUSIC);
@@ -31,7 +31,7 @@ public final class KoreanMusicChecks {
         }
         for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]);
-            context.setScreen(() -> new dev.hoi.client.screen.HoiMenuScreen(dev.hoi.protocol.MenuTab.POLITICS));
+            context.setScreen(() -> new dev.hoi.client.screen.HoiMenuScreen(menu));
             context.waitTicks(3);
             context.runOnClient(client -> {
                 if (client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/hud/music_player.png")).isEmpty())

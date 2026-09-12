@@ -64,7 +64,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         if (!overview) SidebarMovement.release(minecraft);
         clearWidgets(); baseButtons.clear();
         HoiMenuBar.buttons(width, view.country(), MenuTab.RESEARCH, tab -> {
-            if (tab == MenuTab.RESEARCH) { overview = true; detail = null; rebuildWidgets(); }
+            if (tab == MenuTab.RESEARCH) { HoiClient.cancelOpen(); overview = true; detail = null; rebuildWidgets(); }
             else menus.accept(tab);
         }).forEach(this::addRenderableWidget);
         if (overview) { initOverview(); return; }

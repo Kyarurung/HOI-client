@@ -55,16 +55,14 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     private static final String[] POLITICS_NAMES = {"정부", "경제법", "군법", "사회법", "발전도", "군사 참모", "연구 & 생산"};
 
     public HoiMenuScreen(MenuView view) { this(view, MenuTab.POLITICS, HoiClient::open); }
-    public HoiMenuScreen(MenuTab selected) { this(null, selected, HoiClient::open); }
-    static HoiMenuScreen forFocus(String id) {
-        HoiClient.cancelOpen();
-        var screen = new HoiMenuScreen(MenuTab.POLITICS);
+    public static HoiMenuScreen forFocus(MenuView view, String id) {
+        var screen = new HoiMenuScreen(view);
         screen.focusTarget = id;
         return screen;
     }
     public HoiMenuScreen(MenuView view, MenuTab selected, Runnable researchOpen) {
         super(Component.literal("HOI · 국가 메뉴"));
-        this.view = view; this.selected = selected; this.researchOpen = researchOpen;
+        this.view = Objects.requireNonNull(view); this.selected = selected; this.researchOpen = researchOpen;
     }
     public static HoiMenuScreen selection(MenuView view) {
         var screen = new HoiMenuScreen(view);
@@ -78,17 +76,11 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     public String token() { return token; }
     public void update(MenuView next) {
         if (selectionPreview || next.equals(view)) return;
-        if (view != null && !view.country().equals(next.country())) { selected = MenuTab.POLITICS; collapsed.clear(); manufacturerGroup = null; manufacturerDetailId = null; }
+        if (!view.country().equals(next.country())) { selected = MenuTab.POLITICS; collapsed.clear(); manufacturerGroup = null; manufacturerDetailId = null; }
         var old = detail;
-        boolean sameCountry = view != null && view.country().equals(next.country());
+        boolean sameCountry = view.country().equals(next.country());
         view = next;
         if (!sameCountry || next.balance() == null) balanceOpen = false;
-        if (focusTarget != null) {
-            detail = next.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 중점"))
-                    .flatMap(s -> s.entries().stream()).filter(e -> e.detail().lines().findFirst().orElse("").equals(focusTarget))
-                    .findFirst().orElse(null);
-            detailIcon = "research"; detailScroll = 0; focusTarget = null;
-        }
         if (old != null) {
             if (!sameCountry) detail = null;
             else if (manufacturerDetailId != null) detail = next.manufacturers().stream().filter(m -> m.id().equals(manufacturerDetailId)).map(MenuView.Manufacturer::entry).findFirst().orElse(null);
@@ -116,7 +108,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             addRenderableWidget(new HoiMenuButton("×", selectionLeft() + pane - 25, top + 3, 19, 19, this::onClose));
             return;
         }
-        HoiMenuBar.buttons(width, view == null ? "" : view.country(), selected, tab -> {
+        HoiMenuBar.buttons(width, view.country(), selected, tab -> {
             if (tab == MenuTab.INTELLIGENCE) { HoiClient.openAgency(); return; }
             if (tab == MenuTab.DECISIONS && ClientPlayNetworking.canSend(dev.hoi.protocol.DecisionProtocol.Request.TYPE)) { HoiClient.openMenu(tab); return; }
             if (tab == MenuTab.RESEARCH) { researchOpen.run(); return; }
@@ -126,7 +118,12 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             selected = tab; balanceOpen = false; scroll = 0; collapsed.clear(); detail = null; manufacturerGroup = null; manufacturerDetailId = null; rebuildWidgets();
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new HoiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
-        if (view == null) return;
+        if (focusTarget != null) {
+            detail = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 중점"))
+                    .flatMap(s -> s.entries().stream()).filter(e -> e.detail().lines().findFirst().orElse("").equals(focusTarget))
+                    .findFirst().orElse(null);
+            detailIcon = "research"; detailScroll = 0; focusTarget = null;
+        }
         if (selected == MenuTab.POLITICS) {
             for (int i = 0; i < 2; i++) {
                 var box = politicsLayout().status(i);
@@ -535,14 +532,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             drawPoliticsTooltip(g, mx - selectionLeft(), my, mx);
             return;
         }
-        HoiMenuBar.draw(g, width, view == null ? dev.hoi.protocol.CountryHud.UNKNOWN : view.hud(), mx, my, hudScroll);
+        HoiMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
         HoiMenuStyle.panel(g, 0, top, pane, height - top);
         HoiMenuStyle.heading(g, font, trim(selected == MenuTab.POLITICS ? "정치" : selected.label(), pane - 44), 10, top + 9, pane - 44, TEXT);
-        if (view == null) {
-            dev.hoi.client.ui.UiText.text(g, font, trim("서버 정보 불러오는 중…", pane - 20), 10, top + 40, MUTED);
-            super.extractRenderState(g, mx, my, delta);
-            return;
-        }
         if (selected == MenuTab.POLITICS) drawPoliticsBanner(g);
         if (selected == MenuTab.INTELLIGENCE) {
             HoiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);
@@ -619,12 +611,12 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         }
     }
     PoliticsLayout politicsLayout() { return new PoliticsLayout(pane, top); }
-    CountryHud hud() { return view == null ? CountryHud.UNKNOWN : view.hud(); }
+    CountryHud hud() { return view.hud(); }
     int spiritPitch() { return Math.max(18, politicsLayout().spirits().height() - 5); }
     private int maximumSpiritScroll() { return Math.max(0, spirits.size() * spiritPitch() - (politicsLayout().spirits().width() - 8)); }
     private int spiritStart() { return politicsLayout().spirits().x() + 4; }
     MenuView.Entry politicsHover(double x, double y) {
-        if (view == null || selected != MenuTab.POLITICS || detail != null || manufacturerGroup != null) return null;
+        if (selected != MenuTab.POLITICS || detail != null || manufacturerGroup != null) return null;
         var layout = politicsLayout();
         if (layout.leader().contains(x, y)) {
             var leader = politicsEntry("지도자");
@@ -715,7 +707,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             } else if (politicsHover(x, y) != null) tooltipScroll -= (int)(vertical * 3);
             return true;
         }
-        if (view != null && selected == MenuTab.POLITICS && detail == null && manufacturerGroup == null && politicsLayout().parties().contains(x, y)) {
+        if (selected == MenuTab.POLITICS && detail == null && manufacturerGroup == null && politicsLayout().parties().contains(x, y)) {
 
             return true;
         }
@@ -723,13 +715,13 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
                 || com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT))) {
             tooltipScroll -= (int)(vertical * 3); return true;
         }
-        if (view != null && selected == MenuTab.POLITICS && detail == null && manufacturerGroup == null
+        if (selected == MenuTab.POLITICS && detail == null && manufacturerGroup == null
                 && politicsLayout().spirits().contains(x, y)) {
             spiritScroll = Math.clamp(spiritScroll - (int)((horizontal != 0 ? horizontal : vertical) * spiritPitch()), 0, maximumSpiritScroll());
             return true;
         }
         if (x >= 40 && x < HoiMenuBar.statsRight(width) && y >= 0 && y < HoiMenuBar.STATS_HEIGHT) {
-            hudScroll = HoiMenuBar.scroll(width, view == null ? dev.hoi.protocol.CountryHud.UNKNOWN : view.hud(), hudScroll, horizontal, vertical);
+            hudScroll = HoiMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical);
             return true;
         }
         if (detail != null) { detailScroll -= (int)(vertical * 26); return true; }
@@ -751,7 +743,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         if (allowsMovement() && SidebarMovement.consumes(minecraft, event)) return true;
         return super.keyReleased(event);
     }
-    @Override public void removed() { SidebarMovement.release(minecraft); HoiClient.cancelOpen(); }
+    @Override public void removed() { SidebarMovement.release(minecraft); if (!DialogClient.suspending()) HoiClient.cancelOpen(); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private String trim(String text, int max) { return font.width(text) <= max ? text : font.plainSubstrByWidth(text, Math.max(1, max - 9)) + "…"; }

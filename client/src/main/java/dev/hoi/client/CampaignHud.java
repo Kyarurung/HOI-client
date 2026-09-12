@@ -22,6 +22,7 @@ public final class CampaignHud {
     public static void draw(net.minecraft.client.gui.GuiGraphicsExtractor g) {
         if (visible()) HoiMenuBar.drawPassive(g, g.guiWidth(), hud, country);
     }
+    public static String country() { return country; }
     public static boolean visible() { return !country.isEmpty(); }
     public static void register() {
         HudProtocol.registerPayloadTypes();

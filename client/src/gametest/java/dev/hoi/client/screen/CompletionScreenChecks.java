@@ -53,12 +53,12 @@ public final class CompletionScreenChecks {
                     check(c.gui.screen() == null, "Revoked completion cannot navigate to private details");
                     DialogClient.receive(DialogProtocol.Show.of(view, true));
                     DialogClient.details(new DialogProtocol.Details(view.token(), "focus/hoi:focus/political_effort"));
-                    check(c.gui.screen() instanceof HoiMenuScreen, "Confirmed focus details open the country menu");
-                    var menu = (HoiMenuScreen)c.gui.screen();
+                    check(c.gui.screen() == null, "Confirmed focus details never fabricate a menu without a server snapshot");
                     var entry = new MenuView.Entry("정치적 노력", "완료", "hoi:focus/political_effort\n완료한 중점");
                     var pages = MenuTab.ORDER.stream().map(t -> new MenuView.Page(t, List.of(new MenuView.Section(
                             t == MenuTab.POLITICS ? "국가 중점" : t.label(), "research", t == MenuTab.POLITICS ? List.of(entry) : List.of())))).toList();
-                    menu.update(new MenuView("KOR", "대한민국", "2020-01-01", "PAUSED", pages));
+                    var menu = HoiMenuScreen.forFocus(new MenuView("KOR", "대한민국", "2020-01-01", "PAUSED", pages), "hoi:focus/political_effort");
+                    c.gui.setScreen(menu);
                     check(!menu.allowsMovement(), "Completed focus entry opens directly in its detail panel");
                 });
             }

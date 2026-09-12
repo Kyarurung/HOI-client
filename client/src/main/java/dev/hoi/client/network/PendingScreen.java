@@ -2,7 +2,7 @@ package dev.hoi.client.network;
 
 import java.util.UUID;
 
-final class PendingResearch {
+final class PendingScreen {
     private String token = "", target;
     private int ticks;
     String begin() { clear(); token = UUID.randomUUID().toString(); ticks = 100; return token; }

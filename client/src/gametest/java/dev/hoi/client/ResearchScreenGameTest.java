@@ -79,11 +79,11 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 client.player.getInventory().setSelectedSlot(0);
             });
             context.setScreen(() -> null); context.waitTicks(3); gui2Screenshot(context, "hoi-map-selector-icons");
-            dev.hoi.client.audio.KoreanMusicChecks.run(context);
+            var menu = fixtureMenu();
+            dev.hoi.client.audio.KoreanMusicChecks.run(context, menu);
             dev.hoi.client.audio.MusicRoutingChecks.run(context);
             dev.hoi.client.audio.UnitAudioChecks.run(context);
             dev.hoi.client.map.UnitHudChecks.run(context);
-            var menu = fixtureMenu();
             dev.hoi.client.screen.SelectionPreviewChecks.run(context, menu);
             context.runOnClient(client -> CampaignHud.accept(HudProtocol.State.of("KOR",menu.hud())));
             context.setScreen(() -> null); context.waitTicks(3); context.takeScreenshot("hoi-persistent-country-hud");
@@ -273,13 +273,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             });
             click(context, "연구 메뉴");
             context.runOnClient(client -> checkToolbar(client.gui.screen()));
-            context.setScreen(() -> new HoiMenuScreen(MenuTab.LOGISTICS));
-            context.waitTicks(2); context.takeScreenshot("hoi-menu-loading");
-            context.runOnClient(client -> {
-                var screen = (HoiMenuScreen)client.gui.screen(); checkToolbar(screen);
-                screen.update(menu);
-                check(screen.selectedTab() == MenuTab.LOGISTICS, "Fresh authenticated menu retains the requested tab");
-            });
+            dev.hoi.client.network.MenuTransitionChecks.run(context, menu);
             var six = new ResearchView(view.session(), view.revision(), view.country(), view.countryName(), view.day(), view.date(), view.speed(),
                     java.util.stream.IntStream.range(0, 6).mapToObj(i -> new ResearchView.Slot(i, "", 0)).toList(), List.of(), view.message());
             context.getInput().resizeWindow(854, 480); context.waitTicks(2);

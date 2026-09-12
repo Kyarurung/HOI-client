@@ -19,7 +19,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 public final class ScreenNetworking {
-    private static final PendingResearch pendingResearch = new PendingResearch();
+    private static final PendingScreen pendingResearch = new PendingScreen();
+    private static final PendingScreen pendingMenu = new PendingScreen();
+    private static dev.hoi.protocol.MenuTab pendingTab;
+    private static net.minecraft.client.gui.screens.Screen menuOrigin;
+    private static String menuCountry = "", menuToken = "";
+    private static int menuRetryTicks;
     public static void register() {
         ResearchProtocol.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.FocusProtocol.Response.TYPE, (packet, context) -> {
@@ -41,6 +46,14 @@ public final class ScreenNetworking {
         });
         dev.hoi.protocol.IndustryProtocol.registerPayloadTypes();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (pendingMenu.waiting()) {
+                if (!menuContextValid()) cancelOpen();
+                else if (pendingMenu.tick()) { cancelOpen(); message("국가 메뉴 응답이 없습니다. 다시 열어주세요."); }
+                else if (++menuRetryTicks >= 20 && ClientPlayNetworking.canSend(MenuProtocol.Refresh.TYPE)) {
+                    menuRetryTicks = 0;
+                    ClientPlayNetworking.send(new MenuProtocol.Refresh(menuToken));
+                }
+            }
             if (pendingResearch.tick()) message("연구 화면 응답이 없습니다. 다시 열어주세요.");
         });
         ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.OpenScreen.TYPE, (packet, context) -> open());
@@ -68,12 +81,7 @@ public final class ScreenNetworking {
                 catch (IllegalArgumentException error) { context.client().gui.setScreen(null); message("국가 정보를 읽을 수 없습니다."); }
             }
         });
-        ClientPlayNetworking.registerGlobalReceiver(MenuProtocol.Update.TYPE, (packet, context) -> {
-            if (!(DialogClient.contentScreen() instanceof HoiMenuScreen menu) || menu.selectionPreview() || !menu.token().equals(packet.screen())) return;
-            if (packet.json().isEmpty()) { context.client().gui.setScreen(null); return; }
-            try { menu.update(new MenuProtocol.OpenScreen(packet.json()).view()); }
-            catch (RuntimeException error) { message("HOI 메뉴 갱신 데이터를 읽을 수 없습니다."); }
-        });
+        ClientPlayNetworking.registerGlobalReceiver(MenuProtocol.Update.TYPE, (packet, context) -> receiveMenu(packet));
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ConstructionProtocol.Response.TYPE, (packet, context) -> {
             if(DialogClient.contentScreen() instanceof ConstructionScreen screen) {
                 try {screen.update(packet.view());} catch(IllegalArgumentException e){message("건설 데이터를 읽을 수 없습니다.");}
@@ -122,16 +130,55 @@ public final class ScreenNetworking {
         });
     }
     public static void open() {
-        if (pendingResearch.waiting() || Minecraft.getInstance().gui.screen() instanceof ResearchScreen) return;
+        if (pendingResearch.waiting() || DialogClient.contentScreen() instanceof ResearchScreen) return;
         if (!ClientPlayNetworking.canSend(ResearchProtocol.Request.TYPE)) { message("이 서버는 HOI 연구 UI를 지원하지 않습니다."); return; }
+        cancelOpen();
         send(new ResearchProtocol.Request(ResearchProtocol.Action.OPEN, pendingResearch.begin(), 0, -1, ""));
     }
     public static void openResearchDetail(String id) {
         cancelOpen();
+        if (DialogClient.contentScreen() instanceof ResearchScreen screen) { screen.showDetail(id); return; }
         open();
         if (pendingResearch.waiting()) pendingResearch.target(id);
     }
-    public static void cancelOpen() { pendingResearch.clear(); }
+    public static void cancelOpen() {
+        pendingResearch.clear(); pendingMenu.clear(); pendingTab = null; menuOrigin = null;
+        menuCountry = ""; menuToken = ""; menuRetryTicks = 0;
+    }
+    static MenuProtocol.Refresh beginMenu(dev.hoi.protocol.MenuTab tab) {
+        cancelOpen();
+        pendingTab = tab; menuOrigin = DialogClient.contentScreen(); menuCountry = CampaignHud.country();
+        menuToken = pendingMenu.begin();
+        return new MenuProtocol.Refresh(menuToken);
+    }
+    private static boolean menuContextValid() {
+        return CampaignHud.visible() && menuCountry.equals(CampaignHud.country()) && menuOrigin == DialogClient.contentScreen();
+    }
+    static void receiveMenu(MenuProtocol.Update packet) {
+        if (pendingMenu.matches(packet.screen())) {
+            boolean valid = menuContextValid();
+            var tab = pendingTab;
+            String country = menuCountry, target = pendingMenu.target();
+            cancelOpen();
+            if (!valid) return;
+            if (packet.json().isEmpty()) { Minecraft.getInstance().gui.setScreen(null); return; }
+            try {
+                var view = new MenuProtocol.OpenScreen(packet.json()).view();
+                if (!country.equals(view.country())) return;
+                var screen = target == null ? new HoiMenuScreen(view, tab, dev.hoi.client.HoiClient::open) : HoiMenuScreen.forFocus(view, target);
+                Minecraft.getInstance().gui.setScreen(screen);
+            } catch (IllegalArgumentException error) { message("HOI 메뉴 데이터를 읽을 수 없습니다."); }
+            return;
+        }
+        if (!(DialogClient.contentScreen() instanceof HoiMenuScreen menu) || menu.selectionPreview() || !menu.token().equals(packet.screen())) return;
+        if (packet.json().isEmpty()) { cancelOpen(); Minecraft.getInstance().gui.setScreen(null); return; }
+        try { menu.update(new MenuProtocol.OpenScreen(packet.json()).view()); }
+        catch (RuntimeException error) { message("HOI 메뉴 갱신 데이터를 읽을 수 없습니다."); }
+    }
+    public static void openFocusDetail(String id) {
+        openMenu(dev.hoi.protocol.MenuTab.POLITICS);
+        if (pendingMenu.waiting()) pendingMenu.target(id);
+    }
     public static void openCountry(String target) {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.CountryProtocol.Request.TYPE)) { message("이 서버는 외국 정보 UI를 지원하지 않습니다."); return; }
         cancelOpen(); Minecraft.getInstance().gui.setScreen(new CountryScreen(target));
@@ -154,6 +201,7 @@ public final class ScreenNetworking {
     }
     public static void openMenu(dev.hoi.protocol.MenuTab tab) {
         if (!CampaignHud.visible()) return;
+        if (tab == dev.hoi.protocol.MenuTab.RESEARCH) { open(); return; }
         if (tab == dev.hoi.protocol.MenuTab.INTELLIGENCE) { openAgency(); return; }
         if (tab == dev.hoi.protocol.MenuTab.DECISIONS && ClientPlayNetworking.canSend(dev.hoi.protocol.DecisionProtocol.Request.TYPE)) {
             cancelOpen(); Minecraft.getInstance().gui.setScreen(new dev.hoi.client.screen.DecisionScreen()); return;
@@ -161,10 +209,8 @@ public final class ScreenNetworking {
         if (IndustryScreen.supports(tab)) { openIndustry(tab); return; }
         if(tab==dev.hoi.protocol.MenuTab.CONSTRUCTION){openConstruction();return;}
         if (!ClientPlayNetworking.canSend(MenuProtocol.Refresh.TYPE)) { message("이 서버는 HOI 국가 메뉴를 지원하지 않습니다."); return; }
-        cancelOpen();
-        var screen = new HoiMenuScreen(tab);
-        Minecraft.getInstance().gui.setScreen(screen);
-        ClientPlayNetworking.send(new MenuProtocol.Refresh(screen.token()));
+        if (pendingMenu.waiting() && pendingTab == tab && menuContextValid()) return;
+        ClientPlayNetworking.send(beginMenu(tab));
     }
     public static void send(ResearchProtocol.Request request) {
         if (Minecraft.getInstance().getConnection() != null && ClientPlayNetworking.canSend(ResearchProtocol.Request.TYPE)) ClientPlayNetworking.send(request);

@@ -77,7 +77,7 @@ public final class DialogClient {
         close(packet.token());
         String id = packet.target().substring(packet.target().indexOf('/') + 1);
         if (packet.target().startsWith("research/")) HoiClient.openResearchDetail(id);
-        else Minecraft.getInstance().gui.setScreen(HoiMenuScreen.forFocus(id));
+        else dev.hoi.client.network.ScreenNetworking.openFocusDetail(id);
     }
     private static void show(DialogView view) {
         pending.remove(view.token());
