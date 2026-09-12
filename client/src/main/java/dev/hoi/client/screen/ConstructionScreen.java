@@ -61,7 +61,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new HoiMenuButton("×",pane-25,top+3,19,19,this::onClose));
         if(view==null)return;
-        int icon=paletteSize(),x=paletteX(),y=top+72;
+        int icon=paletteSize(),x=paletteX(),y=top+54;
         var entries=new ArrayList<PaletteEntry>();
         var dividers=new ArrayList<Integer>();
         int offset=0;
@@ -106,12 +106,11 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
             }
         }
     }
-    private int bodyTop(){return top+5;}
+
     private int paletteSize(){return Math.min(29,Math.max(19,(height-top-137)/10-3));}
     private int paletteX(){return pane-2*(paletteSize()+2)-6;}
-    private int queueY(){return top+120;}
-    private int rowHeight(){return 55;}
-    private String trim(String s,int width){return font.width(s)<=width?s:font.plainSubstrByWidth(s,Math.max(1,width-8))+"…";}
+    private int queueY(){return top+98;}
+    private int rowHeight(){return 29;}
     private String buildingName(String id) {
         return view.buildings().stream().filter(b->b.id().equals(id)).map(Building::name).findFirst().orElse(id);
     }
@@ -119,33 +118,33 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
         consumerTooltip=false;
         HoiMenuStyle.panel(g,0,top,pane,height-top);
         HoiMenuStyle.heading(g, font,"건설",9,top+8, pane - 44,HoiMenuStyle.TEXT);
+        HoiMenuBar.draw(g,width,view == null ? dev.hoi.client.CampaignHud.hud() : view.hud(),mx,my,hudScroll);
         if(view!=null) {
-            HoiMenuBar.draw(g,width,view.hud(),mx,my,hudScroll);
             var s=view.summary();int q=paletteX()-5;
             UiAssets.draw(g,"construction/summary/civilian_factory_repair",pane-123,top+5,18,16);
             HoiMenuStyle.recess(g,pane-78,top+3,29,19);
             String repairCount=Integer.toString(s.repairPriority());
             dev.hoi.client.ui.UiText.cell(g,font,repairCount,pane-76,top+4,25,17,HoiMenuStyle.TEXT,false);
-            HoiMenuStyle.recess(g,6,bodyTop()+24,pane-12,40);
+            int cell=(q-6)/3;
+            HoiMenuStyle.recess(g,6,top+27,q-6,25);
             int assigned=s.used()+s.repair()+s.consumer()+s.reserved();
-            dev.hoi.client.ui.UiText.iconText(g,font,"construction/summary/civilian_factory",assigned+" / "+s.total(),8,bodyTop()+25,pane-16,20,19,assigned==s.total()?0xFF55FF55:0xFFFFAA00);
-            UiAssets.draw(g,"construction/speed",10,top+53,12,12);
+            dev.hoi.client.ui.UiText.iconText(g,font,"construction/summary/civilian_factory",assigned+"/"+s.total(),7,top+28,cell-1,22,13,assigned==s.total()?0xFF55FF55:0xFFFFAA00);
             long speedPercent=Math.round((s.speed()-1)*100);
-            fitted(g,String.format(Locale.ROOT,"%+d%%",speedPercent),24,top+55,pane/2-28,speedPercent>=0?0xFF55FF55:0xFFAA0000);
+            dev.hoi.client.ui.UiText.iconText(g,font,"construction/speed",String.format(Locale.ROOT,"%+d%%",speedPercent),6+cell,top+28,cell,22,12,speedPercent>=0?0xFF55FF55:0xFFAA0000);
             double energyBalance=s.energy()-s.demand();
-            String energy=HoiMenuBar.rawNumber(energyBalance);
-            UiAssets.draw(g,energyBalance<0?"construction/energy_deficit":"construction/energy",pane/2,top+53,12,12);
-            fitted(g,energy,pane/2+14,top+55,pane/2-22,energyBalance>=0?0xFF55FF55:0xFFAA0000);
-            HoiMenuStyle.metal(g,6,top+72,q-6,21);
-            UiAssets.draw(g,"construction/consumer_goods",10,top+73,19,19);
-            dev.hoi.client.ui.UiText.text(g, font,"소비재",33,top+78,HoiMenuStyle.TEXT);
-            dev.hoi.client.ui.UiText.text(g, font,Integer.toString(s.consumer()),q-22,top+78,HoiMenuStyle.TEXT);
-            HoiMenuStyle.metal(g,6,top+96,q-6,21);
-            dev.hoi.client.ui.UiText.text(g, font,"무역 상품",10,top+102,HoiMenuStyle.TEXT);
-            dev.hoi.client.ui.UiText.text(g, font,s.tradeGoods()==null?"—":s.tradeGoods().toString(),q-22,top+102,HoiMenuStyle.TEXT);
+            dev.hoi.client.ui.UiText.iconText(g,font,energyBalance<0?"construction/energy_deficit":"construction/energy",HoiMenuBar.rawNumber(energyBalance),6+cell*2,top+28,q-6-cell*2,22,12,energyBalance>=0?0xFF55FF55:0xFFAA0000);
+            HoiMenuStyle.metal(g,6,top+54,q-6,18);
+            dev.hoi.client.ui.UiText.cell(g,font,"위치",8,top+55,Math.max(24,q-133),16,HoiMenuStyle.TEXT,false);
+            dev.hoi.client.ui.UiText.cell(g,font,"작업",q-123,top+55,24,16,HoiMenuStyle.TEXT,false);
+            UiAssets.draw(g,"construction/summary/civilian_factory",q-94,top+56,13,13);
+            dev.hoi.client.ui.UiText.cell(g,font,"우선순위",q-58,top+55,55,16,HoiMenuStyle.TEXT,false);
+            HoiMenuStyle.metal(g,6,top+75,q-6,21);
+            UiAssets.draw(g,"construction/consumer_goods",10,top+76,19,19);
+            dev.hoi.client.ui.UiText.text(g,font,"소비재",33,top+81,HoiMenuStyle.TEXT);
+            dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(s.consumer()),q-94,top+77,35,17,HoiMenuStyle.TEXT,false);
             for(int divider:paletteDividers) {
-                int y=top+72+divider-paletteScroll;
-                if(y>=top+72&&y+1<height-30) {
+                int y=top+54+divider-paletteScroll;
+                if(y>=top+54&&y+1<height-30) {
                     g.horizontalLine(paletteX(),pane-7,y,0xFF0B0D0F);
                     g.horizontalLine(paletteX(),pane-7,y+1,0xFF55595D);
                 }
@@ -154,31 +153,29 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 var p=view.projects().get(i);int y=queueY()+i*rowHeight()-scroll;
                 if(y<queueY()||y+rowHeight()>height-30)continue;
                 HoiMenuStyle.metal(g,6,y,q-6,rowHeight()-3);
-                UiAssets.draw(g,"construction/"+p.building(),10,y+7,23,23);
-                dev.hoi.client.ui.UiText.text(g, font,trim(p.name(),q-46),38,y+7,HoiMenuStyle.TEXT);
-                dev.hoi.client.ui.UiText.text(g, font,trim(p.factories()+" / 15",q-44),38,y+20,HoiMenuStyle.MUTED);
-                int bw=Math.max(15,q-79);g.fill(10,y+38,10+bw,y+43,0xFF101511);
-                g.fill(10,y+38,10+(int)(bw*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1)),y+43,0xFF79945A);
-                if(mx>=6&&mx<q&&my>=y&&my<y+31)HoiTooltips.draw(g,font,p.name()+" · "+buildingName(p.building())+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.1f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"),mx,my);
+                dev.hoi.client.ui.UiText.cell(g,font,p.name(),10,y+4,Math.max(24,q-139),20,HoiMenuStyle.TEXT,false);
+                UiAssets.draw(g,"construction/"+p.building(),q-124,y+2,23,23);
+                dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",q-99,y+1,36,17,HoiMenuStyle.TEXT,false);
+                g.fill(q-96,y+19,q-65,y+23,0xFF101511);
+                g.fill(q-96,y+19,q-96+(int)(31*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1)),y+23,0xFF79945A);
+                if(mx>=6&&mx<q&&my>=y&&my<y+rowHeight()-3)HoiTooltips.draw(g,font,p.name()+" · "+buildingName(p.building())+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.1f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"),mx,my);
             }
             if(mx>=pane-123&&mx<pane-27&&my>=top+3&&my<top+23)HoiTooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
-            if(mx>=6&&mx<pane-6&&my>=bodyTop()+24&&my<top+52)HoiTooltips.draw(g,font,"민간공장 "+s.total()+"\n소비재 "+s.consumer()+" · 무역/기관 예약 "+s.reserved()+"\n건설 "+s.used()+" · 수리 "+s.repair()+" · 미사용 "+s.idle(),mx,my);
-            if(my>=top+52&&my<top+68&&mx>=6&&mx<pane-6)HoiTooltips.draw(g,font,mx<pane/2?calculation(s.speedCalculation(),"건설 속도"):calculation(s.energyCalculation(),"사용 가능한 에너지"),mx,my);
-            if(mx>=6&&mx<q&&my>=top+72&&my<top+93) {
+            if(mx>=6&&mx<q&&my>=top+27&&my<top+52) {
+                int column=Math.min(2,(mx-6)/cell);
+                String detail=column==0?"민간공장 "+assigned+"/"+s.total()+"\n소비재 "+s.consumer()+" · 무역/기관 예약 "+s.reserved()+"\n건설 "+s.used()+" · 수리 "+s.repair()+" · 미사용 "+s.idle()+"\n무역 상품 "+(s.tradeGoods()==null?"—":s.tradeGoods()):column==1?calculation(s.speedCalculation(),"건설 속도"):calculation(s.energyCalculation(),"사용 가능한 에너지");
+                HoiTooltips.draw(g,font,detail,mx,my);
+            }
+            if(mx>=6&&mx<q&&my>=top+75&&my<top+96) {
                 consumerTooltip=true;
                 HoiTooltips.draw(g,font,calculation(s.consumerCalculation(),"소비재"),mx,my);
                 consumerTooltip=false;
             }
-            if(mx>=6&&mx<q&&my>=top+96&&my<top+117)HoiTooltips.draw(g,font,"무역 상품\n자원 수입 대가로 배정된 민간공장: "+(s.tradeGoods()==null?"—":s.tradeGoods())+"\n기관 개선·작전 예약 공장은 포함하지 않습니다.",mx,my);
         } else dev.hoi.client.ui.UiText.text(g, font,"건설 현황을 불러오는 중…",10,top+40,HoiMenuStyle.MUTED);
         super.extractRenderState(g,mx,my,delta);
     }
     private String calculation(String explanation,String label) {
         return explanation==null||explanation.isBlank()?label+"\n계산 내역이 제공되지 않았습니다.":explanation;
-    }
-    private void fitted(GuiGraphicsExtractor g,String value,int x,int y,int max,int color) {
-        float scale=1f; value=font.plainSubstrByWidth(value, Math.max(1,(int)(max/dev.hoi.client.ui.UiText.scale(font))));
-        g.pose().pushMatrix();g.pose().translate(x,y);g.pose().scale(scale);dev.hoi.client.ui.UiText.text(g, font,value,0,0,color);g.pose().popMatrix();
     }
     private void send(ConstructionProtocol.Action action,String item,int amount,Vector3f ray) {
         if(pending>0&&action!=ConstructionProtocol.Action.CLOSE)return;

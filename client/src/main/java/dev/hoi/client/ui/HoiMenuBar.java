@@ -56,7 +56,12 @@ public final class HoiMenuBar {
         }
     }
 
+    public static CountryHud snapshot(CountryHud supplied) {
+        return supplied == null || supplied.equals(CountryHud.UNKNOWN) ? dev.hoi.client.CampaignHud.hud() : supplied;
+    }
+
     public static List<Indicator> indicators(CountryHud hud) {
+        hud = snapshot(hud);
         if (hud == cachedHud) return cachedIndicators;
         var n = hud.national();
         var items = new ArrayList<>(List.of(
@@ -65,7 +70,7 @@ public final class HoiMenuBar {
                 new Indicator("war_support", "전쟁 지지도", n.warSupport(), Format.PERCENT),
                 new Indicator("manpower", "인력", n.manpower(), Format.NUMBER),
                 new Indicator("factories", "공장", n.factories(), Format.NUMBER, "에너지", n.energyRatio()),
-                new Indicator("fuel", "연료", n.fuel(), Format.NUMBER),
+                new Indicator("fuel", "연료", n.fuel(), Format.NUMBER, "연료 비축", n.fuelRatio()),
                 new Indicator("supplies", "보급", n.supplyEfficiency(), Format.PERCENT, "보급 효율", n.supplyEfficiency()),
                 new Indicator("convoys", "수송", n.convoys(), Format.NUMBER, "수송 효율", n.transportEfficiency()),
                 new Indicator("command_power", "지휘력", n.commandPower(), Format.COMMAND_POWER),
@@ -91,6 +96,7 @@ public final class HoiMenuBar {
 
     public static void draw(GuiGraphicsExtractor g, int width, CountryHud hud, int mx, int my, int offset) {
         if (dev.hoi.client.screen.DialogClient.renderingContent()) return;
+        hud = snapshot(hud);
         int dock = dockWidth(width), h = height(width);
         HoiMenuStyle.metal(g, 0, 0, width, STATS_HEIGHT + 1);
         HoiMenuStyle.metal(g, 0, STATS_HEIGHT, dock, h - STATS_HEIGHT);
@@ -193,7 +199,7 @@ public final class HoiMenuBar {
 
     static int indicatorColor(Indicator item) {
         if (item.icon().equals("supplies")) return item.raw() != null && item.raw().doubleValue() < 1 ? 0xFFAA0000 : 0xFFFFFFFF;
-        return item.icon().equals("gdp") ? 0xFF94BA8A : item.icon().equals("debt") ? 0xFFCB9292 : HoiMenuStyle.TEXT;
+        return item.icon().equals("gdp") ? EffectColors.GOOD : item.icon().equals("debt") ? EffectColors.BAD : HoiMenuStyle.TEXT;
     }
 
     public static List<Button> buttons(int width, String country, MenuTab selected, Consumer<MenuTab> select) {
@@ -237,6 +243,13 @@ public final class HoiMenuBar {
             drawTab(g, tab, country, selected, x, y, w, h);
         }
     }
+    public static void drawFlag(GuiGraphicsExtractor g, String country, int x, int y, int w, int h) {
+        HoiMenuStyle.metal(g, x, y, w, h);
+        String texture = flagTexture(country);
+        if (texture.isEmpty()) g.fill(x + 2, y + 2, x + w - 2, y + h - 2, 0xFF4B5257);
+        else UiAssets.draw(g, texture, x + w * 8 / 98, y + h * 7 / 67, w * 82 / 98, h * 52 / 67);
+        UiAssets.draw(g, "menu/flag_overlay", x, y, w, h);
+    }
     private static void drawTab(GuiGraphicsExtractor g, MenuTab tab, String country, boolean selected, int x, int y, int w, int h) {
         if (dev.hoi.client.screen.DialogClient.renderingContent()) return;
             var font = Minecraft.getInstance().font;
@@ -244,13 +257,9 @@ public final class HoiMenuBar {
             if (selected) g.fillGradient(x, y, x + w, y + h, 0xFF454B4C, 0xFF202526);
             String texture = tab == MenuTab.POLITICS ? flagTexture(country) : "menu/" + tab.id();
             boolean flag = tab == MenuTab.POLITICS;
-            if (flag) HoiMenuStyle.metal(g, x, y, w, h);
-            int artX = flag ? x + w * 8 / 98 : x, artY = flag ? y + h * 7 / 67 : y;
-            int artW = flag ? w * 82 / 98 : w, artH = flag ? h * 52 / 67 : h;
-            if (texture.isEmpty()) g.fill(x + 2, y + 2, x + w - 2, y + h - 2, 0xFF4B5257);
-            else if (!UiAssets.draw(g, texture, artX, artY, artW, artH) && !flag)
+            if (flag) drawFlag(g, country, x, y, w, h);
+            else if (!UiAssets.draw(g, texture, x, y, w, h))
                 g.centeredText(font, "◇", x + w / 2, y + (h - 8) / 2, HoiMenuStyle.ACCENT);
-            if (flag) UiAssets.draw(g, "menu/flag_overlay", x, y, w, h);
             if (selected) {
                 g.horizontalLine(x + 2, x + w - 3, y + h - 1, HoiMenuStyle.ACCENT);
             }

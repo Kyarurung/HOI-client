@@ -23,6 +23,7 @@ public final class CampaignHud {
         if (visible()) HoiMenuBar.drawPassive(g, g.guiWidth(), hud, country);
     }
     public static String country() { return country; }
+    public static CountryHud hud() { return hud; }
     public static boolean visible() { return !country.isEmpty(); }
     public static void register() {
         HudProtocol.registerPayloadTypes();

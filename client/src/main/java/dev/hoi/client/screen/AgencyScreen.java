@@ -372,7 +372,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         HoiMenuStyle.panel(g, 0, top, pane, height - top);
-        HoiMenuBar.draw(g, width, parent instanceof HoiMenuScreen menu ? menu.hud() : CountryHud.UNKNOWN, mx, my, 0);
+        HoiMenuBar.draw(g, width, dev.hoi.client.CampaignHud.hud(), mx, my, 0);
         HoiMenuStyle.heading(g, font, "정보기관", 10, top + 9, pane - 44, HoiMenuStyle.TEXT);
         if (unestablished()) { drawUnestablished(g); super.extractRenderState(g,mx,my,delta); return; }
         String flag = view == null ? "menu/intelligence" : view.country().equals("KOR") ? "country/kor/intelligence" : "menu/intelligence";

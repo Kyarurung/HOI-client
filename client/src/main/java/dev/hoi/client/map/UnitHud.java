@@ -22,7 +22,7 @@ import java.math.RoundingMode;
 import java.util.*;
 
 public final class UnitHud {
-    private static final int WIDTH=60, HEIGHT=16;
+    private static final int WIDTH=52, HEIGHT=16;
     private static List<List<Counter>> groups=List.of();
     private static String dimension="";
     private static int age;
@@ -99,13 +99,13 @@ public final class UnitHud {
     private static void counter(GuiGraphicsExtractor g,Box box) {
         var c=box.counter();int x=box.x(),y=box.y();
         g.fill(x,y,x+WIDTH,y+HEIGHT,0xED14242C);g.outline(x,y,WIDTH,HEIGHT,0xFF546871);
-        g.fill(x+36,y+2,x+WIDTH-2,y+HEIGHT-2,0xEE080C0F);
-        UiAssets.draw(g,HoiMenuBar.flagTexture(c.country()),x+2,y+2,14,8);
-        UiAssets.draw(g,"production/units/"+c.type(),x+18,y+1,16,10);
-        g.fill(x+2,y+11,x+34,y+13,0xFF131910);g.fill(x+2,y+11,x+2+(int)(32*c.organization()),y+13,0xFF65B647);
-        g.fill(x+2,y+13,x+34,y+15,0xFF191509);g.fill(x+2,y+13,x+2+(int)(32*c.strength()),y+15,0xFFE0AD39);
+        g.fill(x+32,y+2,x+WIDTH-2,y+HEIGHT-2,0xEE080C0F);
+        UiAssets.draw(g,HoiMenuBar.flagTexture(c.country()),x+2,y+1,14,10);
+        UiAssets.draw(g,"production/units/"+c.type(),x+18,y+1,12,10);
+        g.fill(x+2,y+11,x+30,y+13,0xFF131910);g.fill(x+2,y+11,x+2+(int)(28*c.organization()),y+13,0xFF65B647);
+        g.fill(x+2,y+13,x+30,y+15,0xFF191509);g.fill(x+2,y+13,x+2+(int)(28*c.strength()),y+15,0xFFE0AD39);
         String count=c.count()<1000?Integer.toString(c.count()):decimal(c.count()/(c.count()<1_000_000?1000.0:1_000_000.0))+(c.count()<1_000_000?"K":"M");
-        UiText.centered(g,Minecraft.getInstance().font,count,x+36,y+2,WIDTH-38,HEIGHT-4,0xFFFFFFFF);
+        UiText.centered(g,Minecraft.getInstance().font,count,x+32,y+2,WIDTH-34,HEIGHT-4,0xFFFFFFFF);
     }
     private static String decimal(double value){return BigDecimal.valueOf(value).setScale(1,RoundingMode.DOWN).stripTrailingZeros().toPlainString();}
     private static void tooltip(GuiGraphicsExtractor g,int mx,int my) {

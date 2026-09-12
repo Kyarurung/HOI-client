@@ -41,6 +41,11 @@ public final class UnitHudChecks {
             if(UnitHud.boxes().stream().noneMatch(b->b.counter().type().equals("infantry")&&b.contains(x,y)))throw new AssertionError("Crosshair must select the infantry detail tooltip");
         });
         context.takeScreenshot("hoi-unit-hud-counters-and-hover");context.waitTicks(3);
+        context.getInput().resizeWindow(2560,1440);
+        context.runOnClient(client->{client.options.guiScale().set(2);UnitHud.accept(fixture(client));});
+        context.waitTicks(3);context.takeScreenshot("hoi-unit-hud-counters-and-hover-gui2");
+        context.getInput().resizeWindow(1600,1000);
+        context.runOnClient(client->UnitHud.accept(fixture(client)));
         context.setScreen(()->new Sidebar(true));context.waitTicks(3);
         context.runOnClient(client->{if(!UnitHud.boxes().isEmpty())throw new AssertionError("Sidebar must cover counters");});
         context.setScreen(()->new Sidebar(false));context.waitTicks(3);

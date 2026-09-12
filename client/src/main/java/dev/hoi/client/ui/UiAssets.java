@@ -39,6 +39,18 @@ public final class UiAssets {
         int[] size = DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions);
         if (size[0] <= 0 || size[1] <= 0) return false;
 
+        if (path.startsWith("politics/appointments/") && size[0] == 156 && size[1] == 210) {
+            float scale = Math.min(w / 62f, h / 67f);
+            g.pose().pushMatrix();
+            g.pose().translate(x + (w - 62 * scale) / 2, y + (h - 67 * scale) / 2);
+            g.pose().scale(scale);
+            draw(g, "politics/vacant", 0, 0, 62, 67);
+            g.pose().translate(30, 33);
+            g.pose().rotate(-.07f);
+            cover(g, path, -16, -23, 32, 46);
+            g.pose().popMatrix();
+            return true;
+        }
         int sourceW = size[0] - trimLeft - trimRight;
         if (sourceW <= 0) return false;
         double scale = Math.min((double) w / sourceW, (double) h / size[1]);

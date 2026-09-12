@@ -27,13 +27,13 @@ public final class ConstructionScreenChecks {
         context.setScreen(()->{var screen=new ConstructionScreen(token,view,requests::add);ref.set(screen);return screen;});
         context.waitTicks(3);context.takeScreenshot("hoi-construction-queue");
         ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-queue");
-        context.runOnClient(client -> ref.get().update(new ConstructionView(token,1,"KOR",hud,"civilian_factory",
+        context.runOnClient(client -> ref.get().update(new ConstructionView(token,2,"KOR",hud,"civilian_factory",
                 new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,30,21.8625,2),buildings,projects,"")));
         context.waitTicks(2); context.takeScreenshot("hoi-construction-energy-surplus");
-        context.runOnClient(client -> ref.get().update(new ConstructionView(token,1,"KOR",hud,"civilian_factory",
+        context.runOnClient(client -> ref.get().update(new ConstructionView(token,3,"KOR",hud,"civilian_factory",
                 new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,10,10,2),buildings,projects,"")));
         context.waitTicks(2); context.takeScreenshot("hoi-construction-energy-zero");
-        context.runOnClient(client -> ref.get().update(view));
+        context.runOnClient(client -> ref.get().update(new ConstructionView(token,4,"KOR",hud,"civilian_factory",summary,buildings,projects,"")));
         context.getInput().setCursorPos(40,190); context.waitTicks(2); context.takeScreenshot("hoi-construction-multiline-tooltip");
         context.runOnClient(client -> {
             var lines=HoiTooltips.lines(client.font,"첫 줄\n사용 가능한 에너지 10 / 필요량 21.86\n긴 설명 "+"읽기 쉬운 설명 ".repeat(40),427);
@@ -61,11 +61,11 @@ public final class ConstructionScreenChecks {
             var button=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("민간공장")).findFirst().orElseThrow();
             button.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));
             if(requests.size()!=1||requests.getFirst().action()!=ConstructionProtocol.Action.SELECT)throw new AssertionError("Building must issue a server selection");
-            screen.update(new ConstructionView(token,2,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
+            screen.update(new ConstructionView(token,5,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
             var plus=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("+")).findFirst().orElseThrow();
             plus.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));
             if(requests.getLast().action()!=ConstructionProtocol.Action.REPAIR||requests.getLast().amount()!=5)throw new AssertionError("Repair factory control must issue a bounded server request");
-            screen.update(new ConstructionView(token,3,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
+            screen.update(new ConstructionView(token,6,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
             for(int mouseButton:new int[]{1,0}) {
                 screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(screen.panelWidth()+50,screen.height/2.0,
                         new net.minecraft.client.input.MouseButtonInfo(mouseButton,0)),false);

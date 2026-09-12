@@ -134,7 +134,9 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         scrollY = ResearchLayout.clampScroll(scrollY, layout.height(), treeBottom - treeTop);
     }
     private Button button(String label, int x, int y, int w, int h, Runnable action) {
-        return addRenderableWidget(new PanelButton(label, x, y, w, h, action));
+        return addRenderableWidget(label.equals("×")
+                ? new dev.hoi.client.ui.HoiMenuButton(label, x, y, w, h, action)
+                : new PanelButton(label, x, y, w, h, action));
     }
     public void showDetail(String id) {
         var target = view.technology(id);
@@ -166,9 +168,11 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             pending = 100;
             requests.accept(new ResearchProtocol.Request(activeSlot.isPresent() ? ResearchProtocol.Action.CANCEL : ResearchProtocol.Action.START,
                     view.session(), view.revision(), activeSlot.map(ResearchView.Slot::index).orElse(view.availableSlot(selectedSlot)), detail));
+            detail = null;
+            overview = true;
             rebuildWidgets();
         });
-        ((PanelButton)start).sound(activeSlot.isPresent() ? "ui.click" : "ui.research.select");
+        ((PanelButton)start).sound("ui.click");
         start.active = pending == 0 && (activeSlot.isPresent() || tech.status() == ResearchView.Status.AVAILABLE
                 && view.availableSlot(selectedSlot)>=0);
     }

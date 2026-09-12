@@ -121,7 +121,10 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         graphics = g; mouseX = mx; mouseY = my;
         HoiMenuStyle.panel(g, 0, top, pane, height - top);
         heading(title(tab), 9, top + 8, pane - 40, TEXT);
-        if (view == null) text("국가 현황을 불러오는 중…", 9, top + 37, pane - 18, MUTED);
+        if (view == null) {
+            HoiMenuBar.draw(g, width, dev.hoi.client.CampaignHud.hud(), mx, my, hudScroll);
+            text("국가 현황을 불러오는 중…", 9, top + 37, pane - 18, MUTED);
+        }
         else {
             HoiMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
             background = modal();
@@ -258,11 +261,11 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     static final List<String> LOGISTICS_HEADERS = List.of("평균 생산 효율", "장비 유형", "생산", "상태", "수요", "균형", "비축량", "자원");
     private void logistics() {
-        int[] fractions = {0, 5, 39, 53, 60, 70, 81, 91, 100};
+        int[] fractions = {0, 5, 39, 51, 65, 74, 84, 93, 100};
         int[] cols = new int[9];
         for (int i = 0; i < cols.length; i++) cols[i] = 6 + (pane - 12) * fractions[i] / 100;
         String[] icons = {"efficiency", "", "production", "", "need", "balance", "stockpile", ""};
-        String[] descriptions = {"가동 중인 공장 수로 가중한 평균 생산 효율", "장비 유형", "각 장비의 하루 생산량", "충족: 재고 충분 · 생산: 부족분 생산 중 · 부족: 생산 없음", "훈련·배치 사단과 자동 보충 비행단의 현재 미지급 장비", "비축량에서 현재 충원 수요를 뺀 수량", "현재 보관 중인 장비 총량", "배정된 생산 공장이 요구하는 자원"};
+        String[] descriptions = {"가동 중인 공장 수로 가중한 평균 생산 효율", "장비 유형", "각 장비의 하루 생산량", "현재 충원 수요 대비 비축 장비의 충족률", "훈련·배치 사단과 자동 보충 비행단의 현재 미지급 장비", "비축량에서 현재 충원 수요를 뺀 수량", "현재 보관 중인 장비 총량", "배정된 생산 공장이 요구하는 자원"};
         int heading = top + 29, start = heading + 22, h = 39;
         rail(6, heading, pane - 12, 20);
         for (int i = 0; i < LOGISTICS_HEADERS.size(); i++) {
@@ -276,15 +279,33 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         for (int i = 0; i < items.size(); i++) {
             var row = items.get(i); var e = row.representative(); int y = start + i * h - scroll;
             if (!visible(y, h, start)) continue;
-            rail(6, y, pane - 12, h - 2);
+            if (graphics != null) {
+                UiAssets.nineSlice(graphics, "logistics/efficiency_frame", cols[0], y, cols[1] - cols[0], h - 2, 3, 0.65);
+                UiAssets.nineSlice(graphics, "logistics/equipment_frame", cols[1], y, cols[2] - cols[1], h - 2, 5, 0.65);
+                UiAssets.nineSlice(graphics, "logistics/resource_frame", cols[7], y, cols[8] - cols[7], h - 2, 5, 0.65);
+            }
             efficiencyBar(cols[0] + 2, y + 3, Math.max(2, cols[1] - cols[0] - 4), h - 8, row.efficiency() == null ? 0 : row.efficiency());
             int equipmentY = y + (h - 2 - 34) / 2;
             art(e.texture(), cols[1] + 1, equipmentY, cols[2] - cols[1] - 2, 23);
             cellText(familyName(e), cols[1] + 1, equipmentY + 24, cols[2] - cols[1] - 2, 10, GOLD, false);
-            String[] values = {LogisticsRows.productionLabel(row.daily()), row.status(), row.demandLabel(), row.balanceLabel(), LogisticsRows.stockLabel(row.stockpile())};
+            String[] values = {LogisticsRows.productionLabel(row.daily()), "", row.demandLabel(), row.balanceLabel(), LogisticsRows.stockLabel(row.stockpile())};
             for (int j = 0; j < values.length; j++) {
-                int col = j + 2; recess(cols[col] + 1, y + 8, cols[col + 1] - cols[col] - 2, 17);
-                cellText(values[j], cols[col] + 2, y + 8, cols[col + 1] - cols[col] - 4, 17, j == 0 || j == 4 ? GOOD : row.balance() == null ? MUTED : row.balance() >= 0 ? GOOD : j == 1 && row.daily() > 0 ? GOLD : BAD, false);
+                int col = j + 2;
+                if (graphics != null) UiAssets.nineSlice(graphics, "logistics/number_frame", cols[col], y + 7, cols[col + 1] - cols[col], 22, 5, 0.65);
+                if (j == 1) {
+                    int x = cols[col] + 3, width = cols[col + 1] - cols[col] - 6;
+                    if (graphics != null) graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/logistics/status_bg.png"),
+                            x, y + 13, x + width, y + 23, 0, 1, 0, 1);
+                    if (graphics != null && row.demand() != null) {
+                        double ratio = row.demand() == 0 ? 1 : Math.clamp(row.stockpile() / (double)row.demand(), 0, 1);
+                        int filled = (int)Math.round(width * ratio);
+                        if (filled > 0) graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/logistics/status_bar.png"),
+                                x, y + 13, x + filled, y + 23, 0, (float)ratio, 0, 1);
+                    }
+                } else {
+                    int color = j == 0 || j == 4 ? GOOD : row.balance() == null ? MUTED : row.balance() >= 0 ? GOOD : BAD;
+                    cellText(values[j], cols[col] + 2, y + 7, cols[col + 1] - cols[col] - 4, 22, color, false);
+                }
             }
             int n = 0, size = Math.min(12, Math.max(7, (cols[8] - cols[7] - 2) / 2));
             int resourceRows = (row.resources().size() + 1) / 2;

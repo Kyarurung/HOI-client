@@ -13,6 +13,28 @@ import java.util.*;
 
 public final class CompletionScreenChecks {
     public static void run(ClientGameTestContext context) {
+        context.runOnClient(client -> {
+            var played = new ArrayList<String>();
+            net.minecraft.client.sounds.SoundEventListener listener = (sound, event, range) -> {
+                if (sound.getIdentifier().getPath().endsWith(".complete")) {
+                    check(sound.getSource() == net.minecraft.sounds.SoundSource.MASTER, "Completion sound uses MASTER");
+                    played.add(sound.getIdentifier().getPath());
+                }
+            };
+            client.getSoundManager().addListener(listener);
+            try {
+                DialogClient.reset();
+                for (String style : List.of("research_complete", "focus_complete")) {
+                    var view = new DialogView(java.util.UUID.randomUUID().toString(), 1, DialogView.Kind.DIPLOMACY, "완료", "", "", "", "", "", List.of(), List.of(new DialogView.Choice("ack", "확인")), style);
+                    DialogClient.receive(DialogProtocol.Show.of(view, true));
+                    DialogClient.receive(DialogProtocol.Show.of(view.issued(view.token(), 2), false));
+                }
+                check(played.equals(List.of("ui.research.complete", "ui.focus.complete")), "New notifications play once; refreshes do not repeat the sound");
+            } finally {
+                client.getSoundManager().removeListener(listener);
+                DialogClient.reset();
+            }
+        });
         var sent = new ArrayList<String>();
         for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(3);

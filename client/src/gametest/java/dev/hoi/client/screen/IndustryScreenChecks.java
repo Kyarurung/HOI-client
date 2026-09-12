@@ -19,6 +19,11 @@ public final class IndustryScreenChecks {
             fixture = new IndustryProtocol.Response(new String(Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8)).view();
         } catch (java.io.IOException e) { throw new RuntimeException(e); }
         var v = copy(fixture, hud, fixture.revision(), null);
+        var supplyModels = v.equipment().stream().map(e -> new IndustryView.Equipment(e.id(), e.name(), e.texture(), e.group(), e.naval(), e.unlocked(),
+                e.cost(), e.factoryLimit(), e.resources(), e.stockpile() == 0 ? 50 : e.stockpile(), e.reserved(), e.deployed(), e.deficit(), e.replacement(), e.family(), e.familyName(), 100L)).toList();
+        var supply = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), supplyModels, v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), v.recruits(), v.deployed(), v.draft(), v.message(), v.navalRepairs(), v.specialForces());
+        context.setScreen(() -> new IndustryScreen(MenuTab.LOGISTICS, supply.session(), supply, request -> {}));
+        ResearchScreenGameTest.gui2Screenshot(context, "hoi-logistics-supply-status");
         var empty = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), List.of(), List.of(), null, "", v.navalRepairs(), v.specialForces());
         var requests = new ArrayList<IndustryProtocol.Request>();
         for (var tab : List.of(MenuTab.PRODUCTION, MenuTab.TRADE, MenuTab.LOGISTICS, MenuTab.RECRUITMENT)) {
@@ -30,7 +35,7 @@ public final class IndustryScreenChecks {
                 checkBounds(screen);
                 if (tab == MenuTab.LOGISTICS) {
                     check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:font/korean.json")).isPresent(), "Original Korean font is in the UI pack");
-                    var korean = net.minecraft.network.chat.Component.literal("가나다라마바사아자차").withStyle(style -> style.withFont(new net.minecraft.network.chat.FontDescription.Resource(net.minecraft.resources.Identifier.parse("hoi:korean"))));
+                    var korean = net.minecraft.network.chat.Component.literal("가나다라마바사아자차 ABC xyz 0123456789 (%)").withStyle(style -> style.withFont(new net.minecraft.network.chat.FontDescription.Resource(net.minecraft.resources.Identifier.parse("hoi:korean"))));
                     check(client.font.width(korean) == client.font.width(korean.getString()), "Default Hangul uses the imported original Korean glyph widths");
                     check((screen.panelWidth()-12)*34/100-2 >= client.font.width("가나다라마바사아자차") * dev.hoi.client.ui.UiText.scale(client.font), "Equipment column fits ten Korean glyphs at the requested text size");
                     check(IndustryScreen.LOGISTICS_HEADERS.equals(List.of("평균 생산 효율","장비 유형","생산","상태","수요","균형","비축량","자원")), "Eight logistics columns follow the supplied order");

@@ -16,7 +16,7 @@ public final class HoiTooltips {
         var lines = new ArrayList<FormattedCharSequence>();
         for (String line : text.split("\\R", -1)) {
             if (line.isEmpty()) lines.add(Component.empty().getVisualOrderText());
-            else lines.addAll(font.split(KeywordIcons.decorate(Component.literal(line)), width));
+            else lines.addAll(font.split(KeywordIcons.decorate(Component.literal(line.replaceAll("£[A-Za-z0-9_]+\\s*", ""))), width));
         }
         return List.copyOf(lines);
     }

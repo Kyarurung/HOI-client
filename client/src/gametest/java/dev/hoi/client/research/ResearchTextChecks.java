@@ -14,6 +14,11 @@ public final class ResearchTextChecks {
         context.runOnClient(client -> {
             var labeled = KeywordIcons.decorate(Component.literal("건설 속도: +15%"));
             check(labeled.getString().endsWith(" 건설 속도: +15%") && labeled.getString().charAt(0) >= 0xe000, "Source-bound keyword glyph precedes construction speed");
+            for (String label : List.of("기반시설 건설 속도", "사무단지 건설 속도"))
+                check(KeywordIcons.decorate(Component.literal(label + ": -5%")).getString().charAt(0) == labeled.getString().charAt(0), "Buildings share construction speed art");
+            char business = KeywordIcons.decorate(Component.literal("사업 가치 변동치: +5%")).getString().charAt(0);
+            char personal = KeywordIcons.decorate(Component.literal("개인 가치 변동치: -5%")).getString().charAt(0);
+            check(business >= 0xe000 && personal >= 0xe000 && business != personal, "Business and personal value use distinct source dollar art");
             labeled.visit((style, part) -> {
                 if (part.contains("건설 속도")) check(style.getFont().equals(Style.EMPTY.getFont()), "Keyword font never leaks into Korean text");
                 return Optional.empty();

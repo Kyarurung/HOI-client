@@ -312,7 +312,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         var entries = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 중점")).flatMap(s -> s.entries().stream()).toList();
         var active = entries.stream().filter(e -> e.progress() >= 0 || e.value().contains("진행")).findFirst();
         String label = active.map(MenuView.Entry::name).orElse("국가 중점 선택");
-        return new MenuView.Entry("국가 중점", label, fontSafe(entries.stream().map(e -> e.name() + " · " + e.value() + "\n" + e.detail()).collect(java.util.stream.Collectors.joining("\n\n"))), -1, active.map(MenuView.Entry::icon).orElse(""));
+        return new MenuView.Entry("국가 중점", label, fontSafe(entries.stream().map(e -> e.name() + " · " + e.value() + "\n" + e.detail()).collect(java.util.stream.Collectors.joining("\n\n"))), active.map(MenuView.Entry::progress).orElse(-1.0), active.map(MenuView.Entry::icon).orElse(""));
     }
     private void drawPoliticsBanner(GuiGraphicsExtractor g) {
         var layout = politicsLayout(); var leader = layout.leader();
@@ -327,6 +327,16 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             drawPoliticalArt(g, "politics/focus_background", layout.focus());
             drawPoliticalArt(g, "politics/focus_select", layout.focusTitle());
             var focus = politicsFocus();
+            if (focus.progress() >= 0) {
+                var bar = layout.focusProgress();
+                drawPoliticalArt(g, "politics/focus_progress_bg", bar);
+                int filled = (int)Math.round(bar.width() * Math.clamp(focus.progress(), 0, 1));
+                if (filled > 0) {
+                    g.enableScissor(bar.x(), bar.y(), bar.x() + filled, bar.y() + bar.height());
+                    drawPoliticalArt(g, "politics/focus_progress", bar);
+                    g.disableScissor();
+                }
+            }
             drawPoliticalArt(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), layout.focusImage());
             centeredPoliticsText(g, focus.value(), layout.focusTitle(), focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
         }
@@ -385,9 +395,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             if (py + 10 > list.y() + list.height()) break;
             int swatch = Math.max(2, (int)(pitch - 2));
             g.fill(list.x() + 4, py, list.x() + 4 + swatch, py + swatch, partyColor(party.icon()));
-            String label = party.name() + " (" + party.value() + ")";
-            float rowScale = Math.min(scale, (list.width() - 17f) / Math.max(1, font.width(label)));
-            g.pose().pushMatrix(); g.pose().translate(list.x() + 13, py); g.pose().scale(rowScale);
+            String label = party.name() + " (" + Math.round(party.progress() * 100) + ")";
+            float rowScale = Math.min(scale, (list.width() - 21f) / Math.max(1, font.width(label)));
+            g.pose().pushMatrix(); g.pose().translate(list.x() + 17, py); g.pose().scale(rowScale);
             g.text(font, label, 0, 0, TEXT);
             g.pose().popMatrix();
         }
@@ -422,7 +432,10 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             case "정치 체제" -> "government";
             default -> "union";
         };
-        UiAssets.draw(g, politicsEntry(label).icon().isEmpty() ? "politics/empty/" + kind : politicsEntry(label).icon(), x + 3, y + 3, w - 6, h - 6);
+        String icon = politicsEntry(label).icon();
+        if (icon.isEmpty()) icon = "politics/empty/" + kind;
+        int inset = icon.equals("politics/empty/union") ? 0 : 3;
+        UiAssets.draw(g, icon, x + inset, y + inset, w - inset * 2, h - inset * 2);
     }
     private static int partyColor(String icon) {
         if (icon.matches("politics/party/[0-9a-fA-F]{6}")) return 0xFF000000 | Integer.parseInt(icon.substring(icon.lastIndexOf('/') + 1), 16);

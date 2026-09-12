@@ -16,7 +16,7 @@ public final class KeywordIcons {
     static void clear() { bindings = null; }
     public static Component decorate(Component text) {
         if (bindings == null) bindings = load();
-        String label = text.getString().stripLeading();
+        String label = text.getString().replaceAll("§.", "").stripLeading();
         for (var binding : bindings) {
             if (!label.startsWith(binding.label())) continue;
             int end = binding.label().length();

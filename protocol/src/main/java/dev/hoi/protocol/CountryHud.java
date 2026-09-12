@@ -41,7 +41,13 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
     public record NationalIndicators(Double politicalPower, Double stability, Double warSupport,
                                      Long factories, Double energyRatio, Double fuel, Double supplies,
                                      Double supplyEfficiency, Long convoys, Double transportEfficiency,
-                                     Double commandPower, Double rulingPartySupport, Long manpower) {
+                                     Double commandPower, Double rulingPartySupport, Long manpower, Double fuelRatio) {
+        public NationalIndicators(Double politicalPower, Double stability, Double warSupport, Long factories, Double energyRatio,
+                Double fuel, Double supplies, Double supplyEfficiency, Long convoys, Double transportEfficiency,
+                Double commandPower, Double rulingPartySupport, Long manpower) {
+            this(politicalPower, stability, warSupport, factories, energyRatio, fuel, supplies, supplyEfficiency, convoys,
+                    transportEfficiency, commandPower, rulingPartySupport, manpower, null);
+        }
         public static final NationalIndicators UNKNOWN = new NationalIndicators(
                 null, null, null, null, null, null, null, null, null, null, null, null, null);
 
@@ -54,7 +60,7 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
             for (Double value : new Double[]{stability, warSupport})
                 if (value != null && (!Double.isFinite(value) || value < -1 || value > 1))
                     throw new IllegalArgumentException("Invalid national support ratio");
-            for (Double value : new Double[]{energyRatio, supplyEfficiency, transportEfficiency, rulingPartySupport})
+            for (Double value : new Double[]{energyRatio, supplyEfficiency, transportEfficiency, rulingPartySupport, fuelRatio})
                 if (value != null && (!Double.isFinite(value) || value < 0 || value > 1))
                     throw new IllegalArgumentException("Invalid national ratio");
             if (factories != null && factories < 0 || convoys != null && convoys < 0 || manpower != null && manpower < 0)

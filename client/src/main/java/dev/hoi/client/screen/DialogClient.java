@@ -87,6 +87,8 @@ public final class DialogClient {
             notifications.add(view);
             showNotifications();
             if (view.kind() == DialogView.Kind.SUPER_EVENT) SuperEventAudio.play(view.token(), view.sound());
+            else if (view.completion()) dev.hoi.client.audio.UiSounds.play(
+                    view.presentation().equals("research_complete") ? "ui.research.complete" : "ui.focus.complete");
         } else {
             HoiClient.cancelOpen();
             var parent = contentScreen();

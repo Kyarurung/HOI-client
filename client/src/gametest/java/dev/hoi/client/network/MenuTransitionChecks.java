@@ -13,6 +13,8 @@ public final class MenuTransitionChecks {
         context.setScreen(() -> null);
         context.runOnClient(client -> {
             CampaignHud.accept(HudProtocol.State.of(view.country(), view.hud()));
+            check(dev.hoi.client.ui.HoiMenuBar.snapshot(CountryHud.UNKNOWN).equals(view.hud()), "All empty menu snapshots retain the authoritative HUD");
+            check(dev.hoi.client.ui.HoiMenuBar.snapshot(null).equals(view.hud()), "Loading panels retain the authoritative HUD");
             token[0] = ScreenNetworking.beginMenu(MenuTab.LOGISTICS).screen();
             check(client.gui.screen() == null, "Waiting for menu data must keep the existing HUD without a dummy screen");
         });
@@ -50,6 +52,7 @@ public final class MenuTransitionChecks {
             client.gui.setScreen(null);
             request = ScreenNetworking.beginMenu(MenuTab.POLITICS);
             CampaignHud.accept(HudProtocol.State.HIDDEN);
+            check(dev.hoi.client.ui.HoiMenuBar.snapshot(CountryHud.UNKNOWN).equals(CountryHud.UNKNOWN), "Stopping cannot leak cached country statistics");
             ScreenNetworking.receiveMenu(new MenuProtocol.Update(request.screen(), json));
             check(client.gui.screen() == null, "Stopped campaign cannot reopen a menu");
             CampaignHud.accept(HudProtocol.State.of(view.country(), view.hud()));

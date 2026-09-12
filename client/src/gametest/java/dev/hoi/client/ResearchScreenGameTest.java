@@ -163,6 +163,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.runOnClient(c -> ((HoiMenuScreen)c.gui.screen()).update(menu));
             context.waitTicks(2);
             context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(child -> child instanceof Button b && b.getMessage().getString().equals("권력의 균형")), "Revoked power balance closes its controls"));
+            CountryScreenChecks.adviserFrames(context);
             CountryScreenChecks.politicsHover(context, menu);
             click(context, "정부 선택 0 · 미지정"); context.waitTicks(2); context.takeScreenshot("hoi-politics-slot-detail");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
@@ -242,10 +243,11 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 var request = requests.getFirst();
                 check(request.action() == ResearchProtocol.Action.START && request.slot() == 0
                         && request.session().equals(view.session()) && request.revision() == view.revision(), "Authenticated research request");
-                check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b
-                        && b.getMessage().getString().equals("응답 대기…") && !b.active), "No duplicate request while pending");
-                client.gui.screen().keyPressed(ESCAPE);
+                check(client.gui.screen().children().stream().anyMatch(c -> c instanceof ResearchSlotButton), "Research start returns to the overview");
+                check(client.gui.screen().children().stream().noneMatch(c -> c instanceof Button b
+                        && b.getMessage().getString().equals("연구")), "Closed detail cannot send a duplicate request");
             });
+            click(context, "슬롯 1 · 연구 선택");
             context.waitTicks(2); context.takeScreenshot("hoi-research-tree");
             click(context, "기갑"); context.waitTicks(2); context.takeScreenshot("hoi-research-armor");
             click(context, "해군 지원 장비"); context.waitTicks(2);
@@ -612,7 +614,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         return sections;
     }
     private static CountryHud.NationalIndicators fixtureNational() {
-        return new CountryHud.NationalIndicators(1350.75, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 10000L, .95, 150.75, .36, 280_900L);
+        return new CountryHud.NationalIndicators(1350.75, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 10000L, .95, 150.75, .36, 280_900L, .27);
     }
     private static ResearchView fixtureResearch() {
         var technologies = new ArrayList<ResearchView.Tech>();

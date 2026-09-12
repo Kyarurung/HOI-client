@@ -26,7 +26,7 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
     private IntelDomain domain = IntelDomain.CIVILIAN;
     private boolean ledger, choosing, pending;
     private CountryView.Action confirmation;
-    private int pane, top, scroll, total, ticks, hudScroll;
+    private int pane, top, scroll, actionScroll, total, ticks, hudScroll;
     private MenuView.Entry detail;
     private int detailScroll;
     public CountryScreen(String target) { super(Component.literal("외교")); this.target = target; choosing = target.isEmpty(); }
@@ -60,14 +60,14 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
         if (view == null) return;
         header = new DiplomacyHeader(view, pane);
         int half = (pane - 18) / 2;
-        var dip = new HoiMenuButton("외교", 7, top + DiplomacyHeader.scaled(120, pane), half, 20, () -> { ledger = false; choosing = false; scroll = 0; detail = null; rebuildWidgets(); });
-        var intel = new HoiMenuButton("첩보 장부", 11 + half, top + DiplomacyHeader.scaled(120, pane), half, 20, () -> { ledger = true; choosing = false; scroll = 0; detail = null; rebuildWidgets(); });
+        var dip = new HoiMenuButton("외교", 7, DiplomacyHeader.tabs(top), half, 20, () -> { ledger = false; choosing = false; scroll = 0; detail = null; rebuildWidgets(); });
+        var intel = new HoiMenuButton("첩보 장부", 11 + half, DiplomacyHeader.tabs(top), half, 20, () -> { ledger = true; choosing = false; scroll = 0; detail = null; rebuildWidgets(); });
         addRenderableWidget(dip); addRenderableWidget(intel);
         if (ledger && !choosing) {
             int cell = (pane - 16) / 4;
             for (var d : IntelDomain.values()) {
                 var report = view.report(d);
-                var button = new HoiMenuButton(d.label + " 정보", d.icon, domain == d, 8 + d.ordinal() * cell, top + 95, cell - 2, 30,
+                var button = new HoiMenuButton(d.label + " 정보", d.icon, domain == d, 8 + d.ordinal() * cell, DiplomacyHeader.tabs(top) + 25, cell - 2, 30,
                         () -> { domain = d; scroll = 0; detail = null; rebuildWidgets(); });
                 String tips = "총 " + d.label + " 정보: " + String.format(Locale.ROOT, "%.1f%%", report.percent())
                         + (view.shared() ? "\n동맹 정보 공유" : "") + "\n\n" + d.tiers.stream()
@@ -92,13 +92,18 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
             button.active = detail == null && confirmation == null; addRenderableWidget(button);
         }
         if (actionsVisible()) {
-            int y = bodyTop();
+            int pitch = Math.max(16, DiplomacyHeader.scaled(29, pane));
+            actionScroll = Math.clamp(actionScroll, 0, Math.max(0, view.actions().entries().size() * pitch - (height - 33 - bodyTop())));
+            int y = bodyTop() - actionScroll;
             for (var action : view.actions().entries()) {
-                var button = new DiplomacyActionButton(action.name(), pane / 2 + 3, y, pane / 2 - 12, Math.max(15, DiplomacyHeader.scaled(28, pane)),
+                int actionY = y;
+                y += pitch;
+                if (actionY < bodyTop() || actionY + pitch > height - 33) continue;
+                var button = new DiplomacyActionButton(action.name(), pane / 2 + 3, actionY, pane / 2 - 12, Math.max(15, DiplomacyHeader.scaled(28, pane)),
                         () -> { confirmation = action; rebuildWidgets(); });
                 button.active = action.enabled() && !pending && confirmation == null && detail == null;
                 button.setTooltip(Tooltip.create(Component.literal(action.name() + "\n" + action.detail())));
-                addRenderableWidget(button); y += Math.max(16, DiplomacyHeader.scaled(29, pane));
+                addRenderableWidget(button);
             }
         }
         if (confirmation != null) {
@@ -123,7 +128,7 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
         if (ledger) return view.report(domain).entries();
         return view.diplomacy().stream().filter(e -> !DiplomacyHeader.summary(e)).toList();
     }
-    private int bodyTop() { return choosing ? top + 97 : ledger ? top + 143 : DiplomacyHeader.body(top, pane); }
+    private int bodyTop() { return choosing ? DiplomacyHeader.tabs(top) + 25 : ledger ? DiplomacyHeader.tabs(top) + 75 : DiplomacyHeader.body(top, pane); }
     private int detailX() { return width - pane >= 200 ? pane + 5 : 5; }
     private int detailWidth() { return Math.min(330, width - detailX() - 6); }
     @Override public void tick() {
@@ -137,17 +142,37 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
         HoiMenuStyle.heading(g, font, "외교", 10, top + 9, pane - 44, HoiMenuStyle.TEXT);
         if (view == null) dev.hoi.client.ui.UiText.text(g, font, "서버 정보 불러오는 중…", 12, top + 38, HoiMenuStyle.MUTED);
         else {
-            UiAssets.nineSlice(g, "diplomacy/header", 7, top + 30, pane - 14, 38, 5, pane / 550.0);
-            if (!UiAssets.draw(g, "country/" + view.target().toLowerCase(Locale.ROOT) + "/flag", 11, top + 34, 39, 29))
-                dev.hoi.client.ui.UiText.text(g, font, view.target(), 12, top + 43, HoiMenuStyle.TEXT);
-            dev.hoi.client.ui.UiText.text(g, font, trim(view.name(), pane - 69), 58, top + 37, HoiMenuStyle.TEXT);
-            dev.hoi.client.ui.UiText.text(g, font, view.viewer().equals(view.target()) ? "통제 국가" : view.shared() ? "동맹 정보 공유" : "외국 정보", 58, top + 52, HoiMenuStyle.MUTED);
+            String[] targetStats = {"안정도", "전쟁 지지도"};
+            int statWidth = Math.min(58, (pane - 76) / 2), statsX = pane - 30 - statWidth * 2;
+            HoiMenuStyle.recess(g, statsX, top + 4, statWidth * 2, 18);
+            for (int i = 0; i < targetStats.length; i++) {
+                var stat = DiplomacyHeader.entry(view, targetStats[i]);
+                int x = statsX + i * statWidth;
+                dev.hoi.client.ui.UiText.iconText(g, font, i == 0 ? "hud/stability" : "hud/war_support",
+                        stat.value().equals("정보 없음") ? "?" : stat.value(), x, top + 4, statWidth, 18, 11, HoiMenuStyle.TEXT);
+                if (mx >= x && mx < x + statWidth && my >= top + 4 && my < top + 22)
+                    dev.hoi.client.ui.HoiTooltips.draw(g, font, view.name() + " · " + stat.name() + ": " + stat.value(), mx, my);
+            }
+            int headerX = DiplomacyHeader.scaled(139, pane), headerW = pane - headerX - 7;
+            UiAssets.nineSlice(g, "diplomacy/header", headerX, top + 30, headerW, 38, 5, pane / 550.0);
+            int flagH = 32, flagW = flagH * 98 / 67;
+            HoiMenuBar.drawFlag(g, view.target(), (headerX - flagW) / 2, top + 33, flagW, flagH);
+            int ideologyCell = Math.round(headerW * 92f / 398), ideologyX = headerX + 3, textX = headerX + ideologyCell + 5;
+            var ideology = DiplomacyHeader.entry(view, "이념");
+            UiAssets.draw(g, ideology.icon().isEmpty() ? "politics/empty/ideology" : ideology.icon(), ideologyX, top + 33, Math.max(16, textX - ideologyX - 5), 32);
+            String faction = view.diplomacy().stream().filter(e -> e.name().equals("세력")).map(MenuView.Entry::value).findFirst().orElse("세력 없음");
+            String[] info = {view.name(), faction, DiplomacyHeader.entry(view, "지도자").value()};
+            for (int i = 0; i < info.length; i++)
+                dev.hoi.client.ui.UiText.text(g, font, trim(info[i], pane - textX - 12), textX, top + 34 + i * 10, HoiMenuStyle.TEXT);
             if (ledger && !choosing) for (var d : IntelDomain.values()) {
                 int cell = (pane - 16) / 4, x = 8 + d.ordinal() * cell;
-                dev.hoi.client.ui.UiText.text(g, font, (int)view.report(d).percent() + "%", x + 10, top + 129, HoiMenuStyle.TEXT);
+                dev.hoi.client.ui.UiText.text(g, font, (int)view.report(d).percent() + "%", x + 10, DiplomacyHeader.tabs(top) + 58, HoiMenuStyle.TEXT);
             }
             if (!ledger && !choosing) header.draw(g, font, view, pane, top);
-            HoiMenuStyle.recess(g, 5, bodyTop() - 3, pane - 10, Math.max(6, height - 30 - bodyTop()));
+            if (actionsVisible()) {
+                HoiMenuStyle.recess(g, 5, bodyTop() - 4, pane / 2 - 8, Math.max(6, height - 27 - bodyTop()));
+                HoiMenuStyle.recess(g, pane / 2, bodyTop() - 4, pane / 2 - 5, Math.max(6, height - 27 - bodyTop()));
+            } else HoiMenuStyle.recess(g, 5, bodyTop() - 3, pane - 10, Math.max(6, height - 30 - bodyTop()));
             g.enableScissor(6, bodyTop(), pane - 6, height - 33);
             int count = choosing ? view.countries().size() : entries().size();
             int rowsWidth = actionsVisible() ? pane / 2 - 12 : pane - 22;
@@ -193,14 +218,24 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
             }
         }
         super.extractRenderState(g, mx, my, delta);
+        if (view != null && !ledger && !choosing && detail == null && confirmation == null) {
+            var spirit = header.spiritAt(mx, my, pane, top);
+            if (spirit != null) dev.hoi.client.ui.HoiTooltips.draw(g, font, spirit.name() + "\n" + spirit.detail().substring("국가 정신\n".length()), mx, my);
+        }
     }
     private String trim(String text, int w) { return font.width(text) <= w ? text : font.plainSubstrByWidth(text, Math.max(1, w - 9)) + "…"; }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
         if (y < HoiMenuBar.STATS_HEIGHT && x >= 40 && x < HoiMenuBar.statsRight(width)) {
             hudScroll = HoiMenuBar.scroll(width, view == null ? CountryHud.UNKNOWN : view.hud(), hudScroll, horizontal, vertical); return true;
         }
+        if (view != null && !ledger && !choosing && detail == null && confirmation == null
+                && header.scrollSpirits(x, y, horizontal != 0 ? horizontal : vertical, pane, top)) return true;
         if (detail != null) { detailScroll -= (int)(vertical * 26); return true; }
-        if (x < pane && y >= bodyTop()) { scroll -= (int)(vertical * 39); rebuildWidgets(); return true; }
+        if (x < pane && y >= bodyTop()) {
+            if (actionsVisible() && x >= pane / 2) actionScroll -= (int)(vertical * Math.max(16, DiplomacyHeader.scaled(29, pane)));
+            else scroll -= (int)(vertical * 39);
+            rebuildWidgets(); return true;
+        }
         return super.mouseScrolled(x, y, horizontal, vertical);
     }
     @Override public boolean keyPressed(KeyEvent event) {
@@ -216,6 +251,7 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private final class DiplomacyActionButton extends Button {
+        @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { dev.hoi.client.audio.UiSounds.play("ui.click"); }
         DiplomacyActionButton(String label, int x, int y, int w, int h, Runnable action) {
             super(x, y, w, h, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
         }

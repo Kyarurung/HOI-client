@@ -118,6 +118,23 @@ public final class CountryScreenChecks {
         context.takeScreenshot("hoi-politics-left-aligned-spirit");
         context.setScreen(() -> new HoiMenuScreen(source)); context.waitTicks(2);
     }
+    public static void adviserFrames(ClientGameTestContext context) {
+        context.setScreen(() -> new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("인물 프레임 검증")) {
+            @Override public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor g, int mx, int my, float delta) {
+                g.fill(0, 0, width, height, 0xFF202226);
+                String[] ids = {"sov_mikhailov", "pak_jong_chon", "ast_rick_burr_chief", "hum_david_brian_stone_high_command", "mim_paul_d_rogers_high_command", "kor_lee_joung_soo_high_command"};
+                for (int i = 0; i < ids.length; i++) {
+                    int x = 20 + i * 195;
+                    if (!dev.hoi.client.ui.UiAssets.draw(g, "politics/appointments/" + ids[i], x, 60, 124, 134))
+                        throw new AssertionError("Adviser portrait is absent: " + ids[i]);
+                    dev.hoi.client.ui.UiText.cell(g, font, ids[i], x - 10, 205, 180, 24, 0xFFFFFFFF, false);
+                    dev.hoi.client.ui.UiAssets.draw(g, "politics/appointments/" + ids[i], x + 42, 245, 31, 34);
+                }
+            }
+        });
+        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-adviser-original-frames");
+    }
+
     public static List<MenuView.Section> politics() {
         var result = new ArrayList<MenuView.Section>();
         result.add(new MenuView.Section("국가 현황", "politics", List.of(new MenuView.Entry("정치력","72","화면 검증용 데이터"),
@@ -158,9 +175,28 @@ public final class CountryScreenChecks {
         var reports = Arrays.stream(IntelDomain.values()).map(d -> new CountryView.Report(d,new double[]{59.6,29.6,56.6,34.3}[d.ordinal()],List.of(
                 new MenuView.Entry(d.label+" 예상 수량","50–99","실제 서버 값을 사용하지 않는 렌더링 검증 데이터"),
                 new MenuView.Entry("정보가 충분하지 않습니다","상세 첩보 필요","공개 기준 확인")))).toList();
-        var fixture = new CountryView("KOR",hud,"PRC","중국",false,List.of(new CountryView.Choice("KOR","대한민국"),new CountryView.Choice("PRC","중국")),
-                List.of(new MenuView.Entry("관계","비동맹","")),List.of(new MenuView.Entry("알려지지 않은 중점","민간 첩보 70% 필요","")),reports);
-        context.setScreen(() -> new CountryScreen(fixture)); context.waitTicks(3); context.takeScreenshot("hoi-country-diplomacy");
+        var diplomacy = new ArrayList<MenuView.Entry>(List.of(
+                new MenuView.Entry("관계", "비동맹", ""),
+                new MenuView.Entry("집권 정당", "중국공산당", ""),
+                new MenuView.Entry("이념", "덩샤오핑 이론", "", -1, "politics/art/gfx_ideology_prc_market_socialism"),
+                new MenuView.Entry("지도자", "시진핑", "", -1, "politics/leaders/prc_xi_jinping"),
+                new MenuView.Entry("다음 선거", "선거 없음", ""),
+                new MenuView.Entry("안정도", "-100%", "현재 안정도", -1, "hud/stability"),
+                new MenuView.Entry("전쟁 지지도", "100%", "현재 전쟁 지지도", 1, "hud/war_support")));
+        for (int i = 0; i < 24; i++) diplomacy.add(new MenuView.Entry("보유 국민정신 " + i, "", "국가 정신\n안정도: §a+5%§r", -1, "politics/art/gfx_idea_prc_chinese_communist_party"));
+        var fixture = new CountryView("KOR",hud,"PRC","중화인민공화국",false,List.of(new CountryView.Choice("KOR","대한민국"),new CountryView.Choice("PRC","중국")),
+                diplomacy,List.of(new MenuView.Entry("알려지지 않은 중점","민간 첩보 70% 필요","")),reports);
+        context.setScreen(() -> new CountryScreen(fixture)); context.waitTicks(3); context.takeScreenshot("hoi-country-diplomacy"); dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-diplomacy");
+        context.runOnClient(c -> {
+            int pane = ((CountryScreen)c.gui.screen()).panelWidth(), top = dev.hoi.client.ui.HoiMenuBar.height(c.gui.screen().width);
+            var header = new DiplomacyHeader(fixture, pane);
+            int x = DiplomacyHeader.scaled(140, pane) + 2, y = DiplomacyHeader.spiritsTop(top, pane) + 8;
+            var first = header.spiritAt(x, y, pane, top);
+            if (first == null || !first.name().equals("보유 국민정신 0")) throw new AssertionError("Active spirit hover");
+            if (!header.scrollSpirits(x, y, -20, pane, top) || header.spiritAt(x, y, pane, top).equals(first))
+                throw new AssertionError("Offscreen national spirits must remain accessible");
+            if (!DiplomacyHeader.summary(diplomacy.get(2))) throw new AssertionError("Current ideology belongs in the header");
+        });
         click(context,"첩보 장부");
         for (var d : IntelDomain.values()) { click(context,d.label+" 정보"); context.waitTicks(2); context.takeScreenshot("hoi-intel-"+d.name().toLowerCase(Locale.ROOT)); }
         context.getInput().resizeWindow(854,480);context.waitTicks(3);context.takeScreenshot("hoi-intel-compact");

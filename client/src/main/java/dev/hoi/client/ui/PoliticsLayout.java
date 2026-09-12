@@ -17,6 +17,11 @@ public record PoliticsLayout(int pane, int top) {
         return new Box(b.x() + (int)Math.round(99 * scale), b.y() + (int)Math.round(12 * scale),
                 (int)Math.round(258 * scale), (int)Math.round(83 * scale));
     }
+    public Box focusProgress() {
+        var b = focus(); double scale = b.height() / 107.0;
+        return new Box(b.x() + (int)Math.round(115 * scale), b.y() + (int)Math.round(70 * scale),
+                (int)Math.round(212 * scale), Math.max(2, (int)Math.round(6 * scale)));
+    }
     public Box union() { return new Box(pane - 8 - columnWidth(), rowY(0), columnWidth(), rowHeight()); }
     public Box ideology() { return new Box(split(), rowY(1), columnWidth(), rowHeight()); }
     public Box spirits() { int x = election().x(); return new Box(x, rowY(1), pane - 8 - x, rowHeight()); }
