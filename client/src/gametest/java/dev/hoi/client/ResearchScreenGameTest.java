@@ -79,6 +79,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 client.player.getInventory().setSelectedSlot(0);
             });
             context.setScreen(() -> null); context.waitTicks(3); gui2Screenshot(context, "hoi-map-selector-icons");
+            ScoreboardChecks.run(context);
             var menu = fixtureMenu();
             dev.hoi.client.audio.KoreanMusicChecks.run(context, menu);
             dev.hoi.client.audio.MusicRoutingChecks.run(context);

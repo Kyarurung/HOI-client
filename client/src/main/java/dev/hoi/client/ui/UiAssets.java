@@ -91,6 +91,12 @@ public final class UiAssets {
         }
         return hasTexture(common) ? common : "";
     }
+    static int imageHeight(String path, int width) {
+        var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
+        if (id == null) return 0;
+        int[] size = DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions);
+        return size[0] > 0 ? Math.max(1, Math.round(width * (float) size[1] / size[0])) : 0;
+    }
     private static boolean hasTexture(String path) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         return id != null && DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions)[0] > 0;

@@ -397,7 +397,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             if (py + 10 > list.y() + list.height()) break;
             int swatch = Math.max(2, (int)(pitch - 2));
             g.fill(list.x() + 4, py, list.x() + 4 + swatch, py + swatch, partyColor(party.icon()));
-            String label = party.name() + " (" + Math.round(party.progress() * 100) + ")";
+            String label = party.name() + " (" + String.format(java.util.Locale.ROOT, "%.2f", party.progress() * 100) + ")";
             float rowScale = Math.min(scale, (list.width() - 21f) / Math.max(1, font.width(label)));
             g.pose().pushMatrix(); g.pose().translate(list.x() + 17, py); g.pose().scale(rowScale);
             g.text(font, label, 0, 0, TEXT);
@@ -586,7 +586,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             boolean party = hovered.icon().startsWith("politics/party/") || hovered.icon().startsWith("politics/ideology/");
             String title = party || hovered.value().isBlank() ? hovered.name() : hovered.value();
             var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
-            lines.add(Component.literal(title).withStyle(net.minecraft.ChatFormatting.GOLD).getVisualOrderText());
+            lines.add(Component.literal(title).withColor(HoiTooltips.GOLD).getVisualOrderText());
             if (party) lines.add(Component.literal(hovered.value()).getVisualOrderText());
             if (!hovered.detail().isBlank()) lines.addAll(HoiTooltips.lines(font, hovered.detail(), width));
             int count = Math.max(1, (height - 48) / (font.lineHeight + 1));
@@ -630,14 +630,14 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
     PoliticsLayout politicsLayout() { return new PoliticsLayout(pane, top); }
     CountryHud hud() { return view.hud(); }
     int spiritPitch() { return Math.max(18, politicsLayout().spirits().height() - 5); }
-    private int maximumSpiritScroll() { return Math.max(0, spirits.size() * spiritPitch() - (politicsLayout().spirits().width() - 8)); }
+    private int maximumSpiritScroll() { return Math.max(0, spirits.size() * spiritPitch() - Math.max(0, politicsLayout().spirits().width() - 8)); }
     private int spiritStart() { return politicsLayout().spirits().x() + 4; }
     MenuView.Entry politicsHover(double x, double y) {
         if (selected != MenuTab.POLITICS || detail != null || manufacturerGroup != null) return null;
         var layout = politicsLayout();
         if (layout.leader().contains(x, y)) {
             var leader = politicsEntry("지도자");
-            return leader.detail().isBlank() ? null : leader;
+            return leader;
         }
         var strip = layout.spirits();
         if (x >= strip.x() + 4 && x < strip.x() + strip.width() - 4 && y >= strip.y() + 2 && y < strip.y() + strip.height() - 4) {

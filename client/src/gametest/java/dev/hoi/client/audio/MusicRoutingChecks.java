@@ -47,7 +47,7 @@ public final class MusicRoutingChecks {
             if(!SuperEventAudio.active()||KoreanMusic.playing()!=null)throw new AssertionError("Super event lost priority during streaming");
             int before=KoreanMusic.PLAYBACK.selected();UiSounds.receive(AudioProtocol.Cue.MAP_NAVY);
             if(SuperEventAudio.active()||StoryMusicAudio.active())throw new AssertionError("Map switch must cancel special music");
-            if(KoreanMusic.PLAYBACK.selected()!=(before+1)%26)throw new AssertionError("Map switch advances the default playlist");
+            if(KoreanMusic.PLAYBACK.selected()!=(before+1)%KoreanMusic.PLAYBACK.tracks().size())throw new AssertionError("Map switch advances the default playlist");
         });
         context.waitTicks(25);
         context.runOnClient(client->{

@@ -22,6 +22,7 @@ public final class PoliticalTooltip {
     private static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String flag, String countryName,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         int width = Math.max(80, Math.min(270, viewportWidth - 24));
+        String detail = flag.isEmpty() ? entry.detail() : entry.detail().strip();
         var rows = new ArrayList<Row>();
         rows.add(new Row(Component.literal(entry.value().isBlank() ? entry.name() : entry.value())
                 .withColor(HoiTooltips.GOLD).getVisualOrderText(), "", font.lineHeight + 3));
@@ -30,12 +31,14 @@ public final class PoliticalTooltip {
                     .append(Component.literal("의 국가원수").withStyle(net.minecraft.ChatFormatting.WHITE));
             var roleLines = font.split(role, width - 15);
             for (int i = 0; i < roleLines.size(); i++) rows.add(new Row(roleLines.get(i), i == 0 ? flag : "", font.lineHeight + 1));
-            rows.add(new Row(Component.empty().getVisualOrderText(), "", font.lineHeight + 1));
+            if (!detail.isEmpty()) rows.add(new Row(Component.empty().getVisualOrderText(), "", font.lineHeight + 1));
         }
-        for (String line : entry.detail().split("\\R", -1)) {
-            if (line.matches("\\[image:[a-z0-9_/]+\\]"))
-                rows.add(new Row(null, line.substring(7, line.length()-1), width * 9 / 16));
-            else for (var text : HoiTooltips.lines(font, line, width + 24))
+        for (String line : !flag.isEmpty() && detail.isEmpty() ? new String[0] : detail.split("\\R", -1)) {
+            if (line.matches("\\[image:[a-z0-9_/]+\\]")) {
+                String image = line.substring(7, line.length() - 1);
+                int imageHeight = UiAssets.imageHeight(image, width);
+                if (imageHeight > 0) rows.add(new Row(null, image, imageHeight));
+            } else for (var text : HoiTooltips.lines(font, line, width + 24))
                 rows.add(new Row(text, "", font.lineHeight + 1));
         }
         int total = rows.stream().mapToInt(Row::height).sum();

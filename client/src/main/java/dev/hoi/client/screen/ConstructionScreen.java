@@ -179,8 +179,9 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     }
     private void send(ConstructionProtocol.Action action,String item,int amount,Vector3f ray) {
         if(pending>0&&action!=ConstructionProtocol.Action.CLOSE)return;
-        pending=100;transport.accept(new ConstructionProtocol.Request(action,token,view==null?0:view.revision(),item,amount,ray==null?0:ray.x,ray==null?0:ray.y,ray==null?0:ray.z));
-        rebuildWidgets();
+        boolean passive=action==ConstructionProtocol.Action.REFRESH;
+        if(!passive)pending=100;transport.accept(new ConstructionProtocol.Request(action,token,view==null?0:view.revision(),item,amount,ray==null?0:ray.x,ray==null?0:ray.y,ray==null?0:ray.z));
+        if(!passive)rebuildWidgets();
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
         if((event.button()==0||event.button()==1)&&event.x()>=pane&&event.y()>top+22&&event.x()<HoiMenuBar.statsRight(width)) {

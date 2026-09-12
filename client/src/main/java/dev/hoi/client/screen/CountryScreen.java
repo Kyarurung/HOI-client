@@ -28,7 +28,8 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
     private CountryView.Action confirmation;
     private int pane, top, scroll, actionScroll, total, ticks, hudScroll;
     private MenuView.Entry detail;
-    private int detailScroll, leaderTooltipScroll;
+    private int detailScroll, leaderTooltipScroll, spiritTooltipScroll;
+    private MenuView.Entry hoveredSpirit;
     public CountryScreen(String target) { super(Component.literal("외교")); this.target = target; choosing = target.isEmpty(); }
     public CountryScreen(CountryView fixture) { this(fixture.target()); view = fixture; }
     String token() { return token; }
@@ -222,17 +223,35 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
         super.extractRenderState(g, mx, my, delta);
         if (view != null && !ledger && !choosing && detail == null && confirmation == null) {
             var spirit = header.spiritAt(mx, my, pane, top);
+            var party = header.partyAt(view,mx,my,pane,top);
+            if(party!=null) {
+                var lines=new java.util.ArrayList<net.minecraft.util.FormattedCharSequence>();
+                lines.add(Component.literal(party.name()).withColor(dev.hoi.client.ui.HoiTooltips.GOLD).getVisualOrderText());
+                lines.add(Component.literal(party.value()).getVisualOrderText());
+                lines.addAll(dev.hoi.client.ui.HoiTooltips.lines(font,party.detail(),width));
+                g.setTooltipForNextFrame(font,lines,mx,my);
+            }
             if (header.leaderAt(mx, my, pane, top))
                 leaderTooltipScroll = dev.hoi.client.ui.PoliticalTooltip.drawLeader(g, font, DiplomacyHeader.entry(view, "지도자"),
                         view.target(), view.name(), mx, my, width, height, leaderTooltipScroll);
             else leaderTooltipScroll = 0;
-            if (spirit != null) dev.hoi.client.ui.HoiTooltips.draw(g, font, spirit.name() + "\n" + spirit.detail().substring("국가 정신\n".length()), mx, my);
+            if (!java.util.Objects.equals(spirit, hoveredSpirit)) spiritTooltipScroll = 0;
+            hoveredSpirit = spirit;
+            if (spirit != null) spiritTooltipScroll = dev.hoi.client.ui.PoliticalTooltip.draw(g, font,
+                    new MenuView.Entry(spirit.name(), "", spirit.detail().substring("국가 정신\n".length()), spirit.progress(), spirit.icon()),
+                    mx, my, width, height, spiritTooltipScroll);
         }
     }
     private String trim(String text, int w) { return font.width(text) <= w ? text : font.plainSubstrByWidth(text, Math.max(1, w - 9)) + "…"; }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
         if (y < HoiMenuBar.STATS_HEIGHT && x >= 40 && x < HoiMenuBar.statsRight(width)) {
             hudScroll = HoiMenuBar.scroll(width, view == null ? CountryHud.UNKNOWN : view.hud(), hudScroll, horizontal, vertical); return true;
+        }
+        if (view != null && !ledger && !choosing && detail == null && confirmation == null
+                && header.spiritAt(x, y, pane, top) != null
+                && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT))) {
+            spiritTooltipScroll -= (int)(vertical * 3); return true;
         }
         if (view != null && !ledger && !choosing && detail == null && confirmation == null
                 && header.scrollSpirits(x, y, horizontal != 0 ? horizontal : vertical, pane, top)) return true;

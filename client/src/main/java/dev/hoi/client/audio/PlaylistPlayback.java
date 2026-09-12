@@ -3,8 +3,11 @@ package dev.hoi.client.audio;
 import java.util.*;
 
 public final class PlaylistPlayback {
-    public record Track(String event, String title, double seconds) {
+    public record Track(String event, String title, double seconds, String cover) {
+        public Track(String event,String title,double seconds){this(event,title,seconds,"");}
         public Track {
+            cover = cover == null ? "" : cover;
+            if (!cover.isEmpty() && !cover.matches("music/album/[a-z0-9_]+")) throw new IllegalArgumentException("Invalid album image");
             if (event == null || !event.matches("music\\.korea\\.[a-z0-9_.]+") || title == null || title.isBlank()
                     || title.length() > 256 || !Double.isFinite(seconds) || seconds <= 0 || seconds > 3600)
                 throw new IllegalArgumentException("Invalid Korean music track");

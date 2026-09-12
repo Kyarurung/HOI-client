@@ -13,14 +13,20 @@ public final class KoreanMusic {
     private record Catalog(int version, List<PlaylistPlayback.Track> tracks) {}
     private static SoundInstance sound;
     private static boolean enabled;
+    private static boolean stationEnabled = true;
+    private static double volume = 1.0;
     private static boolean selected;
     public static final PlaylistPlayback PLAYBACK = new PlaylistPlayback(new PlaylistPlayback.Output() {
         public boolean start(PlaylistPlayback.Track track) {
             var client = Minecraft.getInstance(); var id = UiSounds.id(track.event());
             if (client.getSoundManager().getSoundEvent(id) == null) return false;
             client.getMusicManager().stopPlaying();
-            sound = new SimpleSoundInstance(id, SoundSource.MASTER, 1, 1, RandomSource.create(),
-                    false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
+            sound = new AbstractTickableSoundInstance(net.minecraft.sounds.SoundEvent.createVariableRangeEvent(id), SoundSource.MASTER, RandomSource.create()) {
+                { volume = (float)KoreanMusic.volume; attenuation = SoundInstance.Attenuation.NONE; relative = true; }
+                @Override public void tick(){}
+                @Override public float getVolume(){return (float)KoreanMusic.volume;}
+                @Override public boolean canStartSilent(){return true;}
+            };
             client.getSoundManager().play(sound); return true;
         }
         public boolean active() { return sound != null && Minecraft.getInstance().getSoundManager().isActive(sound); }
@@ -46,15 +52,24 @@ public final class KoreanMusic {
         enable();
         if (!selected) { selected=true; StoryMusicAudio.play("music.tfr_theme"); }
     }
-    public static void enable(){enabled=true;}
+    public static double volume(){return volume;}
+    public static void volume(double value){if(Double.isFinite(value))volume=Math.clamp(value,0.0,1.0);}
+    public static boolean isPlaying(){return sound!=null&&Minecraft.getInstance().getSoundManager().isActive(sound);}
+    public static boolean stationEnabled(){return stationEnabled;}
+    public static void toggleStation(){
+        stationEnabled = !stationEnabled;
+        if (!stationEnabled) stop();
+        else { enable(); if (!PLAYBACK.tracks().isEmpty()) play(PLAYBACK.selected()); }
+    }
+    public static void enable(){enabled=stationEnabled;}
     public static void stop(){enabled=false;PLAYBACK.stop();}
     public static void reset(){stop();selected=false;}
     public static void suspend(){PLAYBACK.tick(false);}
     public static void mapChanged() {
-        enabled=true;StoryMusicAudio.reset();SuperEventAudio.reset();
-        if(!PLAYBACK.tracks().isEmpty())PLAYBACK.step(1);
+        enabled=stationEnabled;StoryMusicAudio.reset();SuperEventAudio.reset();
+        if(stationEnabled&&!PLAYBACK.tracks().isEmpty())PLAYBACK.step(1);
     }
-    public static void play(int index){enabled=true;StoryMusicAudio.reset();SuperEventAudio.reset();PLAYBACK.play(index);}
+    public static void play(int index){stationEnabled=true;enabled=true;StoryMusicAudio.reset();SuperEventAudio.reset();PLAYBACK.play(index);}
     static SoundInstance playing(){return sound;}
     public static void tick() {
         var client = Minecraft.getInstance();

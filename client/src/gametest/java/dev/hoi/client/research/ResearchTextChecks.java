@@ -16,6 +16,14 @@ public final class ResearchTextChecks {
             check(labeled.getString().endsWith(" 건설 속도: +15%") && labeled.getString().charAt(0) >= 0xe000, "Source-bound keyword glyph precedes construction speed");
             for (String label : List.of("기반시설 건설 속도", "사무단지 건설 속도"))
                 check(KeywordIcons.decorate(Component.literal(label + ": -5%")).getString().charAt(0) == labeled.getString().charAt(0), "Buildings share construction speed art");
+            var detail = KeywordIcons.decorateLines(dev.hoi.client.ui.HoiTooltips.sentences(
+                    Component.literal("낮은 금리\n  건설 속도: §a+5%§r\n\n§c제거 불가능§r")));
+            check(detail.getString().equals("낮은 금리\n" + labeled.getString().charAt(0) + " 건설 속도: +5%\n\n제거 불가능"),
+                    "Choice tooltips decorate each effect, trim source indentation and preserve blank rows");
+            detail.visit((style, part) -> {
+                if (part.contains("+5%")) check(style.getColor().getValue() == dev.hoi.client.ui.HoiTooltips.GOOD, "Effect icon insertion preserves TFR colours");
+                return Optional.empty();
+            }, Style.EMPTY);
             char business = KeywordIcons.decorate(Component.literal("사업 가치 변동치: +5%")).getString().charAt(0);
             char personal = KeywordIcons.decorate(Component.literal("개인 가치 변동치: -5%")).getString().charAt(0);
             check(business >= 0xe000 && personal >= 0xe000 && business != personal, "Business and personal value use distinct source dollar art");

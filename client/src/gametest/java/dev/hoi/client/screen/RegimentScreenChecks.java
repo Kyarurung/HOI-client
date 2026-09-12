@@ -38,9 +38,7 @@ public final class RegimentScreenChecks {
                                 "All regiment support cells stay locked with fewer than three battalions");
                         press(adds.getLast());
                         press(button(s,"보병 대대"));
-                        String unit=v.battalions().stream().filter(b->b.id().equals("INFANTRY")).findFirst().orElseThrow().name();
-                        press(button(s,unit));
-                        check(requests.getLast().action()==IndustryProtocol.Action.LINE_COLUMN&&requests.getLast().amount()==20,"Fifth column submits its own cell, not the flattened end");
+                        check(requests.getLast().action()==IndustryProtocol.Action.LINE_COLUMN&&requests.getLast().amount()==20&&requests.getLast().item().equals("INFANTRY"),"Fifth column submits its own cell, not the flattened end");
                     } else {
                         var support=button(s,"연대 지원 · 장식용");check(!support.active,"Regiment row is decorative even after three battalions");
                     }

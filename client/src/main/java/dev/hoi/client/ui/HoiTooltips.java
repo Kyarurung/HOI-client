@@ -48,7 +48,7 @@ public final class HoiTooltips {
     }
 
     public static net.minecraft.client.gui.components.Tooltip create(Component text) {
-        return net.minecraft.client.gui.components.Tooltip.create(sentences(text));
+        return net.minecraft.client.gui.components.Tooltip.create(KeywordIcons.decorateLines(sentences(text)));
     }
 
     public static List<FormattedCharSequence> lines(Font font, String text, int viewportWidth) {

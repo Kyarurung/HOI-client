@@ -245,7 +245,7 @@ public final class CompletionScreenChecks {
             check(c.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/menu/flag_overlay.png")).isPresent(),"Original TFR flag overlay loads from the split UI pack");
             var lines = HudTooltip.body(c.font, c.gui.screen().width, hud, HoiMenuBar.indicators(hud).getFirst());
             for (var item : HoiMenuBar.indicators(hud)) {
-                check(item.value().equals("0"), "Unknown HUD value displays zero: " + item.icon());
+                check(item.value().equals(item.icon().equals("party_support") ? "0.00%" : "0"), "Unknown HUD value displays zero: " + item.icon());
                 var text = new StringBuilder();
                 for (var line : HudTooltip.body(c.font, c.gui.screen().width, hud, item))
                     line.accept((index, style, character) -> { text.appendCodePoint(character); return true; });

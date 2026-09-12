@@ -14,6 +14,23 @@ public final class KeywordIcons {
     private static List<Binding> bindings;
     private KeywordIcons() {}
     static void clear() { bindings = null; }
+    public static Component decorateLines(Component text) {
+        var result = Component.empty();
+        var line = new Component[]{Component.empty()};
+        text.visit((style, part) -> {
+            String[] parts = part.replaceAll("£[A-Za-z0-9_]+\\h*", "").split("\\R", -1);
+            for (int i = 0; i < parts.length; i++) {
+                if (i > 0) {
+                    result.append(decorate(line[0])).append("\n");
+                    line[0] = Component.empty();
+                }
+                line[0] = line[0].copy().append(Component.literal(parts[i]).withStyle(style));
+            }
+            return Optional.empty();
+        }, net.minecraft.network.chat.Style.EMPTY);
+        return result.append(decorate(line[0]));
+    }
+
     public static Component decorate(Component text) {
         if (bindings == null) bindings = load();
         String label = text.getString().replaceAll("§.", "").stripLeading();
@@ -21,8 +38,18 @@ public final class KeywordIcons {
             if (!label.startsWith(binding.label())) continue;
             int end = binding.label().length();
             if (label.length() > end && !Character.isWhitespace(label.charAt(end)) && label.charAt(end) != ':' && label.charAt(end) != '：') continue;
+            // Source building labels contain indentation after their icon token.
+            // Remove it only on matched effect rows, preserving colours and paragraph spacing.
+            var trimmed = Component.empty();
+            boolean[] leading = {true};
+            text.visit((style, part) -> {
+                String value = leading[0] ? part.stripLeading() : part;
+                if (!value.isEmpty()) leading[0] = false;
+                trimmed.append(Component.literal(value).withStyle(style));
+                return Optional.empty();
+            }, net.minecraft.network.chat.Style.EMPTY);
             return Component.empty().append(Component.literal(binding.glyph()).withStyle(s -> s.withFont(FONT).withColor(0xFFFFFF)))
-                    .append(Component.literal(" ")).append(text);
+                    .append(Component.literal(" ")).append(trimmed);
         }
         return text;
     }

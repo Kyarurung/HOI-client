@@ -16,7 +16,7 @@ final class DiplomacyHeader {
     }
     static boolean summary(MenuView.Entry entry) {
         return Set.of("안정도", "전쟁 지지도", "집권 정당", "이념", "TFR 원본 시작 이념", "지도자", "다음 선거").contains(entry.name())
-                || entry.detail().equals("정당 지지도") || entry.detail().startsWith("국가 정신\n");
+                || entry.detail().startsWith("정당 지지도") || entry.detail().startsWith("국가 정신\n");
     }
     static int scaled(int value, int pane) { return Math.round(value * pane / 550f); }
     static int tabs(int top) { return top + 70; }
@@ -64,6 +64,18 @@ final class DiplomacyHeader {
         }
         g.disableScissor();
     }
+    MenuView.Entry partyAt(CountryView view, double x, double mouseY, int pane, int top) {
+        int right=scaled(147,pane),rightW=pane-right-scaled(12,pane),edge=Math.max(1,scaled(5,pane));
+        int cellW=edge+Math.round((rightW-edge*2)*99f/388),cellH=edge+Math.round((leaderHeight(pane)-edge*2)*85f/157);
+        int size=scaled(80,pane),left=right+(cellW-size)/2+2,upper=politicsTop(top)+(cellH-size)/2+1;
+        double dx=x-left-size/2.0,dy=mouseY-upper-size/2.0;
+        if(dx*dx+dy*dy>=size*size/4.0)return null;
+        double angle=(Math.atan2(dy,dx)+Math.PI*2.5)%(2*Math.PI)/(2*Math.PI),sum=0;
+        for(var party:view.diplomacy())if(party.detail().startsWith("정당 지지도")) {
+            sum+=party.progress();if(angle<sum)return party;
+        }
+        return null;
+    }
     boolean leaderAt(double x, double y, int pane, int top) {
         int left = scaled(13, pane), upper = politicsTop(top);
         return x >= left && x < left + scaled(134, pane) && y >= upper && y < upper + leaderHeight(pane);
@@ -85,7 +97,7 @@ final class DiplomacyHeader {
     }
     private static List<int[]> chart(CountryView view, int size) {
         var result = new ArrayList<int[]>();
-        var parties = view.diplomacy().stream().filter(e -> e.detail().equals("정당 지지도")).toList();
+        var parties = view.diplomacy().stream().filter(e -> e.detail().startsWith("정당 지지도")).toList();
         double radius = size / 2.0;
         int[] colors = {0xFF4267CE, 0xFFB52C39, 0xFF97652F, 0xFF939393};
         for (int row = 0; row < size; row++) {

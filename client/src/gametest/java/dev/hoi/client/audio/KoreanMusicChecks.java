@@ -12,10 +12,14 @@ public final class KoreanMusicChecks {
             client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MUSIC).set(1.0);
             KoreanMusic.reload(client.getResourceManager());
             var tracks = KoreanMusic.PLAYBACK.tracks();
-            if (tracks.size() != 26) throw new AssertionError("All original Korean playlist tracks must load");
+            if (tracks.size() != 81) throw new AssertionError("All original Korean playlist tracks must load");
+            for (var track : tracks) {
+                if (!track.cover().isEmpty() && client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+track.cover()+".png")).isEmpty()) throw new AssertionError("Missing album art: "+track.title());
+            }
             for (var track : tracks) if (client.getSoundManager().getSoundEvent(UiSounds.id(track.event())) == null)
                 throw new AssertionError("Missing playlist sound: " + track.event());
         });
+        context.runOnClient(client -> { if(!KoreanMusic.stationEnabled())KoreanMusic.toggleStation(); });
         for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]);
             context.setScreen(() -> new KoreanMusicScreen(null));
@@ -28,13 +32,45 @@ public final class KoreanMusicChecks {
                     throw new AssertionError("Playlist control outside viewport: " + button.getMessage().getString());
             });
             context.takeScreenshot("hoi-korean-music-" + size[0]);
+            if(size[0]==1600){
+                context.runOnClient(client -> {
+                    var screen=client.gui.screen();
+                    var button=screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("TFR Korea Plus ON/OFF")).map(w -> (Button)w).findFirst().orElseThrow();
+                    screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX()+10,button.getY()+10,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
+                    if(KoreanMusic.stationEnabled()||KoreanMusic.PLAYBACK.requested())throw new AssertionError("Station OFF stops playlist");
+                    KoreanMusic.mapChanged();
+                    if(KoreanMusic.stationEnabled()||KoreanMusic.PLAYBACK.requested())throw new AssertionError("Map switch preserves station OFF");
+                });
+                context.getInput().setCursorPos(1500,950);context.waitTicks(3);
+                context.takeScreenshot("hoi-korean-music-off-1600");
+                context.runOnClient(client -> KoreanMusic.toggleStation());context.waitTicks(3);
+                context.runOnClient(client -> {if(!KoreanMusic.stationEnabled()||!KoreanMusic.PLAYBACK.requested())throw new AssertionError("Station ON starts selected track");});
+                context.waitTicks(25);
+                context.takeScreenshot("hoi-korean-music-on-1600");
+                context.runOnClient(client -> {
+                    var slider=client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.AbstractSliderButton).map(w -> (net.minecraft.client.gui.components.AbstractSliderButton)w).findFirst().orElseThrow();
+                    slider.onClick(new net.minecraft.client.input.MouseButtonEvent(slider.getX()+4,slider.getY()+5,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
+                    if(KoreanMusic.volume()!=0)throw new AssertionError("Volume click reaches mute");
+                });
+                context.waitTicks(3);
+                context.runOnClient(client -> {if(KoreanMusic.playing()==null||KoreanMusic.playing().getVolume()!=0)throw new AssertionError("Active stream updates to mute");});
+                context.runOnClient(client -> {
+                    var slider=client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.AbstractSliderButton).map(w -> (net.minecraft.client.gui.components.AbstractSliderButton)w).findFirst().orElseThrow();
+                    slider.mouseDragged(new net.minecraft.client.input.MouseButtonEvent(slider.getX()+4+(slider.getWidth()-8)*.25,slider.getY()+5,new net.minecraft.client.input.MouseButtonInfo(0,0)),0,0);
+                    if(Math.abs(KoreanMusic.volume()-.25)>.001)throw new AssertionError("Volume drag reaches 25 percent");
+                });
+                context.waitTicks(3);
+                context.runOnClient(client -> {if(Math.abs(KoreanMusic.playing().getVolume()-.25)>.001)throw new AssertionError("Active stream volume updates without restart");});
+                context.takeScreenshot("hoi-korean-music-volume-25-1600");
+                context.runOnClient(client -> KoreanMusic.volume(1));
+            }
         }
         for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]);
             context.setScreen(() -> new dev.hoi.client.screen.HoiMenuScreen(menu));
             context.waitTicks(3);
             context.runOnClient(client -> {
-                if (client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/hud/music_player.png")).isEmpty())
+                if (client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/music/toggle.png")).isEmpty())
                     throw new AssertionError("Original TFR music icon must load");
                 var screen = client.gui.screen();
                 var button = screen.children().stream().filter(b -> b instanceof dev.hoi.client.ui.MusicButton)

@@ -623,10 +623,10 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 }
             }
         } else {
-            recess(x + 7, y + 28, left - 3, h - 62);
-            text(supportSlot ? "지원중대 추가 / 변경" : "대대 추가 / 변경", x + 13, y + 38, left - 70, TEXT);
+            recess(x + 7, y + 28, left - 3, h - 83);
+            text(supportSlot ? "지원중대 추가 / 변경" : selectedSlot % 5 == 0 ? "연대 계열 교체" : "대대 추가 / 변경", x + 13, y + 38, left - 70, TEXT);
             button("대대 목록 닫기", "뒤로", x + left - 49, y + 34, 43, 18, true, () -> {
-                if (!supportSlot && !unitGroup.isEmpty()) unitGroup = ""; else selectedSlot = -1;
+                selectedSlot = -1;
                 pickerScroll = 0; rebuildWidgets();
             });
             int start = y + 62, cardWidth = (left - 22) / 2, pitch = 40;
@@ -634,14 +634,16 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             if (!supportSlot && unitGroup.isEmpty()) {
                 var groups = List.of("ARMOR", "MOBILE", "INFANTRY").stream()
                         .filter(g -> view.battalions().stream().anyMatch(c -> battalionGroup(c.id()).equals(g))).toList();
-                int offset = current.isEmpty() ? 0 : 1;
-                if (offset == 1) unitChoice("제거", "production/designer/remove", "제거 비용 5 ★", x + 12, start, cardWidth, true,
-                        () -> send(LINE_COLUMN, "", "", selectedSlot));
                 for (int i = 0; i < groups.size(); i++) {
                     String group = groups.get(i), label = switch (group) { case "ARMOR" -> "기갑 대대"; case "MOBILE" -> "기동 대대"; default -> "보병 대대"; };
-                    String texture = view.battalions().stream().filter(c -> battalionGroup(c.id()).equals(group)).findFirst().orElseThrow().texture();
-                    unitChoice(label, texture, !current.isEmpty() && battalionGroup(current).equals(group) ? "대대 선택" : "추가 비용 " + (5 * Math.max(1,t.columnSize(selectedSlot / 5))) + " ★", x + 12 + (i + offset) % 2 * (cardWidth + 6), start + (i + offset) / 2 * pitch, cardWidth, true,
-                            () -> { unitGroup = group; pickerScroll = 0; rebuildWidgets(); });
+                    String preferred = switch (group) { case "ARMOR" -> "TANK"; case "MOBILE" -> "MOTORIZED_INFANTRY"; default -> "INFANTRY"; };
+                    var candidates = view.battalions().stream().filter(c -> battalionGroup(c.id()).equals(group)).toList();
+                    var choice = candidates.stream().filter(c -> c.id().equals(preferred)).findFirst().orElse(candidates.getFirst());
+                    int column = selectedSlot / 5;
+                    boolean selected = !current.isEmpty() && battalionGroup(current).equals(group);
+                    String detail = selected ? "(현재 선택됨)" : (current.isEmpty() ? "추가 비용 " : "교체 비용 ") + 5 * Math.max(1, t.columnSize(column)) + " ★";
+                    unitChoice(label, choice.texture(), detail, x + 12 + i % 2 * (cardWidth + 6), start + i / 2 * pitch, cardWidth, !selected,
+                            () -> { int slot = selectedSlot; selectedSlot = -1; send(LINE_COLUMN, choice.id(), "", slot); });
                 }
             } else {
                 var choices = supportSlot ? view.companies().stream().filter(c -> c.id().equals(current) || !t.support().contains(c.id())).toList()
@@ -657,8 +659,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     boolean selected = !id.isEmpty() && id.equals(current);
                     boolean enabled = !selected && (choice != null || supportSlot || t.line().size() > 1);
                     String detail = selected ? "(현재 선택됨)" : choice == null ? "제거 비용 5 ★" : current.isEmpty() ? "추가 비용 5 ★" : "교체 비용 " + (!supportSlot && selectedSlot % 5 == 0 && !battalionGroup(current).equals(battalionGroup(id)) ? 5*t.columnSize(selectedSlot/5) : 5) + " ★";
-                    if (choice == null && !supportSlot) detail = "대대 제거";
-                    unitChoice(label, choice == null ? "" : choice.texture(), detail, bx, by, cardWidth, enabled, () -> {
+
+                    unitChoice(label, choice == null ? "production/designer/remove" : choice.texture(), detail, bx, by, cardWidth, enabled, () -> {
                         int slot = selectedSlot; selectedSlot = -1;
                         send(supportSlot ? SUPPORT_SLOT : t.columns() == null ? LINE_SLOT : LINE_COLUMN, id, "", slot);
                     });
@@ -684,14 +686,14 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 art("stats/" + (stat.id() == null ? "" : stat.id().toLowerCase(Locale.ROOT)), sx + 2, sy - 2, 11, 11);
                 int valueWidth = Math.min(colWidth / 2, Math.max(35, font.width(statValue(stat))));
                 leftText(stat.name(), sx + 15, sy, colWidth - valueWidth - 19, MUTED);
-                leftText(statValue(stat), sx + colWidth - valueWidth - 3, sy, valueWidth, TEXT);
+                cellText(statValue(stat), sx + colWidth - valueWidth - 3, sy, valueWidth, font.lineHeight, TEXT, true);
                 tip(stat.name() + ": " + statValue(stat), sx, sy - 2, colWidth - 1, 15);
             }
             if (col == 2) for (var need : t.equipment().entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
-                int sy = y + 51 + row++ * 18 - designerScroll;
+                int sy = y + 51 + row++ * 15 - designerScroll;
                 if (sy < y + 48 || sy + 15 > y + h - 58) continue;
                 var e = equipment(need.getKey());
-                leftText(familyName(e), sx + 3, sy, colWidth - 41, MUTED); leftText(integer(need.getValue()), sx + colWidth - 37, sy, 34, TEXT);
+                leftText(familyName(e), sx + 3, sy, colWidth - 41, MUTED); cellText(integer(need.getValue()), sx + colWidth - 37, sy, 34, font.lineHeight, TEXT, true);
                 tip(familyName(e) + ": " + need.getValue(), sx, sy - 2, colWidth - 1, 18);
             }
         }
@@ -701,9 +703,9 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             if (e == null) known = false; else cost += e.cost() * need.getValue();
         }
         art("keywords/stat_common_build_cost_ic", statsX, y + h - 49, 14, 14);
-        text("예상 생산 비용: " + (known ? ic(cost) + " IC" : "—"), statsX + 18, y + h - 45, statsWidth - 20, TEXT);
+        leftText("예상 생산 비용: " + (known ? ic(cost) + " IC" : "—"), statsX + 18, y + h - 45, statsWidth - 20, TEXT);
         art("hud/army_experience", x + 10, y + h - 46, 14, 14);
-        text(integer(view.economy().armyXp()), x + 28, y + h - 44, left - 30, 0xFFFFFFFF);
+        leftText(integer(view.economy().armyXp()), x + 28, y + h - 44, left - 30, 0xFFFFFFFF);
         tip("보유 육군 경험치", x + 10, y + h - 47, left - 12, 17);
         if (graphics == null) {
             int bx = x + w / 2 - 65, by = y + h - 27;
@@ -711,7 +713,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     () -> send(SAVE_TEMPLATE, draftName, "", 0)) {
                 @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                     HoiMenuStyle.control(g, bx, by, 130, 21, false, false);
-                    var label = Component.literal(integer(t.experienceCost())).withStyle(style -> style.withColor(0xFFFF00))
+                    var label = Component.literal(integer(t.experienceCost())).withStyle(style -> style.withColor(HoiTooltips.GOLD))
                             .append(Component.literal(" 저장").withStyle(style -> style.withColor(0xFFFFFF)));
                     int labelWidth = Math.round(font.width(label) * UiText.scale(font));
                     int start = bx + (130 - 17 - labelWidth) / 2;
@@ -730,8 +732,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     private void selectSlot(int slot, boolean support) {
         selectedSlot = slot; supportSlot = support; pickerScroll = 0;
-        String current = support ? "" : view.draft().lineUnit(slot);
-        unitGroup = current.isEmpty() || !support && slot % 5 == 0 ? "" : battalionGroup(current); rebuildWidgets();
+        String head = support ? "" : view.draft().lineUnit(slot / 5 * 5);
+        unitGroup = support || slot % 5 == 0 ? "" : battalionGroup(head); rebuildWidgets();
     }
     private static String battalionGroup(String id) {
         return switch (id) {
@@ -826,9 +828,10 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     private void send(IndustryProtocol.Action action, String item, String other, int amount) {
         if (closed || pending > 0 && action != CLOSE) return;
-        pending = 100;
+        boolean passive = action == REFRESH;
+        if (!passive) pending = 100;
         transport.accept(new IndustryProtocol.Request(action, token, view == null ? 0 : view.revision(), item, other, amount));
-        rebuildWidgets();
+        if (!passive) rebuildWidgets();
     }
     @Override public void tick() {
         if (pending == 0 && view != null && view.draft() != null && !recruitTemplate.isEmpty()) {
@@ -1006,10 +1009,17 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                 HoiMenuStyle.control(g, x, y, w, 36, isHoveredOrFocused(), !active);
                 if (!texture.isEmpty()) UiAssets.draw(g, texture, x + 4, y + 9, 28, 21);
-                else g.centeredText(font, "⊘", x + 18, y + 13, 0xFFFF7777);
+
                 int tw = Math.max(1, w - 40), center = x + 35 + tw / 2;
                 g.centeredText(font, font.plainSubstrByWidth(name, tw), center, y + 6, TEXT);
-                g.centeredText(font, font.plainSubstrByWidth(detail, tw), center, y + 21, 0xFF66BB66);
+                if (detail.endsWith(" ★")) {
+                    int split = detail.lastIndexOf(' ', detail.length() - 3);
+                    String amount = detail.substring(split + 1, detail.length() - 2);
+                    var costLabel = Component.literal(amount).withColor(HoiTooltips.GOLD);
+                    int start = center - (font.width(costLabel) + 13) / 2;
+                    g.text(font, costLabel, start, y + 21, 0xFFFFFFFF);
+                    UiAssets.draw(g, "hud/army_experience", start + font.width(costLabel) + 2, y + 19, 11, 11);
+                } else g.centeredText(font, font.plainSubstrByWidth(detail, tw), center, y + 21, 0xFF000000 | HoiTooltips.GOOD);
             }
         };
         button.active = enabled && pending == 0;

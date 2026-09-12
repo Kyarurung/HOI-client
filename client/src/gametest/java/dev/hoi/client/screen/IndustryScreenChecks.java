@@ -34,9 +34,7 @@ public final class IndustryScreenChecks {
                 check(screen.panelWidth() == HoiPanelLayout.width(tab, screen.width), "Original sidebar proportions");
                 checkBounds(screen);
                 if (tab == MenuTab.LOGISTICS) {
-                    check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:font/korean.json")).isPresent(), "Original Korean font is in the UI pack");
-                    var korean = net.minecraft.network.chat.Component.literal("가나다라마바사아자차 ABC xyz 0123456789 (%)").withStyle(style -> style.withFont(new net.minecraft.network.chat.FontDescription.Resource(net.minecraft.resources.Identifier.parse("hoi:korean"))));
-                    check(client.font.width(korean) == client.font.width(korean.getString()), "Default Hangul uses the imported original Korean glyph widths");
+                    check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:font/korean.json")).isEmpty(), "Cancelled Korean font override is absent");
                     check((screen.panelWidth()-12)*34/100-2 >= client.font.width("가나다라마바사아자차") * dev.hoi.client.ui.UiText.scale(client.font), "Equipment column fits ten Korean glyphs at the requested text size");
                     check(IndustryScreen.LOGISTICS_HEADERS.equals(List.of("평균 생산 효율","장비 유형","생산","상태","수요","균형","비축량","자원")), "Eight logistics columns follow the supplied order");
                     for (String icon : List.of("efficiency","production","need","balance","stockpile"))
@@ -175,12 +173,33 @@ public final class IndustryScreenChecks {
         context.runOnClient(client -> { var s = (IndustryScreen)client.gui.screen(); check(!s.allowsMovement(), "Designer blocks movement"); checkBounds(s); });
         click(context, v.battalions().stream().filter(c -> c.id().equals(v.templates().getFirst().line().getFirst())).findFirst().orElseThrow().name());
         context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-categories");
-        click(context, "보병 대대");
+        context.runOnClient(client -> {
+            var s = (IndustryScreen)client.gui.screen();
+            check(!button(s, "보병 대대").active, "First slot retains the current category");
+            check(button(s, "기갑 대대").active && button(s, "기동 대대").active, "First slot offers whole-column category replacement");
+        });
+        ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-battalion-categories");
+        click(context, "기갑 대대");
+        context.runOnClient(client -> {
+            check(requests.getLast().action() == IndustryProtocol.Action.LINE_COLUMN && requests.getLast().amount() == 0
+                    && requests.getLast().item().equals("TANK"), "Category choice replaces the column through its first slot");
+            ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 4, v.templates().getFirst()));
+            var s = (IndustryScreen)client.gui.screen();
+            var first = button(s, v.battalions().stream().filter(c -> c.id().equals(v.templates().getFirst().line().getFirst())).findFirst().orElseThrow().name());
+            var lower = (Button)s.children().stream().filter(w -> w instanceof Button b && b.getX() == first.getX() && b.getY() > first.getY())
+                    .min(java.util.Comparator.comparingInt(w -> ((Button)w).getY())).orElseThrow();
+            lower.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0));
+            check(s.children().stream().noneMatch(w -> w instanceof Button b && (b.getMessage().getString().equals("기갑 대대")
+                    || b.getMessage().getString().equals("기동 대대"))), "Lower slots cannot switch the column category");
+            check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/designer/remove.png")).isPresent(), "Original removal image is packaged");
+            var controls = List.copyOf(s.children());
+            for (int tick = 0; tick < 60; tick++) s.tick();
+            check(s.children().equals(controls) && button(s, "제거").active, "Passive refresh keeps button instances and enabled icons");
+        });
         context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-choices");
+        ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-battalion-choices");
         click(context, "대대 목록 닫기");
-        context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-categories");
-        click(context, "대대 목록 닫기");
-        context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 4, v.templates().get(1))));
+        context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 5, v.templates().get(1))));
         context.waitTicks(2); context.takeScreenshot("hoi-industry-support-add-and-lock");
         context.runOnClient(client -> {
             var s = (IndustryScreen)client.gui.screen();

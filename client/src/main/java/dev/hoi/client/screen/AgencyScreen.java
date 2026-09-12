@@ -359,10 +359,10 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     private int detailWidth() { return Math.min(540, width - detailX() - 12); }
     private void send(AgencyProtocol.Kind kind, String item, List<String> args) {
         if (pendingTicks > 0 && kind == AgencyProtocol.Kind.CALL) return;
-        pendingTicks = 100;
-        pendingKind = kind;
+        boolean passive = kind == AgencyProtocol.Kind.REFRESH;
+        pendingTicks = 100; pendingKind = kind;
         transport.accept(new AgencyProtocol.Request(kind, token, view == null ? 0 : view.revision(), item, args));
-        rebuildWidgets();
+        if (!passive) rebuildWidgets();
     }
     @Override public void tick() {
         if (pendingTicks > 0 && --pendingTicks == 0) {

@@ -23,7 +23,7 @@ public final class CountryScreenChecks {
             if (!rewritten.getString().equals("첫 문장.\n다음 문장.") || !rewritten.visit((style, part) ->
                     style.getColor() != null && style.getColor().getValue() == 0x56AC5B ? Optional.of(true) : Optional.empty(),
                     net.minecraft.network.chat.Style.EMPTY).orElse(false)) throw new AssertionError("Sentence wrapping lost style");
-            for (String effect : List.of("안정도: §a+4%§r", "월간 인플레이션: §4+0.1%§r", "금리: §e+5%§r", "매일 사회자유주의 지지도: §a+0.01§r")) {
+            for (String effect : List.of("안정도: §a+4%§r", "저항 활동 확률: §a-20%§r", "월간 인플레이션: §4+0.1%§r", "금리: §e+5%§r", "매일 사회자유주의 지지도: §a+0.01§r")) {
                 var colors = new java.util.HashSet<Integer>();
                 var icons = new java.util.concurrent.atomic.AtomicInteger();
                 for (var line : dev.hoi.client.ui.HoiTooltips.lines(c.font, effect, 1280))
@@ -69,8 +69,77 @@ public final class CountryScreenChecks {
                 context.takeScreenshot("hoi-server-hud-" + key + "-gui2");
             }
         } catch (java.io.IOException e) { throw new AssertionError("Server HUD snapshot unavailable", e); }
-        String[] tags = {"KOR", "KOR", "KOR", "KOR", "KOR", "PRC", "KOR", "PRC"};
-        String[] labels = {"내무장관", "금리법", "군사 훈련", "여성권", "산업 개발", "공군참모총장", "지도자", "지도자"};
+        for (String tag : List.of("KOR", "PRC")) {
+            try {
+                var menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory, tag + ".json"))).view();
+                String banner = tag.equals("KOR") ? "gfx_banner_kor_dominance_of_chaebols" : "gfx_prc_down_with_bureaucracy_banner";
+                context.setScreen(() -> new HoiMenuScreen(menu));
+                context.waitTicks(3);
+                var point = context.computeOnClient(c -> {
+                    var screen = (HoiMenuScreen)c.gui.screen();
+                    var box = screen.politicsLayout().spirits();
+                    int y = box.y() + box.height() / 2;
+                    var texture = net.minecraft.resources.Identifier.fromNamespaceAndPath("hoi", "textures/gui/politics/art/" + banner + ".png");
+                    if (c.getResourceManager().getResource(texture).isEmpty()) throw new AssertionError("Missing spirit description image: " + banner);
+                    for (int x = box.x(); x < box.x() + box.width(); x++) {
+                        var spirit = screen.politicsHover(x, y);
+                        if (spirit != null && spirit.detail().contains(banner)) {
+                            double scale = c.getWindow().getGuiScale();
+                            return new double[]{x * scale, y * scale};
+                        }
+                    }
+                    throw new AssertionError("Server spirit detail missing image marker: " + banner);
+                });
+                context.getInput().setCursorPos(point[0], point[1]);
+                context.waitTicks(3); context.takeScreenshot("hoi-spirit-image-" + tag + "-gui2");
+            } catch (java.io.IOException error) { throw new AssertionError(error); }
+        }
+        try {
+            var menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory, "PRK.json"))).view();
+            context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(3);
+            var point = context.computeOnClient(c -> {
+                var screen = (HoiMenuScreen)c.gui.screen();
+                var box = screen.politicsLayout().spirits();
+                int y = box.y() + box.height() / 2;
+                for (int x = box.x(); x < box.x() + box.width(); x++) {
+                    var spirit = screen.politicsHover(x, y);
+                    if (spirit != null && spirit.detail().contains("저항 활동 확률")) {
+                        double scale = c.getWindow().getGuiScale();
+                        return new double[]{x * scale, y * scale};
+                    }
+                }
+                throw new AssertionError("Missing resistance activity translation");
+            });
+            context.getInput().setCursorPos(point[0], point[1]); context.waitTicks(3);
+            context.takeScreenshot("hoi-resistance-activity-icon-gui2");
+        } catch (java.io.IOException e) { throw new AssertionError(e); }
+        try {
+            var all = com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(
+                    java.nio.file.Path.of(directory, "all-country-spirits.json"))).getAsJsonObject();
+            int rendered = 0;
+            for (var country : all.entrySet()) for (var raw : country.getValue().getAsJsonArray()) {
+                var entry = new com.google.gson.Gson().fromJson(raw, MenuView.Entry.class);
+                context.runOnClient(c -> {
+                    var images = java.util.regex.Pattern.compile("\\[image:([a-z0-9_/]+)\\]").matcher(entry.detail());
+                    while (images.find()) {
+                        var texture = net.minecraft.resources.Identifier.fromNamespaceAndPath("hoi", "textures/gui/" + images.group(1) + ".png");
+                        if (c.getResourceManager().getResource(texture).isEmpty())
+                            throw new AssertionError(country.getKey() + " " + entry.name() + " missing image: " + texture);
+                    }
+                });
+                context.setScreen(() -> new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal(country.getKey())) {
+                    @Override public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor g, int mx, int my, float delta) {
+                        g.fill(0, 0, width, height, 0xFF202226);
+                        dev.hoi.client.ui.PoliticalTooltip.draw(g, font, entry, 20, 30, width, height, 0);
+                    }
+                });
+                context.waitTicks(1);
+                rendered++;
+            }
+            if (all.size() < 100 || rendered < 50) throw new AssertionError("All-country spirit fixture unexpectedly incomplete: " + rendered);
+        } catch (java.io.IOException e) { throw new AssertionError(e); }
+        String[] tags = {"KOR", "KOR", "KOR", "KOR", "KOR", "PRC", "KOR", "PRC", "PRK", "CAM"};
+        String[] labels = {"내무장관", "금리법", "군사 훈련", "여성권", "산업 개발", "공군참모총장", "지도자", "지도자", "지도자", "지도자"};
         for (int i = 0; i < labels.length; i++) {
             final MenuView menu;
             try {
@@ -95,7 +164,9 @@ public final class CountryScreenChecks {
                     y = button.getY() + button.getHeight() / 2;
                 }
                 var entry = screen.politicsHover(x, y);
-                if (entry == null || entry.detail().isBlank()) throw new AssertionError("Missing server effect tooltip: " + label);
+                if (entry == null || (!label.equals("지도자") && entry.detail().isBlank())) throw new AssertionError("Missing server effect tooltip: " + label);
+                if (label.equals("지도자") && !entry.detail().equals(entry.detail().strip()))
+                    throw new AssertionError("Leader tooltip has empty boundary rows: " + entry.detail());
                 double scale = c.getWindow().getGuiScale();
                 return new double[]{x * scale, y * scale};
             });
@@ -103,6 +174,53 @@ public final class CountryScreenChecks {
             context.waitTicks(3);
             context.takeScreenshot("hoi-server-policy-" + i + "-gui2");
         }
+        try {
+            var backdrop = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"KOR.json"))).view();
+            context.setScreen(() -> new HoiMenuScreen(backdrop));context.waitTicks(3);
+            var economyPoint=context.computeOnClient(c -> {
+                var screen=(HoiMenuScreen)c.gui.screen();
+                var box=screen.politicsLayout().economy();
+                double scale=c.getWindow().getGuiScale();
+                return new double[]{(box.x()+box.width()/2.0)*scale,(box.y()+box.height()/2.0)*scale};
+            });
+            context.getInput().setCursorPos(economyPoint[0],economyPoint[1]);context.waitTicks(3);
+            context.takeScreenshot("hoi-economic-model-icon-spacing-gui2");
+            var partyPoint=context.computeOnClient(c -> {
+                var screen=(HoiMenuScreen)c.gui.screen();
+                int pane=dev.hoi.client.ui.HoiPanelLayout.width(MenuTab.POLITICS,screen.width);
+                var layout=new dev.hoi.client.ui.PoliticsLayout(pane,dev.hoi.client.ui.HoiMenuBar.height(screen.width));
+                var list=layout.parties();
+                for(int i=0;i<20;i++) {
+                    int x=list.x()+8,y=list.y()+4+i*11+5;
+                    var entry=screen.politicsHover(x,y);
+                    if(entry!=null && entry.detail().contains("25.00%")) {
+                        if(!entry.value().matches("[0-9]+\\.[0-9]{2}%"))throw new AssertionError("Party precision: "+entry.value());
+                        double scale=c.getWindow().getGuiScale();return new double[]{x*scale,y*scale};
+                    }
+                }
+                throw new AssertionError("No original 40-50 percent party tooltip");
+            });
+            context.getInput().setCursorPos(partyPoint[0],partyPoint[1]);context.waitTicks(3);
+            context.takeScreenshot("hoi-party-scaled-effects-gui2");
+            for(int power:new int[]{0,2000}) {
+                var choices=new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"choices-"+power+".json")),DialogView.class);
+                context.setScreen(() -> new HoiMenuScreen(backdrop));context.waitTicks(3);
+                context.runOnClient(c -> c.gui.setScreen(new PoliticsChoiceScreen(choices,c.gui.screen())));
+                context.getInput().setCursorPos(1600,1000);context.waitTicks(3);
+                context.takeScreenshot("hoi-politics-cost-"+power+"-gui2");
+                var point=context.computeOnClient(c -> {
+                    var screen=c.gui.screen();
+                    var buttons=screen.children().stream().filter(w -> w instanceof Button).map(w -> (Button)w).toList();
+                    var button=buttons.get(1);
+                    double scale=c.getWindow().getGuiScale();
+                    return new double[]{(button.getX()+button.getWidth()/2.0)*scale,(button.getY()+button.getHeight()/2.0)*scale};
+                });
+                context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(18);
+                context.takeScreenshot("hoi-politics-choice-tooltip-"+power+"-gui2");
+            }
+            var party=dev.hoi.client.ui.HoiMenuBar.indicators(backdrop.hud()).stream().filter(i -> i.icon().equals("party_support")).findFirst().orElseThrow();
+            if(!party.value().matches("[0-9]+\\.[0-9]{2}%"))throw new AssertionError("HUD party precision: "+party.value());
+        } catch(java.io.IOException e) {throw new AssertionError("Cost snapshots unavailable",e);}
         try {
             var source = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
                     java.nio.file.Path.of(directory, "KOR.json"))).view();
@@ -123,6 +241,23 @@ public final class CountryScreenChecks {
             context.getInput().setCursorPos(1500, 800);
             context.waitTicks(3);
             context.takeScreenshot("hoi-server-diplomacy-PRC-gui2");
+            var spiritPoint = context.computeOnClient(c -> {
+                var screen = (CountryScreen)c.gui.screen();
+                int pane = screen.panelWidth();
+                int top = dev.hoi.client.ui.HoiMenuBar.height(screen.width);
+                var header = new DiplomacyHeader(foreign, pane);
+                int y = DiplomacyHeader.spiritsTop(top, pane) + 10;
+                for (int x = 0; x < pane; x++) {
+                    var spirit = header.spiritAt(x, y, pane, top);
+                    if (spirit != null && spirit.detail().contains("gfx_prc_down_with_bureaucracy_banner")) {
+                        double scale = c.getWindow().getGuiScale();
+                        return new double[]{x * scale, y * scale};
+                    }
+                }
+                throw new AssertionError("Diplomacy spirit banner not available");
+            });
+            context.getInput().setCursorPos(spiritPoint[0], spiritPoint[1]);
+            context.waitTicks(3); context.takeScreenshot("hoi-diplomacy-spirit-image-PRC-gui2");
             context.getInput().setCursorPos(65, 300);
             context.waitTicks(3);
             context.takeScreenshot("hoi-server-diplomacy-leader-PRC-gui2");

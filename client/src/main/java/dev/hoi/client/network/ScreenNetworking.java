@@ -182,6 +182,7 @@ public final class ScreenNetworking {
     public static void openCountry(String target) {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.CountryProtocol.Request.TYPE)) { message("이 서버는 외국 정보 UI를 지원하지 않습니다."); return; }
         cancelOpen(); Minecraft.getInstance().gui.setScreen(new CountryScreen(target));
+        dev.hoi.client.audio.UiSounds.play("ui.menu_tab");
     }
     public static void openWorldTension() {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.WorldTensionProtocol.Request.TYPE)) { message("이 서버는 세계 긴장도 이력 UI를 지원하지 않습니다."); return; }
