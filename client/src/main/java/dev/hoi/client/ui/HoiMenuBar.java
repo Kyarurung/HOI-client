@@ -90,6 +90,7 @@ public final class HoiMenuBar {
     }
 
     public static void draw(GuiGraphicsExtractor g, int width, CountryHud hud, int mx, int my, int offset) {
+        if (dev.hoi.client.screen.DialogClient.renderingContent()) return;
         int dock = dockWidth(width), h = height(width);
         HoiMenuStyle.metal(g, 0, 0, width, STATS_HEIGHT + 1);
         HoiMenuStyle.metal(g, 0, STATS_HEIGHT, dock, h - STATS_HEIGHT);
@@ -183,7 +184,7 @@ public final class HoiMenuBar {
         String value = item.value();
         String fit = font.width(value) <= w - 18 ? value : font.plainSubstrByWidth(value, Math.max(1, w - 27)) + "…";
         int color = indicatorColor(item);
-        UiText.cell(g, font, fit, x + 15, 1, w - 18, item.barLabel() == null ? STATS_HEIGHT - 1 : 10, color, true);
+        UiText.cell(g, font, fit, x + 15, 1, w - 18, item.barLabel() == null ? STATS_HEIGHT - 1 : 10, color, false);
         if (item.barLabel() != null) {
             g.fill(x + 15, 11, x + w - 3, 13, 0xFF18201A);
             if (item.ratio() != null) g.fill(x + 15, 11, x + 15 + (int)Math.round((w - 18) * item.ratio()), 13, 0xFF6D9C61);
@@ -237,6 +238,7 @@ public final class HoiMenuBar {
         }
     }
     private static void drawTab(GuiGraphicsExtractor g, MenuTab tab, String country, boolean selected, int x, int y, int w, int h) {
+        if (dev.hoi.client.screen.DialogClient.renderingContent()) return;
             var font = Minecraft.getInstance().font;
 
             if (selected) g.fillGradient(x, y, x + w, y + h, 0xFF454B4C, 0xFF202526);

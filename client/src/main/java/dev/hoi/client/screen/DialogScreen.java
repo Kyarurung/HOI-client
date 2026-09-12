@@ -14,10 +14,12 @@ import java.util.*;
 
 public class DialogScreen extends Screen {
     private DialogView view;
+    boolean stacked;
     private int left, top, pane, panelHeight, bodyTop, bodyBottom, scroll, total, choicePage, quoteViewport;
 
     DialogScreen(DialogView view) { super(Component.literal(view.title())); this.view = view; }
     DialogView view() { return view; }
+    int panelTop() { return top; }
     int panelLeft() { return left; }
     int panelWidth() { return pane; }
     int panelHeight() { return panelHeight; }
@@ -68,7 +70,7 @@ public class DialogScreen extends Screen {
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-        g.fill(0, 0, width, height, 0x70000000);
+        if (!stacked) g.fill(0, 0, width, height, 0x70000000);
         if (view.kind() == DialogView.Kind.SUPER_EVENT) {
             superEvent(g); super.extractRenderState(g, mx, my, delta); return;
         }
@@ -160,7 +162,7 @@ public class DialogScreen extends Screen {
         return super.mouseScrolled(x, y, horizontal, vertical);
     }
     protected void choose(String choice) { DialogClient.choose(view, choice); }
-    @Override public void onClose() { choose(""); minecraft.gui.setScreen(null); }
+    @Override public void onClose() { choose(""); if (stacked) DialogClient.close(view.token()); else minecraft.gui.setScreen(null); }
     @Override public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER || event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER) {
             if (view.choices().size() == 1) { choose(view.choices().getFirst().id()); return true; }

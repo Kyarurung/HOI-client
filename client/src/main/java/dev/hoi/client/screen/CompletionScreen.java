@@ -20,6 +20,7 @@ final class CompletionScreen extends DialogScreen {
     }
     net.minecraft.client.gui.screens.Screen backdrop() { return backdrop; }
     void dismiss() {
+        if (stacked) { DialogClient.close(view().token()); return; }
         var parent = backdrop; backdrop = null;
         minecraft.gui.setScreen(parent);
     }
@@ -31,6 +32,8 @@ final class CompletionScreen extends DialogScreen {
     CompletionScreen(DialogView view, java.util.function.BiConsumer<DialogView, String> send) {
         super(view); this.send = send;
     }
+    @Override int panelTop() { return top; }
+    @Override int panelHeight() { return panelHeight; }
     @Override int panelLeft() { return left; }
     @Override int panelWidth() { return pane; }
     int scrollOffset() { return scroll; }

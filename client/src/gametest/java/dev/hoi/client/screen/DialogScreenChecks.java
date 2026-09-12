@@ -113,7 +113,7 @@ public final class DialogScreenChecks {
             var event = fixture.views().stream().filter(v -> v.kind() == DialogView.Kind.SUPER_EVENT).findFirst().orElseThrow()
                     .issued(UUID.randomUUID().toString(), 0);
             DialogClient.receive(DialogProtocol.Show.of(event, true));
-            if (!(client.gui.screen() instanceof DialogScreen)) throw new AssertionError("Super event must be visible before stop");
+            if (!(client.gui.screen() instanceof DialogStackScreen stack) || stack.find(event.token()) == null) throw new AssertionError("Super event must be visible before stop");
             DialogClient.close(event.token());
             if (!dev.hoi.client.audio.SuperEventAudio.active()) throw new AssertionError("Closing a popup must preserve event music");
             dev.hoi.client.audio.StoryMusicAudio.play("music.korea.extinction");
@@ -123,7 +123,7 @@ public final class DialogScreenChecks {
                 throw new AssertionError("Stop must dismiss visible super event and its audio");
             client.gui.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true));
             DialogClient.receive(DialogProtocol.Show.of(event.issued(UUID.randomUUID().toString(), 0), true));
-            if (client.gui.screen() instanceof DialogScreen) throw new AssertionError("Pause menu must defer super event");
+            if (client.gui.screen() instanceof DialogStackScreen) throw new AssertionError("Pause menu must defer super event");
             dev.hoi.client.audio.UiSounds.receive(AudioProtocol.Cue.STOP);
             client.gui.setScreen(null);
         });

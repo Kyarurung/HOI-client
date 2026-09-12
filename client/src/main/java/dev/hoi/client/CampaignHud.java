@@ -19,6 +19,9 @@ public final class CampaignHud {
         if(!state.country().isEmpty()&&!state.country().equals(country))dev.hoi.client.audio.KoreanMusic.enable();
         country = state.country(); hud = next;
     }
+    public static void draw(net.minecraft.client.gui.GuiGraphicsExtractor g) {
+        if (visible()) HoiMenuBar.drawPassive(g, g.guiWidth(), hud, country);
+    }
     public static boolean visible() { return !country.isEmpty(); }
     public static void register() {
         HudProtocol.registerPayloadTypes();

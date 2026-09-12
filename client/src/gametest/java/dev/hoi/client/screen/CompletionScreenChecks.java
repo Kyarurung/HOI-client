@@ -46,7 +46,7 @@ public final class CompletionScreenChecks {
                 context.setScreen(() -> new net.minecraft.client.gui.screens.PauseScreen(true));
                 context.runOnClient(c -> {
                     DialogClient.receive(DialogProtocol.Show.of(view, true));
-                    check(c.gui.screen() instanceof CompletionScreen, "Completion opens immediately even while another in-game screen is open");
+                    check(c.gui.screen() instanceof DialogStackScreen, "Completion opens immediately even while another in-game screen is open");
                     DialogClient.close(view.token()); DialogClient.receive(DialogProtocol.Show.of(view.issued(view.token(), 4), false));
                     check(c.gui.screen() == null, "Stale refresh cannot reopen completion");
                     DialogClient.details(new DialogProtocol.Details(view.token(), "focus/hoi:focus/political_effort"));
@@ -63,6 +63,8 @@ public final class CompletionScreenChecks {
                 });
             }
         }
+        stacking(context);
+        layers(context);
         backdrop(context);
         hud(context);
         context.setScreen(() -> null);
@@ -102,6 +104,84 @@ public final class CompletionScreenChecks {
         });
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
     }
+    private static void stacking(ClientGameTestContext context) {
+        for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
+            context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(3);
+            var first = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.DIPLOMACY, "보병 장비 연구 완료", "", "", "", "menu/research", "",
+                    List.of(), List.of(new DialogView.Choice("ack", "확인")), "research_complete");
+            var second = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.DIPLOMACY, "국가 중점 완료", "", "", "", "menu/focus", "",
+                    List.of(), List.of(new DialogView.Choice("ack", "확인")), "focus_complete");
+            var event = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.EVENT, "동시에 발생한 국가 이벤트", "", "다른 완료 알림이 열린 상태에서도 표시됩니다.", "", "", "",
+                    List.of(), List.of(new DialogView.Choice("yes", "확인")));
+            context.runOnClient(c -> {
+                DialogClient.reset();
+                DialogClient.receive(DialogProtocol.Show.of(first, true));
+                DialogClient.receive(DialogProtocol.Show.of(second, true));
+                DialogClient.receive(DialogProtocol.Show.of(event, true));
+                var stack = (DialogStackScreen)c.gui.screen();
+                check(stack.views().size() == 3, "Research, focus and event windows coexist");
+                check(stack.find(first.token()).panelLeft() == stack.find(second.token()).panelLeft() && stack.find(first.token()).panelTop() == stack.find(second.token()).panelTop(), "Completion panels overlap at exactly the same position");
+                DialogClient.receive(DialogProtocol.Show.of(first.issued(first.token(), 2), false));
+                check(stack.find(first.token()).view().revision() == 2, "Hidden window receives its own revision");
+                DialogClient.receive(DialogProtocol.Show.of(first, false));
+                check(stack.find(first.token()).view().revision() == 2, "Old revisions cannot overwrite a hidden window");
+                for (var view : stack.views()) {
+                    var window = stack.find(view.token());
+                    check(window.panelLeft() >= 0 && window.panelTop() >= 0 && window.panelLeft() + window.panelWidth() <= stack.width
+                            && window.panelTop() + window.panelHeight() <= stack.height, "Stacked panels fit viewport");
+                }
+            });
+            context.waitTicks(3); context.takeScreenshot("hoi-stacked-notifications-" + size[0]);
+            context.runOnClient(c -> {
+                var stack = (DialogStackScreen)c.gui.screen();
+                check(stack.layers().getFirst() == stack.find(event.token()) && stack.layers().getLast() == stack.find(second.token()), "Completion layer stays above later events");
+                check(stack.inputAt(stack.width / 2.0, stack.height / 2.0) == stack.find(second.token()), "Input reaches the same front completion as rendering");
+                DialogClient.close(second.token());
+                check(stack.views().size() == 2 && stack.find(first.token()) != null && stack.find(event.token()) != null, "Closing a hidden window preserves other sessions");
+                stack.onClose();
+                check(stack.views().size() == 1 && stack.find(event.token()) != null, "Escape closes the front completion before the event");
+                DialogClient.reset();
+                DialogClient.receive(DialogProtocol.Show.of(first.issued(first.token(), 3), false));
+                check(c.gui.screen() == null, "Reset closes every window and stale refresh cannot reopen it");
+            });
+        }
+    }
+    private static void layers(ClientGameTestContext context) {
+        var event = new DialogView(UUID.randomUUID().toString(), 0, DialogView.Kind.EVENT, "국가 이벤트", "", "", "", "", "", List.of(), List.of());
+        var global = new DialogView(UUID.randomUUID().toString(), 0, DialogView.Kind.GLOBAL_EVENT, "글로벌 이벤트", "", "", "", "", "", List.of(), List.of());
+        var superEvent = new DialogView(UUID.randomUUID().toString(), 0, DialogView.Kind.SUPER_EVENT, "슈퍼 이벤트", "", "", "", "", "", List.of(), List.of());
+        var done = new DialogView(UUID.randomUUID().toString(), 0, DialogView.Kind.DIPLOMACY, "완료 알림", "", "", "", "menu/research", "", List.of(), List.of(), "research_complete");
+        var requests = new ArrayList<ResearchProtocol.Request>();
+        var view = new ResearchView("layer-parent", 1, "KOR", "대한민국", 0, "2020-01-01", "PAUSED", List.of(new ResearchView.Slot(0, "", 0)), List.of(), "");
+        context.setScreen(() -> new ResearchScreen(view, requests::add));
+        context.runOnClient(c -> {
+            var parent = c.gui.screen();
+            DialogClient.receive(DialogProtocol.Show.of(event, true));
+            DialogClient.receive(DialogProtocol.Show.of(done, true));
+            DialogClient.receive(DialogProtocol.Show.of(superEvent, true));
+            DialogClient.receive(DialogProtocol.Show.of(global, true));
+            var stack = (DialogStackScreen)c.gui.screen();
+            check(stack.layers().equals(List.of(stack.find(global.token()), stack.find(superEvent.token()), parent, stack.find(done.token()))), "Fixed draw order overrides arrival order");
+            check(stack.find(event.token()).panelLeft() == stack.find(global.token()).panelLeft() && stack.find(event.token()).panelTop() == stack.find(global.token()).panelTop(), "Global and country events share one position");
+            check(stack.inputAt(20, 80) == parent, "Sidebar input remains above events");
+            check(requests.stream().noneMatch(r -> r.action() == ResearchProtocol.Action.CLOSE), "Background event cannot close the research session");
+        });
+        context.waitTicks(3); context.takeScreenshot("hoi-notification-layers-over-research");
+        context.runOnClient(c -> {
+            var stack = (DialogStackScreen)c.gui.screen();
+            DialogClient.close(done.token());
+            check(stack.layers().getLast() == DialogClient.contentScreen(), "UI becomes foremost after completion closes");
+            DialogClient.close(superEvent.token()); DialogClient.close(global.token());
+            check(stack.layers().getFirst() == stack.find(event.token()), "Closing newer global event reveals previous country event");
+            var parent = DialogClient.contentScreen();
+            var future = new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("교리 상세 테스트")) {};
+            stack.backdrop(future); future.init(stack.width, stack.height);
+            check(stack.layers().getLast() == future && stack.inputAt(stack.width / 2.0, stack.height / 2.0) == future, "Future full detail UI is above events by default");
+            stack.backdrop(parent);
+            DialogClient.reset();
+            check(c.gui.screen() == null, "Reset clears all layers");
+        });
+    }
     private static void backdrop(ClientGameTestContext context) {
         var requests = new ArrayList<ResearchProtocol.Request>();
         var research = new ResearchView("completion-parent", 1, "KOR", "대한민국", 0, "2020-01-01", "PAUSED",
@@ -112,7 +192,7 @@ public final class CompletionScreenChecks {
         context.runOnClient(c -> {
             var parent = c.gui.screen();
             DialogClient.receive(DialogProtocol.Show.of(done, true));
-            check(c.gui.screen() instanceof CompletionScreen overlay && overlay.backdrop() == parent, "Completion retains the same research screen underneath");
+            check(c.gui.screen() instanceof DialogStackScreen overlay && overlay.backdrop() == parent, "Completion retains the same research screen underneath");
             check(requests.stream().noneMatch(r -> r.action() == ResearchProtocol.Action.CLOSE), "Overlay does not close the research session");
             check(DialogClient.contentScreen() == parent, "Private updates continue to target the obscured menu");
         });
@@ -122,7 +202,7 @@ public final class CompletionScreenChecks {
             DialogClient.close(done.token());
             check(c.gui.screen() == parent, "Acknowledgement restores the exact menu instance");
             DialogClient.receive(DialogProtocol.Show.of(done.issued(done.token(), 2), true));
-            ((CompletionScreen)c.gui.screen()).onClose();
+            c.gui.screen().onClose();
             check(c.gui.screen() == parent, "Escape also restores the existing menu");
         });
         context.setScreen(() -> null);

@@ -3,24 +3,35 @@ package dev.hoi.client.screen;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.audio.SuperEventAudio;
 import dev.hoi.client.research.ResearchScreen;
-
 import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.*;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import java.util.*;
 
 public final class DialogClient {
-    private static DialogView pending;
+    private static final LinkedHashMap<String, DialogView> pending = new LinkedHashMap<>();
+    private static DialogStackScreen notifications;
     private static boolean suspending;
+    public static boolean renderingContent() { return DialogStackScreen.contentPass; }
     public static boolean suspending() { return suspending; }
-    public static net.minecraft.client.gui.screens.Screen contentScreen() {
+    public static Screen contentScreen() {
         var current = Minecraft.getInstance().gui.screen();
+        if (current instanceof DialogStackScreen stack) current = stack.backdrop();
         if (current instanceof AgencyOperationScreen operation) return operation.backdrop();
         return current instanceof CompletionScreen completion && completion.backdrop() != null ? completion.backdrop() : current;
     }
-    static boolean menuScreen(net.minecraft.client.gui.screens.Screen screen) {
-        return screen instanceof ResearchScreen || screen instanceof HoiMenuScreen || screen instanceof IndustryScreen
-                || screen instanceof ConstructionScreen || screen instanceof CountryScreen || screen instanceof AgencyScreen;
+    static boolean menuScreen(Screen screen) {
+        return screen != null && screen.getClass().getPackageName().startsWith("dev.hoi.client")
+                && !(screen instanceof DialogScreen) && !(screen instanceof DialogStackScreen);
+    }
+    private static boolean canOverlay(Screen screen) { return screen == null || screen instanceof DialogScreen || screen instanceof DialogStackScreen || menuScreen(screen); }
+    private static boolean notification(DialogView view) {
+        return view.completion() || switch (view.kind()) {
+            case EVENT, GLOBAL_EVENT, SUPER_EVENT, DIPLOMACY -> true;
+            default -> false;
+        };
     }
     private DialogClient() {}
     public static void register() {
@@ -30,55 +41,86 @@ public final class DialogClient {
         ClientPlayNetworking.registerGlobalReceiver(DialogProtocol.Details.TYPE, (p, c) -> details(p));
         ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> reset());
         ClientTickEvents.END_CLIENT_TICK.register(c -> {
-            if (pending != null && c.gui.screen() == null) show(pending);
+            if (canOverlay(c.gui.screen())) {
+                for (var view : List.copyOf(pending.values())) show(view);
+                showNotifications();
+            }
             SuperEventAudio.tick();
         });
     }
     public static void reset() {
-        pending = null; suspending = false; HoiClient.cancelOpen(); SuperEventAudio.reset();
+        pending.clear(); notifications = null; suspending = false; HoiClient.cancelOpen(); SuperEventAudio.reset();
         var client = Minecraft.getInstance();
-        if (client.gui.screen() instanceof DialogScreen) client.gui.setScreen(null);
+        if (client.gui.screen() instanceof DialogScreen || client.gui.screen() instanceof DialogStackScreen) client.gui.setScreen(null);
+    }
+    private static DialogScreen find(String token) {
+        if (notifications != null && notifications.find(token) != null) return notifications.find(token);
+        var current = contentScreen();
+        return current instanceof DialogScreen screen && screen.view().token().equals(token) ? screen : null;
     }
     static void receive(DialogProtocol.Show packet) {
         DialogView view;
-        try { view = packet.view(); }
-        catch (IllegalArgumentException error) { pending = null; return; }
+        try { view = packet.view(); } catch (IllegalArgumentException error) { return; }
+        var existing = find(view.token());
+        if (existing != null) { existing.update(view); return; }
+        var old = pending.get(view.token());
+        if (old != null && old.revision() > view.revision()) return;
+        if (!packet.open()) { if (old != null) pending.put(view.token(), view); return; }
+        if (pending.size() >= 64) return;
+        pending.put(view.token(), view);
         var client = Minecraft.getInstance();
-        if (client.gui.screen() instanceof DialogScreen screen && screen.view().token().equals(view.token())) {
-            if (view.revision() >= screen.view().revision()) screen.update(view);
-            return;
-        }
-        if (!packet.open()) { if (pending != null && pending.token().equals(view.token())) pending = view; return; }
-        pending = view;
-        if (client.gui.screen() == null || client.gui.screen() instanceof DialogScreen
-                || client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen
-                || client.gui.screen() instanceof IndustryScreen || client.gui.screen() instanceof ConstructionScreen
-                || client.gui.screen() instanceof CountryScreen || client.gui.screen() instanceof AgencyScreen
-                || view.kind() == DialogView.Kind.STATE || view.kind() == DialogView.Kind.IDEOLOGIES
-                || view.completion() && client.level != null) show(view);
+        if (canOverlay(client.gui.screen()) || !notification(view) || view.completion() && client.level != null) show(view);
     }
     static void details(DialogProtocol.Details packet) {
-        var client = Minecraft.getInstance();
-        if (!(client.gui.screen() instanceof CompletionScreen screen) || !screen.view().token().equals(packet.token())) return;
+        var window = find(packet.token());
+        if (window == null || !window.view().completion()) return;
+        close(packet.token());
         String id = packet.target().substring(packet.target().indexOf('/') + 1);
         if (packet.target().startsWith("research/")) HoiClient.openResearchDetail(id);
-        else client.gui.setScreen(HoiMenuScreen.forFocus(id));
+        else Minecraft.getInstance().gui.setScreen(HoiMenuScreen.forFocus(id));
     }
     private static void show(DialogView view) {
-        pending = null; HoiClient.cancelOpen();
+        pending.remove(view.token());
         var client = Minecraft.getInstance();
-        var parent = contentScreen();
-        if (parent instanceof PoliticsChoiceScreen politics) parent = politics.backdrop();
-        suspending = view.completion() && menuScreen(parent);
-        try {
-            client.gui.setScreen(view.completion() ? new CompletionScreen(view, suspending ? parent : null)
-                    : view.kind() == DialogView.Kind.POLITICS ? new PoliticsChoiceScreen(view, parent) : new DialogScreen(view));
-        } finally { suspending = false; }
-        if (view.kind() == DialogView.Kind.SUPER_EVENT) SuperEventAudio.play(view.token(), view.sound());
+        if (notification(view)) {
+            if (notifications == null) notifications = new DialogStackScreen(null);
+            notifications.add(view);
+            showNotifications();
+            if (view.kind() == DialogView.Kind.SUPER_EVENT) SuperEventAudio.play(view.token(), view.sound());
+        } else {
+            HoiClient.cancelOpen();
+            var parent = contentScreen();
+            if (parent instanceof PoliticsChoiceScreen politics) parent = politics.backdrop();
+            var screen = view.kind() == DialogView.Kind.POLITICS ? new PoliticsChoiceScreen(view, parent) : new DialogScreen(view);
+            if (client.gui.screen() == notifications && notifications != null) {
+                notifications.backdrop(screen); screen.init(notifications.width, notifications.height);
+            } else client.gui.setScreen(screen);
+        }
+    }
+    private static void showNotifications() {
+        var client = Minecraft.getInstance();
+        if (notifications == null || client.gui.screen() == notifications) return;
+        var parent = client.gui.screen();
+        notifications.backdrop(menuScreen(parent) || parent instanceof DialogScreen ? parent : null);
+        suspending = true;
+        try { client.gui.setScreen(notifications); } finally { suspending = false; }
     }
     static void close(String token) {
-        if (pending != null && pending.token().equals(token)) pending = null;
+        pending.remove(token);
         var client = Minecraft.getInstance();
+        if (notifications != null && notifications.find(token) != null) {
+            var stack = notifications;
+            stack.close(token);
+            if (stack.views().isEmpty()) {
+                notifications = null;
+                if (client.gui.screen() == stack) client.gui.setScreen(stack.detachBackdrop());
+            }
+            return;
+        }
+        if (notifications != null && notifications.backdrop() instanceof DialogScreen screen && screen.view().token().equals(token)) {
+            notifications.backdrop(screen instanceof PoliticsChoiceScreen politics ? politics.backdrop() : null);
+            return;
+        }
         if (client.gui.screen() instanceof DialogScreen screen && screen.view().token().equals(token)) {
             if (screen instanceof CompletionScreen completion) completion.dismiss();
             else if (screen instanceof PoliticsChoiceScreen politics) politics.dismiss();

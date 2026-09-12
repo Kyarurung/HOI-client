@@ -13,7 +13,7 @@ public final class KoreanMusicScreen extends Screen {
     private final Screen parent;
     private int x, y, w, h, offset, visible;
     private List<PlaylistPlayback.Track> tracks;
-    public KoreanMusicScreen(Screen parent) { super(Component.literal("한국 음악")); this.parent = parent; }
+    public KoreanMusicScreen(Screen parent) { super(Component.literal("한국 음악")); this.parent = parent instanceof DialogStackScreen stack ? stack.backdrop() : parent; }
     @Override protected void init() {
         w = Math.min(460, width - 12); h = Math.min(450, height - 12);
         x = (width - w) / 2; y = (height - h) / 2;
