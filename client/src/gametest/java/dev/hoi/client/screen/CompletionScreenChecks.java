@@ -84,6 +84,8 @@ public final class CompletionScreenChecks {
                 check(!c.options.keySwapOffhand.consumeClick(), "Shift+F is intercepted before vanilla queues an offhand swap");
                 check(messages.size() == messageCount && c.gui.screen() == null, "Shift+F on an unsupported server must not print chat or open a menu");
                 for(int i=0;i<5;i++)method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_REPEAT,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));
+                for(int i=0;i<5;i++)method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_REPEAT,new KeyEvent(GLFW.GLFW_KEY_F,0,0));
+                check(!c.options.keySwapOffhand.consumeClick(), "Releasing Shift while F still repeats cannot leak an offhand action");
                 method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_RELEASE, new KeyEvent(GLFW.GLFW_KEY_F, 0, 0));
                 check(c.gui.screen()==null&&!c.options.keySwapOffhand.consumeClick(), "Holding Shift+F then releasing Shift first never opens UI or leaks a swap");
                 method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_PRESS,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));

@@ -19,14 +19,13 @@ public final class MenuShortcut {
     }
     public static boolean handle(Minecraft client, long window, int action, KeyEvent event) {
         if (window != client.getWindow().handle()) return false;
-        if (event.key() == GLFW.GLFW_KEY_F && action == GLFW.GLFW_RELEASE && held) {
-            held = false;
+        if (event.key() == GLFW.GLFW_KEY_F && held) {
+            if (action == GLFW.GLFW_RELEASE) held = false;
             return true;
         }
         if (client.player == null || client.gui.screen() != null
                 || client.gui.overlay() != null || !client.isWindowActive() || !matches(event)) return false;
         if (action == GLFW.GLFW_PRESS) {
-            if (held) return true;
             held = true;
             if (dev.hoi.client.CampaignHud.visible() && net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(dev.hoi.protocol.MenuProtocol.Refresh.TYPE))
                 HoiClient.openMenu(MenuTab.POLITICS);
