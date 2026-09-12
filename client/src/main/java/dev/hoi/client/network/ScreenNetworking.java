@@ -1,5 +1,6 @@
-package dev.hoi.client;
+package dev.hoi.client.network;
 
+import dev.hoi.client.CampaignHud;
 import dev.hoi.client.research.ResearchScreen;
 import dev.hoi.client.screen.AgencyScreen;
 import dev.hoi.client.screen.ConstructionScreen;
@@ -17,9 +18,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
-final class ScreenNetworking {
+public final class ScreenNetworking {
     private static final PendingResearch pendingResearch = new PendingResearch();
-    static void register() {
+    public static void register() {
         ResearchProtocol.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.FocusProtocol.Response.TYPE, (packet, context) -> {
             if (DialogClient.contentScreen() instanceof dev.hoi.client.screen.FocusScreen screen) {

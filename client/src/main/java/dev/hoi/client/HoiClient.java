@@ -1,5 +1,7 @@
 package dev.hoi.client;
 
+import dev.hoi.client.network.ScreenNetworking;
+
 import dev.hoi.client.audio.UiSounds;
 import dev.hoi.client.input.SidebarMovement;
 import dev.hoi.client.map.AtlasSceneClient;

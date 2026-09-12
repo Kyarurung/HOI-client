@@ -1,4 +1,4 @@
-package dev.hoi.client;
+package dev.hoi.client.network;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

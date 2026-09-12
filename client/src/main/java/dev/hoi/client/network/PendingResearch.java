@@ -1,4 +1,4 @@
-package dev.hoi.client;
+package dev.hoi.client.network;
 
 import java.util.UUID;
 
