@@ -37,6 +37,38 @@ public final class CountryScreenChecks {
                     throw new AssertionError("Tooltip keyword or value color missing: " + effect + " " + colors);
             }
         });
+        try {
+            var menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+                    java.nio.file.Path.of(directory, "KNU.json"))).view();
+            context.setScreen(() -> new HoiMenuScreen(menu));
+            context.waitTicks(3);
+            for (String key : List.of("supplies", "nuclear", "gdp", "debt")) {
+                var point = context.computeOnClient(c -> {
+                    int width = c.gui.screen().width;
+                    var items = dev.hoi.client.ui.HoiMenuBar.indicators(menu.hud());
+                    int x = dev.hoi.client.ui.HoiMenuBar.flagWidth(width) + 10;
+                    int total = items.stream().mapToInt(dev.hoi.client.ui.HoiMenuBar.Indicator::width).sum();
+                    for (var item : items) {
+                        if (item.icon().equals("gdp")) x += Math.max(0, dev.hoi.client.ui.HoiMenuBar.statsRight(width)
+                                - dev.hoi.client.ui.HoiMenuBar.flagWidth(width) - 10 - total - 3);
+                        if (item.icon().equals(key)) {
+                            if (item.raw() == null && !item.value().equals("0")) throw new AssertionError("Missing HUD value must display zero: " + key);
+                            var text = new StringBuilder();
+                            for (var line : dev.hoi.client.ui.HudTooltip.body(c.font, width, menu.hud(), item))
+                                line.accept((index, style, character) -> { text.appendCodePoint(character); return true; });
+                            if (text.indexOf("—") >= 0) throw new AssertionError("Obsolete HUD placeholder: " + key);
+                            double scale = c.getWindow().getGuiScale();
+                            return new double[]{(x + item.width() / 2.0) * scale, 7 * scale};
+                        }
+                        x += item.width();
+                    }
+                    throw new AssertionError("Missing HUD indicator: " + key);
+                });
+                context.getInput().setCursorPos(point[0], point[1]);
+                context.waitTicks(3);
+                context.takeScreenshot("hoi-server-hud-" + key + "-gui2");
+            }
+        } catch (java.io.IOException e) { throw new AssertionError("Server HUD snapshot unavailable", e); }
         String[] tags = {"KOR", "KOR", "KOR", "KOR", "KOR", "PRC", "KOR", "PRC"};
         String[] labels = {"내무장관", "금리법", "군사 훈련", "여성권", "산업 개발", "공군참모총장", "지도자", "지도자"};
         for (int i = 0; i < labels.length; i++) {
@@ -127,6 +159,12 @@ public final class CountryScreenChecks {
                     java.nio.file.Files.readString(java.nio.file.Path.of(directory, "diplomacy-KNU.json"))).view();
             context.setScreen(() -> new CountryScreen(foreign));
             context.waitTicks(3);
+            context.runOnClient(client -> {
+                if (!foreign.name().equals("카렌 민족해방군")) throw new AssertionError("TFR Korean Myanmar name missing");
+                if (((CountryScreen)client.gui.screen()).children().stream()
+                        .filter(w -> w instanceof Button b && foreign.actions().entries().stream().anyMatch(a -> a.name().equals(b.getMessage().getString()))).count() != foreign.actions().entries().size())
+                    throw new AssertionError("Myanmar diplomacy actions not rendered");
+            });
             context.takeScreenshot("hoi-server-diplomacy-KNU-gui2");
         } catch (java.io.IOException e) { throw new AssertionError("Myanmar server snapshot unavailable", e); }
         context.getInput().setCursorPos(1500, 800);

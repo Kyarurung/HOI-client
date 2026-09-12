@@ -23,7 +23,7 @@ class HudNumbersTest {
         assertEquals("0", new HoiMenuBar.Indicator("nuclear", "핵", null, HoiMenuBar.Format.NUCLEAR).value());
     }
     @Test void politicalPowerTruncatesAtTheRequestedBoundaries() {
-        assertEquals("—",HoiMenuBar.politicalPower(null));
+        assertEquals("0",HoiMenuBar.politicalPower(null));
         assertEquals("-2000",HoiMenuBar.politicalPower(-2000.0));
         assertEquals("0",HoiMenuBar.politicalPower(-0.5));
         assertEquals("73",HoiMenuBar.politicalPower(73.99));
@@ -54,7 +54,7 @@ class HudNumbersTest {
         assertEquals("1.707조",HoiMenuBar.money(1707.123456));
         assertEquals("10조",HoiMenuBar.money(10000.0));
         assertEquals("0조",HoiMenuBar.money(0.0));
-        assertEquals("—",HoiMenuBar.money(null));
+        assertEquals("0",HoiMenuBar.money(null));
         assertEquals("9223372036854775807",HoiMenuBar.rawNumber(Long.MAX_VALUE));
         assertEquals("-2.35",HoiMenuBar.rawNumber(-2.345));
         assertEquals("0",HoiMenuBar.rawNumber(-0.00001));

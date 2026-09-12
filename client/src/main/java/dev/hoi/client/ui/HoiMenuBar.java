@@ -138,9 +138,9 @@ public final class HoiMenuBar {
         UiAssets.draw(g, "hud/defcon/frame", x, 3, 30, h);
         int frame = defconFrame(hud.worldTension());
         if (frame >= 0) UiAssets.draw(g, "hud/defcon/" + frame, x + 2, 5, 26, h - 4);
-        else g.centeredText(font, "—", x + 15, 3 + (h - font.lineHeight) / 2, HoiMenuStyle.TEXT);
+        else g.centeredText(font, "0", x + 15, 3 + (h - font.lineHeight) / 2, HoiMenuStyle.TEXT);
         HoiMenuStyle.recess(g, x, percentY, 30, percentHeight);
-        g.centeredText(font, hud.worldTension() == null ? "—" : percent(hud.worldTension()), x + 15, percentY + 2, HoiMenuStyle.TEXT);
+        g.centeredText(font, hud.worldTension() == null ? "0" : percent(hud.worldTension()), x + 15, percentY + 2, HoiMenuStyle.TEXT);
         if (mx >= x && mx < x + 30 && my >= 3 && my < percentY + percentHeight) {
             g.outline(x, my >= percentY ? percentY : 3, 30, my >= percentY ? percentHeight : h, HoiMenuStyle.ACCENT);
             showingTensionTooltip = true;
@@ -158,19 +158,19 @@ public final class HoiMenuBar {
     }
 
     static String politicalPower(Double value) {
-        if (value == null) return "—";
+        if (value == null) return "0";
         return Long.toString(value.longValue());
     }
 
     public static String number(Double value) {
-        if (value == null) return "—";
+        if (value == null) return "0";
         double magnitude = Math.abs(value);
         if (magnitude >= 1_000_000) return String.format(Locale.ROOT, "%.1fM", value / 1_000_000);
         return magnitude >= 1000 ? String.format(Locale.ROOT, "%.1fK", value / 1000) : rawNumber(value);
     }
 
     public static String rawNumber(Number value) {
-        if(value==null)return "—";
+        if(value==null)return "0";
         try {return new java.math.BigDecimal(value.toString()).setScale(2,java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();}
         catch(NumberFormatException e){return value.toString();}
     }
@@ -178,7 +178,7 @@ public final class HoiMenuBar {
     private static String percent(double value) { return String.format(Locale.ROOT, "%.0f%%", value * 100); }
 
     static String money(Double value) {
-        if (value == null) return "—";
+        if (value == null) return "0";
         return java.math.BigDecimal.valueOf(value).movePointLeft(3).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + "조";
     }
 

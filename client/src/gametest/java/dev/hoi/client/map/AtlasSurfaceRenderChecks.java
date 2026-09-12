@@ -48,7 +48,8 @@ public final class AtlasSurfaceRenderChecks {
             String[] statuses={"empty","occupied","unknown","selected_empty","selected_occupied"};
             for(int row=0;row<2;row++)for(int col=0;col<statuses.length;col++) {
                 String base=row==0?"naval":"air";
-                command.accept("summon minecraft:item_display "+(col*3)+" "+(73-row*4)+" 8 {item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"hoi:base/"+base+"_"+statuses[col]+"\"}},item_display:\"fixed\",billboard:\"center\",transformation:{translation:[0f,0f,0f],scale:[2.4f,2.4f,2.4f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,1f,0f,0f]},brightness:{block:15,sky:15}}");
+                String status=row==0&&statuses[col].equals("selected_empty")?"empty":statuses[col];
+                command.accept("summon minecraft:item_display "+(col*3)+" "+(73-row*4)+" 8 {item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"hoi:base/"+base+"_"+status+"\"}},item_display:\"fixed\",billboard:\"center\",transformation:{translation:[0f,0f,0f],scale:[2.4f,2.4f,2.4f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,1f,0f,0f]},brightness:{block:15,sky:15}}");
             }
             context.waitTicks(4);context.takeScreenshot("hoi-base-empty-occupied-unknown-selected");
             command.accept("kill @e[type=minecraft:item_display]");command.accept("time set noon");

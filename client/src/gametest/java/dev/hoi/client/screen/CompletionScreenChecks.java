@@ -233,7 +233,7 @@ public final class CompletionScreenChecks {
     private static void hud(ClientGameTestContext context) {
         var rows = new ArrayList<HudDetail.Row>();
         for (int i = 0; i < 32; i++) rows.add(new HudDetail.Row("현재 적용되는 국가 효과 " + i, "+2.5%", HudDetail.Tone.GOOD));
-        rows.add(new HudDetail.Row("마지막 설명", "—", HudDetail.Tone.MUTED));
+        rows.add(new HudDetail.Row("마지막 설명", "0", HudDetail.Tone.MUTED));
         var hud = new CountryHud(null, null, null, null, null, null, false, null,
                 CountryHud.NationalIndicators.UNKNOWN, Map.of("political_power", new HudDetail(rows)));
         var pages = MenuTab.ORDER.stream().map(t -> new MenuView.Page(t, List.of(new MenuView.Section(t.label(), t.id(), List.of())))).toList();
@@ -244,6 +244,14 @@ public final class CompletionScreenChecks {
             check(flag.getWidth()>flag.getHeight(),"Country flag keeps a wide aspect ratio");
             check(c.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/menu/flag_overlay.png")).isPresent(),"Original TFR flag overlay loads from the split UI pack");
             var lines = HudTooltip.body(c.font, c.gui.screen().width, hud, HoiMenuBar.indicators(hud).getFirst());
+            for (var item : HoiMenuBar.indicators(hud)) {
+                check(item.value().equals("0"), "Unknown HUD value displays zero: " + item.icon());
+                var text = new StringBuilder();
+                for (var line : HudTooltip.body(c.font, c.gui.screen().width, hud, item))
+                    line.accept((index, style, character) -> { text.appendCodePoint(character); return true; });
+                check(text.toString().contains("현재: 0") && text.indexOf("—") < 0, "Unknown tooltip displays zero: " + item.icon());
+            }
+            check(HoiMenuBar.rawNumber(-1.25).equals("-1.25"), "Actual negative effects retain their sign and decimals");
             check(lines.size() > HudTooltip.visibleRows(c.gui.screen().height, c.font), "Long HUD gets a scroll window");
             for (var line : lines) check(c.font.width(line) <= 310, "HUD lines wrap within viewport");
         });
