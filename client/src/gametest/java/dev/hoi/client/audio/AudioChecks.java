@@ -15,6 +15,14 @@ public final class AudioChecks {
             if (!UiSounds.START_SOUNDS.equals(List.of("ui.game_start", "ui.game_start_signal")))
                 throw new AssertionError("Both original start samples must play, not random variants");
             required.addAll(UiSounds.START_SOUNDS);
+            for (String event : required) {
+                if (UiSounds.instance(event).getSource() != net.minecraft.sounds.SoundSource.MASTER)
+                    throw new AssertionError("All HOI UI sounds use MASTER: " + event);
+            }
+            if (dev.hoi.client.ui.EffectColors.color(0xFF55FF55) != dev.hoi.client.ui.EffectColors.GOOD
+                    || dev.hoi.client.ui.EffectColors.color(0x80AA0000) != 0x80CB9292
+                    || dev.hoi.client.ui.EffectColors.color(0xFFFFAA00) != 0xFFFFAA00)
+                throw new AssertionError("HUD effect palette preserves alpha and neutral colors");
             for(String event:required)if(sounds.getSoundEvent(UiSounds.id(event))==null)throw new AssertionError("External sound is missing: "+event);
             for(var cue:AudioProtocol.Cue.values()) {
                 var buffer=new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),net.minecraft.core.RegistryAccess.EMPTY);

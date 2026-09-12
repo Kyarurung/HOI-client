@@ -12,7 +12,7 @@ public final class UnitAudioChecks {
         context.setScreen(()->null);
         context.runOnClient(client->{
             volume[0]=client.options.getSoundSourceVolume(net.minecraft.sounds.SoundSource.HOSTILE);
-            client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.HOSTILE).set(1.0);
+            client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.HOSTILE).set(0.0);
             for(var sound:Sound.values()) {
                 var event=client.getSoundManager().getSoundEvent(UiSounds.id(sound.event()));
                 if(event==null)throw new AssertionError("Missing positional source sound: "+sound);
@@ -40,7 +40,7 @@ public final class UnitAudioChecks {
         });
         context.waitTicks(10);
         context.runOnClient(client->{
-            if(!client.getSoundManager().isActive(played[0])||played[0].isRelative()||played[0].getAttenuation()!=SoundInstance.Attenuation.LINEAR)
+            if(played[0].getSource()!=net.minecraft.sounds.SoundSource.MASTER||!client.getSoundManager().isActive(played[0])||played[0].isRelative()||played[0].getAttenuation()!=SoundInstance.Attenuation.LINEAR)
                 throw new AssertionError("Original tank sound must play spatially");
             var before=client.player.position();
             client.player.setPos(played[0].getX()+7.01,played[0].getY(),played[0].getZ());

@@ -45,7 +45,7 @@ public final class UnitAudio {
     static final class Voice extends AbstractTickableSoundInstance {
         private Emitter emitter;
         Voice(Emitter emitter) {
-            super(SoundEvent.createFixedRangeEvent(UiSounds.id(emitter.sound().event()),UnitAudioProtocol.RANGE),SoundSource.HOSTILE,RandomSource.create());
+            super(SoundEvent.createFixedRangeEvent(UiSounds.id(emitter.sound().event()),UnitAudioProtocol.RANGE),SoundSource.MASTER,RandomSource.create());
             looping=true;delay=emitter.sound().combat()?20:0;volume=.8f;pitch=1;relative=false;
             update(emitter);
         }
