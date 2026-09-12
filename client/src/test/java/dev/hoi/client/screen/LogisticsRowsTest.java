@@ -37,6 +37,14 @@ class LogisticsRowsTest {
         assertTrue(LogisticsRows.create(input, lines, "navy").isEmpty());
         assertEquals(20, old.stockpile(), "Grouping does not convert existing stock");
     }
+    @Test void lockedFamilyWithARealDeficitStillAppears() {
+        var demand = new IndustryView.Equipment("old", "Old model", "image/old", "infantry", false, false, 1, 1,
+                Map.of(), 0, 0, 0, 30, "", "rifles", "보병 장비");
+        var rows = LogisticsRows.create(List.of(demand), List.of(), "all");
+        assertEquals(1, rows.size());
+        assertEquals(30, rows.getFirst().deficit());
+        assertEquals("보병 장비", rows.getFirst().representative().familyName());
+    }
     private static IndustryView.Equipment equipment(String id, boolean unlocked, long stock, String replacement, String family) {
         return new IndustryView.Equipment(id, id, "image/" + id, "infantry", false, unlocked, 1, 1,
                 Map.of(), stock, 0, 0, 0, replacement, family);

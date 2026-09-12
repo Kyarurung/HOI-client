@@ -72,7 +72,13 @@ public record IndustryView(String session, long revision, String country, Countr
     public record Modifier(String id, String name, double value, String detail) {}
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
             double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
-            String replacement, String family) {
+            String replacement, String family, String familyName) {
+
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,null);
+        }
 
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit) {
@@ -83,6 +89,7 @@ public record IndustryView(String session, long revision, String country, Countr
             text(id,128); text(name,128); text(texture,160); text(group,32);
             if (replacement != null) { text(replacement,128); if (replacement.equals(id)) throw new IllegalArgumentException("Self replacement"); }
             if (family != null) text(family,128);
+            if (familyName != null) text(familyName,128);
             resources=boundedMap(resources,8);
             if (!Double.isFinite(cost) || cost <= 0 || factoryLimit < 1 || stockpile < 0 || reserved < 0 || deployed < 0 || deficit < 0)
                 throw new IllegalArgumentException("Invalid equipment amounts");

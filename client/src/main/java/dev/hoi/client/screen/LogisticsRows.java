@@ -26,7 +26,7 @@ final class LogisticsRows {
         for (var line : lines) linesByEquipment.computeIfAbsent(line.equipment(), key -> new ArrayList<>()).add(line);
         var families = new LinkedHashMap<String,List<Equipment>>();
         for (var item : equipment) {
-            if ((!item.unlocked() && item.stockpile() == 0) || !group.equals("all") && !item.group().equals(group)) continue;
+            if ((!item.unlocked() && item.stockpile() == 0 && item.reserved() == 0 && item.deployed() == 0 && item.deficit() == 0 && !linesByEquipment.containsKey(item.id())) || !group.equals("all") && !item.group().equals(group)) continue;
             String family = item.family() == null || item.family().isBlank() ? item.id() : item.family();
             families.computeIfAbsent(item.group() + "/" + family, key -> new ArrayList<>()).add(item);
         }

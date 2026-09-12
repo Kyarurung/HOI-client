@@ -182,7 +182,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 context.runOnClient(client -> {
                     var screen = (HoiMenuScreen)client.gui.screen();
                     check(screen.selectedTab() == tab, "Menu tab " + tab);
-                    int sourceWidth = switch (tab) { case POLITICS -> 726; case TRADE -> 620; case LOGISTICS -> 560; default -> 550; };
+                    int sourceWidth = switch (tab) { case POLITICS -> 726; case TRADE -> 620; case LOGISTICS -> 720; default -> 550; };
                     check(screen.panelWidth() == HoiPanelLayout.width(tab,screen.width), "Original container width for " + tab);
                 });
             }

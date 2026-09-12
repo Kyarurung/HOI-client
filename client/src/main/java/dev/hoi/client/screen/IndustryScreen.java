@@ -258,7 +258,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     static final List<String> LOGISTICS_HEADERS = List.of("평균 생산 효율", "장비 유형", "생산", "상태", "수요", "균형", "비축량", "자원");
     private void logistics() {
-        int[] fractions = {0, 7, 32, 42, 52, 62, 73, 85, 100};
+        int[] fractions = {0, 5, 39, 49, 59, 69, 79, 90, 100};
         int[] cols = new int[9];
         for (int i = 0; i < cols.length; i++) cols[i] = 6 + (pane - 12) * fractions[i] / 100;
         String[] icons = {"efficiency", "", "production", "", "need", "balance", "stockpile", ""};
@@ -267,7 +267,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         rail(6, heading, pane - 12, 20);
         for (int i = 0; i < LOGISTICS_HEADERS.size(); i++) {
             int w = cols[i + 1] - cols[i];
-            if (icons[i].isEmpty()) fitted(LOGISTICS_HEADERS.get(i), cols[i] + 1, heading + 6, w - 2, TEXT);
+            if (icons[i].isEmpty()) centeredCompactText(LOGISTICS_HEADERS.get(i), cols[i] + 1, heading + 6, w - 2, TEXT);
             else art("logistics/" + icons[i], cols[i] + 1, heading + 3, w - 2, 14);
             tip(LOGISTICS_HEADERS.get(i) + "\n" + descriptions[i], cols[i], heading, w, 20);
         }
@@ -279,7 +279,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             rail(6, y, pane - 12, h - 2);
             efficiencyBar(cols[0] + 2, y + 3, Math.max(2, cols[1] - cols[0] - 4), h - 8, row.efficiency() == null ? 0 : row.efficiency());
             art(e.texture(), cols[1] + 1, y + 2, cols[2] - cols[1] - 2, 23);
-            fitted(equipmentName(e), cols[1] + 1, y + 27, cols[2] - cols[1] - 2, GOLD);
+            fitted(familyName(e), cols[1] + 1, y + 27, cols[2] - cols[1] - 2, GOLD);
             String[] values = {decimal(row.daily()), "—", "—", "—", LogisticsRows.stockLabel(row.stockpile())};
             for (int j = 0; j < values.length; j++) {
                 int col = j + 2; recess(cols[col] + 1, y + 8, cols[col + 1] - cols[col] - 2, 17);
@@ -291,9 +291,9 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             }
             tip("평균 생산 효율: " + (row.efficiency() == null ? "—" : String.format(Locale.ROOT, "%.1f%%", row.efficiency() * 100)), cols[0], y, cols[1] - cols[0], h);
             tip("일일 수요·충당률·균형 정보가 제공되지 않았습니다.", cols[3], y, cols[6] - cols[3], h);
-            tip(row.models().stream().map(model -> model.name() + "\n보관 재고: " + model.stockpile()
+            tip(familyName(e) + "\n충원에 추가로 필요한 수량: " + row.deficit() + "\n\n" + row.models().stream().map(model -> model.name() + "\n보관 재고: " + model.stockpile()
                     + "\n훈련에 지급: " + model.reserved() + "\n배치 사단 휴대: " + model.deployed()
-                    + "\n충원에 추가로 필요한 수량: " + model.deficit()).collect(java.util.stream.Collectors.joining("\n\n")), cols[1], y, cols[2] - cols[1], h);
+                    ).collect(java.util.stream.Collectors.joining("\n\n")), cols[1], y, cols[2] - cols[1], h);
             tip("비축량: " + row.stockpile(), cols[6], y, cols[7] - cols[6], h);
             tip(row.resources().entrySet().stream().map(r -> resourceName(r.getKey()) + ": " + decimal(r.getValue())).collect(java.util.stream.Collectors.joining("\n")), cols[7], y, cols[8] - cols[7], h);
         }
@@ -422,7 +422,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             }
             if (i == 0 && policy != null && policy.reinforcementRatio() != null) {
                 bar(7 + (int)(310 * scale), y + (int)(19 * scale), (int)(72 * scale), Math.max(2, (int)(12 * scale)), policy.reinforcementRatio(), 0xFF7EAF69);
-                String needs = policy.reinforcementNeeds().entrySet().stream().map(e -> equipment(e.getKey()).name() + " · 부족 " + e.getValue()).collect(java.util.stream.Collectors.joining("\n"));
+                String needs = policy.reinforcementNeeds().entrySet().stream().map(e -> familyName(equipment(e.getKey())) + " · 부족 " + e.getValue()).collect(java.util.stream.Collectors.joining("\n"));
                 tip("증원 · 장비 충족률 " + percent(policy.reinforcementRatio()) + (needs.isEmpty() ? "\n부족한 장비 없음" : "\n" + needs), 7, y, (int)(400 * scale), rowHeight);
             } else tip(names[i] + " · 배정 현황이 제공되지 않았습니다.", 7, y, (int)(400 * scale), rowHeight);
         }
@@ -681,8 +681,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 int sy = y + 51 + row++ * 18 - designerScroll;
                 if (sy < y + 48 || sy + 15 > y + h - 58) continue;
                 var e = equipment(need.getKey());
-                text(e.name(), sx + 3, sy, colWidth - 41, MUTED); text(integer(need.getValue()), sx + colWidth - 37, sy, 34, TEXT);
-                tip(e.name() + ": " + need.getValue(), sx, sy - 2, colWidth - 1, 18);
+                text(familyName(e), sx + 3, sy, colWidth - 41, MUTED); text(integer(need.getValue()), sx + colWidth - 37, sy, 34, TEXT);
+                tip(familyName(e) + ": " + need.getValue(), sx, sy - 2, colWidth - 1, 18);
             }
         }
         double cost = 0; boolean known = true;
@@ -879,6 +879,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 || org.lwjgl.glfw.GLFW.glfwGetKey(window, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT) == 1 ? 10 : 1;
     }
     private static String equipmentName(Equipment e) { return e.name(); }
+    private static String familyName(Equipment e) { return e.familyName() == null ? e.name() : e.familyName(); }
     private Template template(String id) { return view.templates().stream().filter(t -> t.id().equals(id)).findFirst().orElseThrow(); }
     private String locationName(String id) { if (id.isEmpty()) return "장소 미지정"; return view.locations().stream().filter(l -> l.id().equals(id)).map(Choice::name).map(n -> n.replace("수도 · ", "").split(" · ", 2)[0]).findFirst().orElse(id); }
     private String resourceName(String id) { return view.resources().stream().filter(r -> r.id().equals(id)).map(Resource::name).findFirst().orElse(id); }
@@ -888,7 +889,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         return resources.entrySet().stream().map(e -> resourceName(e.getKey()) + " " + decimal(e.getValue() * count)).reduce((a, b) -> a + " · " + b).orElse("자원 소모 없음");
     }
     private String equipmentList(Map<String,Long> need, Map<String,Long> current) {
-        return need.entrySet().stream().map(e -> equipment(e.getKey()).name() + ": " + current.getOrDefault(e.getKey(), 0L) + " / " + e.getValue()).reduce((a, b) -> a + "\n" + b).orElse("필요 장비 없음");
+        return need.entrySet().stream().map(e -> familyName(equipment(e.getKey())) + ": " + current.getOrDefault(e.getKey(), 0L) + " / " + e.getValue()).reduce((a, b) -> a + "\n" + b).orElse("필요 장비 없음");
     }
     private static double fillRatio(Map<String,Long> need, Map<String,Long> current) {
         return need.entrySet().stream().filter(e -> e.getValue() > 0).mapToDouble(e -> Math.min(1, (double) current.getOrDefault(e.getKey(), 0L) / e.getValue())).min().orElse(1);

@@ -6,7 +6,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 
 public final class UiText {
-    public static final int MIN_HEIGHT = 10;
+    public static final int MIN_HEIGHT = 9;
     private UiText() {}
     public static float scale(Font font) { return Math.max(1f, MIN_HEIGHT / (float)font.lineHeight); }
     public static void text(GuiGraphicsExtractor g, Font font, String text, int x, int y, int color) {
