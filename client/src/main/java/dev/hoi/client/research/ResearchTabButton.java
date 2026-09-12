@@ -16,7 +16,7 @@ public final class ResearchTabButton extends Button {
     ResearchTabButton(String label, String category, boolean selected, int x, int y, int width, Runnable action) {
         super(x, y, width, heightFor(width), Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
         this.category = category; this.selected = selected;
-        setTooltip(Tooltip.create(Component.literal(label)));
+        setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(label)));
     }
 
     static int heightFor(int width) { return (int)Math.ceil(width * 61.0 / 86); }

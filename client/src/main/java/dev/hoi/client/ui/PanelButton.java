@@ -14,7 +14,7 @@ public class PanelButton extends Button {
     public void sound(String value) { clickSound = value; }
     public PanelButton(String label, int x, int y, int width, int height, Runnable action) {
         super(x, y, width, height, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
-        if (label.equals("×") || label.equals("x") || label.equals("X")) setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal("닫기")));
+        if (label.equals("×") || label.equals("x") || label.equals("X")) setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("닫기")));
     }
     public void progress(double value) { progress = value; }
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : clickSound); }

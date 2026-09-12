@@ -92,9 +92,9 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         int pane = overviewWidth(), count = visibleSlots();
         slotOffset = Math.clamp(slotOffset, 0, Math.max(0, view.slots().size() - count));
         button("×", pane - 28, menuBottom() + 7, 20, 20, this::onClose);
-        var benefitsButton = new PanelButton("제한된 혜택: " + view.benefits().remainingUses(), 12, slotsTop()-30, pane/2-18, 18, () -> {}) {
+        var benefitsButton = new PanelButton("제한된 혜택: " + view.benefits().remainingUses(), 12, slotsTop()-33, pane/2-18, 33, () -> {}) {
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                researchIndicator(g,"제한된 혜택:","research/limited_benefits",Integer.toString(view.benefits().remainingUses()),12,slotsTop()-25,pane/2-18,GOLD,false);
+                researchIndicator(g,"제한된 혜택:","research/limited_benefits",Integer.toString(view.benefits().remainingUses()),12,slotsTop()-33,pane/2-18,GOLD,false);
             }
         };
         addRenderableWidget(benefitsButton);
@@ -105,7 +105,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             benefitLines.add(String.join(", ",benefit.scope()));
         }
         if(benefitLines.isEmpty()) benefitLines.add("사용 가능한 제한 혜택이 없습니다.");
-        benefitsButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(String.join("\n",benefitLines))));
+        benefitsButton.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(String.join("\n",benefitLines))));
         for (int n = 0; n < count; n++) {
             int index = slotOffset + n;
             if (index >= view.slots().size()) break;
@@ -202,12 +202,12 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         }
         g.outline(6, bannerY, pane - 12, bannerHeight(), 0xFFA070B5);
         double researchSpeed=view.benefits().researchSpeed();
-        researchIndicator(g,"연구 속도:","research/speed",String.format(Locale.ROOT,"%+.0f%%",researchSpeed*100),pane/2+6,slotsTop()-25,pane/2-18,researchSpeed>=0?0xFF55FF55:0xFFAA0000,true);
+        researchIndicator(g,"연구 속도:","research/speed",String.format(Locale.ROOT,"%+.0f%%",researchSpeed*100),pane/2+6,slotsTop()-33,pane/2-18,researchSpeed>=0?0xFF55FF55:0xFFAA0000,true);
     }
     private void researchIndicator(GuiGraphicsExtractor g,String label,String icon,String value,int x,int y,int max,int color,boolean right) {
         int natural=font.width(label)+15+font.width(value);
         float scale=Math.min(1f,max/(float)Math.max(1,natural));
-        g.pose().pushMatrix();g.pose().translate(right?x+max-natural*scale:x,y);g.pose().scale(scale);
+        g.pose().pushMatrix();g.pose().translate(right?x+max-natural*scale:x,y + 16.5f - 3.5f * scale);g.pose().scale(scale);
         g.text(font,label,0,0,TEXT);UiAssets.draw(g,icon,font.width(label)+2,-2,11,11);
         g.text(font,value,font.width(label)+15,0,color);g.pose().popMatrix();
     }
@@ -286,7 +286,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         }
         if (hovered != null) {
             var t = hovered.tech();
-            var lines = tooltipLines(t).stream().flatMap(line -> font.split(ResearchText.decorateEffect(line), Math.min(310, width - 24)).stream()).toList();
+            var lines = tooltipLines(t).stream().flatMap(line -> font.split(dev.hoi.client.ui.HoiTooltips.sentences(ResearchText.decorateEffect(line)), Math.min(310, width - 24)).stream()).toList();
             g.setTooltipForNextFrame(font, lines, mx, my);
         }
     }
@@ -366,7 +366,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     private int detailText(GuiGraphicsExtractor g, List<? extends Component> lines, int x, int y, int w, int color) {
         for (var line : lines) {
-            var wrapped = font.split(ResearchText.decorateEffect(line), w);
+            var wrapped = font.split(dev.hoi.client.ui.HoiTooltips.sentences(ResearchText.decorateEffect(line)), w);
             if (wrapped.isEmpty()) { y += 13; continue; }
             for (var text : wrapped) { if (g != null) g.text(font, text, x, y, color); y += 13; }
         }

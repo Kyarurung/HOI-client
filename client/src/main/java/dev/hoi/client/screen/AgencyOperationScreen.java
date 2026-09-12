@@ -47,7 +47,7 @@ final class AgencyOperationScreen extends Screen {
                 int at=0;for(int j=0;j<choices.size();j++)if(choices.get(j).value().equals(arguments.get(index)))at=j;
                 arguments.set(index,choices.get((at+1)%choices.size()).value());rebuildWidgets();
             });
-            button.setTooltip(Tooltip.create(Component.literal(parameter.label()+" · 클릭하여 다음 선택\n"+selected)));
+            button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(parameter.label()+" · 클릭하여 다음 선택\n"+selected)));
             addRenderableWidget(button);
         }
         var prepare=new HoiMenuButton("준비하기",x+w/2-60,y+h-28,120,22,()->{

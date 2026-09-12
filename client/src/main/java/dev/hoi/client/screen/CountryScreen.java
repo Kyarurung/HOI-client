@@ -28,7 +28,7 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
     private CountryView.Action confirmation;
     private int pane, top, scroll, actionScroll, total, ticks, hudScroll;
     private MenuView.Entry detail;
-    private int detailScroll;
+    private int detailScroll, leaderTooltipScroll;
     public CountryScreen(String target) { super(Component.literal("외교")); this.target = target; choosing = target.isEmpty(); }
     public CountryScreen(CountryView fixture) { this(fixture.target()); view = fixture; }
     String token() { return token; }
@@ -73,7 +73,7 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
                         + (view.shared() ? "\n동맹 정보 공유" : "") + "\n\n" + d.tiers.stream()
                         .map(t -> (IntelDomain.permits(report.percent(), view.shared(), t.percent()) ? "✓ " : "× ") + t.percent() + "% · " + t.description())
                         .collect(java.util.stream.Collectors.joining("\n"));
-                button.setTooltip(Tooltip.create(Component.literal(tips))); addRenderableWidget(button);
+                button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(tips))); addRenderableWidget(button);
             }
         }
         addRenderableWidget(new HoiMenuButton("국가 목록 열기", 8, height - 26, pane - 16, 19, () -> { choosing = !choosing; scroll = 0; detail = null; rebuildWidgets(); }));
@@ -102,7 +102,7 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
                 var button = new DiplomacyActionButton(action.name(), pane / 2 + 3, actionY, pane / 2 - 12, Math.max(15, DiplomacyHeader.scaled(28, pane)),
                         () -> { confirmation = action; rebuildWidgets(); });
                 button.active = action.enabled() && !pending && confirmation == null && detail == null;
-                button.setTooltip(Tooltip.create(Component.literal(action.name() + "\n" + action.detail())));
+                button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(action.name() + "\n" + action.detail())));
                 addRenderableWidget(button);
             }
         }
@@ -157,9 +157,11 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
             UiAssets.nineSlice(g, "diplomacy/header", headerX, top + 30, headerW, 38, 5, pane / 550.0);
             int flagH = 32, flagW = flagH * 98 / 67;
             HoiMenuBar.drawFlag(g, view.target(), (headerX - flagW) / 2, top + 33, flagW, flagH);
-            int ideologyCell = Math.round(headerW * 92f / 398), ideologyX = headerX + 3, textX = headerX + ideologyCell + 5;
+            int headerEdge = Math.max(1, DiplomacyHeader.scaled(5, pane));
+            int ideologyCell = headerEdge + Math.round((headerW - headerEdge * 2) * 91f / 388);
+            int ideologyX = headerX + headerEdge, textX = headerX + ideologyCell + 5;
             var ideology = DiplomacyHeader.entry(view, "이념");
-            UiAssets.draw(g, ideology.icon().isEmpty() ? "politics/empty/ideology" : ideology.icon(), ideologyX, top + 33, Math.max(16, textX - ideologyX - 5), 32);
+            UiAssets.draw(g, ideology.icon().isEmpty() ? "politics/empty/ideology" : ideology.icon(), ideologyX, top + 33, Math.max(1, ideologyCell - headerEdge), 32);
             String faction = view.diplomacy().stream().filter(e -> e.name().equals("세력")).map(MenuView.Entry::value).findFirst().orElse("세력 없음");
             String[] info = {view.name(), faction, DiplomacyHeader.entry(view, "지도자").value()};
             for (int i = 0; i < info.length; i++)
@@ -220,6 +222,10 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
         super.extractRenderState(g, mx, my, delta);
         if (view != null && !ledger && !choosing && detail == null && confirmation == null) {
             var spirit = header.spiritAt(mx, my, pane, top);
+            if (header.leaderAt(mx, my, pane, top))
+                leaderTooltipScroll = dev.hoi.client.ui.PoliticalTooltip.drawLeader(g, font, DiplomacyHeader.entry(view, "지도자"),
+                        view.target(), view.name(), mx, my, width, height, leaderTooltipScroll);
+            else leaderTooltipScroll = 0;
             if (spirit != null) dev.hoi.client.ui.HoiTooltips.draw(g, font, spirit.name() + "\n" + spirit.detail().substring("국가 정신\n".length()), mx, my);
         }
     }
@@ -230,6 +236,11 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
         }
         if (view != null && !ledger && !choosing && detail == null && confirmation == null
                 && header.scrollSpirits(x, y, horizontal != 0 ? horizontal : vertical, pane, top)) return true;
+        if (view != null && !ledger && !choosing && detail == null && confirmation == null
+                && header.leaderAt(x, y, pane, top) && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT))) {
+            leaderTooltipScroll -= (int)(vertical * 3); return true;
+        }
         if (detail != null) { detailScroll -= (int)(vertical * 26); return true; }
         if (x < pane && y >= bodyTop()) {
             if (actionsVisible() && x >= pane / 2) actionScroll -= (int)(vertical * Math.max(16, DiplomacyHeader.scaled(29, pane)));
@@ -264,7 +275,7 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
     private final class Row extends Button {
         Row(String label, int x, int y, int w, int h, Runnable action) {
             super(x,y,w,h,Component.literal(label),b -> action.run(),DEFAULT_NARRATION);
-            setTooltip(Tooltip.create(Component.literal(label)));
+            setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(label)));
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
             if (active && isHoveredOrFocused()) g.outline(getX(),getY(),getWidth(),getHeight(),HoiMenuStyle.ACCENT);

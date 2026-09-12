@@ -17,7 +17,7 @@ public final class HoiMenuButton extends Button {
     private String background;
 
     public void textScale(float scale) { textScale = scale; }
-    public HoiMenuButton caption(String value) { caption = value; if (isClose(value)) setTooltip(Tooltip.create(Component.literal("닫기"))); return this; }
+    public HoiMenuButton caption(String value) { caption = value; if (isClose(value)) setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("닫기"))); return this; }
     private static boolean isClose(String value) { return value.equals("×") || value.equals("x") || value.equals("X"); }
     public HoiMenuButton background(String value) { background = value; return this; }
 
@@ -28,7 +28,7 @@ public final class HoiMenuButton extends Button {
     public HoiMenuButton(String label, String icon, boolean selected, int x, int y, int w, int h, Runnable action) {
         super(x, y, w, h, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
         this.icon = icon; this.selected = selected;
-        setTooltip(Tooltip.create(Component.literal(isClose(label) ? "닫기" : label)));
+        setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(isClose(label) ? "닫기" : label)));
     }
 
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : "ui.click"); }

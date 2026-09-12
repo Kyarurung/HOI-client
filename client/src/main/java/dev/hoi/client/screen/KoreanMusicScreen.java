@@ -24,7 +24,7 @@ public final class KoreanMusicScreen extends Screen {
         for (int i = offset; i < Math.min(items.size(), offset + visible); i++) {
             int index = i; var track = items.get(i);
             var button = new PanelButton(track.title(), x + 10, y + 51 + (i - offset) * 25, w - 53, 23, () -> KoreanMusic.play(index));
-            button.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(track.title())));
+            button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(track.title())));
             addRenderableWidget(button);
         }
         int controlWidth = (w - 32) / 4;

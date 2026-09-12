@@ -293,7 +293,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         if (!widgets || y < contentTop() || y + h > contentBottom()) return;
         var button = new InvisibleButton(entry.name() + " · " + entry.value(), x, y, w, h, () -> showDetail(entry, section));
         if (!entry.value().equals("공석") && !entry.icon().equals("politics/vacant") && !entry.value().equals("미지정") && !section.equals("preferred_tactic") && !entry.name().endsWith("교리"))
-            button.setTooltip(Tooltip.create(Component.literal(entry.name() + "\n" + entry.value())));
+            button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(entry.name() + "\n" + entry.value())));
         else button.setTooltip(null);
         button.active = detail == null;
         addRenderableWidget(button);
@@ -329,15 +329,17 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             var focus = politicsFocus();
             if (focus.progress() >= 0) {
                 var bar = layout.focusProgress();
-                drawPoliticalArt(g, "politics/focus_progress_bg", bar);
+                g.fill(bar.x(), bar.y(), bar.x() + bar.width(), bar.y() + bar.height(), 0xFF17101B);
                 int filled = (int)Math.round(bar.width() * Math.clamp(focus.progress(), 0, 1));
                 if (filled > 0) {
                     g.enableScissor(bar.x(), bar.y(), bar.x() + filled, bar.y() + bar.height());
-                    drawPoliticalArt(g, "politics/focus_progress", bar);
+                    g.blit(net.minecraft.resources.Identifier.fromNamespaceAndPath("hoi", "textures/gui/politics/focus_progress.png"),
+                            bar.x(), bar.y(), bar.x() + bar.width(), bar.y() + bar.height(), 0, 1, 3f / 18, 15f / 18);
                     g.disableScissor();
                 }
             }
-            drawPoliticalArt(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), layout.focusImage());
+            drawPoliticalArt(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(),
+                    focus.icon().isEmpty() ? layout.focusImage() : layout.focusArtwork());
             centeredPoliticsText(g, focus.value(), layout.focusTitle(), focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
         }
         politicsCell(g, "경제-정치 연합", layout.union());
@@ -435,7 +437,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         String icon = politicsEntry(label).icon();
         if (icon.isEmpty()) icon = "politics/empty/" + kind;
         int inset = icon.equals("politics/empty/union") ? 0 : 3;
-        UiAssets.draw(g, icon, x + inset, y + inset, w - inset * 2, h - inset * 2);
+        UiAssets.draw(g, icon, x + inset - (label.equals("경제-정치 연합") ? 1 : 0), y + inset, w - inset * 2, h - inset * 2);
     }
     private static int partyColor(String icon) {
         if (icon.matches("politics/party/[0-9a-fA-F]{6}")) return 0xFF000000 | Integer.parseInt(icon.substring(icon.lastIndexOf('/') + 1), 16);
@@ -576,14 +578,16 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         var hovered = politicsHover(mx, my);
         if (!Objects.equals(hovered, hoveredPolitics)) tooltipScroll = 0;
         hoveredPolitics = hovered;
-        if (hovered != null && hovered.detail().contains("[image:")) {
+        if (hovered != null && hovered.name().equals("지도자")) {
+            tooltipScroll = PoliticalTooltip.drawLeader(g, font, hovered, view.country(), view.countryName(), screenX, my, width, height, tooltipScroll);
+        } else if (hovered != null && hovered.detail().contains("[image:")) {
             tooltipScroll = PoliticalTooltip.draw(g, font, hovered, screenX, my, width, height, tooltipScroll);
         } else if (hovered != null) {
-            String title = hovered.name().equals("지도자") ? hovered.value() : hovered.name();
+            boolean party = hovered.icon().startsWith("politics/party/") || hovered.icon().startsWith("politics/ideology/");
+            String title = party || hovered.value().isBlank() ? hovered.name() : hovered.value();
             var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
             lines.add(Component.literal(title).withStyle(net.minecraft.ChatFormatting.GOLD).getVisualOrderText());
-            if (!hovered.name().equals("지도자") && !hovered.value().isBlank())
-                lines.add(Component.literal(hovered.value()).getVisualOrderText());
+            if (party) lines.add(Component.literal(hovered.value()).getVisualOrderText());
             if (!hovered.detail().isBlank()) lines.addAll(HoiTooltips.lines(font, hovered.detail(), width));
             int count = Math.max(1, (height - 48) / (font.lineHeight + 1));
             tooltipScroll = Math.clamp(tooltipScroll, 0, Math.max(0, lines.size() - count));
@@ -778,7 +782,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         }
         InvisibleButton(String label, int x, int y, int w, int h, Runnable action) {
             super(x, y, w, h, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
-            setTooltip(Tooltip.create(Component.literal(label)));
+            setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(label)));
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
 

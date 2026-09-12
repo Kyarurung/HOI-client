@@ -164,6 +164,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.waitTicks(2);
             context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(child -> child instanceof Button b && b.getMessage().getString().equals("권력의 균형")), "Revoked power balance closes its controls"));
             CountryScreenChecks.adviserFrames(context);
+            CountryScreenChecks.authoritativePoliticsTooltips(context);
             CountryScreenChecks.politicsHover(context, menu);
             click(context, "정부 선택 0 · 미지정"); context.waitTicks(2); context.takeScreenshot("hoi-politics-slot-detail");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
@@ -218,7 +219,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             var view = fixtureResearch();
             context.setScreen(() -> fixtureMainMenu(menu, MenuTab.RECRUITMENT, view, requests));
             click(context, "연구 메뉴"); context.waitTicks(3);
-            context.takeScreenshot("hoi-research-slots");
+            context.takeScreenshot("hoi-research-slots"); gui2Screenshot(context, "hoi-research-slots");
             context.runOnClient(client -> {
                 checkToolbar(client.gui.screen());
                 var slots = client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).map(c -> (ResearchSlotButton)c).toList();

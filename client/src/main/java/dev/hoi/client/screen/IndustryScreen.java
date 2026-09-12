@@ -528,8 +528,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private void textureButton(String name, String label, String background, int x, int y, int w, int h, boolean enabled, Runnable action) {
         if (graphics != null) return;
         var control = new dev.hoi.client.ui.HoiMenuButton(name, x, y, w, h, action).caption(label).background(background);
-        if (name.startsWith("클릭하여")) control.setTooltip(Tooltip.create(Component.literal("클릭").withStyle(net.minecraft.ChatFormatting.GREEN).append(Component.literal(name.substring(2)).withStyle(net.minecraft.ChatFormatting.WHITE))));
-        if (background.equals("recruitment/delete_template")) control.setTooltip(Tooltip.create(Component.literal("편제를 목록에서 ").withStyle(net.minecraft.ChatFormatting.WHITE)
+        if (name.startsWith("클릭하여")) control.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("클릭").withStyle(net.minecraft.ChatFormatting.GREEN).append(Component.literal(name.substring(2)).withStyle(net.minecraft.ChatFormatting.WHITE))));
+        if (background.equals("recruitment/delete_template")) control.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("편제를 목록에서 ").withStyle(net.minecraft.ChatFormatting.WHITE)
                 .append(Component.literal("삭제").withStyle(net.minecraft.ChatFormatting.DARK_RED)).append(Component.literal("합니다.").withStyle(net.minecraft.ChatFormatting.WHITE))));
         if (name.contains("우선순위") || name.contains("연속 훈련 횟수")) control.setTooltip(null);
         control.textScale(dev.hoi.client.ui.UiText.scale(font)); control.active = enabled && pending == 0; addRenderableWidget(control);
@@ -720,7 +720,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 }
             };
             save.active = pending == 0 && !draftName.isBlank() && !t.line().isEmpty() && view.economy().armyXp() >= t.experienceCost();
-            save.setTooltip(Tooltip.create(Component.literal("새 편제로 저장 · 기존 사단과 훈련 편제 유지")));
+            save.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("새 편제로 저장 · 기존 사단과 훈련 편제 유지")));
             addRenderableWidget(save);
         }
     }
@@ -951,7 +951,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private void button(String accessible, String label, int x, int y, int w, int h, boolean enabled, Runnable action) {
         if (graphics != null) return;
         var button = new HoiMenuButton(accessible, x, y, w, h, action).caption(label);
-        button.active = enabled && pending == 0; button.setTooltip(Tooltip.create(Component.literal(label.equals("×") || label.equals("X") ? "닫기" : accessible)));
+        button.active = enabled && pending == 0; button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(label.equals("×") || label.equals("X") ? "닫기" : accessible)));
         addRenderableWidget(button);
     }
     private void priorityButton(boolean up, int x, int y, boolean enabled, String id) {
@@ -959,7 +959,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         var control = new HoiMenuButton(up ? "생산 라인 한 칸 위로" : "생산 라인 한 칸 아래로", x, y, 19, 18,
                 () -> send(up ? UP : DOWN, id, "", dev.hoi.client.ui.PriorityControls.shifted() ? 1 : 0)).caption(up ? "↑" : "↓");
         control.active = enabled && pending == 0;
-        control.setTooltip(Tooltip.create(dev.hoi.client.ui.PriorityControls.tooltip(up))); addRenderableWidget(control);
+        control.setTooltip(dev.hoi.client.ui.HoiTooltips.create(dev.hoi.client.ui.PriorityControls.tooltip(up))); addRenderableWidget(control);
     }
     private void equipmentButton(Equipment equipment, String name, int x, int y, int w, int h, boolean enabled, Runnable action) {
         if (graphics != null) return;
@@ -984,7 +984,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             }
         };
         button.active = pending == 0;
-        button.setTooltip(Tooltip.create(Component.literal(name)));
+        button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(name)));
         addRenderableWidget(button);
     }
     private void divisionSlot(String name, String texture, int x, int y, int w, boolean enabled, Runnable action) {
@@ -997,7 +997,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             }
         };
         button.active = enabled && pending == 0;
-        button.setTooltip(Tooltip.create(Component.literal(name)));
+        button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(name)));
         addRenderableWidget(button);
     }
     private void unitChoice(String name, String texture, String detail, int x, int y, int w, boolean enabled, Runnable action) {
@@ -1013,7 +1013,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             }
         };
         button.active = enabled && pending == 0;
-        button.setTooltip(Tooltip.create(Component.literal(name)));
+        button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(name)));
         addRenderableWidget(button);
     }
 }

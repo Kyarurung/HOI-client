@@ -121,7 +121,7 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
         if (view.items().stream().noneMatch(i -> i.id().equals("recruit"))) return;
         var master = new HoiMenuButton("세력 첩보장", "agency/spy_master", false, pane - 39, top + 40, 29, 29, () -> {});
         master.active = false;
-        master.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+        master.setTooltip(dev.hoi.client.ui.HoiTooltips.create(
                 Component.literal("첩보장").withStyle(style -> style.withColor(0xFFCC33))
                         .append(Component.literal("은 현재 없습니다.").withStyle(style -> style.withColor(0xFFFFFF)))));
         addRenderableWidget(master);

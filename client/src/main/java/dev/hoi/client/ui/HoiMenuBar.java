@@ -235,7 +235,7 @@ public final class HoiMenuBar {
         private TabButton(MenuTab tab, String country, boolean selected, int x, int width, int y, int height, Runnable action) {
             super(x, y, width, height, Component.literal(tab.label() + " 메뉴"), b -> action.run(), DEFAULT_NARRATION);
             this.tab = tab; this.country = country; this.selected = selected;
-            if (tab != MenuTab.POLITICS) setTooltip(Tooltip.create(Component.literal(tab.label())));
+            if (tab != MenuTab.POLITICS) setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(tab.label())));
         }
 
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {

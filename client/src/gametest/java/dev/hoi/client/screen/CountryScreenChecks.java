@@ -8,6 +8,132 @@ import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 public final class CountryScreenChecks {
+    public static void authoritativePoliticsTooltips(ClientGameTestContext context) {
+        String directory = System.getenv("HOI_POLITICS_PREVIEW");
+        if (directory == null) return;
+        context.getInput().resizeWindow(2560, 1440);
+        context.runOnClient(c -> c.options.guiScale().set(2));
+        context.runOnClient(c -> {
+            String prose = "첫 문장. 두 번째 문장!\n\n다음 구역: +1.25%. 유지됩니다.";
+            String wrapped = dev.hoi.client.ui.HoiTooltips.sentences(prose);
+            if (!wrapped.equals("첫 문장.\n두 번째 문장!\n\n다음 구역: +1.25%.\n유지됩니다."))
+                throw new AssertionError("Sentence wrapping changed paragraphs or decimals: " + wrapped);
+            var colored = net.minecraft.network.chat.Component.literal("첫 문장. 다음 문장.").withColor(0x55FF55);
+            var rewritten = dev.hoi.client.ui.HoiTooltips.sentences(colored);
+            if (!rewritten.getString().equals("첫 문장.\n다음 문장.") || !rewritten.visit((style, part) ->
+                    style.getColor() != null && style.getColor().getValue() == 0x56AC5B ? Optional.of(true) : Optional.empty(),
+                    net.minecraft.network.chat.Style.EMPTY).orElse(false)) throw new AssertionError("Sentence wrapping lost style");
+            for (String effect : List.of("안정도: §a+4%§r", "월간 인플레이션: §4+0.1%§r", "금리: §e+5%§r", "매일 사회자유주의 지지도: §a+0.01§r")) {
+                var colors = new java.util.HashSet<Integer>();
+                var icons = new java.util.concurrent.atomic.AtomicInteger();
+                for (var line : dev.hoi.client.ui.HoiTooltips.lines(c.font, effect, 1280))
+                    line.accept((index, style, character) -> {
+                        if (character >= 0xe000 && character <= 0xf8ff) icons.incrementAndGet();
+                        if (style.getColor() != null) colors.add(style.getColor().getValue());
+                        return true;
+                    });
+                int expected = effect.contains("§a") ? 0x56AC5B : effect.contains("§4") ? 0xDE5646 : 0xEEC923;
+                if (icons.get() != 1 || !colors.contains(expected))
+                    throw new AssertionError("Tooltip keyword or value color missing: " + effect + " " + colors);
+            }
+        });
+        String[] tags = {"KOR", "KOR", "KOR", "KOR", "KOR", "PRC", "KOR", "PRC"};
+        String[] labels = {"내무장관", "금리법", "군사 훈련", "여성권", "산업 개발", "공군참모총장", "지도자", "지도자"};
+        for (int i = 0; i < labels.length; i++) {
+            final MenuView menu;
+            try {
+                menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+                        java.nio.file.Path.of(directory, tags[i] + ".json"))).view();
+            } catch (java.io.IOException e) { throw new AssertionError("Server tooltip snapshot unavailable", e); }
+            String label = labels[i];
+            context.setScreen(() -> new HoiMenuScreen(menu));
+            context.waitTicks(3);
+            var point = context.computeOnClient(c -> {
+                var screen = (HoiMenuScreen)c.gui.screen();
+                int x, y;
+                if (label.equals("지도자")) {
+                    var box = screen.politicsLayout().leader();
+                    x = box.x() + box.width() / 2;
+                    y = box.y() + box.height() / 2;
+                } else {
+                    var button = screen.children().stream().filter(w -> w instanceof Button b
+                            && b.getMessage().getString().startsWith(label + " · "))
+                            .map(w -> (Button)w).findFirst().orElseThrow();
+                    x = button.getX() + button.getWidth() / 2;
+                    y = button.getY() + button.getHeight() / 2;
+                }
+                var entry = screen.politicsHover(x, y);
+                if (entry == null || entry.detail().isBlank()) throw new AssertionError("Missing server effect tooltip: " + label);
+                double scale = c.getWindow().getGuiScale();
+                return new double[]{x * scale, y * scale};
+            });
+            context.getInput().setCursorPos(point[0], point[1]);
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-server-policy-" + i + "-gui2");
+        }
+        try {
+            var source = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+                    java.nio.file.Path.of(directory, "KOR.json"))).view();
+            var pages = source.pages().stream().map(page -> page.tab() != MenuTab.POLITICS ? page
+                    : new MenuView.Page(page.tab(), page.sections().stream().map(section -> !section.title().equals("국가 중점") ? section
+                            : new MenuView.Section(section.title(), section.icon(), section.entries().stream().map(entry -> entry.progress() < 0 ? entry
+                                    : new MenuView.Entry(entry.name(), entry.value(), entry.detail(), .5, entry.icon())).toList())).toList())).toList();
+            context.setScreen(() -> new HoiMenuScreen(new MenuView(source.country(), source.countryName(), source.date(), source.speed(),
+                    pages, source.hud(), source.manufacturers(), source.balance())));
+            context.getInput().setCursorPos(1500, 800);
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-focus-half-progress-fixture-gui2");
+        } catch (java.io.IOException e) { throw new AssertionError("Server focus snapshot unavailable", e); }
+        try {
+            var foreign = new CountryProtocol.Response(java.util.UUID.randomUUID().toString(),
+                    java.nio.file.Files.readString(java.nio.file.Path.of(directory, "diplomacy-PRC.json"))).view();
+            context.setScreen(() -> new CountryScreen(foreign));
+            context.getInput().setCursorPos(1500, 800);
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-server-diplomacy-PRC-gui2");
+            context.getInput().setCursorPos(65, 300);
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-server-diplomacy-leader-PRC-gui2");
+            context.getInput().setCursorPos(1500, 800);
+            var changed = new CountryProtocol.Response(java.util.UUID.randomUUID().toString(),
+                    java.nio.file.Files.readString(java.nio.file.Path.of(directory, "diplomacy-PRC-changed.json"))).view();
+            context.runOnClient(c -> {
+                var screen = (CountryScreen)c.gui.screen();
+                screen.update(CountryProtocol.Response.of(java.util.UUID.randomUUID().toString(), changed));
+                if (!screen.view().equals(foreign)) throw new AssertionError("Unissued party update accepted");
+                screen.update(CountryProtocol.Response.of(screen.token(), changed));
+                if (!screen.view().equals(changed)) throw new AssertionError("Party update not applied");
+            });
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-server-diplomacy-PRC-changed-gui2");
+            var originalMenu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+                    java.nio.file.Path.of(directory, "PRC.json"))).view();
+            var changedMenu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+                    java.nio.file.Path.of(directory, "PRC-changed.json"))).view();
+            context.setScreen(() -> new HoiMenuScreen(originalMenu));
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-server-parties-PRC-gui2");
+            context.runOnClient(c -> ((HoiMenuScreen)c.gui.screen()).update(changedMenu));
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-server-parties-PRC-changed-gui2");
+        } catch (java.io.IOException e) { throw new AssertionError("Server diplomacy snapshot unavailable", e); }
+        try {
+            var menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory, "KNU.json"))).view();
+            context.setScreen(() -> new HoiMenuScreen(menu));
+            context.getInput().setCursorPos(1500, 800);
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-server-politics-KNU-gui2");
+            var foreign = new CountryProtocol.Response(java.util.UUID.randomUUID().toString(),
+                    java.nio.file.Files.readString(java.nio.file.Path.of(directory, "diplomacy-KNU.json"))).view();
+            context.setScreen(() -> new CountryScreen(foreign));
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-server-diplomacy-KNU-gui2");
+        } catch (java.io.IOException e) { throw new AssertionError("Myanmar server snapshot unavailable", e); }
+        context.getInput().setCursorPos(1500, 800);
+        context.getInput().resizeWindow(1600, 1000);
+        context.waitTicks(3);
+    }
+
     public static void politicsHover(ClientGameTestContext context, MenuView source) {
         var sections = new ArrayList<>(politics());
         var overview = new ArrayList<>(sections.getFirst().entries());

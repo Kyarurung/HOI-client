@@ -45,12 +45,12 @@ public final class HudTooltip {
         var detail = hud.details().get(item.icon());
         if (detail != null) for (var row : detail.rows()) {
             int color = switch (row.tone()) {
-                case GOOD -> 0x55AA33; case BAD -> 0xDD4444; case MUTED -> 0x9BABB4;
-                case HEADING -> 0xE6C779; default -> 0xE0E6E8;
+                case GOOD -> HoiTooltips.GOOD; case BAD -> HoiTooltips.BAD; case MUTED -> 0x9BABB4;
+                case HEADING -> HoiTooltips.GOLD; default -> 0xE0E6E8;
             };
             var text = Component.literal(row.label() + (row.value().isEmpty() ? "" : ": " + row.value()))
                     .withStyle(style -> style.withColor(color));
-            lines.addAll(font.split(text, wrap));
+            lines.addAll(font.split(HoiTooltips.sentences(text), wrap));
         } else {
             if (item.barLabel() != null) lines.addAll(font.split(Component.literal(item.barLabel() + ": "
                     + (item.ratio() == null ? "—" : HoiMenuBar.rawNumber(item.ratio() * 100) + "%")), wrap));
@@ -73,7 +73,7 @@ public final class HudTooltip {
         maximum = Math.max(0, content.size() - count);
         offset = Math.clamp(offset, 0, maximum);
         var visible = new ArrayList<FormattedCharSequence>();
-        visible.add(Component.literal(item.label()).withStyle(s -> s.withColor(0xE6C779)).getVisualOrderText());
+        visible.add(Component.literal(item.label()).withStyle(s -> s.withColor(HoiTooltips.GOLD)).getVisualOrderText());
         visible.addAll(content.subList(offset, Math.min(content.size(), offset + count)));
         if (maximum > 0) visible.add(Component.literal("Shift + 휠 · 설명 스크롤").withStyle(s -> s.withColor(0x9BABB4)).getVisualOrderText());
 

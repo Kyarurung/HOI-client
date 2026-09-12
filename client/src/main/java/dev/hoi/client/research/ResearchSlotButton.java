@@ -20,7 +20,7 @@ public final class ResearchSlotButton extends Button {
         super(x, y, width, height, Component.literal("슬롯 " + (slot.index() + 1) + " · " + (technology == null ? "연구 선택" : technology.name())),
                 b -> action.run(), DEFAULT_NARRATION);
         this.slot = slot; this.technology = technology; this.country = country;
-        setTooltip(Tooltip.create(Component.literal(getMessage().getString()
+        setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(getMessage().getString()
                 + (technology == null ? "" : " · " + technology.remainingDays(slot.savedDays()) + "일"))));
     }
 

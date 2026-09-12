@@ -85,13 +85,13 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 }
             };
             button.active=b.enabled()&&pending==0;
-            button.setTooltip(Tooltip.create(Component.literal(b.name()+"\n"+(b.enabled()?"좌클릭: 건설 · 우클릭: 취소":b.reason()))));addRenderableWidget(button);
+            button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(b.name()+"\n"+(b.enabled()?"좌클릭: 건설 · 우클릭: 취소":b.reason()))));addRenderableWidget(button);
         }
         int repair=view.summary().repairPriority();
         for(int direction:new int[]{-1,1}) {
             var button=new HoiMenuButton(direction<0?"−":"+",direction<0?pane-101:pane-47,top+3,21,19,
                     ()->send(ConstructionProtocol.Action.REPAIR,"",Math.clamp(repair+direction,0,10000),null));
-            button.active=pending==0&&(direction>0||repair>0);button.setTooltip(Tooltip.create(Component.literal("건설보다 수리를 우선하는 공장 수")));addRenderableWidget(button);
+            button.active=pending==0&&(direction>0||repair>0);button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("건설보다 수리를 우선하는 공장 수")));addRenderableWidget(button);
         }
         int visibleRows=Math.max(1,(height-queueY()-30)/rowHeight());
         scroll=Math.clamp(scroll/rowHeight(),0,Math.max(0,view.projects().size()-visibleRows))*rowHeight();
@@ -102,7 +102,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 var kind=action==0?ConstructionProtocol.Action.UP:action==1?ConstructionProtocol.Action.DOWN:ConstructionProtocol.Action.CANCEL;
                 var button=new HoiMenuButton(action==0?"↑":action==1?"↓":"×",x-63+action*19,by+rowHeight()-23,18,18,()->send(kind,p.id(),kind!=ConstructionProtocol.Action.CANCEL && dev.hoi.client.ui.PriorityControls.shifted()?1:0,null));
                 button.active=pending==0&&(action!=0||i>0)&&(action!=1||i<view.projects().size()-1);
-                button.setTooltip(Tooltip.create(action<2?dev.hoi.client.ui.PriorityControls.tooltip(action==0):Component.literal("건설 취소")));addRenderableWidget(button);
+                button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(action<2?dev.hoi.client.ui.PriorityControls.tooltip(action==0):Component.literal("건설 취소")));addRenderableWidget(button);
             }
         }
     }
@@ -136,7 +136,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
             HoiMenuStyle.metal(g,6,top+54,q-6,18);
             dev.hoi.client.ui.UiText.cell(g,font,"위치",8,top+55,Math.max(24,q-133),16,HoiMenuStyle.TEXT,false);
             dev.hoi.client.ui.UiText.cell(g,font,"작업",q-123,top+55,24,16,HoiMenuStyle.TEXT,false);
-            UiAssets.draw(g,"construction/summary/civilian_factory",q-94,top+56,13,13);
+            UiAssets.draw(g,"construction/summary/civilian_factory",q-87,top+56,13,13);
             dev.hoi.client.ui.UiText.cell(g,font,"우선순위",q-58,top+55,55,16,HoiMenuStyle.TEXT,false);
             HoiMenuStyle.metal(g,6,top+75,q-6,21);
             UiAssets.draw(g,"construction/consumer_goods",10,top+76,19,19);
@@ -155,7 +155,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 HoiMenuStyle.metal(g,6,y,q-6,rowHeight()-3);
                 dev.hoi.client.ui.UiText.cell(g,font,p.name(),10,y+4,Math.max(24,q-139),20,HoiMenuStyle.TEXT,false);
                 UiAssets.draw(g,"construction/"+p.building(),q-124,y+2,23,23);
-                dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",q-99,y+1,36,17,HoiMenuStyle.TEXT,false);
+                dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",q-96,y+1,31,17,HoiMenuStyle.TEXT,false);
                 g.fill(q-96,y+19,q-65,y+23,0xFF101511);
                 g.fill(q-96,y+19,q-96+(int)(31*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1)),y+23,0xFF79945A);
                 if(mx>=6&&mx<q&&my>=y&&my<y+rowHeight()-3)HoiTooltips.draw(g,font,p.name()+" · "+buildingName(p.building())+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.1f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"),mx,my);

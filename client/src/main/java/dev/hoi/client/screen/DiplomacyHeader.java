@@ -34,12 +34,16 @@ final class DiplomacyHeader {
         UiAssets.nineSlice(g, "diplomacy/leader_frame", leaderX, y, leaderW, leaderH, 5, pane / 550.0);
         int right = scaled(147, pane), rightW = pane - right - scaled(12, pane);
         UiAssets.nineSlice(g, "diplomacy/politics", right, y, rightW, leaderH, 5, pane / 550.0);
-        int chart = scaled(80, pane), chartX = right + scaled(10, pane), chartY = y + 5;
+        int edge = Math.max(1, scaled(5, pane));
+        int chartCellW = edge + Math.round((rightW - edge * 2) * 99f / 388);
+        int chartCellH = edge + Math.round((leaderH - edge * 2) * 85f / 157);
+        int chart = scaled(80, pane), chartX = right + (chartCellW - chart) / 2 + 2, chartY = y + (chartCellH - chart) / 2 + 1;
         for (var span : this.chart) g.fill(chartX + span[0], chartY + span[1], chartX + span[2], chartY + span[1] + 1, span[3]);
-        int textX = right + scaled(110, pane), textW = pane - textX - 12;
-        UiText.text(g, font, font.plainSubstrByWidth(entry(view, "집권 정당").value(), Math.max(1, (int)(textW / UiText.scale(font)))), textX, y + 5, HoiMenuStyle.TEXT);
-        UiText.text(g, font, font.plainSubstrByWidth(entry(view, "이념").value(), Math.max(1, (int)(textW / UiText.scale(font)))), textX, y + 17, HoiMenuStyle.TEXT);
-        UiText.text(g, font, entry(view, "다음 선거").value(), textX, y + 29, 0xFFFFBB22);
+        int textX = right + chartCellW + 3, textW = rightW - chartCellW - 6;
+        int textY = y + (chartCellH - 36) / 2 + 1;
+        UiText.text(g, font, font.plainSubstrByWidth(entry(view, "집권 정당").value(), (int)(textW / UiText.scale(font))), textX, textY + 1, HoiMenuStyle.TEXT);
+        UiText.text(g, font, font.plainSubstrByWidth(entry(view, "이념").value(), (int)(textW / UiText.scale(font))), textX, textY + 13, HoiMenuStyle.TEXT);
+        UiText.text(g, font, font.plainSubstrByWidth(entry(view, "다음 선거").value(), (int)(textW / UiText.scale(font))), textX, textY + 25, HoiMenuStyle.TEXT);
         int focusH = Math.max(28, scaled(64, pane));
         int focusY = y + leaderH - focusH - 3, focusX = right + scaled(100, pane);
         UiAssets.draw(g, "politics/empty/focus", right + 4, focusY, scaled(90, pane), focusH);
@@ -59,6 +63,10 @@ final class DiplomacyHeader {
             UiAssets.draw(g, spirit.icon().isEmpty() ? "menu/politics" : spirit.icon(), x, spiritY + 5, iconSize, Math.max(12, spiritH - 10));
         }
         g.disableScissor();
+    }
+    boolean leaderAt(double x, double y, int pane, int top) {
+        int left = scaled(13, pane), upper = politicsTop(top);
+        return x >= left && x < left + scaled(134, pane) && y >= upper && y < upper + leaderHeight(pane);
     }
     private static int spiritStart(int pane) { return scaled(140, pane); }
     private static int spiritSize(int pane) { return Math.max(16, scaled(54, pane)); }

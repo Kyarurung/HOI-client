@@ -12,10 +12,26 @@ public final class PoliticalTooltip {
     private record Row(net.minecraft.util.FormattedCharSequence text, String image, int height) {}
     public static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
+        return draw(g, font, entry, "", "", mouseX, mouseY, viewportWidth, viewportHeight, scroll);
+    }
+    public static int drawLeader(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String country, String countryName,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
+        return draw(g, font, entry, "country/" + country.toLowerCase(java.util.Locale.ROOT) + "/flag", countryName,
+                mouseX, mouseY, viewportWidth, viewportHeight, scroll);
+    }
+    private static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String flag, String countryName,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         int width = Math.max(80, Math.min(270, viewportWidth - 24));
         var rows = new ArrayList<Row>();
         rows.add(new Row(Component.literal(entry.value().isBlank() ? entry.name() : entry.value())
-                .withStyle(net.minecraft.ChatFormatting.GOLD).getVisualOrderText(), "", font.lineHeight + 3));
+                .withColor(HoiTooltips.GOLD).getVisualOrderText(), "", font.lineHeight + 3));
+        if (!flag.isEmpty()) {
+            var role = Component.literal(countryName).withColor(HoiTooltips.GOLD)
+                    .append(Component.literal("의 국가원수").withStyle(net.minecraft.ChatFormatting.WHITE));
+            var roleLines = font.split(role, width - 15);
+            for (int i = 0; i < roleLines.size(); i++) rows.add(new Row(roleLines.get(i), i == 0 ? flag : "", font.lineHeight + 1));
+            rows.add(new Row(Component.empty().getVisualOrderText(), "", font.lineHeight + 1));
+        }
         for (String line : entry.detail().split("\\R", -1)) {
             if (line.matches("\\[image:[a-z0-9_/]+\\]"))
                 rows.add(new Row(null, line.substring(7, line.length()-1), width * 9 / 16));
@@ -35,7 +51,10 @@ public final class PoliticalTooltip {
         for (var row : rows) {
             if (top + row.height() > y && top < y + height) {
                 if (row.image().isEmpty()) g.text(font, row.text(), x, top, 0xFFE0E0E0);
-                else UiAssets.draw(g, row.image(), x, top, width, row.height());
+                else if (row.text() != null) {
+                    UiAssets.draw(g, row.image(), x, top, 12, font.lineHeight);
+                    g.text(font, row.text(), x + 15, top, 0xFFE0E0E0);
+                } else UiAssets.draw(g, row.image(), x, top, width, row.height());
             }
             top += row.height();
         }

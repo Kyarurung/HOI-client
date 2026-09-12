@@ -16,7 +16,7 @@ public final class MusicButton extends Button {
             var client = Minecraft.getInstance();
             client.gui.setScreen(new KoreanMusicScreen(client.gui.screen()));
         }, DEFAULT_NARRATION);
-        setTooltip(Tooltip.create(Component.literal("음악 선택")));
+        setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("음악 선택")));
     }
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play("ui.click"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {

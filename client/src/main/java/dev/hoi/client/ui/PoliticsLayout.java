@@ -12,6 +12,10 @@ public record PoliticsLayout(int pane, int top) {
     private int columnWidth() { return rowHeight(); }
     public Box focus() { return new Box(split() + (int)Math.round(rowHeight() * 4.0 / 107), rowY(0), (int)Math.round(rowHeight() * 359.0 / 107), rowHeight()); }
     public Box focusImage() { return new Box(split(), rowY(0), rowHeight(), rowHeight()); }
+    public Box focusArtwork() {
+        var b = focusImage();
+        return new Box(b.x() - b.width() / 2 - b.width() / 3, b.y() - b.height() / 2, b.width() * 2, b.height() * 2);
+    }
     public Box focusTitle() {
         var b = focus(); double scale = b.height() / 107.0;
         return new Box(b.x() + (int)Math.round(99 * scale), b.y() + (int)Math.round(12 * scale),
