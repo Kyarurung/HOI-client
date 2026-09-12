@@ -16,9 +16,9 @@ public final class UiSounds {
     }
     public static void receive(AudioProtocol.Cue cue) {
         switch(cue) {
-            case SELECT -> KoreanMusic.select();
+            case SELECT -> { dev.hoi.client.CampaignHud.accept(dev.hoi.protocol.HudProtocol.State.HIDDEN); KoreanMusic.select(); }
             case START -> {KoreanMusic.enable();START_SOUNDS.forEach(UiSounds::play);}
-            case STOP -> { reset(); dev.hoi.client.screen.DialogClient.reset(); }
+            case STOP -> { dev.hoi.client.CampaignHud.accept(dev.hoi.protocol.HudProtocol.State.HIDDEN); reset(); dev.hoi.client.screen.DialogClient.reset(); }
             case MAP_ARMY,MAP_NAVY,MAP_AIR,MAP_SUPPLY,MAP_CONSTRUCTION -> {KoreanMusic.mapChanged();play(cue.sound());}
             default -> play(cue.sound());
         }

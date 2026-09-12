@@ -152,6 +152,7 @@ final class ScreenNetworking {
         cancelOpen(); var screen = new AgencyScreen(null); Minecraft.getInstance().gui.setScreen(screen); screen.open();
     }
     public static void openMenu(dev.hoi.protocol.MenuTab tab) {
+        if (!CampaignHud.visible()) return;
         if (tab == dev.hoi.protocol.MenuTab.INTELLIGENCE) { openAgency(); return; }
         if (tab == dev.hoi.protocol.MenuTab.DECISIONS && ClientPlayNetworking.canSend(dev.hoi.protocol.DecisionProtocol.Request.TYPE)) {
             cancelOpen(); Minecraft.getInstance().gui.setScreen(new dev.hoi.client.screen.DecisionScreen()); return;

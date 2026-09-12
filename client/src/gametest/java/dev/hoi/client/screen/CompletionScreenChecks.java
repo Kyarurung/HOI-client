@@ -77,10 +77,22 @@ public final class CompletionScreenChecks {
                 messagesField.setAccessible(true);
                 var messages = (java.util.List<?>) messagesField.get(c.gui.hud.getChat());
                 int messageCount = messages.size();
+                dev.hoi.client.CampaignHud.accept(HudProtocol.State.HIDDEN);
+                dev.hoi.client.HoiClient.openMenu(MenuTab.POLITICS);
+                check(c.gui.screen() == null, "A menu is never constructed before campaign participation is authorized");
                 method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_PRESS, new KeyEvent(GLFW.GLFW_KEY_F, 0, GLFW.GLFW_MOD_SHIFT));
                 check(!c.options.keySwapOffhand.consumeClick(), "Shift+F is intercepted before vanilla queues an offhand swap");
                 check(messages.size() == messageCount && c.gui.screen() == null, "Shift+F on an unsupported server must not print chat or open a menu");
+                for(int i=0;i<5;i++)method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_REPEAT,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));
                 method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_RELEASE, new KeyEvent(GLFW.GLFW_KEY_F, 0, 0));
+                check(c.gui.screen()==null&&!c.options.keySwapOffhand.consumeClick(), "Holding Shift+F then releasing Shift first never opens UI or leaks a swap");
+                method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_PRESS,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));
+                for(int i=0;i<20;i++) {
+                    method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_REPEAT,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));
+                    check(c.gui.screen()==null, "Held shortcut never constructs a transient menu");
+                }
+                method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_RELEASE,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));
+                check(c.gui.screen()==null&&!c.options.keySwapOffhand.consumeClick(), "Long press followed by F release while Shift remains held never opens UI");
                 method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_PRESS, new KeyEvent(GLFW.GLFW_KEY_F, 0, 0));
                 check(c.options.keySwapOffhand.consumeClick(), "Plain F still queues vanilla offhand swap");
                 method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_RELEASE, new KeyEvent(GLFW.GLFW_KEY_F, 0, 0));
