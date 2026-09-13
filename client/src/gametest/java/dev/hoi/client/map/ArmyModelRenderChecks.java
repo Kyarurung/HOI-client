@@ -7,7 +7,7 @@ import net.minecraft.resources.Identifier;
 public final class ArmyModelRenderChecks {
     private static final String[] TYPES = {"infantry", "marine", "airborne", "mountaineer",
             "motorized_infantry", "mechanized_infantry", "tank", "light_tank",
-            "artillery", "self_propelled_artillery", "anti_tank", "air_defense"};
+            "artillery", "self_propelled_artillery", "anti_tank", "air_defense", "special_forces", "militia"};
 
     private ArmyModelRenderChecks() {}
 
@@ -20,7 +20,7 @@ public final class ArmyModelRenderChecks {
                     try (var reader = client.getResourceManager().getResourceOrThrow(resource).openAsReader()) {
                         var model = JsonParser.parseReader(reader).getAsJsonObject();
                         int count = model.getAsJsonArray("elements").size();
-                        if (count < 120 || count > 200) throw new AssertionError(resource + " cube budget");
+                        if (count < (java.util.Set.of("infantry", "marine", "airborne", "mountaineer", "special_forces", "militia").contains(type) ? 40 : 120) || count > 200) throw new AssertionError(resource + " cube budget");
                         var texture = Identifier.parse(model.getAsJsonObject("textures").get("body").getAsString());
                         if (client.getResourceManager().getResource(texture.withPath("textures/" + texture.getPath() + ".png")).isEmpty())
                             throw new AssertionError("Missing army texture " + texture);
@@ -58,10 +58,16 @@ public final class ArmyModelRenderChecks {
                 }
                 if (models != TYPES.length) throw new AssertionError("Missing army displays: " + models);
             });
-            context.takeScreenshot("hoi-army-all-twelve-idle");
+            context.takeScreenshot("hoi-army-all-types-idle");
             server.runCommand("tp @a -7.7 71.25 -3.7 -24 24");
             context.waitTicks(8);
             context.takeScreenshot("hoi-army-infantry-face-and-grip");
+            server.runCommand("tp @a -2 74 21 180 20");
+            context.waitTicks(8);
+            context.takeScreenshot("hoi-army-special-forces-militia");
+            server.runCommand("tp @a 0 73 3.5 180 18");
+            context.waitTicks(8);
+            context.takeScreenshot("hoi-army-player-body-variants");
             server.runCommand("tp @a 4.7 72.1 1.3 24 17");
             context.waitTicks(8);
             context.takeScreenshot("hoi-army-tank-running-gear");
