@@ -16,6 +16,17 @@ class TfrResearchLayoutTest {
         return layout.nodes().stream().filter(n -> n.tech().source().id().equals(id)).findFirst().orElseThrow();
     }
 
+    @Test void electronicsAndIndustryKeepOriginalHeadingAnchors() throws Exception {
+        for (String category : List.of("ENGINEERING", "INDUSTRY")) {
+            var layout = ResearchLayout.create(catalog(), category, "");
+            var labels = ResearchTreeLabels.create(layout, String::length, 9);
+            for (var anchor : TfrResearchLayout.headings(layout)) {
+                var actual = labels.stream().filter(l -> !l.year() && l.text().equals(anchor.text())).findFirst().orElseThrow();
+                assertEquals(Math.max(2, anchor.x() - anchor.text().length() / 2), actual.x(), category + ": " + anchor.text());
+            }
+        }
+    }
+
     @Test void constructionKeepsItsOwnLaneAndSearchDoesNotReflowTheSource() throws Exception {
         var catalog = catalog();
         var layout = ResearchLayout.create(catalog, "INDUSTRY", "");

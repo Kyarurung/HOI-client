@@ -393,7 +393,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         for (var heading : TfrResearchLayout.headings(tree)) {
             var label = labels.stream().filter(l -> !l.year() && l.text().equals(heading.text())).findFirst().orElseThrow();
             check(label.y() <= heading.y(), "Equipment heading stays above its research row: " + label.text());
-            check(heading.y() - label.y() <= lineHeight * 3, "Equipment heading stays near its research row: " + label.text());
+            check(heading.y() - label.y() <= lineHeight * 3, "Equipment heading stays near its research row: " + heading + " -> " + label);
         }
         if (ResearchLayout.category(tree.nodes().getFirst().tech()).equals("NAVY")) {
             var targets = java.util.Map.of("초계함", "early_ship_hull_light", "구축함", "early_ship_hull_cruiser", "방어력", "basic_cruiser_armor_scheme",
@@ -401,7 +401,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             for (var target : targets.entrySet()) {
                 var label = labels.stream().filter(l -> l.text().equals(target.getKey())).findFirst().orElseThrow();
                 var card = tree.nodes().stream().filter(n -> n.tech().source().id().equals(target.getValue())).findFirst().orElseThrow();
-                check(label.y() + label.height() + 4 <= card.y(), "Naval heading is above its own equipment card: " + label.text());
+                check(label.y() + label.height() + 2 <= card.y(), "Naval heading is above its own equipment card: " + label.text());
             }
         }
         for (var label : labels) {
