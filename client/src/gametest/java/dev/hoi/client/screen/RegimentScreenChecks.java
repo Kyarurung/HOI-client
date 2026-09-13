@@ -37,10 +37,13 @@ public final class RegimentScreenChecks {
                         check(s.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("연대 지원 · 같은 열에 대대 3개 필요")&&!b.active).count()==5,
                                 "All regiment support cells stay locked with fewer than three battalions");
                         press(adds.getLast());
+                        int oldRequests=requests.size();
                         press(button(s,"보병 대대"));
+                        check(requests.size()==oldRequests,"Category does not change a battalion");
+                        press(button(s,v.battalions().stream().filter(b->b.id().equals("INFANTRY")).findFirst().orElseThrow().name()));
                         check(requests.getLast().action()==IndustryProtocol.Action.LINE_COLUMN&&requests.getLast().amount()==20&&requests.getLast().item().equals("INFANTRY"),"Fifth column submits its own cell, not the flattened end");
                     } else {
-                        var support=button(s,"연대 지원 · 장식용");check(!support.active,"Regiment row is decorative even after three battalions");
+                        var support=button(s,"연대 지원");check(!support.active,"Regiment row is decorative even after three battalions");
                     }
                 });
                 if(size[0]==854) {

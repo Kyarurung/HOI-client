@@ -186,11 +186,22 @@ public final class IndustryScreenChecks {
         context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-categories");
         context.runOnClient(client -> {
             var s = (IndustryScreen)client.gui.screen();
-            check(!button(s, "보병 대대").active, "First slot retains the current category");
+            check(button(s, "보병 대대").active, "First slot can choose a subtype in its current category");
             check(button(s, "기갑 대대").active && button(s, "기동 대대").active, "First slot offers whole-column category replacement");
         });
         ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-battalion-categories");
+        int beforeCategory = requests.size();
+        click(context, "보병 대대");
+        context.runOnClient(client -> {
+            check(requests.size() == beforeCategory, "Opening infantry choices cannot mutate the template");
+            check(button((IndustryScreen)client.gui.screen(), "제거").active, "Current category opens detailed battalion choices");
+        });
+        click(context, "대대 목록 닫기");
         click(context, "기갑 대대");
+        context.runOnClient(client -> check(requests.size() == beforeCategory, "Selecting a category must not insert a generic battalion"));
+        context.waitTicks(2); context.takeScreenshot("hoi-industry-first-slot-details");
+        ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-first-slot-details");
+        click(context, v.battalions().stream().filter(c -> c.id().equals("TANK")).findFirst().orElseThrow().name());
         context.runOnClient(client -> {
             check(requests.getLast().action() == IndustryProtocol.Action.LINE_COLUMN && requests.getLast().amount() == 0
                     && requests.getLast().item().equals("TANK"), "Category choice replaces the column through its first slot");
@@ -264,16 +275,24 @@ public final class IndustryScreenChecks {
             check(button(s,"생산: "+next.name()).active,"Clicking the line offers its researched replacement");
             check(s.children().stream().noneMatch(w->w instanceof Button b && b.getMessage().getString().equals("생산: "+old.name())),"Old equipment is hidden by default");
             check(s.children().stream().noneMatch(w->w instanceof Button b && b.getMessage().getString().equals("생산: "+v.equipment().stream().filter(e->e.id().equals("hoi:support_gear")).findFirst().orElseThrow().name())),"Replacement picker stays within the registered family");
-            check(obsoleteCheckbox(s).active,"Obsolete toggle starts enabled inside the picker"); checkBounds(s);
+            check(obsoleteCheckbox(s).active && !obsoleteCheckbox(s).selected(),"Obsolete checkbox starts unchecked inside the picker"); checkBounds(s);
         });
         context.takeScreenshot("hoi-industry-current-model-picker");
         context.runOnClient(client->obsoleteCheckbox((IndustryScreen)client.gui.screen()).onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0)));
         context.waitTicks(2); context.takeScreenshot("hoi-industry-show-outdated-picker");
         context.runOnClient(client->{
             var s=(IndustryScreen)client.gui.screen();
-            check(obsoleteCheckbox(s).active,"User can toggle old models again");
+            check(obsoleteCheckbox(s).active && obsoleteCheckbox(s).selected(),"Obsolete checkbox is checked when old models are visible");
             check(!button(s,"생산: "+old.name()).active,"Current equipment is visible but cannot retool to itself");
             check(requests.isEmpty(),"Changing a display filter sends no simulation request");
+        });
+        context.runOnClient(client->obsoleteCheckbox((IndustryScreen)client.gui.screen()).onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0)));
+        context.waitTicks(2);
+        context.runOnClient(client->{
+            var screen=(IndustryScreen)client.gui.screen();
+            check(!obsoleteCheckbox(screen).selected(),"Second toggle clears the obsolete checkbox");
+            check(screen.children().stream().noneMatch(w->w instanceof Button b && b.getMessage().getString().equals("생산: "+old.name())),"Unchecking hides obsolete equipment");
+            check(requests.isEmpty(),"Both checkbox toggles stay local");
         });
         context.getInput().resizeWindow(854,480); context.waitTicks(3);
         context.runOnClient(client->checkBounds((IndustryScreen)client.gui.screen()));
@@ -286,7 +305,10 @@ public final class IndustryScreenChecks {
         });
         context.getInput().resizeWindow(1600,1000); context.waitTicks(3);
     }
-    private static Button obsoleteCheckbox(IndustryScreen screen) { return button(screen,"구형 장비 표시"); }
+    private static net.minecraft.client.gui.components.Checkbox obsoleteCheckbox(IndustryScreen screen) {
+        return screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Checkbox)
+                .map(w -> (net.minecraft.client.gui.components.Checkbox) w).findFirst().orElseThrow();
+    }
     private static IndustryView copy(IndustryView v, CountryHud hud, long revision, IndustryView.Template draft) {
         return new IndustryView(v.session(), revision, v.country(), hud, v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(),
                 v.battalions(), v.companies(), v.locations(), v.recruits(), v.deployed(), draft, "",

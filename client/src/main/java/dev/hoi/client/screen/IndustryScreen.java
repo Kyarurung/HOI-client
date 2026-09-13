@@ -16,6 +16,7 @@ import dev.hoi.protocol.IndustryView.*;
 import static dev.hoi.protocol.IndustryProtocol.Action.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
@@ -618,15 +619,16 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     int slot = column, bx = x + 10 + column * cell, by = sy + 145;
                     if (by < y + 90 || by + 22 > y + h - 33) continue;
                     boolean unlocked = t.columnSize(column) >= 3;
-                    divisionSlot(unlocked ? "연대 지원 · 장식용" : "연대 지원 · 같은 열에 대대 3개 필요",
+                    divisionSlot(unlocked ? "연대 지원" : "연대 지원 · 같은 열에 대대 3개 필요",
                             unlocked ? "production/designer/add" : "production/designer/locked", bx, by, cell - 3, false, () -> {});
                 }
             }
         } else {
             recess(x + 7, y + 28, left - 3, h - 83);
-            text(supportSlot ? "지원중대 추가 / 변경" : selectedSlot % 5 == 0 ? "연대 계열 교체" : "대대 추가 / 변경", x + 13, y + 38, left - 70, TEXT);
+            text(supportSlot ? "지원중대 추가 / 변경" : selectedSlot % 5 == 0 && unitGroup.isEmpty() ? "연대 계열 교체" : "대대 추가 / 변경", x + 13, y + 38, left - 70, TEXT);
             button("대대 목록 닫기", "뒤로", x + left - 49, y + 34, 43, 18, true, () -> {
-                selectedSlot = -1;
+                if (!supportSlot && selectedSlot % 5 == 0 && !unitGroup.isEmpty()) unitGroup = "";
+                else selectedSlot = -1;
                 pickerScroll = 0; rebuildWidgets();
             });
             int start = y + 62, cardWidth = (left - 22) / 2, pitch = 40;
@@ -642,8 +644,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     int column = selectedSlot / 5;
                     boolean selected = !current.isEmpty() && battalionGroup(current).equals(group);
                     String detail = selected ? "(현재 선택됨)" : (current.isEmpty() ? "추가 비용 " : "교체 비용 ") + 5 * Math.max(1, t.columnSize(column)) + " ★";
-                    unitChoice(label, choice.texture(), detail, x + 12 + i % 2 * (cardWidth + 6), start + i / 2 * pitch, cardWidth, !selected,
-                            () -> { int slot = selectedSlot; selectedSlot = -1; send(LINE_COLUMN, choice.id(), "", slot); });
+                    unitChoice(label, choice.texture(), detail, x + 12 + i % 2 * (cardWidth + 6), start + i / 2 * pitch, cardWidth, true,
+                            () -> { unitGroup = group; pickerScroll = 0; rebuildWidgets(); });
                 }
             } else {
                 var choices = supportSlot ? view.companies().stream().filter(c -> c.id().equals(current) || !t.support().contains(c.id())).toList()
@@ -727,7 +729,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         }
     }
     private static String statValue(IndustryView.Stat stat) {
-        String value = stat.unit().equals("PEOPLE") ? manpower(stat.value()) : stat.unit().equals("PERCENT") ? percent(stat.value()) : stat.unit().equals("DAYS") ? integer(stat.value()) : decimal(stat.value());
+        String value = stat.unit().equals("PEOPLE") ? manpower(stat.value()) : stat.unit().equals("PERCENT") ? percent(stat.value()) : (stat.unit().equals("DAYS") || Set.of("WEIGHT", "COMBAT_WIDTH").contains(stat.id())) ? integer(stat.value()) : decimal(stat.value());
         return value + (stat.unit().equals("KM_PER_HOUR") ? "km/h" : stat.unit().equals("DAYS") ? "일" : "");
     }
     private void selectSlot(int slot, boolean support) {
@@ -737,8 +739,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     private static String battalionGroup(String id) {
         return switch (id) {
-            case "TANK", "LIGHT_TANK", "SELF_PROPELLED_ARTILLERY" -> "ARMOR";
-            case "MOTORIZED_INFANTRY", "MECHANIZED_INFANTRY" -> "MOBILE";
+            case "TANK", "LIGHT_TANK", "SELF_PROPELLED_ARTILLERY", "SELF_PROPELLED_AIR_DEFENSE", "AMPHIBIOUS_ARMOR", "MOTORIZED_ROCKET_ARTILLERY" -> "ARMOR";
+            case "MOTORIZED_INFANTRY", "MECHANIZED_INFANTRY", "LIGHT_MECHANIZED", "AMPHIBIOUS_MECHANIZED", "HEADQUARTERS" -> "MOBILE";
             default -> "INFANTRY";
         };
     }
@@ -771,8 +773,13 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             }
             if (repairs.ships().isEmpty()) text("수리가 필요한 함선이 없습니다.", x + 9, start + 10, w - 18, MUTED);
         } else if (picker.equals("equipment")) {
-            button("구형 장비 표시", (showOutdated ? "[✓] " : "[ ] ") + "구형 장비 표시", x + 8, start, w - 16, 22, true,
-                    () -> { showOutdated = !showOutdated; pickerScroll = 0; rebuildWidgets(); });
+            if (graphics == null) {
+                addRenderableWidget(Checkbox.builder(Component.literal("구형 장비 표시"), font)
+                        .pos(x + 8, start).maxWidth(w - 16).selected(showOutdated)
+                        .onValueChange((checkbox, selected) -> {
+                            showOutdated = selected; pickerScroll = 0; rebuildWidgets();
+                        }).build());
+            }
             start += 27;
             var current = view.lines().stream().filter(l -> l.id().equals(switchLine)).map(l -> equipment(l.equipment())).findFirst().orElse(null);
             var items = view.equipment().stream().filter(e -> e.unlocked() && (group.equals("all") || e.group().equals(group)))
