@@ -46,8 +46,11 @@ public final class MusicRoutingChecks {
         context.runOnClient(client->{
             if(!SuperEventAudio.active()||KoreanMusic.playing()!=null)throw new AssertionError("Super event lost priority during streaming");
             int before=KoreanMusic.PLAYBACK.selected();UiSounds.receive(AudioProtocol.Cue.MAP_NAVY);
-            if(SuperEventAudio.active()||StoryMusicAudio.active())throw new AssertionError("Map switch must cancel special music");
-            if(KoreanMusic.PLAYBACK.selected()!=(before+1)%KoreanMusic.PLAYBACK.tracks().size())throw new AssertionError("Map switch advances the default playlist");
+            if(!SuperEventAudio.active()||KoreanMusic.playing()!=null)throw new AssertionError("Map switch cannot interrupt global super music");
+            if(KoreanMusic.PLAYBACK.selected()!=before)throw new AssertionError("Map switch preserves suspended playlist selection");
+            KoreanMusic.play(0);StoryMusicAudio.play("music.korea.extinction");
+            if(!SuperEventAudio.active())throw new AssertionError("Track choice and incoming national focus cannot cancel super event");
+            StoryMusicAudio.reset();SuperEventAudio.stop("routing-super");
         });
         context.waitTicks(25);
         context.runOnClient(client->{

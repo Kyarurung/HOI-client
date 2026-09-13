@@ -10,7 +10,7 @@ public final class StoryMusicAudio {
     private static SoundInstance sound;
     private static int retries, startup;
     private StoryMusicAudio() {}
-    public static void play(String event) {reset();SuperEventAudio.reset();KoreanMusic.enable();KoreanMusic.suspend();requested=event;}
+    public static void play(String event) {reset();KoreanMusic.enable();KoreanMusic.suspend();requested=event;}
     public static boolean active() {return !requested.isEmpty();}
     public static void tick() {
         if(requested.isEmpty())return;

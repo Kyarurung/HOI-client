@@ -68,6 +68,7 @@ public final class DialogClient {
         if (!packet.open()) { if (old != null) pending.put(view.token(), view); return; }
         if (pending.size() >= 64) return;
         pending.put(view.token(), view);
+        if(view.kind()==DialogView.Kind.SUPER_EVENT)SuperEventAudio.play(view.token(),view.sound());
         var client = Minecraft.getInstance();
         if (canOverlay(client.gui.screen()) || !notification(view) || view.completion() && client.level != null) show(view);
     }

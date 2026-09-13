@@ -34,6 +34,7 @@ public final class KoreanMusicScreen extends Screen {
         addRenderableWidget(new net.minecraft.client.gui.components.AbstractSliderButton(x+left+(w-left)*260/594,y+top*37/121,(w-left)*110/594,Math.max(12,top*20/121),Component.literal("음량"),KoreanMusic.volume()){
             @Override protected void updateMessage(){setMessage(Component.literal("음량 "+Math.round(value*100)+"%"));setTooltip(HoiTooltips.create(getMessage()));}
             @Override protected void applyValue(){KoreanMusic.volume(value);}
+            @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) {}
             @Override public void extractWidgetRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
                 g.fill(getX(),getY(),getRight(),getBottom(),0xFF151719);
                 UiAssets.nineSlice(g,"music/volume_bg",getX(),getY(),getWidth(),getHeight(),2,1);

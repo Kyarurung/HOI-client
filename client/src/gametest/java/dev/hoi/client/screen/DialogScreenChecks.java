@@ -117,13 +117,14 @@ public final class DialogScreenChecks {
             DialogClient.close(event.token());
             if (!dev.hoi.client.audio.SuperEventAudio.active()) throw new AssertionError("Closing a popup must preserve event music");
             dev.hoi.client.audio.StoryMusicAudio.play("music.korea.extinction");
-            if (dev.hoi.client.audio.SuperEventAudio.active()) throw new AssertionError("New focus music replaces super event music");
+            if (!dev.hoi.client.audio.SuperEventAudio.active()) throw new AssertionError("National focus waits for global super event music");
             dev.hoi.client.audio.UiSounds.receive(AudioProtocol.Cue.STOP);
             if (client.gui.screen() != null || dev.hoi.client.audio.SuperEventAudio.active())
                 throw new AssertionError("Stop must dismiss visible super event and its audio");
             client.gui.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true));
             DialogClient.receive(DialogProtocol.Show.of(event.issued(UUID.randomUUID().toString(), 0), true));
             if (client.gui.screen() instanceof DialogStackScreen) throw new AssertionError("Pause menu must defer super event");
+            if (!dev.hoi.client.audio.SuperEventAudio.active()) throw new AssertionError("Deferred popup must still start global music immediately");
             dev.hoi.client.audio.UiSounds.receive(AudioProtocol.Cue.STOP);
             client.gui.setScreen(null);
         });

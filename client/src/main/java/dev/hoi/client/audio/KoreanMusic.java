@@ -66,10 +66,11 @@ public final class KoreanMusic {
     public static void reset(){stop();selected=false;}
     public static void suspend(){PLAYBACK.tick(false);}
     public static void mapChanged() {
-        enabled=stationEnabled;StoryMusicAudio.reset();SuperEventAudio.reset();
+        enabled=stationEnabled;StoryMusicAudio.reset();
+        if(SuperEventAudio.active())return;
         if(stationEnabled&&!PLAYBACK.tracks().isEmpty())PLAYBACK.step(1);
     }
-    public static void play(int index){stationEnabled=true;enabled=true;StoryMusicAudio.reset();SuperEventAudio.reset();PLAYBACK.play(index);}
+    public static void play(int index){stationEnabled=true;enabled=true;StoryMusicAudio.reset();PLAYBACK.play(index);}
     static SoundInstance playing(){return sound;}
     public static void tick() {
         var client = Minecraft.getInstance();

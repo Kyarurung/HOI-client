@@ -12,11 +12,11 @@ public final class MusicButton extends Button {
     private static final int SIZE = 18, Y = 17;
     public static int x(int width) { return HoiMenuBar.statsRight(width) - 43; }
     public MusicButton(int width) {
-        super(x(width), Y, SIZE, SIZE, Component.literal("음악 선택"), button -> {
+        super(x(width), Y, SIZE, SIZE, Component.literal("플레이리스트 목록"), button -> {
             var client = Minecraft.getInstance();
             client.gui.setScreen(new KoreanMusicScreen(client.gui.screen()));
         }, DEFAULT_NARRATION);
-        setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("음악 선택")));
+        setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("플레이리스트 목록")));
     }
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play("ui.click"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {

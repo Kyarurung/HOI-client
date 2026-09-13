@@ -16,6 +16,15 @@ class PlaylistPlaybackTest {
         public boolean active() { return playing; }
         public void stop() { playing = false; }
     }
+    @Test void twoPlayersKeepIndependentSelectionsAndStopStates() {
+        var a=new Output();var b=new Output();var first=new PlaylistPlayback(a);var second=new PlaylistPlayback(b);
+        first.replace(TRACKS);second.replace(TRACKS);first.play(0);second.play(1);
+        first.tick(true);second.tick(true);first.stop();
+        assertTrue(b.playing);assertEquals(1,second.selected());assertTrue(second.requested());
+        first.play(0);first.tick(true);first.tick(false);second.tick(false);
+        assertFalse(a.playing);assertFalse(b.playing);
+        first.tick(true);second.tick(true);assertEquals(TRACKS.get(0).event(),a.track);assertEquals(TRACKS.get(1).event(),b.track);
+    }
     @Test void advancesOnceAfterStreamEndsAndWrapsWithoutOverlapping() {
         var out = new Output(); var player = new PlaylistPlayback(out); player.replace(TRACKS);
         player.play(0); player.tick(true); assertEquals(1, out.starts);
