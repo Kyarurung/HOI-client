@@ -14,8 +14,8 @@ public final class ConstructionScreenChecks {
     public static void run(ClientGameTestContext context,CountryHud hud) {
         var requests=new ArrayList<ConstructionProtocol.Request>();String token=UUID.randomUUID().toString();
         var buildings=new ArrayList<ConstructionView.Building>();
-        for(String id:List.of("infrastructure","air_base","anti_air","radar","military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","nuclear_reactor","power_plant","energy_farm","fort","coastal_fort","port","hub","railway","dam","dam_mountain"))
-            buildings.add(new ConstructionView.Building(id,id.equals("civilian_factory")?"민간공장":id.equals("military_factory")?"군수공장":id,"construction/"+id,!Set.of("office_park","nuclear_reactor","power_plant","energy_farm","fort","coastal_fort","port","hub","railway","dam","dam_mountain").contains(id),"주를 선택하세요."));
+        for(String id:List.of("infrastructure","air_base","anti_air","radar","military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","rocket_site","nuclear_reactor","power_plant","energy_farm","conversion","fort","coastal_fort","port","hub","railway","dam","dam_mountain"))
+            buildings.add(new ConstructionView.Building(id,buildingName(id),id.equals("energy_farm")?"":"construction/"+id,!Set.of("dam","dam_mountain").contains(id),"주를 선택하세요."));
         var projects=new ArrayList<ConstructionView.Project>();
         for(int i=0;i<16;i++)projects.add(new ConstructionView.Project("p"+i,"state"+i,i%2==0?"civilian_factory":"military_factory",i%2==0?"경상북도":"서울",1,i<2?15:0,2500,90,10800));
         var summary=new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,10,21.862500000000004,2,
@@ -45,13 +45,16 @@ public final class ConstructionScreenChecks {
         });
         context.getInput().setCursorPos(800,500);
         context.runOnClient(client->{
-            for(String art:java.util.stream.Stream.concat(buildings.stream().map(ConstructionView.Building::texture),java.util.stream.Stream.of("construction/consumer_goods","construction/energy","construction/energy_deficit","construction/summary/civilian_factory","construction/summary/civilian_factory_repair")).toList())
+            for(String art:java.util.stream.Stream.concat(buildings.stream().map(ConstructionView.Building::texture).filter(t->!t.isBlank()),java.util.stream.Stream.of("construction/consumer_goods","construction/energy","construction/energy_deficit","construction/summary/civilian_factory","construction/summary/civilian_factory_repair","construction/conversion_background","construction/conversion_civilian","construction/conversion_military")).toList())
                 if(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+art+".png")).isEmpty())throw new AssertionError("Missing construction art: "+art);
             var screen=ref.get();if(screen.panelWidth()!=HoiPanelLayout.width(MenuTab.CONSTRUCTION,screen.width))throw new AssertionError("Construction sidebar ratio");
             assertNoDams(screen);
             var stateBottom=List.of("infrastructure","air_base","anti_air","radar").stream().map(id->buildingButton(screen,id)).mapToInt(b->b.getY()+b.getHeight()).max().orElseThrow();
             var sharedTop=buildingButton(screen,"군수공장").getY();
-            var sharedBottom=buildingButton(screen,"energy_farm").getY()+buildingButton(screen,"energy_farm").getHeight();
+            var sharedBottom=buildingButton(screen,"conversion").getY()+buildingButton(screen,"conversion").getHeight();
+            if(buildingButton(screen,"rocket_site").getY()!=buildingButton(screen,"nuclear_reactor").getY()
+                    ||buildingButton(screen,"power_plant").getY()!=buildingButton(screen,"energy_farm").getY()
+                    ||buildingButton(screen,"conversion").getY()<=buildingButton(screen,"power_plant").getY())throw new AssertionError("Original drone/reactor, power/energy, conversion order");
             var localTop=buildingButton(screen,"hub").getY();
             var hub=buildingButton(screen,"hub");var rail=buildingButton(screen,"railway");
             var port=buildingButton(screen,"port");var fort=buildingButton(screen,"fort");var coast=buildingButton(screen,"coastal_fort");
@@ -87,10 +90,24 @@ public final class ConstructionScreenChecks {
             if(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("↑")))throw new AssertionError("Last queue row must remain accessible after compact resize");
             for(var w:screen.children())if(w instanceof Button b && (b.getX()<0||b.getY()<0||b.getX()+b.getWidth()>screen.width||b.getY()+b.getHeight()>screen.height))throw new AssertionError("Construction control escaped viewport");
             screen.mouseScrolled(screen.panelWidth()-8,170,0,-100);
-            if(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("coastal_fort")))throw new AssertionError("Last local building must remain accessible by palette scrolling");
+            if(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("해안 요새")))throw new AssertionError("Last local building must remain accessible by palette scrolling");
             assertNoDams(screen);
         });
         context.waitTicks(2);context.takeScreenshot("hoi-construction-palette-scrolled");
+        context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
+        context.runOnClient(client->{
+            var camera=client.gameRenderer.mainCamera();var forward=camera.forwardVector();
+            var center=camera.position().add(forward.x()*12,forward.y()*12,forward.z()*12);
+            var states=List.of(new ConstructionView.ConversionState("test-state","경기도",4056,center.x,center.y,center.z,5,4));
+            ref.get().update(new ConstructionView(token,1000,"KOR",hud,"conversion",summary,buildings,projects,"",states));
+        });
+        context.waitTicks(3);ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-conversion");
+        context.runOnClient(client->{
+            var screen=ref.get();
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(screen.width/2.0-37,screen.height/2.0,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
+            var request=requests.getLast();
+            if(request.action()!=ConstructionProtocol.Action.CONVERT||request.amount()!=0||!request.item().equals("test-state"))throw new AssertionError("Conversion civilian icon sends civilian target for the issued state");
+        });
         context.runOnClient(client->{
             ref.get().update(new ConstructionView(token,0,"",null,"",null,List.of(),List.of(),"권한 만료"));
             if(client.gui.screen()!=null)throw new AssertionError("Revoked construction must close");
@@ -98,12 +115,14 @@ public final class ConstructionScreenChecks {
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
     }
 
+    private static String buildingName(String id) { return switch(id) {case "infrastructure"->"기반시설";case "air_base"->"공군기지";case "anti_air"->"대공포";case "radar"->"레이더";case "military_factory"->"군수공장";case "civilian_factory"->"민간공장";case "dockyard"->"해군 조선소";case "office_park"->"사무단지";case "refinery"->"합성 정제소";case "fuel_silo"->"연료 저장고";case "rocket_site"->"드론 발사장";case "nuclear_reactor"->"원자로";case "power_plant"->"발전소";case "energy_farm"->"에너지 농장";case "conversion"->"전환";case "fort"->"요새";case "coastal_fort"->"해안 요새";case "port"->"해군기지";case "hub"->"보급 중심지";case "railway"->"철도";case "dam","dam_mountain"->"댐";default->id;}; }
+
     private static Button buildingButton(ConstructionScreen screen,String name) {
-        return (Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(name)).findFirst().orElseThrow();
+        return (Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(buildingName(name))).findFirst().orElseThrow();
     }
 
     private static void assertNoDams(ConstructionScreen screen) {
-        if(screen.children().stream().anyMatch(w->w instanceof Button b&&Set.of("dam","dam_mountain").contains(b.getMessage().getString())))
+        if(screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().equals("댐")))
             throw new AssertionError("Neither dam type belongs in the construction palette");
     }
 }

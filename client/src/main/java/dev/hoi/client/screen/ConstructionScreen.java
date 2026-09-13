@@ -29,7 +29,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
 
     private static final List<List<String>> BUILDING_GROUPS=List.of(
             List.of("infrastructure","air_base","anti_air","radar"),
-            List.of("military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","nuclear_reactor","power_plant","energy_farm"),
+            List.of("military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","rocket_site","nuclear_reactor","power_plant","energy_farm","conversion"),
             List.of("hub","railway","port","fort","coastal_fort"));
     private record PaletteEntry(Building building,int column,int offset) {}
     private final String token;
@@ -38,6 +38,8 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
     private List<Integer> paletteDividers=List.of();
     private boolean consumerTooltip;
+    private record ConversionBox(ConversionState state,int x,int y) {}
+    private List<ConversionBox> conversionBoxes=List.of();
     public boolean showingConsumerTooltip() { return consumerTooltip; }
     public ConstructionScreen() {
         this(UUID.randomUUID().toString(),null,r->{if(ClientPlayNetworking.canSend(ConstructionProtocol.Request.TYPE))ClientPlayNetworking.send(r);});
@@ -80,12 +82,13 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
             var button=new PanelButton(b.name(),bx,by,icon,icon,()->send(ConstructionProtocol.Action.SELECT,b.id(),0,null)) {
                 @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                     HoiMenuStyle.control(g,bx,by,icon,icon,view.selected().equals(b.id()),isHoveredOrFocused());
-                    UiAssets.draw(g,b.texture(),bx+2,by+2,icon-4,icon-4);
+                    if(!b.texture().isBlank())UiAssets.draw(g,b.texture(),bx+2,by+2,icon-4,icon-4);
+                    else dev.hoi.client.ui.UiText.cell(g,font,b.name(),bx+2,by+2,icon-4,icon-4,HoiMenuStyle.TEXT,false);
                     if(!b.enabled())g.fill(bx+1,by+1,bx+icon-1,by+icon-1,0x88000000);
                 }
             };
             button.active=b.enabled()&&pending==0;
-            button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(b.name()+"\n"+(b.enabled()?"좌클릭: 건설 · 우클릭: 취소":b.reason()))));addRenderableWidget(button);
+            button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(b.name()+"\n"+b.reason())));addRenderableWidget(button);
         }
         int repair=view.summary().repairPriority();
         for(int direction:new int[]{-1,1}) {
@@ -154,7 +157,8 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 if(y<queueY()||y+rowHeight()>height-30)continue;
                 HoiMenuStyle.metal(g,6,y,q-6,rowHeight()-3);
                 dev.hoi.client.ui.UiText.cell(g,font,p.name(),10,y+4,Math.max(24,q-139),20,HoiMenuStyle.TEXT,false);
-                UiAssets.draw(g,"construction/"+p.building(),q-124,y+2,23,23);
+                if(!p.building().equals("energy_farm"))UiAssets.draw(g,"construction/"+p.building(),q-124,y+2,23,23);
+                else dev.hoi.client.ui.UiText.cell(g,font,"에너지",q-124,y+2,23,23,HoiMenuStyle.TEXT,false);
                 dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",q-96,y+1,31,17,HoiMenuStyle.TEXT,false);
                 g.fill(q-96,y+19,q-65,y+23,0xFF101511);
                 g.fill(q-96,y+19,q-96+(int)(31*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1)),y+23,0xFF79945A);
@@ -172,7 +176,31 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 consumerTooltip=false;
             }
         } else dev.hoi.client.ui.UiText.text(g, font,"건설 현황을 불러오는 중…",10,top+40,HoiMenuStyle.MUTED);
+        drawConversions(g,mx,my);
         super.extractRenderState(g,mx,my,delta);
+    }
+    private void drawConversions(GuiGraphicsExtractor g,int mx,int my) {
+        conversionBoxes=List.of();
+        if(view==null||!view.selected().equals("conversion")||minecraft.player==null)return;
+        var camera=minecraft.gameRenderer.mainCamera();var matrix=camera.getViewRotationProjectionMatrix(new Matrix4f());
+        var boxes=new ArrayList<ConversionBox>();
+        for(var state:view.conversions()) {
+            var relative=new net.minecraft.world.phys.Vec3(state.x(),state.y(),state.z()).subtract(camera.position());
+            var forward=camera.forwardVector();
+            if(relative.x*forward.x()+relative.y*forward.y()+relative.z*forward.z()<=0)continue;
+            var point=matrix.transformProject(relative.toVector3f());
+            if(!point.isFinite()||Math.abs(point.x)>1||Math.abs(point.y)>1)continue;
+            int x=Math.round((point.x+1)*width/2)-53,y=Math.round((1-point.y)*height/2)-13;
+            if(x<pane||x+106>HoiMenuBar.statsRight(width)||y<top+24||y+26>height-24)continue;
+            boxes.add(new ConversionBox(state,x,y));
+            UiAssets.draw(g,"construction/conversion_background",x,y,106,26);
+            UiAssets.draw(g,"construction/conversion_civilian",x+6,y+3,20,20);
+            dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(state.civilian()),x+26,y+3,18,20,0xFFFFFFFF,false);
+            dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(state.military()),x+62,y+3,16,20,0xFFFFFFFF,false);
+            UiAssets.draw(g,"construction/conversion_military",x+78,y+3,20,20);
+            if(mx>=x&&mx<x+106&&my>=y&&my<y+26)HoiTooltips.draw(g,font,state.name()+"\n민간공장 클릭: 민간공장으로 전환\n군수공장 클릭: 군수공장으로 전환\n반대 방향 예약이 있으면 하나 취소합니다.\n숫자는 전환 예약을 포함합니다.",mx,my);
+        }
+        conversionBoxes=List.copyOf(boxes);
     }
     private String calculation(String explanation,String label) {
         return explanation==null||explanation.isBlank()?label+"\n계산 내역이 제공되지 않았습니다.":explanation;
@@ -184,6 +212,14 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
         if(!passive)rebuildWidgets();
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
+        if(view!=null&&view.selected().equals("conversion")&&event.x()>=pane) {
+            if(event.button()==0&&pending==0)for(var box:conversionBoxes.reversed()) {
+                if(event.y()<box.y()||event.y()>=box.y()+26)continue;
+                if(event.x()>=box.x()+6&&event.x()<box.x()+26) {dev.hoi.client.audio.UiSounds.play("ui.click");send(ConstructionProtocol.Action.CONVERT,box.state().state(),0,null);return true;}
+                if(event.x()>=box.x()+78&&event.x()<box.x()+98) {dev.hoi.client.audio.UiSounds.play("ui.click");send(ConstructionProtocol.Action.CONVERT,box.state().state(),1,null);return true;}
+            }
+            return true;
+        }
         if((event.button()==0||event.button()==1)&&event.x()>=pane&&event.y()>top+22&&event.x()<HoiMenuBar.statsRight(width)) {
             if(view!=null&&pending==0&&minecraft.player!=null) {
                 if(!minecraft.options.getCameraType().isFirstPerson()) {
