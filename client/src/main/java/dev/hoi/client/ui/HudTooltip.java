@@ -39,7 +39,7 @@ public final class HudTooltip {
         if (font == cachedFont && hud == cachedHud && item.equals(cachedItem) && width == cachedWidth) return cachedBody;
         int wrap = Math.max(60, (int)(Math.min(310, width - 36) / UiText.scale(font)));
         var lines = new ArrayList<FormattedCharSequence>();
-        String current = item.raw() == null ? "0" : item.format() == HoiMenuBar.Format.PERCENT
+        String current = item.icon().equals("party_support") ? item.value() : item.raw() == null ? "0" : item.format() == HoiMenuBar.Format.PERCENT
                 ? HoiMenuBar.rawNumber(item.raw().doubleValue() * 100) + "%" : HoiMenuBar.rawNumber(item.raw());
         if (!item.icon().equals("world_tension")) lines.addAll(font.split(Component.literal("현재: " + current), wrap));
         var detail = hud.details().get(item.icon());

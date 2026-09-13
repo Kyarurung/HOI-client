@@ -43,7 +43,7 @@ public final class HoiMenuBar {
         public Indicator(String icon, String label, Number raw, Format format) { this(icon, label, raw, format, null, null); }
         public int width() { return format == Format.MONEY ? 67 : format == Format.POLITICAL_POWER || format == Format.PERCENT ? 54 : format == Format.EXPERIENCE || format == Format.COMMAND_POWER ? 48 : icon.equals("manpower") || icon.equals("fuel") || icon.equals("convoys") || icon.equals("factories") ? 52 : 40; }
         private static String value(String icon, Number raw, Format format) {
-            if (icon.equals("party_support")) return String.format(java.util.Locale.ROOT, "%.2f%%", raw == null ? 0.0 : raw.doubleValue() * 100);
+            if (icon.equals("party_support")) return String.format(java.util.Locale.ROOT, "%.0f%%", raw == null ? 0.0 : raw.doubleValue() * 100);
             if (raw == null) return "0";
             return switch (format) {
                 case NUMBER -> icon.equals("factories") ? Long.toString(raw.longValue()) : number(raw.doubleValue());

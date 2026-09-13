@@ -397,7 +397,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             if (py + 10 > list.y() + list.height()) break;
             int swatch = Math.max(2, (int)(pitch - 2));
             g.fill(list.x() + 4, py, list.x() + 4 + swatch, py + swatch, partyColor(party.icon()));
-            String label = party.name() + " (" + String.format(java.util.Locale.ROOT, "%.2f", party.progress() * 100) + ")";
+            String label = party.name() + " (" + String.format(java.util.Locale.ROOT, "%.0f%%", party.progress() * 100) + ")";
             float rowScale = Math.min(scale, (list.width() - 21f) / Math.max(1, font.width(label)));
             g.pose().pushMatrix(); g.pose().translate(list.x() + 17, py); g.pose().scale(rowScale);
             g.text(font, label, 0, 0, TEXT);

@@ -32,7 +32,7 @@ final class PoliticsChoiceScreen extends DialogScreen {
             var button = new HoiMenuButton(tile.name(), left + 6, y, pane - 12, 36,
                     () -> DialogClient.choose(view(), tile.section())).caption("");
             button.active = view().choices().stream().anyMatch(c -> c.id().equals(tile.section()));
-            button.setTooltip(tile.name().equals("공석") || tile.icon().equals("politics/vacant") ? null : dev.hoi.client.ui.HoiTooltips.create(Component.empty().append(Component.literal(tile.name()).withColor(dev.hoi.client.ui.HoiTooltips.GOLD)).append(Component.literal("\n"+tile.detail().replace("적용 중\n", "")))));
+            button.setTooltip(tile.name().equals("공석") || tile.icon().equals("politics/vacant") ? null : dev.hoi.client.ui.HoiTooltips.create(Component.empty().append(Component.literal(tile.name()).withColor(dev.hoi.client.ui.HoiTooltips.GOLD)).append(Component.literal("\n"+tile.detail().replace("적용 중\n", "").stripTrailing()))));
             addRenderableWidget(button);
         }
     }

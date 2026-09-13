@@ -202,7 +202,7 @@ public final class CountryScreenChecks {
             });
             context.getInput().setCursorPos(partyPoint[0],partyPoint[1]);context.waitTicks(3);
             context.takeScreenshot("hoi-party-scaled-effects-gui2");
-            for(int power:new int[]{0,2000}) {
+            for(String power:List.of("0","2000","minority")) {
                 var choices=new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"choices-"+power+".json")),DialogView.class);
                 context.setScreen(() -> new HoiMenuScreen(backdrop));context.waitTicks(3);
                 context.runOnClient(c -> c.gui.setScreen(new PoliticsChoiceScreen(choices,c.gui.screen())));
@@ -211,15 +211,22 @@ public final class CountryScreenChecks {
                 var point=context.computeOnClient(c -> {
                     var screen=c.gui.screen();
                     var buttons=screen.children().stream().filter(w -> w instanceof Button).map(w -> (Button)w).toList();
-                    var button=buttons.get(1);
+                    var button=buttons.get(power.equals("minority") ? buttons.size() - 1 : 1);
                     double scale=c.getWindow().getGuiScale();
                     return new double[]{(button.getX()+button.getWidth()/2.0)*scale,(button.getY()+button.getHeight()/2.0)*scale};
                 });
                 context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(18);
                 context.takeScreenshot("hoi-politics-choice-tooltip-"+power+"-gui2");
             }
+            for (int index = 0; index < 6; index++) {
+                var cabinet = new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(java.nio.file.Path.of(directory, "cabinet-" + index + ".json")), DialogView.class);
+                context.setScreen(() -> new HoiMenuScreen(backdrop)); context.waitTicks(2);
+                context.runOnClient(c -> c.gui.setScreen(new PoliticsChoiceScreen(cabinet, c.gui.screen())));
+                context.getInput().setCursorPos(1800, 1100); context.waitTicks(3);
+                context.takeScreenshot("hoi-government-candidates-" + index + "-gui2");
+            }
             var party=dev.hoi.client.ui.HoiMenuBar.indicators(backdrop.hud()).stream().filter(i -> i.icon().equals("party_support")).findFirst().orElseThrow();
-            if(!party.value().matches("[0-9]+\\.[0-9]{2}%"))throw new AssertionError("HUD party precision: "+party.value());
+            if(!party.value().matches("[0-9]+%"))throw new AssertionError("HUD party precision: "+party.value());
         } catch(java.io.IOException e) {throw new AssertionError("Cost snapshots unavailable",e);}
         try {
             var source = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(

@@ -97,6 +97,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             });
             ResearchArtChecks.run(context);
             ResearchTextChecks.run(context);
+            IndustryScreenChecks.run(context,menu.hud());
             CompletionScreenChecks.run(context);
             ConstructionScreenChecks.run(context,menu.hud());
             CountryScreenChecks.run(context,menu.hud());
@@ -104,7 +105,6 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             dev.hoi.client.screen.FocusScreenChecks.run(context);
             dev.hoi.client.screen.WorldTensionChecks.run(context,menu.hud());
             DialogScreenChecks.run(context);
-            IndustryScreenChecks.run(context,menu.hud());
             RegimentScreenChecks.run(context);
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(5);
             context.runOnClient(client -> check(((HoiMenuScreen)client.gui.screen()).panelWidth() == HoiPanelLayout.width(MenuTab.POLITICS,client.gui.screen().width), "Country panel follows the original 726-pixel container"));

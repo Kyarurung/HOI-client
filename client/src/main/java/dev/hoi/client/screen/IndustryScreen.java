@@ -261,7 +261,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     static final List<String> LOGISTICS_HEADERS = List.of("평균 생산 효율", "장비 유형", "생산", "상태", "수요", "균형", "비축량", "자원");
     private void logistics() {
-        int[] fractions = {0, 5, 39, 51, 65, 74, 84, 93, 100};
+        int[] fractions = {0, 5, 29, 41, 55, 64, 74, 83, 100};
         int[] cols = new int[9];
         for (int i = 0; i < cols.length; i++) cols[i] = 6 + (pane - 12) * fractions[i] / 100;
         String[] icons = {"efficiency", "", "production", "", "need", "balance", "stockpile", ""};
@@ -285,9 +285,9 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 UiAssets.nineSlice(graphics, "logistics/resource_frame", cols[7], y, cols[8] - cols[7], h - 2, 5, 0.65);
             }
             efficiencyBar(cols[0] + 2, y + 3, Math.max(2, cols[1] - cols[0] - 4), h - 8, row.efficiency() == null ? 0 : row.efficiency());
-            int equipmentY = y + (h - 2 - 34) / 2;
-            art(e.texture(), cols[1] + 1, equipmentY, cols[2] - cols[1] - 2, 23);
-            cellText(familyName(e), cols[1] + 1, equipmentY + 24, cols[2] - cols[1] - 2, 10, GOLD, false);
+            int equipmentY = y + (h - 2 - 31) / 2;
+            art(e.texture(), cols[1] + 1, equipmentY, cols[2] - cols[1] - 2, 20);
+            cellText(familyName(e), cols[1] + 1, equipmentY + 21, cols[2] - cols[1] - 2, 10, GOLD, false);
             String[] values = {LogisticsRows.productionLabel(row.daily()), "", row.demandLabel(), row.balanceLabel(), LogisticsRows.stockLabel(row.stockpile())};
             for (int j = 0; j < values.length; j++) {
                 int col = j + 2;
@@ -307,12 +307,13 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     cellText(values[j], cols[col] + 2, y + 7, cols[col + 1] - cols[col] - 4, 22, color, false);
                 }
             }
-            int n = 0, size = Math.min(12, Math.max(7, (cols[8] - cols[7] - 2) / 2));
-            int resourceRows = (row.resources().size() + 1) / 2;
+            int n = 0, size = Math.min(16, Math.max(1, (cols[8] - cols[7] - 6) / 3));
+            int resourceX = cols[7] + (cols[8] - cols[7] - 3 * size) / 2;
+            int resourceY = y + (h - 2 - 2 * size) / 2;
             for (var resource : row.resources().entrySet()) {
-                int rowCount = Math.min(2, row.resources().size() - n / 2 * 2);
-                int resourceX = cols[7] + (cols[8] - cols[7] - rowCount * size) / 2;
-                art(resourceArt(resource.getKey()), resourceX + n % 2 * size, y + (h - 2 - resourceRows * size) / 2 + n / 2 * size, size, size); n++;
+                art(resourceArt(resource.getKey()), resourceX + n % 3 * size, resourceY + n / 3 * size, size, size);
+                tip(resourceName(resource.getKey()) + ": " + decimal(resource.getValue()), resourceX + n % 3 * size, resourceY + n / 3 * size, size, size);
+                n++;
             }
             tip("평균 생산 효율: " + (row.efficiency() == null ? "—" : String.format(Locale.ROOT, "%.1f%%", row.efficiency() * 100)), cols[0], y, cols[1] - cols[0], h);
             tip(row.supplyDetail(), cols[3], y, cols[6] - cols[3], h);
@@ -320,7 +321,6 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     + "\n훈련에 지급: " + model.reserved() + "\n배치 부대 보유: " + model.deployed()
                     ).collect(java.util.stream.Collectors.joining("\n\n")), cols[1], y, cols[2] - cols[1], h);
             tip("비축량: " + row.stockpile(), cols[6], y, cols[7] - cols[6], h);
-            tip(row.resources().entrySet().stream().map(r -> resourceName(r.getKey()) + ": " + decimal(r.getValue())).collect(java.util.stream.Collectors.joining("\n")), cols[7], y, cols[8] - cols[7], h);
         }
         if (items.isEmpty()) text("연구 완료 또는 비축된 장비가 없습니다.", 10, start + 6, pane - 20, MUTED);
     }
