@@ -286,7 +286,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         }
         if (hovered != null) {
             var t = hovered.tech();
-            var lines = tooltipLines(t).stream().flatMap(line -> font.split(dev.hoi.client.ui.HoiTooltips.sentences(ResearchText.decorateEffect(line)), Math.min(310, width - 24)).stream()).toList();
+            var lines = tooltipLines(t).stream().map(dev.hoi.client.ui.HoiTooltips::format).filter(line -> !line.getString().isBlank()).flatMap(line -> font.split(dev.hoi.client.ui.HoiTooltips.sentences(ResearchText.decorateEffect(line)), Math.min(310, width - 24)).stream()).toList();
             g.setTooltipForNextFrame(font, lines, mx, my);
         }
     }

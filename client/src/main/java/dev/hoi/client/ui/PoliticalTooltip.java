@@ -35,6 +35,7 @@ public final class PoliticalTooltip {
     }
     private static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String flag, String countryName,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, boolean compact, boolean icons) {
+        entry = new MenuView.Entry(entry.name(), entry.value(), TooltipText.format(entry.detail()), entry.progress(), entry.icon());
         int width = Math.max(80, Math.min(270, viewportWidth - 24));
         if (compact) {
             int measured = 80;
@@ -61,7 +62,7 @@ public final class PoliticalTooltip {
                 String image = line.substring(7, line.length() - 1);
                 int imageHeight = UiAssets.imageHeight(image, width);
                 if (imageHeight > 0) rows.add(new Row(null, image, imageHeight));
-            } else for (var text : HoiTooltips.lines(font, line, width + 24, icons))
+            } else for (var text : HoiTooltips.formattedLines(font, line, width + 24, icons))
                 rows.add(new Row(text, "", font.lineHeight + 1));
         }
         int total = rows.stream().mapToInt(Row::height).sum();

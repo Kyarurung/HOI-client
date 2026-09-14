@@ -48,7 +48,30 @@ public final class HoiTooltips {
     }
 
     public static net.minecraft.client.gui.components.Tooltip create(Component text) {
-        return net.minecraft.client.gui.components.Tooltip.create(KeywordIcons.decorateLines(sentences(text)));
+        return net.minecraft.client.gui.components.Tooltip.create(KeywordIcons.decorateLines(sentences(format(text))));
+    }
+
+    public static Component format(Component text) {
+        var rows = new ArrayList<net.minecraft.network.chat.MutableComponent>();
+        rows.add(Component.empty());
+        boolean precise = TooltipText.precise(text.getString());
+        text.visit((style, part) -> {
+            String[] parts = part.split("\\R", -1);
+            for (int i = 0; i < parts.length; i++) {
+                if (i > 0) rows.add(Component.empty());
+                rows.getLast().append(Component.literal(precise ? parts[i] : TooltipText.numbers(parts[i])).withStyle(style));
+            }
+            return java.util.Optional.empty();
+        }, net.minecraft.network.chat.Style.EMPTY);
+        var result = Component.empty();
+        boolean space = false;
+        for (var row : rows) {
+            if (TooltipText.blank(row.getString())) { space = !result.getString().isEmpty(); continue; }
+            if (!TooltipText.visible(row.getString())) continue;
+            if (!result.getString().isEmpty()) result.append(space ? "\n\n" : "\n");
+            result.append(row); space = false;
+        }
+        return result;
     }
 
     public static List<FormattedCharSequence> lines(Font font, String text, int viewportWidth) {
@@ -56,6 +79,10 @@ public final class HoiTooltips {
     }
 
     public static List<FormattedCharSequence> lines(Font font, String text, int viewportWidth, boolean icons) {
+        return formattedLines(font, TooltipText.format(text), viewportWidth, icons);
+    }
+
+    static List<FormattedCharSequence> formattedLines(Font font, String text, int viewportWidth, boolean icons) {
         int width = Math.max(80, Math.min(300, viewportWidth - 24));
         var lines = new ArrayList<FormattedCharSequence>();
         for (String line : sentences(text).split("\\R", -1)) {

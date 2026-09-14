@@ -10,10 +10,74 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public final class DialogScreenChecks {
+    private static void detailFlags(ClientGameTestContext context) {
+        var previous = context.computeOnClient(c -> dev.hoi.client.CampaignHud.visible()
+                ? HudProtocol.State.of(dev.hoi.client.CampaignHud.country(), dev.hoi.client.CampaignHud.hud()) : HudProtocol.State.HIDDEN);
+        try {
+            context.getInput().resizeWindow(2560, 1440);
+            context.runOnClient(c -> {
+                c.options.guiScale().set(2);
+                dev.hoi.client.CampaignHud.accept(HudProtocol.State.of("KOR", previous.hud()));
+            });
+            context.setScreen(MapCursorScreen::new);
+            context.getInput().setCursorPos(1800, 800); context.waitTicks(3);
+            var baseline = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-map-country-flag-gui2").toFile());
+            var bounds = context.computeOnClient(c -> {
+                double scale = c.getWindow().getGuiScale();
+                return new int[]{(int)(4 * scale), (int)(3 * scale),
+                        (int)(dev.hoi.client.ui.HoiMenuBar.flagWidth(c.gui.screen().width) * scale),
+                        (int)((dev.hoi.client.ui.HoiMenuBar.height(c.gui.screen().width) - 6) * scale)};
+            });
+            for (String image : List.of("map_detail/terrain/plains", "map_detail/sea", "air_detail/background")) {
+                var view = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.STATE, "국기 유지 검증", "", "", "", image, "", List.of(), List.of());
+                context.runOnClient(c -> DialogClient.receive(DialogProtocol.Show.of(view, true)));
+                context.waitTicks(3);
+                var actual = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-detail-country-flag-" + image.substring(image.lastIndexOf('/') + 1) + "-gui2").toFile());
+                for (int y = bounds[1]; y < bounds[1] + bounds[3]; y++)
+                    for (int x = bounds[0]; x < bounds[0] + bounds[2]; x++)
+                        if (actual.getRGB(x, y) != baseline.getRGB(x, y))
+                            throw new AssertionError("Opening " + image + " replaced the player's country flag at " + x + "," + y);
+            }
+        } catch (IOException error) { throw new UncheckedIOException(error); }
+        finally {
+            context.setScreen(() -> null);
+            context.runOnClient(c -> dev.hoi.client.CampaignHud.accept(previous));
+        }
+    }
+    private static void tooltipNumbers(ClientGameTestContext context) {
+        context.getInput().resizeWindow(2560, 1369);
+        context.runOnClient(c -> {
+            c.options.guiScale().set(2);
+            var rich = net.minecraft.network.chat.Component.literal("효과").withColor(0xEEC923)
+                    .append(net.minecraft.network.chat.Component.literal("\n사단 방어: -5.555%\n훈련: 0\n\n\n제거 불가능").withColor(0xDE5646));
+            var formatted = dev.hoi.client.ui.HoiTooltips.format(rich);
+            if (!formatted.getString().equals("효과\n사단 방어: -5.6%\n\n제거 불가능")) throw new AssertionError(formatted.getString());
+            var party = dev.hoi.client.ui.HoiTooltips.format(net.minecraft.network.chat.Component.literal("정당 지지도\n매일 변화: §a+0.0025§r"));
+            if (!party.getString().contains("+0.0025")) throw new AssertionError("Party precision changed");
+        });
+        var tiles=List.of(
+                new DialogView.Tile("empty","현대화된 농업","0","politics/laws/industrial_development","\n\n\n§c제거 불가능"),
+                new DialogView.Tile("zero","전문여단","0","politics/laws/military_training","징병 가능 인구 변동치: §a+5%§r\n사단 훈련 시간: 0\n사단 조직력: §c-5%§r\n사단 방어: §c-5%§r\n사단 공격: §c-5%§r\n특수부대 수용량 증가치: 0\n육군 고문 비용: 0\n공군 고문 비용: 0\n해군 고문 비용: 0\n육군 교리 비용: §c+5%§r\n\n\n§c제거 불가능"));
+        var view=new DialogView(UUID.randomUUID().toString(),1,DialogView.Kind.POLITICS,"툴팁 표시 검증","","","","","",tiles,List.of());
+        context.setScreen(() -> new PoliticsChoiceScreen(view,null));
+        for(int index=0;index<2;index++) {
+            int target=index+1;
+            var position=context.computeOnClient(c -> {
+                var b=(Button)c.gui.screen().children().get(target);
+                double scale=c.getWindow().getGuiScale();
+                return new double[]{(b.getX()+b.getWidth()/2.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};
+            });
+            context.getInput().setCursorPos(position[0],position[1]);context.waitTicks(18);
+            context.takeScreenshot("hoi-tooltip-"+(index==0?"single-blank-line":"zero-effects-hidden")+"-gui2");
+        }
+        context.setScreen(() -> null);
+    }
     record Fixtures(List<DialogView> views, List<String> sounds) {}
     public static void run(ClientGameTestContext context) {
         MapDetailScreenChecks.run(context);
         AirDetailScreenChecks.run(context);
+        detailFlags(context);
+        tooltipNumbers(context);
         Fixtures fixture;
         try (var input = DialogScreenChecks.class.getResourceAsStream("/dialog-fixtures.json")) {
             fixture = new Gson().fromJson(new InputStreamReader(Objects.requireNonNull(input), StandardCharsets.UTF_8), Fixtures.class);

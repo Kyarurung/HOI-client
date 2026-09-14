@@ -30,7 +30,7 @@ final class MapDetailScreen extends DialogScreen implements SidebarMovement.Scre
         pane = (int)Math.round(sourceWidth * scale); tall = (int)Math.round(sourceHeight * scale);
         left = 0; top = height - tall;
         addRenderableWidget(new HoiMenuButton("×", x(sea()?398:425), y(sea()?5:9), n(25), n(25), this::onClose));
-        if(dev.hoi.client.CampaignHud.visible())HoiMenuBar.buttons(width,"",null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
+        if(dev.hoi.client.CampaignHud.visible())HoiMenuBar.buttons(width,dev.hoi.client.CampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
     }
     private int x(double n) { return left + (int)Math.round(n * scale); }
     private int y(double n) { return top + (int)Math.round(n * scale); }

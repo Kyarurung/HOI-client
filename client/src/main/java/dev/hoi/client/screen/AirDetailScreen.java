@@ -30,7 +30,7 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
             var b=new HoiMenuButton(List.of("전투기와 근접항공지원기 임무","해상 임무","폭격 임무").get(i),x(207+i*45),y(236),n(43),n(34),()->{category=index;scroll=0;});
             b.background("none").caption("");addRenderableWidget(b);
         }
-        if(dev.hoi.client.CampaignHud.visible())HoiMenuBar.buttons(width,"",null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
+        if(dev.hoi.client.CampaignHud.visible())HoiMenuBar.buttons(width,dev.hoi.client.CampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
     }
     private void button(String label,int px,int py,int w,int h,Runnable action){addRenderableWidget(new HoiMenuButton(label,x(px),y(py),n(w),n(h),action));}
     private int x(double v){return left+n(v);}
@@ -57,9 +57,6 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
         if(!DialogClient.renderingContent())dev.hoi.client.CampaignHud.draw(g);
         art(g,"air_detail/background",0,0,552,436);
         g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/air_detail/background.png"),x(538),y(152),x(546),y(230),14f/552,6f/552,152f/436,230f/436);
-        g.pose().pushMatrix();g.pose().translate(0,2);
-        text(g,view().title(),12,2,528,26,true,21);
-        g.pose().popMatrix();
         int centerX=(148+400)/2;
         var weather=tile("weather");
         if(weather!=null){art(g,weather.icon(),centerX-124,35,248,47);hover(weather,centerX-124,35,248,47);}
@@ -83,8 +80,8 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
         for(String side:List.of("own","enemy")) {
             var entries=tiles(side);
             for(int i=0;i<entries.size()&&i<4;i++) {
-                int col=i/2,row=i%2,ix=side.equals("own")?12+70*col:504-70*col,tx=side.equals("own")?46+70*col:470-70*col,py=40+36*row;
-                art(g,entries.get(i).icon(),ix,py,34,24);text(g,entries.get(i).value(),tx,py,30,28,true);
+                int col=i/2,row=i%2,ix=side.equals("own")?12+70*col:502-70*col,tx=side.equals("own")?46+70*col:470-70*col,py=40+36*row;
+                art(g,entries.get(i).icon(),ix,py+(side.equals("enemy")?2:0),side.equals("enemy")?32:34,side.equals("enemy")?22:24);text(g,entries.get(i).value(),tx,py,30,28,true);
                 hover(entries.get(i),Math.min(ix,tx),py,68,28);
             }
         }
@@ -125,12 +122,16 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
                 hover(result,px,py,73,22);
             }
         }
+        g.nextStratum();
+        g.pose().pushMatrix();g.pose().translate(0,2);
+        text(g,view().title(),12,2,528,26,true,21);
+        g.pose().popMatrix();
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable r)r.extractRenderState(g,mx,my,delta);
         var current=hovers.reversed().stream().filter(h->mx>=h.x()&&mx<h.x()+h.w()&&my>=h.y()&&my<h.y()+h.h()).map(Hover::tile).findFirst().orElse(null);
         if(!Objects.equals(current,hovered))tooltipScroll=0;hovered=current;
         if(current!=null) {
             String detail=current.detail().isBlank()?current.name():current.detail();
-            float factor=(float)Math.max(8,16*Math.min(Math.max(.5,width/2560.0),scale))/font.lineHeight;
+            float factor=(float)Math.max(12,24*Math.min(Math.max(.5,width/2560.0),scale))/font.lineHeight;
             g.pose().pushMatrix();g.pose().scale(factor);
             tooltipScroll=PoliticalTooltip.drawTextDetail(g,font,detail,(int)(mx/factor),(int)(my/factor),(int)(width/factor),(int)(height/factor),tooltipScroll);
             g.pose().popMatrix();

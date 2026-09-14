@@ -11,8 +11,8 @@ public final class AirDetailScreenChecks {
     static void run(ClientGameTestContext context) {
         var tiles=new ArrayList<DialogView.Tile>();
         for(int i=0;i<4;i++) {
-            tiles.add(t("own","아군",i==0?"199":i==2?"200":"0","air_detail/own_"+i));
-            tiles.add(t("enemy","적군",i==0?"191":i==1?"12":i==2?"53":"0","air_detail/enemy_"+i));
+            tiles.add(t("own",List.of("현재 활동 중인 전투기","현재 활동 중인 폭격기","현재 활동 중인 근접항공지원기","대공 화기").get(i),i==0?"199":i==2?"200":"0","air_detail/own_"+i));
+            tiles.add(t("enemy",List.of("현재 활동 중인 전투기","현재 활동 중인 폭격기","현재 활동 중인 근접항공지원기","대공 화기").get(i),i==0?"191":i==1?"12":i==2?"53":"0","air_detail/enemy_"+i));
         }
         tiles.add(new DialogView.Tile("balance","공중 우세","65%","air_detail/progress_good","공중 우세: §a65%§r",new DialogView.Gauge(.65,"65%")));
         tiles.add(t("weather","비","","air_detail/weather_light_rain"));
@@ -60,9 +60,9 @@ public final class AirDetailScreenChecks {
                 for(var tile:tiles)if(!tile.icon().isBlank()&&c.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/"+tile.icon()+".png")).isEmpty())throw new AssertionError("Missing air asset: "+tile.icon());
             });
             context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-detail-"+size[0]+"-gui2");
-            if(size[0]==2560)for(int[] point:new int[][]{{169,204},{353,204},{45,126},{113,126},{164,66}}) {
+            if(size[0]==2560)for(int[] point:new int[][]{{169,204},{353,204},{45,126},{113,126},{164,66},{25,52},{25,88},{94,52},{94,88},{280,55},{280,91}}) {
                 var cursor=context.computeOnClient(c->{var screen=(AirDetailScreen)c.gui.screen();double scale=screen.panelWidth()/552.0,gui=c.getWindow().getGuiScale();return new double[]{(screen.panelLeft()+point[0]*scale)*gui,(screen.panelTop()+point[1]*scale)*gui};});
-                context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);context.takeScreenshot("hoi-air-tooltip-"+point[0]+"-gui2");
+                context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);context.takeScreenshot("hoi-air-tooltip-"+point[0]+"-"+point[1]+"-gui2");
             }
             if(size[0]==2560) {
                 var scenario=new ArrayList<>(tiles);

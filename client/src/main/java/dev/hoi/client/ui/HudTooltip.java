@@ -41,19 +41,22 @@ public final class HudTooltip {
         var lines = new ArrayList<FormattedCharSequence>();
         String current = item.icon().equals("party_support") ? item.value() : item.raw() == null ? "0" : item.format() == HoiMenuBar.Format.PERCENT
                 ? HoiMenuBar.rawNumber(item.raw().doubleValue() * 100) + "%" : HoiMenuBar.rawNumber(item.raw());
-        if (!item.icon().equals("world_tension")) lines.addAll(font.split(Component.literal("현재: " + current), wrap));
+        if (!item.icon().equals("party_support")) current = TooltipText.numbers(current);
+        if (!item.icon().equals("world_tension") && TooltipText.visible(current)) lines.addAll(font.split(Component.literal("현재: " + current), wrap));
         var detail = hud.details().get(item.icon());
         if (detail != null) for (var row : detail.rows()) {
             int color = switch (row.tone()) {
                 case GOOD -> HoiTooltips.GOOD; case BAD -> HoiTooltips.BAD; case MUTED -> 0x9BABB4;
                 case HEADING -> HoiTooltips.GOLD; default -> 0xE0E6E8;
             };
-            var text = Component.literal(row.label() + (row.value().isEmpty() ? "" : ": " + row.value()))
+            String value = item.icon().equals("party_support") ? row.value() : TooltipText.numbers(row.value());
+            if (!row.value().isEmpty() && !TooltipText.visible(value)) continue;
+            var text = Component.literal(row.label() + (value.isEmpty() ? "" : ": " + value))
                     .withStyle(style -> style.withColor(color));
             lines.addAll(font.split(HoiTooltips.sentences(text), wrap));
         } else {
-            if (item.barLabel() != null) lines.addAll(font.split(Component.literal(item.barLabel() + ": "
-                    + (item.ratio() == null ? "0" : HoiMenuBar.rawNumber(item.ratio() * 100) + "%")), wrap));
+            if (item.barLabel() != null && item.ratio() != null && item.ratio() != 0) lines.addAll(font.split(Component.literal(item.barLabel() + ": "
+                    + (item.ratio() == null ? "0" : TooltipText.numbers(HoiMenuBar.rawNumber(item.ratio() * 100)) + "%")), wrap));
             lines.addAll(font.split(Component.literal("세부 내역 없음").withStyle(s -> s.withColor(0x9BABB4)), wrap));
         }
         cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;

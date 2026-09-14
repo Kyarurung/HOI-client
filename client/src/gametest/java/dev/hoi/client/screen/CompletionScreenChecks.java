@@ -266,7 +266,7 @@ public final class CompletionScreenChecks {
                 var text = new StringBuilder();
                 for (var line : HudTooltip.body(c.font, c.gui.screen().width, hud, item))
                     line.accept((index, style, character) -> { text.appendCodePoint(character); return true; });
-                check(text.toString().contains(item.icon().equals("party_support") ? "현재: 0%" : "현재: 0") && text.indexOf("—") < 0, "Unknown tooltip displays zero: " + item.icon());
+                check(!text.toString().contains("현재: 0") && text.indexOf("—") < 0, "Zero tooltip rows must be hidden: " + item.icon());
             }
             check(HoiMenuBar.rawNumber(-1.25).equals("-1.25"), "Actual negative effects retain their sign and decimals");
             check(lines.size() > HudTooltip.visibleRows(c.gui.screen().height, c.font), "Long HUD gets a scroll window");
