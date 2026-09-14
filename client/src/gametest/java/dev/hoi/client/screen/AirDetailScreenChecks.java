@@ -23,8 +23,8 @@ public final class AirDetailScreenChecks {
         tiles.add(t("efficiency","아군의 평균 임무 효율","97%","air_detail/air_mission_efficiency_strip_1"));
         tiles.add(new DialogView.Tile("air_losses","아군 공군 부대 손실","50","air_detail/damage_skull","§e아군 공군 부대 손실§r\n이 공역에서 집계 시작 이후 누적: §e50§r\n대한민국 · 근접항공지원기: §c50§r\n  공중전: §c50§r"));
         tiles.add(t("air_kills","적 공군 부대 격추","12","air_detail/damage_skull"));
-        tiles.add(t("air_loss_art","아군 근접항공지원기","50","production/equipment/cas"));
-        tiles.add(t("air_kill_art","적군 전투기","12","production/equipment/fighter"));
+        tiles.add(t("air_loss_art","현재 아군 전투기","199","production/equipment/fighter"));
+        tiles.add(t("air_kill_art","현재 적군 전투기","191","production/equipment/fighter"));
         tiles.add(t("air_aa_losses","대공에 손실된 공군 부대","2","air_detail/damage_aa"));
         tiles.add(t("enemy_aa_losses","대공에 손실된 공군 부대","1","air_detail/damage_aa"));
         tiles.add(t("mission_0","공중 우세","199","production/equipment/fighter"));
@@ -60,9 +60,16 @@ public final class AirDetailScreenChecks {
                 for(var tile:tiles)if(!tile.icon().isBlank()&&c.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/"+tile.icon()+".png")).isEmpty())throw new AssertionError("Missing air asset: "+tile.icon());
             });
             context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-detail-"+size[0]+"-gui2");
-            if(size[0]==2560)for(int[] point:new int[][]{{193,191},{325,191},{45,126},{113,126},{164,66}}) {
+            if(size[0]==2560)for(int[] point:new int[][]{{169,204},{353,204},{45,126},{113,126},{164,66}}) {
                 var cursor=context.computeOnClient(c->{var screen=(AirDetailScreen)c.gui.screen();double scale=screen.panelWidth()/552.0,gui=c.getWindow().getGuiScale();return new double[]{(screen.panelLeft()+point[0]*scale)*gui,(screen.panelTop()+point[1]*scale)*gui};});
                 context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);context.takeScreenshot("hoi-air-tooltip-"+point[0]+"-gui2");
+            }
+            if(size[0]==2560) {
+                var scenario=new ArrayList<>(tiles);
+                scenario.replaceAll(t->t.section().equals("air_losses")||t.section().equals("air_kills")?new DialogView.Tile(t.section(),t.name(),"0",t.icon(),t.detail()):t);
+                var preview=new DialogView(UUID.randomUUID().toString(),1,view.kind(),view.title(),"","","","air_detail/background","",scenario,List.of());
+                context.setScreen(()->new AirDetailScreen(preview));
+                context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-current-aircraft-no-losses-gui2");
             }
             if(size[0]==2560)for(String mode:List.of("cas-only","bombing-fallback")) {
                 var scenario=new ArrayList<>(tiles);

@@ -143,15 +143,16 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
     }
     private void combat(GuiGraphicsExtractor g,DialogView.Tile result,boolean killed) {
         if(result==null)return;
-        if(result.value().equals("0")||result.value().equals("?"))return;
-        int px=killed?416:18,iconX=killed?307:177;
+        int px=killed?416:18,imageY=181,imageWidth=118,imageHeight=46;
+        int iconX=killed?px-12-72:px+imageWidth+12,resultY=imageY+(imageHeight-22)/2;
         var aircraft=tiles(killed?"air_kill_art":"air_loss_art");
         for(int i=0;i<Math.min(1,aircraft.size());i++) {
-            var t=aircraft.get(i);art(g,t.icon(),px+i*122,181,118,46);hover(t,px+i*122,181,118,46);
+            var t=aircraft.get(i);art(g,t.icon(),px,imageY,imageWidth,imageHeight);hover(t,px,imageY,imageWidth,imageHeight);
         }
-        art(g,result.icon(),iconX,185,42,22);
-        text(g,(killed?"§a":"§c")+result.value()+"§r",iconX+32,185,40,22,true);
-        hover(result,iconX-3,182,75,23);
+        if(result.value().equals("0")||result.value().equals("?"))return;
+        art(g,result.icon(),iconX,resultY,42,22);
+        text(g,(killed?"§a":"§c")+result.value()+"§r",iconX+32,resultY,40,22,true);
+        hover(result,iconX,resultY,72,22);
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
         if(event.x()<left||event.x()>=left+pane||event.y()<top||event.y()>=top+tall) {
