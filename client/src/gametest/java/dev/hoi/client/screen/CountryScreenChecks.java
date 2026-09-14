@@ -365,6 +365,7 @@ public final class CountryScreenChecks {
             for (var box : List.of(layout.economy(), layout.ideology(), layout.faction()))
                 if (screen.politicsHover(box.x() + 2, box.y() + 2) == null) throw new AssertionError("Political information cells must expose their tooltip even without extra details");
             for (var child : screen.children()) if (child instanceof Button button) {
+                if (button.getMessage().getString().equals("세력")) throw new AssertionError("Faction emblem must not navigate from politics");
                 if (button.getMessage().getString().equals("점령지") && button.active) throw new AssertionError("Empty occupation list must be disabled");
                 if (button.getMessage().getString().equals("협력정부") && !button.active) throw new AssertionError("Existing subject list must be enabled");
             }
@@ -489,19 +490,96 @@ public final class CountryScreenChecks {
                 new MenuView.Entry("다음 선거", "선거 없음", ""),
                 new MenuView.Entry("안정도", "-100%", "현재 안정도", -1, "hud/stability"),
                 new MenuView.Entry("전쟁 지지도", "100%", "현재 전쟁 지지도", 1, "hud/war_support")));
+        diplomacy.add(new MenuView.Entry("세력","검증용 세력","",-1,"politics/art/gfx_faction_member"));
         for (int i = 0; i < 24; i++) diplomacy.add(new MenuView.Entry("보유 국민정신 " + i, "", "국가 정신\n안정도: §a+5%§r", -1, "politics/art/gfx_idea_prc_chinese_communist_party"));
         var fixture = new CountryView("KOR",hud,"PRC","중화인민공화국",false,List.of(new CountryView.Choice("KOR","대한민국"),new CountryView.Choice("PRC","중국")),
-                diplomacy,List.of(new MenuView.Entry("알려지지 않은 중점","민간 첩보 70% 필요","")),reports);
+                diplomacy,List.of(new MenuView.Entry("알려지지 않은 중점","민간 첩보 70% 필요","")),reports,null,List.of(
+                    new CountryView.Relation("세력","diplomacy/relations/faction",List.of(new CountryView.Choice("PRK","조선민주주의인민공화국"),new CountryView.Choice("JAP","일본"),new CountryView.Choice("KOR","대한민국"))),
+                    new CountryView.Relation("군사 통행권","diplomacy/relations/offer_military_access_initiator",List.of(new CountryView.Choice("KOR","대한민국")))));
         context.setScreen(() -> new CountryScreen(fixture)); context.waitTicks(3); context.takeScreenshot("hoi-country-diplomacy"); dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-diplomacy");
+        var sixSpirits = new CountryView(fixture.viewer(), fixture.hud(), fixture.target(), fixture.name(), fixture.shared(), fixture.countries(),
+                diplomacy.subList(0, diplomacy.size() - 18), fixture.focuses(), fixture.reports(), fixture.actions(), fixture.relations());
+        context.setScreen(() -> new CountryScreen(sixSpirits)); context.waitTicks(3);
+        context.runOnClient(c -> {
+            int pane = ((CountryScreen)c.gui.screen()).panelWidth(), top = dev.hoi.client.ui.HoiMenuBar.height(c.gui.screen().width);
+            var header = new DiplomacyHeader(sixSpirits, pane);
+            int x = DiplomacyHeader.scaled(140, pane) + 2, y = DiplomacyHeader.spiritsTop(top, pane) + 8;
+            var first = header.spiritAt(x, y, pane, top);
+            header.scrollSpirits(x, y, -20, pane, top);
+            if (!first.equals(header.spiritAt(x, y, pane, top))) throw new AssertionError("One spirit row must not scroll into an empty row");
+        });
+        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-six-spirits");
+        var allFlags = context.computeOnClient(c -> c.getResourceManager().listResources("textures/gui/country",
+                id -> id.getNamespace().equals("hoi") && id.getPath().matches("textures/gui/country/[a-z]{3}/flag\\.png"))
+                .keySet().stream().map(id -> id.getPath().split("/")[3].toUpperCase(Locale.ROOT)).sorted().toList());
+        if (allFlags.isEmpty()) throw new AssertionError("Country flags unavailable for diplomacy coverage");
+        for (String tag : allFlags) {
+            var country = new CountryView(fixture.viewer(), fixture.hud(), tag, tag, false, fixture.countries(),
+                    List.of(new MenuView.Entry("관계", "비동맹", "")), fixture.focuses(), fixture.reports(), null, List.of());
+            context.setScreen(() -> new CountryScreen(country)); context.waitTicks(1);
+            context.runOnClient(c -> {
+                var screen = (CountryScreen)c.gui.screen();
+                if (screen.children().stream().anyMatch(w -> w instanceof net.minecraft.client.gui.components.Button b
+                        && b.getMessage().getString().startsWith("관계 ·")))
+                    throw new AssertionError("Empty relations reopened the legacy diplomacy list: " + tag);
+                if (screen.children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.Button b
+                        && b.getMessage().getString().equals("외교")))
+                    throw new AssertionError("Current diplomacy header missing: " + tag);
+            });
+        }
+        System.out.println("Current diplomacy layout checked for " + allFlags.size() + " country flags");
+        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-empty-relations");
+        var noFactionEntries = new ArrayList<>(diplomacy.stream().filter(e -> !e.name().equals("세력")).toList());
+        noFactionEntries.add(new MenuView.Entry("세력", "세력 없음", "", -1, "politics/art/gfx_faction_member"));
+        var noFaction = new CountryView(fixture.viewer(), fixture.hud(), fixture.target(), fixture.name(), fixture.shared(), fixture.countries(),
+                noFactionEntries, fixture.focuses(), fixture.reports(), fixture.actions(), List.of());
+        context.setScreen(() -> new CountryScreen(noFaction)); context.waitTicks(3);
+        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-no-faction");
+        context.setScreen(() -> new CountryScreen(fixture)); context.waitTicks(3);
+        context.getInput().resizeWindow(2560, 1440);
+        context.runOnClient(c -> c.options.guiScale().set(2)); context.waitTicks(3);
         context.runOnClient(c -> {
             int pane = ((CountryScreen)c.gui.screen()).panelWidth(), top = dev.hoi.client.ui.HoiMenuBar.height(c.gui.screen().width);
             var header = new DiplomacyHeader(fixture, pane);
             int x = DiplomacyHeader.scaled(140, pane) + 2, y = DiplomacyHeader.spiritsTop(top, pane) + 8;
             var first = header.spiritAt(x, y, pane, top);
             if (first == null || !first.name().equals("보유 국민정신 0")) throw new AssertionError("Active spirit hover");
-            if (!header.scrollSpirits(x, y, -20, pane, top) || header.spiritAt(x, y, pane, top).equals(first))
-                throw new AssertionError("Offscreen national spirits must remain accessible");
-            if (!DiplomacyHeader.summary(diplomacy.get(2))) throw new AssertionError("Current ideology belongs in the header");
+            int bottom = DiplomacyHeader.spiritsTop(top, pane) + Math.max(32, DiplomacyHeader.scaled(72, pane)) - 5;
+            if (!header.spiritAt(pane - 19, y, pane, top).name().equals("보유 국민정신 5"))
+                throw new AssertionError("National spirits must use six columns");
+            if (!header.scrollSpirits(x, y, -1, pane, top)
+                    || !header.spiritAt(x, y, pane, top).name().equals("보유 국민정신 6"))
+                throw new AssertionError("Vertical scrolling must advance to the next six spirits");
+            if (!header.scrollSpirits(x, y, -20, pane, top)
+                    || !header.spiritAt(pane - 19, bottom, pane, top).name().equals("보유 국민정신 23"))
+                throw new AssertionError("Vertical scroll must reach the final spirit row");
+            header.scrollSpirits(x, y, 20, pane, top);
+            if (!header.spiritAt(x, y, pane, top).equals(first)) throw new AssertionError("Spirit scroll must clamp at the first row");
+            if (!c.gui.screen().mouseScrolled(x, y, 0, -20)) throw new AssertionError("Diplomacy must route vertical spirit scrolling");
+        });
+        context.waitTicks(3);
+        context.takeScreenshot("hoi-country-spirits-scrolled-gui2");
+        context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
+        context.runOnClient(c -> {
+            var screen=(CountryScreen)c.gui.screen();
+            int pane=screen.panelWidth(),top=dev.hoi.client.ui.HoiMenuBar.height(screen.width);
+            int y=DiplomacyHeader.body(top,pane)+18;
+            if(screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(15,y,new net.minecraft.client.input.MouseButtonInfo(0,0)),false))
+                throw new AssertionError("Diplomacy relation background must not be clickable");
+            if(screen.children().stream().anyMatch(w->w instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().startsWith("세력 ·")))
+                throw new AssertionError("Diplomacy relation row must not have hover/click widgets");
+            var selected=screen.flagAt(40,y);
+            if(selected==null||!selected.tag().equals("PRK"))throw new AssertionError("Visible diplomacy flag target");
+            String previous=screen.token();
+            if(!screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(40,y,new net.minecraft.client.input.MouseButtonInfo(0,0)),false)
+                    ||screen.view()!=null||screen.token().equals(previous))throw new AssertionError("Flag click must open a fresh country request");
+            screen.update(CountryProtocol.Response.of(screen.token(),fixture));
+            if(screen.view()!=null)throw new AssertionError("Clicked flag must not accept another country's response");
+            var response=new CountryView(fixture.viewer(),fixture.hud(),"PRK","조선민주주의인민공화국",false,fixture.countries(),
+                    fixture.diplomacy(),fixture.focuses(),fixture.reports(),null,fixture.relations());
+            screen.update(CountryProtocol.Response.of(screen.token(),response));
+            if(screen.view()==null||!screen.view().target().equals("PRK"))throw new AssertionError("Clicked country's diplomacy did not open");
+            c.gui.setScreen(new CountryScreen(fixture));
         });
         click(context,"첩보 장부");
         for (var d : IntelDomain.values()) { click(context,d.label+" 정보"); context.waitTicks(2); context.takeScreenshot("hoi-intel-"+d.name().toLowerCase(Locale.ROOT)); }

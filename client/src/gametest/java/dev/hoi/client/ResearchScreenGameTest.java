@@ -88,6 +88,25 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             dev.hoi.client.screen.SelectionPreviewChecks.run(context, menu);
             context.runOnClient(client -> CampaignHud.accept(HudProtocol.State.of("KOR",menu.hud())));
             context.setScreen(() -> null); context.waitTicks(3); context.takeScreenshot("hoi-persistent-country-hud");
+            context.runOnClient(client -> {
+                var shiftF=new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_F,0,org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT);
+                check(!dev.hoi.client.input.MenuShortcut.handle(client,client.getWindow().handle(),org.lwjgl.glfw.GLFW.GLFW_PRESS,shiftF), "Shift F is not a menu shortcut");
+                check(client.gui.screen() == null, "Shift F does not open politics");
+            });
+            context.getInput().holdKey(o -> o.keySwapOffhand); context.waitTicks(3);
+            context.runOnClient(client -> check(client.gui.screen() instanceof dev.hoi.client.screen.MapCursorScreen, "F opens the map cursor"));
+            context.waitTicks(8);
+            context.runOnClient(client -> check(client.gui.screen() instanceof dev.hoi.client.screen.MapCursorScreen, "Held F does not toggle repeatedly"));
+            var hudPoint = context.computeOnClient(client -> {
+                double scale=client.getWindow().getGuiScale();
+                return new double[]{(dev.hoi.client.ui.HoiMenuBar.flagWidth(client.gui.screen().width)+72)*scale,7*scale};
+            });
+            context.getInput().setCursorPos(hudPoint[0],hudPoint[1]);context.waitTicks(4);
+            context.takeScreenshot("hoi-map-cursor-stability-tooltip");
+            context.getInput().releaseKey(o -> o.keySwapOffhand);
+            context.getInput().holdKey(o -> o.keySwapOffhand); context.waitTicks(2);
+            context.getInput().releaseKey(o -> o.keySwapOffhand);
+            context.runOnClient(client -> check(client.gui.screen() == null, "F closes the map cursor"));
             context.setScreen(() -> new HoiMenuScreen(menu)); context.waitTicks(2);
             context.setScreen(() -> null); context.waitTicks(2);
             context.runOnClient(client -> {

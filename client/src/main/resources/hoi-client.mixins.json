@@ -2,6 +2,16 @@
   "required": true,
   "package": "dev.hoi.client.mixin",
   "compatibilityLevel": "JAVA_25",
-  "client": ["ConstructionClickMixin", "KeyboardShortcutMixin", "MenuTooltipMixin", "MenuBackgroundMixin"],
-  "injectors": {"defaultRequire": 1}
+  "client": [
+    "ConstructionClickMixin",
+    "KeyboardShortcutMixin",
+    "MenuTooltipMixin",
+    "MenuBackgroundMixin",
+    "MenuClickSoundMixin",
+    "SoundManagerAccessor",
+    "SoundEngineAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

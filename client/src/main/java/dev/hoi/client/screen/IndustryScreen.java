@@ -39,7 +39,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private int tradeTab = 1, tradeAmount = 1, selectedSlot = -1;
     private boolean supportSlot, designer, closed, background, showOutdated;
     private String group = "all", picker = "", switchLine = "", resource = "IRON", partner = "";
-    private String location = "", locationRecruit = "", recruitTemplate = "", draftName = "";
+    private boolean openingDesigner;
+    private String location = "", locationRecruit = "", draftName = "";
     private record DeploymentLocation(int x,int y,int width,int height,String recruit,String label) {}
     private final List<DeploymentLocation> deploymentLocations = new ArrayList<>();
     private boolean selectingDeployment;
@@ -438,11 +439,14 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 textureButton(names[i] + " · " + priorityName(dot) + " 우선순위", "", priorityTexture(dot, selected), 7 + (int)((415 + dot * 20) * scale), y + (int)(15 * scale), (int)(20 * scale), (int)(21 * scale), policy != null,
                         () -> send(ALLOCATION_PRIORITY, category, "", priority));
             }
-            if (i == 0 && policy != null && policy.reinforcementRatio() != null) {
-                bar(7 + (int)(310 * scale), y + (int)(19 * scale), (int)(72 * scale), Math.max(2, (int)(12 * scale)), policy.reinforcementRatio(), 0xFF7EAF69);
+            Double ratio = policy == null ? null : i == 0 ? policy.reinforcementRatio() : policy.equipmentRatios().get(category);
+            int meterX = 7 + (int)(310 * scale), meterY = y + (int)(19 * scale), meterW = (int)(72 * scale), meterH = Math.max(2, (int)(12 * scale));
+            bar(meterX, meterY, meterW, meterH, ratio == null ? 0 : ratio, 0xFF7EAF69);
+            if (ratio == null) cellText("—", meterX, meterY, meterW, meterH, MUTED, false);
+            if (i == 0 && ratio != null) {
                 String needs = policy.reinforcementNeeds().entrySet().stream().map(e -> familyName(equipment(e.getKey())) + " · 부족 " + e.getValue()).collect(java.util.stream.Collectors.joining("\n"));
                 tip("증원 · 장비 충족률 " + percent(policy.reinforcementRatio()) + (needs.isEmpty() ? "\n부족한 장비 없음" : "\n" + needs), 7, y, (int)(400 * scale), rowHeight);
-            } else tip(names[i] + " · 배정 현황이 제공되지 않았습니다.", 7, y, (int)(400 * scale), rowHeight);
+            } else tip(names[i] + (ratio == null ? " · 장비 배정 현황 미제공" : " · 장비 충족률 " + percent(ratio)), 7, y, (int)(400 * scale), rowHeight);
         }
         int cursor = start + prioritiesHeight - scroll;
         for (var entry : groups.entrySet()) {
@@ -505,7 +509,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         text(special == null ? "—/—" : special.used() + "/" + special.capacity(), secondX + 35, top + 35, secondW - 128, TEXT);
         tip("특수부대 대대 · 사용량 / 한도" + (special == null ? " · 정보 없음" : "\n" + special.used() + " / " + special.capacity() + " · 훈련 대기 포함"), secondX + 7, top + 28, secondW - 100, 23);
         button("새 사단 편제 설계", "사단 설계", secondX + secondW - 90, top + 29, 83, 22, true,
-                () -> { selectedSlot=-1; designerScroll=0; picker=""; recruitTemplate=""; send(NEW_TEMPLATE,"","",0); });
+                () -> { selectedSlot=-1; designerScroll=0; picker=""; openingDesigner=true; send(NEW_TEMPLATE,"","",0); });
         var retired = view.recruitmentPolicy() == null ? Set.<String>of() : view.recruitmentPolicy().retiredTemplates();
         var templates = view.templates().stream().filter(t -> !retired.contains(t.id())).toList();
         int ts = top + 55, th = Math.max(36, (secondW - 10) * 78 / 344); secondScroll = clampScroll(secondScroll, templates.size(), th + 3, ts);
@@ -552,7 +556,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         graphics.text(font, clipped, 0, 0, color); graphics.pose().popMatrix();
     }
     private void loadDesigner(String id) {
-        selectedSlot = -1; designerScroll = 0; picker = ""; recruitTemplate = id;
+        selectedSlot = -1; designerScroll = 0; picker = ""; openingDesigner = true;
         send(LOAD_TEMPLATE, id, "", 0);
 
     }
@@ -575,10 +579,6 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             addRenderableWidget(nameBox);
         }
         if (selectedSlot < 0) {
-        if (graphics != null) {
-            graphics.fill(x + 8, y + 51, x + left, y + 52, 0xFF687078);
-            graphics.fill(x + 8, y + 65, x + left, y + 66, 0xFF687078);
-        }
         art("production/designer/composition", x + 10, y + 53, 12, 11);
         text("사단 구성", x + 27, y + 54, left - 29, TEXT);
         String[] summary = {"HARDNESS", "ORGANIZATION", "HP", "SPEED"};
@@ -841,8 +841,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (!passive) rebuildWidgets();
     }
     @Override public void tick() {
-        if (pending == 0 && view != null && view.draft() != null && !recruitTemplate.isEmpty()) {
-            SidebarMovement.release(minecraft); designer = true; recruitTemplate = ""; draftName = view.draft().name(); rebuildWidgets();
+        if (pending == 0 && view != null && view.draft() != null && openingDesigner) {
+            SidebarMovement.release(minecraft); designer = true; openingDesigner = false; draftName = view.draft().name(); rebuildWidgets();
         }
         if (pending > 0 && --pending == 0) {
             send(view == null ? OPEN : REFRESH, "", "", 0);

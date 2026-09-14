@@ -52,11 +52,18 @@ public final class HoiTooltips {
     }
 
     public static List<FormattedCharSequence> lines(Font font, String text, int viewportWidth) {
+        return lines(font, text, viewportWidth, true);
+    }
+
+    public static List<FormattedCharSequence> lines(Font font, String text, int viewportWidth, boolean icons) {
         int width = Math.max(80, Math.min(300, viewportWidth - 24));
         var lines = new ArrayList<FormattedCharSequence>();
         for (String line : sentences(text).split("\\R", -1)) {
             if (line.isEmpty()) lines.add(Component.empty().getVisualOrderText());
-            else lines.addAll(font.split(KeywordIcons.decorate(sentences(Component.literal(line.replaceAll("£[A-Za-z0-9_]+\\s*", "")))), width));
+            else {
+                var value = sentences(Component.literal(line.replaceAll("£[A-Za-z0-9_]+\\s*", "")));
+                lines.addAll(font.split(icons ? KeywordIcons.decorate(value) : value, width));
+            }
         }
         return List.copyOf(lines);
     }

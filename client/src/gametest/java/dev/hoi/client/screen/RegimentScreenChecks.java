@@ -16,6 +16,24 @@ public final class RegimentScreenChecks {
             } catch (Exception e) { throw new AssertionError(e); }
             var template=v.templates().stream().filter(t->t.name().equals("열별 편제")).findFirst().orElseThrow();
             var requests=new ArrayList<IndustryProtocol.Request>();
+            context.getInput().resizeWindow(1600,1000);context.waitTicks(2);
+            context.setScreen(()->new IndustryScreen(MenuTab.RECRUITMENT,v.session(),copy(v,template,null,1),requests::add));
+            context.runOnClient(client->{
+                var screen=(IndustryScreen)client.gui.screen();
+                press(button(screen,"새 사단 편제 설계"));
+                check(requests.getLast().action()==IndustryProtocol.Action.NEW_TEMPLATE,"New designer requests an empty draft");
+                var empty=new IndustryView.Template("draft","새 사단 편제",List.of(),List.of(),v.draft().stats(),Map.of(),0,0,List.of(0,0,0,0,0),Map.of());
+                screen.update(copy(v,template,empty,2));
+            });
+            context.waitTicks(3);
+            context.runOnClient(client->{
+                var screen=(IndustryScreen)client.gui.screen();
+                check(screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("대대 추가")).count()==5,
+                        "The new designer opens with five empty regiment columns");
+                check(requests.stream().noneMatch(r->r.action()==IndustryProtocol.Action.SAVE_TEMPLATE),"Opening never saves a template");
+            });
+            if(fixture.equals("industry-columns-fixture.json"))context.takeScreenshot("hoi-empty-division-designer");
+            requests.clear();
             for (int[] size:new int[][]{{1600,1000},{854,480}}) {
                 context.getInput().resizeWindow(size[0],size[1]);context.waitTicks(2);
                 context.setScreen(()->new IndustryScreen(MenuTab.RECRUITMENT,v.session(),copy(v,template,null,1),requests::add));

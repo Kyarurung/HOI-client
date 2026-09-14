@@ -43,11 +43,11 @@ final class CompletionScreen extends DialogScreen {
         bodyTop = top + 36; bodyBottom = top + panelHeight - 30;
         int buttonWidth = Math.min(62, (pane - 38) / 2);
         var details = addRenderableWidget(new HoiMenuButton("세부 사항", left + 20, bodyBottom + 1, buttonWidth, 17,
-                () -> send.accept(view(), "details")).background("completion/button"));
+                () -> respond("details")).background("completion/button").sound(""));
         details.setTooltip(null);
         details.active = view().choices().stream().anyMatch(c -> c.id().equals("details"));
         addRenderableWidget(new HoiMenuButton("확인", left + pane - buttonWidth - 18, bodyBottom + 1, buttonWidth, 17,
-                () -> send.accept(view(), "ack")).background("completion/button"));
+                () -> respond("ack")).background("completion/button").sound(""));
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         if (backdrop != null) {
@@ -76,10 +76,14 @@ final class CompletionScreen extends DialogScreen {
         }
         return false;
     }
+    private void respond(String choice) {
+        dev.hoi.client.audio.UiSounds.play(choice.equals("ack") ? "ui.confirm" : "ui.click");
+        send.accept(view(), choice);
+    }
     @Override public void onClose() { send.accept(view(), ""); dismiss(); }
     @Override public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER || event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER) {
-            send.accept(view(), "ack"); return true;
+            respond("ack"); return true;
         }
         return super.keyPressed(event);
     }

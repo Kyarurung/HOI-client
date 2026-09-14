@@ -248,7 +248,15 @@ public final class HoiMenuBar {
         HoiMenuStyle.metal(g, x, y, w, h);
         String texture = flagTexture(country);
         if (texture.isEmpty()) g.fill(x + 2, y + 2, x + w - 2, y + h - 2, 0xFF4B5257);
-        else UiAssets.draw(g, texture, x + w * 8 / 98, y + h * 7 / 67, w * 82 / 98, h * 52 / 67);
+        else {
+            double scale = Math.min(w / 98.0, h / 67.0);
+            int frameW = (int)Math.round(98 * scale), frameH = (int)Math.round(67 * scale);
+            g.pose().pushMatrix();
+            g.pose().translate(x + (w - frameW) / 2, y + (h - frameH) / 2);
+            g.pose().scale(frameW / 98f, frameH / 67f);
+            UiAssets.cover(g, texture, 8, 9, 82, 50);
+            g.pose().popMatrix();
+        }
         UiAssets.draw(g, "menu/flag_overlay", x, y, w, h);
     }
     private static void drawTab(GuiGraphicsExtractor g, MenuTab tab, String country, boolean selected, int x, int y, int w, int h) {

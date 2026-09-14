@@ -15,6 +15,7 @@ public final class UiSounds {
                 net.minecraft.client.resources.sounds.SoundInstance.Attenuation.NONE, 0, 0, 0, true);
     }
     public static void play(String path) {
+        if (path.isEmpty()) return;
         var sounds=Minecraft.getInstance().getSoundManager();var id=id(path);
         if(sounds.getSoundEvent(id)!=null)sounds.play(instance(path));
     }

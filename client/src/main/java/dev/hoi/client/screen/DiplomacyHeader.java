@@ -14,10 +14,6 @@ final class DiplomacyHeader {
         chart = chart(view, scaled(80, pane));
         spirits = view.diplomacy().stream().filter(e -> e.detail().startsWith("국가 정신\n")).toList();
     }
-    static boolean summary(MenuView.Entry entry) {
-        return Set.of("안정도", "전쟁 지지도", "집권 정당", "이념", "TFR 원본 시작 이념", "지도자", "다음 선거").contains(entry.name())
-                || entry.detail().startsWith("정당 지지도") || entry.detail().startsWith("국가 정신\n");
-    }
     static int scaled(int value, int pane) { return Math.round(value * pane / 550f); }
     static int tabs(int top) { return top + 70; }
     static int politicsTop(int top) { return tabs(top) + 24; }
@@ -53,16 +49,24 @@ final class DiplomacyHeader {
         int spiritY = spiritsTop(top, pane), spiritH = Math.max(32, scaled(72, pane));
         UiAssets.nineSlice(g, "diplomacy/spirits", scaled(15, pane), spiritY, pane - scaled(30, pane), spiritH, 5, pane / 550.0);
         UiText.text(g, font, "국민정신", scaled(20, pane), spiritY + 4, HoiMenuStyle.TEXT);
-        int iconSize = spiritSize(pane), start = spiritStart(pane);
-        spiritScroll = Math.clamp(spiritScroll, 0, Math.max(0, spirits.size() * iconSize - (pane - 12 - start)));
-        g.enableScissor(start, spiritY + 2, pane - 12, spiritY + spiritH - 2);
-        for (int i = spiritScroll / iconSize; i < spirits.size(); i++) {
-            int x = start + i * iconSize - spiritScroll;
-            if (x >= pane - 12) break;
+        int start = spiritStart(pane), rowHeight = spiritRowHeight(pane), gridWidth = spiritWidth(pane);
+        spiritScroll = Math.clamp(spiritScroll, 0, maxSpiritScroll(pane));
+        g.enableScissor(start, spiritY + 4, start + gridWidth, spiritY + 4 + spiritViewportHeight(pane));
+        for (int i = spiritScroll / rowHeight * 6; i < spirits.size(); i++) {
+            int column = i % 6, rowY = i / 6 * rowHeight - spiritScroll;
+            if (rowY >= spiritViewportHeight(pane)) break;
+            int x = start + column * gridWidth / 6, rightEdge = start + (column + 1) * gridWidth / 6;
             var spirit = spirits.get(i);
-            UiAssets.draw(g, spirit.icon().isEmpty() ? "menu/politics" : spirit.icon(), x, spiritY + 5, iconSize, Math.max(12, spiritH - 10));
+            UiAssets.draw(g, spirit.icon().isEmpty() ? "menu/politics" : spirit.icon(), x, spiritY + 4 + rowY, rightEdge - x, rowHeight);
         }
         g.disableScissor();
+        if (maxSpiritScroll(pane) > 0) {
+            int trackX = start + gridWidth + 2, trackY = spiritY + 4, trackH = spiritViewportHeight(pane);
+            int thumbH = Math.max(4, trackH * trackH / (maxSpiritScroll(pane) + trackH));
+            int thumbY = trackY + spiritScroll * (trackH - thumbH) / maxSpiritScroll(pane);
+            g.fill(trackX, trackY, trackX + 2, trackY + trackH, 0xFF32363A);
+            g.fill(trackX, thumbY, trackX + 2, thumbY + thumbH, 0xFFD5D5D0);
+        }
     }
     MenuView.Entry partyAt(CountryView view, double x, double mouseY, int pane, int top) {
         int right=scaled(147,pane),rightW=pane-right-scaled(12,pane),edge=Math.max(1,scaled(5,pane));
@@ -81,18 +85,22 @@ final class DiplomacyHeader {
         return x >= left && x < left + scaled(134, pane) && y >= upper && y < upper + leaderHeight(pane);
     }
     private static int spiritStart(int pane) { return scaled(140, pane); }
-    private static int spiritSize(int pane) { return Math.max(16, scaled(54, pane)); }
+    private static int spiritWidth(int pane) { return pane - 18 - spiritStart(pane); }
+    private static int spiritRowHeight(int pane) { return Math.max(12, Math.max(32, scaled(72, pane)) - 10); }
+    private static int spiritViewportHeight(int pane) { return Math.max(32, scaled(72, pane)) - 8; }
+    private int maxSpiritScroll(int pane) { return Math.max(0, (spirits.size() + 5) / 6 * spiritRowHeight(pane) - spiritViewportHeight(pane)); }
     MenuView.Entry spiritAt(double x, double y, int pane, int top) {
-        int start = spiritStart(pane), sy = spiritsTop(top, pane);
-        if (x < start || x >= pane - 12 || y < sy + 2 || y >= sy + Math.max(32, scaled(72, pane)) - 2) return null;
-        int index = (int)(x - start + spiritScroll) / spiritSize(pane);
+        int start = spiritStart(pane), sy = spiritsTop(top, pane) + 4, gridWidth = spiritWidth(pane), rowHeight = spiritRowHeight(pane);
+        if (x < start || x >= start + gridWidth || y < sy || y >= sy + spiritViewportHeight(pane)) return null;
+        int column = Math.min(5, ((int)(x - start) * 6 + 5) / gridWidth);
+        int index = ((int)(y - sy) + spiritScroll) / rowHeight * 6 + column;
         return index < spirits.size() ? spirits.get(index) : null;
     }
     boolean scrollSpirits(double x, double y, double amount, int pane, int top) {
         int sy = spiritsTop(top, pane);
         if (x < spiritStart(pane) || x >= pane - 12 || y < sy || y >= sy + Math.max(32, scaled(72, pane))) return false;
-        spiritScroll = Math.clamp(spiritScroll - (int)(amount * spiritSize(pane)), 0,
-                Math.max(0, spirits.size() * spiritSize(pane) - (pane - 12 - spiritStart(pane))));
+        int steps = (int)Math.copySign(Math.ceil(Math.abs(amount)), amount);
+        spiritScroll = Math.clamp(spiritScroll - steps * spiritRowHeight(pane), 0, maxSpiritScroll(pane));
         return true;
     }
     private static List<int[]> chart(CountryView view, int size) {

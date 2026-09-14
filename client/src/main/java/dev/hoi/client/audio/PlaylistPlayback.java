@@ -17,15 +17,22 @@ public final class PlaylistPlayback {
         boolean start(Track track);
         boolean active();
         void stop();
+        void pause(boolean paused);
     }
     private final Output output;
     private List<Track> tracks = List.of();
     private int selected, delay;
-    private boolean requested, streaming;
+    private boolean requested, streaming, paused;
     public PlaylistPlayback(Output output) { this.output = Objects.requireNonNull(output); }
     public List<Track> tracks() { return tracks; }
     public int selected() { return selected; }
     public boolean requested() { return requested; }
+    public boolean paused() { return paused; }
+    public void togglePause() {
+        if (!requested) { if (!tracks.isEmpty()) play(selected); return; }
+        paused = !paused;
+        if (streaming) output.pause(paused);
+    }
     public static List<Track> validate(List<Track> replacement) {
         replacement = List.copyOf(replacement);
         if (replacement.size() > 128 || replacement.stream().map(Track::event).distinct().count() != replacement.size())
@@ -42,18 +49,19 @@ public final class PlaylistPlayback {
     }
     public void play(int index) {
         Objects.checkIndex(index, tracks.size());
-        output.stop(); selected = index; requested = true; streaming = false; delay = 0;
+        output.stop(); selected = index; requested = true; streaming = false; paused = false; delay = 0;
     }
     public void step(int direction) {
         if (!tracks.isEmpty()) play(Math.floorMod(selected + direction, tracks.size()));
     }
-    public void stop() { output.stop(); requested = false; streaming = false; delay = 0; }
+    public void stop() { output.stop(); requested = false; streaming = false; paused = false; delay = 0; }
     public void tick(boolean allowed) {
         if (!requested || tracks.isEmpty()) return;
         if (!allowed) {
             if (streaming) output.stop();
             streaming = false; delay = 0; return;
         }
+        if (paused) return;
         if (delay > 0) { delay--; return; }
         if (!streaming) {
             streaming = output.start(tracks.get(selected)); delay = 20;

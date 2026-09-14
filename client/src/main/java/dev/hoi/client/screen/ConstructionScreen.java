@@ -157,8 +157,8 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 if(y<queueY()||y+rowHeight()>height-30)continue;
                 HoiMenuStyle.metal(g,6,y,q-6,rowHeight()-3);
                 dev.hoi.client.ui.UiText.cell(g,font,p.name(),10,y+4,Math.max(24,q-139),20,HoiMenuStyle.TEXT,false);
-                if(!p.building().equals("energy_farm"))UiAssets.draw(g,"construction/"+p.building(),q-124,y+2,23,23);
-                else dev.hoi.client.ui.UiText.cell(g,font,"에너지",q-124,y+2,23,23,HoiMenuStyle.TEXT,false);
+                UiAssets.draw(g,"construction/"+p.building(),q-124,y+2,23,23);
+                dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(p.levels()),q-113,y+14,12,11,HoiMenuStyle.TEXT,true);
                 dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",q-96,y+1,31,17,HoiMenuStyle.TEXT,false);
                 g.fill(q-96,y+19,q-65,y+23,0xFF101511);
                 g.fill(q-96,y+19,q-96+(int)(31*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1)),y+23,0xFF79945A);

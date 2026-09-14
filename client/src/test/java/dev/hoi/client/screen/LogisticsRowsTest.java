@@ -21,7 +21,7 @@ class LogisticsRowsTest {
         String[] labels = {"0", "1", "1.2", "1.3", "999.9", "1K", "1K", "1.1K", "10.1K", "999.9K", "1M", "1M"};
         for (int i = 0; i < values.length; i++) assertEquals(labels[i], LogisticsRows.productionLabel(values[i]), Double.toString(values[i]));
     }
-    @Test void onlyResearchedOrStockedModelsAppearWithLatestResearchedImageAndCombinedAmounts() {
+    @Test void onlyAcquiredFamiliesAppearWithLatestResearchedImageAndCombinedAmounts() {
         var old = equipment("old", true, 20, "new", "rifles");
         var current = equipment("new", true, 0, "", "rifles");
         var future = equipment("future", false, 5, "", "rifles");
@@ -31,24 +31,20 @@ class LogisticsRowsTest {
         var input = List.of(future, hidden, old, current, imported, legacy);
         var lines = List.of(new IndustryView.Line("line", old.id(), 1, 1, 1, 3.5, 0, 0));
         var rows = LogisticsRows.create(input, lines, "all");
-        assertEquals(3, rows.size());
+        assertEquals(1, rows.size());
         var rifles = rows.getFirst();
         assertEquals("image/new", rifles.representative().texture());
         assertEquals(25, rifles.stockpile());
         assertEquals(3.5, rifles.daily());
         assertEquals(List.of(future, old, current), rifles.models());
-        assertEquals(imported, rows.get(1).representative());
-        assertEquals(legacy, rows.get(2).representative());
         assertTrue(LogisticsRows.create(input, lines, "navy").isEmpty());
         assertEquals(20, old.stockpile(), "Grouping does not convert existing stock");
     }
-    @Test void lockedFamilyWithARealDeficitStillAppears() {
+    @Test void unacquiredFamilyWithOnlyDemandRemainsHidden() {
         var demand = new IndustryView.Equipment("old", "Old model", "image/old", "infantry", false, false, 1, 1,
                 Map.of(), 0, 0, 0, 30, "", "rifles", "보병 장비");
         var rows = LogisticsRows.create(List.of(demand), List.of(), "all");
-        assertEquals(1, rows.size());
-        assertEquals(30, rows.getFirst().deficit());
-        assertEquals("보병 장비", rows.getFirst().representative().familyName());
+        assertTrue(rows.isEmpty());
     }
     @Test void currentDemandDrivesStatusAndSignedBalanceAcrossGenerations() {
         var old = new IndustryView.Equipment("old", "old", "image/old", "infantry", false, false, 1, 1,
@@ -67,6 +63,17 @@ class LogisticsRowsTest {
         var covered = LogisticsRows.create(List.of(modern), List.of(), "all").getFirst();
         assertEquals("충족", covered.status());
         assertEquals(20L, covered.balance());
+    }
+    @Test void acquisitionHistoryKeepsAnExhaustedFamilyVisibleButAnEmptyLineDoesNot() {
+        var never = equipment("new", true, 0, "", "rifles");
+        var line = new IndustryView.Line("line", "new", 1, 1, 1, 10, 0, 0);
+        assertTrue(LogisticsRows.create(List.of(never),List.of(line),"all").isEmpty());
+        var acquired = new IndustryView.Equipment("old","old","image/old","infantry",false,false,1,1,
+                Map.of(),0,0,0,0,"new","rifles","보병 장비",0L,true);
+        var rows = LogisticsRows.create(List.of(acquired,never),List.of(line),"all");
+        assertEquals(1,rows.size());
+        assertEquals("image/new",rows.getFirst().representative().texture());
+        assertEquals(0,rows.getFirst().stockpile());
     }
     private static IndustryView.Equipment equipment(String id, boolean unlocked, long stock, String replacement, String family) {
         return new IndustryView.Equipment(id, id, "image/" + id, "infantry", false, unlocked, 1, 1,

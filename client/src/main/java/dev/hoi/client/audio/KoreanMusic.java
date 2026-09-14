@@ -29,6 +29,12 @@ public final class KoreanMusic {
             };
             client.getSoundManager().play(sound); return true;
         }
+        public void pause(boolean paused) {
+            if (sound == null) return;
+            var engine = ((dev.hoi.client.mixin.SoundManagerAccessor)Minecraft.getInstance().getSoundManager()).hoiSoundEngine();
+            var channel = ((dev.hoi.client.mixin.SoundEngineAccessor)engine).hoiChannels().get(sound);
+            if (channel != null) channel.execute(value -> { if (paused) value.pause(); else value.unpause(); });
+        }
         public boolean active() { return sound != null && Minecraft.getInstance().getSoundManager().isActive(sound); }
         public void stop() { if (sound != null) Minecraft.getInstance().getSoundManager().stop(sound); sound = null; }
     });
@@ -54,7 +60,7 @@ public final class KoreanMusic {
     }
     public static double volume(){return volume;}
     public static void volume(double value){if(Double.isFinite(value))volume=Math.clamp(value,0.0,1.0);}
-    public static boolean isPlaying(){return sound!=null&&Minecraft.getInstance().getSoundManager().isActive(sound);}
+    public static boolean isPlaying(){return !PLAYBACK.paused()&&sound!=null&&Minecraft.getInstance().getSoundManager().isActive(sound);}
     public static boolean stationEnabled(){return stationEnabled;}
     public static void toggleStation(){
         stationEnabled = !stationEnabled;
@@ -62,6 +68,10 @@ public final class KoreanMusic {
         else { enable(); if (!PLAYBACK.tracks().isEmpty()) play(PLAYBACK.selected()); }
     }
     public static void enable(){enabled=stationEnabled;}
+    public static void togglePause(){
+        if(!PLAYBACK.requested()){if(!PLAYBACK.tracks().isEmpty())play(PLAYBACK.selected());}
+        else PLAYBACK.togglePause();
+    }
     public static void stop(){enabled=false;PLAYBACK.stop();}
     public static void reset(){stop();selected=false;}
     public static void suspend(){PLAYBACK.tick(false);}

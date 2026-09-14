@@ -34,6 +34,7 @@ public final class KeywordIcons {
     public static Component decorate(Component text) {
         if (bindings == null) bindings = load();
         String label = text.getString().replaceAll("§.", "").stripLeading();
+        if (label.matches("에너지 농장[:：]?")) return text;
         for (var binding : bindings) {
             if (!label.startsWith(binding.label())) continue;
             int end = binding.label().length();

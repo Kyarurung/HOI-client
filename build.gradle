@@ -41,3 +41,28 @@ tasks.register('remapJar', Sync) {
     into layout.buildDirectory.dir('libs')
 }
 tasks.named('assemble') { dependsOn tasks.named('remapJar') }
+
+
+tasks.register('verifyProtocolSources') {
+    group = 'verification'
+    doLast {
+        def explicit = providers.gradleProperty('hoiProtocolSource').orNull
+        def other = file(explicit ?: '../HOI/protocol/src/main/java')
+        if (!other.isDirectory()) {
+            if (explicit != null) throw new GradleException("Protocol source directory does not exist: ${other}")
+            logger.lifecycle('Protocol source comparison skipped: sibling checkout is absent.')
+            return
+        }
+        def sources = { File directory ->
+            fileTree(directory).matching { include '**/*.java' }.files.collectEntries { source ->
+                [(directory.toPath().relativize(source.toPath()).toString()): source.getText('UTF-8').replace('\r\n', '\n')]
+            }
+        }
+        def local = sources(file('protocol/src/main/java'))
+        def remote = sources(other)
+        def changed = (local.keySet() + remote.keySet()).findAll { local[it] != remote[it] }.sort()
+        if (!changed.isEmpty()) throw new GradleException("Protocol source mismatch: ${changed.join(', ')}")
+        logger.lifecycle("Verified ${local.size()} shared protocol sources.")
+    }
+}
+tasks.named('test') { dependsOn 'verifyProtocolSources' }

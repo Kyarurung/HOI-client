@@ -35,6 +35,35 @@ public final class CompletionScreenChecks {
                 DialogClient.reset();
             }
         });
+        context.runOnClient(client -> {
+            var heard = new ArrayList<String>();
+            net.minecraft.client.sounds.SoundEventListener listener = (sound, event, range) -> {
+                if (Set.of("ui.click", "ui.confirm").contains(sound.getIdentifier().getPath())) {
+                    check(sound.getSource() == net.minecraft.sounds.SoundSource.MASTER, "Popup buttons use MASTER even with music muted");
+                    heard.add(sound.getIdentifier().getPath());
+                }
+            };
+            var music = client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.MUSIC);
+            double volume = music.get();
+            music.set(0.0);
+            client.getSoundManager().addListener(listener);
+            try {
+                for (String style : List.of("research_complete", "focus_complete")) {
+                    var view = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.DIPLOMACY, "완료", "", "", "", "", "", List.of(), List.of(new DialogView.Choice("details", "세부 사항"), new DialogView.Choice("ack", "확인")), style);
+                    var screen = new CompletionScreen(view, (v, choice) -> {});
+                    client.gui.setScreen(screen);
+                    heard.clear();
+                    press(screen, "세부 사항");
+                    press(screen, "확인");
+                    screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0));
+                    check(heard.equals(List.of("ui.click", "ui.confirm", "ui.confirm")), "Details, OK and Enter each play exactly one original click sound");
+                }
+            } finally {
+                client.getSoundManager().removeListener(listener);
+                music.set(volume);
+                client.gui.setScreen(null);
+            }
+        });
         var sent = new ArrayList<String>();
         for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(3);
@@ -104,24 +133,12 @@ public final class CompletionScreenChecks {
                 dev.hoi.client.CampaignHud.accept(HudProtocol.State.HIDDEN);
                 dev.hoi.client.HoiClient.openMenu(MenuTab.POLITICS);
                 check(c.gui.screen() == null, "A menu is never constructed before campaign participation is authorized");
-                method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_PRESS, new KeyEvent(GLFW.GLFW_KEY_F, 0, GLFW.GLFW_MOD_SHIFT));
-                check(!c.options.keySwapOffhand.consumeClick(), "Shift+F is intercepted before vanilla queues an offhand swap");
-                check(messages.size() == messageCount && c.gui.screen() == null, "Shift+F on an unsupported server must not print chat or open a menu");
-                for(int i=0;i<5;i++)method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_REPEAT,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));
-                for(int i=0;i<5;i++)method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_REPEAT,new KeyEvent(GLFW.GLFW_KEY_F,0,0));
-                check(!c.options.keySwapOffhand.consumeClick(), "Releasing Shift while F still repeats cannot leak an offhand action");
-                method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_RELEASE, new KeyEvent(GLFW.GLFW_KEY_F, 0, 0));
-                check(c.gui.screen()==null&&!c.options.keySwapOffhand.consumeClick(), "Holding Shift+F then releasing Shift first never opens UI or leaks a swap");
-                method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_PRESS,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));
-                for(int i=0;i<20;i++) {
-                    method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_REPEAT,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));
-                    check(c.gui.screen()==null, "Held shortcut never constructs a transient menu");
+                for(int modifiers:new int[]{GLFW.GLFW_MOD_SHIFT,0}) {
+                    method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_PRESS,new KeyEvent(GLFW.GLFW_KEY_F,0,modifiers));
+                    check(c.options.keySwapOffhand.consumeClick(), "Outside a campaign F retains vanilla offhand swap");
+                    check(messages.size()==messageCount&&c.gui.screen()==null, "F never opens politics or prints chat on unsupported servers");
+                    method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_RELEASE,new KeyEvent(GLFW.GLFW_KEY_F,0,modifiers));
                 }
-                method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_RELEASE,new KeyEvent(GLFW.GLFW_KEY_F,0,GLFW.GLFW_MOD_SHIFT));
-                check(c.gui.screen()==null&&!c.options.keySwapOffhand.consumeClick(), "Long press followed by F release while Shift remains held never opens UI");
-                method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_PRESS, new KeyEvent(GLFW.GLFW_KEY_F, 0, 0));
-                check(c.options.keySwapOffhand.consumeClick(), "Plain F still queues vanilla offhand swap");
-                method.invoke(c.keyboardHandler, c.getWindow().handle(), GLFW.GLFW_RELEASE, new KeyEvent(GLFW.GLFW_KEY_F, 0, 0));
             } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
         });
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);

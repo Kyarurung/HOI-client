@@ -9,6 +9,12 @@ import net.minecraft.world.item.component.CustomData;
 
 public final class MapInfoInput {
     private MapInfoInput() {}
+    public static boolean clickAt(Minecraft client, double x, double y, int width, int height) {
+        if(client.player==null||!ClientPlayNetworking.canSend(DialogProtocol.MapClick.TYPE)||!client.options.getCameraType().isFirstPerson())return false;
+        var matrix=client.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
+        var ray=matrix.transformProject(new org.joml.Vector3f((float)(x/width*2-1),(float)(1-y/height*2),1)).normalize();
+        ClientPlayNetworking.send(new DialogProtocol.MapClick(ray.x,ray.y,ray.z));return true;
+    }
     public static boolean click(Minecraft client) {
         if (client.player == null || client.gui.screen() != null || !ClientPlayNetworking.canSend(DialogProtocol.MapClick.TYPE)) return false;
         var item = client.player.getMainHandItem();

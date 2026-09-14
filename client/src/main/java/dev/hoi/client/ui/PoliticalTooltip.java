@@ -19,12 +19,35 @@ public final class PoliticalTooltip {
         return draw(g, font, entry, "country/" + country.toLowerCase(java.util.Locale.ROOT) + "/flag", countryName,
                 mouseX, mouseY, viewportWidth, viewportHeight, scroll);
     }
+    public static int drawDetail(GuiGraphicsExtractor g, Font font, String detail,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
+        return draw(g, font, new MenuView.Entry("", "", detail, -1, ""), "", "",
+                mouseX, mouseY, viewportWidth, viewportHeight, scroll, true, true);
+    }
+    public static int drawTextDetail(GuiGraphicsExtractor g, Font font, String detail,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
+        return draw(g, font, new MenuView.Entry("", "", detail, -1, ""), "", "",
+                mouseX, mouseY, viewportWidth, viewportHeight, scroll, true, false);
+    }
     private static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String flag, String countryName,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
+        return draw(g, font, entry, flag, countryName, mouseX, mouseY, viewportWidth, viewportHeight, scroll, false, true);
+    }
+    private static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String flag, String countryName,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, boolean compact, boolean icons) {
         int width = Math.max(80, Math.min(270, viewportWidth - 24));
+        if (compact) {
+            int measured = 80;
+            for (String line : entry.detail().split("\\R")) {
+                var value = HoiTooltips.sentences(Component.literal(line));
+                measured = Math.max(measured, line.startsWith("[image:") ? 170
+                        : font.width(icons ? KeywordIcons.decorate(value) : value));
+            }
+            width = Math.min(width, measured);
+        }
         String detail = flag.isEmpty() ? entry.detail() : entry.detail().strip();
         var rows = new ArrayList<Row>();
-        rows.add(new Row(Component.literal(entry.value().isBlank() ? entry.name() : entry.value())
+        if (!compact) rows.add(new Row(Component.literal(entry.value().isBlank() ? entry.name() : entry.value())
                 .withColor(HoiTooltips.GOLD).getVisualOrderText(), "", font.lineHeight + 3));
         if (!flag.isEmpty()) {
             var role = Component.literal(countryName).withColor(HoiTooltips.GOLD)
@@ -38,7 +61,7 @@ public final class PoliticalTooltip {
                 String image = line.substring(7, line.length() - 1);
                 int imageHeight = UiAssets.imageHeight(image, width);
                 if (imageHeight > 0) rows.add(new Row(null, image, imageHeight));
-            } else for (var text : HoiTooltips.lines(font, line, width + 24))
+            } else for (var text : HoiTooltips.lines(font, line, width + 24, icons))
                 rows.add(new Row(text, "", font.lineHeight + 1));
         }
         int total = rows.stream().mapToInt(Row::height).sum();

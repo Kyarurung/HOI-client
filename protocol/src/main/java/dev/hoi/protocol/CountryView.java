@@ -4,7 +4,11 @@ import java.util.*;
 
 
 public record CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
-        List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions) {
+        List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations) {
+    public CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
+            List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions) {
+        this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, actions, List.of());
+    }
     public CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
             List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports) {
         this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, null);
@@ -18,8 +22,17 @@ public record CountryView(String viewer, CountryHud hud, String target, String n
     public CountryView {
         tag(viewer); tag(target); text(name, 128); Objects.requireNonNull(hud);
         countries = bounded(countries, 64); diplomacy = bounded(diplomacy, 64); focuses = bounded(focuses, 64); reports = bounded(reports, 4);
+        relations = relations == null ? List.of() : bounded(relations, 24);
         if (reports.size() != 4 || new HashSet<>(reports.stream().map(Report::domain).toList()).size() != 4)
             throw new IllegalArgumentException("Missing intelligence domains");
+    }
+    public record Relation(String name, String icon, List<Choice> countries) {
+        public Relation {
+            text(name, 128); text(icon, 160);
+            if (!icon.matches("[a-z0-9_/]+")) throw new IllegalArgumentException("Invalid relation icon");
+            countries = bounded(countries, 64);
+            if (countries.stream().map(Choice::tag).distinct().count() != countries.size()) throw new IllegalArgumentException("Duplicate relation country");
+        }
     }
     public record Choice(String tag, String name) { public Choice { CountryView.tag(tag); text(name, 128); } }
     public record Report(IntelDomain domain, double percent, List<MenuView.Entry> entries) {

@@ -44,7 +44,7 @@ public final class KoreanMusicScreen extends Screen {
             }
         });
         control("이전 곡","previous",cx-52,cy,20,20,()->playStep(-1));
-        control("재생","play",cx-27,cy,34,20,()->{if(!tracks.isEmpty())KoreanMusic.play(p.selected());});
+        control("재생","play",cx-27,cy,34,20,KoreanMusic::togglePause);
         control("정지","stop",cx+12,cy,20,20,KoreanMusic::stop);
         control("다음 곡","next",cx+37,cy,20,20,()->playStep(1));
         for(int i=offset;i<Math.min(tracks.size(),offset+visible);i++){
@@ -55,7 +55,7 @@ public final class KoreanMusicScreen extends Screen {
                     if(index==KoreanMusic.PLAYBACK.selected()&&KoreanMusic.PLAYBACK.requested())g.fill(getX(),getY()+2,getRight(),getBottom()-2,0x403E842E);
                     if(isHovered())g.fill(getX(),getY()+1,getRight(),getBottom()-1,0x20585858);
                     g.text(font,font.plainSubstrByWidth(track.title(),getWidth()-60),getX()+5,getY()+(getHeight()-font.lineHeight)/2+1,0xFFD7D7D7);
-                    if(index==KoreanMusic.PLAYBACK.selected()&&KoreanMusic.isPlaying())UiAssets.draw(g,"music/selected",getRight()-50,getY()+4,10,10);
+                    if(index==KoreanMusic.PLAYBACK.selected()&&KoreanMusic.isPlaying())UiAssets.draw(g,"music/selected",getRight()-52,getY()+4,10,10);
                     long seconds=(long)track.seconds();
                     g.text(font,String.format(Locale.ROOT,"%02d:%02d",seconds/60,seconds%60),getRight()-34,getY()+(getHeight()-font.lineHeight)/2+1,0xFFBBBBBB);
                 }
@@ -66,7 +66,12 @@ public final class KoreanMusicScreen extends Screen {
     private void playStep(int direction){var p=KoreanMusic.PLAYBACK;if(!tracks.isEmpty())KoreanMusic.play(Math.floorMod(p.selected()+direction,tracks.size()));}
     private void control(String label,String image,int px,int py,int width,int height,Runnable action){
         var button=new PanelButton(label,px,py,width,height,action){
-            @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){UiAssets.draw(g,"music/"+image,getX(),getY(),getWidth(),getHeight());}
+            @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){
+                boolean pause=image.equals("play")&&KoreanMusic.PLAYBACK.requested()&&!KoreanMusic.PLAYBACK.paused();
+                String title=pause?"일시정지":label;
+                if(!getMessage().getString().equals(title)){setMessage(Component.literal(title));setTooltip(HoiTooltips.create(getMessage()));}
+                UiAssets.draw(g,"music/"+(pause?"pause":image),getX(),getY(),getWidth(),getHeight());
+            }
         };
         button.active=!tracks.isEmpty();button.setTooltip(HoiTooltips.create(Component.literal(label)));addRenderableWidget(button);
     }

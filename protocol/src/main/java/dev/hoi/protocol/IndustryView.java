@@ -33,9 +33,13 @@ public record IndustryView(String session, long revision, String country, Countr
         this(session, revision, country, hud, economy, resources, modifiers, equipment, lines, partners, trades,
                 templates, battalions, companies, locations, recruits, deployed, draft, message, navalRepairs, null);
     }
-    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds, Double minimumTraining) {
+    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds, Double minimumTraining, Map<String,Double> equipmentRatios) {
+        public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds,Double minimumTraining) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,minimumTraining,Map.of());}
         public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,null);}
         public RecruitmentPolicy {
+            equipmentRatios=equipmentRatios==null?Map.of():boundedMap(equipmentRatios,6);
+            if(!Set.of("reinforcement","upgrade","supply","operation","garrison","raid").containsAll(equipmentRatios.keySet())
+                    ||equipmentRatios.values().stream().anyMatch(v->!Double.isFinite(v)||v<0||v>1))throw new IllegalArgumentException("Invalid equipment allocation ratio");
             if(minimumTraining!=null&&(!Double.isFinite(minimumTraining)||minimumTraining<0||minimumTraining>1)) throw new IllegalArgumentException("Invalid training threshold");
             retiredTemplates=Set.copyOf(retiredTemplates);priorities=boundedMap(priorities,6);reinforcementNeeds=boundedMap(reinforcementNeeds,512);
             if(retiredTemplates.size()>256||priorities.values().stream().anyMatch(p->p<0||p>2)
@@ -72,8 +76,14 @@ public record IndustryView(String session, long revision, String country, Countr
     public record Modifier(String id, String name, double value, String detail) {}
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
             double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
-            String replacement, String family, String familyName, Long demand) {
+            String replacement, String family, String familyName, Long demand, Boolean acquired) {
 
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,null);
+        }
+        public boolean everAcquired() { return Boolean.TRUE.equals(acquired) || stockpile > 0 || reserved > 0 || deployed > 0; }
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
                 String replacement, String family, String familyName) {

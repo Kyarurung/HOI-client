@@ -148,9 +148,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
             var focusBox = politicsLayout().focusTitle();
             addRenderableWidget(new InvisibleButton("국가 중점", focusBox.x(), focusBox.y(), focusBox.width(), focusBox.height(),
                     () -> minecraft.gui.setScreen(new FocusScreen())));
-            var factionBox = politicsLayout().faction();
-            addRenderableWidget(new InvisibleButton("세력", factionBox.x(), factionBox.y(), factionBox.width(), factionBox.height(),
-                    () -> HoiClient.openCountry("")));
+
         }
         if (selected == MenuTab.TRADE) {
             addRenderableWidget(new HoiMenuButton("경제", "category/industry", tradeTab == 0, 8, top + 30, (pane - 20) / 2, 24,

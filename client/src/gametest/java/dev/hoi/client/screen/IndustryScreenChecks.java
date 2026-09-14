@@ -19,6 +19,14 @@ public final class IndustryScreenChecks {
             fixture = new IndustryProtocol.Response(new String(Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8)).view();
         } catch (java.io.IOException e) { throw new RuntimeException(e); }
         var v = copy(fixture, hud, fixture.revision(), null);
+        var sourceEquipment=new ArrayList<IndustryView.Equipment>();
+        var names=List.of("견인포","자주대공포","경기계화","정찰전차","다목적 헬리콥터","대전차 장비","수륙양용장갑차","휴대용 대공 미사일","차량화 로켓포","수륙양용전차");
+        var ids=List.of("artillery_equipment","spaa_equipment","light_mechanized_equipment","light_tank_chassis","utility_helicopter_equipment","anti_tank_equipment","amphibious_mechanized_equipment","anti_air_equipment","motorized_rocket_equipment","amphibious_tank_chassis");
+        for(int i=0;i<ids.size();i++)sourceEquipment.add(new IndustryView.Equipment("hoi:tfr/equipment/"+ids.get(i),names.get(i),
+                "production/equipment/tfr/equipment/"+ids.get(i),"infantry",false,true,1,1,Map.of(),1,0,0,0,"",ids.get(i),names.get(i),0L,true));
+        var illustrations=new IndustryView(v.session(),v.revision(),v.country(),v.hud(),v.economy(),v.resources(),v.modifiers(),sourceEquipment,List.of(),v.partners(),v.trades(),v.templates(),v.battalions(),v.companies(),v.locations(),List.of(),List.of(),null,"",v.navalRepairs());
+        context.setScreen(()->new IndustryScreen(MenuTab.LOGISTICS,v.session(),illustrations,request->{}));
+        ResearchScreenGameTest.gui2Screenshot(context,"hoi-logistics-source-equipment-images");
         var supplyModels = v.equipment().stream().map(e -> new IndustryView.Equipment(e.id(), e.name(), e.texture(), e.group(), e.naval(), e.unlocked(),
                 e.cost(), e.factoryLimit(), e.id().equals("hoi:infantry_gear") ? Map.of("OIL", 1.0, "ALUMINUM", 2.0, "RUBBER", 3.0, "TUNGSTEN", 4.0, "IRON", 5.0, "CHROMIUM", 6.0) : e.resources(), e.stockpile() == 0 ? 50 : e.stockpile(), e.reserved(), e.deployed(), e.deficit(), e.replacement(), e.family(), e.familyName(), 100L)).toList();
         var supply = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), supplyModels, v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), v.recruits(), v.deployed(), v.draft(), v.message(), v.navalRepairs(), v.specialForces());
@@ -141,7 +149,7 @@ public final class IndustryScreenChecks {
             for (int row = 0; row < 4; row++) trainingRows.add(new IndustryView.Recruit("alignment-" + group + "-" + row,
                     t.id(), group == 0 ? "" : v.recruits().getFirst().location(), row % 3, .25 + row * .2, t.manpower(), t.equipment(), group == 0 ? 0 : 5, row));
         }
-        var trainingView = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), trainingRows, List.of(), null, "", v.navalRepairs(), v.specialForces(), new IndustryView.RecruitmentPolicy(Set.of(), Map.of("reinforcement", 2, "upgrade", 1, "supply", 1, "operation", 1, "garrison", 1, "raid", 0), .65, Map.of()));
+        var trainingView = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), trainingRows, List.of(), null, "", v.navalRepairs(), v.specialForces(), new IndustryView.RecruitmentPolicy(Set.of(), Map.of("reinforcement", 2, "upgrade", 1, "supply", 1, "operation", 1, "garrison", 1, "raid", 0), .65, Map.of(), null, Map.of("upgrade", 0.0, "supply", .25, "operation", .5, "garrison", .75, "raid", 1.0)));
         for (int[] size : new int[][]{{1600, 1000}, {2560, 1440}}) {
             context.getInput().resizeWindow(size[0], size[1]);
             context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, trainingView.session(), trainingView, requests::add));

@@ -9,12 +9,26 @@ class PlaylistPlaybackTest {
             new PlaylistPlayback.Track("music.korea.first", "첫 곡", 100),
             new PlaylistPlayback.Track("music.korea.second", "다음 곡", 120));
     private static class Output implements PlaylistPlayback.Output {
-        int starts; boolean playing, ready = true; String track;
+        int starts; boolean playing, paused, ready = true; String track;
         public boolean start(PlaylistPlayback.Track selected) {
             assertFalse(playing); starts++; track = selected.event(); playing = ready; return ready;
         }
         public boolean active() { return playing; }
-        public void stop() { playing = false; }
+        public void stop() { playing = false; paused = false; }
+        public void pause(boolean value) { paused = value; }
+    }
+    @Test void pauseResumesTheSameStreamAndSelectionWithoutAdvancingOrRestarting() {
+        var out=new Output();var player=new PlaylistPlayback(out);player.replace(TRACKS);
+        player.togglePause();player.tick(true);player.togglePause();
+        assertTrue(player.paused());assertTrue(out.paused);
+        for(int i=0;i<200;i++)player.tick(true);
+        assertEquals(1,out.starts);assertEquals(0,player.selected());
+        player.togglePause();player.tick(true);
+        assertFalse(out.paused);assertEquals(1,out.starts);
+        player.togglePause();player.tick(false);player.tick(true);
+        assertEquals(1,out.starts);assertTrue(player.paused());
+        player.togglePause();player.tick(true);assertEquals(2,out.starts);
+        player.togglePause();player.stop();assertFalse(player.paused());assertFalse(player.requested());
     }
     @Test void twoPlayersKeepIndependentSelectionsAndStopStates() {
         var a=new Output();var b=new Output();var first=new PlaylistPlayback(a);var second=new PlaylistPlayback(b);

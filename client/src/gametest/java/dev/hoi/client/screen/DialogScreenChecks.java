@@ -12,6 +12,8 @@ import java.util.*;
 public final class DialogScreenChecks {
     record Fixtures(List<DialogView> views, List<String> sounds) {}
     public static void run(ClientGameTestContext context) {
+        MapDetailScreenChecks.run(context);
+        AirDetailScreenChecks.run(context);
         Fixtures fixture;
         try (var input = DialogScreenChecks.class.getResourceAsStream("/dialog-fixtures.json")) {
             fixture = new Gson().fromJson(new InputStreamReader(Objects.requireNonNull(input), StandardCharsets.UTF_8), Fixtures.class);
@@ -21,6 +23,8 @@ public final class DialogScreenChecks {
             for (var path : fixture.sounds()) if (client.getSoundManager().getSoundEvent(Identifier.fromNamespaceAndPath("hoi", path)) == null)
                 throw new AssertionError("Missing super-event sound: " + path);
             for (var view : fixture.views()) {
+                if (!EnumSet.of(DialogView.Kind.EVENT, DialogView.Kind.GLOBAL_EVENT, DialogView.Kind.SUPER_EVENT).contains(view.kind()))
+                    throw new AssertionError("Generic dialog fixtures must not recreate country or map detail screens");
                 if (!view.image().isEmpty() && client.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/" + view.image() + ".png")).isEmpty())
                     throw new AssertionError("Missing event picture: " + view.title());
                 var buffer = new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(), net.minecraft.core.RegistryAccess.EMPTY);

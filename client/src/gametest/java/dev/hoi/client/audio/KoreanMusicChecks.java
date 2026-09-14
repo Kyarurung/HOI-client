@@ -48,6 +48,15 @@ public final class KoreanMusicChecks {
                 context.waitTicks(25);
                 context.takeScreenshot("hoi-korean-music-on-1600");
                 context.runOnClient(client -> {
+                    var button=client.gui.screen().children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("일시정지")).map(w -> (Button)w).findFirst().orElseThrow();
+                    button.onPress(new net.minecraft.client.input.MouseButtonEvent(button.getX()+2,button.getY()+2,new net.minecraft.client.input.MouseButtonInfo(0,0)));
+                    if(!KoreanMusic.PLAYBACK.paused())throw new AssertionError("Pause control must pause selected stream");
+                });
+                context.waitTicks(25);
+                context.takeScreenshot("hoi-korean-music-paused-1600");
+                context.runOnClient(client -> KoreanMusic.togglePause());
+                context.waitTicks(3);
+                context.runOnClient(client -> {
                     var slider=client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.AbstractSliderButton).map(w -> (net.minecraft.client.gui.components.AbstractSliderButton)w).findFirst().orElseThrow();
                     slider.onClick(new net.minecraft.client.input.MouseButtonEvent(slider.getX()+4,slider.getY()+5,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
                     if(KoreanMusic.volume()!=0)throw new AssertionError("Volume click reaches mute");

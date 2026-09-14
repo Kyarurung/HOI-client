@@ -62,7 +62,13 @@ public final class DialogClient {
         DialogView view;
         try { view = packet.view(); } catch (IllegalArgumentException error) { return; }
         var existing = find(view.token());
-        if (existing != null) { existing.update(view); return; }
+        if (existing != null) {
+            if(view.revision()<existing.view().revision())return;
+            if(view.kind()==DialogView.Kind.STATE&&(existing instanceof AirDetailScreen||existing instanceof MapDetailScreen)
+                    &&(existing instanceof AirDetailScreen)!=view.image().equals("air_detail/background"))show(view);
+            else existing.update(view);
+            return;
+        }
         var old = pending.get(view.token());
         if (old != null && old.revision() > view.revision()) return;
         if (!packet.open()) { if (old != null) pending.put(view.token(), view); return; }
@@ -94,7 +100,7 @@ public final class DialogClient {
             HoiClient.cancelOpen();
             var parent = contentScreen();
             if (parent instanceof PoliticsChoiceScreen politics) parent = politics.backdrop();
-            var screen = view.kind() == DialogView.Kind.POLITICS ? new PoliticsChoiceScreen(view, parent) : new DialogScreen(view);
+            var screen = view.kind() == DialogView.Kind.POLITICS ? new PoliticsChoiceScreen(view, parent) : view.kind() == DialogView.Kind.STATE ? (view.image().equals("air_detail/background") ? new AirDetailScreen(view) : new MapDetailScreen(view)) : new DialogScreen(view);
             if (client.gui.screen() == notifications && notifications != null) {
                 notifications.backdrop(screen); screen.init(notifications.width, notifications.height);
             } else client.gui.setScreen(screen);

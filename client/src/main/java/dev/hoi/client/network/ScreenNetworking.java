@@ -22,7 +22,8 @@ public final class ScreenNetworking {
     private static final PendingScreen pendingResearch = new PendingScreen();
     private static final PendingScreen pendingMenu = new PendingScreen();
     private static dev.hoi.protocol.MenuTab pendingTab;
-    private static net.minecraft.client.gui.screens.Screen menuOrigin;
+    private static net.minecraft.client.gui.screens.Screen menuOrigin, researchOrigin;
+    private static String researchCountry = "";
     private static String menuCountry = "", menuToken = "";
     private static int menuRetryTicks;
     public static void register() {
@@ -54,6 +55,7 @@ public final class ScreenNetworking {
                     ClientPlayNetworking.send(new MenuProtocol.Refresh(menuToken));
                 }
             }
+            if (pendingResearch.waiting() && !researchContextValid()) cancelOpen();
             if (pendingResearch.tick()) message("연구 화면 응답이 없습니다. 다시 열어주세요.");
         });
         ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.OpenScreen.TYPE, (packet, context) -> open());
@@ -98,7 +100,14 @@ public final class ScreenNetworking {
             try { agency.update(packet.view()); }
             catch (IllegalArgumentException error) { message("정보기관 데이터를 읽을 수 없습니다."); }
         });
-        ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.Response.TYPE, (packet, context) -> {
+        ClientPlayNetworking.registerGlobalReceiver(ResearchProtocol.Response.TYPE, (packet, context) -> receiveResearch(packet));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            cancelOpen();
+            if (client.gui.screen() instanceof dev.hoi.client.screen.WorldTensionScreen) client.gui.setScreen(null);
+            if (client.gui.screen() instanceof dev.hoi.client.screen.FocusScreen || client.gui.screen() instanceof dev.hoi.client.screen.DecisionScreen || client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen || client.gui.screen() instanceof AgencyScreen || client.gui.screen() instanceof ConstructionScreen || client.gui.screen() instanceof CountryScreen || client.gui.screen() instanceof IndustryScreen) client.gui.setScreen(null);
+        });
+    }
+    static void receiveResearch(ResearchProtocol.Response packet) {
             try {
                 var view = packet.view();
                 var current = DialogClient.contentScreen();
@@ -106,14 +115,19 @@ public final class ScreenNetworking {
                     boolean active = current instanceof ResearchScreen screen && (view.session().isEmpty() || screen.session().equals(view.session()));
                     if (active || pendingResearch.matches(view.session())) {
                         cancelOpen();
-                        if (active) context.client().gui.setScreen(null);
+                        if (active) Minecraft.getInstance().gui.setScreen(null);
                         message(view.message());
                     }
                 } else if (pendingResearch.matches(view.session())) {
+                    if (!researchContextValid() || !researchCountry.isEmpty() && !researchCountry.equals(view.country())) {
+                        cancelOpen();
+                        send(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, ""));
+                        return;
+                    }
                     String target = pendingResearch.target();
                     cancelOpen();
                     var screen = new ResearchScreen(view);
-                    context.client().gui.setScreen(screen);
+                    Minecraft.getInstance().gui.setScreen(screen);
                     if (target != null && view.technology(target) != null) screen.showDetail(target);
                 } else if (current instanceof ResearchScreen screen && screen.session().equals(view.session())) {
                     screen.update(view);
@@ -122,18 +136,19 @@ public final class ScreenNetworking {
                     send(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, ""));
                 }
             } catch (IllegalArgumentException e) { cancelOpen(); message("HOI 연구 화면 데이터를 읽을 수 없습니다."); }
-        });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            cancelOpen();
-            if (client.gui.screen() instanceof dev.hoi.client.screen.WorldTensionScreen) client.gui.setScreen(null);
-            if (client.gui.screen() instanceof dev.hoi.client.screen.FocusScreen || client.gui.screen() instanceof dev.hoi.client.screen.DecisionScreen || client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof HoiMenuScreen || client.gui.screen() instanceof AgencyScreen || client.gui.screen() instanceof ConstructionScreen || client.gui.screen() instanceof CountryScreen || client.gui.screen() instanceof IndustryScreen) client.gui.setScreen(null);
-        });
+    }
+    static ResearchProtocol.Request beginResearch() {
+        cancelOpen();
+        researchOrigin = DialogClient.contentScreen(); researchCountry = CampaignHud.country();
+        return new ResearchProtocol.Request(ResearchProtocol.Action.OPEN, pendingResearch.begin(), 0, -1, "");
+    }
+    private static boolean researchContextValid() {
+        return researchCountry.equals(CampaignHud.country()) && researchOrigin == DialogClient.contentScreen();
     }
     public static void open() {
         if (pendingResearch.waiting() || DialogClient.contentScreen() instanceof ResearchScreen) return;
         if (!ClientPlayNetworking.canSend(ResearchProtocol.Request.TYPE)) { message("이 서버는 HOI 연구 UI를 지원하지 않습니다."); return; }
-        cancelOpen();
-        send(new ResearchProtocol.Request(ResearchProtocol.Action.OPEN, pendingResearch.begin(), 0, -1, ""));
+        send(beginResearch());
     }
     public static void openResearchDetail(String id) {
         cancelOpen();
@@ -142,7 +157,7 @@ public final class ScreenNetworking {
         if (pendingResearch.waiting()) pendingResearch.target(id);
     }
     public static void cancelOpen() {
-        pendingResearch.clear(); pendingMenu.clear(); pendingTab = null; menuOrigin = null;
+        pendingResearch.clear(); pendingMenu.clear(); pendingTab = null; menuOrigin = null; researchOrigin = null; researchCountry = "";
         menuCountry = ""; menuToken = ""; menuRetryTicks = 0;
     }
     static MenuProtocol.Refresh beginMenu(dev.hoi.protocol.MenuTab tab) {

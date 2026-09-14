@@ -15,9 +15,9 @@ public final class ConstructionScreenChecks {
         var requests=new ArrayList<ConstructionProtocol.Request>();String token=UUID.randomUUID().toString();
         var buildings=new ArrayList<ConstructionView.Building>();
         for(String id:List.of("infrastructure","air_base","anti_air","radar","military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","rocket_site","nuclear_reactor","power_plant","energy_farm","conversion","fort","coastal_fort","port","hub","railway","dam","dam_mountain"))
-            buildings.add(new ConstructionView.Building(id,buildingName(id),id.equals("energy_farm")?"":"construction/"+id,!Set.of("dam","dam_mountain").contains(id),"주를 선택하세요."));
+            buildings.add(new ConstructionView.Building(id,buildingName(id),"construction/"+id,!Set.of("dam","dam_mountain").contains(id),"주를 선택하세요."));
         var projects=new ArrayList<ConstructionView.Project>();
-        for(int i=0;i<16;i++)projects.add(new ConstructionView.Project("p"+i,"state"+i,i%2==0?"civilian_factory":"military_factory",i%2==0?"경상북도":"서울",1,i<2?15:0,2500,90,10800));
+        for(int i=0;i<16;i++)projects.add(new ConstructionView.Project("p"+i,"state"+i,i%2==0?"civilian_factory":"military_factory",i%2==0?"경상북도":"서울",i==0?16:1,i<2?15:0,2500,90,10800));
         var summary=new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,10,21.862500000000004,2,
                 "건설 속도\n무역법: +15%\n국가 보정: +16%\n최종 배율 = 최대(0, 1 + 0.31) = 1.31",
                 "사용 가능한 에너지: 10\n공급 = 기본 10 + 석탄 0 × 9 = 10\n총수요: 21.8625\n잉여분 = 공급 − 수요 = −11.8625",

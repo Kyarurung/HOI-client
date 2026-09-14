@@ -15,6 +15,8 @@ public final class HoiMenuButton extends Button {
     private float textScale = 1;
     private String caption;
     private String background;
+    private String sound = "ui.click";
+    public HoiMenuButton sound(String value) { sound = value; return this; }
 
     public void textScale(float scale) { textScale = scale; }
     public HoiMenuButton caption(String value) { caption = value; if (isClose(value)) setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal("닫기"))); return this; }
@@ -31,7 +33,7 @@ public final class HoiMenuButton extends Button {
         setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(isClose(label) ? "닫기" : label)));
     }
 
-    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : "ui.click"); }
+    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play(getMessage().getString().equals("×") ? "ui.close" : sound); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         if (!"none".equals(background) && (background == null || !UiAssets.draw(g, background, x, y, w, h))) HoiMenuStyle.control(g, x, y, w, h, selected, false);

@@ -10,8 +10,16 @@ public record DialogView(String token,long revision,Kind kind,String title,Strin
         this(token,revision,kind,title,subtitle,body,flag,image,sound,tiles,choices,"");
     }
     public enum Kind { STATE, DIPLOMACY, EVENT, GLOBAL_EVENT, SUPER_EVENT, IDEOLOGIES, POLITICS }
-    public record Tile(String section,String name,String value,String icon,String detail) {
-        public Tile {text(section,80);text(name,160);text(value,160);asset(icon);text(detail,3000);}
+    public record Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay) {
+        public Tile(String section,String name,String value,String icon,String detail) {this(section,name,value,icon,detail,null,"");}
+        public Tile(String section,String name,String value,String icon,String detail,Gauge gauge) {this(section,name,value,icon,detail,gauge,"");}
+        public Tile {overlay=overlay==null?"":overlay;text(section,80);text(name,160);text(value,160);asset(icon);asset(overlay);text(detail,3000);}
+    }
+    public record Gauge(double fraction,String tooltip) {
+        public Gauge {
+            if(!Double.isFinite(fraction)||fraction<0||fraction>1)throw new IllegalArgumentException("Invalid building damage");
+            text(tooltip,240);
+        }
     }
     public record Choice(String id,String label) {
         public Choice {text(id,160);text(label,240);}

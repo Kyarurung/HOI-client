@@ -7,6 +7,16 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndustryViewTest {
+    @Test void equipmentRatiosPreserveUnknownAndValidateServerValues() {
+        var gson=new com.google.gson.Gson();
+        var policy=new IndustryView.RecruitmentPolicy(java.util.Set.of(),Map.of(),.5,Map.of(),null,Map.of("supply",0.0,"garrison",1.0));
+        assertEquals(policy,gson.fromJson(gson.toJson(policy),IndustryView.RecruitmentPolicy.class));
+        var legacy=gson.toJsonTree(policy).getAsJsonObject();legacy.remove("equipmentRatios");
+        assertTrue(gson.fromJson(legacy,IndustryView.RecruitmentPolicy.class).equipmentRatios().isEmpty());
+        for(double ratio:new double[]{-.01,1.01,Double.NaN,Double.POSITIVE_INFINITY})
+            assertThrows(IllegalArgumentException.class,()->new IndustryView.RecruitmentPolicy(java.util.Set.of(),Map.of(),null,Map.of(),null,Map.of("upgrade",ratio)));
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.RecruitmentPolicy(java.util.Set.of(),Map.of(),null,Map.of(),null,Map.of("unknown",.5)));
+    }
     @Test void regimentColumnsPreserveHolesBetweenIndependentColumns() {
         var gson=new com.google.gson.Gson();
         var line=List.of("INFANTRY","INFANTRY","INFANTRY","INFANTRY");

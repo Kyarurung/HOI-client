@@ -58,6 +58,29 @@ public final class MenuTransitionChecks {
             CampaignHud.accept(HudProtocol.State.of(view.country(), view.hud()));
         });
         context.setScreen(() -> null);
+        context.runOnClient(client -> {
+            var request = ScreenNetworking.beginResearch();
+            var pause = new PauseScreen(true); client.gui.setScreen(pause);
+            ScreenNetworking.receiveResearch(researchResponse(request.session(),view.country()));
+            check(client.gui.screen() == pause, "Delayed research response cannot replace the user's new screen");
+            client.gui.setScreen(null);
+            request = ScreenNetworking.beginResearch();
+            CampaignHud.accept(HudProtocol.State.HIDDEN);
+            ScreenNetworking.receiveResearch(researchResponse(request.session(),view.country()));
+            check(client.gui.screen() == null, "Research reply cannot reopen a stopped country");
+            CampaignHud.accept(HudProtocol.State.of(view.country(),view.hud()));
+            String old = ScreenNetworking.beginResearch().session();
+            request = ScreenNetworking.beginResearch();
+            ScreenNetworking.receiveResearch(researchResponse(old,view.country()));
+            check(client.gui.screen() == null, "Superseded research reply cannot open a screen");
+            ScreenNetworking.receiveResearch(researchResponse(request.session(),view.country()));
+            check(client.gui.screen() instanceof dev.hoi.client.research.ResearchScreen, "Current research response opens normally");
+            ScreenNetworking.cancelOpen();
+        });
+        context.setScreen(() -> null);
+    }
+    private static ResearchProtocol.Response researchResponse(String token,String country) {
+        return ResearchProtocol.Response.of(new ResearchView(token,1,country,country,0,"2020년 1월 1일","일시 정지",java.util.List.of(new ResearchView.Slot(0,"",0)),java.util.List.of(),""));
     }
     private static void check(boolean valid, String message) { if (!valid) throw new AssertionError(message); }
 }

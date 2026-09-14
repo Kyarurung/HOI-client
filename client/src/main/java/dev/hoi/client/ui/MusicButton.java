@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 
 public final class MusicButton extends Button {
     private static final int SIZE = 18, Y = 17;
-    public static int x(int width) { return HoiMenuBar.statsRight(width) - 43; }
+    public static int x(int width) { return HoiMenuBar.tensionX(width) - SIZE - 5; }
     public MusicButton(int width) {
         super(x(width), Y, SIZE, SIZE, Component.literal("플레이리스트 목록"), button -> {
             var client = Minecraft.getInstance();
