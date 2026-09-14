@@ -143,13 +143,27 @@ public final class IndustryScreenChecks {
         });
         context.waitTicks(2); context.takeScreenshot("hoi-deployment-menu-restored");
 
+        context.runOnClient(client -> {
+            var needs = Map.of("rifles", 900L, "support", 100L);
+            check(IndustryScreen.fillRatio(needs, Map.of("rifles", 450L)) == .45, "A missing equipment family must not hide supplied equipment");
+            check(IndustryScreen.fillRatio(needs, Map.of("rifles", 1800L, "unneeded", 500L)) == .9, "Surplus and unrelated equipment cannot replace a missing family");
+            check(IndustryScreen.fillRatio(needs, Map.of()) == 0, "No issued equipment stays empty");
+            check(IndustryScreen.fillRatio(needs, needs) == 1, "Fully issued equipment fills the gauge");
+            check(IndustryScreen.fillRatio(Map.of(), Map.of()) == 1, "No required equipment is already satisfied");
+        });
         var trainingRows = new ArrayList<IndustryView.Recruit>();
         for (int group = 0; group < 2; group++) {
             var t = v.templates().get(group);
-            for (int row = 0; row < 4; row++) trainingRows.add(new IndustryView.Recruit("alignment-" + group + "-" + row,
-                    t.id(), group == 0 ? "" : v.recruits().getFirst().location(), row % 3, .25 + row * .2, t.manpower(), t.equipment(), group == 0 ? 0 : 5, row));
+            for (int row = 0; row < 4; row++) {
+                var supplied = new TreeMap<String, Long>();
+                int portion = row;
+                t.equipment().forEach((id, count) -> supplied.put(id, count * portion / 3));
+                if (row == 1 && supplied.size() > 1) supplied.remove(supplied.firstKey());
+                trainingRows.add(new IndustryView.Recruit("alignment-" + group + "-" + row,
+                        t.id(), group == 0 ? "" : v.recruits().getFirst().location(), row % 3, .25 + row * .2, t.manpower(), supplied, group == 0 ? 0 : 5, row));
+            }
         }
-        var trainingView = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), trainingRows, List.of(), null, "", v.navalRepairs(), v.specialForces(), new IndustryView.RecruitmentPolicy(Set.of(), Map.of("reinforcement", 2, "upgrade", 1, "supply", 1, "operation", 1, "garrison", 1, "raid", 0), .65, Map.of(), null, Map.of("upgrade", 0.0, "supply", .25, "operation", .5, "garrison", .75, "raid", 1.0)));
+        var trainingView = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), trainingRows, List.of(), null, "", v.navalRepairs(), v.specialForces(), new IndustryView.RecruitmentPolicy(Set.of(), Map.of("reinforcement", 2, "upgrade", 1, "supply", 1, "operation", 1, "garrison", 1, "raid", 0), .65, Map.of(), null, Map.of("supply", .25, "operation", .5, "garrison", .75, "raid", 1.0)));
         for (int[] size : new int[][]{{1600, 1000}, {2560, 1440}}) {
             context.getInput().resizeWindow(size[0], size[1]);
             context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, trainingView.session(), trainingView, requests::add));

@@ -441,8 +441,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             }
             Double ratio = policy == null ? null : i == 0 ? policy.reinforcementRatio() : policy.equipmentRatios().get(category);
             int meterX = 7 + (int)(310 * scale), meterY = y + (int)(19 * scale), meterW = (int)(72 * scale), meterH = Math.max(2, (int)(12 * scale));
-            bar(meterX, meterY, meterW, meterH, ratio == null ? 0 : ratio, 0xFF7EAF69);
-            if (ratio == null) cellText("—", meterX, meterY, meterW, meterH, MUTED, false);
+            bar(meterX, meterY, meterW, meterH, ratio == null ? (category.equals("upgrade") ? 1 : 0) : ratio, 0xFF7EAF69);
+            if (ratio == null && !category.equals("upgrade")) cellText("—", meterX, meterY, meterW, meterH, MUTED, false);
             if (i == 0 && ratio != null) {
                 String needs = policy.reinforcementNeeds().entrySet().stream().map(e -> familyName(equipment(e.getKey())) + " · 부족 " + e.getValue()).collect(java.util.stream.Collectors.joining("\n"));
                 tip("증원 · 장비 충족률 " + percent(policy.reinforcementRatio()) + (needs.isEmpty() ? "\n부족한 장비 없음" : "\n" + needs), 7, y, (int)(400 * scale), rowHeight);
@@ -911,8 +911,15 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private String equipmentList(Map<String,Long> need, Map<String,Long> current) {
         return need.entrySet().stream().map(e -> familyName(equipment(e.getKey())) + ": " + current.getOrDefault(e.getKey(), 0L) + " / " + e.getValue()).reduce((a, b) -> a + "\n" + b).orElse("필요 장비 없음");
     }
-    private static double fillRatio(Map<String,Long> need, Map<String,Long> current) {
-        return need.entrySet().stream().filter(e -> e.getValue() > 0).mapToDouble(e -> Math.min(1, (double) current.getOrDefault(e.getKey(), 0L) / e.getValue())).min().orElse(1);
+    static double fillRatio(Map<String,Long> need, Map<String,Long> current) {
+        double required = 0;
+        double supplied = 0;
+        for (var entry : need.entrySet()) {
+            if (entry.getValue() <= 0) continue;
+            required += entry.getValue();
+            supplied += Math.clamp(current.getOrDefault(entry.getKey(), 0L), 0L, entry.getValue());
+        }
+        return required == 0 ? 1 : supplied / required;
     }
     private static String priority(int i) { return switch (i) { case 0 -> "낮음"; case 2 -> "높음"; default -> "보통"; }; }
     private static String resourceArt(String id) { return "production/resources/" + id.toLowerCase(Locale.ROOT); }
