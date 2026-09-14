@@ -45,6 +45,8 @@ public final class IndustryScreenChecks {
         }
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
         var empty = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), List.of(), List.of(), null, "", v.navalRepairs(), v.specialForces());
+        conversion(context,v);
+        factoryControls(context,v);
         var requests = new ArrayList<IndustryProtocol.Request>();
         for (var tab : List.of(MenuTab.PRODUCTION, MenuTab.TRADE, MenuTab.LOGISTICS, MenuTab.RECRUITMENT)) {
             context.setScreen(() -> new IndustryScreen(tab, v.session(), tab == MenuTab.RECRUITMENT ? empty : v, requests::add));
@@ -91,12 +93,12 @@ public final class IndustryScreenChecks {
         });
         requests.clear();
         context.setScreen(() -> new IndustryScreen(MenuTab.PRODUCTION, v.session(), v, requests::add)); context.waitTicks(2);
-        click(context, "공장 늘리기 · 보유량 안에서 배정");
+        click(context, "공장 늘리기 · 부족분 예약");
         context.runOnClient(client -> {
             var s = (IndustryScreen)client.gui.screen(); var request = requests.getLast();
             check(request.action() == IndustryProtocol.Action.ASSIGN && request.amount() == v.lines().getFirst().factories() + 1
                     && request.revision() == v.revision(), "Only a bounded authenticated factory request");
-            check(!button(s, "공장 늘리기 · 보유량 안에서 배정").active, "No duplicate request while waiting");
+            check(!button(s, "공장 늘리기 · 부족분 예약").active, "No duplicate request while waiting");
             s.update(copy(v, hud, v.revision() + 1, null));
         });
         click(context, "보병 및 포병 장비 제작"); context.waitTicks(2); context.takeScreenshot("hoi-industry-equipment-picker");
@@ -326,6 +328,82 @@ public final class IndustryScreenChecks {
                     && request.other().equals(next.id()) && request.revision()==v.revision(),"Replacement uses the existing bounded line command and issued revision");
         });
         context.getInput().resizeWindow(1600,1000); context.waitTicks(3);
+    }
+    private static void factoryControls(ClientGameTestContext context, IndustryView v) {
+        var gun=v.equipment().stream().filter(e->e.id().equals("hoi:modern_infantry_gear")).findFirst().orElseThrow();
+        var ship=v.equipment().stream().filter(e->e.naval()&&e.factoryLimit()==15).findFirst().orElseThrow();
+        var lines=List.of(new IndustryView.Line("military",gun.id(),15,150,.5,10,.2,.8,null,10,2),
+                new IndustryView.Line("naval",ship.id(),15,15,1,2,.2,0,null,10,2));
+        var economy=v.economy();
+        var owned=new IndustryView.Economy(12,12,economy.civilian(),economy.freeCivilian(),economy.consumer(),economy.fuel(),economy.gdp(),economy.debt(),economy.manpower(),economy.armyXp(),economy.energy(),economy.energyDemand());
+        var issued=new IndustryView(v.session(),v.revision(),v.country(),v.hud(),owned,v.resources(),v.modifiers(),v.equipment(),lines,v.partners(),v.trades(),v.templates(),v.battalions(),v.companies(),v.locations(),v.recruits(),v.deployed(),null,"",v.navalRepairs());
+        var requests=new ArrayList<IndustryProtocol.Request>();
+        check(IndustryScreen.productionFactoryState(0,1,1,0,0,15,-1)==0,"Operating factories use the normal frame");
+        check(IndustryScreen.productionFactoryState(10,1,0,1,0,15,-1)==2,"Damage uses the red frame");
+        check(IndustryScreen.productionFactoryState(12,1,0,0,1,15,-1)==3,"Reservations use the dark gray frame");
+        check(IndustryScreen.productionFactoryState(20,10,0,0,0,15,30)==1,"Adding factories previews bright icons");
+        check(IndustryScreen.productionFactoryState(20,10,10,0,0,40,20)==4,"Cancelling previews warm icons after the target cell");
+        check(IndustryScreen.productionFactoryState(10,10,0,2,3,15,-1)==2,"A mixed group uses one complete damage icon");
+        context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));
+        context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-factory-damage-reservations");
+        context.runOnClient(client->{
+            var screen=(IndustryScreen)client.gui.screen();checkBounds(screen);
+            check(screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().matches("(military · 공장|naval · 조선소) [0-9]+칸")).count()==30,"Both production pools expose all fifteen cells");
+            check(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().startsWith("naval · ×")),"Dockyards have no multiplier buttons");
+            for(String icon:List.of("factory_0","factory_1","factory_2","factory_3","dockyard_0","dockyard_1","dockyard_2","dockyard_3","x5_normal","x5_selected","x10_normal","x10_selected","efficiency_frame","efficiency_fill","efficiency_bg","progress_fill","progress_bg"))
+                check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/"+icon+".png")).isPresent(),"Original production state frame "+icon);
+        });
+        for(int multiplier:new int[]{5,10,1}) {
+            click(context,"military · ×"+(multiplier==1?10:multiplier));
+            check(requests.isEmpty(),"Display multiplier does not mutate production");
+            context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-factories-x"+multiplier);
+        }
+        click(context,"military · ×10");
+        context.getInput().resizeWindow(2560,1440);context.waitTicks(2);
+        for(int hovered:new int[]{3,1}) {
+            var point=context.computeOnClient(client->{var b=button((IndustryScreen)client.gui.screen(),"military · 공장 "+hovered+"칸");double scale=client.getWindow().getGuiScale();return new double[]{(b.getX()+b.getWidth()/2.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};});
+            context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(2);
+            context.takeScreenshot(hovered==3?"hoi-production-factory-add-hover-gui2":"hoi-production-factory-cancel-hover-gui2");
+        }
+        context.getInput().setCursorPos(700,700);context.getInput().resizeWindow(1600,1000);context.waitTicks(2);
+        click(context,"military · ×10");
+        click(context,"military · 공장 15칸");
+        context.runOnClient(client->{var r=requests.getLast();check(r.action()==IndustryProtocol.Action.ASSIGN&&r.item().equals("military")&&r.amount()==15&&r.revision()==issued.revision(),"X1 allows reserving fifteen factories despite only twelve owned");});
+        for(int multiplier:new int[]{5,10}) {
+            requests.clear();context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);
+            click(context,"military · ×"+multiplier);click(context,"military · 공장 3칸");
+            context.runOnClient(client->check(requests.getLast().amount()==3*multiplier,"Factory cell applies its selected multiplier"));
+        }
+        requests.clear();context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);
+        click(context,"naval · 조선소 15칸");context.runOnClient(client->check(requests.getLast().amount()==15&&requests.getLast().item().equals("naval"),"Dockyard cells reserve one per cell"));
+        context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);requests.clear();
+        click(context,ship.name()+" · 재고량 · 군수 보기");
+        context.runOnClient(client->{
+            var screen=(IndustryScreen)client.gui.screen();
+            check(screen.getTitle().getString().equals("군수"),"Stockpile opens logistics in the current authenticated session");
+            check(requests.isEmpty(),"Opening stockpile does not close or mutate the server session");
+            checkBounds(screen);
+        });
+        context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-stockpile-logistics");
+    }
+    private static void conversion(ClientGameTestContext context,IndustryView v) {
+        var source=v.equipment().stream().filter(e->e.id().equals("hoi:infantry_gear")).findFirst().orElseThrow();
+        var target=v.equipment().stream().filter(e->e.id().equals("hoi:modern_infantry_gear")).findFirst().orElseThrow();
+        var issued=new IndustryView.Conversion(source.id(),List.of(new IndustryView.Choice(source.id(),source.name(),source.texture())),0,1.0,1.8,Map.of("IRON",1.0));
+        var line=new IndustryView.Line("conversion",target.id(),1,10,.5,0,.4,0,issued);
+        var view=new IndustryView(v.session(),v.revision(),v.country(),v.hud(),v.economy(),v.resources(),v.modifiers(),v.equipment(),List.of(line),v.partners(),v.trades(),v.templates(),v.battalions(),v.companies(),v.locations(),v.recruits(),v.deployed(),null,"",v.navalRepairs());
+        var requests=new ArrayList<IndustryProtocol.Request>();
+        context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,view.session(),view,requests::add));
+        context.waitTicks(3);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-conversion");
+        context.runOnClient(client->checkBounds((IndustryScreen)client.gui.screen()));
+        context.runOnClient(client->check(((IndustryScreen)client.gui.screen()).children().stream().noneMatch(widget->widget instanceof Button b && Set.of("전환 변경","재고 전환").contains(b.getMessage().getString())),"Conversion opens from the equipment image without a separate row button"));
+        click(context,target.name()+" · 장비·전환 변경");
+        context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-conversion-picker");
+        context.runOnClient(client->checkBounds((IndustryScreen)client.gui.screen()));
+        click(context,"신규 장비 생산 · 진행 중인 1개분의 작업량 초기화");
+        context.runOnClient(client->{var request=requests.getLast();
+            check(request.action()==IndustryProtocol.Action.CONVERSION&&request.item().equals(line.id())&&request.other().isEmpty()&&request.revision()==view.revision(),"Conversion mode change uses the issued line and revision");
+        });
     }
     private static net.minecraft.client.gui.components.Checkbox obsoleteCheckbox(IndustryScreen screen) {
         return screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Checkbox)

@@ -66,10 +66,10 @@ final class LogisticsRows {
             var resources = new TreeMap<String, Double>();
             for (var model : models) for (var line : linesByEquipment.getOrDefault(model.id(), List.of())) {
                 daily += line.daily();
-                if (line.factories() > 0) {
-                    factories += line.factories();
-                    weightedEfficiency += line.efficiency() * line.factories();
-                    model.resources().forEach((resource, amount) -> resources.merge(resource, amount * line.factories(), Double::sum));
+                if (line.operatingFactories() > 0) {
+                    factories += line.operatingFactories();
+                    weightedEfficiency += line.efficiency() * line.operatingFactories();
+                    (line.conversion() != null && line.conversion().source() != null ? line.conversion().resources() : model.resources()).forEach((resource, amount) -> resources.merge(resource, amount * line.operatingFactories(), Double::sum));
                 }
             }
             Double efficiency = factories == 0 ? null : weightedEfficiency / factories;

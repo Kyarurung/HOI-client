@@ -112,7 +112,27 @@ public record IndustryView(String session, long revision, String country, Countr
         }
     }
     public record Line(String id, String equipment, int factories, int availableFactories, double efficiency,
-            double daily, double progress, double shortage) {}
+            double daily, double progress, double shortage, Conversion conversion, Integer operating, Integer damaged) {
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,null,null);
+        }
+        public int operatingFactories() {return operating==null?factories:operating;}
+        public int damagedFactories() {return damaged==null?0:damaged;}
+        public int reservedFactories() {return factories-operatingFactories()-damagedFactories();}
+        public Line {
+            if(factories<0||availableFactories<0||operating!=null&&(operating<0||operating>factories)||damaged!=null&&(damaged<0||damaged>factories-(operating==null?factories:operating)))
+                throw new IllegalArgumentException("Invalid production factory allocation");
+        }
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,null);
+        }
+    }
+    public record Conversion(String source,List<Choice> choices,long stock,double cost,double speed,Map<String,Double> resources) {
+        public Conversion {
+            if(source!=null)text(source,128);choices=bounded(choices,512);resources=boundedMap(resources,8);
+            if(stock<0||!Double.isFinite(cost)||cost<=0||!Double.isFinite(speed)||speed<0)throw new IllegalArgumentException("Invalid conversion");
+        }
+    }
     public record Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys) {
         public Partner(String id, String name, Map<String,Double> exports, boolean route) { this(id,name,exports,route,null); }
         public Partner { text(id,32); text(name,128); exports=boundedMap(exports,8); }
