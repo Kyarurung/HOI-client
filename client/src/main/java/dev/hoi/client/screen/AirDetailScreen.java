@@ -119,7 +119,7 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
             int px=enemy?332:155;
             var results=tiles(enemy?"enemy_result":"own_result");
             for(int i=0;i<Math.min(4,results.size());i++) {
-                var result=results.get(i);int py=280+i*27;
+                var result=results.get(i);if(result.icon().isBlank())continue;int py=280+i*27;
                 art(g,result.icon(),px,py,28,22);
                 text(g,(enemy?"§a":"§c")+result.value()+"§r",px+29,py,44,22,true);
                 hover(result,px,py,73,22);
