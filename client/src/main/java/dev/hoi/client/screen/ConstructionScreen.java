@@ -227,7 +227,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 }
                 var matrix=minecraft.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new Matrix4f()).invert();
                 var ray=matrix.transformProject(new Vector3f((float)(event.x()/width*2-1),(float)(1-event.y()/height*2),1)).normalize();
-                send(event.button()==0?ConstructionProtocol.Action.PLACE:ConstructionProtocol.Action.CANCEL_AT,"",0,ray);
+                send(event.button()==0?ConstructionProtocol.Action.PLACE:ConstructionProtocol.Action.CANCEL_AT,"",event.button()==0 && dev.hoi.client.ui.PriorityControls.shifted()?1:0,ray);
             }
             return true;
         }
