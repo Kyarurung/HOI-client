@@ -65,11 +65,12 @@ public final class CompletionScreenChecks {
             }
         });
         var sent = new ArrayList<String>();
-        for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
+        context.runOnClient(client -> client.options.guiScale().set(2));
+        for (int[] size : new int[][]{{2560, 1369}, {1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(3);
             for (String style : List.of("research_complete", "focus_complete")) {
-                String art = style.equals("research_complete") ? "category/infantry" : "focus/tfr/ast_war_beyond_the_seas";
-                var view = new DialogView(UUID.randomUUID().toString(), 3, DialogView.Kind.DIPLOMACY, "완료된 연구·중점 이름", "",
+                String art = style.equals("research_complete") ? "category/infantry" : "politics/art/gfx_kor_discussion_of_covid_response";
+                var view = new DialogView(UUID.randomUUID().toString(), 3, DialogView.Kind.DIPLOMACY, style.equals("research_complete") ? "완료된 연구·중점 이름" : "코로나 대응책 논의", "",
                         "표시하면 안 되는 설명 본문\n".repeat(22), "", art, "", List.of(), List.of(new DialogView.Choice("details", "세부 사항"), new DialogView.Choice("ack", "확인")), style);
                 context.setScreen(() -> new CompletionScreen(view, (v, choice) -> sent.add(v.token() + "/" + v.revision() + "/" + choice)));
                 context.waitTicks(3); context.takeScreenshot("hoi-" + style + "-" + size[0]);
@@ -144,7 +145,8 @@ public final class CompletionScreenChecks {
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
     }
     private static void stacking(ClientGameTestContext context) {
-        for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
+        context.runOnClient(client -> client.options.guiScale().set(2));
+        for (int[] size : new int[][]{{2560, 1369}, {1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(3);
             var first = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.DIPLOMACY, "보병 장비 연구 완료", "", "", "", "menu/research", "",
                     List.of(), List.of(new DialogView.Choice("ack", "확인")), "research_complete");
@@ -159,7 +161,8 @@ public final class CompletionScreenChecks {
                 DialogClient.receive(DialogProtocol.Show.of(event, true));
                 var stack = (DialogStackScreen)c.gui.screen();
                 check(stack.views().size() == 3, "Research, focus and event windows coexist");
-                check(stack.find(first.token()).panelLeft() == stack.find(second.token()).panelLeft() && stack.find(first.token()).panelTop() == stack.find(second.token()).panelTop(), "Completion panels overlap at exactly the same position");
+                check(stack.find(first.token()).panelLeft() == stack.find(second.token()).panelLeft()
+                        && stack.find(first.token()).panelTop() * 2 + stack.find(first.token()).panelHeight() == stack.find(second.token()).panelTop() * 2 + stack.find(second.token()).panelHeight(), "Completion panels share the same center despite different content heights");
                 DialogClient.receive(DialogProtocol.Show.of(first.issued(first.token(), 2), false));
                 check(stack.find(first.token()).view().revision() == 2, "Hidden window receives its own revision");
                 DialogClient.receive(DialogProtocol.Show.of(first, false));

@@ -38,7 +38,7 @@ final class CompletionScreen extends DialogScreen {
     @Override int panelWidth() { return pane; }
     int scrollOffset() { return scroll; }
     @Override protected void init() {
-        pane = Math.min(width - 16, 250); panelHeight = Math.min(height - 16, 150);
+        pane = Math.min(width - 16, 250); panelHeight = Math.min(height - 16, view().presentation().equals("research_complete") ? 150 : 170);
         left = (width - pane) / 2; top = (height - panelHeight) / 2;
         bodyTop = top + 36; bodyBottom = top + panelHeight - 30;
         int buttonWidth = Math.min(62, (pane - 38) / 2);
@@ -57,14 +57,22 @@ final class CompletionScreen extends DialogScreen {
         var view = view();
         HoiMenuStyle.panel(g, left, top, pane, panelHeight);
         UiAssets.draw(g, "completion/header", left + 1, top + 4, pane - 2, 43);
-        UiAssets.draw(g, "completion/" + (view.presentation().equals("research_complete") ? "research" : "focus"), left + 7, bodyTop, pane - 14, 63);
+        boolean research = view.presentation().equals("research_complete");
+        int innerTop = bodyTop + 7, innerHeight = top + panelHeight - 36 - innerTop;
+        if (research) UiAssets.draw(g, "completion/research", left + 7, bodyTop, pane - 14, 63);
+        else UiAssets.nineSlice(g, "completion/focus", left + 12, innerTop, pane - 24, innerHeight, 12, .5);
         UiAssets.draw(g, "completion/bottom", left + 2, top + panelHeight - 35, pane - 4, 36);
         dev.hoi.client.ui.UiText.centeredAt(g, font, view.presentation().equals("research_complete") ? "기술 완료" : "국가중점 완료", left + pane / 2, top + 20 - font.lineHeight / 2, HoiMenuStyle.TEXT);
         g.enableScissor(left + 8, bodyTop, left + pane - 8, bodyBottom);
-        int y = bodyTop + 2 - scroll;
-        if (!UiAssets.draw(g, view.image(), left + pane / 2 - 56, y - 4, 112, 52))
-            UiAssets.draw(g, view.presentation().equals("research_complete") ? "menu/research" : "menu/focus", left + pane / 2 - 22, y + 4, 44, 44);
-        dev.hoi.client.ui.UiText.centered(g, font, view.title(), left + 15, bodyTop + 42, pane - 30, 24, 0xFFE6C779);
+        int titleHeight = Math.max(1, Math.min(2, font.split(Component.literal(view.title()), (int)((pane - 30) / dev.hoi.client.ui.UiText.scale(font))).size())) * (dev.hoi.client.ui.UiText.MIN_HEIGHT + 1);
+        int imageHeight = research ? 52 : 60;
+        int imageWidth = research ? 112 : 128;
+        int y = (research ? bodyTop + (63 - imageHeight) / 2 : innerTop + (innerHeight - imageHeight - 2 - titleHeight) / 2) - scroll;
+        if (!UiAssets.drawContent(g, view.image(), left + (pane - imageWidth) / 2, y, imageWidth, imageHeight))
+            UiAssets.draw(g, research ? "menu/research" : "menu/focus", left + pane / 2 - 22, y + (imageHeight - 44) / 2, 44, 44);
+        dev.hoi.client.ui.UiText.centered(g, font, view.title(), left + 15,
+                research ? bodyTop + 63 : y + imageHeight + 2, pane - 30,
+                research ? top + panelHeight - 35 - (bodyTop + 63) : titleHeight, 0xFFE6C779);
         total = bodyBottom - bodyTop;
         g.disableScissor();
         for (var child : children()) if (child instanceof net.minecraft.client.gui.components.Renderable widget)

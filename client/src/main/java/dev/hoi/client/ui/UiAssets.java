@@ -16,8 +16,9 @@ import java.io.IOException;
 
 public final class UiAssets {
     private static final Map<Identifier, int[]> DIMENSIONS = new HashMap<>();
+    private static final Map<Identifier, int[]> CONTENT_BOUNDS = new HashMap<>();
     private UiAssets() {}
-    public static void clear() { DIMENSIONS.clear(); ResearchDetails.clear(); KeywordIcons.clear(); HoiMenuBar.clear(); }
+    public static void clear() { DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); KeywordIcons.clear(); HoiMenuBar.clear(); }
 
     public static boolean cover(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
@@ -58,6 +59,32 @@ public final class UiAssets {
         int left = x + (w - fitW) / 2, top = y + (h - fitH) / 2;
         g.blit(id, left, top, left + fitW, top + fitH, (float)trimLeft / size[0], 1 - (float)trimRight / size[0], 0, 1);
         return true;
+    }
+    public static boolean drawContent(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
+        var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
+        if (id == null || w <= 0 || h <= 0) return false;
+        int[] bounds = CONTENT_BOUNDS.computeIfAbsent(id, UiAssets::contentBounds);
+        if (bounds.length == 0) return false;
+        int sourceW = bounds[4] - bounds[2], sourceH = bounds[5] - bounds[3];
+        double scale = Math.min((double)w / sourceW, (double)h / sourceH);
+        int fitW = Math.max(1, (int)Math.round(sourceW * scale)), fitH = Math.max(1, (int)Math.round(sourceH * scale));
+        int left = x + (w - fitW) / 2, top = y + (h - fitH) / 2;
+        g.blit(id, left, top, left + fitW, top + fitH, (float)bounds[2] / bounds[0], (float)bounds[4] / bounds[0], (float)bounds[3] / bounds[1], (float)bounds[5] / bounds[1]);
+        return true;
+    }
+    private static int[] contentBounds(Identifier id) {
+        var resource = Minecraft.getInstance().getResourceManager().getResource(id);
+        if (resource.isPresent()) try (var input = resource.get().open()) {
+            var image = javax.imageio.ImageIO.read(input);
+            if (image == null) return new int[0];
+            int width = image.getWidth(), height = image.getHeight(), left = width, top = height, right = 0, bottom = 0;
+            for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) {
+                if ((image.getRGB(x, y) >>> 24) == 0) continue;
+                left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x + 1); bottom = Math.max(bottom, y + 1);
+            }
+            return right > left && bottom > top ? new int[]{width, height, left, top, right, bottom} : new int[0];
+        } catch (IOException ignored) { }
+        return new int[0];
     }
     public static void nineSlice(GuiGraphicsExtractor g, String path, int x, int y, int w, int h, int border, double scale) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
