@@ -266,7 +266,7 @@ final class MapDetailScreen extends DialogScreen implements SidebarMovement.Scre
                 var t=items.get(i);
                 String statistic=t.value().isBlank()||t.value().equals("—")?(i==1||i==2?"0%":"0"):t.value();
                 g.pose().pushMatrix();
-                g.pose().translate(i==0?1:0,row==1?2:1);
+                g.pose().translate(i==0?2:0,row==1?2:1);
                 label(g,statistic,tx[i],py+8,tw[i],18,HoiMenuStyle.TEXT);
                 g.pose().popMatrix();
                 hovers.add(new Hover(t,x(px[i]),y(py),n(i==0||i==3?109:88),n(33)));
