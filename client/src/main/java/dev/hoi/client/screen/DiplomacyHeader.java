@@ -73,12 +73,7 @@ final class DiplomacyHeader {
         int cellW=edge+Math.round((rightW-edge*2)*99f/388),cellH=edge+Math.round((leaderHeight(pane)-edge*2)*85f/157);
         int size=scaled(80,pane),left=right+(cellW-size)/2+2,upper=politicsTop(top)+(cellH-size)/2+1;
         double dx=x-left-size/2.0,dy=mouseY-upper-size/2.0;
-        if(dx*dx+dy*dy>=size*size/4.0)return null;
-        double angle=(Math.atan2(dy,dx)+Math.PI*2.5)%(2*Math.PI)/(2*Math.PI),sum=0;
-        for(var party:view.diplomacy())if(party.detail().startsWith("정당 지지도")) {
-            sum+=party.progress();if(angle<sum)return party;
-        }
-        return null;
+        return PartyChart.at(view.diplomacy().stream().filter(party->party.detail().startsWith("정당 지지도")).toList(),dx,dy,size/2.0);
     }
     boolean leaderAt(double x, double y, int pane, int top) {
         int left = scaled(13, pane), upper = politicsTop(top);

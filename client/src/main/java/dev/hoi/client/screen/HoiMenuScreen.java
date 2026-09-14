@@ -645,6 +645,9 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         if (layout.ideology().contains(x, y)) return politicsEntry("세부 이념");
         if (layout.economy().contains(x, y)) return politicsEntry("경제 모델");
         if (layout.government().contains(x, y)) return politicsEntry("정치 체제");
+        var chart=layout.partyChart();
+        var party=PartyChart.at(parties,x-chart.x()-chart.width()/2.0,y-chart.y()-chart.height()/2.0,chart.width()/2.0-3.8);
+        if(party!=null)return party;
         var partyList = layout.parties();
         if (partyList.contains(x, y)) {
             int index = (int)(y - partyList.y() - 4) / 11;

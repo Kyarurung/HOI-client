@@ -326,7 +326,7 @@ public final class CountryScreenChecks {
         String[] names = {"민중민주당", "민주노동당", "민주노동당", "민주노동당", "더불어민주당", "국민의힘", "국민의힘", "우리공화당", "대한민국 국군", "자유의새벽당", "가자코리아"};
         int[] shares = {0,5,6,5,33,36,3,5,0,1,6};
         String[] colors = {"640000","a40000","ce3b3b","e76d77","e4bf39","eddf58","3261d0","434b81","636369","70411d","312b20"};
-        for (int i = 0; i < names.length; i++) overview.add(new MenuView.Entry(names[i], shares[i] + "%", "목록 렌더링 검증용 분포와 색상", shares[i] / 100.0, "politics/party/" + colors[i]));
+        for (int i = 0; i < names.length; i++) overview.add(new MenuView.Entry(names[i], shares[i] + "%", "정당 지지도 · 검증용 분포"+(shares[i]==0?"":"\n매일 변화: "+(i==4?"§a":"§4")+"+0.10§r"), shares[i] / 100.0, "politics/party/" + colors[i]));
         sections.set(0, new MenuView.Section("국가 현황", "politics", overview));
         sections.set(1, new MenuView.Section("국가 정신", "politics", java.util.stream.IntStream.range(0, 24)
                 .mapToObj(i -> new MenuView.Entry("검증용 정신 " + i, "", "연구 속도: §a+5%§r\n안정도: §4-3%§r\n\n현재 아이콘에 해당하는 설명입니다.", -1, "menu/politics")).toList()));
@@ -412,6 +412,7 @@ public final class CountryScreenChecks {
         });
         context.waitTicks(2); context.takeScreenshot("hoi-politics-party-list-scrolled");
         context.getInput().setCursorPos(1500,800);
+        partyChartTooltips(context,new MenuView(source.country(),source.countryName(),source.date(),source.speed(),pages,source.hud()));
         sections.set(1, new MenuView.Section("국가 정신", "politics", List.of(sections.get(1).entries().getFirst())));
         sections.replaceAll(s -> s.title().equals("국가 중점") ? new MenuView.Section("국가 중점", "research", List.of()) : s);
         var singleSpiritPages = source.pages().stream().map(p -> p.tab() == MenuTab.POLITICS ? new MenuView.Page(p.tab(), sections) : p).toList();
@@ -425,6 +426,35 @@ public final class CountryScreenChecks {
         context.takeScreenshot("hoi-politics-left-aligned-spirit");
         context.setScreen(() -> new HoiMenuScreen(source)); context.waitTicks(2);
     }
+    private static void partyChartTooltips(ClientGameTestContext context,MenuView view) {
+        context.getInput().resizeWindow(2560,1440);
+        context.runOnClient(c->c.options.guiScale().set(2));
+        for(boolean selection:new boolean[]{false,true}) {
+            context.setScreen(()->selection?HoiMenuScreen.selection(view):new HoiMenuScreen(view));
+            context.waitTicks(3);
+            for(double fraction:new double[]{.025,.30}) {
+                var point=context.computeOnClient(c->{
+                    var screen=(HoiMenuScreen)c.gui.screen();var box=screen.politicsLayout().partyChart();
+                    double angle=fraction*Math.PI*2-Math.PI/2;
+                    double x=box.x()+box.width()/2.0+Math.cos(angle)*box.width()/4;
+                    double y=box.y()+box.height()/2.0+Math.sin(angle)*box.height()/4;
+                    var party=screen.politicsHover(x,y);
+                    if(party==null||!party.name().equals(fraction<.1?"민주노동당":"더불어민주당")
+                            ||!party.detail().contains(fraction<.1?"§4+0.10":"§a+0.10"))
+                        throw new AssertionError("Chart hover must use the displayed party and server color");
+                    if(screen.politicsHover(box.x()+1,box.y()+1)!=null)
+                        throw new AssertionError("Chart corner must not have a tooltip");
+                    double scale=c.getWindow().getGuiScale();
+                    return new double[]{(x+(selection?screen.selectionLeft():0))*scale,y*scale};
+                });
+                context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(3);
+                context.takeScreenshot("hoi-"+(selection?"selection":"politics")+"-party-chart-"+(fraction<.1?"opposition":"ruling")+"-gui2");
+            }
+        }
+        context.getInput().setCursorPos(1500,800);
+        context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
+    }
+
     public static void adviserFrames(ClientGameTestContext context) {
         context.setScreen(() -> new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("인물 프레임 검증")) {
             @Override public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor g, int mx, int my, float delta) {
