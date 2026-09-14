@@ -38,8 +38,8 @@ public final class ResearchSlotButton extends Button {
         if (font.width(title) > w - 20) title = font.plainSubstrByWidth(title, Math.max(1, w - 29)) + "…";
         int titleY = compactActive || h < 24 ? (h - 8) / 2 : technology == null ? Math.min(10, (h - 8) / 2) : 6;
         if (technology != null) {
-            int imageWidth = Math.min(132, w - 32);
-            int imageHeight = h >= 40 ? Math.min(42, h - 20) : Math.min(24, Math.max(6, h - (h >= 20 ? 12 : 4)));
+            int imageWidth = Math.min(112, w / 2);
+            int imageHeight = h >= 40 ? Math.min(26, h - 28) : Math.min(24, Math.max(6, h - (h >= 20 ? 12 : 4)));
             String art = UiAssets.technologyPath(country, technology);
             if (!UiAssets.drawContent(g, art, x + (w - imageWidth) / 2, y + (h - imageHeight) / 2, imageWidth, imageHeight))
                 UiAssets.technology(g, country, technology, x + (w - imageWidth) / 2, y + (h - imageHeight) / 2,
