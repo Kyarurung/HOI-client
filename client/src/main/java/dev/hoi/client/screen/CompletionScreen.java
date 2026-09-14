@@ -67,7 +67,7 @@ final class CompletionScreen extends DialogScreen {
         int titleHeight = Math.max(1, Math.min(2, font.split(Component.literal(view.title()), (int)((pane - 30) / dev.hoi.client.ui.UiText.scale(font))).size())) * (dev.hoi.client.ui.UiText.MIN_HEIGHT + 1);
         int imageHeight = research ? 52 : 60;
         int imageWidth = research ? 112 : 128;
-        int y = (research ? bodyTop + (63 - imageHeight) / 2 : innerTop + (innerHeight - imageHeight - 2 - titleHeight) / 2) - scroll;
+        int y = (research ? bodyTop + (63 - imageHeight) / 2 : innerTop + (innerHeight - imageHeight - 2 - titleHeight) / 2 - 2) - scroll;
         if (!UiAssets.drawContent(g, view.image(), left + (pane - imageWidth) / 2, y, imageWidth, imageHeight))
             UiAssets.draw(g, research ? "menu/research" : "menu/focus", left + pane / 2 - 22, y + (imageHeight - 44) / 2, 44, 44);
         dev.hoi.client.ui.UiText.centered(g, font, view.title(), left + 15,
