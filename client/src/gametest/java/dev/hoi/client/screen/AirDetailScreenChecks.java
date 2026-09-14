@@ -79,7 +79,7 @@ public final class AirDetailScreenChecks {
                 context.setScreen(()->new AirDetailScreen(preview));
                 context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-missions-"+mode+"-gui2");
             }
-            if(size[0]==2560)for(String mode:List.of("interception","logistics","four-logistics-rows","railway-priority","train-fallback","aa-second-row","naval","port")) {
+            if(size[0]==2560)for(String mode:List.of("interception","logistics","four-logistics-rows","railway-priority","train-fallback","aa-only-first-row","naval","port")) {
                 var scenario=new ArrayList<>(tiles);scenario.removeIf(t->t.section().endsWith("_result"));
                 for(String side:List.of("own_result","enemy_result")) {
                     int[] frames=switch(mode) {
@@ -87,7 +87,7 @@ public final class AirDetailScreenChecks {
                         case "four-logistics-rows" -> new int[]{4,6,10,7};
                         case "railway-priority" -> new int[]{4,5,6,7};
                         case "train-fallback" -> new int[]{4,5,6,10};
-                        case "aa-second-row" -> new int[]{-1,5};
+                        case "aa-only-first-row" -> new int[]{5};
                         case "naval" -> new int[]{4,5,1};
                         default -> new int[]{6,10,7};
                     };
