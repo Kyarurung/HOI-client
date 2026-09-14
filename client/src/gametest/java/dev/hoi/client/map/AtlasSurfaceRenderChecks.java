@@ -121,6 +121,7 @@ public final class AtlasSurfaceRenderChecks {
             checkRegion(context,command,"okinawa",1);
             checkRegion(context,command,"phnom-penh",0);
             checkRegion(context,command,"china-corner",0);
+            checkRegion(context,command,"beijing",0);
             checkFacilities(context,command);
             checkDistance(context,command);
             context.runOnClient(client->{client.options.fov().set(70);AtlasSceneClient.clear();});
@@ -132,7 +133,8 @@ public final class AtlasSurfaceRenderChecks {
             if(input==null)throw new AssertionError("Production geometry fixture missing: "+region);
             fixture=JsonParser.parseString(new String(input.readAllBytes(),StandardCharsets.UTF_8)).getAsJsonObject();
         } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
-        var data=fixture.getAsJsonObject("scenes").getAsJsonObject("ARMY");
+        boolean beijing=region.equals("beijing");
+        var data=fixture.getAsJsonObject("scenes").getAsJsonObject(beijing?"AIR":"ARMY");
         context.runOnClient(client->AtlasSceneClient.clear());
         command.accept("kill @e[type=minecraft:item_display]");command.accept("kill @e[type=minecraft:text_display]");
         command.accept("fill 0 66 0 55 68 55 minecraft:air");
@@ -165,7 +167,7 @@ public final class AtlasSurfaceRenderChecks {
         for(var v:data.getAsJsonArray("victories")) {
             var row=v.getAsJsonArray();summonFixtureModel(command,row,true);
             double x=row.get(1).getAsDouble(),z=row.get(3).getAsDouble();
-            if(boxes.stream().noneMatch(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY
+            if(!beijing&&boxes.stream().noneMatch(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY
                     &&Math.abs(b.x()+b.sx()/2-x)<.0001&&Math.abs(b.z()+b.sz()/2-z)<.0001))
                 throw new AssertionError("Victory marker lacks its centered city model");
         }
@@ -174,6 +176,30 @@ public final class AtlasSurfaceRenderChecks {
         var point=data.getAsJsonArray("capital");double x=point.get(0).getAsDouble(),z=point.get(1).getAsDouble(),y=point.get(2).getAsDouble();
         command.accept("tp @a "+x+" "+(y+4)+" "+(z-8)+" 0 32");context.waitTicks(20);
         checkPixels(context.takeScreenshot("hoi-"+region+"-city-and-port"),false);
+        if(beijing) {
+            if(boxes.stream().noneMatch(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY
+                    &&Math.abs(b.x()+b.sx()/2-x)<.0001&&Math.abs(b.z()+b.sz()/2-z)<.0001))
+                throw new AssertionError("Beijing capital marker must have a centered city model");
+            for(var entry:data.getAsJsonArray("capitalName"))
+                command.accept("summon minecraft:text_display "+x+" "+y+" "+z+" "+entry.getAsJsonObject());
+            context.getInput().resizeWindow(2560,1440);
+            context.runOnClient(client->client.options.guiScale().set(2));
+            command.accept("tp @a "+x+" "+(y-1)+" "+(z-5)+" 0 30");
+            context.waitTicks(20);context.takeScreenshot("hoi-beijing-city-gui2");
+            command.accept("tp @a "+x+" "+(y+10)+" "+(z-14)+" 0 42");
+            context.waitTicks(20);context.takeScreenshot("hoi-beijing-map-gui2");
+            dev.hoi.protocol.DialogView view;
+            try(var input=AtlasSurfaceRenderChecks.class.getResourceAsStream("/beijing-air-detail.json")) {
+                if(input==null)throw new AssertionError("Beijing server air report missing");
+                view=new Gson().fromJson(new String(input.readAllBytes(),StandardCharsets.UTF_8),dev.hoi.protocol.DialogView.class);
+            } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
+            command.accept("tp @a "+(x+13)+" "+(y+10)+" "+(z-14)+" 0 42");
+            context.runOnClient(client->dev.hoi.client.screen.AirDetailScreenChecks.show(view));
+            context.getInput().setCursorPos(0,0);context.waitTicks(20);
+            context.takeScreenshot("hoi-beijing-air-detail-gui2");
+            context.setScreen(()->null);context.getInput().resizeWindow(1400,1000);
+            command.accept("kill @e[type=minecraft:text_display]");
+        }
         context.runOnClient(client->AtlasSceneClient.clear());
         command.accept("kill @e[type=minecraft:item_display]");
     }

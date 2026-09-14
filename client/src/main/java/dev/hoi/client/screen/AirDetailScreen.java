@@ -57,27 +57,29 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
         if(!DialogClient.renderingContent())dev.hoi.client.CampaignHud.draw(g);
         art(g,"air_detail/background",0,0,552,436);
         g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/air_detail/background.png"),x(538),y(152),x(546),y(230),14f/552,6f/552,152f/436,230f/436);
-        g.pose().pushMatrix();g.pose().translate(0,1);
+        g.pose().pushMatrix();g.pose().translate(0,2);
         text(g,view().title(),12,2,528,26,true,21);
         g.pose().popMatrix();
+        int centerX=(148+400)/2;
         var weather=tile("weather");
-        if(weather!=null){art(g,weather.icon(),151,35,248,47);hover(weather,151,35,248,47);}
-        art(g,"air_detail/air_weather_frame",149,33,252,52);
+        if(weather!=null){art(g,weather.icon(),centerX-124,35,248,47);hover(weather,centerX-124,35,248,47);}
+        art(g,"air_detail/air_weather_frame",centerX-126,33,252,52);
         var weatherIcon=tile("weather_icon");
-        if(weatherIcon!=null){art(g,weatherIcon.icon(),152,54,24,24);hover(weatherIcon,152,54,24,24);}
+        if(weatherIcon!=null){art(g,weatherIcon.icon(),centerX-123,54,24,24);hover(weatherIcon,centerX-123,54,24,24);}
+        int gaugeX=centerX-128,gaugeY=83;
         var balance=tile("balance");
         if(balance!=null) {
             boolean disabled=balance.icon().endsWith("disabled");
-            g.enableScissor(x(153),y(88),x(399),y(98));
-            art(g,disabled?balance.icon():"air_detail/progress_bad",151,85,250,14);
+            g.enableScissor(x(gaugeX+5),y(gaugeY+5),x(gaugeX+251),y(gaugeY+15));
+            art(g,disabled?balance.icon():"air_detail/progress_bad",gaugeX+3,gaugeY+3,250,14);
             if(!disabled&&balance.gauge()!=null&&balance.gauge().fraction()>0) {
-                g.enableScissor(x(153),y(88),x(153+246*balance.gauge().fraction()),y(98));
-                art(g,"air_detail/progress_good",151,85,250,14);g.disableScissor();
+                g.enableScissor(x(gaugeX+5),y(gaugeY+5),x(gaugeX+5+246*balance.gauge().fraction()),y(gaugeY+15));
+                art(g,"air_detail/progress_good",gaugeX+3,gaugeY+3,250,14);g.disableScissor();
             }
             g.disableScissor();
-            hover(balance,148,82,256,20);
+            hover(balance,gaugeX,gaugeY,256,20);
         }
-        art(g,"air_detail/air_progress_frame",148,83,256,20);
+        art(g,"air_detail/air_progress_frame",gaugeX,gaugeY,256,20);
         for(String side:List.of("own","enemy")) {
             var entries=tiles(side);
             for(int i=0;i<entries.size()&&i<4;i++) {
@@ -90,8 +92,10 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
         stat(g,tile("efficiency"),94,119,94);
         stat(g,tile("enemy_efficiency"),387,119,434);
         stat(g,tile("enemy_detection"),463,119,503);
+        g.pose().pushMatrix();g.pose().translate(0,1);
         text(g,title("own_label","아군"),18,155,210,22,true,21);
         text(g,title("enemy_label","적군"),324,155,210,22,true,21);
+        g.pose().popMatrix();
         combat(g,tile("air_losses"),false);
         combat(g,tile("air_kills"),true);
         for(int i=0;i<3;i++) {

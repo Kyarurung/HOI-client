@@ -6,7 +6,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.client.gui.components.Button;
 import java.util.*;
 
-final class AirDetailScreenChecks {
+public final class AirDetailScreenChecks {
+    public static void show(DialogView view) {DialogClient.receive(DialogProtocol.Show.of(view,true));}
     static void run(ClientGameTestContext context) {
         var tiles=new ArrayList<DialogView.Tile>();
         for(int i=0;i<4;i++) {
