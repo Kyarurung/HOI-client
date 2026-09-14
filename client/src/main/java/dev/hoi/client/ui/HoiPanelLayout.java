@@ -7,6 +7,7 @@ public final class HoiPanelLayout {
     private HoiPanelLayout() {}
 
     public static int width(MenuTab tab, int screenWidth) {
+        if (tab == MenuTab.PRODUCTION) return Math.max(1, Math.min(screenWidth - 16, Math.max(275, screenWidth * 550 / 2560)));
         int reference = switch (tab) {
             case POLITICS -> 726;
             case TRADE -> 620;

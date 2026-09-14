@@ -348,6 +348,7 @@ public final class IndustryScreenChecks {
         context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-factory-damage-reservations");
         context.runOnClient(client->{
             var screen=(IndustryScreen)client.gui.screen();checkBounds(screen);
+            check(screen.panelWidth()>=275,"Production keeps GUI2 reference cell space when the viewport permits");
             check(screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().matches("(military · 공장|naval · 조선소) [0-9]+칸")).count()==30,"Both production pools expose all fifteen cells");
             check(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().startsWith("naval · ×")),"Dockyards have no multiplier buttons");
             for(String icon:List.of("factory_0","factory_1","factory_2","factory_3","dockyard_0","dockyard_1","dockyard_2","dockyard_3","x5_normal","x5_selected","x10_normal","x10_selected","efficiency_frame","efficiency_fill","efficiency_bg","progress_fill","progress_bg"))
