@@ -259,6 +259,17 @@ public final class AtlasSurfaceRenderChecks {
         command.accept("tp @a 11 110 8 0 90");
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==dev.hoi.protocol.AtlasSceneProtocol.Material.values().length);
         context.takeScreenshot("hoi-atlas-near-all-materials");
+        var cached=new java.util.concurrent.atomic.AtomicReference<Object>();
+        context.runOnClient(client->cached.set(sprites()));
+        context.waitTicks(3);
+        context.runOnClient(client->{
+            if(cached.get()==null||cached.get()!=sprites())throw new AssertionError("Atlas sprites were rebuilt between frames");
+        });
+        var reload=new java.util.concurrent.atomic.AtomicReference<java.util.concurrent.CompletableFuture<Void>>();
+        context.runOnClient(client->reload.set(client.reloadResourcePacks()));
+        context.waitFor(client->reload.get().isDone());reload.get().join();
+        context.waitFor(client->client.gui.overlay()==null&&AtlasSceneClient.visibleTileCount()==dev.hoi.protocol.AtlasSceneProtocol.Material.values().length&&sprites()!=null&&sprites()!=cached.get());
+        context.takeScreenshot("hoi-atlas-after-resource-reload");
         context.runOnClient(client->{
             if(AtlasSceneClient.examinedTileCount()>=AtlasSceneClient.tileCount()/4)
                 throw new AssertionError("Distance selection scanned distant tiles");
@@ -278,6 +289,11 @@ public final class AtlasSurfaceRenderChecks {
             AtlasSceneClient.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,java.util.List.of(longBox)));
         });
         context.waitFor(client->AtlasSceneClient.visibleTileCount()==1);
+    }
+    private static Object sprites() {
+        try {
+            var field=AtlasSceneClient.class.getDeclaredField("sprites");field.setAccessible(true);return field.get(null);
+        } catch(ReflectiveOperationException error) {throw new AssertionError(error);}
     }
     private static void checkPixels(Path path,boolean victory) {
         try {

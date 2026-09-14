@@ -2,11 +2,9 @@ package dev.hoi.client.map;
 
 import dev.hoi.protocol.AtlasSceneProtocol;
 import dev.hoi.protocol.AtlasVisibility;
-import dev.hoi.protocol.AtlasSceneProtocol.Box;
 import dev.hoi.protocol.AtlasSceneProtocol.Material;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey;
@@ -23,17 +21,17 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import java.util.*;
+import dev.hoi.client.map.AtlasSceneMesh.Tile;
 
 
 public final class AtlasSceneClient {
     private static final RenderStateDataKey<Frame> FRAME = RenderStateDataKey.create(() -> "hoi:atlas_scene");
     private static final AtlasSceneAssembler ASSEMBLER = new AtlasSceneAssembler();
-    private static Scene active, deployment;
+    private static AtlasSceneMesh active, deployment;
     private static final AtlasSceneAssembler DEPLOYMENT = new AtlasSceneAssembler();
     private static ItemStackRenderState city;
+    private static Map<Material, TextureAtlasSprite> sprites;
     private static int visibleTiles, examinedTiles;
     private static final Map<Material, Identifier> TEXTURES = Map.ofEntries(
             Map.entry(Material.DMZ, Identifier.parse("minecraft:block/white_concrete")),
@@ -44,10 +42,7 @@ public final class AtlasSceneClient {
             Map.entry(Material.NAVY_RIVER, Identifier.parse("minecraft:block/gray_concrete")),
             Map.entry(Material.AIR_RIVER, Identifier.parse("minecraft:block/light_gray_concrete")),
             Map.entry(Material.GRAY, Identifier.parse("minecraft:block/gray_concrete")), Map.entry(Material.DEPLOYMENT, Identifier.parse("minecraft:block/lime_concrete")));
-    private record Tile(Material material, AABB bounds, float[] vertices, List<Box> cities) {}
-    private record Scene(String dimension, List<Tile> tiles, Map<Long,List<Integer>> cells, List<Integer> large) {}
     private record Frame(List<Tile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city) {}
-    private record Key(int x, int z, Material material) {}
 
     public static void register() {
         AtlasSceneProtocol.registerPayloadTypes();
@@ -58,7 +53,7 @@ public final class AtlasSceneClient {
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.IndustryProtocol.DeploymentOverlay.TYPE, (packet, context) -> {
             if (!(context.client().gui.screen() instanceof dev.hoi.client.screen.IndustryScreen screen) || !screen.acceptsDeploymentOverlay(packet.session(), packet.revision())) return;
             var boxes = DEPLOYMENT.accept(packet.page());
-            if (boxes != null) deployment = mesh(packet.page().dimension(), boxes);
+            if (boxes != null) deployment = AtlasSceneMesh.build(packet.page().dimension(), boxes);
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
         LevelExtractionEvents.END_EXTRACTION.register(context -> {
@@ -69,21 +64,24 @@ public final class AtlasSceneClient {
                 visibleTiles=0;context.levelState().setData(FRAME, null); return;
             }
             var camera = context.levelState().cameraRenderState;
-            var tiles = new ArrayList<Tile>();
-            if (scene != null && dimension.equals(scene.dimension())) tiles.addAll(nearby(scene, camera.pos));
-            if (deployment != null && dimension.equals(deployment.dimension())) tiles.addAll(nearby(deployment, camera.pos));
+            var tiles = new ArrayList<Tile>();examinedTiles=0;
+            if (scene != null && dimension.equals(scene.dimension())) examinedTiles+=scene.collect(camera.pos, tiles);
+            if (deployment != null && dimension.equals(deployment.dimension())) examinedTiles+=deployment.collect(camera.pos, tiles);
             tiles.removeIf(tile -> !camera.cullFrustum.isVisible(tile.bounds()));
             visibleTiles=tiles.size();
             var client = Minecraft.getInstance();
-            var atlas = client.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
-            var sprites = new EnumMap<Material, TextureAtlasSprite>(Material.class);
-            TEXTURES.forEach((material, name) -> sprites.put(material, atlas.getSprite(name)));
+            if (sprites == null) {
+                var atlas = client.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
+                var resolved = new EnumMap<Material, TextureAtlasSprite>(Material.class);
+                TEXTURES.forEach((material, name) -> resolved.put(material, atlas.getSprite(name)));
+                sprites = Map.copyOf(resolved);
+            }
             if (city == null) {
                 city = new ItemStackRenderState(); var item = new ItemStack(Items.PAPER);
                 item.set(DataComponents.ITEM_MODEL, Identifier.parse("hoi:map/terrain/city"));
                 client.getItemModelResolver().updateForTopItem(city, item, ItemDisplayContext.FIXED, context.level(), null, 0);
             }
-            context.levelState().setData(FRAME, new Frame(tiles, Map.copyOf(sprites), city));
+            context.levelState().setData(FRAME, new Frame(tiles, sprites, city));
         });
         LevelRenderEvents.COLLECT_SUBMITS.register(AtlasSceneClient::draw);
     }
@@ -91,83 +89,15 @@ public final class AtlasSceneClient {
     static boolean receive(AtlasSceneProtocol.Page page) {
         var complete = ASSEMBLER.accept(page);
         if (complete == null) return false;
-        active = mesh(page.dimension(), complete); return true;
+        active = AtlasSceneMesh.build(page.dimension(), complete); return true;
     }
     public static void clearDeployment() {deployment = null; DEPLOYMENT.clear();}
-    static void clear() { clearDeployment(); active = null; city = null; visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
-    public static void resourcesReloaded() { city = null; }
+    static void clear() { clearDeployment(); active = null; resourcesReloaded(); visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
+    public static void resourcesReloaded() { city = null; sprites = null; }
     static int tileCount() { return active == null ? 0 : active.tiles().size(); }
     static int visibleTileCount() { return visibleTiles; }
     static int examinedTileCount() { return examinedTiles; }
 
-    private static Scene mesh(String dimension, List<Box> boxes) {
-        var groups = new LinkedHashMap<Key, List<Box>>();
-        for (var box : boxes) groups.computeIfAbsent(new Key((int)Math.floor(box.x()/16), (int)Math.floor(box.z()/16), box.material()), unused -> new ArrayList<>()).add(box);
-        var tiles = new ArrayList<Tile>();
-        groups.forEach((key, group) -> {
-            var vertices = new FloatArrayList();
-            AABB bounds = null;
-            for (var box : group) {
-                double radius = Math.hypot(box.sx(), box.sz());
-                var extent = new AABB(box.x()-radius, box.y(), box.z()-radius, box.x()+radius, box.y()+box.sy(), box.z()+radius);
-                bounds = bounds == null ? extent : bounds.minmax(extent);
-                if (box.material() != Material.CITY) append(vertices, box);
-            }
-            tiles.add(new Tile(key.material(), bounds, vertices.toFloatArray(), key.material() == Material.CITY ? List.copyOf(group) : List.of()));
-        });
-        var cells = new HashMap<Long,List<Integer>>();var large=new ArrayList<Integer>();
-        for (int i=0;i<tiles.size();i++) {
-            var bounds=tiles.get(i).bounds();
-
-            if((long)(cell(bounds.maxX)-cell(bounds.minX)+1)*(cell(bounds.maxZ)-cell(bounds.minZ)+1)>64) {
-                large.add(i);continue;
-            }
-            for(int z=cell(bounds.minZ);z<=cell(bounds.maxZ);z++)for(int x=cell(bounds.minX);x<=cell(bounds.maxX);x++)
-                cells.computeIfAbsent(cellKey(x,z),unused->new ArrayList<>()).add(i);
-        }
-        return new Scene(dimension, List.copyOf(tiles), cells, List.copyOf(large));
-    }
-
-    private static int cell(double value) { return (int)Math.floor(value/16); }
-    private static long cellKey(int x,int z) { return ((long)x<<32)|(z&0xffffffffL); }
-    private static List<Tile> nearby(Scene scene,Vec3 camera) {
-        double radius=Math.max(AtlasVisibility.BOUNDARY_RANGE,AtlasVisibility.DETAIL_RANGE);
-        var seen=new LinkedHashSet<Integer>(scene.large());var result=new ArrayList<Tile>();
-        for(int z=cell(camera.z-radius);z<=cell(camera.z+radius);z++)for(int x=cell(camera.x-radius);x<=cell(camera.x+radius);x++) {
-            var entries=scene.cells().get(cellKey(x,z));if(entries!=null)seen.addAll(entries);
-        }
-        for(int id:seen) {
-            var tile=scene.tiles().get(id);double range=AtlasVisibility.range(tile.material());
-            if(tile.bounds().distanceToSqr(camera)<=range*range)result.add(tile);
-        }
-        examinedTiles=seen.size();
-        return result;
-    }
-
-    private static void append(FloatArrayList output, Box box) {
-        if (box.material() == Material.FOREST || box.material() == Material.JUNGLE) {
-            face(output, box, new float[][]{{0,1,0},{0,0,0},{1,0,1},{1,1,1}}, 0,0,1);
-            face(output, box, new float[][]{{1,1,0},{1,0,0},{0,0,1},{0,1,1}}, 0,0,1);
-            face(output, box, new float[][]{{1,1,1},{1,0,1},{0,0,0},{0,1,0}}, 0,0,-1);
-            face(output, box, new float[][]{{0,1,1},{0,0,1},{1,0,0},{1,1,0}}, 0,0,-1);
-            return;
-        }
-        face(output, box, new float[][]{{0,1,0},{0,1,1},{1,1,1},{1,1,0}}, 0,1,0);
-        face(output, box, new float[][]{{0,0,1},{0,0,0},{1,0,0},{1,0,1}}, 0,-1,0);
-        face(output, box, new float[][]{{1,1,0},{1,0,0},{0,0,0},{0,1,0}}, 0,0,-1);
-        face(output, box, new float[][]{{0,1,1},{0,0,1},{1,0,1},{1,1,1}}, 0,0,1);
-        face(output, box, new float[][]{{0,1,0},{0,0,0},{0,0,1},{0,1,1}}, -1,0,0);
-        face(output, box, new float[][]{{1,1,1},{1,0,1},{1,0,0},{1,1,0}}, 1,0,0);
-    }
-    private static void face(FloatArrayList output, Box box, float[][] points, float nx, float ny, float nz) {
-        float sin = (float)Math.sin(box.yaw()), cos = (float)Math.cos(box.yaw());
-        for (int i = 0; i < 4; i++) {
-            float x = points[i][0]*box.sx(), z = points[i][2]*box.sz();
-            output.add(box.x()+x*cos+z*sin); output.add(box.y()+points[i][1]*box.sy()); output.add(box.z()-x*sin+z*cos);
-            output.add(i<2?0:1); output.add(i==0||i==3?0:1);
-            output.add(nx*cos+nz*sin); output.add(ny); output.add(-nx*sin+nz*cos);
-        }
-    }
     private static void draw(LevelRenderContext context) {
         var frame = context.levelState().getData(FRAME); if (frame == null) return;
         var camera = context.levelState().cameraRenderState.pos;

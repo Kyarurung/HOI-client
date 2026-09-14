@@ -531,7 +531,7 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         if (ClientPlayNetworking.canSend(MenuProtocol.Refresh.TYPE)) ClientPlayNetworking.send(new MenuProtocol.Refresh(token));
     }
     @Override public void tick() {
-        if (!selectionPreview && refreshTicks++ % 40 == 0) requestRefresh();
+        if (!selectionPreview && ++refreshTicks % 40 == 0) requestRefresh();
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         if (selectionPreview) {
