@@ -102,14 +102,29 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
             art(g,"air_detail/category_bg_"+(category==i?2:0),207+45*i,236,43,34);
             art(g,"air_detail/category_"+i,207+45*i,239,43,28);
         }
-        var missions=tiles("mission_"+category).stream().filter(t->!t.value().equals("0")).toList();
-        scroll=Math.clamp(scroll,0,Math.max(0,missions.size()-2));
-        for(int i=scroll;i<Math.min(missions.size(),scroll+2);i++) {
-            var t=missions.get(i);int px=15,py=275+(i-scroll)*70;
-            g.fill(x(px),y(py),x(px+125),y(py+67),0x9B10161E);
-            text(g,t.value(),px,py,125,18,true);art(g,t.icon(),px,py+18,125,43);hover(t,px,py,125,67);
+        var ownMissions=tiles("mission_"+category);
+        var enemyMissions=tiles("enemy_mission_"+category);
+        int maximum=Math.max(ownMissions.size(),enemyMissions.size());
+        scroll=Math.clamp(scroll,0,Math.max(0,maximum-3));
+        for(boolean enemy:List.of(false,true)) {
+            var missions=enemy?enemyMissions:ownMissions;
+            for(int i=scroll;i<Math.min(missions.size(),scroll+3);i++) {
+                var t=missions.get(i);int px=enemy?412:15,py=275+(i-scroll)*50;
+                g.fill(x(px),y(py),x(px+125),y(py+48),0x9B10161E);
+                text(g,t.value(),px,py,125,14,true);art(g,t.icon(),px,py+14,125,32);hover(t,px,py,125,48);
+            }
         }
-        if(missions.size()>2)g.fill(x(282),y(280+scroll*112/Math.max(1,missions.size()-2)),x(286),y(306+scroll*112/Math.max(1,missions.size()-2)),0xFF8A8A8A);
+        if(maximum>3)g.fill(x(282),y(280+scroll*112/Math.max(1,maximum-3)),x(286),y(306+scroll*112/Math.max(1,maximum-3)),0xFF8A8A8A);
+        for(boolean enemy:List.of(false,true)) {
+            int px=enemy?332:155;
+            var results=tiles(enemy?"enemy_result":"own_result");
+            for(int i=0;i<Math.min(4,results.size());i++) {
+                var result=results.get(i);int py=280+i*27;
+                art(g,result.icon(),px,py,28,22);
+                text(g,(enemy?"§a":"§c")+result.value()+"§r",px+29,py,44,22,true);
+                hover(result,px,py,73,22);
+            }
+        }
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable r)r.extractRenderState(g,mx,my,delta);
         var current=hovers.reversed().stream().filter(h->mx>=h.x()&&mx<h.x()+h.w()&&my>=h.y()&&my<h.y()+h.h()).map(Hover::tile).findFirst().orElse(null);
         if(!Objects.equals(current,hovered))tooltipScroll=0;hovered=current;
@@ -146,7 +161,7 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
         return super.mouseClicked(event,twice);
     }
     @Override public boolean mouseScrolled(double px,double py,double h,double v) {
-        if(px>=x(10)&&px<x(290)&&py>=y(278)&&py<y(428)){scroll-=(int)v;return true;}
+        if(px>=x(10)&&px<x(542)&&py>=y(278)&&py<y(428)){scroll-=(int)v;return true;}
         if(hovered!=null){tooltipScroll-=(int)v;return true;}return false;
     }
     @Override public boolean allowsMovement(){return true;}

@@ -21,13 +21,26 @@ public final class AirDetailScreenChecks {
         tiles.add(t("enemy_efficiency","적의 평균 임무 효율","88%","air_detail/air_mission_efficiency_strip_3"));
         tiles.add(t("enemy_detection","적 항공 탐지력","5%","air_detail/air_detection_strip_1"));
         tiles.add(t("efficiency","아군의 평균 임무 효율","97%","air_detail/air_mission_efficiency_strip_1"));
-        tiles.add(new DialogView.Tile("air_losses","아군 공군 부대 손실","53","air_detail/damage_skull","§e아군 공군 부대 손실§r\n이 공역에서 집계 시작 이후 누적: §e53§r\n대한민국 · 근접항공지원기: §c53§r\n  공중전: §c50§r\n  대공에 손실된 공군 부대: §c2§r\n  항공기 사고: §c1§r"));
+        tiles.add(new DialogView.Tile("air_losses","아군 공군 부대 손실","50","air_detail/damage_skull","§e아군 공군 부대 손실§r\n이 공역에서 집계 시작 이후 누적: §e50§r\n대한민국 · 근접항공지원기: §c50§r\n  공중전: §c50§r"));
         tiles.add(t("air_kills","적 공군 부대 격추","12","air_detail/damage_skull"));
-        tiles.add(t("air_loss_art","아군 근접항공지원기","53","production/equipment/cas"));
+        tiles.add(t("air_loss_art","아군 근접항공지원기","50","production/equipment/cas"));
         tiles.add(t("air_kill_art","적군 전투기","12","production/equipment/fighter"));
+        tiles.add(t("air_aa_losses","대공에 손실된 공군 부대","2","air_detail/damage_aa"));
+        tiles.add(t("enemy_aa_losses","대공에 손실된 공군 부대","1","air_detail/damage_aa"));
+        tiles.add(t("mission_0","공중 우세","199","production/equipment/fighter"));
         tiles.add(t("mission_0","근접항공지원","200","production/equipment/cas"));
+        tiles.add(t("mission_0","병참 체계 공습","100","production/equipment/strategic_bomber"));
+        tiles.add(t("enemy_mission_0","공중 우세","191","production/equipment/fighter"));
+        tiles.add(t("enemy_mission_0","근접항공지원","53","production/equipment/cas"));
+        tiles.add(t("enemy_mission_0","전략폭격","12","production/equipment/strategic_bomber"));
         tiles.add(t("mission_1","해상 타격","20","production/equipment/naval_bomber"));
         tiles.add(t("mission_2","전략폭격","100","production/equipment/strategic_bomber"));
+        for(String side:List.of("own_result","enemy_result")) {
+            tiles.add(t(side,"지원기 격추",side.equals("own_result")?"50":"12","air_detail/result_4"));
+            tiles.add(t(side,"사단 피해","63.38","air_detail/result_2"));
+            tiles.add(t(side,"건물 피해","1.5","air_detail/result_0"));
+            tiles.add(t(side,"함선 피해","18.2","air_detail/result_1"));
+        }
         for(int[] size:new int[][]{{2560,1440},{1600,1000},{854,480}}) {
             context.runOnClient(c->c.options.guiScale().set(2));context.getInput().resizeWindow(size[0],size[1]);context.waitTicks(3);
             context.setScreen(()->null);
@@ -51,6 +64,25 @@ public final class AirDetailScreenChecks {
                 var cursor=context.computeOnClient(c->{var screen=(AirDetailScreen)c.gui.screen();double scale=screen.panelWidth()/552.0,gui=c.getWindow().getGuiScale();return new double[]{(screen.panelLeft()+point[0]*scale)*gui,(screen.panelTop()+point[1]*scale)*gui};});
                 context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);context.takeScreenshot("hoi-air-tooltip-"+point[0]+"-gui2");
             }
+            if(size[0]==2560)for(String mode:List.of("cas-only","bombing-fallback")) {
+                var scenario=new ArrayList<>(tiles);
+                scenario.removeIf(t->t.section().equals("mission_0")&&(mode.equals("cas-only")?!t.name().equals("근접항공지원"):t.name().equals("병참 체계 공습")));
+                if(mode.equals("bombing-fallback"))scenario.add(t("mission_0","전략폭격","100","production/equipment/strategic_bomber"));
+                var preview=new DialogView(UUID.randomUUID().toString(),1,view.kind(),view.title(),"","","","air_detail/background","",scenario,List.of());
+                context.setScreen(()->new AirDetailScreen(preview));
+                context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-missions-"+mode+"-gui2");
+            }
+            if(size[0]==2560)for(String mode:List.of("interception","logistics","port")) {
+                var scenario=new ArrayList<>(tiles);scenario.removeIf(t->t.section().endsWith("_result"));
+                for(String side:List.of("own_result","enemy_result")) {
+                    int[] frames=mode.equals("interception")?new int[]{4,5,3}:new int[]{6,7,10};
+                    for(int frame:frames)scenario.add(t(side,mode.equals("interception")?"요격 결과":"병참 공격 결과",frame==3?"22%":"5","air_detail/result_"+frame));
+                    if(mode.equals("port")){scenario.removeIf(t->t.section().equals(side));scenario.add(t(side,"항구 습격","18.2","air_detail/result_1"));}
+                }
+                var preview=new DialogView(UUID.randomUUID().toString(),1,view.kind(),view.title(),"","","","air_detail/background","",scenario,List.of());
+                context.setScreen(()->new AirDetailScreen(preview));
+                context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-results-"+mode+"-gui2");
+            }
             if(size[0]==2560)for(int state=0;state<3;state++) {
                 var scenario=new ArrayList<>(tiles);
                 scenario.removeIf(t->t.section().equals("balance"));
@@ -58,7 +90,7 @@ public final class AirDetailScreenChecks {
                 String value=state==0?"통제 없음":state==1?"80%":"20%";
                 scenario.add(new DialogView.Tile("balance","공중 우세",value,"air_detail/progress_"+(state==0?"disabled":"good"),"공중 우세: "+value,new DialogView.Gauge(fraction,value)));
                 if(state==0) {
-                    scenario.removeIf(t->t.section().startsWith("air_")||t.section().startsWith("mission_"));
+                    scenario.removeIf(t->t.section().startsWith("air_")||t.section().startsWith("mission_")||t.section().startsWith("enemy_mission_")||t.section().endsWith("_result"));
                     scenario.replaceAll(t->t.section().equals("own")||t.section().equals("enemy")?new DialogView.Tile(t.section(),t.name(),"0",t.icon(),t.detail()):t);
                 }
                 var preview=new DialogView(UUID.randomUUID().toString(),1,view.kind(),view.title(),"","","","air_detail/background","",scenario,List.of());
