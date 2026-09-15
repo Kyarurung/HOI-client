@@ -3,6 +3,7 @@ package dev.hoi.client.screen;
 import dev.hoi.client.input.SidebarMovement;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.ui.HoiMenuBar;
+import dev.hoi.client.ui.HoiTooltips;
 import dev.hoi.client.ui.UiText;
 import dev.hoi.client.ui.PanelButton;
 import dev.hoi.client.ui.HoiMenuButton;
@@ -471,13 +472,18 @@ public final class AgencyScreen extends Screen implements SidebarMovement.Screen
     private boolean unestablished() { return view != null && view.items().stream().noneMatch(i -> i.id().equals("recruit")); }
     private void drawUnestablished(GuiGraphicsExtractor g) {
         var project=view.items().stream().filter(i->i.id().equals("cancel_project")).findFirst().orElse(null);
-        UiAssets.draw(g,"agency/ui/create",10,top+29,pane-20,59);
+        boolean available=project!=null||view.items().stream().anyMatch(i->i.id().equals("create")&&i.enabled());
+        UiAssets.nineSlice(g,"agency/ui/create_disabled",10,top+29,pane-20,59,8,.5);
         smallCentered(g,project==null?"기관 창설":"기관 창설 중",pane/2,top+51,TEXT);
-        UiAssets.draw(g,"hud/factories",pane/2-65,top+57,13,13);
-        smallCentered(g,"5",pane/2-45,top+60,0xFFCC4444);
-        smallCentered(g,project==null?"30일":project.value().substring(project.value().lastIndexOf('·')+1).trim(),pane/2+55,top+60,GOLD);
-        HoiMenuStyle.recess(g,34,top+77,pane-68,4);
-        if(project!=null&&project.progress()>=0)g.fill(35,top+78,35+(int)((pane-70)*project.progress()),top+80,0xFF97AC6C);
+        int gaugeLeft=45,gaugeRight=pane-45;
+        UiAssets.draw(g,"construction/summary/civilian_factory",gaugeLeft,top+60,13,11);
+        UiText.text(g,font,"5",gaugeLeft+15,top+60,0xFF000000|(available?HoiTooltips.GOOD:HoiTooltips.BAD));
+        String days=project==null?"30":project.value().substring(project.value().lastIndexOf('·')+1).replace("일 남음", "").trim();
+        int daysX=gaugeRight-Math.round(font.width(days+"일")*UiText.scale(font));
+        UiText.text(g,font,days,daysX,top+60,GOLD);
+        UiText.text(g,font,"일",daysX+Math.round(font.width(days)*UiText.scale(font)),top+60,TEXT);
+        HoiMenuStyle.recess(g,gaugeLeft,top+75,gaugeRight-gaugeLeft,5);
+        if(project!=null&&project.progress()>=0)g.fill(gaugeLeft+1,top+76,gaugeLeft+1+(int)((gaugeRight-gaugeLeft-2)*Math.clamp(project.progress(),0,1)),top+79,0xFF97AC6C);
         drawOperationsChrome(g);
         wrappedNotice(g,"기관을 창설하기 전에는 정보원을 모집할 수 없습니다.",recruitX(),top+178,pane-recruitX()-12);
         wrappedNotice(g,group.equals("cryptology")?"기관을 창설하면 암호 해독을 시작할 수 있습니다.":"작전은 정보원이 첩보망을 구축하여야 시행할 수 있습니다.",16,top+282,pane-32);
