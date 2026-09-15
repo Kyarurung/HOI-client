@@ -16,6 +16,9 @@ final class MapDetailScreenChecks {
         for (String id : buildings) own.add(tile("state", id, id.equals("radar") ? "2/2" : "5/5", "construction/" + id));
         own.add(new DialogView.Tile("slots", "열린 슬롯", "9/25", "", "대도시: §a+5§r\n원자로: §a+1§r\n부산광역시: §a+1§r\n원자로: §a+40%§r"));
         for (int i = 0; i < 25; i++) own.add(tile("shared", i < 6 ? "민간공장" : i < 9 ? "빈 건설 슬롯" : "잠긴 건설 슬롯", "", i < 6 ? "construction/civilian_factory" : i < 9 ? "construction/empty_slot" : "map_detail/locked_slot"));
+        int power=java.util.stream.IntStream.range(0,own.size()).filter(i->own.get(i).section().equals("shared")).findFirst().orElseThrow()+4;
+        own.set(power,new DialogView.Tile("shared","발전소","","construction/power_plant",
+                "§e발전소§r (주 등급: §e3§r)\n발전소의 잠재 최대 레벨: §e4§r\n\n이 건물은 국가에 §a+6§r£resources_strip|7 을 제공하며, §c-4§r£resources_strip|1 및 §c-1§r£resources_strip|5 을(를) 소비합니다.\n\n§c이 주는 §e원자로§r나 §e에너지 농장§r을 건설할 수 없는 주입니다!§r"));
         for (String id : List.of("civilian_factory", "military_factory", "dockyard", "office_park", "refinery", "fuel_silo", "rocket_site", "nuclear_reactor", "power_plant", "energy_farm")) own.add(tile("limits", id, "1/4", "construction/" + id));
         for (String id : List.of("oil", "aluminum", "rubber", "tungsten", "iron", "chromium")) own.add(tile("resources", id, id.equals("oil") ? "-12" : "917", "production/resources/" + id));
         own.add(new DialogView.Tile("energy", "에너지 효율", "158", "map_detail/energy", "에너지 효율: §e1.67§r\n  사무단지: §c-2%§r\n  사무단지: §c-2%§r\n공장 에너지 소비량: §c-15%§r\n공장 에너지 사용량: §e157.67§r\n군수공장 에너지 사용량: §e67.57§r\n해군 조선소 에너지 사용량: §e7.50§r\n민간공장 에너지 사용량: §e82.59§r"));
@@ -137,7 +140,7 @@ final class MapDetailScreenChecks {
                         var decorated=dev.hoi.client.ui.KeywordIcons.decorate(net.minecraft.network.chat.Component.literal("이동: 95.0%"));
                         if(decorated.getString().charAt(0)<0xe000)throw new AssertionError("Movement requires the original text icon");
                     });
-                    for(int[] cell:new int[][]{{443,410},{230,530},{419,550},{434,468}}) {
+                    for(int[] cell:new int[][]{{443,410},{230,530},{419,550},{434,468},{409,185}}) {
                         var point=context.computeOnClient(client -> {
                             var screen=(MapDetailScreen)client.gui.screen();
                             double ratio=screen.panelWidth()/463.0,gui=client.getWindow().getGuiScale();

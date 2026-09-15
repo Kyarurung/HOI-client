@@ -37,7 +37,7 @@ public final class KeywordIcons {
         if(bindings==null)bindings=load();
         var result=Component.empty();
         text.visit((style,part)->{
-            var matcher=java.util.regex.Pattern.compile("£([A-Za-z0-9_]+)").matcher(part);
+            var matcher=java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)").matcher(part);
             int start=0;
             while(matcher.find()) {
                 result.append(Component.literal(part.substring(start,matcher.start())).withStyle(style));

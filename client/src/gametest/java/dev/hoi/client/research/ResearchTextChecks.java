@@ -12,6 +12,9 @@ import net.minecraft.network.chat.Style;
 public final class ResearchTextChecks {
     public static void run(ClientGameTestContext context) {
         context.runOnClient(client -> {
+            var resources=KeywordIcons.decorateLines(Component.literal("+6£resources_strip|7 -4£resources_strip|1 -1£resources_strip|5"));
+            check(!resources.getString().contains("£")&&!resources.getString().contains("|"), "Resource frame syntax is fully consumed");
+            check(resources.getString().chars().filter(c->c>=0xe000&&c<=0xf8ff).distinct().count()==3, "Energy, oil and steel use distinct source frames");
             var labeled = KeywordIcons.decorate(Component.literal("건설 속도: +15%"));
             check(labeled.getString().endsWith(" 건설 속도: +15%") && labeled.getString().charAt(0) >= 0xe000, "Source-bound keyword glyph precedes construction speed");
             for (String label : List.of("기반시설 건설 속도", "사무단지 건설 속도"))

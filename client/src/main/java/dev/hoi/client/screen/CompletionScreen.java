@@ -62,7 +62,7 @@ final class CompletionScreen extends DialogScreen {
         if (research) UiAssets.draw(g, "completion/research", left + 7, bodyTop, pane - 14, 63);
         else UiAssets.nineSlice(g, "completion/focus", left + 12, innerTop, pane - 24, innerHeight, 12, .5);
         UiAssets.draw(g, "completion/bottom", left + 2, top + panelHeight - 35, pane - 4, 36);
-        dev.hoi.client.ui.UiText.centeredAt(g, font, view.presentation().equals("research_complete") ? "기술 완료" : "국가중점 완료", left + pane / 2, top + 20 - font.lineHeight / 2, HoiMenuStyle.TEXT);
+        dev.hoi.client.ui.UiText.centeredAt(g, font, view.presentation().equals("research_complete") ? "기술 완료" : "국가중점 완료", left + pane / 2, top + 20 - font.lineHeight / 2 + (research ? 2 : 0), HoiMenuStyle.TEXT);
         g.enableScissor(left + 8, bodyTop, left + pane - 8, bodyBottom);
         int titleHeight = Math.max(1, Math.min(2, font.split(Component.literal(view.title()), (int)((pane - 30) / dev.hoi.client.ui.UiText.scale(font))).size())) * (dev.hoi.client.ui.UiText.MIN_HEIGHT + 1);
         int imageHeight = research ? 52 : 60;
@@ -71,7 +71,7 @@ final class CompletionScreen extends DialogScreen {
         if (!UiAssets.drawContent(g, view.image(), left + (pane - imageWidth) / 2, y, imageWidth, imageHeight))
             UiAssets.draw(g, research ? "menu/research" : "menu/focus", left + pane / 2 - 22, y + (imageHeight - 44) / 2, 44, 44);
         dev.hoi.client.ui.UiText.centered(g, font, view.title(), left + 15,
-                research ? bodyTop + 63 : y + imageHeight + 2, pane - 30,
+                research ? bodyTop + 64 : y + imageHeight + 2, pane - 30,
                 research ? top + panelHeight - 35 - (bodyTop + 63) : titleHeight, 0xFFE6C779);
         total = bodyBottom - bodyTop;
         g.disableScissor();
