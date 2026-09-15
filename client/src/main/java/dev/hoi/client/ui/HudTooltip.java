@@ -88,8 +88,7 @@ public final class HudTooltip {
         int left = Math.max(6, width - boxWidth - 6);
         int top = Math.max(6, Math.min(HoiMenuBar.height(width) + 18, client.getWindow().getGuiScaledHeight() - boxHeight - 6));
         g.nextStratum();
-        g.fill(left, top, left + boxWidth, top + boxHeight, 0xF0100812);
-        g.outline(left, top, boxWidth, boxHeight, 0xFF873B98);
+        HoiTooltips.background(g,left,top,boxWidth,boxHeight);
         for (int i=0; i<visible.size(); i++) UiText.text(g, font, visible.get(i), left + 6, top + 5 + i * 12, 0xFFFFFFFF);
     }
 }

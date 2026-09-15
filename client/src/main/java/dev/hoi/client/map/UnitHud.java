@@ -115,15 +115,15 @@ public final class UnitHud {
         if(hovered==null)return;
         var c=hovered;var font=Minecraft.getInstance().font;
         int w=Math.min(286,g.guiWidth()-12);
-        var title=font.split(Component.literal(c.countryName()+" · "+c.name()+" "+c.count()+"개").withColor(0xE6C779),Math.max(1,(int)((w-12)/UiText.scale(font))));
+        var title=font.split(Component.literal(c.countryName()+" · "+c.name()+" "+c.count()+"개").withColor(dev.hoi.client.ui.HoiTooltips.GOLD),Math.max(1,(int)((w-12)/UiText.scale(font))));
         int titleCount=Math.min(3,title.size()),columns=Math.max(1,(w-12)/44);
         int h=12+titleCount*12+40+((c.battalions().size()+columns-1)/columns)*16;
         int x=Math.clamp(mx+12,6,Math.max(6,g.guiWidth()-w-6)),y=Math.clamp(my+12,6,Math.max(6,g.guiHeight()-h-6));
-        g.nextStratum();g.fill(x,y,x+w,y+h,0xF0100812);g.outline(x,y,w,h,0xFF873B98);
+        g.nextStratum();dev.hoi.client.ui.HoiTooltips.background(g,x,y,w,h);
         for(int i=0;i<titleCount;i++)UiText.text(g,font,title.get(i),x+6,y+6+i*12,0xFFFFFFFF);
         int line=y+8+titleCount*12;
         String[] labels={"평균 조직력", "평균 내구도", "보급 상황"};double[] ratios={c.organization(),c.strength(),c.supply()};
-        for(int i=0;i<3;i++)UiText.text(g,font,Component.literal(labels[i]+": ").append(Component.literal(decimal(ratios[i]*100)+"%").withColor(0xE6C779)),x+6,line+i*12,0xFFFFFFFF);
+        for(int i=0;i<3;i++)UiText.text(g,font,Component.literal(labels[i]+": ").append(Component.literal(decimal(ratios[i]*100)+"%").withColor(dev.hoi.client.ui.HoiTooltips.GOLD)),x+6,line+i*12,0xFFFFFFFF);
         int i=0;
         for(var entry:new TreeMap<>(c.battalions()).entrySet()) {
             int bx=x+6+i%columns*44,by=line+40+i/columns*16;

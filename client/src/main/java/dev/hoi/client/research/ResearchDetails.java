@@ -10,12 +10,17 @@ import java.util.*;
 
 
 public final class ResearchDetails {
-    public record Card(String name, String kind, String texture, boolean representative, List<String> effects) {
+    public record Card(String name, String kind, String texture, boolean representative, List<String> effects, String id) {
         public Card { effects = List.copyOf(effects); }
     }
     private static Map<String, List<Card>> cached;
     private ResearchDetails() {}
     public static void clear() { cached = null; }
+    public static Optional<Card> equipment(String id) {
+        if(id==null)return Optional.empty();
+        if(cached==null)cached=load();
+        return cached.values().stream().flatMap(List::stream).filter(card->card.kind().equals("장비")&&id.equals(card.id())).findFirst();
+    }
     public static List<Card> cards(Tech tech) {
         if (tech.source() == null) return List.of();
         if (cached == null) cached = load();
@@ -26,7 +31,7 @@ public final class ResearchDetails {
         return cards(tech).stream().map(card -> {
             boolean useArt = !art.isEmpty() && card.kind().equals("장비") && (card.texture().isEmpty() || card.representative());
             String name = tech.source().localizedNames().getOrDefault(card.name(), card.name());
-            return new Card(name, card.kind(), useArt ? art : card.texture(), useArt || card.representative(), card.effects());
+            return new Card(name, card.kind(), useArt ? art : card.texture(), useArt || card.representative(), card.effects(),card.id());
         }).toList();
     }
     private static Map<String, List<Card>> load() {
@@ -57,7 +62,7 @@ public final class ResearchDetails {
                         if (text.length() > 256 || effects.size() >= 64) return Map.of();
                         effects.add(text);
                     }
-                    cards.add(new Card(name, kind, texture, card.get("representative").getAsBoolean(), effects));
+                    cards.add(new Card(name, kind, texture, card.get("representative").getAsBoolean(), effects,card.has("id")?card.get("id").getAsString():""));
                 }
                 result.put(entry.getKey(), List.copyOf(cards));
             }

@@ -331,12 +331,20 @@ public final class IndustryScreenChecks {
     }
     private static void factoryControls(ClientGameTestContext context, IndustryView v) {
         var gun=v.equipment().stream().filter(e->e.id().equals("hoi:modern_infantry_gear")).findFirst().orElseThrow();
+        var sourceGun=new IndustryView.Equipment(gun.id(),gun.name(),gun.texture(),gun.group(),gun.naval(),gun.unlocked(),gun.cost(),gun.factoryLimit(),gun.resources(),gun.stockpile(),gun.reserved(),gun.deployed(),gun.deficit(),gun.replacement(),gun.family(),gun.familyName(),gun.demand(),gun.acquired(),"infantry_equipment_3");
         var ship=v.equipment().stream().filter(e->e.naval()&&e.factoryLimit()==15).findFirst().orElseThrow();
-        var lines=List.of(new IndustryView.Line("military",gun.id(),15,150,.5,10,.2,.8,null,10,2),
+        var lines=List.of(new IndustryView.Line("military",gun.id(),15,150,.96378,10,.2,.8,null,10,2,.00003,.00009,.6453),
                 new IndustryView.Line("naval",ship.id(),15,15,1,2,.2,0,null,10,2));
         var economy=v.economy();
         var owned=new IndustryView.Economy(12,12,economy.civilian(),economy.freeCivilian(),economy.consumer(),economy.fuel(),economy.gdp(),economy.debt(),economy.manpower(),economy.armyXp(),economy.energy(),economy.energyDemand());
-        var issued=new IndustryView(v.session(),v.revision(),v.country(),v.hud(),owned,v.resources(),v.modifiers(),v.equipment(),lines,v.partners(),v.trades(),v.templates(),v.battalions(),v.companies(),v.locations(),v.recruits(),v.deployed(),null,"",v.navalRepairs());
+        var modifiers=v.modifiers().stream().map(m->{
+            if(!m.id().equals("cap"))return m;
+            int split=m.detail().lastIndexOf("\n\n");
+            String description=split<0?m.detail():m.detail().substring(split+2);
+            return new IndustryView.Modifier(m.id(),m.name(),.9674,
+                    "기본 한도: §e50.00%§r\n£tech_mod 개선된 공작기계: §a+2.50%§r\n£pol_idea 산업 정책: §a+48.52%§r\n인플레이션: §c-4.28%§r\n\n"+description);
+        }).toList();
+        var issued=new IndustryView(v.session(),v.revision(),v.country(),v.hud(),owned,v.resources(),modifiers,v.equipment().stream().map(e->e.id().equals(gun.id())?sourceGun:e).toList(),lines,v.partners(),v.trades(),v.templates(),v.battalions(),v.companies(),v.locations(),v.recruits(),v.deployed(),null,"",v.navalRepairs());
         var requests=new ArrayList<IndustryProtocol.Request>();
         check(IndustryScreen.productionFactoryState(0,1,1,0,0,15,-1)==0,"Operating factories use the normal frame");
         check(IndustryScreen.productionFactoryState(10,1,0,1,0,15,-1)==2,"Damage uses the red frame");
@@ -354,6 +362,56 @@ public final class IndustryScreenChecks {
             for(String icon:List.of("factory_0","factory_1","factory_2","factory_3","dockyard_0","dockyard_1","dockyard_2","dockyard_3","x5_normal","x5_selected","x10_normal","x10_selected","efficiency_frame","efficiency_fill","efficiency_bg","progress_fill","progress_bg"))
                 check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/"+icon+".png")).isPresent(),"Original production state frame "+icon);
         });
+        context.getInput().resizeWindow(2560,1440);context.waitTicks(2);
+        context.runOnClient(client->{
+            var text=dev.hoi.client.ui.HoiTooltips.productionText(net.minecraft.network.chat.Component.literal(
+                    "£prod_eff 생산 효율: §e96.38%§r (매일 §e0.00%§r)\n£tech_mod 기술: §a+2.50%§r\n£pol_idea 정책: §c-3.25%§r"));
+            check(!text.getString().contains("£"),"Source texticon tokens resolve to original sprites");
+            check(text.getString().chars().filter(c->c>=0xe000&&c<=0xf8ff).count()==3,"Inline icons appear exactly once");
+            check(text.getString().contains("0.00%"),"Production tooltips retain stationary and rounded zero values");
+            text.visit((style,part)->{
+                if(part.contains("96.38%"))check(style.getColor().getValue()==0xFFBD00,"TFR general tooltip gold");
+                if(part.contains("+2.50%"))check(style.getColor().getValue()==0x009F03,"TFR general tooltip green");
+                if(part.contains("-3.25%"))check(style.getColor().getValue()==0xFF3232,"TFR general tooltip red");
+                return java.util.Optional.empty();
+            },net.minecraft.network.chat.Style.EMPTY);
+            String equipmentTip=ProductionTooltips.equipment(issued,lines.getFirst(),sourceGun);
+            check(equipmentTip.contains("원본 기본 능력치")&&equipmentTip.contains("1.5")&&!equipmentTip.contains("1.50"),"Equipment reference stats retain source precision");
+            check(equipmentTip.contains("일일 생산량")&&equipmentTip.contains("공장당 자원 사용:"),"Equipment tooltip uses actual production and resources");
+            String gauge=ProductionTooltips.efficiency(issued,lines.getFirst());
+            check(gauge.contains("96.38%")&&gauge.contains("0.00%")&&!gauge.contains("0.003%"),"Gauge precision is two decimal places");
+            check(gauge.contains("매일 기본 획득량: §e0.01%")&&gauge.contains("자원 부족: §c-64.53%"),"Gauge includes server base gain and shortage with two decimals");
+            for(double efficiency:new double[]{.9674,.9674-1e-15,.98}) {
+                var capped=new IndustryView.Line("military",gun.id(),15,150,efficiency,10,.2,.8,null,10,2,0.0,0.0,.6453);
+                check(!ProductionTooltips.efficiency(issued,capped).contains("(매일"),"Daily gain is hidden at or above the actual efficiency cap");
+                String cappedTip=ProductionTooltips.efficiency(issued,capped);
+                check(cappedTip.contains("매일 기본 획득량: §e0.00%")&&cappedTip.contains("자원 부족: §c-64.53%"),"Capped efficiency retains base gain and resource modifiers");
+            }
+            var below=new IndustryView.Line("military",gun.id(),15,150,.967399,10,.2,.8,null,10,2,.000001);
+            check(ProductionTooltips.efficiency(issued,below).contains("매일"),"Rounded percentages do not hide growth below the cap");
+            check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/tooltip.png")).isPresent(),"Global tooltip uses the original TFR dialog asset");
+        });
+        for(int indicator=0;indicator<6;indicator++) {
+            final int column=indicator;
+            var point=context.computeOnClient(client->{var screen=(IndustryScreen)client.gui.screen();int cell=(screen.panelWidth()-12)/6;double scale=client.getWindow().getGuiScale();return new double[]{(6+column*cell+cell/2.0)*scale,(dev.hoi.client.ui.HoiMenuBar.height(screen.width)+70)*scale};});
+            context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(2);
+            context.takeScreenshot("hoi-production-modifier-"+List.of("dockyard","factory","cap","retention","growth","damage").get(indicator)+"-gui2");
+        }
+        var gaugePoint=context.computeOnClient(client->{var screen=(IndustryScreen)client.gui.screen();double scale=client.getWindow().getGuiScale();return new double[]{(6+Math.round(270*(screen.panelWidth()-12)/511f))*scale,(dev.hoi.client.ui.HoiMenuBar.height(screen.width)+140)*scale};});
+        context.getInput().setCursorPos(gaugePoint[0],gaugePoint[1]);context.waitTicks(2);
+        context.takeScreenshot("hoi-production-efficiency-tooltip-gui2");
+        var equipmentPoint=context.computeOnClient(client->{var b=button((IndustryScreen)client.gui.screen(),gun.name()+" · 장비 교체");double scale=client.getWindow().getGuiScale();return new double[]{(b.getX()+b.getWidth()/2.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};});
+        context.getInput().setCursorPos(equipmentPoint[0],equipmentPoint[1]);context.waitTicks(3);
+        context.takeScreenshot("hoi-production-equipment-tooltip-gui2");
+        var cappedLines=new ArrayList<>(lines);
+        cappedLines.set(0,new IndustryView.Line("military",gun.id(),15,150,.9674,10,.2,.8,null,10,2,0.0,0.0,.6453));
+        var cappedView=new IndustryView(v.session(),v.revision(),v.country(),v.hud(),owned,v.resources(),modifiers,issued.equipment(),cappedLines,v.partners(),v.trades(),v.templates(),v.battalions(),v.companies(),v.locations(),v.recruits(),v.deployed(),null,"",v.navalRepairs());
+        context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,cappedView.session(),cappedView,requests::add));
+        context.getInput().setCursorPos(gaugePoint[0],gaugePoint[1]);context.waitTicks(2);
+        context.takeScreenshot("hoi-production-efficiency-capped-tooltip-gui2");
+        context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));
+        context.getInput().setCursorPos(700,700);context.getInput().resizeWindow(1600,1000);context.waitTicks(2);
+        context.runOnClient(client->{check(requests.stream().allMatch(request->request.action()==IndustryProtocol.Action.CLOSE),"Tooltip fixture transitions only close their previous screen");requests.clear();});
         for(int multiplier:new int[]{5,10,1}) {
             click(context,"military · ×"+(multiplier==1?10:multiplier));
             check(requests.isEmpty(),"Display multiplier does not mutate production");

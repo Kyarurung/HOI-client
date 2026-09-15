@@ -9,17 +9,16 @@ import net.minecraft.util.FormattedCharSequence;
 
 
 public final class HoiTooltips {
-    // TFR interface/fonts.gfx: textcolors Y, G and R.
-    public static final int GOLD = 0xEEC923, GOOD = 0x56AC5B, BAD = 0xDE5646;
+    public static final int GOLD = 0xFFBD00, GOOD = 0x009F03, BAD = 0xFF3232;
     private HoiTooltips() {}
 
     private static net.minecraft.network.chat.Style sourceColor(net.minecraft.network.chat.Style style) {
         var color = style.getColor();
         if (color == null) return style;
         return switch (color.getValue()) {
-            case 0xFFFF55, 0xFFAA00 -> style.withColor(GOLD);
-            case 0x55FF55, 0x00AA00 -> style.withColor(GOOD);
-            case 0xFF5555, 0xAA0000 -> style.withColor(BAD);
+            case 0xFFFF55, 0xFFAA00, 0xEEC923 -> style.withColor(GOLD);
+            case 0x55FF55, 0x00AA00, 0x56AC5B -> style.withColor(GOOD);
+            case 0xFF5555, 0xAA0000, 0xDE5646 -> style.withColor(BAD);
             default -> style;
         };
     }
@@ -51,6 +50,17 @@ public final class HoiTooltips {
         return net.minecraft.client.gui.components.Tooltip.create(KeywordIcons.decorateLines(sentences(format(text))));
     }
 
+    public static Component productionText(Component text) {
+        return KeywordIcons.decorateLines(sentences(text));
+    }
+
+    public static void background(GuiGraphicsExtractor graphics,int x,int y,int width,int height) {
+        UiAssets.nineSlice(graphics,"production/tooltip",x,y,width,height,6,.5);
+    }
+
+    public static void drawExact(GuiGraphicsExtractor graphics,Font font,String text,int x,int y) {
+        graphics.setTooltipForNextFrame(font,formattedLines(font,text,graphics.guiWidth(),true),x,y);
+    }
     public static Component format(Component text) {
         var rows = new ArrayList<net.minecraft.network.chat.MutableComponent>();
         rows.add(Component.empty());
@@ -88,8 +98,8 @@ public final class HoiTooltips {
         for (String line : sentences(text).split("\\R", -1)) {
             if (line.isEmpty()) lines.add(Component.empty().getVisualOrderText());
             else {
-                var value = sentences(Component.literal(line.replaceAll("£[A-Za-z0-9_]+\\s*", "")));
-                lines.addAll(font.split(icons ? KeywordIcons.decorate(value) : value, width));
+                var value = sentences(Component.literal(line));
+                lines.addAll(font.split(icons ? KeywordIcons.decorateLines(value) : value, width));
             }
         }
         return List.copyOf(lines);

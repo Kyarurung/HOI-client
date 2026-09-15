@@ -7,6 +7,32 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndustryViewTest {
+    @Test void equipmentSourceReferenceIsOptionalAndBounded() {
+        var gson=new com.google.gson.Gson();
+        var old=new IndustryView.Equipment("old","Old","old","infantry",false,true,1,4,Map.of(),5,2,1,0);
+        var json=gson.toJsonTree(old).getAsJsonObject();
+        assertNull(gson.fromJson(json,IndustryView.Equipment.class).sourceEquipment());
+        json.addProperty("sourceEquipment","infantry_equipment_3");
+        var equipment=gson.fromJson(json,IndustryView.Equipment.class);
+        assertEquals("infantry_equipment_3",equipment.sourceEquipment());
+        assertEquals(equipment,gson.fromJson(gson.toJson(equipment),IndustryView.Equipment.class));
+        json.addProperty("sourceEquipment","x".repeat(129));
+        assertThrows(RuntimeException.class,()->gson.fromJson(json,IndustryView.Equipment.class));
+    }
+    @Test void productionEfficiencyGainPreservesLegacyUnknownAndStationaryZero() {
+        var gson=new com.google.gson.Gson();
+        var line=new IndustryView.Line("line","equipment",15,150,.5,10,.2,.8,null,10,2,.00003,.0001,.7);
+        assertEquals(line,gson.fromJson(gson.toJson(line),IndustryView.Line.class));
+        var legacy=gson.toJsonTree(line).getAsJsonObject();legacy.remove("efficiencyGain");
+        assertNull(gson.fromJson(legacy,IndustryView.Line.class).efficiencyGain());
+        legacy.remove("efficiencyBaseGain");legacy.remove("efficiencyResourcePenalty");
+        var old=gson.fromJson(legacy,IndustryView.Line.class);
+        assertNull(old.efficiencyBaseGain());assertNull(old.efficiencyResourcePenalty());
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.Line("line","equipment",15,150,.5,10,.2,.8,null,10,2,.00003,-.1,.7));
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.Line("line","equipment",15,150,.5,10,.2,.8,null,10,2,.00003,.1,1.1));
+        assertEquals(0.0,new IndustryView.Line("line","equipment",15,150,.5,0,.2,0,null,0,2,0.0).efficiencyGain());
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.Line("line","equipment",15,150,.5,10,.2,.8,null,10,2,Double.NaN));
+    }
     @Test void equipmentRatiosPreserveUnknownAndValidateServerValues() {
         var gson=new com.google.gson.Gson();
         var policy=new IndustryView.RecruitmentPolicy(java.util.Set.of(),Map.of(),.5,Map.of(),null,Map.of("supply",0.0,"garrison",1.0));

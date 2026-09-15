@@ -76,7 +76,13 @@ public record IndustryView(String session, long revision, String country, Countr
     public record Modifier(String id, String name, double value, String detail) {}
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
             double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
-            String replacement, String family, String familyName, Long demand, Boolean acquired) {
+            String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment) {
+
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand, Boolean acquired) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,null);
+        }
 
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
@@ -106,13 +112,20 @@ public record IndustryView(String session, long revision, String country, Countr
             if (replacement != null) { text(replacement,128); if (replacement.equals(id)) throw new IllegalArgumentException("Self replacement"); }
             if (family != null) text(family,128);
             if (familyName != null) text(familyName,128);
+            if (sourceEquipment != null) text(sourceEquipment,128);
             resources=boundedMap(resources,8);
             if (!Double.isFinite(cost) || cost <= 0 || factoryLimit < 1 || stockpile < 0 || reserved < 0 || deployed < 0 || deficit < 0 || demand != null && demand < 0)
                 throw new IllegalArgumentException("Invalid equipment amounts");
         }
     }
     public record Line(String id, String equipment, int factories, int availableFactories, double efficiency,
-            double daily, double progress, double shortage, Conversion conversion, Integer operating, Integer damaged) {
+            double daily, double progress, double shortage, Conversion conversion, Integer operating, Integer damaged, Double efficiencyGain, Double efficiencyBaseGain, Double efficiencyResourcePenalty) {
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,null,null);
+        }
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,null);
+        }
         public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion) {
             this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,null,null);
         }
@@ -120,6 +133,10 @@ public record IndustryView(String session, long revision, String country, Countr
         public int damagedFactories() {return damaged==null?0:damaged;}
         public int reservedFactories() {return factories-operatingFactories()-damagedFactories();}
         public Line {
+            if(efficiencyGain!=null&&!Double.isFinite(efficiencyGain))throw new IllegalArgumentException("Invalid efficiency gain");
+            if(efficiencyBaseGain!=null&&(!Double.isFinite(efficiencyBaseGain)||efficiencyBaseGain<0)
+                    ||efficiencyResourcePenalty!=null&&(!Double.isFinite(efficiencyResourcePenalty)||efficiencyResourcePenalty<0||efficiencyResourcePenalty>1))
+                throw new IllegalArgumentException("Invalid efficiency growth factors");
             if(factories<0||availableFactories<0||operating!=null&&(operating<0||operating>factories)||damaged!=null&&(damaged<0||damaged>factories-(operating==null?factories:operating)))
                 throw new IllegalArgumentException("Invalid production factory allocation");
         }

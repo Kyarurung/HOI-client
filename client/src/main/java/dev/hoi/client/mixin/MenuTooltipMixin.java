@@ -28,10 +28,8 @@ public abstract class MenuTooltipMixin {
 
     @Redirect(method = "tooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;extractTooltipBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIIILnet/minecraft/resources/Identifier;)V"))
     private void menuTooltipBackground(GuiGraphicsExtractor graphics, int x, int y, int width, int height, Identifier style) {
-        var screen = Minecraft.getInstance().gui.screen();
-        if (screen != null && screen.getClass().getPackageName().startsWith("dev.hoi.client.")) {
-            graphics.fill(x - 3, y - 3, x + width + 3, y + height + 3, 0xF0100812);
-            graphics.outline(x - 3, y - 3, width + 6, height + 6, 0xFF873B98);
+        if (hoiText()) {
+            dev.hoi.client.ui.HoiTooltips.background(graphics,x-7,y-7,width+14,height+14);
         } else {
             TooltipRenderUtil.extractTooltipBackground(graphics, x, y, width, height, style);
         }

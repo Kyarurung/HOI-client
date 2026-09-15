@@ -146,33 +146,34 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private void production() {
         var economy = view.economy();
         var lines = view.lines();
-        int start = top + 155, h = productionRowHeight(), bodyTop = top + 27;
+        int start = top + 135, h = productionRowHeight(), bodyTop = top + 27;
         if (compact()) scroll = Math.clamp(scroll, 0, Math.max(0, start + lines.size() * h - bottom()));
         else scroll = clampScroll(scroll, lines.size(), h, start);
         int offset = compact() ? scroll : 0;
         if (graphics != null) graphics.enableScissor(0, bodyTop, pane, bottom());
         resourceStrip(top + 27 - offset, 32);
         var modifiers = productionIndicators();
-        int cell = (pane - 12) / 3;
+        int cell = (pane - 12) / 6;
         for (int i = 0; i < modifiers.size(); i++) {
-            var m = modifiers.get(i); int x = 6 + i % 3 * cell, y = top + 62 + i / 3 * 20 - offset;
+            var m = modifiers.get(i); int x = 6 + i * cell, y = top + 62 - offset;
             recess(x, y, cell - 1, 19);
-            iconText("production/modifiers/" + m.id(), percent(m.value()), x + 2, y + 1, cell - 5, 17, 14, TEXT);
-            tip(m.name() + ": " + percent(m.value()) + "\n" + m.detail(), x, y, cell, 19);
+            iconText("production/modifiers/" + m.id(), percent(m.value()), x + 2, y + 1, cell - 5, 17, 14, m.value()==0?TEXT:(m.id().equals("damage")?m.value()<0:m.value()>0)?0xFF009F03:0xFFFF3232);
+            productionTip(ProductionTooltips.modifier(m),x,y,cell,19);
         }
+        cell = (pane - 12) / 3;
         int used = lines.stream().filter(l -> !equipment(l.equipment()).naval()).mapToInt(Line::operatingFactories).sum();
         int naval = lines.stream().filter(l -> equipment(l.equipment()).naval()).mapToInt(Line::operatingFactories).sum();
         String[] icons = {"military_factory_icon", "dockyard_icon", "dockyard_icon_with_wrench"};
         String[] names = {"군수공장 사용 / 전체", "조선소 사용 / 전체", "해군 수리용 조선소 사용 / 전체"};
         String[] counts = {used + "/" + economy.military(), naval + "/" + economy.dockyards(), repairDockyards()};
-        int summaryY = top + 104 - offset;
+        int summaryY = top + 84 - offset;
         for (int i = 0; i < 3; i++) {
             int x = 6 + i * cell;
             rail(x, summaryY, cell - 1, 22);
             iconText("production/summary/" + icons[i], counts[i], x + 2, summaryY + 1, cell - 5, 20, 15, TEXT);
             tip(names[i] + ": " + counts[i] + (i == 2 ? "\n함선 건조에 배정한 조선소를 제외한 수리 배정 현황" : ""), x, summaryY, cell, 22);
         }
-        int filterY = top + 129 - offset;
+        int filterY = top + 109 - offset;
         if (filterY >= bodyTop && filterY + 22 <= bottom()) productionActions(filterY);
         for (int i = 0; i < lines.size(); i++) {
             var line = lines.get(i); var e = equipment(line.equipment()); int y = start + i * h - scroll;
@@ -194,7 +195,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         int step = e.naval() ? 1 : factoryScales.getOrDefault(line.id(), 1);
         int limit = Math.min(e.factoryLimit(), line.availableFactories());
         art("production/line/" + (e.naval() ? (e.factoryLimit() < 15 ? "naval_" + e.factoryLimit() : "naval") : "land"), 6, y, pane - 12, Math.round(108 * scale));
-        cellText(Integer.toString(index + 1), x.applyAsInt(3), y + 1, x.applyAsInt(30) - x.applyAsInt(3), header, TEXT, false);
+        cellText(Integer.toString(index + 1), x.applyAsInt(3), y + 3, x.applyAsInt(30) - x.applyAsInt(3), header, TEXT, false);
         cellText(e.name(), x.applyAsInt(35), y + 1, x.applyAsInt(219) - x.applyAsInt(35), header, TEXT, false);
         if (!e.naval()) {
             if (graphics != null) {
@@ -204,16 +205,16 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/efficiency_frame.png"), 248, 7, 347, 22, 0, 1, 0, 1);
                 graphics.pose().popMatrix();
             }
-            tip("생산 효율 " + percent(line.efficiency()) + " · 자원 부족 " + percent(line.shortage()), x.applyAsInt(248), y, Math.round(99 * scale), header);
+            productionTip(ProductionTooltips.efficiency(view,line), x.applyAsInt(248), y, Math.round(99 * scale), header);
         }
         if (graphics != null) UiAssets.drawContent(graphics, "production/line/" + (e.naval() ? "dockyard_0" : "factory_0"),
-                x.applyAsInt(354), y + 1, x.applyAsInt(379) - x.applyAsInt(354), header);
-        originalButton("공장 줄이기", "production/line/minus", x.applyAsInt(379), y + 1, header, header, line.factories() > 0,
+                x.applyAsInt(354) + 2, y + 2, x.applyAsInt(379) - x.applyAsInt(354), header);
+        originalButton("공장 줄이기", "production/line/minus", x.applyAsInt(379) + 1, y + 2, header, header, line.factories() > 0,
                 () -> send(ASSIGN, line.id(), "", Math.max(0, line.factories() - factoryStep())));
-        productionText(graphics, (line.reservedFactories() > 0 ? (line.operatingFactories() + line.damagedFactories()) + "/" : "") + line.factories(), x.applyAsInt(403), y + 1, x.applyAsInt(453) - x.applyAsInt(403), header, TEXT);
-        originalButton("공장 늘리기 · 부족분 예약", "production/line/plus", x.applyAsInt(453), y + 1, header, header, line.factories() < limit,
+        productionText(graphics, (line.reservedFactories() > 0 ? (line.operatingFactories() + line.damagedFactories()) + "/" : "") + line.factories(), x.applyAsInt(403) + 1, y + 3, x.applyAsInt(453) - x.applyAsInt(403), header, TEXT);
+        originalButton("공장 늘리기 · 부족분 예약", "production/line/plus", x.applyAsInt(453) + 1, y + 2, header, header, line.factories() < limit,
                 () -> send(ASSIGN, line.id(), "", Math.min(limit, line.factories() + factoryStep())));
-        originalButton("생산 라인 삭제", "production/line/delete", x.applyAsInt(481), y + 1, header, header, true, () -> send(REMOVE, line.id(), "", 0));
+        originalButton("생산 라인 삭제", "production/line/delete", x.applyAsInt(481), y + 2, header, header, true, () -> send(REMOVE, line.id(), "", 0));
         productionEquipment(line, e, x.applyAsInt(3), dy.applyAsInt(30), scale);
         int controlsX = x.applyAsInt(206), infoX = x.applyAsInt(233);
         originalButton("생산 라인 한 칸 위로", "production/line/up", controlsX, dy.applyAsInt(50), Math.round(24 * scale), Math.round(24 * scale), index > 0,
@@ -245,7 +246,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         for (var resource : (conversion != null && conversion.source() != null ? conversion.resources() : e.resources()).entrySet()) {
             if (resourceRow == 3) break;
             int ry = dy.applyAsInt(33 + resourceRow++ * 23);
-            productionResource(resourceArt(resource.getKey()), integer(resource.getValue() * line.operatingFactories()), x.applyAsInt(464), ry,
+            productionResource(resourceArt(resource.getKey()), integer(resource.getValue() * line.operatingFactories()), x.applyAsInt(464), ry + 1,
                     pane - 9 - x.applyAsInt(464), Math.round(22 * scale), line.shortage() > 0 ? BAD : TEXT);
         }
     }
@@ -282,11 +283,20 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         productionText(graphics,value,left+size+1,y,textWidth,h,color);
     }
     private void productionText(GuiGraphicsExtractor g, String value, int x, int y, int w, int h, int color) {
+        productionText(g,value,x,y,w,h,color,"");
+    }
+    private void productionText(GuiGraphicsExtractor g, String value, int x, int y, int w, int h, int color, String raisedUnit) {
         if (g == null) return;
-        float scale=Math.min(UiText.scale(font),Math.min((w-2f)/Math.max(1,font.width(value)),h/(float)font.lineHeight));
+        int textWidth=font.width(value+raisedUnit);
+        float scale=Math.min(UiText.scale(font),Math.min((w-2f)/Math.max(1,textWidth),h/(float)font.lineHeight));
         g.pose().pushMatrix();
-        g.pose().translate(x+(w-font.width(value)*scale)/2,y+(h-font.lineHeight*scale)/2);
-        g.pose().scale(scale);g.text(font,value,0,0,color);g.pose().popMatrix();
+        g.pose().translate(x+(w-textWidth*scale)/2,y+(h-font.lineHeight*scale)/2);
+        g.pose().scale(scale);g.text(font,value,0,0,color);
+        if(!raisedUnit.isEmpty()) {
+            g.pose().translate(font.width(value),-1/scale);
+            g.text(font,raisedUnit,0,0,color);
+        }
+        g.pose().popMatrix();
     }
     private void productionEquipment(Line line, Equipment equipment, int x, int y, float scale) {
         if (graphics != null) return;
@@ -302,11 +312,11 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 g.fill(x,labelY,x+w,labelY+Math.round(20*scale),0x88000000);
                 UiText.cell(g,font,familyName(equipment),x+2,labelY,w-4,Math.round(20*scale),TEXT,false);
                 int rateX=x+Math.round(155*scale),rateY=y+Math.round(scale),rateWidth=Math.round(118*scale),rateHeight=Math.round(21*scale);
-                productionBar(g,"progress",rateX,rateY,rateWidth,rateHeight,line.progress());
-                productionText(g,line.daily()>0?decimal(line.daily())+" / 일":"생산량 없음",rateX,rateY,rateWidth,rateHeight,line.daily()>0?TEXT:BAD);
+                productionBar(g,"progress",rateX,rateY-1,rateWidth,rateHeight,line.progress());
+                productionText(g,line.daily()>0?decimal(line.daily())+" / ":"생산량 없음",rateX,rateY-1,rateWidth,rateHeight,line.daily()>0?TEXT:BAD,line.daily()>0?"일":"");
             }
         };
-        button.active=pending==0;button.setTooltip(HoiTooltips.create(Component.literal(name)));addRenderableWidget(button);
+        button.active=pending==0;button.setTooltip(Tooltip.create(HoiTooltips.productionText(Component.literal(ProductionTooltips.equipment(view,line,equipment)))));addRenderableWidget(button);
     }
     static int productionFactoryState(int start,int step,int normal,int damaged,int reserved,int assigned,int preview) {
         if(preview>=0&&preview<assigned&&start>=preview&&start<assigned)return 4;
@@ -1097,6 +1107,10 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if(!display.equals(value))tip(value,x,y-1,max,11);
     }
 
+    private void productionTip(String value,int x,int y,int w,int h) {
+        if(graphics!=null&&!background&&mouseX>=x&&mouseX<x+w&&mouseY>=y&&mouseY<y+h)
+            HoiTooltips.drawExact(graphics,font,value,mouseX,mouseY);
+    }
     private void tip(String value, int x, int y, int w, int h) {
         if (graphics != null && !background && mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h)
             HoiTooltips.draw(graphics, font, value, mouseX, mouseY);

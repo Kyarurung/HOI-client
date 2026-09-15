@@ -21,7 +21,7 @@ public final class CountryScreenChecks {
             var colored = net.minecraft.network.chat.Component.literal("첫 문장. 다음 문장.").withColor(0x55FF55);
             var rewritten = dev.hoi.client.ui.HoiTooltips.sentences(colored);
             if (!rewritten.getString().equals("첫 문장.\n다음 문장.") || !rewritten.visit((style, part) ->
-                    style.getColor() != null && style.getColor().getValue() == 0x56AC5B ? Optional.of(true) : Optional.empty(),
+                    style.getColor() != null && style.getColor().getValue() == 0x009F03 ? Optional.of(true) : Optional.empty(),
                     net.minecraft.network.chat.Style.EMPTY).orElse(false)) throw new AssertionError("Sentence wrapping lost style");
             for (String effect : List.of("안정도: §a+4%§r", "저항 활동 확률: §a-20%§r", "월간 인플레이션: §4+0.1%§r", "금리: §e+5%§r", "매일 사회자유주의 지지도: §a+0.01§r")) {
                 var colors = new java.util.HashSet<Integer>();
@@ -32,7 +32,7 @@ public final class CountryScreenChecks {
                         if (style.getColor() != null) colors.add(style.getColor().getValue());
                         return true;
                     });
-                int expected = effect.contains("§a") ? 0x56AC5B : effect.contains("§4") ? 0xDE5646 : 0xEEC923;
+                int expected = effect.contains("§a") ? 0x009F03 : effect.contains("§4") ? 0xFF3232 : 0xFFBD00;
                 if (icons.get() != 1 || !colors.contains(expected))
                     throw new AssertionError("Tooltip keyword or value color missing: " + effect + " " + colors);
             }
@@ -459,7 +459,7 @@ public final class CountryScreenChecks {
                 if (entry.getKey().equals("zero")) {
                     if (expected.detail().contains("매일 변화:")) throw new AssertionError("Zero growth must stay hidden");
                 } else {
-                    int color = entry.getKey().equals("ruling-rise") || entry.getKey().equals("opposition-fall") ? 0x56AC5B : 0xDE5646;
+                    int color = entry.getKey().equals("ruling-rise") || entry.getKey().equals("opposition-fall") ? 0x009F03 : 0xFF3232;
                     if (!colors.contains(color)) throw new AssertionError("Server drift lost its TFR color: " + expected.detail());
                 }
                 double scale = c.getWindow().getGuiScale();
