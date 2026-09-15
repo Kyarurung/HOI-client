@@ -37,7 +37,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     private ConstructionView view;
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
     private List<Integer> paletteDividers=List.of();
-    private boolean consumerTooltip;
+    private boolean consumerTooltip, loadingFailed;
     private record ConversionBox(ConversionState state,int x,int y) {}
     private List<ConversionBox> conversionBoxes=List.of();
     public boolean showingConsumerTooltip() { return consumerTooltip; }
@@ -50,7 +50,10 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     public void open(){send(ConstructionProtocol.Action.OPEN,"",0,null);}
     public void update(ConstructionView next) {
         if(!next.session().equals(token))return;
-        if(next.country().isEmpty() || view!=null&&!next.country().equals(view.country())){minecraft.gui.setScreen(null);return;}
+        if(next.country().isEmpty() || view!=null&&!next.country().equals(view.country())){
+            if(!next.message().isBlank()&&minecraft.player!=null)minecraft.player.sendSystemMessage(Component.literal(next.message()));
+            minecraft.gui.setScreen(null);return;
+        }
         if(view!=null&&next.revision()<=view.revision())return;
         view=next;pending=0;rebuildWidgets();
     }
@@ -62,7 +65,9 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
             if(t==MenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(t);
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new HoiMenuButton("×",pane-25,top+3,19,19,this::onClose));
-        if(view==null)return;
+        if(view==null){
+            return;
+        }
         int icon=paletteSize(),x=paletteX(),y=top+54;
         var entries=new ArrayList<PaletteEntry>();
         var dividers=new ArrayList<Integer>();
@@ -175,7 +180,7 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
                 HoiTooltips.draw(g,font,calculation(s.consumerCalculation(),"소비재"),mx,my);
                 consumerTooltip=false;
             }
-        } else dev.hoi.client.ui.UiText.text(g, font,"건설 현황을 불러오는 중…",10,top+40,HoiMenuStyle.MUTED);
+        } else dev.hoi.client.ui.UiText.text(g, font,loadingFailed?"서버 응답이 없습니다.":"건설 현황을 불러오는 중…",10,top+40,HoiMenuStyle.MUTED);
         drawConversions(g,mx,my);
         super.extractRenderState(g,mx,my,delta);
     }
@@ -208,7 +213,8 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
     private void send(ConstructionProtocol.Action action,String item,int amount,Vector3f ray) {
         if(pending>0&&action!=ConstructionProtocol.Action.CLOSE)return;
         boolean passive=action==ConstructionProtocol.Action.REFRESH;
-        if(!passive)pending=100;transport.accept(new ConstructionProtocol.Request(action,token,view==null?0:view.revision(),item,amount,ray==null?0:ray.x,ray==null?0:ray.y,ray==null?0:ray.z));
+        if(action==ConstructionProtocol.Action.OPEN)loadingFailed=false;
+        if(!passive)pending=view==null?200:100;transport.accept(new ConstructionProtocol.Request(action,token,view==null?0:view.revision(),item,amount,ray==null?0:ray.x,ray==null?0:ray.y,ray==null?0:ray.z));
         if(!passive)rebuildWidgets();
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
@@ -239,8 +245,11 @@ public final class ConstructionScreen extends Screen implements SidebarMovement.
         return super.mouseScrolled(x,y,horizontal,vertical);
     }
     @Override public void tick() {
-        if(pending>0&&--pending==0){send(view==null?ConstructionProtocol.Action.OPEN:ConstructionProtocol.Action.REFRESH,"",0,null);}
-        else if(++refresh%60==0&&pending==0)send(ConstructionProtocol.Action.REFRESH,"",0,null);
+        if(pending>0&&--pending==0){
+            if(view==null){loadingFailed=true;rebuildWidgets();}
+            else send(ConstructionProtocol.Action.REFRESH,"",0,null);
+        }
+        else if(view!=null&&++refresh%60==0&&pending==0)send(ConstructionProtocol.Action.REFRESH,"",0,null);
     }
     @Override public boolean keyPressed(KeyEvent e){return SidebarMovement.consumes(minecraft,e)||super.keyPressed(e);}
     @Override public boolean keyReleased(KeyEvent e){return SidebarMovement.consumes(minecraft,e)||super.keyReleased(e);}

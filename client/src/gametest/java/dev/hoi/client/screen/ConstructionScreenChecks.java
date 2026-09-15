@@ -13,6 +13,17 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class ConstructionScreenChecks {
     public static void run(ClientGameTestContext context,CountryHud hud) {
         var requests=new ArrayList<ConstructionProtocol.Request>();String token=UUID.randomUUID().toString();
+        context.setScreen(()->new ConstructionScreen(token,null,requests::add));
+        context.runOnClient(client->{
+            var screen=(ConstructionScreen)client.gui.screen();screen.open();
+            for(int i=0;i<400;i++)screen.tick();
+            if(requests.size()!=1)throw new AssertionError("Missing initial response must not retry forever");
+            if(screen.children().stream().anyMatch(c->c instanceof Button b&&b.getMessage().getString().equals("다시 시도")))throw new AssertionError("Timeout must not add a retry button");
+        });
+        context.waitTicks(2);
+        context.runOnClient(client->{for(int i=0;i<200;i++)client.gui.screen().tick();});
+        ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-timeout");
+        context.setScreen(()->null);requests.clear();
         var buildings=new ArrayList<ConstructionView.Building>();
         for(String id:List.of("infrastructure","air_base","anti_air","radar","military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","rocket_site","nuclear_reactor","power_plant","energy_farm","conversion","fort","coastal_fort","port","hub","railway","dam","dam_mountain"))
             buildings.add(new ConstructionView.Building(id,buildingName(id),"construction/"+id,!Set.of("dam","dam_mountain").contains(id),"좌클릭: 건설 · Shift+좌클릭: 최대 건설\n우클릭: 취소 · Shift+우클릭: 전체 취소"));
