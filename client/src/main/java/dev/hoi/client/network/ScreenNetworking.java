@@ -190,6 +190,10 @@ public final class ScreenNetworking {
         try { menu.update(new MenuProtocol.OpenScreen(packet.json()).view()); }
         catch (RuntimeException error) { message("HOI 메뉴 갱신 데이터를 읽을 수 없습니다."); }
     }
+    public static void openSourceFocusDetail(String id) {
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.FocusProtocol.Request.TYPE)) { message("이 서버는 중점 계통도 UI를 지원하지 않습니다."); return; }
+        cancelOpen();Minecraft.getInstance().gui.setScreen(new dev.hoi.client.screen.FocusScreen(id));
+    }
     public static void openFocusDetail(String id) {
         openMenu(dev.hoi.protocol.MenuTab.POLITICS);
         if (pendingMenu.waiting()) pendingMenu.target(id);

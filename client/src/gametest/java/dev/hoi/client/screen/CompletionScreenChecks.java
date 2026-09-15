@@ -149,9 +149,9 @@ public final class CompletionScreenChecks {
         for (int[] size : new int[][]{{2560, 1369}, {1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(3);
             var first = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.DIPLOMACY, "보병 장비 연구 완료", "", "", "", "menu/research", "",
-                    List.of(), List.of(new DialogView.Choice("ack", "확인")), "research_complete");
+                    List.of(), List.of(new DialogView.Choice("details", "세부 사항"), new DialogView.Choice("ack", "확인")), "research_complete");
             var second = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.DIPLOMACY, "국가 중점 완료", "", "", "", "menu/focus", "",
-                    List.of(), List.of(new DialogView.Choice("ack", "확인")), "focus_complete");
+                    List.of(), List.of(new DialogView.Choice("details", "세부 사항"), new DialogView.Choice("ack", "확인")), "focus_complete");
             var event = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.EVENT, "동시에 발생한 국가 이벤트", "", "다른 완료 알림이 열린 상태에서도 표시됩니다.", "", "", "",
                     List.of(), List.of(new DialogView.Choice("yes", "확인")));
             context.runOnClient(c -> {
@@ -178,7 +178,25 @@ public final class CompletionScreenChecks {
                 var stack = (DialogStackScreen)c.gui.screen();
                 check(stack.layers().getFirst() == stack.find(event.token()) && stack.layers().getLast() == stack.find(second.token()), "Completion layer stays above later events");
                 check(stack.inputAt(stack.width / 2.0, stack.height / 2.0) == stack.find(second.token()), "Input reaches the same front completion as rendering");
-                DialogClient.close(second.token());
+                var heard = new ArrayList<String>();
+                net.minecraft.client.sounds.SoundEventListener listener = (sound, value, range) -> heard.add(sound.getIdentifier().getPath());
+                c.getSoundManager().addListener(listener);
+                try {
+                    for (var completed : List.of(second, first)) {
+                        heard.clear();
+                        for (String name : List.of("세부 사항", "확인")) {
+                            var window = stack.find(completed.token());
+                            var button = (Button)window.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow();
+                            var click = new net.minecraft.client.input.MouseButtonEvent(button.getX() + button.getWidth() / 2.0,
+                                    button.getY() + button.getHeight() / 2.0, new net.minecraft.client.input.MouseButtonInfo(0, 0));
+                            check(stack.inputAt(click.x(), click.y()) == window, "Event behind completion must not receive its button click");
+                            check(stack.mouseClicked(click, false), "Stack accepts completion button click");
+                            stack.mouseReleased(click);
+                        }
+                        check(heard.equals(List.of("ui.click", "ui.confirm")), "Both completion buttons respond with simultaneous event");
+                        if (completed == second) DialogClient.close(second.token());
+                    }
+                } finally { c.getSoundManager().removeListener(listener); }
                 check(stack.views().size() == 2 && stack.find(first.token()) != null && stack.find(event.token()) != null, "Closing a hidden window preserves other sessions");
                 stack.onClose();
                 check(stack.views().size() == 1 && stack.find(event.token()) != null, "Escape closes the front completion before the event");
@@ -282,8 +300,11 @@ public final class CompletionScreenChecks {
         context.getInput().releaseKey(o -> o.keyShift);
     }
     private static void press(CompletionScreen s, String name) {
-        ((Button)s.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow())
-                .onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0));
+        var button = (Button)s.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow();
+        var event = new net.minecraft.client.input.MouseButtonEvent(button.getX() + button.getWidth() / 2.0,
+                button.getY() + button.getHeight() / 2.0, new net.minecraft.client.input.MouseButtonInfo(0, 0));
+        check(s.mouseClicked(event, false), "Visible completion button accepts a mouse click");
+        s.mouseReleased(event);
     }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }
 }

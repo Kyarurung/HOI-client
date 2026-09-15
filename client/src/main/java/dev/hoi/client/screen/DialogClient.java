@@ -84,6 +84,7 @@ public final class DialogClient {
         close(packet.token());
         String id = packet.target().substring(packet.target().indexOf('/') + 1);
         if (packet.target().startsWith("research/")) HoiClient.openResearchDetail(id);
+        else if (packet.target().startsWith("source-focus/")) dev.hoi.client.network.ScreenNetworking.openSourceFocusDetail(id);
         else dev.hoi.client.network.ScreenNetworking.openFocusDetail(id);
     }
     private static void show(DialogView view) {

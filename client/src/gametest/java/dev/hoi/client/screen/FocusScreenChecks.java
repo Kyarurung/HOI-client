@@ -18,6 +18,16 @@ public final class FocusScreenChecks {
             context.setScreen(() -> new FocusScreen(view,sent::add));context.waitTicks(3);
             context.takeScreenshot("hoi-focus-original-"+tag.toLowerCase(Locale.ROOT));context.waitTicks(3);
             if(tag.equals("KOR")) {
+                String target=view.nodes().getFirst().id();
+                context.setScreen(()->new FocusScreen(target));
+                context.runOnClient(c->{
+                    var screen=(FocusScreen)c.gui.screen();
+                    screen.update(FocusProtocol.Response.of(screen.token(),view));
+                    if(screen.children().stream().noneMatch(child->child instanceof net.minecraft.client.gui.components.Button button&&button.getMessage().getString().equals("중점 시작")))
+                        throw new AssertionError("Source completion must open the selected focus detail after its private response");
+                });
+                context.waitTicks(2);context.takeScreenshot("hoi-focus-completion-detail");
+                context.setScreen(()->new FocusScreen(view,sent::add));context.waitTicks(2);
                 context.runOnClient(c -> {
                     var screen=(FocusScreen)c.gui.screen();
                     var search=(EditBox)screen.children().stream().filter(EditBox.class::isInstance).findFirst().orElseThrow();

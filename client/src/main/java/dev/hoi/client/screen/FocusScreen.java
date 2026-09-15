@@ -19,11 +19,12 @@ public final class FocusScreen extends Screen {
     private final boolean fixture;
     private FocusProtocol.View view;
     private EditBox search;
-    private String query="",selected="";
+    private String query="",selected="",completionTarget="";
     private float zoom=1,panX,panY;
     private boolean centered,panning;
     private int top,waiting,ticks=999;
     public FocusScreen(){this(null,ClientPlayNetworking::send,false);}
+    public FocusScreen(String completedFocus){this();completionTarget=completedFocus;}
     public FocusScreen(FocusProtocol.View view,Consumer<FocusProtocol.Request> sender){this(view,sender,true);}
     private FocusScreen(FocusProtocol.View view,Consumer<FocusProtocol.Request> sender,boolean fixture){super(Component.literal("중점 계통도"));this.view=view;this.sender=sender;this.fixture=fixture;}
     public String token(){return token;}
@@ -36,7 +37,11 @@ public final class FocusScreen extends Screen {
         if(view!=null && !view.country().equals(next.country())){minecraft.gui.setScreen(null);return;}
         if(view!=null && view.session().equals(next.session()) && next.revision()<view.revision())return;
         if(view==null || !view.tree().equals(next.tree())){centered=false;selected="";}
-        view=next;waiting=0;rebuildWidgets();
+        view=next;waiting=0;
+        if(!completionTarget.isEmpty()){
+            selected=completionTarget;completionTarget="";
+        }
+        rebuildWidgets();
     }
     private void request(FocusProtocol.Action action,String id) {
         if(!fixture && !ClientPlayNetworking.canSend(FocusProtocol.Request.TYPE))return;

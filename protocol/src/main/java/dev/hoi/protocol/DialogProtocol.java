@@ -37,7 +37,7 @@ public final class DialogProtocol {
         public Details {
             UUID.fromString(token);
             if (target == null || target.length() > 256
-                    || !target.matches("(?:research|focus|story-focus)/[A-Za-z0-9_:/.-]+"))
+                    || !target.matches("(?:research|focus|story-focus|source-focus)/[A-Za-z0-9_:/.-]+"))
                 throw new IllegalArgumentException("Invalid completion target");
         }
         public static final Type<Details> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "completion_details_v1"));
