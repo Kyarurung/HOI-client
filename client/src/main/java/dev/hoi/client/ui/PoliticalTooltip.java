@@ -19,6 +19,11 @@ public final class PoliticalTooltip {
         return draw(g, font, entry, "country/" + country.toLowerCase(java.util.Locale.ROOT) + "/flag", countryName,
                 mouseX, mouseY, viewportWidth, viewportHeight, scroll);
     }
+    public static int drawCountryDetail(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String country,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
+        return draw(g, font, entry, "country/" + country.toLowerCase(java.util.Locale.ROOT) + "/flag", "",
+                mouseX, mouseY, viewportWidth, viewportHeight, scroll, true, false);
+    }
     public static int drawDetail(GuiGraphicsExtractor g, Font font, String detail,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         return draw(g, font, new MenuView.Entry("", "", detail, -1, ""), "", "",
@@ -44,13 +49,17 @@ public final class PoliticalTooltip {
                 measured = Math.max(measured, line.startsWith("[image:") ? 170
                         : font.width(icons ? KeywordIcons.decorate(value) : value));
             }
-            width = Math.min(width, measured);
+            width = Math.min(width, measured + (flag.isEmpty() ? 0 : 15));
         }
         String detail = flag.isEmpty() ? entry.detail() : entry.detail().strip();
         var rows = new ArrayList<Row>();
         if (!compact) rows.add(new Row(Component.literal(entry.value().isBlank() ? entry.name() : entry.value())
                 .withColor(HoiTooltips.GOLD).getVisualOrderText(), "", font.lineHeight + 3));
-        if (!flag.isEmpty()) {
+        if (!flag.isEmpty() && compact) {
+            var lines = font.split(Component.literal(detail), width - 15);
+            for (int i = 0; i < lines.size(); i++) rows.add(new Row(lines.get(i), i == 0 ? flag : "", font.lineHeight + 1));
+            detail = "";
+        } else if (!flag.isEmpty()) {
             var role = Component.literal(countryName).withColor(HoiTooltips.GOLD)
                     .append(Component.literal("의 국가원수").withStyle(net.minecraft.ChatFormatting.WHITE));
             var roleLines = font.split(role, width - 15);

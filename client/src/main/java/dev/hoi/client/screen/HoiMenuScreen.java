@@ -578,6 +578,8 @@ public final class HoiMenuScreen extends Screen implements SidebarMovement.Scree
         hoveredPolitics = hovered;
         if (hovered != null && hovered.name().equals("지도자")) {
             tooltipScroll = PoliticalTooltip.drawLeader(g, font, hovered, view.country(), view.countryName(), screenX, my, width, height, tooltipScroll);
+        } else if (hovered != null && hovered.name().equals("세력") && hovered.value().equals("미가입")) {
+            tooltipScroll = PoliticalTooltip.drawCountryDetail(g, font, hovered, view.country(), screenX, my, width, height, tooltipScroll);
         } else if (hovered != null && hovered.detail().contains("[image:")) {
             tooltipScroll = PoliticalTooltip.draw(g, font, hovered, screenX, my, width, height, tooltipScroll);
         } else if (hovered != null) {
