@@ -61,8 +61,6 @@ final class AirDetailScreen extends DialogScreen implements SidebarMovement.Scre
         var weather=tile("weather");
         if(weather!=null){art(g,weather.icon(),centerX-124,35,248,47);hover(weather,centerX-124,35,248,47);}
         art(g,"air_detail/air_weather_frame",centerX-126,33,252,52);
-        var weatherIcon=tile("weather_icon");
-        if(weatherIcon!=null){art(g,weatherIcon.icon(),centerX-123,54,24,24);hover(weatherIcon,centerX-123,54,24,24);}
         int gaugeX=centerX-128,gaugeY=83;
         var balance=tile("balance");
         if(balance!=null) {
