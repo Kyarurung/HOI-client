@@ -13,6 +13,39 @@ import java.util.*;
 
 
 public final class IndustryScreenChecks {
+    private static void resourceShortages(ClientGameTestContext context, IndustryView v) {
+        var resources = v.resources().stream().map(r -> new IndustryView.Resource(r.id(), r.name(), r.extracted(), r.imported(), r.exported(),
+                r.id().equals("ALUMINUM") ? 32 : r.id().equals("COAL") ? 0 : r.demand(),
+                r.id().equals("ALUMINUM") ? 210 : r.id().equals("COAL") ? 129 : r.demand())).toList();
+        var shortage = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), resources, v.modifiers(), v.equipment(), v.lines(),
+                v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), v.recruits(), v.deployed(), v.draft(), v.message(), v.navalRepairs(), v.specialForces());
+        context.getInput().resizeWindow(2560, 1440);
+        context.runOnClient(client -> client.options.guiScale().set(2));
+        context.setScreen(() -> new IndustryScreen(MenuTab.PRODUCTION, v.session(), shortage, request -> {}));
+        context.getInput().setCursorPos(1800, 800);
+        context.waitTicks(3);
+        try {
+            var image = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-production-resource-shortages-gui2").toFile());
+            var cells = context.computeOnClient(client -> {
+                var screen = (IndustryScreen)client.gui.screen();
+                int cell = (screen.panelWidth() - 12) / resources.size();
+                int y = dev.hoi.client.ui.HoiMenuBar.height(screen.width) + 29;
+                return new int[]{cell, y};
+            });
+            for (int i = 0; i < resources.size(); i++) {
+                boolean missing = resources.get(i).available() < resources.get(i).demand();
+                int iconRed = 0, numberRed = 0;
+                for (int y = 0; y < 27 * 2; y++) for (int x = 0; x < (cells[0] - 1) * 2; x++) {
+                    int pixel = image.getRGB((6 + i * cells[0]) * 2 + x, cells[1] * 2 + y);
+                    int red = pixel >> 16 & 255, green = pixel >> 8 & 255, blue = pixel & 255;
+                    if (red > 100 && red > green + 20 && red > blue + 20) {
+                        if (y < 16 * 2) iconRed++; else numberRed++;
+                    }
+                }
+                check(missing ? iconRed > 5 && numberRed > 5 : numberRed == 0, "Shortage icon and signed amount follow each resource balance: " + resources.get(i).id());
+            }
+        } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
+    }
     public static void run(ClientGameTestContext context, CountryHud hud) {
         IndustryView fixture;
         try (var in = IndustryScreenChecks.class.getResourceAsStream("/industry-fixture.json")) {
@@ -47,6 +80,7 @@ public final class IndustryScreenChecks {
         var empty = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), List.of(), List.of(), null, "", v.navalRepairs(), v.specialForces());
         conversion(context,v);
         factoryControls(context,v);
+        resourceShortages(context, v);
         var requests = new ArrayList<IndustryProtocol.Request>();
         for (var tab : List.of(MenuTab.PRODUCTION, MenuTab.TRADE, MenuTab.LOGISTICS, MenuTab.RECRUITMENT)) {
             context.setScreen(() -> new IndustryScreen(tab, v.session(), tab == MenuTab.RECRUITMENT ? empty : v, requests::add));

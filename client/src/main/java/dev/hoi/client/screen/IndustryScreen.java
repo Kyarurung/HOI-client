@@ -379,7 +379,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             var r = view.resources().get(i); int x = 6 + i * cell;
             recess(x, y, cell - 1, h);
             int contentY = y + (h - 27) / 2;
-            art(resourceArt(r.id()), x + (cell - 1 - 16) / 2, contentY, 16, 16);
+            art("production/resources/" + (r.available() < r.demand() ? "missing/" : "") + r.id().toLowerCase(Locale.ROOT), x + (cell - 1 - 16) / 2, contentY, 16, 16);
             cellText(integer(r.available() - r.demand()), x + 2, contentY + 18, cell - 5, 9, r.available() < r.demand() ? BAD : GOOD, false);
             tip(r.name() + "\n점유지 추출 " + decimal(r.extracted()) + "\n수입 " + decimal(r.imported())
                     + " · 수출 배정 " + decimal(r.exported()) + "\n생산용 " + decimal(r.available()) + " / 수요 " + decimal(r.demand()), x, y, cell, h);
