@@ -31,13 +31,16 @@ public final class HoiTooltips {
         var result = Component.empty();
         text.visit((style, part) -> {
             String prose = sentences(part);
-            var codes = java.util.regex.Pattern.compile("(?i)§([0-9a-fk-or])").matcher(prose);
+            var codes = java.util.regex.Pattern.compile("(?i)§(#[0-9a-f]{6}|[0-9a-fk-or])").matcher(prose);
             var current = style;
             int start = 0;
             while (codes.find()) {
                 if (start < codes.start()) result.append(Component.literal(prose.substring(start, codes.start())).withStyle(sourceColor(current)));
-                var format = net.minecraft.ChatFormatting.getByCode(codes.group(1).toLowerCase(java.util.Locale.ROOT).charAt(0));
-                current = format == net.minecraft.ChatFormatting.RESET ? style : current.applyLegacyFormat(format);
+                if(codes.group(1).startsWith("#"))current=current.withColor(Integer.parseInt(codes.group(1).substring(1),16));
+                else {
+                    var format = net.minecraft.ChatFormatting.getByCode(codes.group(1).toLowerCase(java.util.Locale.ROOT).charAt(0));
+                    current = format == net.minecraft.ChatFormatting.RESET ? style : current.applyLegacyFormat(format);
+                }
                 start = codes.end();
             }
             if (start < prose.length()) result.append(Component.literal(prose.substring(start)).withStyle(sourceColor(current)));

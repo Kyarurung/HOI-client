@@ -9,7 +9,9 @@ import java.util.ArrayList;
 /** Scrollable original description images and text in one bounded tooltip. */
 public final class PoliticalTooltip {
     private PoliticalTooltip() {}
-    private record Row(net.minecraft.util.FormattedCharSequence text, String image, int height) {}
+    private record Row(net.minecraft.util.FormattedCharSequence text, String image, int height, boolean caption) {
+        Row(net.minecraft.util.FormattedCharSequence text,String image,int height) {this(text,image,height,false);}
+    }
     public static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         return draw(g, font, entry, "", "", mouseX, mouseY, viewportWidth, viewportHeight, scroll);
@@ -67,7 +69,11 @@ public final class PoliticalTooltip {
             if (!detail.isEmpty()) rows.add(new Row(Component.empty().getVisualOrderText(), "", font.lineHeight + 1));
         }
         for (String line : !flag.isEmpty() && detail.isEmpty() ? new String[0] : detail.split("\\R", -1)) {
-            if (line.matches("\\[image:[a-z0-9_/]+\\]")) {
+            if(line.startsWith("[caption:")&&line.endsWith("]")&&!rows.isEmpty()&&rows.getLast().text()==null) {
+                var previous=rows.removeLast();
+                var caption=HoiTooltips.sentences(Component.literal(line.substring(9,line.length()-1))).getVisualOrderText();
+                rows.add(new Row(caption,previous.image(),previous.height(),true));
+            } else if (line.matches("\\[image:[a-z0-9_/]+\\]")) {
                 String image = line.substring(7, line.length() - 1);
                 int imageHeight = UiAssets.imageHeight(image, width);
                 if (imageHeight > 0) rows.add(new Row(null, image, imageHeight));
@@ -87,7 +93,10 @@ public final class PoliticalTooltip {
         for (var row : rows) {
             if (top + row.height() > y && top < y + height) {
                 if (row.image().isEmpty()) g.text(font, row.text(), x, top, 0xFFE0E0E0);
-                else if (row.text() != null) {
+                else if(row.caption()) {
+                    UiAssets.draw(g,row.image(),x,top,width,row.height());
+                    g.text(font,row.text(),x+(width-font.width(row.text()))/2,top+Math.round(row.height()*.92f)-font.lineHeight/2,0xFFFFFFFF);
+                } else if (row.text() != null) {
                     UiAssets.draw(g, row.image(), x, top, 12, font.lineHeight);
                     g.text(font, row.text(), x + 15, top, 0xFFE0E0E0);
                 } else UiAssets.draw(g, row.image(), x, top, width, row.height());

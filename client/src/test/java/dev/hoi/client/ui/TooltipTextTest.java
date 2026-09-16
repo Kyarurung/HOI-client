@@ -4,6 +4,12 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TooltipTextTest {
+    @Test void rgbColorsDoNotBecomeAmountsAndCaptionsKeepTheirText() {
+        assertEquals("§e집권 정당: §#3659D9더불어민주당§r",TooltipText.format("§e집권 정당: §#3659D9더불어민주당§r"));
+        assertEquals("",TooltipText.format("공격: §#3659D90§r"));
+        assertEquals("[image:map_detail/art/portrait]\n[caption:§f오거돈§r]",TooltipText.format("[image:map_detail/art/portrait]\n[caption:§f오거돈§r]"));
+    }
+
     @Test void hidesZeroRowsAndCollapsesRepeatedEmptyLines() {
         assertEquals("§e현대화된 농업§r\n\n§c제거 불가능",TooltipText.format("§e현대화된 농업§r\n\n  \n§c제거 불가능"));
         assertEquals("사단 방어: §c-5%§r",TooltipText.format("사단 훈련 시간: 0\n특수부대 수용량: +0.000%\n사단 방어: §c-5%§r\n육군 고문 비용: §a0§r"));

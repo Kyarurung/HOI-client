@@ -20,9 +20,9 @@ public final class TooltipText {
             return java.util.regex.Matcher.quoteReplacement(result);
         });
     }
-    public static boolean blank(String line) { return line.replaceAll("§.", "").isBlank(); }
+    public static boolean blank(String line) { return line.replaceAll("§(?:#[0-9a-fA-F]{6}|.)", "").isBlank(); }
     public static boolean visible(String line) {
-        String plain=line.replaceAll("§.", "").strip();
+        String plain=line.replaceAll("§(?:#[0-9a-fA-F]{6}|.)", "").strip();
         if(plain.isEmpty())return false;
         if(plain.startsWith("[image:") || plain.contains("/") || plain.matches(".*\\d{4}[-.]\\d.*"))return true;
         var values=NUMBER.matcher(plain);

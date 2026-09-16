@@ -8,6 +8,12 @@ import java.util.*;
 
 final class MapDetailScreenChecks {
     static void run(ClientGameTestContext context) {
+        context.runOnClient(client -> {
+            var text=dev.hoi.client.ui.HoiTooltips.sentences(net.minecraft.network.chat.Component.literal("§e집권 정당: §#3659D9더불어민주당§r"));
+            if(!text.getString().equals("집권 정당: 더불어민주당"))throw new AssertionError("TFR RGB markup leaked into tooltip text");
+            boolean blue=text.visit((style,part)->part.equals("더불어민주당")&&style.getColor()!=null&&style.getColor().getValue()==0x3659D9?Optional.of(true):Optional.empty(),net.minecraft.network.chat.Style.EMPTY).orElse(false);
+            if(!blue)throw new AssertionError("TFR party name lost its original blue color");
+        });
         var own = new ArrayList<DialogView.Tile>();
         own.add(tile("owner", "주 소유국", "대한민국", "country/kor/flag"));
         own.add(tile("claims", "타국의 주장", "조선민주주의인민공화국", "country/prk/flag"));
@@ -20,12 +26,12 @@ final class MapDetailScreenChecks {
         own.set(power,new DialogView.Tile("shared","발전소","","construction/power_plant",
                 "§e발전소§r (주 등급: §e3§r)\n발전소의 잠재 최대 레벨: §e4§r\n\n이 건물은 국가에 §a+6§r£resources_strip|7 을 제공하며, §c-4§r£resources_strip|1 및 §c-1§r£resources_strip|5 을(를) 소비합니다.\n\n§c이 주는 §e원자로§r나 §e에너지 농장§r을 건설할 수 없는 주입니다!§r"));
         for (String id : List.of("civilian_factory", "military_factory", "dockyard", "office_park", "refinery", "fuel_silo", "rocket_site", "nuclear_reactor", "power_plant", "energy_farm")) own.add(tile("limits", id, "1/4", "construction/" + id));
-        for (String id : List.of("oil", "aluminum", "rubber", "tungsten", "iron", "chromium")) own.add(tile("resources", id, id.equals("oil") ? "-12" : "917", "production/resources/" + id));
+        for (String id : List.of("oil", "aluminum", "rubber", "tungsten", "iron", "chromium", "coal")) own.add(tile("resources", id, id.equals("oil") ? "-12" : "917", "production/resources/" + id));
         own.add(new DialogView.Tile("energy", "에너지 효율", "158", "map_detail/energy", "에너지 효율: §e1.67§r\n  사무단지: §c-2%§r\n  사무단지: §c-2%§r\n공장 에너지 소비량: §c-15%§r\n공장 에너지 사용량: §e157.67§r\n군수공장 에너지 사용량: §e67.57§r\n해군 조선소 에너지 사용량: §e7.50§r\n민간공장 에너지 사용량: §e82.59§r"));
         own.add(new DialogView.Tile("building_modifiers", "건설 주 변동치", "", "map_detail/building_modifiers", "건설 주 변동치\n§e민간공장:§r\n  강철 소비량: §c-3§r\n§e원자로:§r\n  주의 최대 공장: §a+1§r\n  주의 최대 공장: §a+40%§r\n  현지 건설 속도: §a+20%§r\n§e에너지 농장:§r\n  주의 최대 공장: §a+1§r\n  주의 최대 공장: §a+20%§r\n  현지 건설 속도: §a+10%§r\n§e사무단지:§r\n  현지 인력: §a+20%§r\n  현지 공장: §a+25%§r\n  지역 공장 에너지 소비량: §c+2%§r"));
         own.add(new DialogView.Tile("terrain", "지역", "도시", "", "§e부산§r\n§e부대 효과:§r\n이동: §e95.0%§r\n공격: §e30.0%§r\n방어: §e106.0%§r\n이 지형 내에서의 이동 비용 §e×3.20§r"));
         own.add(new DialogView.Tile("province_status", "지역 상태", "", "map_detail/temperature_1", "§e보통 · 15.0°C§r"));
-        own.add(new DialogView.Tile("features", "부산광역시", "", "map_detail/art/gfx_modifiers_kor_busan", "주의 최대 공장: §a+1§r"));
+        own.add(new DialogView.Tile("features", "부산광역시", "", "map_detail/art/gfx_modifiers_kor_busan", "주의 최대 공장: §a+1§r\n\n§e부산광역시장:§r\n[image:map_detail/art/gfx_oh_keo_don_portrait]\n[caption:§f오거돈§r]\n\n§e집권 정당: §#3659D9더불어민주당§r"));
         for (String id : List.of("hub", "fort", "coastal_fort", "port")) own.add(tile("province", id, id.equals("hub") ? "1/1" : id.equals("port") ? "6/10" : id.equals("fort") ? "5/5" : "4/5", "construction/" + id));
         var hidden = new ArrayList<DialogView.Tile>();
         hidden.add(tile("owner", "주 소유국", "조선민주주의인민공화국", "country/prk/flag"));
@@ -140,7 +146,7 @@ final class MapDetailScreenChecks {
                         var decorated=dev.hoi.client.ui.KeywordIcons.decorate(net.minecraft.network.chat.Component.literal("이동: 95.0%"));
                         if(decorated.getString().charAt(0)<0xe000)throw new AssertionError("Movement requires the original text icon");
                     });
-                    for(int[] cell:new int[][]{{443,410},{230,530},{419,550},{434,468},{409,185}}) {
+                    for(int[] cell:new int[][]{{35,445},{443,410},{230,530},{419,550},{434,468},{409,185}}) {
                         var point=context.computeOnClient(client -> {
                             var screen=(MapDetailScreen)client.gui.screen();
                             double ratio=screen.panelWidth()/463.0,gui=client.getWindow().getGuiScale();

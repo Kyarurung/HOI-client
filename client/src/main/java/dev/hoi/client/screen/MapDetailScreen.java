@@ -193,9 +193,10 @@ final class MapDetailScreen extends DialogScreen implements SidebarMovement.Scre
         }
         var resources=tiles("resources");
         for(int i=0;i<resources.size();i++) {
-            var t=resources.get(i);int px=32+i%2*50,py=302+i/2*31;
-            art(g,t.icon(),px,py,14,29);label(g,t.value(),px+16,py,30,29,HoiMenuStyle.TEXT);
-            hovers.add(new Hover(t,x(px),y(py),n(46),n(29)));
+            int step=resources.size()>6?24:31,cellHeight=step-2;
+            var t=resources.get(i);int px=32+i%2*50,py=302+i/2*step;
+            art(g,t.icon(),px,py,14,cellHeight);label(g,t.value(),px+16,py,30,cellHeight,HoiMenuStyle.TEXT);
+            hovers.add(new Hover(t,x(px),y(py),n(46),n(cellHeight)));
         }
         label(g,"주 변동치",44,398,200,19,HoiMenuStyle.TEXT,12,false);
         var features=tiles("features");
@@ -217,8 +218,8 @@ final class MapDetailScreen extends DialogScreen implements SidebarMovement.Scre
         int statusX=402;
         for(String section:List.of("province_status","province_weather","province_surface")) {
             var status=tiles(section);if(status.isEmpty())continue;
-            art(g,status.getFirst().icon(),statusX,529,37,47);
-            hovers.add(new Hover(status.getFirst(),x(statusX),y(529),n(37),n(47)));
+            UiAssets.draw(g,status.getFirst().icon(),x(statusX)-1,y(529)+1,n(37),n(47));
+            hovers.add(new Hover(status.getFirst(),x(statusX)-1,y(529)+1,n(37),n(47)));
             statusX-=37;
         }
         if(!terrain.isEmpty())hovers.add(new Hover(terrain.getFirst(),x(20),y(487),n(419),n(94)));
