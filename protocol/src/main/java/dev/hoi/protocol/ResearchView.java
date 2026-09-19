@@ -32,9 +32,13 @@ public record ResearchView(String session, long revision, String country, String
                 throw new IllegalArgumentException("Invalid research slot");
         }
     }
-    public record Benefits(double researchSpeed,List<Benefit> limited) {
+    public record Benefits(double researchSpeed,List<Benefit> limited,String speedTooltip,String limitedTooltip) {
+        public Benefits(double researchSpeed,List<Benefit> limited) { this(researchSpeed,limited,"",""); }
         public static final Benefits NONE=new Benefits(0,List.of());
         public Benefits {
+            speedTooltip=speedTooltip==null?"":speedTooltip;
+            limitedTooltip=limitedTooltip==null?"":limitedTooltip;
+            if(speedTooltip.length()>16000||limitedTooltip.length()>16000) throw new IllegalArgumentException("Invalid research tooltips");
             limited=List.copyOf(limited);
             if(!Double.isFinite(researchSpeed)||limited.size()>128) throw new IllegalArgumentException("Invalid research benefits");
         }
@@ -51,12 +55,18 @@ public record ResearchView(String session, long revision, String country, String
     public record Slot(int index, String technology, int savedDays) {}
     public record Tech(String id, String category, String name, int year, int tier, int baseDays,
                        double progress, double dailyRate, List<String> prerequisites,
-                       List<String> effects, List<String> unlocks, Status status, Source source) {
+                       List<String> effects, List<String> unlocks, Status status, Source source,List<String> tooltipOnlyEffects) {
+        public Tech(String id,String category,String name,int year,int tier,int baseDays,double progress,double dailyRate,
+                List<String> prerequisites,List<String> effects,List<String> unlocks,Status status,Source source) {
+            this(id,category,name,year,tier,baseDays,progress,dailyRate,prerequisites,effects,unlocks,status,source,List.of());
+        }
         public Tech(String id,String category,String name,int year,int tier,int baseDays,double progress,double dailyRate,
                 List<String> prerequisites,List<String> effects,List<String> unlocks,Status status) {
             this(id,category,name,year,tier,baseDays,progress,dailyRate,prerequisites,effects,unlocks,status,null);
         }
         public Tech {
+            tooltipOnlyEffects=tooltipOnlyEffects==null?List.of():List.copyOf(tooltipOnlyEffects);
+            if(tooltipOnlyEffects.size()>128||!effects.containsAll(tooltipOnlyEffects)) throw new IllegalArgumentException("Invalid tooltip effects");
             Objects.requireNonNull(id); Objects.requireNonNull(category); Objects.requireNonNull(name);
             Objects.requireNonNull(status);
             prerequisites = List.copyOf(prerequisites); effects = List.copyOf(effects); unlocks = List.copyOf(unlocks);

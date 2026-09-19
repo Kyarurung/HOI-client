@@ -29,11 +29,16 @@ final class ResearchText {
     }
 
     static Component decorateEffect(Component text) {
-        if (!VALUE.matcher(text.getString()).matches()) return text;
-        boolean beneficial = text.visit((style, part) -> style.getColor() != null
-                && style.getColor().getValue() == 0x55FF55 ? java.util.Optional.of(true) : java.util.Optional.empty(),
-                net.minecraft.network.chat.Style.EMPTY).orElse(false);
-        return beneficial ? dev.hoi.client.ui.KeywordIcons.decorate(text) : text;
+        var value = VALUE.matcher(text.getString());
+        if (!value.matches() || !value.group(1).stripTrailing().endsWith(":")
+                && !value.group(2).startsWith("+") && !value.group(2).startsWith("-")) return text;
+        return dev.hoi.client.ui.KeywordIcons.decorateLines(text);
+    }
+
+    static boolean zeroEffect(String text) {
+        var match = VALUE.matcher(text);
+        return match.matches() && match.group(1).stripTrailing().endsWith(":")
+                && new BigDecimal(match.group(2)).signum() == 0;
     }
 
     static Component effect(String text) {

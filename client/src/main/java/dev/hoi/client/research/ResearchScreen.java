@@ -98,14 +98,6 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             }
         };
         addRenderableWidget(benefitsButton);
-        var benefitLines=new ArrayList<String>();
-        for(var benefit:view.benefits().limited()) {
-            benefitLines.add(benefit.name()+" · "+benefit.uses()+"회");
-            benefitLines.add(String.format(Locale.ROOT,"연구 속도 %+.1f%% · 선행 불이익 %.1f년 감소",benefit.speed()*100,benefit.aheadYears()));
-            benefitLines.add(String.join(", ",benefit.scope()));
-        }
-        if(benefitLines.isEmpty()) benefitLines.add("사용 가능한 제한 혜택이 없습니다.");
-        benefitsButton.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(String.join("\n",benefitLines))));
         for (int n = 0; n < count; n++) {
             int index = slotOffset + n;
             if (index >= view.slots().size()) break;
@@ -116,6 +108,14 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
                 else rebuildWidgets();
             }));
         }
+    }
+    private void overviewTooltip(GuiGraphicsExtractor g,int x,int y) {
+        if(y<slotsTop()-33||y>=slotsTop())return;
+        int pane=overviewWidth();
+        String text="";
+        if(x>=12&&x<pane/2-6)text=view.benefits().limitedTooltip().isEmpty()?"제한된 기술 혜택이 여기에 열거됩니다.":view.benefits().limitedTooltip();
+        else if(x>=pane/2+6&&x<pane-12)text=view.benefits().speedTooltip().isEmpty()?"§e연구 속도§r\n\n새로운 기술을 연구하는 시간이 감소합니다.":view.benefits().speedTooltip();
+        if(!text.isEmpty())dev.hoi.client.ui.HoiTooltips.drawExact(g,font,text,x,y);
     }
     private final Map<String, ResearchLayout.Node> nodesById = new HashMap<>();
     private void relayout() {
@@ -178,7 +178,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     @Override public void tick() { if (pending > 0 && --pending == 0) rebuildWidgets(); }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-        if (overview) { drawOverview(g); HoiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll); super.extractRenderState(g, mouseX, mouseY, delta); return; }
+        if (overview) { drawOverview(g); HoiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll); super.extractRenderState(g, mouseX, mouseY, delta); overviewTooltip(g,mouseX,mouseY); return; }
         g.fillGradient(0, 0, width, height, 0xFF1B201E, 0xFF060909);
         g.fill(10, treeTop, width - 10, treeBottom, 0xFF101A21);
         g.outline(10, treeTop, width - 20, treeBottom - treeTop, 0xFF778178);
@@ -273,6 +273,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             g.fill(x - 2, y - 1, x + label.width() + 2, y + label.height() + 1, 0xFF101A21);
             g.text(font, label.text(), x, y, label.year() ? TEXT : MUTED);
         }
+        if (reference) drawReferenceCaptions(g);
         if (layout.nodes().isEmpty()) g.text(font, "이 분야에 표시할 기술이 없습니다.", 28, treeTop + 28, MUTED);
         g.disableScissor();
         int span = width - 20, visible = treeBottom - treeTop;
@@ -290,6 +291,22 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             g.setTooltipForNextFrame(font, lines, mx, my);
         }
     }
+    private void drawReferenceCaptions(GuiGraphicsExtractor g) {
+        g.nextStratum();
+        for (var group : TfrResearchLayout.groups(layout)) {
+            if (group.caption().isEmpty()) continue;
+            int x = (int)(10 + group.x() + group.width() + 5 - scrollX);
+            int center = (int)(treeTop + group.y() + group.height() / 2 - scrollY);
+            var lines = font.split(Component.literal(group.caption()), 90);
+            int y = center - lines.size() * font.lineHeight / 2;
+            int width = lines.stream().mapToInt(font::width).max().orElse(0);
+            g.fill(x - 2, y - 2, x + width + 2, y + lines.size() * font.lineHeight + 2, 0xFF101A21);
+            for (var line : lines) {
+                g.text(font, line, x, y, TEXT);
+                y += font.lineHeight;
+            }
+        }
+    }
     private void drawReferenceGuides(GuiGraphicsExtractor g) {
         double scale = TfrResearchLayout.scale(layout);
         for (int row = 0; layout.vertical() && row < (int)Math.ceil(layout.height() / (44 * scale)); row++) if (row % 2 == 0) {
@@ -302,7 +319,6 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             int x=(int)(10+group.x()-scrollX), y=(int)(treeTop+group.y()-scrollY);
             g.fill(x,y,x+group.width(),y+group.height(),0x552E210B);
             g.outline(x,y,group.width(),group.height(),0xFF9F8153);
-            if (!group.caption().isEmpty()) g.text(font,group.caption(),x,y+group.height()+4,GOLD);
         }
         for (var connection : referenceConnections) {
             int tint = connection.parent().status() == ResearchView.Status.COMPLETED ? 0xFF567D57 : 0xFF49525A;
@@ -377,7 +393,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         boolean image = !card.texture().isEmpty();
         int textX = x + (image ? 90 : 7), textW = w - (image ? 97 : 14);
         var heading = List.of(card.kind().equals("부대") ? ResearchText.white(card.name()) : ResearchText.gold(card.name()), ResearchText.white(card.kind()));
-        var effects = card.effects().stream().map(ResearchText::effect).toList();
+        var effects = card.effects().stream().filter(text -> !ResearchText.zeroEffect(text)).map(ResearchText::effect).toList();
         int end = detailText(null, heading, textX, y + 7, textW, TEXT);
         int statsY = Math.max(y + (image ? 64 : 34), end + 4);
         int bottom = detailText(null, effects, x + 7, statsY, w - 14, TEXT) + 7;
@@ -403,8 +419,9 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             }
             tech.source().conditions().stream().map(ResearchText::white).forEach(result::add);
         }
-        if (!tech.effects().isEmpty()) {
-            result.add(ResearchText.gold("효과:")); tech.effects().stream().map(ResearchText::effect).forEach(result::add); result.add(Component.empty());
+        var effects = tech.effects().stream().filter(text -> !ResearchText.zeroEffect(text) && !text.endsWith(" 해금") && !tech.tooltipOnlyEffects().contains(text)).toList();
+        if (!effects.isEmpty()) {
+            result.add(ResearchText.gold("효과:")); effects.stream().map(ResearchText::effect).forEach(result::add); result.add(Component.empty());
         }
         return result;
     }
@@ -440,7 +457,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         }
         lines.add(Component.literal(" "));
         lines.add(ResearchText.gold("효과").append(ResearchText.white(":")));
-        tech.effects().stream().map(ResearchText::effect).forEach(lines::add);
+        tech.effects().stream().filter(text -> !ResearchText.zeroEffect(text)).map(ResearchText::effect).forEach(lines::add);
         for (String label : unlockNames(tech)) lines.add(ResearchText.white("사용 가능 ").append(unlockName(label)));
         if (tech.source() != null && !tech.source().deferredEffects().isEmpty()) {
             lines.add(Component.literal("원본 추가 효과 · 적용 대기").withStyle(net.minecraft.ChatFormatting.GRAY));

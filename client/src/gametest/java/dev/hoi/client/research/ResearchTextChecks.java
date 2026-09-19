@@ -34,9 +34,12 @@ public final class ResearchTextChecks {
                 if (part.contains("건설 속도")) check(style.getFont().equals(Style.EMPTY.getFont()), "Keyword font never leaks into Korean text");
                 return Optional.empty();
             }, Style.EMPTY);
-            var bonus = ResearchText.effect("월간 인구 증가: +7.0%");
-            check(bonus.getString().equals("월간 인구 증가: +7%"), "Integral percentages have no decimal suffix");
+            check(ResearchText.zeroEffect("공중 우세: 0") && ResearchText.zeroEffect("유지비: +0.0%"), "Exact zero effects are omitted");
+            check(!ResearchText.zeroEffect("유지비: +0.01%") && !ResearchText.zeroEffect("K-200") && !ResearchText.zeroEffect("2000년형"), "Small effects and names remain visible");
+            var bonus = ResearchText.effect("매월 인구: +7.0%");
+            check(bonus.getString().equals("매월 인구: +7%"), "Integral percentages have no decimal suffix");
             color(bonus, "+7%", ChatFormatting.GREEN);
+            check(ResearchText.decorateEffect(bonus).getString().charAt(0) == 0xe05f, "Monthly population uses its original population icon");
             color(ResearchText.effect("기갑 비율: 0.05"), "+5%", ChatFormatting.GREEN);
             color(ResearchText.effect("속도: -1%"), "-1%", ChatFormatting.DARK_RED);
             var cost = ResearchText.effect("민간공장 건설 비용: +2.5%");
@@ -54,7 +57,13 @@ public final class ResearchTextChecks {
             for (String title : List.of("장갑 화물 열차", "장갑 화물 열차 II", "장갑 화물 열차 3", "공격 헬리콥터"))
                 check(ResearchText.decorateEffect(ResearchText.gold(title)).getString().equals(title), "Names never acquire stat icons");
             check(ResearchText.decorateEffect(ResearchText.effect("건설 속도: +15%")).getString().charAt(0) >= 0xe000, "Beneficial upgrade retains its stat icon");
-            check(ResearchText.decorateEffect(ResearchText.effect("건설 속도: -15%")).getString().equals("건설 속도: -15%"), "Penalty has no beneficial-upgrade icon");
+            check(ResearchText.decorateEffect(ResearchText.effect("건설 속도: -15%")).getString().charAt(0) >= 0xe000, "Penalty retains the original stat icon");
+            var development = ResearchText.decorateEffect(ResearchText.effect("£development 학문 발전도 획득: +15%"));
+            check(!development.getString().contains("£") && development.getString().charAt(0) >= 0xe000, "Development gain renders its original inline icon");
+            color(development, "+15%", ChatFormatting.GREEN);
+            var stability = ResearchText.decorateEffect(ResearchText.effect("£stability_texticon 기본 안정도 획득: -5%"));
+            check(!stability.getString().contains("£") && stability.getString().charAt(0) >= 0xe000, "Base stability gain renders the original stability icon");
+            color(stability, "-5%", ChatFormatting.DARK_RED);
             check(ResearchText.effect("속도: +2.555%").getString().equals("속도: +2.5%"), "Displayed precision truncates to one decimal after conversion");
             var attack = ResearchText.effect("대물 공격: 0.5");
             check(attack.getString().equals("대물 공격: 0.5"), "Absolute equipment stats are never multiplied by 100");
@@ -107,6 +116,48 @@ public final class ResearchTextChecks {
                 context.waitTicks(2); context.takeScreenshot("hoi-tooltip-" + id + "-" + size[0]);
             }
         }
+        context.runOnClient(client -> client.options.guiScale().set(2));
+        context.getInput().resizeWindow(2560, 1440); context.waitTicks(3);
+        context.setScreen(() -> new ResearchScreen(source, request -> {}));
+        for(int index=0;index<2;index++) {
+            final int half=index;
+            double[] cursor=context.computeOnClient(client -> {
+                var screen=(ResearchScreen)client.gui.screen();
+                int pane=dev.hoi.client.ui.HoiPanelLayout.width(dev.hoi.protocol.MenuTab.RESEARCH,screen.width);
+                int top=dev.hoi.client.ui.HoiMenuBar.height(screen.width);
+                int banner=Math.max(1,Math.min((pane-12)*138/532,screen.height-top-80-6*17));
+                return new double[]{(pane*(half==0?.25:.75))*client.getWindow().getGuiScale(),(top+72+banner-16)*client.getWindow().getGuiScale()};
+            });
+            context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);
+            context.takeScreenshot("hoi-research-overview-tooltip-"+index+"-gui2");
+        }
+        context.getInput().setCursorPos(1800,1000);
+        for (String id : List.of("mechanised_infantry3", "dispersed_industry4", "basic_nanomachines", "tech_10000_qubit_computing")) {
+            var tech = source.technologies().stream().filter(t -> t.id().equals("hoi:tfr/technology/" + id)).findFirst();
+            if (tech.isEmpty()) continue;
+            context.setScreen(() -> new ResearchScreen(source, request -> {}));
+            context.runOnClient(client -> {
+                var screen = (ResearchScreen)client.gui.screen();
+                screen.showDetail(tech.get().id());
+                var effects = screen.detailLines(tech.get()).stream().map(Component::getString).toList();
+                check(effects.stream().noneMatch(line -> line.endsWith(" 해금") || ResearchText.zeroEffect(line)), "Detail effects omit duplicate unlocks and zero values");
+                for(String effect:tech.get().tooltipOnlyEffects()) {
+                    check(effects.stream().noneMatch(line -> line.equals(ResearchText.effect(effect).getString())), "Completion rewards stay outside detail effects");
+                    check(screen.tooltipLines(tech.get()).stream().anyMatch(line -> line.getString().equals(ResearchText.effect(effect).getString())), "Completion rewards remain in tooltips");
+                }
+                if (id.equals("mechanised_infantry3")) check(!ResearchDetails.cards(tech.get(), "KOR").isEmpty(), "Removing the unlock effect preserves equipment details");
+            });
+            context.waitTicks(3); context.takeScreenshot("hoi-research-effects-" + id + "-gui2");
+        }
+        context.setScreen(() -> new ResearchScreen(source, request -> {}));
+        context.runOnClient(client -> {
+            var screen = (ResearchScreen)client.gui.screen();
+            screen.showDetail("hoi:tfr/technology/power_plants4");
+            var close = screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals("×"))
+                    .map(w -> (net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow();
+            close.onPress(new net.minecraft.client.input.MouseButtonEvent(close.getX() + 1, close.getY() + 1, new net.minecraft.client.input.MouseButtonInfo(0, 0)));
+        });
+        context.waitTicks(3); context.takeScreenshot("hoi-engineering-exclusive-caption-gui2");
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
         context.setScreen(() -> null);
     }
