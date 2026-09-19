@@ -85,7 +85,7 @@ public final class TfrResearchLayout {
     }
 
     static ResearchLayout create(List<Tech> technologies, String category, String filter) {
-        var available = technologies.stream().filter(t -> ResearchLayout.category(t).equals(category)).toList();
+        var available = technologies.stream().filter(t -> (t.source()==null || t.source().parentTechnology().isEmpty()) && ResearchLayout.category(t).equals(category)).toList();
         if (available.stream().noneMatch(t -> position(t) != null)) return null;
         var nodes = new ArrayList<ResearchLayout.Node>();
         int width = category.equals("ARMOR") ? 856 : category.equals("INDUSTRY") ? 640 : 160;

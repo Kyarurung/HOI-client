@@ -33,7 +33,7 @@ public record ResearchLayout(List<Node> nodes, List<Integer> years, int width, i
     }
     public static ResearchLayout create(List<Tech> technologies, String category, String query) {
         String filter = query.strip().toLowerCase(Locale.ROOT);
-        var selected = technologies.stream().filter(t -> category(t).equals(category)
+        var selected = technologies.stream().filter(t -> (t.source()==null || t.source().parentTechnology().isEmpty()) && category(t).equals(category)
                 && (filter.isEmpty() || t.name().toLowerCase(Locale.ROOT).contains(filter) || t.id().toLowerCase(Locale.ROOT).contains(filter)))
                 .sorted(Comparator.comparingInt(Tech::year).thenComparingInt(Tech::tier).thenComparing(Tech::id)).toList();
         var reference = TfrResearchLayout.create(technologies, category, filter);

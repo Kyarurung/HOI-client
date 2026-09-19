@@ -132,6 +132,37 @@ public final class ResearchTextChecks {
             context.takeScreenshot("hoi-research-overview-tooltip-"+index+"-gui2");
         }
         context.getInput().setCursorPos(1800,1000);
+        for(var original:source.technologies()) {
+            if(original.source()==null||original.source().parentTechnology().isEmpty())continue;
+            var child=new ResearchView.Tech(original.id(),original.category(),original.name(),original.year(),original.tier(),original.baseDays(),
+                    original.progress(),original.dailyRate(),original.prerequisites(),original.effects(),original.unlocks(),ResearchView.Status.AVAILABLE,original.source(),original.tooltipOnlyEffects());
+            var technologies=source.technologies().stream().map(t->t.id().equals(child.id())?child:t).toList();
+            var view=new ResearchView(source.session(),source.revision(),source.country(),source.countryName(),source.day(),source.date(),source.speed(),source.slots(),technologies,"",source.hud(),source.benefits());
+            var requests=new ArrayList<ResearchProtocol.Request>();
+            context.setScreen(()->new ResearchScreen(view,requests::add));
+            context.runOnClient(client->{
+                var screen=(ResearchScreen)client.gui.screen();
+                screen.showDetail(child.source().parentTechnology());
+                check(screen.subTechnology(view.technology(child.source().parentTechnology())).id().equals(child.id()),"Original child research is reachable");
+                check(!ResearchDetails.cards(child,"KOR").isEmpty(),"Child research has original equipment details");
+                if(List.of("amphibious_mechanized_infantry","amphibious_mechanized_infantry_2","ship_hull_super_heavy","ship_hull_advanced_super_heavy").contains(child.source().id()))
+                    check(ResearchDetails.cards(child,"KOR").stream().filter(c->c.kind().equals("장비")).allMatch(c->c.texture().startsWith("technology/country/kor/")),"Sub-technology research uses original Korean equipment art");
+            });
+            context.waitTicks(2);context.takeScreenshot("hoi-subtechnology-parent-"+child.source().id()+"-gui2");
+            context.runOnClient(client->{
+                var button=client.gui.screen().children().stream().filter(c->c instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().equals(child.name()))
+                        .map(c->(net.minecraft.client.gui.components.Button)c).findFirst().orElseThrow();
+                button.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));
+            });
+            context.waitTicks(2);context.takeScreenshot("hoi-subtechnology-detail-"+child.source().id()+"-gui2");
+            context.runOnClient(client->{
+                var button=client.gui.screen().children().stream().filter(c->c instanceof net.minecraft.client.gui.components.Button b&&b.active&&b.getMessage().getString().equals("연구"))
+                        .map(c->(net.minecraft.client.gui.components.Button)c).findFirst().orElseThrow();
+                button.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));
+                check(requests.size()==1&&requests.getFirst().action()==ResearchProtocol.Action.START&&requests.getFirst().technology().equals(child.id()),"Child button starts its own server research");
+            });
+        }
+
         for (String id : List.of("mechanised_infantry3", "dispersed_industry4", "basic_nanomachines", "tech_10000_qubit_computing")) {
             var tech = source.technologies().stream().filter(t -> t.id().equals("hoi:tfr/technology/" + id)).findFirst();
             if (tech.isEmpty()) continue;

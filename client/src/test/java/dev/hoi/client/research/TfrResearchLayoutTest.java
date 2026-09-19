@@ -51,7 +51,7 @@ class TfrResearchLayoutTest {
         for (var category : List.of("INFANTRY", "SUPPORT", "ARMOR", "ARTILLERY", "NAVY", "NAVAL_SUPPORT", "AIR", "ENGINEERING", "INDUSTRY")) for (int viewport : List.of(407, 780, 1100, 1260)) {
             var layout = TfrResearchLayout.fit(ResearchLayout.create(catalog, category, ""), viewport);
             assertTrue(TfrResearchLayout.applies(layout));
-            assertEquals(catalog.stream().filter(t -> ResearchLayout.category(t).equals(category)).count(), layout.nodes().size());
+            assertEquals(catalog.stream().filter(t -> t.source().parentTechnology().isEmpty() && ResearchLayout.category(t).equals(category)).count(), layout.nodes().size());
             for (var a : layout.nodes()) {
                 assertNotNull(TfrResearchLayout.position(a.tech()), a.tech().id());
                 assertSame(a, layout.at(a.x() + a.width() / 2.0, a.y() + a.height() / 2.0));

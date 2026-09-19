@@ -85,12 +85,18 @@ public record ResearchView(String session, long revision, String country, String
 
     public record Source(String id,String folder,int x,int y,boolean vertical,List<String> anyOf,List<String> excludes,
             List<String> conditions,List<String> unlockLabels,String description,List<String> deferredEffects,
-            java.util.Map<String,String> localizedNames) {
+            java.util.Map<String,String> localizedNames,String parentTechnology) {
+        public Source(String id,String folder,int x,int y,boolean vertical,List<String> anyOf,List<String> excludes,
+                List<String> conditions,List<String> unlockLabels,String description,List<String> deferredEffects,java.util.Map<String,String> localizedNames) {
+            this(id,folder,x,y,vertical,anyOf,excludes,conditions,unlockLabels,description,deferredEffects,localizedNames,"");
+        }
         public Source(String id,String folder,int x,int y,boolean vertical,List<String> anyOf,List<String> excludes,
                 List<String> conditions,List<String> unlockLabels,String description,List<String> deferredEffects) {
             this(id,folder,x,y,vertical,anyOf,excludes,conditions,unlockLabels,description,deferredEffects,java.util.Map.of());
         }
         public Source {
+            parentTechnology=parentTechnology==null?"":parentTechnology;
+            if(parentTechnology.length()>256) throw new IllegalArgumentException("Invalid parent technology");
             localizedNames = localizedNames == null ? java.util.Map.of() : java.util.Map.copyOf(localizedNames);
             if (localizedNames.size() > 128 || localizedNames.entrySet().stream().anyMatch(e -> e.getKey().length() > 256 || e.getValue().length() > 256))
                 throw new IllegalArgumentException("Invalid localized research names");

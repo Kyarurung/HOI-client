@@ -173,6 +173,19 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             rebuildWidgets();
         });
         ((PanelButton)start).sound("ui.click");
+        var child = subTechnology(tech);
+        if (child != null) {
+            var tooltip=Component.empty();
+            for(var line:tooltipLines(child)) {
+                if(!tooltip.getString().isEmpty())tooltip.append("\n");
+                tooltip.append(line);
+            }
+            addRenderableWidget(new PanelButton(child.name(),panelX+panelW-32,panelY+63,18,18,()->showDetail(child.id())) {
+                @Override protected void extractContents(GuiGraphicsExtractor g,int mouseX,int mouseY,float delta) {
+                    drawSubTechnology(g,child,getX(),getY(),getWidth());
+                }
+            }).setTooltip(dev.hoi.client.ui.HoiTooltips.create(tooltip));
+        }
         start.active = pending == 0 && (activeSlot.isPresent() || tech.status() == ResearchView.Status.AVAILABLE
                 && view.availableSlot(selectedSlot)>=0);
     }
@@ -262,6 +275,11 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             g.fill(x, y, x + cardW, y + cardH, hover ? 0xFF2B3C49 : 0xFF1B2933);
             g.outline(x, y, cardW, cardH, focusedTech != null && focusedTech.equals(tech.id()) ? TEXT : color(tech.status()));
             UiAssets.technology(g, view.country(), tech, x + 2, y + 2, cardW - 4, cardH - 4, color(tech.status()));
+            var child = subTechnology(tech);
+            if (child != null) {
+                int size=subTechnologySize(n);
+                drawSubTechnology(g,child,x+cardW-size,y,size);
+            }
             if (tech.status() == ResearchView.Status.ACTIVE) {
                 g.fill(x + 2, y + cardH - 4, x + cardW - 2, y + cardH - 1, 0xFF0D151A);
                 g.fill(x + 2, y + cardH - 4, x + 2 + (int)((cardW - 4) * tech.fraction()), y + cardH - 1, color(tech.status()));
@@ -287,9 +305,32 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         }
         if (hovered != null) {
             var t = hovered.tech();
+            var child=subTechnologyAt(mx,my);
+            if(child!=null)t=child;
             var lines = tooltipLines(t).stream().map(dev.hoi.client.ui.HoiTooltips::format).filter(line -> !line.getString().isBlank()).flatMap(line -> font.split(dev.hoi.client.ui.HoiTooltips.sentences(ResearchText.decorateEffect(line)), Math.min(310, width - 24)).stream()).toList();
             g.setTooltipForNextFrame(font, lines, mx, my);
         }
+    }
+    public Tech subTechnology(Tech parent) {
+        return view.technologies().stream().filter(t -> t.source()!=null && t.source().parentTechnology().equals(parent.id())).findFirst().orElse(null);
+    }
+    private int subTechnologySize(ResearchLayout.Node node) { return Math.max(12,(int)Math.round(12*node.scale())); }
+    private Tech subTechnologyAt(double mouseX,double mouseY) {
+        double x=mouseX-10+scrollX,y=mouseY-treeTop+scrollY;
+        for(var node:layout.nodes()) {
+            int size=subTechnologySize(node);
+            if(x>=node.x()+node.width()-size && x<node.x()+node.width() && y>=node.y() && y<node.y()+size) {
+                var child=subTechnology(node.tech());
+                if(child!=null)return child;
+            }
+        }
+        return null;
+    }
+    private void drawSubTechnology(GuiGraphicsExtractor g,Tech tech,int x,int y,int size) {
+        String state=switch(tech.status()) { case COMPLETED->"researched";case AVAILABLE,ACTIVE->"available";default->"unavailable"; };
+        UiAssets.draw(g,"research/subtechnology/"+state,x,y,size,size);
+        UiAssets.draw(g,"research/subtechnology/"+(tech.category().equals("NAVY")?"battlecruiser":"rocket"),x,y,size,size);
+        if(tech.status()==ResearchView.Status.ACTIVE)g.outline(x,y,size,size,color(tech.status()));
     }
     private void drawReferenceCaptions(GuiGraphicsExtractor g) {
         g.nextStratum();
@@ -478,6 +519,8 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             clearFocus();
             if (event.button() == 1 || event.button() == 2) { panning = true; return true; }
             if (event.button() == 0) {
+                var child=subTechnologyAt(event.x(),event.y());
+                if(child!=null){showDetail(child.id());return true;}
                 var node = layout.at(event.x() - 10 + scrollX, event.y() - treeTop + scrollY);
                 if (node != null) { showDetail(node.tech().id()); return true; }
             }

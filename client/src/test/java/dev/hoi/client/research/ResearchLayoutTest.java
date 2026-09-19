@@ -22,7 +22,7 @@ class ResearchLayoutTest {
         try(var in=getClass().getResourceAsStream("/tfr-research-view.json")) {
             view=new dev.hoi.protocol.ResearchProtocol.Response(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).view();
         }
-        assertEquals(415,view.technologies().size());assertEquals(1,view.availableSlot(0));assertEquals(2,view.benefits().remainingUses());
+        assertEquals(420,view.technologies().size());assertEquals(1,view.availableSlot(0));assertEquals(2,view.benefits().remainingUses());
         var ids=new HashSet<String>();
         for(var category:List.of("INFANTRY","SUPPORT","ARMOR","ARTILLERY","NAVY","NAVAL_SUPPORT","AIR","ENGINEERING","INDUSTRY")) {
             var layout=ResearchLayout.create(view.technologies(),category,"");assertTrue(layout.sourceTree());assertFalse(layout.nodes().isEmpty());
@@ -35,6 +35,13 @@ class ResearchLayoutTest {
             }
         }
         assertEquals(415,ids.size());
+        var children=view.technologies().stream().filter(t->t.source()!=null&&!t.source().parentTechnology().isEmpty()).toList();
+        assertEquals(5,children.size());
+        for(var child:children) {
+            assertFalse(ids.contains(child.id()));
+            assertTrue(ids.contains(child.source().parentTechnology()));
+            assertTrue(child.prerequisites().contains(child.source().parentTechnology()));
+        }
     }
     private ResearchView.Tech tech(String id, int year) {
         return new ResearchView.Tech(id, "INFANTRY", "보병 " + id, year, 1, 100, 0, 1,

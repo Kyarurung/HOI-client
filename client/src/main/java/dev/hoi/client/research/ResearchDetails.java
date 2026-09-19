@@ -29,7 +29,7 @@ public final class ResearchDetails {
     public static List<Card> cards(Tech tech, String country) {
         String art = UiAssets.technologyPath(country, tech);
         return cards(tech).stream().map(card -> {
-            boolean useArt = !art.isEmpty() && card.kind().equals("장비") && (card.texture().isEmpty() || card.representative());
+            boolean useArt = !art.isEmpty() && card.kind().equals("장비") && (card.texture().isEmpty() || card.representative() || !tech.source().parentTechnology().isEmpty() && art.startsWith("technology/country/"));
             String name = tech.source().localizedNames().getOrDefault(card.name(), card.name());
             return new Card(name, card.kind(), useArt ? art : card.texture(), useArt || card.representative(), card.effects(),card.id());
         }).toList();
