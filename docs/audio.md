@@ -35,3 +35,5 @@
 MusicRoutingChecks와 DialogScreenChecks는 실제 Minecraft SoundManager의 중단·복귀 및 팝업이 대기하는 경우를 검사합니다. 서버의 SourceMusicProgressTest는 두 명의 한국 플레이어와 다른 국가의 전달 상태를 분리하여 검사합니다. 운영 서버의 실제 다중 접속 검사는 수행하지 않았습니다.
 
 플레이리스트 재생 버튼은 TFR의 GFX_musicplayer_play_pause_button 두 프레임을 사용합니다. 재생 요청 중에는 일시정지, 정지·일시정지 상태에서는 재생 아이콘과 툴팁을 표시합니다. 일시정지는 선택 곡의 OpenAL 채널만 멈추고 재개하므로 다른 효과음을 멈추지 않습니다. 일시정지 중에는 자동으로 다음 곡으로 넘어가지 않습니다. 본문 재생 표시는 기존 위치에서 2GUI 왼쪽에 배치합니다. PlaylistPlaybackTest와 KoreanMusicChecks는 같은 스트림의 일시정지·재개 및 아이콘 전환을 검사합니다.
+
+수동 일시정지·정지는 음악 창을 닫거나 지도 모드·HUD가 갱신되어도 유지한다. Minecraft의 전체 소리 재개 뒤에도 일시정지한 플레이리스트 채널은 다시 멈춘다. 곡 선택·재생·방송국 켜기는 명시적으로 재생을 다시 시작하며, 월드 이탈 시 수동 상태를 초기화한다. KoreanMusicChecks는 화면 종료와 SoundManager.resume 이후 실제 오디오 채널이 재생되지 않는지 검사한다.

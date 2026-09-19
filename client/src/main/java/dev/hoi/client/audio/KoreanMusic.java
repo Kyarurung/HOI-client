@@ -13,6 +13,7 @@ public final class KoreanMusic {
     private record Catalog(int version, List<PlaylistPlayback.Track> tracks) {}
     private static SoundInstance sound;
     private static boolean enabled;
+    private static boolean manuallyStopped;
     private static boolean stationEnabled = true;
     private static double volume = 1.0;
     private static boolean selected;
@@ -67,27 +68,34 @@ public final class KoreanMusic {
         if (!stationEnabled) stop();
         else { enable(); if (!PLAYBACK.tracks().isEmpty()) play(PLAYBACK.selected()); }
     }
-    public static void enable(){enabled=stationEnabled;}
+    public static void enable(){enabled=stationEnabled&&!manuallyStopped;}
     public static void togglePause(){
         if(!PLAYBACK.requested()){if(!PLAYBACK.tracks().isEmpty())play(PLAYBACK.selected());}
         else PLAYBACK.togglePause();
     }
-    public static void stop(){enabled=false;PLAYBACK.stop();}
-    public static void reset(){stop();selected=false;}
+    public static void stop(){enabled=false;manuallyStopped=true;PLAYBACK.stop();}
+    public static void reset(){stop();manuallyStopped=false;selected=false;}
+    public static void restorePause() {
+        if (!PLAYBACK.paused() || sound == null) return;
+        var engine = ((dev.hoi.client.mixin.SoundManagerAccessor)Minecraft.getInstance().getSoundManager()).hoiSoundEngine();
+        var channel = ((dev.hoi.client.mixin.SoundEngineAccessor)engine).hoiChannels().get(sound);
+        if (channel != null) channel.execute(value -> value.pause());
+    }
     public static void suspend(){PLAYBACK.tick(false);}
     public static void mapChanged() {
-        enabled=stationEnabled;StoryMusicAudio.reset();
-        if(SuperEventAudio.active())return;
+        enable();StoryMusicAudio.reset();
+        if(SuperEventAudio.active()||manuallyStopped||PLAYBACK.paused())return;
         if(stationEnabled&&!PLAYBACK.tracks().isEmpty())PLAYBACK.step(1);
     }
-    public static void play(int index){stationEnabled=true;enabled=true;StoryMusicAudio.reset();PLAYBACK.play(index);}
+    public static void play(int index){manuallyStopped=false;stationEnabled=true;enabled=true;StoryMusicAudio.reset();PLAYBACK.play(index);}
     static SoundInstance playing(){return sound;}
     public static void tick() {
         var client = Minecraft.getInstance();
-        if(client.level==null){stop();return;}
+        if(client.level==null){reset();return;}
         if(enabled&&!PLAYBACK.requested()&&!PLAYBACK.tracks().isEmpty())PLAYBACK.play(PLAYBACK.selected());
         boolean allowed = enabled && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0 && !SuperEventAudio.active() && !StoryMusicAudio.active();
         PLAYBACK.tick(allowed);
+        restorePause();
         if (allowed && sound != null && client.getSoundManager().isActive(sound)) client.getMusicManager().stopPlaying();
     }
 }

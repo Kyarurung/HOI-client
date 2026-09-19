@@ -54,6 +54,24 @@ public final class KoreanMusicChecks {
                 });
                 context.waitTicks(25);
                 context.takeScreenshot("hoi-korean-music-paused-1600");
+                context.runOnClient(client -> {
+                    client.gui.screen().onClose();
+                    client.getSoundManager().resume();
+                    KoreanMusic.enable();
+                });
+                context.waitTicks(5);
+                var channelPlaying = new java.util.concurrent.CompletableFuture<Boolean>();
+                context.runOnClient(client -> {
+                    if (!KoreanMusic.PLAYBACK.paused()) throw new AssertionError("Closing the playlist preserves manual pause");
+                    var engine = ((dev.hoi.client.mixin.SoundManagerAccessor)client.getSoundManager()).hoiSoundEngine();
+                    var channel = ((dev.hoi.client.mixin.SoundEngineAccessor)engine).hoiChannels().get(KoreanMusic.playing());
+                    if (channel == null) throw new AssertionError("Paused stream must retain its audio channel");
+                    channel.execute(value -> channelPlaying.complete(value.playing()));
+                });
+                try {
+                    if (channelPlaying.get(10, java.util.concurrent.TimeUnit.SECONDS)) throw new AssertionError("Global sound resume must not unpause the playlist channel");
+                } catch (Exception ex) { throw new AssertionError(ex); }
+                context.setScreen(() -> new KoreanMusicScreen(null));
                 context.runOnClient(client -> KoreanMusic.togglePause());
                 context.waitTicks(3);
                 context.runOnClient(client -> {
@@ -118,8 +136,15 @@ public final class KoreanMusicChecks {
                 KoreanMusic.stop();
             } catch (ReflectiveOperationException ex) { throw new AssertionError(ex); }
         });
-        context.waitTicks(5);
         context.runOnClient(client -> {
+            client.gui.screen().onClose();
+            client.getSoundManager().resume();
+            KoreanMusic.enable();
+            KoreanMusic.mapChanged();
+        });
+        context.waitTicks(25);
+        context.runOnClient(client -> {
+            if (KoreanMusic.PLAYBACK.requested() || KoreanMusic.playing() != null) throw new AssertionError("Manual stop survives screen closure and automatic activation");
             if (client.getSoundManager().isActive(stopped[0])) throw new AssertionError("Playlist stop releases sound");
         });
         context.runOnClient(client -> StoryMusicAudio.play("music.korea.extinction"));

@@ -9,7 +9,8 @@
     "MenuBackgroundMixin",
     "MenuClickSoundMixin",
     "SoundManagerAccessor",
-    "SoundEngineAccessor"
+    "SoundEngineAccessor",
+    "SoundEngineMixin"
   ],
   "injectors": {
     "defaultRequire": 1
