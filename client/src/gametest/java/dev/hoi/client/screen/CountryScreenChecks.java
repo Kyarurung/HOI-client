@@ -534,8 +534,8 @@ public final class CountryScreenChecks {
                 new MenuView.Entry("이념", "덩샤오핑 이론", "", -1, "politics/art/gfx_ideology_prc_market_socialism"),
                 new MenuView.Entry("지도자", "시진핑", "", -1, "politics/leaders/prc_xi_jinping"),
                 new MenuView.Entry("다음 선거", "선거 없음", ""),
-                new MenuView.Entry("안정도", "-100%", "현재 안정도", -1, "hud/stability"),
-                new MenuView.Entry("전쟁 지지도", "100%", "현재 전쟁 지지도", 1, "hud/war_support")));
+                new MenuView.Entry("안정도", "64.73%", "현재 안정도", .6473, "hud/stability"),
+                new MenuView.Entry("전쟁 지지도", "43.21%", "현재 전쟁 지지도", .4321, "hud/war_support")));
         diplomacy.add(new MenuView.Entry("세력","검증용 세력","",-1,"politics/art/gfx_faction_member"));
         for (int i = 0; i < 24; i++) diplomacy.add(new MenuView.Entry("보유 국민정신 " + i, "", "국가 정신\n안정도: §a+5%§r", -1, "politics/art/gfx_idea_prc_chinese_communist_party"));
         var fixture = new CountryView("KOR",hud,"PRC","중화인민공화국",false,List.of(new CountryView.Choice("KOR","대한민국"),new CountryView.Choice("PRC","중국")),
@@ -584,6 +584,18 @@ public final class CountryScreenChecks {
         context.setScreen(() -> new CountryScreen(fixture)); context.waitTicks(3);
         context.getInput().resizeWindow(2560, 1440);
         context.runOnClient(c -> c.options.guiScale().set(2)); context.waitTicks(3);
+        for (int index = 0; index < 2; index++) {
+            int statIndex = index;
+            var cursor = context.computeOnClient(c -> {
+                var screen = (CountryScreen)c.gui.screen();
+                int cell = Math.min(58, (screen.panelWidth() - 76) / 2);
+                return new double[]{(screen.panelWidth() - 30 - cell * 2 + statIndex * cell + cell / 2.0) * c.getWindow().getGuiScale(),
+                        (dev.hoi.client.ui.HoiMenuBar.height(screen.width) + 12) * c.getWindow().getGuiScale()};
+            });
+            context.getInput().setCursorPos(cursor[0], cursor[1]); context.waitTicks(3);
+            context.takeScreenshot("hoi-diplomacy-stat-precision-" + index + "-gui2");
+        }
+        context.getInput().setCursorPos(1200, 1000);
         context.runOnClient(c -> {
             int pane = ((CountryScreen)c.gui.screen()).panelWidth(), top = dev.hoi.client.ui.HoiMenuBar.height(c.gui.screen().width);
             var header = new DiplomacyHeader(fixture, pane);

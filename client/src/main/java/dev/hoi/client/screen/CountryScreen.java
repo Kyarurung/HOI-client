@@ -149,11 +149,12 @@ public final class CountryScreen extends Screen implements SidebarMovement.Scree
             HoiMenuStyle.recess(g, statsX, top + 4, statWidth * 2, 18);
             for (int i = 0; i < targetStats.length; i++) {
                 var stat = DiplomacyHeader.entry(view, targetStats[i]);
+                String value = stat.value().endsWith("%") ? String.format(Locale.ROOT, "%.0f%%", stat.progress() * 100) : stat.value();
                 int x = statsX + i * statWidth;
                 dev.hoi.client.ui.UiText.iconText(g, font, i == 0 ? "hud/stability" : "hud/war_support",
-                        stat.value().equals("정보 없음") ? "?" : stat.value(), x, top + 4, statWidth, 18, 11, HoiMenuStyle.TEXT);
+                        value.equals("정보 없음") ? "?" : value, x, top + 4, statWidth, 18, 11, HoiMenuStyle.TEXT);
                 if (mx >= x && mx < x + statWidth && my >= top + 4 && my < top + 22)
-                    dev.hoi.client.ui.HoiTooltips.draw(g, font, view.name() + " · " + stat.name() + ": " + stat.value(), mx, my);
+                    dev.hoi.client.ui.HoiTooltips.drawExact(g, font, view.name() + " · " + stat.name() + ": " + (stat.value().endsWith("%") ? String.format(Locale.ROOT, "%.2f%%", stat.progress() * 100) : stat.value()), mx, my);
             }
             int headerX = DiplomacyHeader.scaled(139, pane), headerW = pane - headerX - 7;
             UiAssets.nineSlice(g, "diplomacy/header", headerX, top + 30, headerW, 38, 5, pane / 550.0);
