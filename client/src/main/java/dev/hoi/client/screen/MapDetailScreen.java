@@ -218,8 +218,8 @@ final class MapDetailScreen extends DialogScreen implements SidebarMovement.Scre
         int statusX=402;
         for(String section:List.of("province_status","province_weather","province_surface")) {
             var status=tiles(section);if(status.isEmpty())continue;
-            UiAssets.draw(g,status.getFirst().icon(),x(statusX)-1,y(529)+1,n(37),n(47));
-            hovers.add(new Hover(status.getFirst(),x(statusX)-1,y(529)+1,n(37),n(47)));
+            UiAssets.draw(g,status.getFirst().icon(),x(statusX)-2,y(529)+2,n(37),n(47));
+            hovers.add(new Hover(status.getFirst(),x(statusX)-2,y(529)+2,n(37),n(47)));
             statusX-=37;
         }
         if(!terrain.isEmpty())hovers.add(new Hover(terrain.getFirst(),x(20),y(487),n(419),n(94)));
