@@ -50,7 +50,7 @@ public final class HudTooltip {
                 case HEADING -> HoiTooltips.GOLD; default -> 0xE0E6E8;
             };
             String value = item.icon().equals("party_support") ? row.value() : TooltipText.numbers(row.value());
-            if (!item.icon().equals("convoys") && !row.value().isEmpty() && !TooltipText.visible(value)) continue;
+            if (!item.icon().equals("convoys") && !item.icon().equals("supplies") && !row.value().isEmpty() && !TooltipText.visible(value)) continue;
             var text = Component.literal(row.label() + (value.isEmpty() ? "" : ": " + value))
                     .withStyle(style -> style.withColor(color));
             lines.addAll(font.split(item.icon().equals("convoys") ? convoyNumbers(text.getString(), color) : HoiTooltips.sentences(text), wrap));

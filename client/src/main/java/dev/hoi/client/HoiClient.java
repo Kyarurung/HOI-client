@@ -39,6 +39,7 @@ public final class HoiClient implements ClientModInitializer {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> registerCommands(dispatcher));
         ClientTickEvents.END_CLIENT_TICK.register(client -> { dev.hoi.client.audio.UnitAudio.tick(); dev.hoi.client.audio.StoryMusicAudio.tick(); dev.hoi.client.audio.KoreanMusic.tick(); });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            dev.hoi.client.screen.IndustryScreen.clearPreferences();
             dev.hoi.client.input.MenuShortcut.reset(); UiSounds.reset(); dev.hoi.client.audio.UnitAudio.reset(); dev.hoi.client.audio.StoryMusicAudio.reset(); dev.hoi.client.audio.KoreanMusic.PLAYBACK.stop(); SidebarMovement.release(client); dev.hoi.client.ui.HoiMenuBar.clear();
         });
     }

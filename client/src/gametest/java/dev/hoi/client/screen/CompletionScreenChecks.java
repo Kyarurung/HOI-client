@@ -273,7 +273,7 @@ public final class CompletionScreenChecks {
         for (int i = 0; i < 32; i++) rows.add(new HudDetail.Row("현재 적용되는 국가 효과 " + i, "+2.5%", HudDetail.Tone.GOOD));
         rows.add(new HudDetail.Row("마지막 설명", "0", HudDetail.Tone.MUTED));
         var hud = new CountryHud(null, null, null, null, null, null, false, null,
-                CountryHud.NationalIndicators.UNKNOWN, Map.of("political_power", new HudDetail(rows)));
+                CountryHud.NationalIndicators.UNKNOWN, Map.of("political_power", new HudDetail(rows), "supplies", new HudDetail(List.of(new HudDetail.Row("요구", "0", HudDetail.Tone.NORMAL), new HudDetail.Row("비축 물자", "0 (0%)", HudDetail.Tone.NORMAL)))));
         var pages = MenuTab.ORDER.stream().map(t -> new MenuView.Page(t, List.of(new MenuView.Section(t.label(), t.id(), List.of())))).toList();
         context.setScreen(() -> new HoiMenuScreen(new MenuView("KOR", "대한민국", "2020-01-01", "PAUSED", pages, hud)));
         context.getInput().setCursorPos(135, 14); context.waitTicks(3);
@@ -289,6 +289,11 @@ public final class CompletionScreenChecks {
                     line.accept((index, style, character) -> { text.appendCodePoint(character); return true; });
                 check((item.icon().equals("supplies") || !text.toString().contains("현재: 0")) && text.indexOf("—") < 0, "Zero tooltip rows must be hidden: " + item.icon());
             }
+            var supply = HoiMenuBar.indicators(hud).stream().filter(item -> item.icon().equals("supplies")).findFirst().orElseThrow();
+            var supplyText = new StringBuilder();
+            for (var line : HudTooltip.body(c.font, c.gui.screen().width, hud, supply))
+                line.accept((index, style, character) -> { supplyText.appendCodePoint(character); return true; });
+            check(supplyText.toString().contains("요구: 0") && supplyText.toString().contains("비축 물자: 0 (0%)"), "Supply requirements and empty stockpiles remain visible");
             check(HoiMenuBar.rawNumber(-1.25).equals("-1.25"), "Actual negative effects retain their sign and decimals");
             check(lines.size() > HudTooltip.visibleRows(c.gui.screen().height, c.font), "Long HUD gets a scroll window");
             for (var line : lines) check(c.font.width(line) <= 310, "HUD lines wrap within viewport");

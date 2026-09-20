@@ -439,6 +439,7 @@ public final class IndustryScreenChecks {
         context.getInput().resizeWindow(1600,1000); context.waitTicks(3);
     }
     private static void factoryControls(ClientGameTestContext context, IndustryView v) {
+        context.runOnClient(client -> IndustryScreen.clearPreferences());
         var gun=v.equipment().stream().filter(e->e.id().equals("hoi:modern_infantry_gear")).findFirst().orElseThrow();
         var sourceGun=new IndustryView.Equipment(gun.id(),gun.name(),gun.texture(),gun.group(),gun.naval(),gun.unlocked(),gun.cost(),gun.factoryLimit(),gun.resources(),gun.stockpile(),gun.reserved(),gun.deployed(),gun.deficit(),gun.replacement(),gun.family(),gun.familyName(),gun.demand(),gun.acquired(),"infantry_equipment_3");
         var ship=v.equipment().stream().filter(e->e.naval()&&e.factoryLimit()==15).findFirst().orElseThrow();
@@ -539,7 +540,11 @@ public final class IndustryScreenChecks {
         context.runOnClient(client->{var r=requests.getLast();check(r.action()==IndustryProtocol.Action.ASSIGN&&r.item().equals("military")&&r.amount()==15&&r.revision()==issued.revision(),"X1 allows reserving fifteen factories despite only twelve owned");});
         for(int multiplier:new int[]{5,10}) {
             requests.clear();context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);
-            click(context,"military · ×"+multiplier);click(context,"military · 공장 3칸");
+            click(context,"military · ×"+multiplier);
+            context.setScreen(()->null);
+            context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);
+            ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-reopened-x"+multiplier);
+            click(context,"military · 공장 3칸");
             context.runOnClient(client->check(requests.getLast().amount()==3*multiplier,"Factory cell applies its selected multiplier"));
         }
         requests.clear();context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);
@@ -553,6 +558,7 @@ public final class IndustryScreenChecks {
             checkBounds(screen);
         });
         context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-stockpile-logistics");
+        context.runOnClient(client -> IndustryScreen.clearPreferences());
     }
     private static void conversion(ClientGameTestContext context,IndustryView v) {
         var source=v.equipment().stream().filter(e->e.id().equals("hoi:infantry_gear")).findFirst().orElseThrow();

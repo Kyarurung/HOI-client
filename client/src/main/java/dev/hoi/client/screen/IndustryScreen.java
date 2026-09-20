@@ -35,7 +35,9 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private IndustryView view;
     private int pane, top, scroll, secondScroll, pickerScroll, hudScroll, pending, refresh;
     private int designerScroll;
-    private final Map<String, Integer> factoryScales = new HashMap<>();
+    private static final Map<String, Map<String, Integer>> factoryScales = new HashMap<>();
+    public static void clearPreferences() { factoryScales.clear(); }
+    private Map<String, Integer> factoryScales() { return factoryScales.computeIfAbsent(view.country(), key -> new HashMap<>()); }
     private String unitGroup = "", logisticsEquipment = "";
     private int tradeTab = 1, tradeAmount = 1, selectedSlot = -1;
     private boolean supportSlot, designer, closed, background, showOutdated;
@@ -192,7 +194,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         java.util.function.IntUnaryOperator x = n -> 6 + Math.round(n * scale);
         java.util.function.IntUnaryOperator dy = n -> y + Math.round(n * scale);
         int header = Math.max(1, Math.round(24 * scale));
-        int step = e.naval() ? 1 : factoryScales.getOrDefault(line.id(), 1);
+        int step = e.naval() ? 1 : factoryScales().getOrDefault(line.id(), 1);
         int limit = Math.min(e.factoryLimit(), line.availableFactories());
         art("production/line/" + (e.naval() ? (e.factoryLimit() < 15 ? "naval_" + e.factoryLimit() : "naval") : "land"), 6, y, pane - 12, Math.round(108 * scale));
         cellText(Integer.toString(index + 1), x.applyAsInt(3), y + 3, x.applyAsInt(30) - x.applyAsInt(3), header, TEXT, false);
@@ -225,7 +227,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         var conversion = line.conversion();
         if (conversion != null) {
             boolean converting = conversion.source() != null;
-            art("production/" + (converting ? "modifiers/retention" : "summary/military_factory_icon"), infoX, dy.applyAsInt(50), x.applyAsInt(275) - infoX, Math.round(27 * scale));
+            if (converting) art("production/modifiers/retention", infoX, dy.applyAsInt(50), x.applyAsInt(275) - infoX, Math.round(27 * scale));
             tip((converting ? equipment(conversion.source()).name() + " → " + e.name() + "\n전환용 재고 " + conversion.stock() : "신규 장비 생산")
                     + "\n1개당 " + ic(conversion.cost()) + " IC · 전환 속도 혜택 " + percent(conversion.speed() - 1)
                     + "\n장비 이미지를 눌러 변경합니다.", infoX, dy.applyAsInt(50), x.applyAsInt(275) - infoX, 16);
@@ -234,7 +236,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             String label = line.id() + " · ×" + multiplier;
             originalButton(label, "production/line/x" + multiplier + (step == multiplier ? "_selected" : "_normal"),
                     x.applyAsInt(278), dy.applyAsInt(multiplier == 10 ? 30 : 68), Math.round(36 * scale), Math.round(36 * scale), () -> {
-                        factoryScales.put(line.id(), step == multiplier ? 1 : multiplier); rebuildWidgets();
+                        factoryScales().put(line.id(), step == multiplier ? 1 : multiplier); rebuildWidgets();
                     });
             tip("공장 " + multiplier + "개씩 표시 · 다시 누르면 ×1", x.applyAsInt(278), dy.applyAsInt(multiplier == 10 ? 30 : 68), Math.round(36 * scale), Math.round(36 * scale));
         }
