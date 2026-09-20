@@ -27,6 +27,8 @@ final class MapDetailScreenChecks {
                 "§e발전소§r (주 등급: §e3§r)\n발전소의 잠재 최대 레벨: §e4§r\n\n이 건물은 국가에 §a+6§r£resources_strip|7 을 제공하며, §c-4§r£resources_strip|1 및 §c-1§r£resources_strip|5 을(를) 소비합니다.\n\n§c이 주는 §e원자로§r나 §e에너지 농장§r을 건설할 수 없는 주입니다!§r"));
         for (String id : List.of("civilian_factory", "military_factory", "dockyard", "office_park", "refinery", "fuel_silo", "rocket_site", "nuclear_reactor", "power_plant", "energy_farm")) own.add(tile("limits", id, "1/4", "construction/" + id));
         for (String id : List.of("oil", "aluminum", "rubber", "tungsten", "iron", "chromium", "coal")) own.add(tile("resources", id, id.equals("oil") ? "-12" : "917", "production/resources/" + id));
+        int oilCell=java.util.stream.IntStream.range(0,own.size()).filter(i->own.get(i).icon().equals("production/resources/oil")).findFirst().orElseThrow();
+        own.set(oilCell,new DialogView.Tile("resources","석유","-12","production/resources/oil","§e석유§r\n기본: §e0§r £resources_strip|1\n건물: §e-12§r £resources_strip|1\n   기반시설: §ex2.00§r\n   보급 경로: §ex1.10§r\n---------------------\n석유는 연료, 윤활유, 화학 제품 등으로 정제되는 주요 자원입니다. 이는 수송망에 동력을 공급하고 산업 활동을 지원하며, 차량, 항공기, 해상 운송 운영에 필수적입니다."));
         own.add(new DialogView.Tile("energy", "에너지 효율", "158", "map_detail/energy", "에너지 효율: §e1.67§r\n  사무단지: §c-2%§r\n  사무단지: §c-2%§r\n공장 에너지 소비량: §c-15%§r\n공장 에너지 사용량: §e157.67§r\n군수공장 에너지 사용량: §e67.57§r\n해군 조선소 에너지 사용량: §e7.50§r\n민간공장 에너지 사용량: §e82.59§r"));
         own.add(new DialogView.Tile("building_modifiers", "건설 주 변동치", "", "map_detail/building_modifiers", "건설 주 변동치\n§e민간공장:§r\n  강철 소비량: §c-3§r\n§e원자로:§r\n  주의 최대 공장: §a+1§r\n  주의 최대 공장: §a+40%§r\n  현지 건설 속도: §a+20%§r\n§e에너지 농장:§r\n  주의 최대 공장: §a+1§r\n  주의 최대 공장: §a+20%§r\n  현지 건설 속도: §a+10%§r\n§e사무단지:§r\n  현지 인력: §a+20%§r\n  현지 공장: §a+25%§r\n  지역 공장 에너지 소비량: §c+2%§r"));
         own.add(new DialogView.Tile("terrain", "지역", "도시", "", "§e부산§r\n§e부대 효과:§r\n이동: §e95.0%§r\n공격: §e30.0%§r\n방어: §e106.0%§r\n이 지형 내에서의 이동 비용 §e×3.20§r\n\n§e지역 주 효과:§r\n사단 공격: §c-10%§r\n돌파: §c-15%§r\n참호 부설 속도: §c-30%§r\n추위로 인한 손실: §c+25%§r"));
@@ -146,7 +148,7 @@ final class MapDetailScreenChecks {
                         var decorated=dev.hoi.client.ui.KeywordIcons.decorate(net.minecraft.network.chat.Component.literal("이동: 95.0%"));
                         if(decorated.getString().charAt(0)<0xe000)throw new AssertionError("Movement requires the original text icon");
                     });
-                    for(int[] cell:new int[][]{{35,445},{443,410},{230,530},{419,550},{434,468},{409,185}}) {
+                    for(int[] cell:new int[][]{{35,302},{35,445},{443,410},{230,530},{419,550},{434,468},{409,185}}) {
                         var point=context.computeOnClient(client -> {
                             var screen=(MapDetailScreen)client.gui.screen();
                             double ratio=screen.panelWidth()/463.0,gui=client.getWindow().getGuiScale();

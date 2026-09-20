@@ -22,4 +22,7 @@ class TooltipTextTest {
         assertEquals("정당 지지도: 48.1234%\n매일 변화: +0.0025%",TooltipText.format("정당 지지도: 48.1234%\n매일 변화: +0.0025%"));
         assertEquals("슬롯: 0/5\n2020-01-01\nhoi:air_0\n[image:air_detail/result_0]",TooltipText.format("슬롯: 0/5\n2020-01-01\nhoi:air_0\n[image:air_detail/result_0]"));
     }
-}
+    @Test void hidesResourceZeroBaseAndPreservesSourceMultipliers() {
+        String text="§e석유§r\n기본: §e0§r £resources_strip|1\n건물: §e-12§r £resources_strip|1\n   기반시설: §ex2.00§r\n   보급 경로: §ex1.10§r";
+        assertEquals(text.replace("기본: §e0§r £resources_strip|1\n",""),TooltipText.format(text));
+    }}
