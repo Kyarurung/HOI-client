@@ -29,7 +29,7 @@ final class MapDetailScreenChecks {
         for (String id : List.of("oil", "aluminum", "rubber", "tungsten", "iron", "chromium", "coal")) own.add(tile("resources", id, id.equals("oil") ? "-12" : "917", "production/resources/" + id));
         own.add(new DialogView.Tile("energy", "에너지 효율", "158", "map_detail/energy", "에너지 효율: §e1.67§r\n  사무단지: §c-2%§r\n  사무단지: §c-2%§r\n공장 에너지 소비량: §c-15%§r\n공장 에너지 사용량: §e157.67§r\n군수공장 에너지 사용량: §e67.57§r\n해군 조선소 에너지 사용량: §e7.50§r\n민간공장 에너지 사용량: §e82.59§r"));
         own.add(new DialogView.Tile("building_modifiers", "건설 주 변동치", "", "map_detail/building_modifiers", "건설 주 변동치\n§e민간공장:§r\n  강철 소비량: §c-3§r\n§e원자로:§r\n  주의 최대 공장: §a+1§r\n  주의 최대 공장: §a+40%§r\n  현지 건설 속도: §a+20%§r\n§e에너지 농장:§r\n  주의 최대 공장: §a+1§r\n  주의 최대 공장: §a+20%§r\n  현지 건설 속도: §a+10%§r\n§e사무단지:§r\n  현지 인력: §a+20%§r\n  현지 공장: §a+25%§r\n  지역 공장 에너지 소비량: §c+2%§r"));
-        own.add(new DialogView.Tile("terrain", "지역", "도시", "", "§e부산§r\n§e부대 효과:§r\n이동: §e95.0%§r\n공격: §e30.0%§r\n방어: §e106.0%§r\n이 지형 내에서의 이동 비용 §e×3.20§r"));
+        own.add(new DialogView.Tile("terrain", "지역", "도시", "", "§e부산§r\n§e부대 효과:§r\n이동: §e95.0%§r\n공격: §e30.0%§r\n방어: §e106.0%§r\n이 지형 내에서의 이동 비용 §e×3.20§r\n\n§e지역 주 효과:§r\n사단 공격: §c-10%§r\n돌파: §c-15%§r\n참호 부설 속도: §c-30%§r\n추위로 인한 손실: §c+25%§r"));
         own.add(new DialogView.Tile("province_status", "지역 상태", "", "map_detail/temperature_1", "§e보통 · 15.0°C§r"));
         own.add(new DialogView.Tile("features", "부산광역시", "", "map_detail/art/gfx_modifiers_kor_busan", "주의 최대 공장: §a+1§r\n\n§e부산광역시장:§r\n[image:map_detail/art/gfx_oh_keo_don_portrait]\n[caption:§f오거돈§r]\n\n§e집권 정당: §#3659D9더불어민주당§r"));
         for (String id : List.of("hub", "fort", "coastal_fort", "port")) own.add(tile("province", id, id.equals("hub") ? "1/1" : id.equals("port") ? "6/10" : id.equals("fort") ? "5/5" : "4/5", "construction/" + id));
@@ -216,6 +216,29 @@ final class MapDetailScreenChecks {
             if(!weather.equals("clear"))variant.add(new DialogView.Tile("weather_icon","날씨","","map_detail/weather_"+weather,"날씨 아이콘 툴팁"));
             open(context,view(terrain+" · "+weather,"map_detail/sea",variant));
             context.takeScreenshot("hoi-sea-"+terrain+"-"+weather+"-gui2");
+        }
+        for(String terrain:List.of("plains","hills","mountain","forest","seoul","pyongyang")) {
+            var variant=new ArrayList<>(own);
+            variant.removeIf(t->t.section().equals("terrain"));
+            variant.add(new DialogView.Tile("terrain","지역",terrain,"",terrain.equals("seoul")?"§e서울§r\n§e부대 효과:§r\n이동: §e95.0%§r\n공격: §e30.0%§r\n방어: §e106.0%§r\n전투 너비: §e96§r (추가 공격: §e32§r)\n적 공중 지원: §a-50%§r\n보급 물류 감소: §e0.0%§r\n이 지형 내에서의 이동 비용 §e×3.20§r\n\n§e지역 주 효과:§r\n사단 공격: §c-10%§r\n돌파: §c-15%§r\n참호 부설 속도: §c-30%§r\n추위로 인한 손실: §c+25%§r":terrain));
+            variant.add(new DialogView.Tile("features","주한미군기지","","map_detail/art/gfx_modifiers_kor_usfk","핵심 영토에서 사단 방어: §a+10%§r\n사단 조직력: §a+10%§r\n\n§e주한미군사령관:§r\n[image:map_detail/art/gfx_robert_abrams_portrait]\n[caption:§f로버트 B. 에이브럼스§r]\n\n§e주둔군: §b미합중국군§r"));
+            open(context,view(terrain,"map_detail/terrain/"+terrain,variant));
+            context.getInput().setCursorPos(1800,600);context.waitTicks(2);
+            context.takeScreenshot("hoi-terrain-"+terrain+"-gui2");
+            if(terrain.equals("seoul")) {
+                context.runOnClient(client -> {
+                    var caption=dev.hoi.client.ui.HoiTooltips.styled(net.minecraft.network.chat.Component.literal("§f로버트 B. 에이브럼스§r"),false);
+                    if(!caption.getString().equals("로버트 B. 에이브럼스"))throw new AssertionError("Portrait name must preserve initials without linebreaks");
+                });
+                for(int px:new int[]{35,95,230}) {
+                    var point=context.computeOnClient(client -> {
+                        var screen=(MapDetailScreen)client.gui.screen();double ratio=screen.panelWidth()/463.0,gui=client.getWindow().getGuiScale();
+                        return new double[]{px*ratio*gui,(screen.panelTop()+(px==230?530:445)*ratio)*gui};
+                    });
+                    context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(3);
+                    context.takeScreenshot("hoi-updated-state-tooltip-"+px+"-gui2");
+                }
+            }
         }
         context.setScreen(() -> null);
     }

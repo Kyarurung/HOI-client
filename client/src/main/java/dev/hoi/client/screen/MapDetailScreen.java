@@ -123,7 +123,7 @@ final class MapDetailScreen extends DialogScreen implements SidebarMovement.Scre
         if(current!=null) {
             String detail=current.detail();
             if(detail.isBlank())detail="§e"+current.name()+"§r"+(current.value().isEmpty()?"":"\n"+current.value());
-            else if(current.section().equals("features"))detail="§e"+current.name()+"§r\n"+detail;
+            else if(current.section().equals("features")&&!detail.split("\\R",2)[0].replaceAll("§.","").equals(current.name()))detail="§e"+current.name()+"§r\n"+detail;
             float textScale=(float)(Math.max(10,16*scale)/font.lineHeight);
             g.pose().pushMatrix();
             g.pose().scale(textScale);

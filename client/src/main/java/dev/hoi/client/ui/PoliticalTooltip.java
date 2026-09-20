@@ -47,6 +47,7 @@ public final class PoliticalTooltip {
         if (compact) {
             int measured = 80;
             for (String line : entry.detail().split("\\R")) {
+                if(line.startsWith("[caption:"))continue;
                 var value = HoiTooltips.sentences(Component.literal(line));
                 measured = Math.max(measured, line.startsWith("[image:") ? 170
                         : font.width(icons ? KeywordIcons.decorate(value) : value));
@@ -71,7 +72,7 @@ public final class PoliticalTooltip {
         for (String line : !flag.isEmpty() && detail.isEmpty() ? new String[0] : detail.split("\\R", -1)) {
             if(line.startsWith("[caption:")&&line.endsWith("]")&&!rows.isEmpty()&&rows.getLast().text()==null) {
                 var previous=rows.removeLast();
-                var caption=HoiTooltips.sentences(Component.literal(line.substring(9,line.length()-1))).getVisualOrderText();
+                var caption=HoiTooltips.styled(Component.literal(line.substring(9,line.length()-1)),false).getVisualOrderText();
                 rows.add(new Row(caption,previous.image(),previous.height(),true));
             } else if (line.matches("\\[image:[a-z0-9_/]+\\]")) {
                 String image = line.substring(7, line.length() - 1);
@@ -95,7 +96,15 @@ public final class PoliticalTooltip {
                 if (row.image().isEmpty()) g.text(font, row.text(), x, top, 0xFFE0E0E0);
                 else if(row.caption()) {
                     UiAssets.draw(g,row.image(),x,top,width,row.height());
-                    g.text(font,row.text(),x+(width-font.width(row.text()))/2,top+Math.round(row.height()*.92f)-font.lineHeight/2,0xFFFFFFFF);
+                    float nameplateLeft=x+width*11f/172f, nameplateRight=x+width*161f/172f;
+                    float nameplateTop=top+row.height()*224f/258f, nameplateBottom=top+row.height()*247f/258f;
+                    float scale=Math.min(1.4f,(nameplateRight-nameplateLeft-8)/Math.max(1,font.width(row.text())));
+                    g.pose().pushMatrix();
+                    g.pose().translate((nameplateLeft+nameplateRight-font.width(row.text())*scale)/2,
+                            (nameplateTop+nameplateBottom-font.lineHeight*scale)/2);
+                    g.pose().scale(scale);
+                    g.text(font,row.text(),0,0,0xFFFFFFFF);
+                    g.pose().popMatrix();
                 } else if (row.text() != null) {
                     UiAssets.draw(g, row.image(), x, top, 12, font.lineHeight);
                     g.text(font, row.text(), x + 15, top, 0xFFE0E0E0);

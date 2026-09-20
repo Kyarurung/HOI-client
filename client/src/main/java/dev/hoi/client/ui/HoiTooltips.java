@@ -28,9 +28,13 @@ public final class HoiTooltips {
     }
 
     public static Component sentences(Component text) {
+        return styled(text,true);
+    }
+
+    public static Component styled(Component text,boolean wrapSentences) {
         var result = Component.empty();
         text.visit((style, part) -> {
-            String prose = sentences(part);
+            String prose = wrapSentences?sentences(part):part;
             var codes = java.util.regex.Pattern.compile("(?i)§(#[0-9a-f]{6}|[0-9a-fk-or])").matcher(prose);
             var current = style;
             int start = 0;
