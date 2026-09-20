@@ -116,6 +116,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             });
             ResearchArtChecks.run(context);
             ResearchTextChecks.run(context);
+            convoyGauge(context,menu);
             IndustryScreenChecks.run(context,menu.hud());
             CompletionScreenChecks.run(context);
             ConstructionScreenChecks.run(context,menu.hud());
@@ -333,6 +334,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         var requests=new ArrayList<ResearchProtocol.Request>();
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
         context.setScreen(()->new ResearchScreen(view,requests::add));context.waitTicks(2);context.takeScreenshot("hoi-tfr-benefits-slots");
+        context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().startsWith("제한된 혜택")),"Limited benefits is a passive indicator"));
         click(context,"슬롯 1 · "+view.technology(view.slots().getFirst().technology()).name());context.waitTicks(2);
         click(context,"×");context.waitTicks(2);
         for(var tab:List.of("보병","지상 & 항공 지원","기갑","포","해군","해군 지원 장비","공군","산업","공학")) {
@@ -633,6 +635,29 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         sections.add(new MenuView.Section("특수부대", "special", List.of(
                 new MenuView.Entry("특수부대 교리", "미지정", "미지정 교리", 0, "officer/special/doctrine"))));
         return sections;
+    }
+    private static void convoyGauge(ClientGameTestContext context, MenuView menu) {
+        context.getInput().resizeWindow(2560,1440);
+        context.runOnClient(client -> client.options.guiScale().set(2));
+        context.getInput().setCursorPos(2400,1300);
+        for (double ratio : new double[]{1,.5,0}) {
+            var n=fixtureNational();
+            var national=new CountryHud.NationalIndicators(n.politicalPower(),n.stability(),n.warSupport(),n.factories(),n.energyRatio(),n.fuel(),n.supplies(),n.supplyEfficiency(),n.convoys(),ratio,n.commandPower(),n.rulingPartySupport(),n.manpower(),n.fuelRatio());
+            var hud=new CountryHud(150.0,119.0,209.0,1707.0,704.314,.36,false,0L,national);
+            context.setScreen(() -> new HoiMenuScreen(new MenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),hud)));
+            context.waitTicks(3);
+            try {
+                var image=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-convoy-efficiency-"+(int)(ratio*100)+"-gui2").toFile());
+                var items=HoiMenuBar.indicators(hud);
+                int left=HoiMenuBar.flagWidth(1280)+10+items.stream().takeWhile(i->!i.icon().equals("convoys")).mapToInt(HoiMenuBar.Indicator::width).sum()+15;
+                int width=items.stream().filter(i->i.icon().equals("convoys")).findFirst().orElseThrow().width()-18;
+                int filled=0;
+                for(int x=left*2;x<(left+width)*2;x++)if((image.getRGB(x,23)&0xFFFFFF)==0x6D9C61)filled++;
+                check(filled==(int)Math.round(width*ratio)*2,"Convoy gauge pixels follow transport efficiency without changing colour at "+ratio);
+            } catch(java.io.IOException failure) { throw new AssertionError(failure); }
+        }
+        context.getInput().resizeWindow(1600,1000);
+        context.waitTicks(3);
     }
     private static CountryHud.NationalIndicators fixtureNational() {
         return new CountryHud.NationalIndicators(1350.75, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 10000L, .95, 150.75, .36, 280_900L, .27);

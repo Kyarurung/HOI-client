@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 
 public final class IndustryScreen extends Screen implements SidebarMovement.Screen {
     private static final int TEXT = HoiMenuStyle.TEXT, MUTED = HoiMenuStyle.MUTED;
-    private static final int GOOD = 0xFF55FF55, BAD = 0xFFAA3333, GOLD = 0xFFFFAA00;
+    private static final int GOOD = 0xFF000000 | HoiTooltips.GOOD, BAD = 0xFF000000 | HoiTooltips.BAD, GOLD = 0xFF000000 | HoiTooltips.GOLD;
     private final String token;
     private final Consumer<IndustryProtocol.Request> transport;
     private MenuTab tab;
@@ -512,23 +512,38 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         for (int i = 0; i < view.partners().size(); i++) {
             var p = view.partners().get(i); int y = start + i * h - scroll; if (!visible(y, h, start)) continue;
             var active = contracts.getOrDefault(p.id(), List.of());
-            int color = !p.route() ? BAD : active.isEmpty() ? GOLD : GOOD;
+            int color = !active.isEmpty() ? GOOD : !p.route() ? BAD : GOLD;
             double delivered = active.stream().mapToDouble(IndustryView.Trade::delivered).sum();
-            recess(6, y, pane - 12, h - 3);
-            if (graphics != null) graphics.outline(6, y, pane - 12, h - 3, color);
+            var detail=p.detail()==null?null:p.detail().resources().get(resource);
+            double total=p.exports().getOrDefault(resource,0.0),requested=active.stream().mapToInt(IndustryView.Trade::factories).sum()*(p.resourcesPerFactory()==null?8:p.resourcesPerFactory());
+            if(detail!=null)requested=detail.requested();
+            double remaining=detail==null?Math.max(0,total-delivered):detail.remaining();
+            for(int column=0;column<4;column++) {
+                int right=column==3?pane-7:cols[column+1]-3;
+                recess(cols[column],y,right-cols[column],h-3);
+                if(graphics!=null)graphics.outline(cols[column],y,right-cols[column],h-3,color);
+            }
             iconText(HoiMenuBar.flagTexture(p.id()), p.name(), 9, y + 1, cols[1] - 14, h - 5, 20, TEXT);
-            text(decimal(p.exports().getOrDefault(resource, 0.0)), cols[1], y + 9, cols[2] - cols[1] - 3, color);
-            text(decimal(delivered), cols[2], y + 9, cols[3] - cols[2] - 3, color);
-            text(p.convoys() == null || p.convoys() < 0 ? "—" : Integer.toString(p.convoys()), cols[3], y + 9, pane - cols[3] - 8, color);
+            cellText(integer(remaining)+"/"+integer(total),cols[1],y,cols[2]-cols[1]-3,h-3,GOLD,false);
+            String shipped=active.isEmpty()?"§e0":"§"+(delivered+1e-9<requested?"c":"e")+integer(delivered)+"§r/§e"+integer(requested);
+            if(graphics!=null)UiText.centeredAt(graphics,font,HoiTooltips.styled(Component.literal(shipped),false),(cols[2]+cols[3]-3)/2,y+(h-3-Math.round(font.lineHeight*UiText.scale(font)))/2,TEXT);
+            String convoy=detail!=null&&!active.isEmpty()&&detail.convoyNeeded()>0?""+detail.convoyUsed():convoyCell(p.convoys());
+            cellText(convoy,cols[3],y,pane-cols[3]-8,h-3,active.isEmpty()?TEXT:GOOD,false);
             if (graphics == null) {
-                var row = new PanelButton(p.name() + "에서 수입", 6, y, pane - 12, h - 3, () -> { partner = p.id(); tradeAmount = 1; rebuildWidgets(); }) {
+                var row = new PanelButton(p.name() + "에서 수입", 6, y, pane - 12, h - 3, () -> { partner = p.id(); tradeAmount = active.stream().mapToInt(IndustryView.Trade::factories).sum(); rebuildWidgets(); }) {
                     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                         if (isHoveredOrFocused()) g.outline(getX(), getY(), getWidth(), getHeight(), 0xFFFFFFFF);
                     }
                 };
                 row.active = !background && pending == 0; addRenderableWidget(row);
             }
-            tip(p.name() + (p.route() ? active.isEmpty() ? " · 거래 없음" : " · 거래 중" : " · 경로 없음"), 6, y, pane - 12, h - 3);
+            if(detail!=null) {
+                String influence=p.detail().influence(),law=p.detail().law();
+                productionTip(detail.status()+"\n\n"+influence+(law.isBlank()?"":"\n\n"+law),cols[0],y,cols[1]-cols[0],h-3);
+                productionTip(detail.exports(),cols[1],y,cols[2]-cols[1],h-3);
+                productionTip(detail.transported(),cols[2],y,cols[3]-cols[2],h-3);
+                productionTip(detail.convoys(),cols[3],y,pane-cols[3]-7,h-3);
+            }
         }
     }
 
@@ -962,29 +977,124 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (switchLine.isEmpty()) send(ADD, id, "", 0); else send(SWITCH, switchLine, id, 0);
         picker = "";
     }
+    static String convoyCell(Integer convoys) {return convoys==null||convoys<0?"—":convoys==0?"-":Integer.toString(convoys);}
+    static int neededTradeFactories(double demand,double available,double delivered,double perFactory,int limit) {
+        return Math.clamp((int)Math.ceil(Math.max(0,demand-available+delivered)/perFactory),0,limit);
+    }
+    static double tradeSliderPosition(int factories,double total,double perFactory) {
+        return total<=0?0:Math.min(total,factories*perFactory)/total;
+    }
+    static int tradeSliderFactories(double position,double total,double perFactory) {
+        double amount=Math.clamp(position,0,1)*total;
+        int lower=(int)Math.floor(amount/perFactory);
+        double next=Math.min(total,(lower+1)*perFactory);
+        return amount-lower*perFactory<next-amount?lower:(int)Math.ceil(next/perFactory);
+    }
     private void layoutContract() {
-        var p = view.partners().stream().filter(v -> v.id().equals(partner)).findFirst().orElse(null);
-        if (p == null) { partner = ""; return; }
-        var contracts = view.trades().stream().filter(v -> v.importing() && v.partner().equals(partner) && v.resource().equals(resource)).toList();
-        int w = Math.min(340, width - 16), h = Math.min(225, height - top - 12), x = (width - w) / 2, y = Math.max(top + 4, (height - h) / 2);
-        panel(x, y, w, h); leftText(p.name(), x + 10, y + 9, w - 67, TEXT);
-        art(HoiMenuBar.flagTexture(p.id()), x + w - 60, y + 5, 25, 16);
-        button("계약 창 닫기", "×", x + w - 25, y + 3, 19, 19, true, () -> { partner = ""; rebuildWidgets(); });
-        art(resourceArt(resource), x + 10, y + 35, 20, 20);
-        text(resourceName(resource) + " 수출: " + decimal(p.exports().getOrDefault(resource, 0.0)), x + 38, y + 39, w - 48, GOLD);
-        text(p.route() ? "무역 경로 이용 가능" : "무역 경로 없음", x + 10, y + 65, w - 20, p.route() ? GOOD : BAD);
-        text("수송선: " + (p.convoys() == null || p.convoys() < 0 ? "—" : p.convoys() == 0 ? "필요 없음" : p.convoys()), x + 10, y + 83, w - 20, TEXT);
-        art("construction/civilian_factory", x + 10, y + 101, 15, 15);
-        text("이용 가능: " + view.economy().freeCivilian(), x + 31, y + 105, w - 41, GOLD);
-        button("무역 공장 줄이기", "−", x + 10, y + 126, 24, 23, tradeAmount > 1, () -> { tradeAmount--; rebuildWidgets(); });
-        text("배정할 민간공장: " + tradeAmount, x + 43, y + 133, w - 86, GOLD);
-        button("무역 공장 늘리기", "+", x + w - 34, y + 126, 24, 23, tradeAmount < view.economy().freeCivilian(), () -> { tradeAmount++; rebuildWidgets(); });
-        if (!contracts.isEmpty()) button("수입 계약 취소", "기존 계약 취소", x + 10, y + h - 58, w - 20, 21, true, () -> send(CANCEL_TRADE, contracts.getFirst().id(), "", 0));
-        button("수입 계약 체결", "수입 계약", x + 10, y + h - 30, w - 20, 23,
-                p.route() && p.exports().getOrDefault(resource, 0.0) > 0 && tradeAmount <= view.economy().freeCivilian(), () -> {
-            String target = partner; partner = ""; send(TRADE, target, resource, tradeAmount);
+        var p=view.partners().stream().filter(v->v.id().equals(partner)).findFirst().orElse(null);
+        if(p==null){partner="";return;}
+        int current=view.trades().stream().filter(v->v.importing()&&v.partner().equals(partner)&&v.resource().equals(resource)).mapToInt(Trade::factories).sum();
+        double perFactory=p.resourcesPerFactory()==null?8:p.resourcesPerFactory(),export=p.exports().getOrDefault(resource,0.0);
+        int limit=Math.max(0,Math.min(view.economy().freeCivilian()+current,Math.max(current,(int)Math.ceil(export/perFactory))));
+        tradeAmount=Math.clamp(tradeAmount,0,limit);
+        double maxImport=Math.min(export,limit*perFactory);
+        long needed=p.convoys()==null||p.convoys()<0?-1:(long)p.convoys()*tradeAmount;
+        int w=Math.min(316,Math.min(width-16,(height-top-8)*527/437)),h=w*437/527;
+        int x=(width-w)/2,y=Math.max(top+4,(height-h)/2);
+        java.util.function.IntUnaryOperator size=n->Math.max(1,n*w/527);
+        java.util.function.IntUnaryOperator px=n->x+n*w/527,py=n->y+n*w/527;
+        art("trade/offer",x,y,w,h);
+        cellText(p.name(),px.applyAsInt(110),py.applyAsInt(22),size.applyAsInt(306),size.applyAsInt(40),TEXT,false);
+        art(HoiMenuBar.flagTexture(p.id()),px.applyAsInt(429),py.applyAsInt(14),size.applyAsInt(70),size.applyAsInt(44));
+        art("trade/flag_frame",px.applyAsInt(425),py.applyAsInt(11),size.applyAsInt(78),size.applyAsInt(49));
+        art(resourceArt(resource),px.applyAsInt(30),py.applyAsInt(110),size.applyAsInt(22),size.applyAsInt(22));
+        var description=Component.literal(p.name()).withColor(GOLD).append(Component.literal(" 측은 ").withColor(TEXT))
+                .append(Component.literal(resourceName(resource)).withColor(GOLD)).append(Component.literal("(을)를 ").withColor(TEXT))
+                .append(Component.literal(integer(export)).withColor(GOLD)).append(Component.literal("까지 수출할 수 있습니다.\n우리는 ").withColor(TEXT))
+                .append(Component.literal(integer(Math.min(export,limit*perFactory))).withColor(GOLD)).append(Component.literal("까지만 수입할 수 있습니다.").withColor(TEXT));
+        paragraph(description,px.applyAsInt(69),py.applyAsInt(90),size.applyAsInt(215),size.applyAsInt(105));
+        art("hud/convoys",px.applyAsInt(30),py.applyAsInt(211),size.applyAsInt(22),size.applyAsInt(22));
+        var convoy=Component.literal("우리에게는 사용 가능한 수송선 ").withColor(TEXT)
+                .append(Component.literal(p.freeConvoys()==null?"—":Long.toString(p.freeConvoys())).withColor(GOLD))
+                .append(Component.literal("척이 있으며, 이 무역에는 ").withColor(TEXT))
+                .append(Component.literal(needed<0?"—":Long.toString(needed)).withColor(needed>0&&p.freeConvoys()!=null&&needed>p.freeConvoys()?BAD:GOOD))
+                .append(Component.literal("척이 필요합니다.").withColor(TEXT));
+        paragraph(convoy,px.applyAsInt(69),py.applyAsInt(200),size.applyAsInt(215),size.applyAsInt(59));
+        recess(px.applyAsInt(294),py.applyAsInt(80),size.applyAsInt(210),size.applyAsInt(176));
+        leftText("무역 상대국",px.applyAsInt(309),py.applyAsInt(90),size.applyAsInt(185),TEXT);
+        var buyers=p.buyers().stream().filter(v->v.resource().equals(resource)).toList();
+        for(int i=0;i<Math.min(16,buyers.size());i++) {
+            var buyer=buyers.get(i);int bx=px.applyAsInt(304+i%4*46),by=py.applyAsInt(112+i/4*31);
+            art(HoiMenuBar.flagTexture(buyer.id()),bx,by,size.applyAsInt(40),size.applyAsInt(27));
+            tip(buyer.name(),bx,by,size.applyAsInt(40),size.applyAsInt(27));
+        }
+        art("construction/summary/civilian_factory",px.applyAsInt(70),py.applyAsInt(275)+1,size.applyAsInt(26),size.applyAsInt(22));
+        paragraph(Component.literal("수입량: ").withColor(TEXT).append(Component.literal(integer(Math.min(export,tradeAmount*perFactory))).withColor(GOLD))
+                .append(Component.literal("\n할당될 민간공장: ").withColor(TEXT)).append(Component.literal(Integer.toString(tradeAmount)).withColor(GOLD)),
+                px.applyAsInt(104),py.applyAsInt(265)+1,size.applyAsInt(235),size.applyAsInt(40));
+        var neededButton=originalButton("필요한 수입량 설정","trade/need",px.applyAsInt(350),py.applyAsInt(262)+1,size.applyAsInt(38),size.applyAsInt(38),p.route(),()->{
+            double delivered=view.trades().stream().filter(v->v.importing()&&v.partner().equals(partner)&&v.resource().equals(resource)).mapToDouble(Trade::delivered).sum();
+            tradeAmount=view.resources().stream().filter(v->v.id().equals(resource)).mapToInt(v->neededTradeFactories(v.demand(),v.available(),delivered,perFactory,limit)).findFirst().orElse(0);
+            rebuildWidgets();
+        });
+        if(neededButton!=null)neededButton.setTooltip(HoiTooltips.create(Component.literal("현재 자원 수요를 충족하기 위해 구매해야 할 양을 설정하십시오.")));
+        int sliderWidth=size.applyAsInt(404),sliderHeight=Math.max(1,Math.round(sliderWidth*42f/404));
+        int sliderX=x+(w-sliderWidth)/2,sliderY=py.applyAsInt(307);
+        java.util.function.IntUnaryOperator sx=n->sliderX+Math.round(n*sliderWidth/404f),sy=n->sliderY+Math.round(n*sliderHeight/42f);
+        art("trade/slider",sliderX,sliderY,sliderWidth,sliderHeight);
+        cellText(integer(Math.min(export,tradeAmount*perFactory)),sx.applyAsInt(7),sy.applyAsInt(8),sx.applyAsInt(47)-sx.applyAsInt(7),sy.applyAsInt(34)-sy.applyAsInt(8),TEXT,false);
+        cellText(integer(Math.min(export,limit*perFactory)),sx.applyAsInt(357),sy.applyAsInt(8),sx.applyAsInt(397)-sx.applyAsInt(357),sy.applyAsInt(34)-sy.applyAsInt(8),TEXT,false);
+        originalButton("무역 공장 줄이기","trade/left",sx.applyAsInt(53),sy.applyAsInt(13),sx.applyAsInt(67)-sx.applyAsInt(53),sy.applyAsInt(29)-sy.applyAsInt(13),tradeAmount>0,()->{tradeAmount=Math.max(0,tradeAmount-1);rebuildWidgets();});
+        originalButton("무역 공장 늘리기","trade/right",sx.applyAsInt(337),sy.applyAsInt(13),sx.applyAsInt(351)-sx.applyAsInt(337),sy.applyAsInt(29)-sy.applyAsInt(13),tradeAmount<limit,()->{tradeAmount=Math.min(limit,tradeAmount+1);rebuildWidgets();});
+        if(graphics==null) {
+            var slider=new net.minecraft.client.gui.components.AbstractSliderButton(sx.applyAsInt(71),sy.applyAsInt(8),sx.applyAsInt(333)-sx.applyAsInt(71),sy.applyAsInt(34)-sy.applyAsInt(8),Component.literal("수입량 조절"),tradeSliderPosition(tradeAmount,maxImport,perFactory)) {
+                @Override protected void updateMessage(){setMessage(Component.literal("수입량 조절"));}
+                @Override protected void applyValue(){
+                    tradeAmount=Math.clamp(tradeSliderFactories(value,maxImport,perFactory),0,limit);
+                    value=tradeSliderPosition(tradeAmount,maxImport,perFactory);
+                    for(var child:children())if(child instanceof net.minecraft.client.gui.components.Button button) {
+                        boolean enabled=switch(button.getMessage().getString()) {
+                            case "무역 공장 줄이기" -> tradeAmount>0;
+                            case "무역 공장 늘리기" -> tradeAmount<limit;
+                            case "수입 계약 체결" -> tradeAmount==0?current>0:p.route();
+                            default -> button.active;
+                        };
+                        button.active=enabled&&pending==0;
+                    }
+                }
+                @Override public boolean keyPressed(KeyEvent event) {
+                    if(active&&(event.key()==org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT||event.key()==org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT)) {
+                        value=tradeSliderPosition(Math.clamp(tradeAmount+(event.key()==org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT?1:-1),0,limit),maxImport,perFactory);
+                        applyValue();return true;
+                    }
+                    return super.keyPressed(event);
+                }
+                @Override public void extractWidgetRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
+                    g.fill(getX(),getY()+getHeight()/2-1,getRight(),getY()+getHeight()/2+1,0xFF101010);
+                    UiAssets.draw(g,"trade/knob",getX()+(int)((getWidth()-8)*value),getY(),8,getHeight());
+                }
+            };
+            slider.active=!background&&pending==0&&limit>0;addRenderableWidget(slider);
+        }
+        cellText("(슬라이더를 0에 두면 거래 취소)",x,py.applyAsInt(348),w,size.applyAsInt(18),MUTED,false);
+        tradeButton("계약 창 닫기","닫기",px.applyAsInt(70),py.applyAsInt(382),size.applyAsInt(123),size.applyAsInt(34),true,()->{partner="";rebuildWidgets();});
+        tradeButton("수입 계약 체결","보내기",px.applyAsInt(350),py.applyAsInt(382),size.applyAsInt(123),size.applyAsInt(34),tradeAmount==0?current>0:p.route(),()->{
+            String target=partner;partner="";send(TRADE,target,resource,tradeAmount);
         });
     }
+    private void tradeButton(String accessible,String caption,int x,int y,int width,int height,boolean enabled,Runnable action) {
+        if(graphics!=null)return;
+        var button=new HoiMenuButton(accessible,x,y,width,height,action).caption(caption).background("completion/button");
+        button.active=enabled&&pending==0;addRenderableWidget(button);
+    }
+    private void paragraph(Component value,int x,int y,int width,int height) {
+        if(graphics==null)return;
+        var lines=font.split(value,Math.max(1,(int)(width/UiText.scale(font))));
+        int count=Math.min(lines.size(),height/(UiText.MIN_HEIGHT+1));
+        for(int i=0;i<count;i++)UiText.text(graphics,font,lines.get(i),x,y+i*(UiText.MIN_HEIGHT+1),TEXT);
+        if(count<lines.size())tip(value.getString(),x,y,width,height);
+    }
+
     private void send(IndustryProtocol.Action action, String item, String other, int amount) {
         if (closed || pending > 0 && action != CLOSE) return;
         boolean passive = action == REFRESH;
@@ -1144,8 +1254,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private void originalButton(String name, String texture, int x, int y, int w, int h, Runnable action) {
         originalButton(name, texture, x, y, w, h, true, action);
     }
-    private void originalButton(String name, String texture, int x, int y, int w, int h, boolean enabled, Runnable action) {
-        if (graphics != null) return;
+    private PanelButton originalButton(String name, String texture, int x, int y, int w, int h, boolean enabled, Runnable action) {
+        if (graphics != null) return null;
         var button = new PanelButton(name, x, y, w, h, action) {
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                 UiAssets.draw(g, texture, x, y, w, h);
@@ -1154,6 +1264,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         button.active = enabled && pending == 0;
         button.setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(name.contains(" · ×") ? name.substring(name.indexOf(" · ×") + 3) + " · 다시 누르면 ×1" : name)));
         addRenderableWidget(button);
+        return button;
     }
     private void divisionSlot(String name, String texture, int x, int y, int w, boolean enabled, Runnable action) {
         if (graphics != null) return;

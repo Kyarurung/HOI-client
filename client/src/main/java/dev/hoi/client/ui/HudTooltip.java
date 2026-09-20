@@ -39,10 +39,10 @@ public final class HudTooltip {
         if (font == cachedFont && hud == cachedHud && item.equals(cachedItem) && width == cachedWidth) return cachedBody;
         int wrap = Math.max(60, (int)(Math.min(310, width - 36) / UiText.scale(font)));
         var lines = new ArrayList<FormattedCharSequence>();
-        String current = item.icon().equals("party_support") ? item.value() : item.raw() == null ? "0" : item.format() == HoiMenuBar.Format.PERCENT
+        String current = (item.icon().equals("party_support") || item.icon().equals("supplies")) ? item.value() : item.raw() == null ? "0" : item.format() == HoiMenuBar.Format.PERCENT
                 ? HoiMenuBar.rawNumber(item.raw().doubleValue() * 100) + "%" : HoiMenuBar.rawNumber(item.raw());
         if (!item.icon().equals("party_support")) current = TooltipText.numbers(current);
-        if (!item.icon().equals("world_tension") && TooltipText.visible(current)) lines.addAll(font.split(Component.literal("현재: " + current), wrap));
+        if (!item.icon().equals("world_tension") && !item.icon().equals("convoys") && (item.icon().equals("supplies") || TooltipText.visible(current))) lines.addAll(font.split(Component.literal("현재: " + current).withColor(HoiMenuBar.indicatorColor(item)), wrap));
         var detail = hud.details().get(item.icon());
         if (detail != null) for (var row : detail.rows()) {
             int color = switch (row.tone()) {
@@ -50,10 +50,10 @@ public final class HudTooltip {
                 case HEADING -> HoiTooltips.GOLD; default -> 0xE0E6E8;
             };
             String value = item.icon().equals("party_support") ? row.value() : TooltipText.numbers(row.value());
-            if (!row.value().isEmpty() && !TooltipText.visible(value)) continue;
+            if (!item.icon().equals("convoys") && !row.value().isEmpty() && !TooltipText.visible(value)) continue;
             var text = Component.literal(row.label() + (value.isEmpty() ? "" : ": " + value))
                     .withStyle(style -> style.withColor(color));
-            lines.addAll(font.split(HoiTooltips.sentences(text), wrap));
+            lines.addAll(font.split(item.icon().equals("convoys") ? convoyNumbers(text.getString(), color) : HoiTooltips.sentences(text), wrap));
         } else {
             if (item.barLabel() != null && item.ratio() != null && item.ratio() != 0) lines.addAll(font.split(Component.literal(item.barLabel() + ": "
                     + (item.ratio() == null ? "0" : TooltipText.numbers(HoiMenuBar.rawNumber(item.ratio() * 100)) + "%")), wrap));
@@ -61,6 +61,16 @@ public final class HudTooltip {
         }
         cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;
         cachedBody = List.copyOf(lines); return cachedBody;
+    }
+
+    private static Component convoyNumbers(String text,int color) {
+        var result=Component.empty();
+        var matcher=java.util.regex.Pattern.compile("[0-9]+").matcher(text);int start=0;
+        while(matcher.find()) {
+            result.append(Component.literal(text.substring(start,matcher.start())).withColor(color));
+            result.append(Component.literal(matcher.group()).withColor(HoiTooltips.GOLD));start=matcher.end();
+        }
+        return result.append(Component.literal(text.substring(start)).withColor(color));
     }
 
     public static int visibleRows(int height, Font font) { return Math.max(1, (height - 76) / 12); }

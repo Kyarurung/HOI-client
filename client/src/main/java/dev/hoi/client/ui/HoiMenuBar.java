@@ -44,7 +44,8 @@ public final class HoiMenuBar {
         public int width() { return format == Format.MONEY ? 67 : format == Format.POLITICAL_POWER || format == Format.PERCENT ? 54 : format == Format.EXPERIENCE || format == Format.COMMAND_POWER ? 48 : icon.equals("manpower") || icon.equals("fuel") || icon.equals("convoys") || icon.equals("factories") ? 52 : 40; }
         private static String value(String icon, Number raw, Format format) {
             if (icon.equals("party_support")) return String.format(java.util.Locale.ROOT, "%.0f%%", raw == null ? 0.0 : raw.doubleValue() * 100);
-            if (raw == null) return "0";
+            if (raw == null) return icon.equals("supplies") ? "0%" : "0";
+            if (icon.equals("supplies")) return (int)Math.floor(Math.clamp(raw.doubleValue(),0,1)*100)+"%";
             return switch (format) {
                 case NUMBER -> icon.equals("factories") ? Long.toString(raw.longValue()) : number(raw.doubleValue());
                 case POLITICAL_POWER -> politicalPower(raw.doubleValue());
@@ -194,12 +195,12 @@ public final class HoiMenuBar {
         UiText.cell(g, font, fit, x + 15, 1, w - 18, item.barLabel() == null ? STATS_HEIGHT - 1 : 10, color, false);
         if (item.barLabel() != null) {
             g.fill(x + 15, 11, x + w - 3, 13, 0xFF18201A);
-            if (item.ratio() != null) g.fill(x + 15, 11, x + 15 + (int)Math.round((w - 18) * item.ratio()), 13, 0xFF6D9C61);
+            if (item.ratio() != null) g.fill(x + 15, 11, x + 15 + (int)Math.round((w - 18) * Math.clamp(item.ratio(),0,1)), 13, 0xFF6D9C61);
         }
     }
 
     static int indicatorColor(Indicator item) {
-        if (item.icon().equals("supplies")) return item.raw() != null && item.raw().doubleValue() < 1 ? 0xFFAA0000 : 0xFFFFFFFF;
+        if (item.icon().equals("supplies")) return item.raw() != null && item.raw().doubleValue() < 1 ? 0xFF000000|HoiTooltips.BAD : 0xFFFFFFFF;
         return item.icon().equals("gdp") ? EffectColors.GOOD : item.icon().equals("debt") ? EffectColors.BAD : HoiMenuStyle.TEXT;
     }
 

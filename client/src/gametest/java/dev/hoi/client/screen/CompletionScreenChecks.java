@@ -283,11 +283,11 @@ public final class CompletionScreenChecks {
             check(c.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/menu/flag_overlay.png")).isPresent(),"Original TFR flag overlay loads from the split UI pack");
             var lines = HudTooltip.body(c.font, c.gui.screen().width, hud, HoiMenuBar.indicators(hud).getFirst());
             for (var item : HoiMenuBar.indicators(hud)) {
-                check(item.value().equals(item.icon().equals("party_support") ? "0%" : "0"), "Unknown HUD value displays zero: " + item.icon());
+                check(item.value().equals((item.icon().equals("party_support")||item.icon().equals("supplies")) ? "0%" : "0"), "Unknown HUD value displays zero: " + item.icon());
                 var text = new StringBuilder();
                 for (var line : HudTooltip.body(c.font, c.gui.screen().width, hud, item))
                     line.accept((index, style, character) -> { text.appendCodePoint(character); return true; });
-                check(!text.toString().contains("현재: 0") && text.indexOf("—") < 0, "Zero tooltip rows must be hidden: " + item.icon());
+                check((item.icon().equals("supplies") || !text.toString().contains("현재: 0")) && text.indexOf("—") < 0, "Zero tooltip rows must be hidden: " + item.icon());
             }
             check(HoiMenuBar.rawNumber(-1.25).equals("-1.25"), "Actual negative effects retain their sign and decimals");
             check(lines.size() > HudTooltip.visibleRows(c.gui.screen().height, c.font), "Long HUD gets a scroll window");

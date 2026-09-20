@@ -5,13 +5,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class HudNumbersTest {
     @Test void suppliesUseTheAuthoritativeRatioAndFactoriesKeepFiveDigits() {
-        assertEquals("0", new HoiMenuBar.Indicator("supplies", "보급", null, HoiMenuBar.Format.PERCENT).value());
+        assertEquals("0%", new HoiMenuBar.Indicator("supplies", "보급", null, HoiMenuBar.Format.PERCENT).value());
         var full = new HoiMenuBar.Indicator("supplies", "보급", 1.0, HoiMenuBar.Format.PERCENT);
         var shortfall = new HoiMenuBar.Indicator("supplies", "보급", .99, HoiMenuBar.Format.PERCENT);
         assertEquals("100%", full.value());
         assertEquals(0xFFFFFFFF, HoiMenuBar.indicatorColor(full));
         assertEquals("99%", shortfall.value());
-        assertEquals(0xFFAA0000, HoiMenuBar.indicatorColor(shortfall));
+        assertEquals(0xFFFF3232, HoiMenuBar.indicatorColor(shortfall));
+        for(double ratio:new double[]{0,.5,.99,.9999,1}) {
+            var item=new HoiMenuBar.Indicator("supplies","보급",ratio,HoiMenuBar.Format.PERCENT,"보급 효율",ratio);
+            assertEquals(ratio<1?0xFFFF3232:0xFFFFFFFF,HoiMenuBar.indicatorColor(item));
+        }
+        assertEquals("99%",new HoiMenuBar.Indicator("supplies","보급",.9999,HoiMenuBar.Format.PERCENT).value());
+        assertEquals("0%",new HoiMenuBar.Indicator("supplies","보급",0,HoiMenuBar.Format.PERCENT).value());
         assertEquals("99999", new HoiMenuBar.Indicator("factories", "공장", 99999, HoiMenuBar.Format.NUMBER).value());
     }
 

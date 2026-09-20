@@ -8,7 +8,7 @@ public final class TooltipText {
     private static final Pattern NUMBER = Pattern.compile("(?:(?<![A-Za-z0-9_:/.§-])|(?<=§[0-9a-fA-F]))[+-]?\\d+(?:,\\d{3})*(?:\\.\\d+)?(?![A-Za-z0-9_:/.-])");
     private TooltipText() {}
     public static boolean precise(String text) {
-        return text.contains("보급 경로:") || text.contains("부대 효과:") || text.contains("이 지형 내에서의 이동 비용") || text.contains("지지도") || text.contains("정당 인기도") || text.contains("지지도 증가") || text.contains("일일 지지도");
+        return text.contains("£") || text.contains("보급 경로:") || text.contains("부대 효과:") || text.contains("이 지형 내에서의 이동 비용") || text.contains("지지도") || text.contains("정당 인기도") || text.contains("지지도 증가") || text.contains("일일 지지도");
     }
     public static String numbers(String text) {
         return NUMBER.matcher(text).replaceAll(match -> {
@@ -33,8 +33,21 @@ public final class TooltipText {
         }
         return !found;
     }
+    public static String spacing(String text) {
+        var result=new StringBuilder();
+        boolean separator=false;
+        for(String line:text.split("\\R",-1)) {
+            if(blank(line)){separator=!result.isEmpty();continue;}
+            if(!result.isEmpty())result.append(separator?"\n\n":"\n");
+            result.append(line);separator=false;
+        }
+        return result.toString();
+    }
     public static String format(String text) {
-        boolean precise=precise(text),space=false,terrain=text.contains("이 지형 내에서의 이동 비용")||text.contains("보급 경로:");
+        return format(text,precise(text));
+    }
+    public static String format(String text,boolean precise) {
+        boolean space=false,terrain=text.contains("이 지형 내에서의 이동 비용")||text.contains("보급 경로:");
         var result=new StringBuilder();
         for(String source:text.split("\\R",-1)) {
             if(blank(source)){space=!result.isEmpty();continue;}

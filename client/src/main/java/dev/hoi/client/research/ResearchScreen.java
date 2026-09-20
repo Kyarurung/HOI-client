@@ -92,12 +92,6 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         int pane = overviewWidth(), count = visibleSlots();
         slotOffset = Math.clamp(slotOffset, 0, Math.max(0, view.slots().size() - count));
         button("×", pane - 28, menuBottom() + 7, 20, 20, this::onClose);
-        var benefitsButton = new PanelButton("제한된 혜택: " + view.benefits().remainingUses(), 12, slotsTop()-33, pane/2-18, 33, () -> {}) {
-            @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                researchIndicator(g,"제한된 혜택:","research/limited_benefits",Integer.toString(view.benefits().remainingUses()),12,slotsTop()-33,pane/2-18,GOLD,false);
-            }
-        };
-        addRenderableWidget(benefitsButton);
         for (int n = 0; n < count; n++) {
             int index = slotOffset + n;
             if (index >= view.slots().size()) break;
@@ -214,8 +208,9 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             ResearchIcons.fallback(g, "ENGINEERING", pane / 2 - 10, bannerY + bannerHeight() / 2 - 8, 0xFFBB98CD, 2);
         }
         g.outline(6, bannerY, pane - 12, bannerHeight(), 0xFFA070B5);
+        researchIndicator(g,"제한된 혜택:","research/limited_benefits",Integer.toString(view.benefits().remainingUses()),12,slotsTop()-33,pane/2-18,GOLD,false);
         double researchSpeed=view.benefits().researchSpeed();
-        researchIndicator(g,"연구 속도:","research/speed",String.format(Locale.ROOT,"%+.0f%%",researchSpeed*100),pane/2+6,slotsTop()-33,pane/2-18,researchSpeed>=0?0xFF55FF55:0xFFAA0000,true);
+        researchIndicator(g,"연구 속도:","research/speed",String.format(Locale.ROOT,"%+.0f%%",researchSpeed*100),pane/2+6,slotsTop()-33,pane/2-18,0xFF000000 | (researchSpeed>=0?dev.hoi.client.ui.HoiTooltips.GOOD:dev.hoi.client.ui.HoiTooltips.BAD),true);
     }
     private void researchIndicator(GuiGraphicsExtractor g,String label,String icon,String value,int x,int y,int max,int color,boolean right) {
         int natural=font.width(label)+15+font.width(value);

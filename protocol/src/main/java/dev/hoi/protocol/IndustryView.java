@@ -150,9 +150,30 @@ public record IndustryView(String session, long revision, String country, Countr
             if(stock<0||!Double.isFinite(cost)||cost<=0||!Double.isFinite(speed)||speed<0)throw new IllegalArgumentException("Invalid conversion");
         }
     }
-    public record Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys) {
+    public record Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys, Double influence, Double resourcesPerFactory, Long freeConvoys, List<TradingNation> buyers, TradeDetail detail) {
+        public Partner(String id,String name,Map<String,Double> exports,boolean route,Integer convoys,Double influence,Double resourcesPerFactory,Long freeConvoys,List<TradingNation> buyers) {this(id,name,exports,route,convoys,influence,resourcesPerFactory,freeConvoys,buyers,null);}
+        public Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys, Double influence, Double resourcesPerFactory, Long freeConvoys) {this(id,name,exports,route,convoys,influence,resourcesPerFactory,freeConvoys,List.of());}
+        public Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys) {this(id,name,exports,route,convoys,null,null,null);}
         public Partner(String id, String name, Map<String,Double> exports, boolean route) { this(id,name,exports,route,null); }
-        public Partner { text(id,32); text(name,128); exports=boundedMap(exports,8); }
+        public Partner {
+            text(id,32);text(name,128);exports=boundedMap(exports,8);buyers=buyers==null?List.of():bounded(buyers,4096);
+            if(influence!=null&&(!Double.isFinite(influence)||influence<0)||resourcesPerFactory!=null&&(!Double.isFinite(resourcesPerFactory)||resourcesPerFactory<=0)||freeConvoys!=null&&freeConvoys<0)
+                throw new IllegalArgumentException("Invalid trade terms");
+        }
+    }
+    public record TradeDetail(String influence,String law,Map<String,ResourceTrade> resources) {
+        public TradeDetail {text(influence,4096);text(law,8192);resources=boundedMap(resources,8);}
+    }
+    public record ResourceTrade(double remaining,double total,double requested,double allocated,double delivered,long convoyUsed,long convoyNeeded,
+            String status,String exports,String transported,String convoys) {
+        public ResourceTrade {
+            for(double value:new double[]{remaining,total,requested,allocated,delivered})if(!Double.isFinite(value)||value<0)throw new IllegalArgumentException("Invalid trade resource amount");
+            if(convoyUsed<0||convoyNeeded<0||convoyUsed>convoyNeeded)throw new IllegalArgumentException("Invalid trade convoy assignment");
+            for(String value:List.of(status,exports,transported,convoys))text(value,8192);
+        }
+    }
+    public record TradingNation(String id,String name,String resource) {
+        public TradingNation {text(id,32);text(name,128);text(resource,32);}
     }
     public record Trade(String id, String partner, String resource, int factories, double delivered, boolean importing) {}
     public record Choice(String id, String name, String texture) {

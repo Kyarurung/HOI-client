@@ -102,7 +102,7 @@ public final class HoiTooltips {
     static List<FormattedCharSequence> formattedLines(Font font, String text, int viewportWidth, boolean icons) {
         int width = Math.max(80, Math.min(300, viewportWidth - 24));
         var lines = new ArrayList<FormattedCharSequence>();
-        for (String line : sentences(text).split("\\R", -1)) {
+        for (String line : TooltipText.spacing(sentences(text)).split("\\R", -1)) {
             if (line.isEmpty()) lines.add(Component.empty().getVisualOrderText());
             else {
                 var value = sentences(Component.literal(line));

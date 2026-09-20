@@ -53,7 +53,7 @@ public final class CountryScreenChecks {
                         if (item.icon().equals("gdp")) x += Math.max(0, dev.hoi.client.ui.HoiMenuBar.statsRight(width)
                                 - dev.hoi.client.ui.HoiMenuBar.flagWidth(width) - 10 - total - 3);
                         if (item.icon().equals(key)) {
-                            if (item.raw() == null && !item.value().equals("0")) throw new AssertionError("Missing HUD value must display zero: " + key);
+                            if (item.raw() == null && !item.value().equals(item.icon().equals("supplies")?"0%":"0")) throw new AssertionError("Missing HUD value must display zero: " + key);
                             var text = new StringBuilder();
                             for (var line : dev.hoi.client.ui.HudTooltip.body(c.font, width, menu.hud(), item))
                                 line.accept((index, style, character) -> { text.appendCodePoint(character); return true; });
@@ -203,7 +203,7 @@ public final class CountryScreenChecks {
             });
             context.getInput().setCursorPos(partyPoint[0],partyPoint[1]);context.waitTicks(3);
             context.takeScreenshot("hoi-party-scaled-effects-gui2");
-            for(String power:List.of("0","2000","minority")) {
+            for(String power:List.of("0","2000","minority","economic","farming")) {
                 var choices=new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"choices-"+power+".json")),DialogView.class);
                 context.setScreen(() -> new HoiMenuScreen(backdrop));context.waitTicks(3);
                 context.runOnClient(c -> c.gui.setScreen(new PoliticsChoiceScreen(choices,c.gui.screen())));
@@ -212,7 +212,7 @@ public final class CountryScreenChecks {
                 var point=context.computeOnClient(c -> {
                     var screen=c.gui.screen();
                     var buttons=screen.children().stream().filter(w -> w instanceof Button).map(w -> (Button)w).toList();
-                    var button=buttons.get(power.equals("minority") ? buttons.size() - 1 : 1);
+                    var button=buttons.get(!power.equals("0")&&!power.equals("2000") ? buttons.size() - 1 : 1);
                     double scale=c.getWindow().getGuiScale();
                     return new double[]{(button.getX()+button.getWidth()/2.0)*scale,(button.getY()+button.getHeight()/2.0)*scale};
                 });

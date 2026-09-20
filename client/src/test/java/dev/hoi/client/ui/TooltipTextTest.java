@@ -4,6 +4,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TooltipTextTest {
+    @Test void exactTooltipSpacingPreservesZeroAndPrecisionWithoutEmptyMargins() {
+        assertEquals("수송선: 0\n\n효율: §c20.00%§r",TooltipText.spacing("\n§r\n수송선: 0\n\n \n효율: §c20.00%§r\n\n§r"));
+    }
+
     @Test void rgbColorsDoNotBecomeAmountsAndCaptionsKeepTheirText() {
         assertEquals("§e집권 정당: §#3659D9더불어민주당§r",TooltipText.format("§e집권 정당: §#3659D9더불어민주당§r"));
         assertEquals("",TooltipText.format("공격: §#3659D90§r"));
@@ -25,4 +29,9 @@ class TooltipTextTest {
     @Test void hidesResourceZeroBaseAndPreservesSourceMultipliers() {
         String text="§e석유§r\n기본: §e0§r £resources_strip|1\n건물: §e-12§r £resources_strip|1\n   기반시설: §ex2.00§r\n   보급 경로: §ex1.10§r";
         assertEquals(text.replace("기본: §e0§r £resources_strip|1\n",""),TooltipText.format(text));
-    }}
+    }    @Test void sourceEffectsKeepExactDecimals() {
+        String text="£fuel_texticon 연료 보유량: §a+20.00%§r\n£GFX_dx_yellow 개인 비용 (B): §e+0.125§r";
+        assertEquals(text,TooltipText.format(text));
+        assertEquals("사단 방어: §a+20.00%§r",TooltipText.format("사단 방어: §a+20.00%§r",true));
+    }
+}

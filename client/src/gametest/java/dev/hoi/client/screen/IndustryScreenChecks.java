@@ -13,6 +13,34 @@ import java.util.*;
 
 
 public final class IndustryScreenChecks {
+    private static void tradeTooltips(ClientGameTestContext context, IndustryView v) {
+        var trade=v.trades().stream().filter(IndustryView.Trade::importing).findFirst().orElseThrow();
+        var partner=v.partners().stream().filter(p->p.id().equals(trade.partner())).findFirst().orElseThrow();
+        check(partner.detail()!=null,"Server fixture supplies original trade tooltips");
+        var law=v.partners().stream().filter(p->p.id().equals("AST")).findFirst().orElseThrow().detail().law();
+        check(law.contains("§4+40.0%§r")&&law.contains("§4+20.0%§r"),"Source intelligence leaks retain red one-decimal percentages");
+        check(law.equals(law.strip()),"Source law has no trailing blank tooltip rows");
+        var detail=partner.detail().resources().get(trade.resource());
+        check(detail.requested()>0&&detail.transported().contains("진행 중"),"Active resource has original trade status");
+        context.getInput().resizeWindow(2560,1440);
+        context.runOnClient(client->client.options.guiScale().set(2));
+        context.setScreen(()->new IndustryScreen(MenuTab.TRADE,v.session(),v,request->{}));context.waitTicks(3);
+        click(context,v.resources().stream().filter(r->r.id().equals(trade.resource())).findFirst().orElseThrow().name());
+        context.getInput().setCursorPos(2400,1300);context.waitTicks(3);
+        context.takeScreenshot("hoi-trade-active-resource-gui2");
+        for(int column=0;column<4;column++) {
+            final int col=column;
+            var point=context.computeOnClient(client->{
+                var screen=(IndustryScreen)client.gui.screen();var row=button(screen,partner.name()+"에서 수입");
+                int pane=row.getWidth()+12;int[] edges={8,pane*44/100,pane*65/100,pane*83/100,pane-7};
+                return new double[]{(edges[col]+edges[col+1])*client.getWindow().getGuiScale()/2,(row.getY()+row.getHeight()/2.0)*client.getWindow().getGuiScale()};
+            });
+            context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);
+            context.takeScreenshot("hoi-trade-tooltip-"+List.of("country","export","delivered","convoys").get(column)+"-gui2");
+        }
+        context.getInput().setCursorPos(2400,1300);
+        context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
+    }
     private static void resourceShortages(ClientGameTestContext context, IndustryView v) {
         var resources = v.resources().stream().map(r -> new IndustryView.Resource(r.id(), r.name(), r.extracted(), r.imported(), r.exported(),
                 r.id().equals("ALUMINUM") ? 32 : r.id().equals("COAL") ? 0 : r.demand(),
@@ -52,6 +80,7 @@ public final class IndustryScreenChecks {
             fixture = new IndustryProtocol.Response(new String(Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8)).view();
         } catch (java.io.IOException e) { throw new RuntimeException(e); }
         var v = copy(fixture, hud, fixture.revision(), null);
+        tradeTooltips(context,v);
         var sourceEquipment=new ArrayList<IndustryView.Equipment>();
         var names=List.of("견인포","자주대공포","경기계화","정찰전차","다목적 헬리콥터","대전차 장비","수륙양용장갑차","휴대용 대공 미사일","차량화 로켓포","수륙양용전차");
         var ids=List.of("artillery_equipment","spaa_equipment","light_mechanized_equipment","light_tank_chassis","utility_helicopter_equipment","anti_tank_equipment","amphibious_mechanized_equipment","anti_air_equipment","motorized_rocket_equipment","amphibious_tank_chassis");
@@ -119,12 +148,58 @@ public final class IndustryScreenChecks {
         var seller = v.partners().stream().filter(p -> p.route() && p.exports().getOrDefault("IRON", 0.0) > 0).findFirst().orElseThrow();
         click(context, seller.name() + "에서 수입"); context.waitTicks(2); context.takeScreenshot("hoi-industry-trade-contract"); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-trade-contract");
         context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
+        context.runOnClient(client -> {
+            check(!button((IndustryScreen)client.gui.screen(),"수입 계약 체결").active,"A new zero-quantity contract cannot be sent");
+            check(!button((IndustryScreen)client.gui.screen(),"무역 공장 줄이기").active,"Minimum import quantity disables decrease");
+            check(IndustryScreen.neededTradeFactories(20,24,16,8,10)==2,"Auto quantity replaces current imports instead of adding them twice");
+            check(IndustryScreen.neededTradeFactories(20,40,16,8,10)==0,"Surplus supply cancels unnecessary imports");
+            check(IndustryScreen.neededTradeFactories(21,4,0,8,10)==3,"Resource shortage rounds up to complete factories");
+            check(IndustryScreen.neededTradeFactories(100,0,0,8,2)==2,"Auto quantity respects available factories and export limits");
+            for(int factories=0;factories<=6;factories++) {
+                double amount=Math.min(44,factories*8),position=IndustryScreen.tradeSliderPosition(factories,44,8);
+                check(Math.abs(position-amount/44)<1e-9,"Slider position follows resource share including the partial last factory");
+                check(IndustryScreen.tradeSliderFactories(position,44,8)==factories,"Resource slider steps round-trip through all 44-resource positions");
+            }
+            check(IndustryScreen.tradeSliderFactories(1,41,8)==6,"A one-resource remainder still costs the final factory");
+            check(IndustryScreen.convoyCell(0).equals("-")&&IndustryScreen.convoyCell(9).equals("9")&&IndustryScreen.convoyCell(null).equals("—"),"Trade convoy cells distinguish land, per-factory sea demand and unknown routes");
+        });
+        click(context, "무역 공장 늘리기"); context.waitTicks(2);
+        click(context, "무역 공장 줄이기"); context.waitTicks(2);
+        click(context, "필요한 수입량 설정"); context.waitTicks(2);
+        context.getInput().resizeWindow(2560,1440); context.waitTicks(3);
+        var needPoint=context.computeOnClient(client->{
+            var b=button((IndustryScreen)client.gui.screen(),"필요한 수입량 설정");
+            double scale=client.getWindow().getGuiScale();
+            return new double[]{(b.getX()+b.getWidth()/2.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};
+        });
+        context.getInput().setCursorPos(needPoint[0],needPoint[1]);context.waitTicks(10);
+        context.takeScreenshot("hoi-industry-trade-auto-tooltip-gui2");
+        context.getInput().setCursorPos(0,0);
+        context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
+        context.setScreen(() -> new IndustryScreen(MenuTab.TRADE, v.session(), v, requests::add));context.waitTicks(2);
+        click(context,seller.name()+"에서 수입");
+        context.runOnClient(client->{
+            var slider=(net.minecraft.client.gui.components.AbstractSliderButton)client.gui.screen().children().stream()
+                    .filter(w->w instanceof net.minecraft.client.gui.components.AbstractSliderButton).findFirst().orElseThrow();
+            check(seller.resourcesPerFactory()==8,"Ordinary trade imports eight resources per civilian factory");
+            slider.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT,0,0));
+        });context.waitTicks(2);
+        ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-trade-contract-quantity");
         click(context, "수입 계약 체결");
         context.runOnClient(client -> {
             var request = requests.getLast();
             check(request.action() == IndustryProtocol.Action.TRADE && request.item().equals(seller.id()) && request.other().equals("IRON") && request.amount() == 1,
                     "Trade submits the issued seller, resource and civilian factory count");
         });
+        var partialPartners=v.partners().stream().map(p->p.id().equals(seller.id())?new IndustryView.Partner(p.id(),p.name(),Map.of("IRON",44.0),p.route(),p.convoys(),p.influence(),8.0,p.freeConvoys(),p.buyers()):p).toList();
+        var partial=new IndustryView(v.session(),v.revision(),v.country(),v.hud(),v.economy(),v.resources(),v.modifiers(),v.equipment(),v.lines(),partialPartners,v.trades(),v.templates(),v.battalions(),v.companies(),v.locations(),v.recruits(),v.deployed(),v.draft(),v.message(),v.navalRepairs(),v.specialForces());
+        context.setScreen(()->new IndustryScreen(MenuTab.TRADE,partial.session(),partial,requests::add));context.waitTicks(2);
+        click(context,seller.name()+"에서 수입");
+        for(int i=0;i<6;i++)click(context,"무역 공장 늘리기");
+        ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-trade-partial-44");
+        context.runOnClient(client->check(!button((IndustryScreen)client.gui.screen(),"무역 공장 늘리기").active,"The last partial resource batch reaches the import limit"));
+        click(context,"수입 계약 체결");
+        context.runOnClient(client->check(requests.getLast().amount()==6,"Importing all 44 resources reserves six civilian factories"));
         requests.clear();
         context.setScreen(() -> new IndustryScreen(MenuTab.PRODUCTION, v.session(), v, requests::add)); context.waitTicks(2);
         click(context, "공장 늘리기 · 부족분 예약");
@@ -279,7 +354,7 @@ public final class IndustryScreenChecks {
         context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-choices");
         ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-battalion-choices");
         click(context, "대대 목록 닫기");
-        context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 5, v.templates().get(1))));
+        context.runOnClient(client -> ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 5, v.templates().stream().filter(t -> t.support().size() < 4).findFirst().orElseThrow())));
         context.waitTicks(2); context.takeScreenshot("hoi-industry-support-add-and-lock");
         context.runOnClient(client -> {
             var s = (IndustryScreen)client.gui.screen();
