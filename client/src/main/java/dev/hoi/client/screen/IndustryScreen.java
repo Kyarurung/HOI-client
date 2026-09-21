@@ -1136,9 +1136,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         for(var port:ports) {
             var portShips=repairs.ships().stream().filter(ship->port.ships().contains(ship.id())).toList();
             long waiting=portShips.stream().filter(ship->repairState(ship).equals("수리 대기")).count();
-            long docked=portShips.stream().filter(ship->repairState(ship).equals("정박")).count();
             long returning=portShips.stream().filter(ship->repairState(ship).equals("귀항 중")).count();
-            String counts="정박 §e"+docked+"§r척 · 수리 대기 §e"+waiting+"§r척\n수리 중 §e"+port.activeShips()+"§r척 · 귀항 중 §e"+returning+"§r척";
+            String counts="수리 대기 §e"+waiting+"§r척\n수리 중 §e"+port.activeShips()+"§r척 · 귀항 중 §e"+returning+"§r척";
             int py=by;by+=row;
             if(py>=start&&py+row<=end-3) {
                 if(graphics==null) {
@@ -1168,7 +1167,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 int sx=x+15,sw=w-27,label=sx+sw*132/401,labelWidth=sw*130/401;
                 art("production/picker/repair_ship",sx,sy,sw,shipHeight);
                 String family=view.equipment().stream().filter(e->e.naval()&&e.texture().equals(ship.texture())).map(Equipment::family).filter(Objects::nonNull).findFirst().orElse(ship.texture().substring(ship.texture().lastIndexOf('/')+1));
-                art(navalSilhouette(family),sx+sw*24/401,sy+2,sw*96/401,shipHeight-4);
+                art(navalSilhouette(family),sx+Math.round(sw*24f/401),sy+Math.round(sw*8f/401),Math.round(sw*112f/401),Math.round(sw*18f/401));
                 leftText(ship.name(),label,sy+2,labelWidth,TEXT);
                 leftText(repairState(ship),label,sy+shipHeight-9,labelWidth,repairState(ship).equals("수리 중")?GOOD:MUTED);
                 int gaugeHeight=Math.round(sw*28f/401),gaugeWidth=Math.max(2,Math.round(sw*6f/401));
