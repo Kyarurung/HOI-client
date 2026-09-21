@@ -4,6 +4,18 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class HudNumbersTest {
+    @Test void fuelTrendUsesOriginalIconsDaysColorsAndStockGauge() {
+        var gson=new com.google.gson.Gson();
+        var up=gson.fromJson("{\"fuel\":500,\"fuelRatio\":0.25,\"fuelDailyChange\":100,\"fuelDays\":15}",dev.hoi.protocol.CountryHud.NationalIndicators.class);
+        var down=gson.fromJson("{\"fuel\":500,\"fuelRatio\":0.25,\"fuelDailyChange\":-100,\"fuelDays\":5}",dev.hoi.protocol.CountryHud.NationalIndicators.class);
+        var rising=HoiMenuBar.fuelIndicator(up);var falling=HoiMenuBar.fuelIndicator(down);
+        assertEquals("15일",rising.value());assertEquals("5일",falling.value());
+        assertEquals("fuel_increasing",HoiMenuBar.icon(rising));assertEquals("fuel_decreasing",HoiMenuBar.icon(falling));
+        assertEquals(0xFF009F03,HoiMenuBar.indicatorColor(rising));assertEquals(0xFFFF3232,HoiMenuBar.indicatorColor(falling));
+        assertEquals(.25,rising.ratio());assertEquals(.25,falling.ratio());
+        assertEquals("fuel",HoiMenuBar.icon(HoiMenuBar.fuelIndicator(dev.hoi.protocol.CountryHud.NationalIndicators.UNKNOWN)));
+    }
+
     @Test void suppliesUseTheAuthoritativeRatioAndFactoriesKeepFiveDigits() {
         assertEquals("0%", new HoiMenuBar.Indicator("supplies", "보급", null, HoiMenuBar.Format.PERCENT).value());
         var full = new HoiMenuBar.Indicator("supplies", "보급", 1.0, HoiMenuBar.Format.PERCENT);

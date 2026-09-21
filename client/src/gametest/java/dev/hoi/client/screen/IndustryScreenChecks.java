@@ -80,6 +80,9 @@ public final class IndustryScreenChecks {
             fixture = new IndustryProtocol.Response(new String(Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8)).view();
         } catch (java.io.IOException e) { throw new RuntimeException(e); }
         var v = copy(fixture, hud, fixture.revision(), null);
+        for(var r:v.resources())check(Math.abs(r.extracted()+r.imported()-r.exported()-r.available())<1e-8,"Server fixture retains signed extraction in resource balance: "+r.id());
+        var chromium=v.resources().stream().filter(r->r.id().equals("CHROMIUM")).findFirst().orElseThrow();
+        check(chromium.extracted()<0&&chromium.imported()>0&&chromium.available()<0,"Partial chromium imports still leave a deficit");
         tradeTooltips(context,v);
         var sourceEquipment=new ArrayList<IndustryView.Equipment>();
         var names=List.of("견인포","자주대공포","경기계화","정찰전차","다목적 헬리콥터","대전차 장비","수륙양용장갑차","휴대용 대공 미사일","차량화 로켓포","수륙양용전차");

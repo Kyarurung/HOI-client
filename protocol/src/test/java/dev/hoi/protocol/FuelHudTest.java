@@ -5,6 +5,15 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FuelHudTest {
+    @Test void signedFuelTrendKeepsOldSnapshotsCompatible() {
+        var gson=new Gson();
+        var legacy=gson.fromJson("{\"fuel\":500}",CountryHud.NationalIndicators.class);
+        assertNull(legacy.fuelDailyChange());assertNull(legacy.fuelDays());
+        var declining=gson.fromJson("{\"fuel\":500,\"fuelRatio\":0.25,\"fuelDailyChange\":-100,\"fuelDays\":5}",CountryHud.NationalIndicators.class);
+        assertEquals(-100,declining.fuelDailyChange());assertEquals(5,declining.fuelDays());
+        assertEquals(declining,gson.fromJson(gson.toJson(declining),CountryHud.NationalIndicators.class));
+        assertThrows(IllegalArgumentException.class,()->new CountryHud.NationalIndicators(null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.0,-1.0));
+    }
     @Test void fuelGaugeRemainsOptionalAndValidatesItsIndependentCapacityRatio() {
         var gson=new Gson();
         var legacy=gson.fromJson("{\"fuel\":500}",CountryHud.NationalIndicators.class);

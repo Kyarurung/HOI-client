@@ -506,33 +506,37 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         int heading = top + (compact() ? 104 : 172);
         var contracts = view.trades().stream().filter(t -> t.importing() && t.resource().equals(resource))
                 .collect(java.util.stream.Collectors.groupingBy(IndustryView.Trade::partner));
-        int start = heading + 18, h = 29;
-        int[] cols = {8, pane * 44 / 100, pane * 65 / 100, pane * 83 / 100};
+        int rowX = 6, rowWidth = pane - 12;
+        double rowScale = rowWidth / 576.0;
+        int start = heading + 18, rowHeight = Math.max(20, (int)Math.round(45 * rowScale)), h = rowHeight + 1;
+        int[] cols = {rowX + (int)Math.round(4 * rowScale), rowX + (int)Math.round(250 * rowScale), rowX + (int)Math.round(341 * rowScale), rowX + (int)Math.round(450 * rowScale)};
+        int[] ends = {rowX + (int)Math.round(248 * rowScale), rowX + (int)Math.round(328 * rowScale), rowX + (int)Math.round(438 * rowScale), rowX + (int)Math.round(571 * rowScale)};
         String[] headers = {"국가", "수출", "운송됨", "수송선"};
-        for (int i = 0; i < 4; i++) cellText(headers[i], cols[i], heading, (i == 3 ? pane - 7 : cols[i + 1]) - cols[i] - 3, 16, TEXT, false);
+        for (int i = 0; i < 4; i++) cellText(headers[i], cols[i], heading, ends[i] - cols[i], 16, TEXT, false);
         scroll = clampScroll(scroll, view.partners().size(), h, start);
         for (int i = 0; i < view.partners().size(); i++) {
             var p = view.partners().get(i); int y = start + i * h - scroll; if (!visible(y, h, start)) continue;
             var active = contracts.getOrDefault(p.id(), List.of());
-            int color = !active.isEmpty() ? GOOD : !p.route() ? BAD : GOLD;
             double delivered = active.stream().mapToDouble(IndustryView.Trade::delivered).sum();
             var detail=p.detail()==null?null:p.detail().resources().get(resource);
             double total=p.exports().getOrDefault(resource,0.0),requested=active.stream().mapToInt(IndustryView.Trade::factories).sum()*(p.resourcesPerFactory()==null?8:p.resourcesPerFactory());
             if(detail!=null)requested=detail.requested();
             double remaining=detail==null?Math.max(0,total-delivered):detail.remaining();
-            for(int column=0;column<4;column++) {
-                int right=column==3?pane-7:cols[column+1]-3;
-                recess(cols[column],y,right-cols[column],h-3);
-                if(graphics!=null)graphics.outline(cols[column],y,right-cols[column],h-3,color);
-            }
-            iconText(HoiMenuBar.flagTexture(p.id()), p.name(), 9, y + 1, cols[1] - 14, h - 5, 20, TEXT);
-            cellText(integer(remaining)+"/"+integer(total),cols[1],y,cols[2]-cols[1]-3,h-3,GOLD,false);
+            art(!active.isEmpty() ? "trade/row_active" : !p.route() ? "trade/row_blocked" : "trade/row", rowX, y, rowWidth, rowHeight);
+            int flagX = rowX + (int)Math.round(7 * rowScale), flagY = y + (int)Math.round(8 * rowScale);
+            int flagWidth = Math.max(1, (int)Math.round(41 * rowScale)), flagHeight = Math.max(1, (int)Math.round(26 * rowScale));
+            if (graphics != null) UiAssets.cover(graphics, HoiMenuBar.flagTexture(p.id()), flagX, flagY, flagWidth, flagHeight);
+            art("trade/flag_overlay", flagX, flagY, flagWidth, flagHeight);
+            art("trade/flag_small_frame", rowX + (int)Math.round(4 * rowScale), y + (int)Math.round(6 * rowScale), (int)Math.round(47 * rowScale), (int)Math.round(32 * rowScale));
+            int nameX = rowX + (int)Math.round(53 * rowScale);
+            leftText(p.name(), nameX, y + (rowHeight - Math.round(font.lineHeight * UiText.scale(font))) / 2, cols[1] - nameX - 3, TEXT);
+            tradeValue(Component.literal(integer(remaining)+"/"+integer(total)),cols[1],y,ends[1]-cols[1],rowHeight,GOLD);
             String shipped=active.isEmpty()?"§e0":"§"+(delivered+1e-9<requested?"c":"e")+integer(delivered)+"§r/§e"+integer(requested);
-            if(graphics!=null)UiText.centeredAt(graphics,font,HoiTooltips.styled(Component.literal(shipped),false),(cols[2]+cols[3]-3)/2,y+(h-3-Math.round(font.lineHeight*UiText.scale(font)))/2,TEXT);
+            tradeValue(HoiTooltips.styled(Component.literal(shipped),false),cols[2],y,ends[2]-cols[2],rowHeight,TEXT);
             String convoy=detail!=null&&!active.isEmpty()&&detail.convoyNeeded()>0?""+detail.convoyUsed():convoyCell(p.convoys());
-            cellText(convoy,cols[3],y,pane-cols[3]-8,h-3,active.isEmpty()?TEXT:GOOD,false);
+            tradeValue(Component.literal(convoy),cols[3],y,ends[3]-cols[3],rowHeight,active.isEmpty()?TEXT:GOOD);
             if (graphics == null) {
-                var row = new PanelButton(p.name() + "에서 수입", 6, y, pane - 12, h - 3, () -> { partner = p.id(); tradeAmount = active.stream().mapToInt(IndustryView.Trade::factories).sum(); rebuildWidgets(); }) {
+                var row = new PanelButton(p.name() + "에서 수입", 6, y, pane - 12, rowHeight, () -> { partner = p.id(); tradeAmount = active.stream().mapToInt(IndustryView.Trade::factories).sum(); rebuildWidgets(); }) {
                     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                         if (isHoveredOrFocused()) g.outline(getX(), getY(), getWidth(), getHeight(), 0xFFFFFFFF);
                     }
@@ -541,12 +545,20 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             }
             if(detail!=null) {
                 String influence=p.detail().influence(),law=p.detail().law();
-                productionTip(detail.status()+"\n\n"+influence+(law.isBlank()?"":"\n\n"+law),cols[0],y,cols[1]-cols[0],h-3);
-                productionTip(detail.exports(),cols[1],y,cols[2]-cols[1],h-3);
-                productionTip(detail.transported(),cols[2],y,cols[3]-cols[2],h-3);
-                productionTip(detail.convoys(),cols[3],y,pane-cols[3]-7,h-3);
+                productionTip(detail.status()+"\n\n"+influence+(law.isBlank()?"":"\n\n"+law),cols[0],y,ends[0]-cols[0],rowHeight);
+                productionTip(detail.exports(),cols[1],y,ends[1]-cols[1],rowHeight);
+                productionTip(detail.transported(),cols[2],y,ends[2]-cols[2],rowHeight);
+                productionTip(detail.convoys(),cols[3],y,ends[3]-cols[3],rowHeight);
             }
         }
+    }
+
+    private void tradeValue(Component value,int x,int y,int width,int height,int color) {
+        if(graphics==null)return;
+        float scale=Math.min(UiText.scale(font),(width-2f)/Math.max(1,font.width(value)));
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x+(width-font.width(value)*scale)/2,y+(height-font.lineHeight*scale)/2);
+        graphics.pose().scale(scale);graphics.text(font,value,0,0,color);graphics.pose().popMatrix();
     }
 
     private double minimumTraining() { return view.recruitmentPolicy() == null || view.recruitmentPolicy().minimumTraining() == null ? .2 : view.recruitmentPolicy().minimumTraining(); }
@@ -1006,9 +1018,13 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         java.util.function.IntUnaryOperator size=n->Math.max(1,n*w/527);
         java.util.function.IntUnaryOperator px=n->x+n*w/527,py=n->y+n*w/527;
         art("trade/offer",x,y,w,h);
-        cellText(p.name(),px.applyAsInt(110),py.applyAsInt(22),size.applyAsInt(306),size.applyAsInt(40),TEXT,false);
-        art(HoiMenuBar.flagTexture(p.id()),px.applyAsInt(429),py.applyAsInt(14),size.applyAsInt(70),size.applyAsInt(44));
-        art("trade/flag_frame",px.applyAsInt(425),py.applyAsInt(11),size.applyAsInt(78),size.applyAsInt(49));
+        int titleX=px.applyAsInt(105),titleY=py.applyAsInt(22);
+        int titleWidth=px.applyAsInt(424)-titleX,titleHeight=py.applyAsInt(64)-titleY;
+        cellText(p.name(),titleX,titleY,titleWidth,titleHeight,TEXT,false);
+        int flagX=px.applyAsInt(425),frameWidth=size.applyAsInt(78),frameHeight=size.applyAsInt(49);
+        int flagWidth=size.applyAsInt(70),flagHeight=size.applyAsInt(44);
+        art(HoiMenuBar.flagTexture(p.id()),flagX+(frameWidth-flagWidth)/2,titleY+(titleHeight-flagHeight)/2,flagWidth,flagHeight);
+        art("trade/flag_frame",flagX,titleY+(titleHeight-frameHeight)/2,frameWidth,frameHeight);
         art(resourceArt(resource),px.applyAsInt(30),py.applyAsInt(110),size.applyAsInt(22),size.applyAsInt(22));
         var description=Component.literal(p.name()).withColor(GOLD).append(Component.literal(" 측은 ").withColor(TEXT))
                 .append(Component.literal(resourceName(resource)).withColor(GOLD)).append(Component.literal("(을)를 ").withColor(TEXT))
@@ -1044,10 +1060,12 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         int sliderX=x+(w-sliderWidth)/2,sliderY=py.applyAsInt(307);
         java.util.function.IntUnaryOperator sx=n->sliderX+Math.round(n*sliderWidth/404f),sy=n->sliderY+Math.round(n*sliderHeight/42f);
         art("trade/slider",sliderX,sliderY,sliderWidth,sliderHeight);
-        cellText(integer(Math.min(export,tradeAmount*perFactory)),sx.applyAsInt(7),sy.applyAsInt(8),sx.applyAsInt(47)-sx.applyAsInt(7),sy.applyAsInt(34)-sy.applyAsInt(8),TEXT,false);
-        cellText(integer(Math.min(export,limit*perFactory)),sx.applyAsInt(357),sy.applyAsInt(8),sx.applyAsInt(397)-sx.applyAsInt(357),sy.applyAsInt(34)-sy.applyAsInt(8),TEXT,false);
-        originalButton("무역 공장 줄이기","trade/left",sx.applyAsInt(53),sy.applyAsInt(13),sx.applyAsInt(67)-sx.applyAsInt(53),sy.applyAsInt(29)-sy.applyAsInt(13),tradeAmount>0,()->{tradeAmount=Math.max(0,tradeAmount-1);rebuildWidgets();});
-        originalButton("무역 공장 늘리기","trade/right",sx.applyAsInt(337),sy.applyAsInt(13),sx.applyAsInt(351)-sx.applyAsInt(337),sy.applyAsInt(29)-sy.applyAsInt(13),tradeAmount<limit,()->{tradeAmount=Math.min(limit,tradeAmount+1);rebuildWidgets();});
+        int numberHeight=sy.applyAsInt(34)-sy.applyAsInt(8),centerY=sliderY+sliderHeight/2;
+        int arrowWidth=sx.applyAsInt(67)-sx.applyAsInt(53),arrowHeight=sy.applyAsInt(29)-sy.applyAsInt(13);
+        tradeValue(Component.literal(integer(Math.min(export,tradeAmount*perFactory))),sx.applyAsInt(7),centerY-numberHeight/2,sx.applyAsInt(47)-sx.applyAsInt(7),numberHeight,TEXT);
+        tradeValue(Component.literal(integer(maxImport)),sx.applyAsInt(357),centerY-numberHeight/2,sx.applyAsInt(397)-sx.applyAsInt(357),numberHeight,TEXT);
+        originalButton("무역 공장 줄이기","trade/left",(sx.applyAsInt(51)+sx.applyAsInt(71)-arrowWidth)/2,centerY-arrowHeight/2,arrowWidth,arrowHeight,tradeAmount>0,()->{tradeAmount=Math.max(0,tradeAmount-1);rebuildWidgets();});
+        originalButton("무역 공장 늘리기","trade/right",(sx.applyAsInt(333)+sx.applyAsInt(353)-arrowWidth)/2,centerY-arrowHeight/2,arrowWidth,arrowHeight,tradeAmount<limit,()->{tradeAmount=Math.min(limit,tradeAmount+1);rebuildWidgets();});
         if(graphics==null) {
             var slider=new net.minecraft.client.gui.components.AbstractSliderButton(sx.applyAsInt(71),sy.applyAsInt(8),sx.applyAsInt(333)-sx.applyAsInt(71),sy.applyAsInt(34)-sy.applyAsInt(8),Component.literal("수입량 조절"),tradeSliderPosition(tradeAmount,maxImport,perFactory)) {
                 @Override protected void updateMessage(){setMessage(Component.literal("수입량 조절"));}

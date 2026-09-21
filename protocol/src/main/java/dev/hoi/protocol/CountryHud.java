@@ -41,7 +41,14 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
     public record NationalIndicators(Double politicalPower, Double stability, Double warSupport,
                                      Long factories, Double energyRatio, Double fuel, Double supplies,
                                      Double supplyEfficiency, Long convoys, Double transportEfficiency,
-                                     Double commandPower, Double rulingPartySupport, Long manpower, Double fuelRatio) {
+                                     Double commandPower, Double rulingPartySupport, Long manpower, Double fuelRatio,
+                                     Double fuelDailyChange, Double fuelDays) {
+        public NationalIndicators(Double politicalPower, Double stability, Double warSupport, Long factories, Double energyRatio,
+                Double fuel, Double supplies, Double supplyEfficiency, Long convoys, Double transportEfficiency,
+                Double commandPower, Double rulingPartySupport, Long manpower, Double fuelRatio) {
+            this(politicalPower,stability,warSupport,factories,energyRatio,fuel,supplies,supplyEfficiency,convoys,transportEfficiency,
+                    commandPower,rulingPartySupport,manpower,fuelRatio,null,null);
+        }
         public NationalIndicators(Double politicalPower, Double stability, Double warSupport, Long factories, Double energyRatio,
                 Double fuel, Double supplies, Double supplyEfficiency, Long convoys, Double transportEfficiency,
                 Double commandPower, Double rulingPartySupport, Long manpower) {
@@ -52,6 +59,8 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
                 null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         public NationalIndicators {
+            if(fuelDailyChange!=null&&!Double.isFinite(fuelDailyChange)||fuelDays!=null&&(!Double.isFinite(fuelDays)||fuelDays<0))
+                throw new IllegalArgumentException("Invalid fuel trend");
             if (politicalPower != null && !Double.isFinite(politicalPower))
                 throw new IllegalArgumentException("Invalid political power");
             for (Double value : new Double[]{fuel, supplies, commandPower})

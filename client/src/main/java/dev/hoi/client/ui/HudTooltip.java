@@ -42,7 +42,7 @@ public final class HudTooltip {
         String current = (item.icon().equals("party_support") || item.icon().equals("supplies")) ? item.value() : item.raw() == null ? "0" : item.format() == HoiMenuBar.Format.PERCENT
                 ? HoiMenuBar.rawNumber(item.raw().doubleValue() * 100) + "%" : HoiMenuBar.rawNumber(item.raw());
         if (!item.icon().equals("party_support")) current = TooltipText.numbers(current);
-        if (!item.icon().equals("world_tension") && !item.icon().equals("convoys") && (item.icon().equals("supplies") || TooltipText.visible(current))) lines.addAll(font.split(Component.literal("현재: " + current).withColor(HoiMenuBar.indicatorColor(item)), wrap));
+        if (!item.icon().equals("fuel") && !item.icon().equals("world_tension") && !item.icon().equals("convoys") && (item.icon().equals("supplies") || TooltipText.visible(current))) lines.addAll(font.split(Component.literal("현재: " + current).withColor(HoiMenuBar.indicatorColor(item)), wrap));
         var detail = hud.details().get(item.icon());
         if (detail != null) for (var row : detail.rows()) {
             int color = switch (row.tone()) {
@@ -50,10 +50,10 @@ public final class HudTooltip {
                 case HEADING -> HoiTooltips.GOLD; default -> 0xE0E6E8;
             };
             String value = item.icon().equals("party_support") ? row.value() : TooltipText.numbers(row.value());
-            if (!item.icon().equals("convoys") && !item.icon().equals("supplies") && !row.value().isEmpty() && !TooltipText.visible(value)) continue;
+            if (!item.icon().equals("fuel") && !item.icon().equals("convoys") && !item.icon().equals("supplies") && !row.value().isEmpty() && !TooltipText.visible(value)) continue;
             var text = Component.literal(row.label() + (value.isEmpty() ? "" : ": " + value))
                     .withStyle(style -> style.withColor(color));
-            lines.addAll(font.split(item.icon().equals("convoys") ? convoyNumbers(text.getString(), color) : HoiTooltips.sentences(text), wrap));
+            lines.addAll(font.split(item.icon().equals("fuel") ? fuelNumbers(text.getString(), color) : item.icon().equals("convoys") ? convoyNumbers(text.getString(), color) : HoiTooltips.sentences(text), wrap));
         } else {
             if (item.barLabel() != null && item.ratio() != null && item.ratio() != 0) lines.addAll(font.split(Component.literal(item.barLabel() + ": "
                     + (item.ratio() == null ? "0" : TooltipText.numbers(HoiMenuBar.rawNumber(item.ratio() * 100)) + "%")), wrap));
@@ -61,6 +61,20 @@ public final class HudTooltip {
         }
         cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;
         cachedBody = List.copyOf(lines); return cachedBody;
+    }
+
+    private static Component fuelNumbers(String text,int color) {
+        var result=Component.empty();
+        var matcher=java.util.regex.Pattern.compile("£resources_strip\\|[0-9]+|[0-9]+(?:\\.[0-9]+)?[KM]?(?:일)?|연료|저장고|보급선").matcher(text);
+        int start=0;
+        while(matcher.find()) {
+            result.append(Component.literal(text.substring(start,matcher.start())).withColor(0xE0E6E8));
+            String part=matcher.group();
+            int tint=part.startsWith("£")?0xFFFFFF:part.endsWith("일")?color:HoiTooltips.GOLD;
+            result.append(Component.literal(part).withColor(tint));start=matcher.end();
+        }
+        result.append(Component.literal(text.substring(start)).withColor(0xE0E6E8));
+        return KeywordIcons.decorateLines(result);
     }
 
     private static Component convoyNumbers(String text,int color) {
@@ -90,7 +104,7 @@ public final class HudTooltip {
         visible.addAll(content.subList(offset, Math.min(content.size(), offset + count)));
         if (maximum > 0) visible.add(Component.literal("Shift + 휠 · 설명 스크롤").withStyle(s -> s.withColor(0x9BABB4)).getVisualOrderText());
 
-        if (!item.icon().equals("world_tension")) {
+        if (!item.icon().equals("fuel") && !item.icon().equals("world_tension")) {
             g.setTooltipForNextFrame(font, visible, mx, Math.max(16, my)); return;
         }
         int boxWidth = Math.min(width - 12, Math.max(220, (int)Math.ceil(visible.stream().mapToInt(font::width).max().orElse(0) * UiText.scale(font)) + 12));

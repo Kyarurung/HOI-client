@@ -117,6 +117,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             ResearchArtChecks.run(context);
             ResearchTextChecks.run(context);
             convoyGauge(context,menu);
+            fuelGauge(context,menu);
             IndustryScreenChecks.run(context,menu.hud());
             CompletionScreenChecks.run(context);
             ConstructionScreenChecks.run(context,menu.hud());
@@ -660,6 +661,33 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 int filled=0;
                 for(int x=left*2;x<(left+width)*2;x++)if((image.getRGB(x,23)&0xFFFFFF)==0x6D9C61)filled++;
                 check(filled==(int)Math.round(width*ratio)*2,"Convoy gauge pixels follow transport efficiency without changing colour at "+ratio);
+            } catch(java.io.IOException failure) { throw new AssertionError(failure); }
+        }
+        context.getInput().resizeWindow(1600,1000);
+        context.waitTicks(3);
+    }
+    private static void fuelGauge(ClientGameTestContext context, MenuView menu) {
+        context.getInput().resizeWindow(2560,1440);
+        context.runOnClient(client -> client.options.guiScale().set(2));
+        context.getInput().setCursorPos(2400,1300);
+        for (double ratio : new double[]{1,.5,0}) {
+            var n=fixtureNational();
+            var national=new CountryHud.NationalIndicators(n.politicalPower(),n.stability(),n.warSupport(),n.factories(),n.energyRatio(),n.fuel(),n.supplies(),n.supplyEfficiency(),n.convoys(),n.transportEfficiency(),n.commandPower(),n.rulingPartySupport(),n.manpower(),ratio,ratio>.5?100.0:-100.0,5.0);
+            var hud=new CountryHud(150.0,119.0,209.0,1707.0,704.314,.36,false,0L,national);
+            context.setScreen(() -> new HoiMenuScreen(new MenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),hud)));
+            context.waitTicks(3);
+            check(HoiMenuBar.indicators(hud).stream().filter(i->i.icon().equals("fuel")).findFirst().orElseThrow().value().equals("5일"),"Fuel header shows days instead of stock quantity");
+            try {
+                var image=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-fuel-stock-"+(int)(ratio*100)+"-gui2").toFile());
+                var items=HoiMenuBar.indicators(hud);
+                int left=HoiMenuBar.flagWidth(1280)+10+items.stream().takeWhile(i->!i.icon().equals("fuel")).mapToInt(HoiMenuBar.Indicator::width).sum()+15;
+                int width=items.stream().filter(i->i.icon().equals("fuel")).findFirst().orElseThrow().width()-18;
+                int filled=0;
+                for(int x=left*2;x<(left+width)*2;x++)if((image.getRGB(x,23)&0xFFFFFF)==0x6D9C61)filled++;
+                check(filled==(int)Math.round(width*ratio)*2,"Fuel gauge pixels follow authoritative stock capacity at "+ratio);
+                int tint=ratio>.5?0x009F03:0xFF3232,colored=0;
+                for(int y=2;y<20;y++)for(int x=left*2;x<(left+width)*2;x++)if((image.getRGB(x,y)&0xFFFFFF)==tint)colored++;
+                check(colored>0,"Fuel day text uses the exact original TFR colour");
             } catch(java.io.IOException failure) { throw new AssertionError(failure); }
         }
         context.getInput().resizeWindow(1600,1000);

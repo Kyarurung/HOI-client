@@ -37,7 +37,7 @@ public final class HoiMenuBar {
     public static int tensionX(int width) { return width - 34; }
     public static int statsRight(int width) { return width - TENSION_DOCK_WIDTH; }
 
-    public enum Format { NUMBER, POLITICAL_POWER, COMMAND_POWER, EXPERIENCE, NUCLEAR, PERCENT, MONEY }
+    public enum Format { NUMBER, POLITICAL_POWER, COMMAND_POWER, EXPERIENCE, NUCLEAR, PERCENT, MONEY, FUEL_INCREASING, FUEL_DECREASING }
     public record Indicator(String icon, String label, Number raw, Format format, String barLabel, Double ratio, String value) {
         public Indicator(String icon, String label, Number raw, Format format, String barLabel, Double ratio) { this(icon, label, raw, format, barLabel, ratio, value(icon, raw, format)); }
         public Indicator(String icon, String label, Number raw, Format format) { this(icon, label, raw, format, null, null); }
@@ -47,7 +47,7 @@ public final class HoiMenuBar {
             if (raw == null) return icon.equals("supplies") ? "0%" : "0";
             if (icon.equals("supplies")) return (int)Math.floor(Math.clamp(raw.doubleValue(),0,1)*100)+"%";
             return switch (format) {
-                case NUMBER -> icon.equals("factories") ? Long.toString(raw.longValue()) : number(raw.doubleValue());
+                case NUMBER, FUEL_INCREASING, FUEL_DECREASING -> icon.equals("factories") ? Long.toString(raw.longValue()) : number(raw.doubleValue());
                 case POLITICAL_POWER -> politicalPower(raw.doubleValue());
                 case COMMAND_POWER -> Long.toString(raw.longValue());
                 case EXPERIENCE -> Long.toString(Math.clamp(raw.longValue(), 0, 1000));
@@ -72,7 +72,7 @@ public final class HoiMenuBar {
                 new Indicator("war_support", "전쟁 지지도", n.warSupport(), Format.PERCENT),
                 new Indicator("manpower", "인력", n.manpower(), Format.NUMBER),
                 new Indicator("factories", "공장", n.factories(), Format.NUMBER, "에너지", n.energyRatio()),
-                new Indicator("fuel", "연료", n.fuel(), Format.NUMBER, "연료 비축", n.fuelRatio()),
+                fuelIndicator(n),
                 new Indicator("supplies", "보급", n.supplyEfficiency(), Format.PERCENT, "보급 효율", n.supplyEfficiency()),
                 new Indicator("convoys", "수송", n.convoys(), Format.NUMBER, "수송 효율", n.transportEfficiency()),
                 new Indicator("command_power", "지휘력", n.commandPower(), Format.COMMAND_POWER),
@@ -187,7 +187,7 @@ public final class HoiMenuBar {
     private static void stat(GuiGraphicsExtractor g, Indicator item, int x) {
         int w = item.width();
         HoiMenuStyle.recess(g, x, 1, w - 1, STATS_HEIGHT - 1);
-        UiAssets.draw(g, "hud/" + item.icon(), x + 2, 1 + (STATS_HEIGHT - 1 - 10) / 2, 11, 10);
+        UiAssets.draw(g, "hud/" + icon(item), x + 2, 1 + (STATS_HEIGHT - 1 - 10) / 2, 11, 10);
         var font = Minecraft.getInstance().font;
         String value = item.value();
         String fit = font.width(value) <= w - 18 ? value : font.plainSubstrByWidth(value, Math.max(1, w - 27)) + "…";
@@ -199,7 +199,19 @@ public final class HoiMenuBar {
         }
     }
 
+    static Indicator fuelIndicator(CountryHud.NationalIndicators n) {
+        if(n.fuelDailyChange()==null||n.fuelDays()==null||Math.abs(n.fuelDailyChange())<1e-9)
+            return new Indicator("fuel","연료",n.fuel(),Format.NUMBER,"연료 비축",n.fuelRatio());
+        return new Indicator("fuel","연료",n.fuel(),n.fuelDailyChange()>0?Format.FUEL_INCREASING:Format.FUEL_DECREASING,
+                "연료 비축",n.fuelRatio(),(long)Math.ceil(n.fuelDays())+"일");
+    }
+    static String icon(Indicator item) {
+        return item.format()==Format.FUEL_INCREASING?"fuel_increasing":item.format()==Format.FUEL_DECREASING?"fuel_decreasing":item.icon();
+    }
+
     static int indicatorColor(Indicator item) {
+        if(item.format()==Format.FUEL_INCREASING)return 0xFF000000|HoiTooltips.GOOD;
+        if(item.format()==Format.FUEL_DECREASING)return 0xFF000000|HoiTooltips.BAD;
         if (item.icon().equals("supplies")) return item.raw() != null && item.raw().doubleValue() < 1 ? 0xFF000000|HoiTooltips.BAD : 0xFFFFFFFF;
         return item.icon().equals("gdp") ? EffectColors.GOOD : item.icon().equals("debt") ? EffectColors.BAD : HoiMenuStyle.TEXT;
     }
