@@ -1027,15 +1027,16 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     }
     private void pickerEquipment(Equipment equipment,int x,int y,int w,int h,boolean selected) {
         if(graphics!=null)return;
+        var rowResources=equipment.resources().entrySet().stream().limit(3).toList();
         var button=new PanelButton("생산: "+equipment.name(),x,y,w,h,()->chooseEquipment(equipment.id())) {
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                 String background=equipment.naval()?"naval":"land";
                 UiAssets.draw(g,"production/picker/"+background+(selected?"_selected":""),x,y,w,h);
-                float scale=w/460f;
+                float scale=w/458f;
                 int imageWidth=Math.round((equipment.naval()?263:193)*scale);
                 UiAssets.draw(g,equipment.texture(),x+3,y+3,imageWidth,h-6);
                 if(equipment.outdated())UiAssets.draw(g,"production/outdated_overlay",x+3,y+3,imageWidth,h-6);
-                int labelX=x+Math.round((equipment.naval()?62:206)*scale),right=x+Math.round(370*scale);
+                int labelX=x+Math.round((equipment.naval()?62:206)*scale),right=x+Math.round(365*scale)-3;
                 if(equipment.naval()) {
                     pickerRightText(g,equipment.name(),labelX,y+Math.round(6*scale),right-labelX);
                     pickerRightText(g,familyName(equipment),labelX,y+Math.round(22*scale),right-labelX);
@@ -1049,11 +1050,20 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 int costX=x+5,costY=y+h-13,iconSize=10;
                 UiAssets.draw(g,equipment.naval()?"production/picker/naval_cost":"keywords/stat_common_build_cost_ic",costX,costY,iconSize,iconSize);
                 UiText.text(g,font,ic(equipment.cost()),costX+iconSize+1,costY+2,GOLD);
-                int n=0,resourceX=x+Math.round((equipment.naval()?376:370)*scale);
-                for(var resource:equipment.resources().entrySet()) {
-                    if(n==3)break;int ry=y+Math.round(((equipment.naval()?8:10)+n++*23)*scale);
-                    UiAssets.draw(g,resourceArt(resource.getKey()),resourceX+Math.round(5*scale),ry+Math.round(4*scale),iconSize,iconSize);
-                    UiText.centeredAt(g,font,integer(resource.getValue()),resourceX+Math.round(33*scale),ry+Math.round(5*scale),TEXT);
+                int resourceX=x+Math.round(366*scale),resourceRight=x+Math.round(403*scale);
+                int resourceWidth=resourceRight-resourceX,resourceIcon=Math.min(10,Math.max(6,(resourceWidth-4)/2));
+                int resourceTop=y+Math.round(3*h/80f),resourceBottom=y+Math.round(77*h/80f);
+                int resourceRow=Math.max(resourceIcon,Math.round(font.lineHeight*UiText.scale(font)));
+                int count=rowResources.size(),gap=count<2?0:Math.min(2,Math.max(0,(resourceBottom-resourceTop-count*resourceRow)/(count-1)));
+                int groupHeight=count*resourceRow+Math.max(0,count-1)*gap;
+                int amountWidth=Math.min(Math.max(1,resourceWidth-resourceIcon-3),rowResources.stream()
+                        .mapToInt(resource->Math.round(font.width(integer(resource.getValue()))*UiText.scale(font))).max().orElse(0));
+                int groupX=resourceX+(resourceWidth-resourceIcon-2-amountWidth)/2;
+                int groupY=resourceTop+(resourceBottom-resourceTop-groupHeight)/2;
+                for(int i=0;i<count;i++) {
+                    var resource=rowResources.get(i);int ry=groupY+i*(resourceRow+gap);
+                    UiAssets.draw(g,resourceArt(resource.getKey()),groupX,ry+(resourceRow-resourceIcon)/2,resourceIcon,resourceIcon);
+                    UiText.cell(g,font,integer(resource.getValue()),groupX+resourceIcon+2,ry,amountWidth,resourceRow,TEXT,true);
                 }
                 UiAssets.draw(g,"production/picker/obsolete",x+w-16,y+4,9,9);
                 UiAssets.draw(g,"production/picker/variant"+switch(equipment.group()){case "armor" -> "_armor";case "air" -> "_air";case "navy" -> "_navy";default -> "";},x+w-23,y+h-23,19,19);
@@ -1081,6 +1091,17 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             case "battlecruiser" -> "production/picker/filter_battle_cruiser";
             default -> "production/picker/filter_unknown";
         };
+    }
+    static String repairState(NavalRepair ship) {
+        return switch(ship.status()) {
+            case "항구 수용량 대기", "조선소 배정 대기" -> ship.hp()<ship.maxHp()?"수리 대기":"정박";
+            default -> ship.status();
+        };
+    }
+    static String repairTime(NavalRepair ship) {
+        if(!repairState(ship).equals("수리 중")||ship.remainingHours()==null)return "—";
+        long hours=ship.remainingHours();
+        return hours>=24?(hours/24+(hours%24==0?0:1))+"일":hours+"시간";
     }
     private void layoutRepairPorts(int x,int y,int w,int end) {
         var repairs=view.navalRepairs();
@@ -1113,13 +1134,18 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if(graphics!=null)UiAssets.nineSlice(graphics,"production/picker/repair_list",x+3,start-2,w-6,end-start,16,w/444.0);
         int by=start-pickerScroll;
         for(var port:ports) {
+            var portShips=repairs.ships().stream().filter(ship->port.ships().contains(ship.id())).toList();
+            long waiting=portShips.stream().filter(ship->repairState(ship).equals("수리 대기")).count();
+            long docked=portShips.stream().filter(ship->repairState(ship).equals("정박")).count();
+            long returning=portShips.stream().filter(ship->repairState(ship).equals("귀항 중")).count();
+            String counts="정박 §e"+docked+"§r척 · 수리 대기 §e"+waiting+"§r척\n수리 중 §e"+port.activeShips()+"§r척 · 귀항 중 §e"+returning+"§r척";
             int py=by;by+=row;
             if(py>=start&&py+row<=end-3) {
                 if(graphics==null) {
-                    var listTip=HoiTooltips.create(Component.literal("§a클릭§r하여 함선 대기열 목록을 전환합니다."));
+                    var listTip=HoiTooltips.create(Component.literal(counts+"\n\n§a클릭§r하여 함선 대기열 목록을 전환합니다."));
                     var policyTip=HoiTooltips.create(Component.literal("§e수리 우선순위 선택§r\n\n우선순위가 더 높은 해군기지는 수리를 위한 조선소를 먼저 할당받습니다.\n\n§a클릭§r하여 우선순위를 바꾸십시오. §a우클릭§r하여 조선소의 수리 여부를 활성화하거나 비활성화하십시오.\n\n§7현재 서버는 자동 배정만 지원하며 위 우선순위 조작은 지원하지 않습니다."));
-                    var shipsTip=HoiTooltips.create(Component.literal("이 해군기지에서 함선 §e"+port.ships().size()+"§r척이 수리를 위해 대기 중입니다."));
-                    var capacityTip=HoiTooltips.create(Component.literal("§e"+port.ships().size()+"§r척의 함정이 수리 대기 중입니다.\n이 §e해군기지§r는 동시에 최대 §e"+(port.capacity()==0?"—":port.capacity())+"§r척의 수리 작업을 수행할 수 있습니다."));
+                    var shipsTip=HoiTooltips.create(Component.literal("이 해군기지에서 함선 §e"+waiting+"§r척이 수리를 위해 대기 중입니다.\n\n"+counts));
+                    var capacityTip=HoiTooltips.create(Component.literal("§e"+waiting+"§r척의 함정이 수리 대기 중입니다.\n현재 수리 중: §e"+port.activeShips()+"§r척\n이 §e해군기지§r는 동시에 최대 §e"+(port.capacity()==0?"—":port.capacity())+"§r척의 수리 작업을 수행할 수 있습니다."));
                     var button=new PanelButton("수리 항구: "+port.name(),x+7,py,w-18,Math.round((w-18)*33f/400),()->{if(!expandedRepairPorts.add(port.id()))expandedRepairPorts.remove(port.id());rebuildWidgets();}) {
                         @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                             UiAssets.draw(g,"production/picker/repair_port",getX(),py,getWidth(),getHeight());
@@ -1128,7 +1154,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                             UiAssets.draw(g,"production/picker/repair_state",getX()+Math.round(getWidth()*35f/400),py+2,Math.round(getWidth()*22f/400),getHeight()-4);
                             UiText.text(g,font,font.plainSubstrByWidth(port.name(),Math.max(1,(int)((getWidth()*140f/400)/UiText.scale(font)))),getX()+Math.round(getWidth()*60f/400),py+4,TEXT);
                             UiAssets.draw(g,"production/picker/ships",getX()+getWidth()/2,py+3,15,10);
-                            productionText(g,Integer.toString(port.ships().size()),getX()+getWidth()*59/100,py,w*9/100,row-2,TEXT);
+                            productionText(g,Long.toString(waiting),getX()+getWidth()*59/100,py,w*9/100,row-2,TEXT);
                             UiAssets.draw(g,"production/summary/dockyard_icon",getX()+getWidth()*68/100,py+2,12,12);
                             productionText(g,port.capacity()==0?"—":port.activeShips()+" / "+port.capacity(),getX()+getWidth()*75/100,py,w*18/100,row-2,TEXT);
                         }
@@ -1144,12 +1170,46 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 String family=view.equipment().stream().filter(e->e.naval()&&e.texture().equals(ship.texture())).map(Equipment::family).filter(Objects::nonNull).findFirst().orElse(ship.texture().substring(ship.texture().lastIndexOf('/')+1));
                 art(navalSilhouette(family),sx+sw*24/401,sy+2,sw*96/401,shipHeight-4);
                 leftText(ship.name(),label,sy+2,labelWidth,TEXT);
-                leftText(ship.status(),label,sy+shipHeight-9,labelWidth,MUTED);
-                bar(sx+sw*270/401,sy+shipHeight/3,sw*90/401,Math.max(4,shipHeight/3),ship.hp()/ship.maxHp(),GOOD);
-                tip(ship.name()+"\n"+ship.status()+"\n내구도 "+decimal(ship.hp())+" / "+decimal(ship.maxHp()),sx,sy,sw,shipHeight);
+                leftText(repairState(ship),label,sy+shipHeight-9,labelWidth,repairState(ship).equals("수리 중")?GOOD:MUTED);
+                int gaugeHeight=Math.round(sw*28f/401),gaugeWidth=Math.max(2,Math.round(sw*6f/401));
+                int gaugeY=sy+Math.round(sw*2f/401),orgX=sx+Math.round(sw*6f/401),hpX=sx+Math.round(sw*14f/401);
+                repairStat("repair_org",orgX,gaugeY,gaugeWidth,gaugeHeight,ship.organization()==null?0:ship.organization()/ship.maxOrganization());
+                repairStat("repair_hp",hpX,gaugeY,gaugeWidth,gaugeHeight,ship.hp()/ship.maxHp());
+                int progressX=sx+sw*270/401,progressWidth=Math.round(sw*90f/401),progressHeight=Math.round(sw*17f/401),progressY=sy+Math.round(sw*10f/401);
+                repairProgress(repairState(ship),progressX,progressY,progressWidth,progressHeight,ship.hp()/ship.maxHp());
+                cellText(repairTime(ship),progressX,progressY,progressWidth,progressHeight,TEXT,false);
+                String organization=ship.organization()==null?"—":decimal(ship.organization())+" / "+decimal(ship.maxOrganization());
+                if(mouseX>=orgX&&mouseX<orgX+gaugeWidth)tip("조직력: "+organization,orgX,gaugeY,gaugeWidth,gaugeHeight);
+                else if(mouseX>=hpX&&mouseX<hpX+gaugeWidth)tip("내구도: "+decimal(ship.hp())+" / "+decimal(ship.maxHp()),hpX,gaugeY,gaugeWidth,gaugeHeight);
+                else tip(ship.name()+"\n"+ship.status()+"\n조직력 "+organization+"\n내구도 "+decimal(ship.hp())+" / "+decimal(ship.maxHp())
+                        +"\n수리 완료 예상: "+repairTime(ship)+"\n현재 수리 배정이 유지될 때의 예상 시간입니다.",sx,sy,sw,shipHeight);
             }
         }
         pickerScrollbar(x+w-7,start,4,end-start-4,total,pickerScroll);
+    }
+    private void repairStat(String name,int x,int y,int w,int h,double value) {
+        if(graphics==null)return;
+        float ratio=(float)Math.clamp(value,0,1);
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x,y+h);
+        graphics.pose().rotate(-(float)Math.PI/2);
+        UiAssets.draw(graphics,"production/picker/repair_stat_bg",0,0,h,w);
+        int filled=Math.round(h*ratio);
+        if(filled>0)graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/picker/"+name+".png"),0,0,filled,w,0,ratio,0,1);
+        graphics.pose().popMatrix();
+    }
+    private void repairProgress(String state,int x,int y,int w,int h,double value) {
+        if(graphics==null)return;
+        float ratio=(float)Math.clamp(value,0,1);
+        String name=switch(state) {case "수리 대기"->"repair_progress_waiting";case "귀항 중"->"repair_progress_returning";default->"repair_progress";};
+        var texture=net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/picker/"+name+".png");
+        UiAssets.draw(graphics,"production/picker/repair_progress_bg",x,y,w,h);
+        int filled=Math.round(w*ratio);
+        if(filled>0) {
+            graphics.blit(texture,x,y,x+filled,y+h,0,ratio,1f/3,2f/3);
+            graphics.blit(texture,x,y,x+filled,y+h,0,ratio,0,1f/3);
+            graphics.blit(texture,x,y,x+filled,y+h,1-ratio,1,2f/3,1);
+        }
     }
     private void chooseEquipment(String id) {
         if (switchLine.isEmpty()) send(ADD, id, "", 0); else send(SWITCH, switchLine, id, 0);

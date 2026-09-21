@@ -51,11 +51,19 @@ public record IndustryView(String session, long revision, String country, Countr
             if (used < 0 || capacity < 0) throw new IllegalArgumentException("Invalid special forces limit");
         }
     }
-    public record NavalRepair(String id, String name, String texture, String port, double hp, double maxHp, String status) {
+    public record NavalRepair(String id, String name, String texture, String port, double hp, double maxHp, String status,
+                              Double organization, Double maxOrganization, Long remainingHours) {
+        public NavalRepair(String id,String name,String texture,String port,double hp,double maxHp,String status) {
+            this(id,name,texture,port,hp,maxHp,status,null,null,null);
+        }
         public NavalRepair {
             text(id,128); text(name,256); text(texture,160); text(port,256); text(status,128);
             if (!Double.isFinite(hp) || !Double.isFinite(maxHp) || hp < 0 || maxHp <= 0 || hp > maxHp)
                 throw new IllegalArgumentException("Invalid ship condition");
+            if ((organization==null)!=(maxOrganization==null) || organization!=null &&
+                    (!Double.isFinite(organization)||!Double.isFinite(maxOrganization)||organization<0||maxOrganization<=0||organization>maxOrganization)
+                    || remainingHours!=null && remainingHours<0)
+                throw new IllegalArgumentException("Invalid ship repair progress");
         }
     }
     public record RepairPort(String id, String name, int capacity, int activeShips, List<String> ships) {

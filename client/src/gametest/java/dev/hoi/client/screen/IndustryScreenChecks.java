@@ -129,6 +129,9 @@ public final class IndustryScreenChecks {
                 }
                 if (tab == MenuTab.PRODUCTION) {
                     check(screen.repairDockyards().equals("2/3"), "Server-issued repair use and capacity");
+                    check(IndustryScreen.repairTime(v.navalRepairs().ships().getFirst()).equals("2일"),"Repair completion estimate appears in the gauge");
+                    check(IndustryScreen.repairTime(v.navalRepairs().ships().getLast()).equals("—"),"Returning ships have no invented repair estimate");
+                    check(v.navalRepairs().ships().stream().map(IndustryScreen::repairState).collect(java.util.stream.Collectors.toSet()).equals(Set.of("정박","수리 대기","수리 중","귀항 중")), "Docked, queued, repairing and returning states stay distinct");
                     check(screen.productionIndicators().stream().map(IndustryView.Modifier::id).toList().equals(List.of("dockyard","factory","cap","retention","growth","damage")), "Requested six production indicators remain ordered");
                     check(screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("생산 라인 삭제")).count() >= Math.min(3,v.lines().size()), "Three production lines fit the standard viewport");
                 }
@@ -139,7 +142,7 @@ public final class IndustryScreenChecks {
                         "designer/add", "designer/locked", "designer/slot", "units/motorized_infantry", "actions/infantry", "actions/armor", "actions/air", "actions/navy", "actions/repair",
                         "modifiers/dockyard", "modifiers/factory", "modifiers/cap", "modifiers/retention", "modifiers/growth", "modifiers/damage",
                         "summary/military_factory_icon", "summary/dockyard_icon", "summary/dockyard_icon_with_wrench",
-                        "picker/land", "picker/naval", "picker/check_on", "picker/check_off", "picker/repair_title", "picker/repair_port", "picker/repair_ship", "picker/repair_state",
+                        "picker/land", "picker/naval", "picker/check_on", "picker/check_off", "picker/repair_title", "picker/repair_port", "picker/repair_ship", "picker/repair_state", "picker/repair_org", "picker/repair_hp", "picker/repair_stat_bg", "picker/repair_progress", "picker/repair_progress_bg", "picker/repair_progress_waiting", "picker/repair_progress_returning",
                         "picker/variant", "picker/variant_armor", "picker/variant_air", "picker/variant_navy", "picker/expand", "picker/collapse", "picker/manufacturer", "picker/role_any", "picker/filter_carrier"))
                     check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/" + path + ".png")).isPresent(), "Production and designer asset " + path);
             });
@@ -248,6 +251,16 @@ public final class IndustryScreenChecks {
         for(int column:new int[]{46,235,320}) {
             var point=context.computeOnClient(client->{var b=button((IndustryScreen)client.gui.screen(),"수리 항구: 부산");double scale=client.getWindow().getGuiScale();return new double[]{(b.getX()+b.getWidth()*column/400.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};});
             context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);context.takeScreenshot("hoi-naval-repair-tooltip-"+column+"-gui2");
+        }
+        for(int column:new int[]{3,8,310}) {
+            var point=context.computeOnClient(client->{
+                var b=button((IndustryScreen)client.gui.screen(),"수리 항구: 부산");
+                int sx=b.getX()+8,sw=b.getWidth()-9,sy=b.getY()+Math.max(17,Math.round(b.getWidth()*35f/400));
+                double scale=client.getWindow().getGuiScale();
+                return new double[]{(sx+(column<10?column:sw*column/401.0))*scale,(sy+9)*scale};
+            });
+            context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);
+            context.takeScreenshot("hoi-naval-repair-progress-"+column+"-gui2");
         }
         context.getInput().setCursorPos(1500,1000);
         context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
@@ -619,8 +632,10 @@ public final class IndustryScreenChecks {
         return new IndustryView(v.session(), revision, v.country(), hud, v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(),
                 v.battalions(), v.companies(), v.locations(), v.recruits(), v.deployed(), draft, "",
                 new IndustryView.NavalRepairs(3, List.of(
-                        new IndustryView.NavalRepair("fixture-ship-1", "초계함 · 렌더링 예제", "production/equipment/destroyer", "부산", 30, 50, "정박 · 수리 대기"),
-                        new IndustryView.NavalRepair("fixture-ship-2", "잠수함 · 렌더링 예제", "production/equipment/submarine", "진해", 12, 40, "귀항 중")), 2,List.of(new IndustryView.RepairPort("jeju","제주",6,0,List.of()),new IndustryView.RepairPort("busan","부산",6,1,List.of("fixture-ship-1")),new IndustryView.RepairPort("jinhae","진해",3,0,List.of("fixture-ship-2")))), new IndustryView.SpecialForces(3, 6));
+                        new IndustryView.NavalRepair("fixture-ship-1", "초계함 · 렌더링 예제", "production/equipment/destroyer", "부산", 30, 50, "수리 중",12.0,40.0,36L),
+                        new IndustryView.NavalRepair("fixture-ship-docked", "정박 함선 · 렌더링 예제", "production/equipment/destroyer", "부산", 50, 50, "정박",32.0,40.0,null),
+                        new IndustryView.NavalRepair("fixture-ship-waiting", "수리 대기 함선 · 렌더링 예제", "production/equipment/destroyer", "부산", 20, 50, "조선소 배정 대기",24.0,40.0,null),
+                        new IndustryView.NavalRepair("fixture-ship-2", "잠수함 · 렌더링 예제", "production/equipment/submarine", "진해", 12, 40, "귀항 중",10.0,30.0,null)), 2,List.of(new IndustryView.RepairPort("jeju","제주",6,0,List.of()),new IndustryView.RepairPort("busan","부산",6,1,List.of("fixture-ship-1","fixture-ship-docked","fixture-ship-waiting")),new IndustryView.RepairPort("jinhae","진해",3,0,List.of("fixture-ship-2")))), new IndustryView.SpecialForces(3, 6));
     }
     private static Button button(IndustryScreen screen, String name) {
         return (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow(() -> new AssertionError("Missing control: " + name));

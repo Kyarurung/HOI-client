@@ -93,6 +93,17 @@ class IndustryViewTest {
         assertThrows(IllegalArgumentException.class, () -> new IndustryView.NavalRepairs(3, List.of(), 4));
         assertThrows(IllegalArgumentException.class, () -> new IndustryView.NavalRepair("s","s","ship","port",60,50,"waiting"));
     }
+    @Test void repairProgressKeepsOrganizationSeparateAndLegacyUnknown() {
+        var gson=new com.google.gson.Gson();
+        var current=new IndustryView.NavalRepair("s","s","ship","port",30,50,"수리 중",12.0,40.0,36L);
+        assertEquals(current,gson.fromJson(gson.toJson(current),IndustryView.NavalRepair.class));
+        var json=gson.toJsonTree(current).getAsJsonObject();
+        json.remove("organization");json.remove("maxOrganization");json.remove("remainingHours");
+        var old=gson.fromJson(json,IndustryView.NavalRepair.class);
+        assertNull(old.organization());assertNull(old.maxOrganization());assertNull(old.remainingHours());
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.NavalRepair("s","s","ship","port",30,50,"수리 중",41.0,40.0,36L));
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.NavalRepair("s","s","ship","port",30,50,"수리 중",12.0,40.0,-1L));
+    }
     @Test void requestsRejectMalformedAmountsAndIdentifiersWithoutAnArbitraryFactoryCap() {
         assertEquals(Integer.MAX_VALUE, new IndustryProtocol.Request(IndustryProtocol.Action.ASSIGN, "session", 1, "line", "", Integer.MAX_VALUE).amount());
         assertThrows(IllegalArgumentException.class, () -> new IndustryProtocol.Request(IndustryProtocol.Action.ASSIGN, "session", 1, "line", "", -1));
