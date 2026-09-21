@@ -138,7 +138,9 @@ public final class IndustryScreenChecks {
                 for (String path : List.of("resources/oil", "resources/aluminum", "resources/rubber", "resources/tungsten", "resources/iron", "resources/chromium", "resources/coal",
                         "designer/add", "designer/locked", "designer/slot", "units/motorized_infantry", "actions/infantry", "actions/armor", "actions/air", "actions/navy", "actions/repair",
                         "modifiers/dockyard", "modifiers/factory", "modifiers/cap", "modifiers/retention", "modifiers/growth", "modifiers/damage",
-                        "summary/military_factory_icon", "summary/dockyard_icon", "summary/dockyard_icon_with_wrench"))
+                        "summary/military_factory_icon", "summary/dockyard_icon", "summary/dockyard_icon_with_wrench",
+                        "picker/land", "picker/naval", "picker/check_on", "picker/check_off", "picker/repair_title", "picker/repair_port", "picker/repair_ship", "picker/repair_state",
+                        "picker/variant", "picker/variant_armor", "picker/variant_air", "picker/variant_navy", "picker/expand", "picker/collapse", "picker/manufacturer", "picker/role_any", "picker/filter_carrier"))
                     check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/" + path + ".png")).isPresent(), "Production and designer asset " + path);
             });
             if (tab == MenuTab.TRADE) { click(context, "경제"); context.waitTicks(2); context.takeScreenshot("hoi-industry-economy"); click(context, "무역"); }
@@ -213,15 +215,41 @@ public final class IndustryScreenChecks {
             check(!button(s, "공장 늘리기 · 부족분 예약").active, "No duplicate request while waiting");
             s.update(copy(v, hud, v.revision() + 1, null));
         });
-        click(context, "보병 및 포병 장비 제작"); context.waitTicks(2); context.takeScreenshot("hoi-industry-equipment-picker");
-        context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
-        click(context, "목록 닫기");
+        click(context, "보병 및 포병 장비 제작"); context.waitTicks(2); ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-equipment-picker");
+        context.runOnClient(client -> { var screen=(IndustryScreen)client.gui.screen(); checkBounds(screen); check(button(screen,"함선 건조").active,"Docked picker preserves production actions"); });
+        var filteredEquipment=v.equipment().stream().filter(e->e.group().equals("infantry")&&e.unlocked()&&!e.outdated()&&!e.resources().isEmpty()).findFirst().orElseThrow();
+        String filteredResource=filteredEquipment.resources().keySet().iterator().next();
+        String filterName=v.resources().stream().filter(r->r.id().equals(filteredResource)).findFirst().orElseThrow().name()+" 사용 장비 표시";
+        int requestsBeforeFilter=requests.size();
+        click(context,filterName);
+        context.runOnClient(client->{
+            var screen=(IndustryScreen)client.gui.screen();
+            check(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("생산: "+filteredEquipment.name())),"Unchecked resource hides equipment requiring that resource");
+            check(requests.size()==requestsBeforeFilter,"Resource filters never send production mutations");
+        });
+        click(context,filterName);
         for (String name : List.of("기갑 차량 제작", "항공기 제작", "함선 건조")) {
-            click(context, name); context.waitTicks(1);
+            click(context, name); context.waitTicks(1); ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-picker-"+name);
             context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
-            click(context, "목록 닫기");
         }
-        click(context, "해군 수리 대기열"); context.waitTicks(2); context.takeScreenshot("hoi-industry-naval-repairs");
+        click(context, "해군 수리 대기열"); context.waitTicks(2);
+        context.runOnClient(client->check(button((IndustryScreen)client.gui.screen(),"수리 항구: 제주").active,"Empty authoritative repair ports remain visible"));
+        ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-naval-repairs-collapsed");
+        int collapsedY=context.computeOnClient(client->button((IndustryScreen)client.gui.screen(),"수리 항구: 진해").getY());
+        click(context,"수리 항구: 부산");context.waitTicks(2); ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-naval-repairs");
+        context.runOnClient(client->check(button((IndustryScreen)client.gui.screen(),"수리 항구: 진해").getY()>collapsedY,"Individual port expands beneath its header"));
+        click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
+        context.runOnClient(client->check(button((IndustryScreen)client.gui.screen(),"수리 항구: 진해").getY()==collapsedY,"Collapse all closes partially expanded queues"));
+        click(context,"수리 목록 펼치기/접기");context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-naval-repairs-expanded");
+        context.runOnClient(client->check(button((IndustryScreen)client.gui.screen(),"수리 항구: 진해").getY()>collapsedY,"Expand all opens ship rows from the collapsed queue"));
+        click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
+        context.runOnClient(client->check(button((IndustryScreen)client.gui.screen(),"수리 항구: 진해").getY()==collapsedY,"Collapse all restores adjacent port rows"));
+        click(context,"수리 항구: 부산");
+        for(int column:new int[]{46,235,320}) {
+            var point=context.computeOnClient(client->{var b=button((IndustryScreen)client.gui.screen(),"수리 항구: 부산");double scale=client.getWindow().getGuiScale();return new double[]{(b.getX()+b.getWidth()*column/400.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};});
+            context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);context.takeScreenshot("hoi-naval-repair-tooltip-"+column+"-gui2");
+        }
+        context.getInput().setCursorPos(1500,1000);
         context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
         context.getInput().resizeWindow(854, 480); context.waitTicks(3); context.takeScreenshot("hoi-industry-compact-naval-repairs");
         context.runOnClient(client -> checkBounds((IndustryScreen)client.gui.screen()));
@@ -410,15 +438,15 @@ public final class IndustryScreenChecks {
             var s=(IndustryScreen)client.gui.screen();
             check(button(s,"생산: "+next.name()).active,"Clicking the line offers its researched replacement");
             check(s.children().stream().noneMatch(w->w instanceof Button b && b.getMessage().getString().equals("생산: "+old.name())),"Old equipment is hidden by default");
-            check(s.children().stream().noneMatch(w->w instanceof Button b && b.getMessage().getString().equals("생산: "+v.equipment().stream().filter(e->e.id().equals("hoi:support_gear")).findFirst().orElseThrow().name())),"Replacement picker stays within the registered family");
-            check(obsoleteCheckbox(s).active && !obsoleteCheckbox(s).selected(),"Obsolete checkbox starts unchecked inside the picker"); checkBounds(s);
+            check(button(s,"생산: "+v.equipment().stream().filter(e->e.id().equals("hoi:support_gear")).findFirst().orElseThrow().name()).active,"Infantry image opens the whole infantry and artillery production category");
+            check(obsoleteCheckbox(s).active,"Obsolete checkbox starts unchecked inside the picker"); checkBounds(s);
         });
         context.takeScreenshot("hoi-industry-current-model-picker");
         context.runOnClient(client->obsoleteCheckbox((IndustryScreen)client.gui.screen()).onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0)));
         context.waitTicks(2); context.takeScreenshot("hoi-industry-show-outdated-picker");
         context.runOnClient(client->{
             var s=(IndustryScreen)client.gui.screen();
-            check(obsoleteCheckbox(s).active && obsoleteCheckbox(s).selected(),"Obsolete checkbox is checked when old models are visible");
+            check(obsoleteCheckbox(s).active,"Obsolete checkbox is checked when old models are visible");
             check(!button(s,"생산: "+old.name()).active,"Current equipment is visible but cannot retool to itself");
             check(requests.isEmpty(),"Changing a display filter sends no simulation request");
         });
@@ -426,7 +454,7 @@ public final class IndustryScreenChecks {
         context.waitTicks(2);
         context.runOnClient(client->{
             var screen=(IndustryScreen)client.gui.screen();
-            check(!obsoleteCheckbox(screen).selected(),"Second toggle clears the obsolete checkbox");
+            check(obsoleteCheckbox(screen).active,"Second toggle clears the obsolete checkbox");
             check(screen.children().stream().noneMatch(w->w instanceof Button b && b.getMessage().getString().equals("생산: "+old.name())),"Unchecking hides obsolete equipment");
             check(requests.isEmpty(),"Both checkbox toggles stay local");
         });
@@ -577,21 +605,22 @@ public final class IndustryScreenChecks {
         click(context,target.name()+" · 장비·전환 변경");
         context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-conversion-picker");
         context.runOnClient(client->checkBounds((IndustryScreen)client.gui.screen()));
+        context.runOnClient(client->check(button((IndustryScreen)client.gui.screen(),"구형 장비 표시").active,"Conversion-capable line also opens the category picker first"));
+        click(context,"비축량으로부터 전환");
         click(context,"신규 장비 생산 · 진행 중인 1개분의 작업량 초기화");
         context.runOnClient(client->{var request=requests.getLast();
             check(request.action()==IndustryProtocol.Action.CONVERSION&&request.item().equals(line.id())&&request.other().isEmpty()&&request.revision()==view.revision(),"Conversion mode change uses the issued line and revision");
         });
     }
-    private static net.minecraft.client.gui.components.Checkbox obsoleteCheckbox(IndustryScreen screen) {
-        return screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Checkbox)
-                .map(w -> (net.minecraft.client.gui.components.Checkbox) w).findFirst().orElseThrow();
+    private static Button obsoleteCheckbox(IndustryScreen screen) {
+        return button(screen,"구형 장비 표시");
     }
     private static IndustryView copy(IndustryView v, CountryHud hud, long revision, IndustryView.Template draft) {
         return new IndustryView(v.session(), revision, v.country(), hud, v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(),
                 v.battalions(), v.companies(), v.locations(), v.recruits(), v.deployed(), draft, "",
                 new IndustryView.NavalRepairs(3, List.of(
                         new IndustryView.NavalRepair("fixture-ship-1", "초계함 · 렌더링 예제", "production/equipment/destroyer", "부산", 30, 50, "정박 · 수리 대기"),
-                        new IndustryView.NavalRepair("fixture-ship-2", "잠수함 · 렌더링 예제", "production/equipment/submarine", "진해", 12, 40, "귀항 중")), 2), new IndustryView.SpecialForces(3, 6));
+                        new IndustryView.NavalRepair("fixture-ship-2", "잠수함 · 렌더링 예제", "production/equipment/submarine", "진해", 12, 40, "귀항 중")), 2,List.of(new IndustryView.RepairPort("jeju","제주",6,0,List.of()),new IndustryView.RepairPort("busan","부산",6,1,List.of("fixture-ship-1")),new IndustryView.RepairPort("jinhae","진해",3,0,List.of("fixture-ship-2")))), new IndustryView.SpecialForces(3, 6));
     }
     private static Button button(IndustryScreen screen, String name) {
         return (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow(() -> new AssertionError("Missing control: " + name));

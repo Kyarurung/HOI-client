@@ -58,7 +58,16 @@ public record IndustryView(String session, long revision, String country, Countr
                 throw new IllegalArgumentException("Invalid ship condition");
         }
     }
-    public record NavalRepairs(int availableDockyards, List<NavalRepair> ships, Integer usedDockyards) {
+    public record RepairPort(String id, String name, int capacity, int activeShips, List<String> ships) {
+        public RepairPort {
+            text(id,128); text(name,256); ships=bounded(ships,4096);
+            if(capacity<0||activeShips<0||activeShips>capacity)throw new IllegalArgumentException("Invalid repair port");
+        }
+    }
+    public record NavalRepairs(int availableDockyards, List<NavalRepair> ships, Integer usedDockyards, List<RepairPort> ports) {
+        public NavalRepairs(int availableDockyards, List<NavalRepair> ships, Integer usedDockyards) {
+            this(availableDockyards,ships,usedDockyards,List.of());
+        }
         public NavalRepairs(int availableDockyards, List<NavalRepair> ships) {
             this(availableDockyards, ships, null);
         }
@@ -67,6 +76,7 @@ public record IndustryView(String session, long revision, String country, Countr
             if (usedDockyards != null && (usedDockyards < 0 || usedDockyards > availableDockyards))
                 throw new IllegalArgumentException("Invalid used repair dockyards");
             ships = bounded(ships,4096);
+            ports = ports == null ? List.of() : bounded(ports,4096);
         }
     }
     public record Economy(int military, int dockyards, int civilian, int freeCivilian, int consumer,

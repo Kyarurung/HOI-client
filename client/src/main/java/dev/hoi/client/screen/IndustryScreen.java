@@ -16,7 +16,6 @@ import dev.hoi.protocol.IndustryView.*;
 import static dev.hoi.protocol.IndustryProtocol.Action.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
@@ -41,6 +40,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private String unitGroup = "", logisticsEquipment = "";
     private int tradeTab = 1, tradeAmount = 1, selectedSlot = -1;
     private boolean supportSlot, designer, closed, background, showOutdated;
+    private final Set<String> hiddenResources = new HashSet<>(), expandedRepairPorts = new HashSet<>();
+    private String navalFamily = "";
     private String group = "all", picker = "", switchLine = "", resource = "IRON", partner = "";
     private boolean openingDesigner;
     private String location = "", locationRecruit = "", draftName = "";
@@ -96,6 +97,8 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
     private int bottom() { return height - 25; }
     private int rightWidth() { return Math.min(Math.max(176, width * 380 / 2560), width - pane - 8); }
     private boolean modal() { return designer || !picker.isEmpty() || !partner.isEmpty(); }
+    private int productionPickerWidth() { return Math.min(width-16,Math.max(196,Math.round(pane*(picker.equals("repairs")?444f:495f)/550))); }
+    private boolean dockedProductionPicker() { return tab==MenuTab.PRODUCTION && (picker.equals("equipment")||picker.equals("repairs")) && width-pane>=productionPickerWidth()+4; }
     @Override protected void rebuildWidgets() {
         var focused = getFocused();
         super.rebuildWidgets();
@@ -109,9 +112,9 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             if (next == tab) return;
             if (next == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(next);
         }).forEach(this::addRenderableWidget);
-        if (!modal()) button("닫기", "×", pane - 25, top + 3, 19, 19, true, this::onClose);
+        if (!modal() || dockedProductionPicker()) button("닫기", "×", pane - 25, top + 3, 19, 19, true, this::onClose);
         if (view != null) {
-            if (!modal()) layout();
+            if (!modal() || dockedProductionPicker()) layout();
             if (designer) layoutDesigner();
             else if (!partner.isEmpty()) layoutContract();
             else if (!picker.isEmpty()) layoutPicker();
@@ -132,7 +135,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         }
         else {
             HoiMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
-            background = modal();
+            background = modal() && !dockedProductionPicker();
             layout();
             background = false;
             if (designer) layoutDesigner();
@@ -305,7 +308,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         int w=Math.round(201*scale),h=Math.round(70*scale);
         String name=equipment.name()+(line.conversion()==null?" · 장비 교체":" · 장비·전환 변경");
         var button=new PanelButton(name,x,y,w,h,()->{
-            picker=line.conversion()==null?"equipment":"conversion";group=equipment.group();switchLine=line.id();pickerScroll=0;rebuildWidgets();
+            picker="equipment";group=equipment.group();switchLine=line.id();navalFamily="";hiddenResources.clear();pickerScroll=0;rebuildWidgets();
         }) {
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                 UiAssets.draw(g,equipment.texture(),x,y,w,h);
@@ -370,7 +373,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
             String id = ids[i];
             originalButton(names[i], "production/actions/" + id, 6 + i * cell, y, cell - 1, 22, () -> {
                 group = id; picker = id.equals("repair") ? "repairs" : "equipment";
-                switchLine = ""; pickerScroll = 0; rebuildWidgets();
+                switchLine = ""; navalFamily=""; hiddenResources.clear(); pickerScroll = 0; rebuildWidgets();
             });
         }
     }
@@ -904,34 +907,13 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         };
     }
     private void layoutPicker() {
+        if (picker.equals("equipment") || picker.equals("repairs")) { layoutProductionPicker(); return; }
         int w = Math.min(270, width - 16), x = width - pane >= w + 8 ? pane + 4 : (width - w) / 2, y = top + 3;
         panel(x, y, w, height - y - 27);
         text(picker.equals("locations") ? "배치 장소 지정" : picker.equals("repairs") ? "해군 수리 대기열" : picker.equals("conversion") ? "비축량으로부터 전환" : "생산 장비 선택", x + 9, y + 8, w - 40, TEXT);
         button("목록 닫기", "×", x + w - 25, y + 3, 19, 19, true, () -> { picker = ""; rebuildWidgets(); });
         int start = y + 29;
-        if (picker.equals("repairs")) {
-            var repairs = view.navalRepairs();
-            if (repairs == null) {
-                text("수리 현황을 확인할 수 없습니다.", x + 9, start + 8, w - 18, MUTED);
-                return;
-            }
-            art("production/summary/dockyard_icon_with_wrench", x + 9, start, 20, 20);
-            text("수리용 조선소 " + repairDockyards(), x + 34, start + 6, w - 43, TEXT);
-            start += 28;
-            pickerScroll = clampScroll(pickerScroll, repairs.ships().size(), 58, start);
-            for (int i = 0; i < repairs.ships().size(); i++) {
-                var ship = repairs.ships().get(i); int by = start + i * 58 - pickerScroll;
-                if (!visible(by, 58, start)) continue;
-                recess(x + 6, by, w - 12, 55);
-                art(ship.texture(), x + 10, by + 4, 45, 24);
-                text(ship.name(), x + 60, by + 5, w - 70, TEXT);
-                text(ship.status(), x + 60, by + 19, w - 70, MUTED);
-                text(ship.port(), x + 10, by + 33, w - 20, MUTED);
-                bar(x + 10, by + 47, w - 20, 4, ship.hp() / ship.maxHp(), GOOD);
-                tip(ship.name() + "\n내구도 " + decimal(ship.hp()) + " / " + decimal(ship.maxHp()), x + 6, by, w - 12, 55);
-            }
-            if (repairs.ships().isEmpty()) text("수리가 필요한 함선이 없습니다.", x + 9, start + 10, w - 18, MUTED);
-        } else if (picker.equals("conversion")) {
+        if (picker.equals("conversion")) {
             var line = view.lines().stream().filter(item -> item.id().equals(switchLine)).findFirst().orElse(null);
             if (line == null || line.conversion() == null) return;
             button("생산 장비 교체", "생산 장비 교체", x + 7, start, w - 14, 22, true, () -> {
@@ -953,31 +935,6 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                     picker = ""; send(CONVERSION, switchLine, choice.id(), 0);
                 });
             }
-        } else if (picker.equals("equipment")) {
-            if (graphics == null) {
-                addRenderableWidget(Checkbox.builder(Component.literal("구형 장비 표시"), font)
-                        .pos(x + 8, start).maxWidth(w - 16).selected(showOutdated)
-                        .onValueChange((checkbox, selected) -> {
-                            showOutdated = selected; pickerScroll = 0; rebuildWidgets();
-                        }).build());
-            }
-            start += 27;
-            var current = view.lines().stream().filter(l -> l.id().equals(switchLine)).map(l -> equipment(l.equipment())).findFirst().orElse(null);
-            var items = view.equipment().stream().filter(e -> e.unlocked() && (group.equals("all") || e.group().equals(group)))
-                    .filter(e -> showOutdated || !e.outdated())
-                    .filter(e -> switchLine.isEmpty() || current != null && current.naval() == e.naval()
-                            && (current.family() == null || e.family() == null || current.family().equals(e.family()))).toList();
-            pickerScroll = clampScroll(pickerScroll, items.size(), 55, start);
-            for (int i = 0; i < items.size(); i++) {
-                var e = items.get(i); int by = start + i * 55 - pickerScroll; if (!visible(by, 55, start)) continue;
-                boolean selected = current != null && current.id().equals(e.id());
-                equipmentButton(e, e.name(), x + 7, by, 55, 45, !selected, () -> chooseEquipment(e.id()));
-                text(e.name(), x + 67, by + 4, w - 76, TEXT);
-                text(ic(e.cost()) + " IC · 재고 " + e.stockpile(), x + 67, by + 18, w - 76, MUTED);
-                button("생산: " + e.name(), selected ? "생산 중" : switchLine.isEmpty() ? "생산" : "교체", x + 67, by + 30, w - 76, 19, !selected, () -> chooseEquipment(e.id()));
-                tip(resources(e.resources(), 1), x + 6, by, w - 12, 28);
-            }
-            if (items.isEmpty()) text("생산 가능한 장비가 없습니다.", x + 9, start + 9, w - 18, MUTED);
         } else {
             pickerScroll = clampScroll(pickerScroll, view.locations().size(), 25, start);
             for (int i = 0; i < view.locations().size(); i++) {
@@ -986,6 +943,213 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
                 button(l.name(), l.name(), x + 7, by, w - 14, 22, true, () -> { location = l.id(); picker = ""; send(LOCATION, locationRecruit, l.id(), 0); rebuildWidgets(); });
             }
         }
+    }
+    private void layoutProductionPicker() {
+        boolean repair=picker.equals("repairs"), naval=group.equals("navy");
+        int w=productionPickerWidth();
+        int x=width-pane>=w+4?pane+2:(width-w)/2,y=top+3;
+        int end=repair?Math.min(bottom(),y+Math.round(w*600f/444)):bottom();
+        if(graphics!=null)UiAssets.nineSlice(graphics,"production/picker/panel",x,y,w,end-y,64,w/(repair?444.0:495.0));
+        if(repair) {
+            art("production/picker/repair_title",x+3,y+2,w-6,Math.round((w-6)*41f/430));
+            heading("수리 대기열",x+18,y+7,w-48,TEXT);
+        }
+        button("목록 닫기","×",x+w-23,y+2,19,19,true,()->{picker="";rebuildWidgets();});
+        if(repair) { layoutRepairPorts(x,y,w,end); return; }
+        if(graphics==null) {
+            var toggle=new PanelButton("구형 장비 표시",x+63,y+5,w-91,16,()->{showOutdated=!showOutdated;pickerScroll=0;rebuildWidgets();}) {
+                @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
+                    UiAssets.draw(g,"production/picker/text_bg",getX()+16,getY()+1,getWidth()-19,14);
+                    UiAssets.draw(g,"production/picker/check_"+(showOutdated?"on":"off"),getX(),getY(),13,13);
+                    UiText.text(g,font,Component.literal("구형 장비").withColor(GOLD).append(Component.literal(" 표시").withColor(TEXT)),getX()+16,getY()+3,TEXT);
+                }
+            };
+            toggle.active=pending==0;addRenderableWidget(toggle);
+        }
+        recess(x+7,y+5,45,16);
+        art("production/picker/manufacturer",x+11,y+7,12,12);
+        cellText("—",x+26,y+5,24,16,GOLD,false);
+        tip("군수산업조직 현황 미제공",x+7,y+5,45,16);
+        var items=view.equipment().stream().filter(e->e.unlocked()&&(group.equals("all")||e.group().equals(group)))
+                .filter(e->showOutdated||!e.outdated()).filter(e->navalFamily.isEmpty()||Objects.equals(navalFamily,e.family()))
+                .filter(e->e.resources().keySet().stream().noneMatch(hiddenResources::contains)).toList();
+        int filtersY=y+25;
+        if(naval) {
+            var types=view.equipment().stream().filter(e->e.naval()&&e.unlocked()).map(Equipment::family).filter(Objects::nonNull).distinct().toList();
+            int cell=(w-48)/4;
+            for(int i=0;i<types.size();i++) {
+                String type=types.get(i);var model=view.equipment().stream().filter(e->Objects.equals(e.family(),type)).findFirst().orElseThrow();
+                int bx=x+6+i%4*cell,by=filtersY+i/4*14;
+                if(graphics==null) {
+                    var filter=new PanelButton(familyName(model),bx,by,cell-2,13,()->{navalFamily=navalFamily.equals(type)?"":type;pickerScroll=0;rebuildWidgets();}) {
+                        @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
+                            UiAssets.draw(g,"production/picker/filter_bg",bx,by,getWidth(),getHeight());
+                            if(navalFamily.equals(type))UiAssets.draw(g,"production/picker/filter_highlight",bx,by,getWidth(),getHeight());
+                            String icon=navalSilhouette(type);
+                            UiAssets.draw(g,icon,bx+5,by+4,cell-10,8);
+                            long count=view.equipment().stream().filter(e->e.unlocked()&&Objects.equals(e.family(),type)&&(showOutdated||!e.outdated())).count();
+                            UiText.text(g,font,Long.toString(count),bx+2,by+1,TEXT);
+                        }
+                    };
+                    filter.active=pending==0;filter.setTooltip(HoiTooltips.create(Component.literal(familyName(model))));addRenderableWidget(filter);
+                }
+            }
+            art("production/picker/role_bg",x+w-37,filtersY-2,31,31);
+            originalButton("모든 함선 표시","production/picker/role_any",x+w-34,filtersY+1,25,25,()->{navalFamily="";pickerScroll=0;rebuildWidgets();});
+        } else {
+            var filters=view.resources().stream().sorted(Comparator.comparingInt(r->switch(r.id().toLowerCase(Locale.ROOT)){case "oil" -> 0;case "rubber" -> 1;case "iron","steel" -> 2;case "aluminum" -> 3;case "tungsten" -> 4;case "chromium" -> 5;default -> 6;})).toList();
+            int cell=(w-12)/Math.max(1,filters.size());
+            for(int i=0;i<filters.size();i++) {
+                var resource=filters.get(i);int bx=x+6+i*cell;
+                art(resourceArt(resource.id()),bx,filtersY,12,16);
+                originalButton(resource.name()+" 사용 장비 표시","production/picker/check_"+(hiddenResources.contains(resource.id())?"off":"on"),bx+13,filtersY,Math.max(10,cell-14),16,()->{
+                    if(!hiddenResources.add(resource.id()))hiddenResources.remove(resource.id());pickerScroll=0;rebuildWidgets();
+                });
+            }
+        }
+        int start=y+49;
+        if(naval)start=y+29+Math.max(2,(int)(view.equipment().stream().filter(e->e.naval()&&e.unlocked()).map(Equipment::family).distinct().count()+3)/4)*14;
+        var current=view.lines().stream().filter(l->l.id().equals(switchLine)).findFirst().orElse(null);
+        if(current!=null&&current.conversion()!=null) {
+            button("비축량으로부터 전환","비축량으로부터 전환",x+6,start,w-12,18,true,()->{picker="conversion";pickerScroll=0;rebuildWidgets();});start+=21;
+        }
+        int row=Math.max(34,Math.round((w-12)*80f/460));
+        pickerScroll=clampScroll(pickerScroll,items.size(),row,start);
+        if(graphics!=null)UiAssets.nineSlice(graphics,"production/picker/list",x+3,start-2,w-6,end-start+1,64,w/495.0);
+        for(int i=0;i<items.size();i++) {
+            var equipment=items.get(i);int by=start+i*row-pickerScroll;
+            if(by<start||by+row>end-3)continue;
+            boolean selected=current!=null&&current.equipment().equals(equipment.id());
+            pickerEquipment(equipment,x+6,by,w-16,row-1,selected);
+        }
+        pickerScrollbar(x+w-7,start,5,end-start-4,items.size()*row,pickerScroll);
+        if(items.isEmpty())text("생산 가능한 장비가 없습니다.",x+9,start+8,w-18,MUTED);
+    }
+    private void pickerEquipment(Equipment equipment,int x,int y,int w,int h,boolean selected) {
+        if(graphics!=null)return;
+        var button=new PanelButton("생산: "+equipment.name(),x,y,w,h,()->chooseEquipment(equipment.id())) {
+            @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
+                String background=equipment.naval()?"naval":"land";
+                UiAssets.draw(g,"production/picker/"+background+(selected?"_selected":""),x,y,w,h);
+                float scale=w/460f;
+                int imageWidth=Math.round((equipment.naval()?263:193)*scale);
+                UiAssets.draw(g,equipment.texture(),x+3,y+3,imageWidth,h-6);
+                if(equipment.outdated())UiAssets.draw(g,"production/outdated_overlay",x+3,y+3,imageWidth,h-6);
+                int labelX=x+Math.round((equipment.naval()?62:206)*scale),right=x+Math.round(370*scale);
+                if(equipment.naval()) {
+                    pickerRightText(g,equipment.name(),labelX,y+Math.round(6*scale),right-labelX);
+                    pickerRightText(g,familyName(equipment),labelX,y+Math.round(22*scale),right-labelX);
+                } else {
+                    UiText.text(g,font,font.plainSubstrByWidth(equipment.name(),Math.max(1,(int)((right-labelX)/UiText.scale(font)))),labelX,y+Math.round(6*scale),TEXT);
+                    var lines=font.split(Component.literal(familyName(equipment)),Math.max(1,(int)((right-labelX)/UiText.scale(font))));
+                    for(int i=0;i<Math.min(3,lines.size());i++) {
+                        UiText.text(g,font,lines.get(i),labelX,y+Math.round(22*scale)+i*UiText.MIN_HEIGHT,TEXT);
+                    }
+                }
+                int costX=x+5,costY=y+h-13,iconSize=10;
+                UiAssets.draw(g,equipment.naval()?"production/picker/naval_cost":"keywords/stat_common_build_cost_ic",costX,costY,iconSize,iconSize);
+                UiText.text(g,font,ic(equipment.cost()),costX+iconSize+1,costY+2,GOLD);
+                int n=0,resourceX=x+Math.round((equipment.naval()?376:370)*scale);
+                for(var resource:equipment.resources().entrySet()) {
+                    if(n==3)break;int ry=y+Math.round(((equipment.naval()?8:10)+n++*23)*scale);
+                    UiAssets.draw(g,resourceArt(resource.getKey()),resourceX+Math.round(5*scale),ry+Math.round(4*scale),iconSize,iconSize);
+                    UiText.centeredAt(g,font,integer(resource.getValue()),resourceX+Math.round(33*scale),ry+Math.round(5*scale),TEXT);
+                }
+                UiAssets.draw(g,"production/picker/obsolete",x+w-16,y+4,9,9);
+                UiAssets.draw(g,"production/picker/variant"+switch(equipment.group()){case "armor" -> "_armor";case "air" -> "_air";case "navy" -> "_navy";default -> "";},x+w-23,y+h-23,19,19);
+            }
+        };
+        button.active=pending==0&&!selected;
+        button.setTooltip(HoiTooltips.create(Component.literal(equipment.name()+"\n"+familyName(equipment)+"\n"+ic(equipment.cost())+" IC\n"+resources(equipment.resources(),1))));
+        addRenderableWidget(button);
+    }
+    private void pickerRightText(GuiGraphicsExtractor g,String value,int x,int y,int width) {
+        String clipped=font.plainSubstrByWidth(value,Math.max(1,(int)(width/UiText.scale(font))));
+        UiText.text(g,font,clipped,x+width-Math.round(font.width(clipped)*UiText.scale(font)),y,TEXT);
+    }
+    private void pickerScrollbar(int x,int y,int w,int h,int total,int offset) {
+        if(graphics==null||h<=0)return;
+        graphics.fill(x,y,x+w,y+h,0xFF151515);
+        if(total>h) {
+            int size=Math.max(12,h*h/total),position=(h-size)*offset/Math.max(1,total-h);
+            rail(x,y+Math.min(h-size,position),w,size);
+        }
+    }
+    private static String navalSilhouette(String type) {
+        return switch(type) {
+            case "carrier","submarine","destroyer","light_cruiser","heavy_cruiser","battleship","convoy" -> "production/picker/filter_"+type;
+            case "battlecruiser" -> "production/picker/filter_battle_cruiser";
+            default -> "production/picker/filter_unknown";
+        };
+    }
+    private void layoutRepairPorts(int x,int y,int w,int end) {
+        var repairs=view.navalRepairs();
+        if(repairs==null){text("수리 현황을 확인할 수 없습니다.",x+9,y+36,w-18,MUTED);return;}
+        art("production/summary/dockyard_icon_with_wrench",x+8,y+28,16,16);
+        var decrease=originalButton("수리 조선소 배정 감소 · 자동 배정 중","recruitment/decrease",x+26,y+29,13,13,false,()->{});
+        cellText(Integer.toString(repairs.availableDockyards()),x+39,y+28,22,16,TEXT,false);
+        var increase=originalButton("수리 조선소 배정 증가 · 자동 배정 중","recruitment/increase",x+61,y+29,13,13,false,()->{});
+        var assignmentTip=HoiTooltips.create(Component.literal("함선 수리에 배정할 수 있는 §e조선소§r의 최대 숫자입니다.\n\n§7현재 서버는 수리 조선소를 자동 배정합니다."));
+        if(decrease!=null)decrease.setTooltip(assignmentTip);
+        if(increase!=null)increase.setTooltip(assignmentTip);
+        tip("함선 수리에 배정할 수 있는 §e조선소§r의 최대 숫자입니다.\n\n§7현재 서버는 수리 조선소를 자동 배정합니다.",x+8,y+27,67,17);
+        var expand=originalButton("수리 목록 펼치기/접기","production/picker/"+(expandedRepairPorts.isEmpty()?"collapse":"expand"),x+81,y+28,38,15,true,()->{
+            if(expandedRepairPorts.isEmpty()) {
+                repairs.ports().forEach(port->expandedRepairPorts.add(port.id()));
+                repairs.ships().stream().filter(ship->repairs.ports().stream().noneMatch(port->port.ships().contains(ship.id())))
+                        .forEach(ship->expandedRepairPorts.add(ship.id()));
+            } else expandedRepairPorts.clear();
+            pickerScroll=0;rebuildWidgets();
+        });
+        if(expand!=null)expand.setTooltip(HoiTooltips.create(Component.literal("§a클릭§r하여 모든 대기열 펴기/접기")));
+        var ports=new ArrayList<>(repairs.ports());
+        var represented=new HashSet<String>();ports.forEach(port->represented.addAll(port.ships()));
+        for(var ship:repairs.ships())if(!represented.contains(ship.id())) {
+            ports.add(new RepairPort(ship.id(),ship.port(),0,0,List.of(ship.id())));
+        }
+        int start=y+50,row=Math.max(17,Math.round((w-18)*35f/400)),shipHeight=Math.max(20,Math.round((w-27)*41f/401)),shipRow=shipHeight+2,total=ports.size()*row;
+        for(var port:ports)if(expandedRepairPorts.contains(port.id()))total+=port.ships().size()*shipRow;
+        pickerScroll=Math.clamp(pickerScroll,0,Math.max(0,total-(end-start-4)));
+        if(graphics!=null)UiAssets.nineSlice(graphics,"production/picker/repair_list",x+3,start-2,w-6,end-start,16,w/444.0);
+        int by=start-pickerScroll;
+        for(var port:ports) {
+            int py=by;by+=row;
+            if(py>=start&&py+row<=end-3) {
+                if(graphics==null) {
+                    var listTip=HoiTooltips.create(Component.literal("§a클릭§r하여 함선 대기열 목록을 전환합니다."));
+                    var policyTip=HoiTooltips.create(Component.literal("§e수리 우선순위 선택§r\n\n우선순위가 더 높은 해군기지는 수리를 위한 조선소를 먼저 할당받습니다.\n\n§a클릭§r하여 우선순위를 바꾸십시오. §a우클릭§r하여 조선소의 수리 여부를 활성화하거나 비활성화하십시오.\n\n§7현재 서버는 자동 배정만 지원하며 위 우선순위 조작은 지원하지 않습니다."));
+                    var shipsTip=HoiTooltips.create(Component.literal("이 해군기지에서 함선 §e"+port.ships().size()+"§r척이 수리를 위해 대기 중입니다."));
+                    var capacityTip=HoiTooltips.create(Component.literal("§e"+port.ships().size()+"§r척의 함정이 수리 대기 중입니다.\n이 §e해군기지§r는 동시에 최대 §e"+(port.capacity()==0?"—":port.capacity())+"§r척의 수리 작업을 수행할 수 있습니다."));
+                    var button=new PanelButton("수리 항구: "+port.name(),x+7,py,w-18,Math.round((w-18)*33f/400),()->{if(!expandedRepairPorts.add(port.id()))expandedRepairPorts.remove(port.id());rebuildWidgets();}) {
+                        @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
+                            UiAssets.draw(g,"production/picker/repair_port",getX(),py,getWidth(),getHeight());
+                            int column=(mx-getX())*400/Math.max(1,getWidth());
+                            setTooltip(column>=35&&column<60?policyTip:column>=200&&column<270?shipsTip:column>=270?capacityTip:listTip);
+                            UiAssets.draw(g,"production/picker/repair_state",getX()+Math.round(getWidth()*35f/400),py+2,Math.round(getWidth()*22f/400),getHeight()-4);
+                            UiText.text(g,font,font.plainSubstrByWidth(port.name(),Math.max(1,(int)((getWidth()*140f/400)/UiText.scale(font)))),getX()+Math.round(getWidth()*60f/400),py+4,TEXT);
+                            UiAssets.draw(g,"production/picker/ships",getX()+getWidth()/2,py+3,15,10);
+                            productionText(g,Integer.toString(port.ships().size()),getX()+getWidth()*59/100,py,w*9/100,row-2,TEXT);
+                            UiAssets.draw(g,"production/summary/dockyard_icon",getX()+getWidth()*68/100,py+2,12,12);
+                            productionText(g,port.capacity()==0?"—":port.activeShips()+" / "+port.capacity(),getX()+getWidth()*75/100,py,w*18/100,row-2,TEXT);
+                        }
+                    };
+                    button.setTooltip(listTip);addRenderableWidget(button);
+                }
+            }
+            if(expandedRepairPorts.contains(port.id()))for(String id:port.ships()) {
+                var ship=repairs.ships().stream().filter(s->s.id().equals(id)).findFirst().orElse(null);int sy=by;by+=shipRow;
+                if(ship==null||sy<start||sy+shipRow>end-3)continue;
+                int sx=x+15,sw=w-27,label=sx+sw*132/401,labelWidth=sw*130/401;
+                art("production/picker/repair_ship",sx,sy,sw,shipHeight);
+                String family=view.equipment().stream().filter(e->e.naval()&&e.texture().equals(ship.texture())).map(Equipment::family).filter(Objects::nonNull).findFirst().orElse(ship.texture().substring(ship.texture().lastIndexOf('/')+1));
+                art(navalSilhouette(family),sx+sw*24/401,sy+2,sw*96/401,shipHeight-4);
+                leftText(ship.name(),label,sy+2,labelWidth,TEXT);
+                leftText(ship.status(),label,sy+shipHeight-9,labelWidth,MUTED);
+                bar(sx+sw*270/401,sy+shipHeight/3,sw*90/401,Math.max(4,shipHeight/3),ship.hp()/ship.maxHp(),GOOD);
+                tip(ship.name()+"\n"+ship.status()+"\n내구도 "+decimal(ship.hp())+" / "+decimal(ship.maxHp()),sx,sy,sw,shipHeight);
+            }
+        }
+        pickerScrollbar(x+w-7,start,4,end-start-4,total,pickerScroll);
     }
     private void chooseEquipment(String id) {
         if (switchLine.isEmpty()) send(ADD, id, "", 0); else send(SWITCH, switchLine, id, 0);
@@ -1134,6 +1298,7 @@ public final class IndustryScreen extends Screen implements SidebarMovement.Scre
         if (y < top && view != null) { hudScroll = HoiMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical); return true; }
         if (designer && selectedSlot >= 0) pickerScroll -= (int) vertical;
         else if (designer) designerScroll -= (int) (vertical * 25);
+        else if (dockedProductionPicker() && x < pane) scroll -= (int)(vertical*productionRowHeight());
         else if (!picker.isEmpty()) pickerScroll -= (int) (vertical * 55);
         else if (modal()) return super.mouseScrolled(x, y, horizontal, vertical);
         else if (tab == MenuTab.RECRUITMENT && x >= pane) secondScroll -= (int) (vertical * 40);
