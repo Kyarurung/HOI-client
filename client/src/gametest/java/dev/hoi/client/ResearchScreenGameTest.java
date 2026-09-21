@@ -416,6 +416,12 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             check(label.y() <= heading.y(), "Equipment heading stays above its research row: " + label.text());
             check(heading.y() - label.y() <= lineHeight * 3, "Equipment heading stays near its research row: " + heading + " -> " + label);
         }
+        if (ResearchLayout.category(tree.nodes().getFirst().tech()).equals("SUPPORT")) {
+            var label = labels.stream().filter(l -> l.text().equals("다목적 / 공격 헬리콥터")).findFirst().orElseThrow();
+            var card = tree.nodes().stream().filter(n -> n.tech().source().id().equals("utility_helicopter_1")).findFirst().orElseThrow();
+            check(Math.abs(label.x() + label.width() / 2.0 - card.x() - card.width() / 2.0) <= .5,
+                    "Helicopter heading is centered on the UH-60M card");
+        }
         if (ResearchLayout.category(tree.nodes().getFirst().tech()).equals("NAVY")) {
             var targets = java.util.Map.of("초계함", "early_ship_hull_light", "구축함", "early_ship_hull_cruiser", "방어력", "basic_cruiser_armor_scheme",
                     "미사일 순양함", "early_ship_hull_heavy", "항공모함", "early_ship_hull_carrier", "잠수함", "early_ship_hull_submarine");

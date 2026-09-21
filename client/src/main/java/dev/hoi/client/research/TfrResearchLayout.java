@@ -275,7 +275,7 @@ public final class TfrResearchLayout {
     private static List<Label> referenceHeadings(String category) {
         return switch (category) {
             case "INFANTRY" -> List.of(new Label("화기 & 장비",64,22),new Label("특수부대",64,448));
-            case "SUPPORT" -> List.of(new Label("열차",64,426),new Label("다목적 / 공격 헬리콥터",160,608));
+            case "SUPPORT" -> List.of(new Label("열차",64,426),new Label("다목적 / 공격 헬리콥터",120,608));
             case "ARTILLERY" -> List.of(new Label("자주대공포",64,74),new Label("대공포",176,74),new Label("자주포",260,74),new Label("야포",344,20),new Label("로켓포",428,74),new Label("대전차포",512,74),new Label("ATGM 탑재",624,74));
             case "NAVY" -> List.of(new Label("초계함",96,52),new Label("구축함",96,150),new Label("방어력",96,210),new Label("미사일 순양함",96,288),new Label("항공모함",96,380),new Label("잠수함",96,472));
             case "NAVAL_SUPPORT" -> List.of(new Label("무장",64,22),new Label("어뢰",64,238),new Label("피해 통제",64,354),new Label("사격 통제 방식",64,408),new Label("수송선",64,466),new Label("기뢰전",64,522));
