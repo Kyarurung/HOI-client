@@ -70,7 +70,7 @@ public final class AudioKoreanMusic {
     }
     public static void enable(){enabled=stationEnabled&&!manuallyStopped;}
     public static void togglePause(){
-        if(!PLAYBACK.requested()){if(!PLAYBACK.tracks().isEmpty())play(PLAYBACK.selected());}
+        if(AudioStoryMusic.active()||!PLAYBACK.requested()){if(!PLAYBACK.tracks().isEmpty())play(PLAYBACK.selected());}
         else PLAYBACK.togglePause();
     }
     public static void stop(){enabled=false;manuallyStopped=true;PLAYBACK.stop();}

@@ -32,6 +32,34 @@ public final class AudioMusicRoutingChecks {
                     throw new AssertionError("Every country must automatically start Korean playlist: "+country);
             });
         }
+        for (boolean chooseTrack : new boolean[]{false, true}) {
+            context.runOnClient(client -> AudioStoryMusic.play("music.korea.extinction"));
+            context.waitTicks(25);
+            context.setScreen(() -> new dev.hoi.client.screen.ScreenKoreanMusic(null));
+            context.waitTicks(3);
+            context.runOnClient(client -> {
+                if (!AudioStoryMusic.active() || AudioKoreanMusic.playing() != null)
+                    throw new AssertionError("Focus music suspends the playlist before manual replacement");
+                var screen = client.gui.screen();
+                String label = chooseTrack ? AudioKoreanMusic.PLAYBACK.tracks().get(1).title() : "재생";
+                var button = screen.children().stream()
+                        .filter(widget -> widget instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals(label))
+                        .map(widget -> (net.minecraft.client.gui.components.Button)widget).findFirst().orElseThrow();
+                button.onPress(new net.minecraft.client.input.MouseButtonEvent(button.getX() + 2, button.getY() + 2,
+                        new net.minecraft.client.input.MouseButtonInfo(0, 0)));
+                if (AudioStoryMusic.active() || !AudioKoreanMusic.PLAYBACK.requested() || AudioKoreanMusic.PLAYBACK.paused())
+                    throw new AssertionError("Playlist control replaces focus music immediately");
+                if (chooseTrack && AudioKoreanMusic.PLAYBACK.selected() != 1)
+                    throw new AssertionError("Track selection replaces focus music with the chosen song");
+            });
+            context.waitTicks(25);
+            context.runOnClient(client -> {
+                if (AudioStoryMusic.active() || AudioKoreanMusic.playing() == null
+                        || !client.getSoundManager().isActive(AudioKoreanMusic.playing()))
+                    throw new AssertionError("Manual playlist replacement stays active after streaming starts");
+                client.gui.screen().onClose();
+            });
+        }
         context.runOnClient(client->{
             AudioStoryMusic.play("music.korea.extinction");
             if(AudioKoreanMusic.playing()!=null)throw new AssertionError("Focus music must immediately suspend playlist");

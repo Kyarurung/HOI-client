@@ -2,6 +2,7 @@ package dev.hoi.client.screen;
 
 import dev.hoi.client.audio.AudioKoreanMusic;
 import dev.hoi.client.audio.AudioPlaylistPlayback;
+import dev.hoi.client.audio.AudioStoryMusic;
 import dev.hoi.client.ui.*;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -67,7 +68,7 @@ public final class ScreenKoreanMusic extends Screen {
     private void control(String label,String image,int px,int py,int width,int height,Runnable action){
         var button=new UiPanelButton(label,px,py,width,height,action){
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){
-                boolean pause=image.equals("play")&&AudioKoreanMusic.PLAYBACK.requested()&&!AudioKoreanMusic.PLAYBACK.paused();
+                boolean pause=image.equals("play")&&!AudioStoryMusic.active()&&AudioKoreanMusic.PLAYBACK.requested()&&!AudioKoreanMusic.PLAYBACK.paused();
                 String title=pause?"일시정지":label;
                 if(!getMessage().getString().equals(title)){setMessage(Component.literal(title));setTooltip(UiTooltips.create(getMessage()));}
                 UiAssets.draw(g,"music/"+(pause?"pause":image),getX(),getY(),getWidth(),getHeight());
