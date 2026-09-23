@@ -1182,7 +1182,10 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             graphics.pose().pushMatrix();graphics.pose().translate(x+w/2,py.applyAsInt(11)+2);graphics.pose().scale(1.7f);
             graphics.text(font,title,-font.width(title)/2,0,TEXT,false);graphics.pose().popMatrix();
         }
-        button(title+" 창 닫기","×",px.applyAsInt(1048),py.applyAsInt(10),size.applyAsInt(31),size.applyAsInt(29),true,()->send(TANK_CLOSE,"","",0));
+        int closeWidth=size.applyAsInt(31),closeHeight=size.applyAsInt(29);
+        int closeX=px.applyAsInt(navy?1048:1044)+(size.applyAsInt(navy?37:38)-closeWidth)/2;
+        int closeY=py.applyAsInt(navy?4:8)+(size.applyAsInt(navy?38:34)-closeHeight)/2;
+        button(title+" 창 닫기","×",closeX,closeY,closeWidth,closeHeight,true,()->send(TANK_CLOSE,"","",0));
         if(tankSlot.isEmpty()&&!designPresetsOpen) {
             if(graphics!=null)UiAssets.nineSlice(graphics,"production/tank/name",px.applyAsInt(24),py.applyAsInt(59),size.applyAsInt(305),size.applyAsInt(29),4,.5);
             art(armor?"production/tank/blueprint_icon":"production/design/controls/"+branch+"_name",px.applyAsInt(25),py.applyAsInt(61),size.applyAsInt(27),size.applyAsInt(26));
@@ -1418,10 +1421,8 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(navy&&(!d.family().isEmpty()||equipment!=null)) {
             String family=d.family().isEmpty()?equipment.family():d.family();
             String category=family.equals("submarine")?"submarine":Set.of("destroyer","light_cruiser").contains(family)?"screen":"capital";
-            int imageWidth=size.applyAsInt(154),photoHeight=UiAssets.imageHeight(d.texture()+"_"+view.country().toLowerCase(Locale.ROOT),imageWidth);
-            if(photoHeight==0)photoHeight=UiAssets.imageHeight(d.texture(),imageWidth);
             int cx=px.applyAsInt(481),cw=size.applyAsInt(26),ch=size.applyAsInt(23);
-            int cy=py.applyAsInt(95)+size.applyAsInt(35)-Math.min(size.applyAsInt(60),photoHeight)-ch-size.applyAsInt(2);
+            int cy=py.applyAsInt(59)+(size.applyAsInt(29)-ch)/2;
             art("production/design/controls/ship_category_"+category,cx,cy,cw,ch);
             tip(category.equals("capital")?"주력함":category.equals("submarine")?"잠수함":"보조함",cx,cy,cw,ch);
         }
