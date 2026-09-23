@@ -52,7 +52,7 @@ public final class FocusProtocol {
         public static final Type<Response> TYPE=new Type<>(Identifier.parse("hoi:focus_response_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Response> CODEC=StreamCodec.of((b,p) -> {b.writeUtf(p.token,36);b.writeUtf(p.json,MAX_JSON);},b -> new Response(b.readUtf(36),b.readUtf(MAX_JSON)));
         public static Response of(String token,View view){return new Response(token,JSON.toJson(view));}
-        public View view(){return PayloadJson.read(JSON,json,View.class);}
+        public View view(){return ProtocolJson.read(JSON,json,View.class);}
         @Override public Type<Response> type(){return TYPE;}
     }
 }

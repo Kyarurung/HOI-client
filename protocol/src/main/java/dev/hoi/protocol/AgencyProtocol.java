@@ -33,7 +33,7 @@ public final class AgencyProtocol {
         public static final StreamCodec<RegistryFriendlyByteBuf, Response> CODEC = StreamCodec.of(
                 (b, p) -> b.writeUtf(p.json, MAX_JSON), b -> new Response(b.readUtf(MAX_JSON)));
         public static Response of(AgencyView view) { return new Response(JSON.toJson(view)); }
-        public AgencyView view() { return PayloadJson.read(JSON, json, AgencyView.class); }
+        public AgencyView view() { return ProtocolJson.read(JSON, json, AgencyView.class); }
         @Override public Type<Response> type() { return TYPE; }
     }
 }

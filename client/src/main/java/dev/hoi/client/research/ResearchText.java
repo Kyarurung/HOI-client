@@ -32,7 +32,7 @@ final class ResearchText {
         var value = VALUE.matcher(text.getString());
         if (!value.matches() || !value.group(1).stripTrailing().endsWith(":")
                 && !value.group(2).startsWith("+") && !value.group(2).startsWith("-")) return text;
-        return dev.hoi.client.ui.KeywordIcons.decorateLines(text);
+        return dev.hoi.client.ui.UiKeywordIcons.decorateLines(text);
     }
 
     static boolean zeroEffect(String text) {

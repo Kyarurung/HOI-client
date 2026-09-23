@@ -8,6 +8,11 @@ import net.minecraft.util.FormattedCharSequence;
 public final class UiText {
     public static final int MIN_HEIGHT = 9;
     private UiText() {}
+    public static String ellipsize(Font font, String value, int width) {
+        if(font.width(value)<=width)return value;
+        int suffix=font.width("…");
+        return width<suffix?"":font.plainSubstrByWidth(value,width-suffix)+"…";
+    }
     public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right) {
         float scale = scale(font);
         String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)(width / scale)));

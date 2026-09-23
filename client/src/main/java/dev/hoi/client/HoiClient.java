@@ -1,11 +1,11 @@
 package dev.hoi.client;
 
-import dev.hoi.client.network.ScreenNetworking;
+import dev.hoi.client.network.NetworkScreens;
 
-import dev.hoi.client.audio.UiSounds;
-import dev.hoi.client.input.SidebarMovement;
-import dev.hoi.client.map.AtlasSceneClient;
-import dev.hoi.client.screen.DialogClient;
+import dev.hoi.client.audio.AudioUiSounds;
+import dev.hoi.client.input.InputSidebarMovement;
+import dev.hoi.client.map.MapSceneRenderer;
+import dev.hoi.client.screen.ScreenDialogCoordinator;
 import dev.hoi.client.ui.UiAssets;
 
 import dev.hoi.protocol.ResearchProtocol;
@@ -20,42 +20,42 @@ import net.minecraft.resources.Identifier;
 public final class HoiClient implements ClientModInitializer {
     @Override public void onInitializeClient() {
         ResearchProtocol.registerPayloadTypes();
-        CampaignHud.register();
-        dev.hoi.client.map.UnitHud.register();
-        DialogClient.register();
+        ClientCampaignHud.register();
+        dev.hoi.client.map.MapUnitHud.register();
+        ScreenDialogCoordinator.register();
         dev.hoi.protocol.AudioProtocol.registerPayloadTypes();
-        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.AudioProtocol.Signal.TYPE, (packet, context) -> UiSounds.receive(packet.cue()));
-        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.AudioProtocol.Music.TYPE, (packet, context) -> dev.hoi.client.audio.StoryMusicAudio.play(packet.event()));
-        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.UnitAudioProtocol.Snapshot.TYPE, (packet, context) -> dev.hoi.client.audio.UnitAudio.receive(packet));
-        AtlasSceneClient.register();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.AudioProtocol.Signal.TYPE, (packet, context) -> AudioUiSounds.receive(packet.cue()));
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.AudioProtocol.Music.TYPE, (packet, context) -> dev.hoi.client.audio.AudioStoryMusic.play(packet.event()));
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.UnitAudioProtocol.Snapshot.TYPE, (packet, context) -> dev.hoi.client.audio.AudioUnitVoices.receive(packet));
+        MapSceneRenderer.register();
         dev.hoi.protocol.ConstructionProtocol.registerPayloadTypes();
         dev.hoi.protocol.CountryProtocol.registerPayloadTypes();
         dev.hoi.protocol.WorldTensionProtocol.registerPayloadTypes();
         net.fabricmc.fabric.api.resource.v1.ResourceLoader.get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
                 .registerReloadListener(Identifier.fromNamespaceAndPath("hoi", "ui_image_dimensions"),
-                        (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> { UiAssets.clear(); net.minecraft.client.Minecraft.getInstance().execute(dev.hoi.client.audio.UnitAudio::reset); AtlasSceneClient.resourcesReloaded(); dev.hoi.client.audio.KoreanMusic.reload(manager); });
-        ClientTickEvents.START_CLIENT_TICK.register(SidebarMovement::tick);
-        ScreenNetworking.register();
+                        (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> { UiAssets.clear(); net.minecraft.client.Minecraft.getInstance().execute(dev.hoi.client.audio.AudioUnitVoices::reset); MapSceneRenderer.resourcesReloaded(); dev.hoi.client.audio.AudioKoreanMusic.reload(manager); });
+        ClientTickEvents.START_CLIENT_TICK.register(InputSidebarMovement::tick);
+        NetworkScreens.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> registerCommands(dispatcher));
-        ClientTickEvents.END_CLIENT_TICK.register(client -> { dev.hoi.client.audio.UnitAudio.tick(); dev.hoi.client.audio.StoryMusicAudio.tick(); dev.hoi.client.audio.KoreanMusic.tick(); });
+        ClientTickEvents.END_CLIENT_TICK.register(client -> { dev.hoi.client.audio.AudioUnitVoices.tick(); dev.hoi.client.audio.AudioStoryMusic.tick(); dev.hoi.client.audio.AudioKoreanMusic.tick(); });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            dev.hoi.client.screen.IndustryScreen.clearPreferences();
-            dev.hoi.client.input.MenuShortcut.reset(); UiSounds.reset(); dev.hoi.client.audio.UnitAudio.reset(); dev.hoi.client.audio.StoryMusicAudio.reset(); dev.hoi.client.audio.KoreanMusic.PLAYBACK.stop(); SidebarMovement.release(client); dev.hoi.client.ui.HoiMenuBar.clear();
+            dev.hoi.client.screen.ScreenIndustry.clearPreferences();
+            dev.hoi.client.input.InputMenuShortcut.reset(); AudioUiSounds.reset(); dev.hoi.client.audio.AudioUnitVoices.reset(); dev.hoi.client.audio.AudioStoryMusic.reset(); dev.hoi.client.audio.AudioKoreanMusic.PLAYBACK.stop(); InputSidebarMovement.release(client); dev.hoi.client.ui.UiMenuBar.clear();
         });
     }
     static void registerCommands(com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> dispatcher) {
 
-        dispatcher.register(ClientCommands.literal("hoi-music").executes(context -> { var client = net.minecraft.client.Minecraft.getInstance(); client.gui.setScreen(new dev.hoi.client.screen.KoreanMusicScreen(client.gui.screen())); return 1; }));
+        dispatcher.register(ClientCommands.literal("hoi-music").executes(context -> { var client = net.minecraft.client.Minecraft.getInstance(); client.gui.setScreen(new dev.hoi.client.screen.ScreenKoreanMusic(client.gui.screen())); return 1; }));
         dispatcher.register(ClientCommands.literal("hoi-research").executes(context -> { open(); return 1; }));
     }
-    public static void open() { ScreenNetworking.open(); }
-    public static void openResearchDetail(String id) { ScreenNetworking.openResearchDetail(id); }
-    public static void cancelOpen() { ScreenNetworking.cancelOpen(); }
-    public static void openCountry(String target) { ScreenNetworking.openCountry(target); }
-    public static void openWorldTension() { ScreenNetworking.openWorldTension(); }
-    public static void openConstruction() { ScreenNetworking.openConstruction(); }
-    public static void openIndustry(dev.hoi.protocol.MenuTab tab) { ScreenNetworking.openIndustry(tab); }
-    public static void openAgency() { ScreenNetworking.openAgency(); }
-    public static void openMenu(dev.hoi.protocol.MenuTab tab) { ScreenNetworking.openMenu(tab); }
-    public static void send(ResearchProtocol.Request request) { ScreenNetworking.send(request); }
+    public static void open() { NetworkScreens.open(); }
+    public static void openResearchDetail(String id) { NetworkScreens.openResearchDetail(id); }
+    public static void cancelOpen() { NetworkScreens.cancelOpen(); }
+    public static void openCountry(String target) { NetworkScreens.openCountry(target); }
+    public static void openWorldTension() { NetworkScreens.openWorldTension(); }
+    public static void openConstruction() { NetworkScreens.openConstruction(); }
+    public static void openIndustry(dev.hoi.protocol.MenuTab tab) { NetworkScreens.openIndustry(tab); }
+    public static void openAgency() { NetworkScreens.openAgency(); }
+    public static void openMenu(dev.hoi.protocol.MenuTab tab) { NetworkScreens.openMenu(tab); }
+    public static void send(ResearchProtocol.Request request) { NetworkScreens.send(request); }
 }

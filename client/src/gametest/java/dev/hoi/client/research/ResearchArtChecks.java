@@ -27,6 +27,20 @@ public final class ResearchArtChecks {
                 if (cards.stream().filter(c -> c.kind().equals("장비")).anyMatch(c -> !c.texture().equals(path)))
                     throw new AssertionError("Missing equipment illustration in detail: " + id);
             }
+            var equipment = view.technologies().stream().flatMap(tech -> ResearchDetails.cards(tech).stream())
+                    .filter(card -> card.kind().equals("장비")).toList();
+            for (var card : equipment) {
+                var found = ResearchDetails.equipment(card.id()).orElseThrow();
+                if (!found.id().equals(card.id()) || !found.kind().equals("장비"))
+                    throw new AssertionError("Equipment lookup crossed its identity boundary");
+            }
+            if (ResearchDetails.equipment(null).isPresent() || ResearchDetails.equipment("hoi:missing").isPresent())
+                throw new AssertionError("Unknown equipment must remain absent");
+            var first = equipment.getFirst();
+            var beforeReload = ResearchDetails.equipment(first.id());
+            ResearchDetails.clear();
+            if (!beforeReload.equals(ResearchDetails.equipment(first.id())))
+                throw new AssertionError("Resource reload changed original equipment details");
             if (view.technologies().stream().anyMatch(t -> t.id().endsWith("/big_gun_tech")))
                 throw new AssertionError("Nonexistent research in fixture");
         });

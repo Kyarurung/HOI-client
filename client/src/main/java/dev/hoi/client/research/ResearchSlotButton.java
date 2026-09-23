@@ -1,6 +1,6 @@
 package dev.hoi.client.research;
 
-import dev.hoi.client.audio.UiSounds;
+import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.ui.UiAssets;
 
 import dev.hoi.protocol.ResearchView;
@@ -20,11 +20,11 @@ public final class ResearchSlotButton extends Button {
         super(x, y, width, height, Component.literal("슬롯 " + (slot.index() + 1) + " · " + (technology == null ? "연구 선택" : technology.name())),
                 b -> action.run(), DEFAULT_NARRATION);
         this.slot = slot; this.technology = technology; this.country = country;
-        setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(getMessage().getString()
+        setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(getMessage().getString()
                 + (technology == null ? "" : " · " + technology.remainingDays(slot.savedDays()) + "일"))));
     }
 
-    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { if (technology == null) UiSounds.play("ui.research.select"); }
+    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { if (technology == null) AudioUiSounds.play("ui.research.select"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         var font = Minecraft.getInstance().font;

@@ -39,7 +39,7 @@ public final class ResearchProtocol {
             if (json == null || json.length() > MAX_JSON) throw new IllegalArgumentException("연구 화면 데이터 한도 초과");
         }
         public static Response of(ResearchView view) { return new Response(JSON.toJson(view)); }
-        public ResearchView view() { return PayloadJson.read(JSON, json, ResearchView.class); }
+        public ResearchView view() { return ProtocolJson.read(JSON, json, ResearchView.class); }
         @Override public Type<Response> type() { return TYPE; }
     }
 

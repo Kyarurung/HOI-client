@@ -1,0 +1,63 @@
+package dev.hoi.client.audio;
+
+import dev.hoi.protocol.UnitAudioProtocol;
+import dev.hoi.protocol.UnitAudioProtocol.*;
+import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import java.util.*;
+
+public final class AudioUnitVoicesChecks {
+    public static void run(ClientGameTestContext context) {
+        var played=new SoundInstance[1];var volume=new double[1];
+        context.setScreen(()->null);
+        context.runOnClient(client->{
+            volume[0]=client.options.getSoundSourceVolume(net.minecraft.sounds.SoundSource.HOSTILE);
+            client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.HOSTILE).set(0.0);
+            for(var sound:Sound.values()) {
+                var event=client.getSoundManager().getSoundEvent(AudioUiSounds.id(sound.event()));
+                if(event==null)throw new AssertionError("Missing positional source sound: "+sound);
+                var sample=event.getSound(net.minecraft.util.RandomSource.create(0));
+                if(sample.getAttenuationDistance()!=7)throw new AssertionError("Unit sample attenuation radius must be seven");
+            }
+            var emitter=new Emitter("tank",Sound.TANK,client.player.getX()+1,client.player.getY(),client.player.getZ());
+            var snapshot=new Snapshot(client.level.dimension().identifier().toString(),List.of(emitter));
+            var buffer=new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),net.minecraft.core.RegistryAccess.EMPTY);
+            try {
+                Snapshot.CODEC.encode(buffer,snapshot);
+                if(!snapshot.equals(Snapshot.CODEC.decode(buffer))||buffer.readableBytes()!=0)throw new AssertionError("Unit audio codec");
+                buffer.clear();buffer.writeUtf(snapshot.dimension(),128);buffer.writeByte(255);
+                try {Snapshot.CODEC.decode(buffer);throw new AssertionError("Unbounded sound count accepted");}
+                catch(IllegalArgumentException expected) {}
+            } finally {buffer.release();}
+            AudioUnitVoices.receive(snapshot);
+            if(AudioUnitVoices.count()!=1)throw new AssertionError("Nearby tank starts one voice");
+            try {
+                var field=AudioUnitVoices.class.getDeclaredField("voices");field.setAccessible(true);
+                played[0]=(SoundInstance)((Map<?,?>)field.get(null)).get("tank");
+                AudioUnitVoices.receive(snapshot);
+                if(((Map<?,?>)field.get(null)).get("tank")!=played[0])throw new AssertionError("Unchanged snapshot must reuse the playing sound");
+            } catch(ReflectiveOperationException e) {throw new AssertionError(e);}
+        });
+        context.waitTicks(10);
+        context.runOnClient(client->{
+            if(played[0].getSource()!=net.minecraft.sounds.SoundSource.MASTER||!client.getSoundManager().isActive(played[0])||played[0].isRelative()||played[0].getAttenuation()!=SoundInstance.Attenuation.LINEAR)
+                throw new AssertionError("Original tank sound must play spatially");
+            var before=client.player.position();
+            client.player.setPos(played[0].getX()+7.01,played[0].getY(),played[0].getZ());
+            AudioUnitVoices.tick();client.player.setPos(before);
+            if(AudioUnitVoices.count()!=0||played[0].getVolume()!=0||played[0].isLooping()||played[0].canPlaySound())throw new AssertionError("Crossing seven blocks must immediately silence and prevent replay");
+        });
+        context.waitTicks(25);
+        context.runOnClient(client->{
+            if(client.getSoundManager().isActive(played[0]))throw new AssertionError("Out-of-range sound remains active");
+            var p=client.player;String dimension=client.level.dimension().identifier().toString();
+            AudioUnitVoices.receive(new Snapshot(dimension,List.of(new Emitter("rifle",Sound.RIFLE,p.getX(),p.getY(),p.getZ()))));
+            AudioUnitVoices.receive(new Snapshot(dimension,List.of()));
+            if(AudioUnitVoices.count()!=0)throw new AssertionError("Ceasefire/paused snapshot must stop combat audio");
+            AudioUnitVoices.receive(new Snapshot(dimension,List.of(new Emitter("rifle",Sound.RIFLE,p.getX(),p.getY(),p.getZ()))));
+            AudioUnitVoices.receive(new Snapshot("hoi:another_dimension",List.of()));
+            if(AudioUnitVoices.count()!=0)throw new AssertionError("Dimension transition must clear voices");
+            AudioUnitVoices.reset();client.options.getSoundSourceOptionInstance(net.minecraft.sounds.SoundSource.HOSTILE).set(volume[0]);
+        });
+    }
+}

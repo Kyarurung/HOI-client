@@ -43,7 +43,7 @@ public final class ConstructionProtocol {
         public static final Type<Response> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","construction_response_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Response> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,160000),b->new Response(b.readUtf(160000)));
         public static Response of(ConstructionView view){return new Response(JSON.toJson(view));}
-        public ConstructionView view() { return PayloadJson.read(JSON, json, ConstructionView.class); }
+        public ConstructionView view() { return ProtocolJson.read(JSON, json, ConstructionView.class); }
         @Override public Type<Response> type(){return TYPE;}
     }
 }

@@ -1,6 +1,6 @@
 package dev.hoi.client.research;
 
-import dev.hoi.client.audio.UiSounds;
+import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.ui.UiAssets;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -16,12 +16,12 @@ public final class ResearchTabButton extends Button {
     ResearchTabButton(String label, String category, boolean selected, int x, int y, int width, Runnable action) {
         super(x, y, width, heightFor(width), Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
         this.category = category; this.selected = selected;
-        setTooltip(dev.hoi.client.ui.HoiTooltips.create(Component.literal(label)));
+        setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(label)));
     }
 
     static int heightFor(int width) { return (int)Math.ceil(width * 61.0 / 86); }
 
-    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { UiSounds.play("ui.research.tab." + category.toLowerCase(java.util.Locale.ROOT)); }
+    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play("ui.research.tab." + category.toLowerCase(java.util.Locale.ROOT)); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth();
         if (selected) g.fill(x + 2, y + getHeight() - 5, x + w - 2, y + getHeight() + 1, 0xFF101A21);

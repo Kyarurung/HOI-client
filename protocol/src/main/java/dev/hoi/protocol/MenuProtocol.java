@@ -19,7 +19,7 @@ public final class MenuProtocol {
         public static final StreamCodec<RegistryFriendlyByteBuf, SelectionPreview> CODEC = StreamCodec.of(
                 (b, p) -> b.writeUtf(p.json, MAX_JSON), b -> new SelectionPreview(b.readUtf(MAX_JSON)));
         public static SelectionPreview of(MenuView view) { return new SelectionPreview(JSON.toJson(view)); }
-        public MenuView view() { return PayloadJson.read(JSON, json, MenuView.class); }
+        public MenuView view() { return ProtocolJson.read(JSON, json, MenuView.class); }
         @Override public Type<SelectionPreview> type() { return TYPE; }
     }
 
@@ -48,7 +48,7 @@ public final class MenuProtocol {
             if (json == null || json.length() > MAX_JSON) throw new IllegalArgumentException("메뉴 데이터 한도 초과");
         }
         public static OpenScreen of(MenuView view) { return new OpenScreen(JSON.toJson(view)); }
-        public MenuView view() { return PayloadJson.read(JSON, json, MenuView.class); }
+        public MenuView view() { return ProtocolJson.read(JSON, json, MenuView.class); }
         @Override public Type<OpenScreen> type() { return TYPE; }
     }
 }

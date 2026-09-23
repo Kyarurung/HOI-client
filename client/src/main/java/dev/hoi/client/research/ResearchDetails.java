@@ -10,31 +10,41 @@ import java.util.*;
 
 
 public final class ResearchDetails {
-    public record Card(String name, String kind, String texture, boolean representative, List<String> effects, String id) {
-        public Card { effects = List.copyOf(effects); }
+    public record ResearchCard(String name, String kind, String texture, boolean representative, List<String> effects, String id) {
+        public ResearchCard { effects = List.copyOf(effects); }
     }
-    private static Map<String, List<Card>> cached;
+    private static Map<String, List<ResearchCard>> cached;
+    private static Map<String, ResearchCard> equipment;
     private ResearchDetails() {}
-    public static void clear() { cached = null; }
-    public static Optional<Card> equipment(String id) {
+    public static void clear() { cached = null; equipment = null; }
+    public static Optional<ResearchCard> equipment(String id) {
         if(id==null)return Optional.empty();
-        if(cached==null)cached=load();
-        return cached.values().stream().flatMap(List::stream).filter(card->card.kind().equals("장비")&&id.equals(card.id())).findFirst();
+        ensureLoaded();
+        return Optional.ofNullable(equipment.get(id));
     }
-    public static List<Card> cards(Tech tech) {
+    public static List<ResearchCard> cards(Tech tech) {
         if (tech.source() == null) return List.of();
-        if (cached == null) cached = load();
+        ensureLoaded();
         return cached.getOrDefault(tech.source().id(), List.of());
     }
-    public static List<Card> cards(Tech tech, String country) {
+    public static List<ResearchCard> cards(Tech tech, String country) {
         String art = UiAssets.technologyPath(country, tech);
         return cards(tech).stream().map(card -> {
             boolean useArt = !art.isEmpty() && card.kind().equals("장비") && (card.texture().isEmpty() || card.representative() || !tech.source().parentTechnology().isEmpty() && art.startsWith("technology/country/"));
             String name = tech.source().localizedNames().getOrDefault(card.name(), card.name());
-            return new Card(name, card.kind(), useArt ? art : card.texture(), useArt || card.representative(), card.effects(),card.id());
+            return new ResearchCard(name, card.kind(), useArt ? art : card.texture(), useArt || card.representative(), card.effects(),card.id());
         }).toList();
     }
-    private static Map<String, List<Card>> load() {
+    private static void ensureLoaded() {
+        if (cached != null) return;
+        var loaded = load();
+        var indexed = new HashMap<String, ResearchCard>();
+        for (var cards : loaded.values()) for (var card : cards)
+            if (card.kind().equals("장비")) indexed.putIfAbsent(card.id(), card);
+        equipment = Map.copyOf(indexed);
+        cached = loaded;
+    }
+    private static Map<String, List<ResearchCard>> load() {
         var asset = Minecraft.getInstance().getResourceManager().getResource(
                 Identifier.fromNamespaceAndPath("hoi", "ui/research_details.json"));
         if (asset.isEmpty()) return Map.of();
@@ -45,11 +55,11 @@ public final class ResearchDetails {
             if (root.get("version").getAsInt() != 1) return Map.of();
             var technologies = root.getAsJsonObject("technologies");
             if (technologies.size() > 512) return Map.of();
-            var result = new HashMap<String, List<Card>>();
+            var result = new HashMap<String, List<ResearchCard>>();
             for (var entry : technologies.entrySet()) {
                 var values = entry.getValue().getAsJsonArray();
                 if (values.size() > 64) return Map.of();
-                var cards = new ArrayList<Card>();
+                var cards = new ArrayList<ResearchCard>();
                 for (var value : values) {
                     var card = value.getAsJsonObject();
                     String name = card.get("name").getAsString(), kind = card.get("kind").getAsString();
@@ -62,7 +72,7 @@ public final class ResearchDetails {
                         if (text.length() > 256 || effects.size() >= 64) return Map.of();
                         effects.add(text);
                     }
-                    cards.add(new Card(name, kind, texture, card.get("representative").getAsBoolean(), effects,card.has("id")?card.get("id").getAsString():""));
+                    cards.add(new ResearchCard(name, kind, texture, card.get("representative").getAsBoolean(), effects,card.has("id")?card.get("id").getAsString():""));
                 }
                 result.put(entry.getKey(), List.copyOf(cards));
             }

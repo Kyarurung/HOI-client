@@ -1,6 +1,6 @@
 package dev.hoi.client.research;
 
-import dev.hoi.client.ui.KeywordIcons;
+import dev.hoi.client.ui.UiKeywordIcons;
 
 import dev.hoi.protocol.*;
 import java.util.*;
@@ -12,23 +12,23 @@ import net.minecraft.network.chat.Style;
 public final class ResearchTextChecks {
     public static void run(ClientGameTestContext context) {
         context.runOnClient(client -> {
-            var resources=KeywordIcons.decorateLines(Component.literal("+6£resources_strip|7 -4£resources_strip|1 -1£resources_strip|5"));
+            var resources=UiKeywordIcons.decorateLines(Component.literal("+6£resources_strip|7 -4£resources_strip|1 -1£resources_strip|5"));
             check(!resources.getString().contains("£")&&!resources.getString().contains("|"), "Resource frame syntax is fully consumed");
             check(resources.getString().chars().filter(c->c>=0xe000&&c<=0xf8ff).distinct().count()==3, "Energy, oil and steel use distinct source frames");
-            var labeled = KeywordIcons.decorate(Component.literal("건설 속도: +15%"));
+            var labeled = UiKeywordIcons.decorate(Component.literal("건설 속도: +15%"));
             check(labeled.getString().endsWith(" 건설 속도: +15%") && labeled.getString().charAt(0) >= 0xe000, "Source-bound keyword glyph precedes construction speed");
             for (String label : List.of("기반시설 건설 속도", "사무단지 건설 속도"))
-                check(KeywordIcons.decorate(Component.literal(label + ": -5%")).getString().charAt(0) == labeled.getString().charAt(0), "Buildings share construction speed art");
-            var detail = KeywordIcons.decorateLines(dev.hoi.client.ui.HoiTooltips.sentences(
+                check(UiKeywordIcons.decorate(Component.literal(label + ": -5%")).getString().charAt(0) == labeled.getString().charAt(0), "Buildings share construction speed art");
+            var detail = UiKeywordIcons.decorateLines(dev.hoi.client.ui.UiTooltips.sentences(
                     Component.literal("낮은 금리\n  건설 속도: §a+5%§r\n\n§c제거 불가능§r")));
             check(detail.getString().equals("낮은 금리\n" + labeled.getString().charAt(0) + " 건설 속도: +5%\n\n제거 불가능"),
                     "Choice tooltips decorate each effect, trim source indentation and preserve blank rows");
             detail.visit((style, part) -> {
-                if (part.contains("+5%")) check(style.getColor().getValue() == dev.hoi.client.ui.HoiTooltips.GOOD, "Effect icon insertion preserves TFR colours");
+                if (part.contains("+5%")) check(style.getColor().getValue() == dev.hoi.client.ui.UiTooltips.GOOD, "Effect icon insertion preserves TFR colours");
                 return Optional.empty();
             }, Style.EMPTY);
-            char business = KeywordIcons.decorate(Component.literal("사업 가치 변동치: +5%")).getString().charAt(0);
-            char personal = KeywordIcons.decorate(Component.literal("개인 가치 변동치: -5%")).getString().charAt(0);
+            char business = UiKeywordIcons.decorate(Component.literal("사업 가치 변동치: +5%")).getString().charAt(0);
+            char personal = UiKeywordIcons.decorate(Component.literal("개인 가치 변동치: -5%")).getString().charAt(0);
             check(business >= 0xe000 && personal >= 0xe000 && business != personal, "Business and personal value use distinct source dollar art");
             labeled.visit((style, part) -> {
                 if (part.contains("건설 속도")) check(style.getFont().equals(Style.EMPTY.getFont()), "Keyword font never leaks into Korean text");
@@ -123,8 +123,8 @@ public final class ResearchTextChecks {
             final int half=index;
             double[] cursor=context.computeOnClient(client -> {
                 var screen=(ResearchScreen)client.gui.screen();
-                int pane=dev.hoi.client.ui.HoiPanelLayout.width(dev.hoi.protocol.MenuTab.RESEARCH,screen.width);
-                int top=dev.hoi.client.ui.HoiMenuBar.height(screen.width);
+                int pane=dev.hoi.client.ui.UiPanelLayout.width(dev.hoi.protocol.MenuTab.RESEARCH,screen.width);
+                int top=dev.hoi.client.ui.UiMenuBar.height(screen.width);
                 int banner=Math.max(1,Math.min((pane-12)*138/532,screen.height-top-80-6*17));
                 return new double[]{(pane*(half==0?.25:.75))*client.getWindow().getGuiScale(),(top+72+banner-16)*client.getWindow().getGuiScale()};
             });

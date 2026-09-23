@@ -1,0 +1,34 @@
+package dev.hoi.client.audio;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.*;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
+
+
+public final class AudioSuperEvent {
+    private static String token = "";
+    private static SoundInstance sound;
+    private static int startup;
+    private AudioSuperEvent() {}
+    public static void play(String session, String path) {
+        if (session.equals(token)) return;
+        reset(); if (path.isEmpty()) return;
+        var client = Minecraft.getInstance(); var id = Identifier.fromNamespaceAndPath("hoi", path);
+        if (client.getSoundManager().getSoundEvent(id) == null) return;
+        token = session; AudioKoreanMusic.enable();AudioKoreanMusic.suspend();AudioStoryMusic.reset();client.getMusicManager().stopPlaying();
+        sound = new SimpleSoundInstance(id, SoundSource.MASTER, 1, 1, RandomSource.create(), false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
+        startup=20;client.getSoundManager().play(sound);
+    }
+    public static boolean active() { return sound != null; }
+    public static void tick() {
+        if(sound==null)return;
+        var client=Minecraft.getInstance();
+        if(client.level==null){reset();return;}
+        if(client.getSoundManager().isActive(sound))client.getMusicManager().stopPlaying();
+        else if(startup--<=0){sound=null;}
+    }
+    public static void stop(String session) { if (token.equals(session)) reset(); }
+    public static void reset() { if (sound != null) Minecraft.getInstance().getSoundManager().stop(sound); sound = null; token = ""; }
+}

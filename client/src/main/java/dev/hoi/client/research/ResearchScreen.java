@@ -1,14 +1,14 @@
 package dev.hoi.client.research;
 
-import dev.hoi.client.ui.PanelButton;
+import dev.hoi.client.ui.UiPanelButton;
 
 import dev.hoi.client.HoiClient;
-import dev.hoi.client.audio.UiSounds;
-import dev.hoi.client.input.SidebarMovement;
-import dev.hoi.client.screen.DialogClient;
-import dev.hoi.client.ui.HoiMenuBar;
-import dev.hoi.client.ui.HoiMenuStyle;
-import dev.hoi.client.ui.HoiPanelLayout;
+import dev.hoi.client.audio.AudioUiSounds;
+import dev.hoi.client.input.InputSidebarMovement;
+import dev.hoi.client.screen.ScreenDialogCoordinator;
+import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.UiMenuStyle;
+import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
 
 import dev.hoi.protocol.ResearchProtocol;
@@ -25,7 +25,7 @@ import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 
-public final class ResearchScreen extends Screen implements SidebarMovement.Screen {
+public final class ResearchScreen extends Screen implements InputSidebarMovement.InputMovementScreen {
 
 
     private static final String[] CATEGORIES = {"INFANTRY", "SUPPORT", "ARMOR", "ARTILLERY", "NAVY", "NAVAL_SUPPORT", "AIR", "ENGINEERING", "INDUSTRY"};
@@ -33,8 +33,8 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     private static final int GOLD = 0xFFFFAA00, TEXT = 0xFFE0E6E8, MUTED = 0xFF9BABB4;
     private ResearchView view;
     private ResearchLayout layout;
-    private List<TfrResearchLayout.Connection> referenceConnections = List.of();
-    private List<ResearchTreeLabels.Label> referenceLabels = List.of();
+    private List<ResearchSourceLayout.ResearchConnection> referenceConnections = List.of();
+    private List<ResearchTreeLabels.ResearchLabel> referenceLabels = List.of();
     private String category = CATEGORIES[0], detail, focusedTech;
     private int selectedSlot, slotOffset, treeTop, treeBottom, treePadding, panelX, panelY, panelW, panelH, detailScroll, pending, hudScroll;
     private double scrollX, scrollY;
@@ -61,14 +61,14 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         rebuildWidgets();
     }
     @Override protected void init() {
-        if (!overview) SidebarMovement.release(minecraft);
+        if (!overview) InputSidebarMovement.release(minecraft);
         clearWidgets(); baseButtons.clear();
-        HoiMenuBar.buttons(width, view.country(), MenuTab.RESEARCH, tab -> {
+        UiMenuBar.buttons(width, view.country(), MenuTab.RESEARCH, tab -> {
             if (tab == MenuTab.RESEARCH) { HoiClient.cancelOpen(); overview = true; detail = null; rebuildWidgets(); }
             else menus.accept(tab);
         }).forEach(this::addRenderableWidget);
         if (overview) { initOverview(); return; }
-        int tabColumns = 9, tabWidth = Math.min(42, (HoiMenuBar.statsRight(width) - 20) / tabColumns);
+        int tabColumns = 9, tabWidth = Math.min(42, (UiMenuBar.statsRight(width) - 20) / tabColumns);
         for (int i = 0; i < CATEGORIES.length; i++) {
             final int index = i;
             baseButtons.add(addRenderableWidget(new ResearchTabButton(LABELS[i], CATEGORIES[i], category.equals(CATEGORIES[i]),
@@ -83,8 +83,8 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     public int treeTop() { return treeTop; }
     private int visibleSlots() { return 6; }
-    private int menuBottom() { return HoiMenuBar.height(width); }
-    private int overviewWidth() { return HoiPanelLayout.width(MenuTab.RESEARCH, width); }
+    private int menuBottom() { return UiMenuBar.height(width); }
+    private int overviewWidth() { return UiPanelLayout.width(MenuTab.RESEARCH, width); }
     private int slotPitch() { return Math.min(54, Math.max(17, (height - slotsTop() - 8) / visibleSlots())); }
     private int bannerHeight() { return Math.max(1, Math.min((overviewWidth() - 12) * 138 / 532, height - menuBottom() - 80 - visibleSlots() * 17)); }
     private int slotsTop() { return menuBottom() + 72 + bannerHeight(); }
@@ -109,18 +109,18 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         String text="";
         if(x>=12&&x<pane/2-6)text=view.benefits().limitedTooltip().isEmpty()?"제한된 기술 혜택이 여기에 열거됩니다.":view.benefits().limitedTooltip();
         else if(x>=pane/2+6&&x<pane-12)text=view.benefits().speedTooltip().isEmpty()?"§e연구 속도§r\n\n새로운 기술을 연구하는 시간이 감소합니다.":view.benefits().speedTooltip();
-        if(!text.isEmpty())dev.hoi.client.ui.HoiTooltips.drawExact(g,font,text,x,y);
+        if(!text.isEmpty())dev.hoi.client.ui.UiTooltips.drawExact(g,font,text,x,y);
     }
-    private final Map<String, ResearchLayout.Node> nodesById = new HashMap<>();
+    private final Map<String, ResearchLayout.ResearchNode> nodesById = new HashMap<>();
     private void relayout() {
         layout = ResearchPresentation.apply(ResearchLayout.create(view.technologies(), category, ""), minecraft.getResourceManager(), width - 20);
-        referenceLabels = TfrResearchLayout.applies(layout) ? ResearchTreeLabels.create(layout, font::width, font.lineHeight) : List.of();
+        referenceLabels = ResearchSourceLayout.applies(layout) ? ResearchTreeLabels.create(layout, font::width, font.lineHeight) : List.of();
         treePadding = font.lineHeight + 3;
         layout = layout.withVerticalPadding(treePadding);
         nodesById.clear(); layout.nodes().forEach(n -> nodesById.put(n.tech().id(), n));
-        referenceLabels = referenceLabels.stream().map(label -> new ResearchTreeLabels.Label(label.text(), label.x(),
+        referenceLabels = referenceLabels.stream().map(label -> new ResearchTreeLabels.ResearchLabel(label.text(), label.x(),
                 label.y() + treePadding, label.width(), label.height(), label.year())).toList();
-        referenceConnections = TfrResearchLayout.applies(layout) ? TfrResearchLayout.connections(layout) : List.of();
+        referenceConnections = ResearchSourceLayout.applies(layout) ? ResearchSourceLayout.connections(layout) : List.of();
         clampScroll();
     }
     private void clampScroll() {
@@ -129,14 +129,14 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     private Button button(String label, int x, int y, int w, int h, Runnable action) {
         return addRenderableWidget(label.equals("×")
-                ? new dev.hoi.client.ui.HoiMenuButton(label, x, y, w, h, action)
-                : new PanelButton(label, x, y, w, h, action));
+                ? new dev.hoi.client.ui.UiMenuButton(label, x, y, w, h, action)
+                : new UiPanelButton(label, x, y, w, h, action));
     }
     public void showDetail(String id) {
         var target = view.technology(id);
         if (target == null) return;
         overview = false; category = ResearchLayout.category(target);
-        UiSounds.play("ui.research.select");
+        AudioUiSounds.play("ui.research.select");
         var chosen=view.technology(id); int free=view.availableSlot(selectedSlot);
         if(chosen!=null&&chosen.status()==ResearchView.Status.AVAILABLE&&free>=0) selectedSlot=free;
         detail = id; focusedTech = id; detailScroll = 0; rebuildWidgets();
@@ -166,7 +166,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             overview = true;
             rebuildWidgets();
         });
-        ((PanelButton)start).sound("ui.click");
+        ((UiPanelButton)start).sound("ui.click");
         var child = subTechnology(tech);
         if (child != null) {
             var tooltip=Component.empty();
@@ -174,18 +174,18 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
                 if(!tooltip.getString().isEmpty())tooltip.append("\n");
                 tooltip.append(line);
             }
-            addRenderableWidget(new PanelButton(child.name(),panelX+panelW-32,panelY+63,18,18,()->showDetail(child.id())) {
+            addRenderableWidget(new UiPanelButton(child.name(),panelX+panelW-32,panelY+63,18,18,()->showDetail(child.id())) {
                 @Override protected void extractContents(GuiGraphicsExtractor g,int mouseX,int mouseY,float delta) {
                     drawSubTechnology(g,child,getX(),getY(),getWidth());
                 }
-            }).setTooltip(dev.hoi.client.ui.HoiTooltips.create(tooltip));
+            }).setTooltip(dev.hoi.client.ui.UiTooltips.create(tooltip));
         }
         start.active = pending == 0 && (activeSlot.isPresent() || tech.status() == ResearchView.Status.AVAILABLE
                 && view.availableSlot(selectedSlot)>=0);
     }
     @Override public void tick() { if (pending > 0 && --pending == 0) rebuildWidgets(); }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-        if (overview) { drawOverview(g); HoiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll); super.extractRenderState(g, mouseX, mouseY, delta); overviewTooltip(g,mouseX,mouseY); return; }
+        if (overview) { drawOverview(g); UiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll); super.extractRenderState(g, mouseX, mouseY, delta); overviewTooltip(g,mouseX,mouseY); return; }
         g.fillGradient(0, 0, width, height, 0xFF1B201E, 0xFF060909);
         g.fill(10, treeTop, width - 10, treeBottom, 0xFF101A21);
         g.outline(10, treeTop, width - 20, treeBottom - treeTop, 0xFF778178);
@@ -196,13 +196,13 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         g.text(font, "잠김", 108, height - 24, color(ResearchView.Status.LOCKED));
         if (detail != null) g.text(font, trim(view.message().isEmpty() ? "휠: 세로  ·  가로 휠/우클릭 드래그: 이동  ·  방향키/Enter: 기술 선택" : view.message(), width - 24), 12, height - 12, MUTED);
         if (detail != null) drawDetail(g);
-        HoiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll);
+        UiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll);
         super.extractRenderState(g, mouseX, mouseY, delta);
     }
     private void drawOverview(GuiGraphicsExtractor g) {
         int pane = overviewWidth(), top = menuBottom(), bannerY = top + 39;
-        HoiMenuStyle.panel(g, 0, top, pane, height - top);
-        HoiMenuStyle.heading(g, font, "연구", 12, top + 9, pane - 44, HoiMenuStyle.TEXT);
+        UiMenuStyle.panel(g, 0, top, pane, height - top);
+        UiMenuStyle.heading(g, font, "연구", 12, top + 9, pane - 44, UiMenuStyle.TEXT);
         g.fillGradient(6, bannerY, pane - 6, bannerY + bannerHeight(), 0xFF4E315E, 0xFF172731);
         if (!UiAssets.cover(g, "panel/research_banner", 6, bannerY, pane - 12, bannerHeight())) {
             ResearchIcons.fallback(g, "ENGINEERING", pane / 2 - 10, bannerY + bannerHeight() / 2 - 8, 0xFFBB98CD, 2);
@@ -210,7 +210,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         g.outline(6, bannerY, pane - 12, bannerHeight(), 0xFFA070B5);
         researchIndicator(g,"제한된 혜택:","research/limited_benefits",Integer.toString(view.benefits().remainingUses()),12,slotsTop()-33,pane/2-18,GOLD,false);
         double researchSpeed=view.benefits().researchSpeed();
-        researchIndicator(g,"연구 속도:","research/speed",String.format(Locale.ROOT,"%+.0f%%",researchSpeed*100),pane/2+6,slotsTop()-33,pane/2-18,0xFF000000 | (researchSpeed>=0?dev.hoi.client.ui.HoiTooltips.GOOD:dev.hoi.client.ui.HoiTooltips.BAD),true);
+        researchIndicator(g,"연구 속도:","research/speed",dev.hoi.protocol.ProtocolNumbers.signedPercent(researchSpeed, 0),pane/2+6,slotsTop()-33,pane/2-18,0xFF000000 | (researchSpeed>=0?dev.hoi.client.ui.UiTooltips.GOOD:dev.hoi.client.ui.UiTooltips.BAD),true);
     }
     private void researchIndicator(GuiGraphicsExtractor g,String label,String icon,String value,int x,int y,int max,int color,boolean right) {
         int natural=font.width(label)+15+font.width(value);
@@ -231,7 +231,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             int x = (int)(20 + i * ResearchLayout.COLUMN - scrollX);
             g.verticalLine(x, treeTop, treeBottom, 0xFF1C2421);
         }
-        boolean reference = TfrResearchLayout.applies(layout);
+        boolean reference = ResearchSourceLayout.applies(layout);
         if (reference) drawReferenceGuides(g);
         if(layout.sourceTree() && !reference) for(var guide:layout.yearGuides().entrySet()) {
             int gx=layout.vertical()?14:(int)(10+guide.getValue()-scrollX);
@@ -260,7 +260,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             g.fill(mid, Math.min(y1, y2), mid + 2, Math.max(y1, y2) + 2, line);
             g.fill(Math.min(mid, x2), y2, Math.max(mid, x2) + 2, y2 + 2, line);
         }
-        ResearchLayout.Node hovered = null;
+        ResearchLayout.ResearchNode hovered = null;
         for (var n : layout.nodes()) {
             int x = (int)(10 + n.x() - scrollX), y = (int)(treeTop + n.y() - scrollY);
             int cardW=n.width(),cardH=n.height();
@@ -302,14 +302,14 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
             var t = hovered.tech();
             var child=subTechnologyAt(mx,my);
             if(child!=null)t=child;
-            var lines = tooltipLines(t).stream().map(dev.hoi.client.ui.HoiTooltips::format).filter(line -> !line.getString().isBlank()).flatMap(line -> font.split(dev.hoi.client.ui.HoiTooltips.sentences(ResearchText.decorateEffect(line)), Math.min(310, width - 24)).stream()).toList();
+            var lines = tooltipLines(t).stream().map(dev.hoi.client.ui.UiTooltips::format).filter(line -> !line.getString().isBlank()).flatMap(line -> font.split(dev.hoi.client.ui.UiTooltips.sentences(ResearchText.decorateEffect(line)), Math.min(310, width - 24)).stream()).toList();
             g.setTooltipForNextFrame(font, lines, mx, my);
         }
     }
     public Tech subTechnology(Tech parent) {
         return view.technologies().stream().filter(t -> t.source()!=null && t.source().parentTechnology().equals(parent.id())).findFirst().orElse(null);
     }
-    private int subTechnologySize(ResearchLayout.Node node) { return Math.max(12,(int)Math.round(12*node.scale())); }
+    private int subTechnologySize(ResearchLayout.ResearchNode node) { return Math.max(12,(int)Math.round(12*node.scale())); }
     private Tech subTechnologyAt(double mouseX,double mouseY) {
         double x=mouseX-10+scrollX,y=mouseY-treeTop+scrollY;
         for(var node:layout.nodes()) {
@@ -329,7 +329,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     private void drawReferenceCaptions(GuiGraphicsExtractor g) {
         g.nextStratum();
-        for (var group : TfrResearchLayout.groups(layout)) {
+        for (var group : ResearchSourceLayout.groups(layout)) {
             if (group.caption().isEmpty()) continue;
             int x = (int)(10 + group.x() + group.width() + 5 - scrollX);
             int center = (int)(treeTop + group.y() + group.height() / 2 - scrollY);
@@ -344,14 +344,14 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         }
     }
     private void drawReferenceGuides(GuiGraphicsExtractor g) {
-        double scale = TfrResearchLayout.scale(layout);
+        double scale = ResearchSourceLayout.scale(layout);
         for (int row = 0; layout.vertical() && row < (int)Math.ceil(layout.height() / (44 * scale)); row++) if (row % 2 == 0) {
             int y = (int)(treeTop + treePadding + (18 + row * 44) * scale - scrollY);
             g.fill(10, y, width - 10, y + (int)Math.round(44 * scale), 0xFF131C22);
         }
     }
     private void drawReferenceConnections(GuiGraphicsExtractor g) {
-        for (var group : TfrResearchLayout.groups(layout)) {
+        for (var group : ResearchSourceLayout.groups(layout)) {
             int x=(int)(10+group.x()-scrollX), y=(int)(treeTop+group.y()-scrollY);
             g.fill(x,y,x+group.width(),y+group.height(),0x552E210B);
             g.outline(x,y,group.width(),group.height(),0xFF9F8153);
@@ -364,9 +364,9 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
                 g.fill(Math.min(x1, x2) - 1, Math.min(y1, y2) - 1, Math.max(x1, x2) + 1, Math.max(y1, y2) + 1, tint);
             }
         }
-        for (var choice : TfrResearchLayout.choices(layout)) {
+        for (var choice : ResearchSourceLayout.choices(layout)) {
             int x = (int)(10 + choice.x() - scrollX), y = (int)(treeTop + choice.y() - scrollY);
-            int size = (int)Math.round(24 * TfrResearchLayout.scale(layout));
+            int size = (int)Math.round(24 * ResearchSourceLayout.scale(layout));
             String first = choice.horizontal() ? "left" : "up", second = choice.horizontal() ? "right" : "down";
             UiAssets.draw(g, "research/xor_" + first, x - size/2, y - size/2, size, size);
             UiAssets.draw(g, "research/xor_" + second, x - size/2, y - size/2, size, size);
@@ -418,13 +418,13 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     private int detailText(GuiGraphicsExtractor g, List<? extends Component> lines, int x, int y, int w, int color) {
         for (var line : lines) {
-            var wrapped = font.split(dev.hoi.client.ui.HoiTooltips.sentences(ResearchText.decorateEffect(line)), w);
+            var wrapped = font.split(dev.hoi.client.ui.UiTooltips.sentences(ResearchText.decorateEffect(line)), w);
             if (wrapped.isEmpty()) { y += 13; continue; }
             for (var text : wrapped) { if (g != null) g.text(font, text, x, y, color); y += 13; }
         }
         return y;
     }
-    private int detailCard(GuiGraphicsExtractor g, ResearchDetails.Card card, int y) {
+    private int detailCard(GuiGraphicsExtractor g, ResearchDetails.ResearchCard card, int y) {
         int x = panelX + 14, w = panelW - 30;
         boolean image = !card.texture().isEmpty();
         int textX = x + (image ? 90 : 7), textW = w - (image ? 97 : 14);
@@ -529,8 +529,8 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
     }
     @Override public boolean mouseReleased(MouseButtonEvent event) { panning = false; return super.mouseReleased(event); }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
-        if (x >= 40 && x < HoiMenuBar.statsRight(width) && y >= 0 && y < HoiMenuBar.STATS_HEIGHT) {
-            hudScroll = HoiMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical);
+        if (x >= 40 && x < UiMenuBar.statsRight(width) && y >= 0 && y < UiMenuBar.STATS_HEIGHT) {
+            hudScroll = UiMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical);
             return true;
         }
         if (overview && x < overviewWidth() && y >= slotsTop() && view.slots().size() > visibleSlots()) {
@@ -541,7 +541,7 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         return super.mouseScrolled(x, y, horizontal, vertical);
     }
     @Override public boolean keyPressed(KeyEvent event) {
-        if (allowsMovement() && SidebarMovement.consumes(minecraft, event)) return true;
+        if (allowsMovement() && InputSidebarMovement.consumes(minecraft, event)) return true;
         if (event.key() == GLFW.GLFW_KEY_ESCAPE && detail != null) { detail = null; rebuildWidgets(); return true; }
         if (event.key() == GLFW.GLFW_KEY_ESCAPE && !overview) { overview = true; rebuildWidgets(); return true; }
         if (!overview && detail == null && getFocused() == null && !layout.nodes().isEmpty()) {
@@ -557,12 +557,12 @@ public final class ResearchScreen extends Screen implements SidebarMovement.Scre
         return super.keyPressed(event);
     }
     @Override public boolean keyReleased(KeyEvent event) {
-        if (allowsMovement() && SidebarMovement.consumes(minecraft, event)) return true;
+        if (allowsMovement() && InputSidebarMovement.consumes(minecraft, event)) return true;
         return super.keyReleased(event);
     }
     @Override public int unitHudLeft(){return overviewWidth();}
     @Override public boolean allowsMovement() { return overview && detail == null; }
-    @Override public void removed() { SidebarMovement.release(minecraft); if (DialogClient.suspending()) return; requests.accept(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, "")); }
+    @Override public void removed() { InputSidebarMovement.release(minecraft); if (ScreenDialogCoordinator.suspending()) return; requests.accept(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, "")); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private String trim(String value, int max) { return font.width(value) <= max ? value : font.plainSubstrByWidth(value, Math.max(1, max - font.width("…"))) + "…"; }

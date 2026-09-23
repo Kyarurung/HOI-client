@@ -33,6 +33,7 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
         for (var entry : details.entrySet()) {
             if (!entry.getKey().matches("[a-z_]{1,32}")) throw new IllegalArgumentException("Invalid HUD detail key");
             for (var row : entry.getValue().rows()) characters += row.label().length() + row.value().length();
+            if (entry.getValue().sourceText() != null) characters += entry.getValue().sourceText().length();
         }
         if (characters > 24000) throw new IllegalArgumentException("HUD details exceed budget");
     }

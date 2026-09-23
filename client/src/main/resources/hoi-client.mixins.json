@@ -3,14 +3,14 @@
   "package": "dev.hoi.client.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "ConstructionClickMixin",
-    "KeyboardShortcutMixin",
-    "MenuTooltipMixin",
-    "MenuBackgroundMixin",
-    "MenuClickSoundMixin",
-    "SoundManagerAccessor",
-    "SoundEngineAccessor",
-    "SoundEngineMixin"
+    "MixinConstructionClick",
+    "MixinKeyboardShortcut",
+    "MixinMenuTooltip",
+    "MixinMenuBackground",
+    "MixinMenuSound",
+    "MixinManagerAccess",
+    "MixinEngineAccess",
+    "MixinSoundResume"
   ],
   "injectors": {
     "defaultRequire": 1

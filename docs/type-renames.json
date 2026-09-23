@@ -1,0 +1,581 @@
+{
+  "topLevel": {
+    "CampaignHud": "ClientCampaignHud",
+    "KoreanMusic": "AudioKoreanMusic",
+    "PlaylistPlayback": "AudioPlaylistPlayback",
+    "StoryMusicAudio": "AudioStoryMusic",
+    "SuperEventAudio": "AudioSuperEvent",
+    "UiSounds": "AudioUiSounds",
+    "UnitAudio": "AudioUnitVoices",
+    "ConstructionMapInput": "InputConstructionMap",
+    "MapInfoInput": "InputMapInfo",
+    "MenuShortcut": "InputMenuShortcut",
+    "SidebarMovement": "InputSidebarMovement",
+    "AtlasSceneAssembler": "MapSceneAssembler",
+    "AtlasSceneClient": "MapSceneRenderer",
+    "AtlasSceneMesh": "MapSceneMesh",
+    "ConstructionClickMixin": "MixinConstructionClick",
+    "KeyboardShortcutMixin": "MixinKeyboardShortcut",
+    "MenuBackgroundMixin": "MixinMenuBackground",
+    "MenuClickSoundMixin": "MixinMenuSound",
+    "MenuTooltipMixin": "MixinMenuTooltip",
+    "SoundEngineAccessor": "MixinEngineAccess",
+    "SoundEngineMixin": "MixinSoundResume",
+    "SoundManagerAccessor": "MixinManagerAccess",
+    "PendingScreen": "NetworkPendingScreen",
+    "ScreenNetworking": "NetworkScreens",
+    "LogisticsRows": "ScreenLogisticsRows",
+    "ProductionTooltips": "ScreenProductionTooltips",
+    "EffectColors": "UiEffectColors",
+    "FlagStack": "UiFlagStack",
+    "HoiMenuBar": "UiMenuBar",
+    "HoiMenuButton": "UiMenuButton",
+    "HoiMenuStyle": "UiMenuStyle",
+    "HoiPanelLayout": "UiPanelLayout",
+    "HoiTooltips": "UiTooltips",
+    "HudTooltip": "UiHudTooltip",
+    "KeywordIcons": "UiKeywordIcons",
+    "MusicButton": "UiMusicButton",
+    "PanelButton": "UiPanelButton",
+    "PoliticalTooltip": "UiPoliticalTooltip",
+    "PoliticsLayout": "UiPoliticsLayout",
+    "PriorityControls": "UiPriorityControls",
+    "TooltipText": "UiTooltipText",
+    "HudNumbersTest": "UiMenuBarTest",
+    "KoreanMusicChecks": "AudioKoreanMusicChecks",
+    "PlaylistPlaybackTest": "AudioPlaylistPlaybackTest",
+    "UnitAudioChecks": "AudioUnitVoicesChecks",
+    "MenuShortcutTest": "InputMenuShortcutTest",
+    "AtlasSceneAssemblerTest": "MapSceneAssemblerTest",
+    "AtlasSceneMeshTest": "MapSceneMeshTest",
+    "PendingScreenTest": "NetworkPendingScreenTest",
+    "LogisticsRowsTest": "ScreenLogisticsRowsTest",
+    "TooltipTextTest": "UiTooltipTextTest",
+    "UnitHud": "MapUnitHud",
+    "UnitHudChecks": "MapUnitHudChecks",
+    "PartyChart": "ScreenPartyChart",
+    "PartyChartTest": "ScreenPartyChartTest",
+    "TfrResearchLayout": "ResearchSourceLayout",
+    "TfrResearchLayoutTest": "ResearchSourceLayoutTest",
+    "TfrResearchPlacements": "ResearchSourcePlacements",
+    "AgencyOperationScreen": "ScreenAgencyOperation",
+    "AgencyScreen": "ScreenAgency",
+    "AirDetailScreen": "ScreenAirDetail",
+    "CompletionScreen": "ScreenCompletion",
+    "ConstructionScreen": "ScreenConstruction",
+    "CountryScreen": "ScreenCountry",
+    "DecisionScreen": "ScreenDecision",
+    "DialogClient": "ScreenDialogCoordinator",
+    "DialogScreen": "ScreenDialog",
+    "DialogStackScreen": "ScreenDialogStack",
+    "DiplomacyHeader": "ScreenDiplomacyHeader",
+    "FocusScreen": "ScreenFocus",
+    "HoiMenuScreen": "ScreenMenu",
+    "IndustryScreen": "ScreenIndustry",
+    "KoreanMusicScreen": "ScreenKoreanMusic",
+    "MapCursorScreen": "ScreenMapCursor",
+    "MapDetailScreen": "ScreenMapDetail",
+    "PoliticsChoiceScreen": "ScreenPoliticsChoice",
+    "WorldTensionScreen": "ScreenWorldTension",
+    "AgencyScreenChecks": "ScreenAgencyChecks",
+    "AirDetailScreenChecks": "ScreenAirDetailChecks",
+    "CompletionScreenChecks": "ScreenCompletionChecks",
+    "ConstructionScreenChecks": "ScreenConstructionChecks",
+    "CountryScreenChecks": "ScreenCountryChecks",
+    "DecisionScreenChecks": "ScreenDecisionChecks",
+    "DialogScreenChecks": "ScreenDialogChecks",
+    "FocusScreenChecks": "ScreenFocusChecks",
+    "IndustryScreenChecks": "ScreenIndustryChecks",
+    "MapDetailScreenChecks": "ScreenMapDetailChecks",
+    "WorldTensionChecks": "ScreenWorldTensionChecks",
+    "SelectionPreviewChecks": "ScreenSelectionPreviewChecks",
+    "RegimentScreenChecks": "ScreenRegimentChecks",
+    "ScoreboardChecks": "ClientScoreboardChecks",
+    "MusicRoutingChecks": "AudioMusicRoutingChecks",
+    "AtlasSurfaceRenderChecks": "MapSurfaceRenderChecks",
+    "ArmyModelRenderChecks": "MapArmyRenderChecks",
+    "MenuTransitionChecks": "NetworkMenuTransitionChecks"
+  },
+  "nested": {
+    "audio/KoreanMusic.java": {
+      "Catalog": "AudioMusicCatalog"
+    },
+    "audio/PlaylistPlayback.java": {
+      "Track": "AudioTrack",
+      "Output": "AudioOutput"
+    },
+    "audio/UnitAudio.java": {
+      "Voice": "AudioVoice"
+    },
+    "input/SidebarMovement.java": {
+      "Screen": "InputMovementScreen"
+    },
+    "map/AtlasSceneClient.java": {
+      "Frame": "MapRenderFrame"
+    },
+    "map/AtlasSceneMesh.java": {
+      "Tile": "MapTile",
+      "Key": "MapCellKey"
+    },
+    "research/ResearchDetails.java": {
+      "Card": "ResearchCard"
+    },
+    "research/ResearchLayout.java": {
+      "Node": "ResearchNode"
+    },
+    "research/ResearchRoutes.java": {
+      "Point": "ResearchPoint",
+      "Pending": "ResearchPending"
+    },
+    "research/ResearchTreeLabels.java": {
+      "Label": "ResearchLabel",
+      "Box": "ResearchLabelBox"
+    },
+    "screen/LogisticsRows.java": {
+      "Row": "ScreenLogisticsRow"
+    },
+    "ui/HoiMenuBar.java": {
+      "Format": "UiFormat",
+      "Indicator": "UiIndicator",
+      "TabButton": "UiTabButton"
+    },
+    "ui/KeywordIcons.java": {
+      "Binding": "UiIconBinding"
+    },
+    "ui/PoliticalTooltip.java": {
+      "Row": "UiTooltipRow"
+    },
+    "ui/PoliticsLayout.java": {
+      "Box": "UiPoliticsBox"
+    },
+    "map/UnitHud.java": {
+      "Box": "MapHudBox"
+    },
+    "research/TfrResearchLayout.java": {
+      "Position": "ResearchPosition",
+      "Label": "ResearchSourceLabel",
+      "Segment": "ResearchSegment",
+      "Connection": "ResearchConnection",
+      "Choice": "ResearchChoice",
+      "Group": "ResearchGroup"
+    },
+    "screen/AirDetailScreen.java": {
+      "Hover": "ScreenAirHover"
+    },
+    "screen/MapDetailScreen.java": {
+      "Hover": "ScreenMapHover"
+    },
+    "screen/ConstructionScreen.java": {
+      "PaletteEntry": "ScreenPaletteEntry",
+      "ConversionBox": "ScreenConversionBox"
+    },
+    "screen/CountryScreen.java": {
+      "DiplomacyActionButton": "ScreenActionButton",
+      "Row": "ScreenCountryRow"
+    },
+    "screen/DecisionScreen.java": {
+      "Hit": "ScreenDecisionHit"
+    },
+    "screen/HoiMenuScreen.java": {
+      "PolicyHover": "ScreenPolicyHover",
+      "InvisibleButton": "ScreenInvisibleButton"
+    },
+    "screen/IndustryScreen.java": {
+      "DeploymentLocation": "ScreenDeploymentLocation"
+    },
+    "gametest/java/dev/hoi/client/map/MapUnitHudChecks.java": {
+      "Sidebar": "MapTestSidebar"
+    },
+    "gametest/java/dev/hoi/client/screen/ScreenDialogChecks.java": {
+      "Fixtures": "ScreenDialogFixtures"
+    }
+  },
+  "paths": [
+    [
+      "client/src/gametest/java/dev/hoi/client/audio/KoreanMusicChecks.java",
+      "client/src/gametest/java/dev/hoi/client/audio/AudioKoreanMusicChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/audio/UnitAudioChecks.java",
+      "client/src/gametest/java/dev/hoi/client/audio/AudioUnitVoicesChecks.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/CampaignHud.java",
+      "client/src/main/java/dev/hoi/client/ClientCampaignHud.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/audio/KoreanMusic.java",
+      "client/src/main/java/dev/hoi/client/audio/AudioKoreanMusic.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/audio/PlaylistPlayback.java",
+      "client/src/main/java/dev/hoi/client/audio/AudioPlaylistPlayback.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/audio/StoryMusicAudio.java",
+      "client/src/main/java/dev/hoi/client/audio/AudioStoryMusic.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/audio/SuperEventAudio.java",
+      "client/src/main/java/dev/hoi/client/audio/AudioSuperEvent.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/audio/UiSounds.java",
+      "client/src/main/java/dev/hoi/client/audio/AudioUiSounds.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/audio/UnitAudio.java",
+      "client/src/main/java/dev/hoi/client/audio/AudioUnitVoices.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/input/ConstructionMapInput.java",
+      "client/src/main/java/dev/hoi/client/input/InputConstructionMap.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/input/MapInfoInput.java",
+      "client/src/main/java/dev/hoi/client/input/InputMapInfo.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/input/MenuShortcut.java",
+      "client/src/main/java/dev/hoi/client/input/InputMenuShortcut.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/input/SidebarMovement.java",
+      "client/src/main/java/dev/hoi/client/input/InputSidebarMovement.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/map/AtlasSceneAssembler.java",
+      "client/src/main/java/dev/hoi/client/map/MapSceneAssembler.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/map/AtlasSceneClient.java",
+      "client/src/main/java/dev/hoi/client/map/MapSceneRenderer.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/map/AtlasSceneMesh.java",
+      "client/src/main/java/dev/hoi/client/map/MapSceneMesh.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/mixin/ConstructionClickMixin.java",
+      "client/src/main/java/dev/hoi/client/mixin/MixinConstructionClick.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/mixin/KeyboardShortcutMixin.java",
+      "client/src/main/java/dev/hoi/client/mixin/MixinKeyboardShortcut.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/mixin/MenuBackgroundMixin.java",
+      "client/src/main/java/dev/hoi/client/mixin/MixinMenuBackground.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/mixin/MenuClickSoundMixin.java",
+      "client/src/main/java/dev/hoi/client/mixin/MixinMenuSound.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/mixin/MenuTooltipMixin.java",
+      "client/src/main/java/dev/hoi/client/mixin/MixinMenuTooltip.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/mixin/SoundEngineAccessor.java",
+      "client/src/main/java/dev/hoi/client/mixin/MixinEngineAccess.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/mixin/SoundEngineMixin.java",
+      "client/src/main/java/dev/hoi/client/mixin/MixinSoundResume.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/mixin/SoundManagerAccessor.java",
+      "client/src/main/java/dev/hoi/client/mixin/MixinManagerAccess.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/network/PendingScreen.java",
+      "client/src/main/java/dev/hoi/client/network/NetworkPendingScreen.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/network/ScreenNetworking.java",
+      "client/src/main/java/dev/hoi/client/network/NetworkScreens.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/LogisticsRows.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenLogisticsRows.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/ProductionTooltips.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenProductionTooltips.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/EffectColors.java",
+      "client/src/main/java/dev/hoi/client/ui/UiEffectColors.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/FlagStack.java",
+      "client/src/main/java/dev/hoi/client/ui/UiFlagStack.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/HoiMenuBar.java",
+      "client/src/main/java/dev/hoi/client/ui/UiMenuBar.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/HoiMenuButton.java",
+      "client/src/main/java/dev/hoi/client/ui/UiMenuButton.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/HoiMenuStyle.java",
+      "client/src/main/java/dev/hoi/client/ui/UiMenuStyle.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/HoiPanelLayout.java",
+      "client/src/main/java/dev/hoi/client/ui/UiPanelLayout.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/HoiTooltips.java",
+      "client/src/main/java/dev/hoi/client/ui/UiTooltips.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/HudTooltip.java",
+      "client/src/main/java/dev/hoi/client/ui/UiHudTooltip.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/KeywordIcons.java",
+      "client/src/main/java/dev/hoi/client/ui/UiKeywordIcons.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/MusicButton.java",
+      "client/src/main/java/dev/hoi/client/ui/UiMusicButton.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/PanelButton.java",
+      "client/src/main/java/dev/hoi/client/ui/UiPanelButton.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/PoliticalTooltip.java",
+      "client/src/main/java/dev/hoi/client/ui/UiPoliticalTooltip.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/PoliticsLayout.java",
+      "client/src/main/java/dev/hoi/client/ui/UiPoliticsLayout.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/PriorityControls.java",
+      "client/src/main/java/dev/hoi/client/ui/UiPriorityControls.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/ui/TooltipText.java",
+      "client/src/main/java/dev/hoi/client/ui/UiTooltipText.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/audio/PlaylistPlaybackTest.java",
+      "client/src/test/java/dev/hoi/client/audio/AudioPlaylistPlaybackTest.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/input/MenuShortcutTest.java",
+      "client/src/test/java/dev/hoi/client/input/InputMenuShortcutTest.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/map/AtlasSceneAssemblerTest.java",
+      "client/src/test/java/dev/hoi/client/map/MapSceneAssemblerTest.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/map/AtlasSceneMeshTest.java",
+      "client/src/test/java/dev/hoi/client/map/MapSceneMeshTest.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/network/PendingScreenTest.java",
+      "client/src/test/java/dev/hoi/client/network/NetworkPendingScreenTest.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/screen/LogisticsRowsTest.java",
+      "client/src/test/java/dev/hoi/client/screen/ScreenLogisticsRowsTest.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/ui/HudNumbersTest.java",
+      "client/src/test/java/dev/hoi/client/ui/UiMenuBarTest.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/ui/TooltipTextTest.java",
+      "client/src/test/java/dev/hoi/client/ui/UiTooltipTextTest.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/map/UnitHudChecks.java",
+      "client/src/gametest/java/dev/hoi/client/map/MapUnitHudChecks.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/map/UnitHud.java",
+      "client/src/main/java/dev/hoi/client/map/MapUnitHud.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/research/TfrResearchLayout.java",
+      "client/src/main/java/dev/hoi/client/research/ResearchSourceLayout.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/research/TfrResearchPlacements.java",
+      "client/src/main/java/dev/hoi/client/research/ResearchSourcePlacements.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/PartyChart.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenPartyChart.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/research/TfrResearchLayoutTest.java",
+      "client/src/test/java/dev/hoi/client/research/ResearchSourceLayoutTest.java"
+    ],
+    [
+      "client/src/test/java/dev/hoi/client/screen/PartyChartTest.java",
+      "client/src/test/java/dev/hoi/client/screen/ScreenPartyChartTest.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/ScoreboardChecks.java",
+      "client/src/gametest/java/dev/hoi/client/ClientScoreboardChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/audio/MusicRoutingChecks.java",
+      "client/src/gametest/java/dev/hoi/client/audio/AudioMusicRoutingChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/map/ArmyModelRenderChecks.java",
+      "client/src/gametest/java/dev/hoi/client/map/MapArmyRenderChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/map/AtlasSurfaceRenderChecks.java",
+      "client/src/gametest/java/dev/hoi/client/map/MapSurfaceRenderChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/network/MenuTransitionChecks.java",
+      "client/src/gametest/java/dev/hoi/client/network/NetworkMenuTransitionChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/AgencyScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenAgencyChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/AirDetailScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenAirDetailChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/CompletionScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenCompletionChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/ConstructionScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenConstructionChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/CountryScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenCountryChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/DecisionScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenDecisionChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/DialogScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenDialogChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/FocusScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenFocusChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/IndustryScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenIndustryChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/MapDetailScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenMapDetailChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/RegimentScreenChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenRegimentChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/SelectionPreviewChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenSelectionPreviewChecks.java"
+    ],
+    [
+      "client/src/gametest/java/dev/hoi/client/screen/WorldTensionChecks.java",
+      "client/src/gametest/java/dev/hoi/client/screen/ScreenWorldTensionChecks.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/AgencyOperationScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenAgencyOperation.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/AgencyScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenAgency.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/AirDetailScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenAirDetail.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/CompletionScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenCompletion.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/ConstructionScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenConstruction.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/CountryScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenCountry.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/DecisionScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenDecision.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/DialogClient.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenDialogCoordinator.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/DialogScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenDialog.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/DialogStackScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenDialogStack.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/DiplomacyHeader.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenDiplomacyHeader.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/FocusScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenFocus.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/HoiMenuScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenMenu.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/IndustryScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenIndustry.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/KoreanMusicScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenKoreanMusic.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/MapCursorScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenMapCursor.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/MapDetailScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenMapDetail.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/PoliticsChoiceScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenPoliticsChoice.java"
+    ],
+    [
+      "client/src/main/java/dev/hoi/client/screen/WorldTensionScreen.java",
+      "client/src/main/java/dev/hoi/client/screen/ScreenWorldTension.java"
+    ]
+  ],
+  "protocolInternal": {
+    "PayloadJson": "ProtocolJson",
+    "PayloadDecodeTest": "ProtocolJsonTest",
+    "FuelHudTest": "ProtocolFuelHudTest",
+    "PresentationViewTest": "ProtocolPresentationTest"
+  }
+}

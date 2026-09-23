@@ -29,3 +29,18 @@ tasks.withType(JavaExec).configureEach {
 
 
 sourceSets.gametest.resources.srcDir("src/test/resources")
+
+sourceSets {
+    benchmark {
+        compileClasspath += sourceSets.main.output + sourceSets.test.runtimeClasspath
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+tasks.register('benchmarkMesh', JavaExec) {
+    group = 'verification'
+    description = 'Compares complete Java atlas mesh construction with the retained baseline.'
+    classpath = sourceSets.benchmark.runtimeClasspath
+    mainClass = 'dev.hoi.client.map.MapMeshBenchmark'
+    jvmArgs '-Xms1g', '-Xmx1g'
+}

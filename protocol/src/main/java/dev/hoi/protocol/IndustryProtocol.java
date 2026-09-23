@@ -13,7 +13,8 @@ public final class IndustryProtocol {
     private IndustryProtocol() {}
     public enum Action { OPEN, REFRESH, CLOSE, ADD, ASSIGN, SWITCH, REMOVE, FIRST, TRADE, CANCEL_TRADE,
         LOAD_TEMPLATE, NEW_TEMPLATE, LINE_SLOT, SUPPORT_SLOT, SAVE_TEMPLATE, RECRUIT, CANCEL_RECRUIT, PRIORITY, DEPLOY,
-        LINE_COLUMN, REGIMENT_SUPPORT, UP, DOWN, DEPLOY_GROUP, CANCEL_GROUP, SERIES, LOCATION, GROUP_PRIORITY, RETIRE_TEMPLATE, ALLOCATION_PRIORITY, SELECT_LOCATION, LOCATION_AT, CONVERSION }
+        LINE_COLUMN, REGIMENT_SUPPORT, UP, DOWN, DEPLOY_GROUP, CANCEL_GROUP, SERIES, LOCATION, GROUP_PRIORITY, RETIRE_TEMPLATE, ALLOCATION_PRIORITY, SELECT_LOCATION, LOCATION_AT, CONVERSION,
+        TANK_OPEN, TANK_MODULE, TANK_UPGRADE, TANK_SAVE, TANK_CLOSE, TANK_RESET }
     public static synchronized void registerPayloadTypes() {
         if(registered)return;
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE,Request.CODEC);
@@ -46,7 +47,7 @@ public final class IndustryProtocol {
         public static final Type<Response> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","industry_response_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Response> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,800000),b->new Response(b.readUtf(800000)));
         public static Response of(IndustryView view){return new Response(JSON.toJson(view));}
-        public IndustryView view() { return PayloadJson.read(JSON, json, IndustryView.class); }
+        public IndustryView view() { return ProtocolJson.read(JSON, json, IndustryView.class); }
         @Override public Type<Response> type(){return TYPE;}
     }
 }
