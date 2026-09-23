@@ -75,7 +75,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         if(standing){
             art(g,"map_detail/level_bg",x+(w-50)/2,y+50,50,28);
             g.pose().pushMatrix();
-            g.pose().translate(0,tile.section().equals("province")?(tile.icon().endsWith("/coastal_fort")?2:1):tile.section().equals("state")?1:0);
+            g.pose().translate(0,tile.section().equals("province")||tile.section().equals("state")?1:0);
             label(g,level(tile.value()),x+(w-50)/2,y+50,50,28,UiMenuStyle.TEXT,14,true);
             g.pose().popMatrix();
         }

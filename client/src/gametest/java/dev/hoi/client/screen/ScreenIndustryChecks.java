@@ -24,6 +24,7 @@ public final class ScreenIndustryChecks {
         context.runOnClient(client->client.options.guiScale().set(2));
         for(String id:List.of("ship_hull_light_1","ship_hull_cruiser_2","ship_hull_carrier_2","ship_hull_carrier_conversion_ca","ship_hull_submarine_3","ship_hull_heavy_2","ship_hull_super_heavy_1","small_plane_airframe_3","large_plane_airframe_1","medium_plane_airframe_1","cv_small_plane_airframe_3")) {
             var fixture=tankFixture("branch-"+id+"-fixture.json");
+            check(!fixture.tankDesigner().family().isEmpty(),"Designer family is supplied independently of production-list eligibility");
             context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
             context.runOnClient(client->{
                 var screen=(ScreenIndustry)client.gui.screen();checkBounds(screen);
@@ -152,7 +153,8 @@ public final class ScreenIndustryChecks {
         });
         check(requests.getLast().action()==IndustryProtocol.Action.TANK_UPGRADE&&requests.getLast().amount()==1,"Engine upgrade sends a bounded level request");
         context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,ready.session(),ready,requests::add));context.waitTicks(2);
-        int beforeManufacturer=requests.size();click(context,"전차 설계사");
+        int beforeManufacturer=requests.size();
+        context.runOnClient(client->check(!button((ScreenIndustry)client.gui.screen(),"전차 설계사 · 군수산업체 선택은 아직 지원하지 않습니다.").active,"Unsupported manufacturer selection is disabled"));
         check(requests.size()==beforeManufacturer,"Manufacturer placeholder does not send gameplay requests");
         click(context,"설계 저장 · 육군 경험치 "+ready.tankDesigner().experience());
         check(requests.getLast().action()==IndustryProtocol.Action.TANK_SAVE&&requests.getLast().item().equals(ready.tankDesigner().name()),"Save retains the source design name");
@@ -195,6 +197,36 @@ public final class ScreenIndustryChecks {
             context.getInput().resizeWindow(size[0],size[1]);
             context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,ready.session(),ready,requests::add));context.waitTicks(2);
             context.runOnClient(client->checkBounds((ScreenIndustry)client.gui.screen()));
+        }
+        context.getInput().resizeWindow(1600,1000);
+    }
+
+    private static void designPresets(ClientGameTestContext context) {
+        var path=net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("hoi/equipment-design-presets.json");
+        byte[] original;
+        try {original=java.nio.file.Files.exists(path)?java.nio.file.Files.readAllBytes(path):null;}
+        catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}
+        try {
+            context.getInput().resizeWindow(2560,1440);context.runOnClient(client->client.options.guiScale().set(2));
+            for(String file:List.of("tank-designer-fixture.json","branch-ready-ship_hull_light_1-fixture.json","branch-ready-small_plane_airframe_1-fixture.json")) {
+                var fixture=tankFixture(file);var requests=new ArrayList<IndustryProtocol.Request>();
+                context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
+                click(context,"파일로 저장");context.waitTicks(1);
+                var store=new dev.hoi.client.ui.EquipmentDesignPresets(path);
+                check(store.load().contains(EquipmentDesignPreset.from(fixture.tankDesigner(),fixture.tankDesigner().name())),"Common preset button persists the complete branch design");
+                context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
+                click(context,"저장된 설계 보기");context.waitTicks(2);
+                context.runOnClient(client->checkBounds((ScreenIndustry)client.gui.screen()));
+                context.getInput().setCursorPos(2400,1300);context.takeScreenshot("hoi-design-presets-"+fixture.tankDesigner().chassis()+"-gui2");
+                click(context,"저장된 설계 불러오기: "+fixture.tankDesigner().name());
+                var request=requests.getLast();
+                check(request.action()==IndustryProtocol.Action.TANK_PRESET,"Preset application uses one revision-checked request");
+                check(EquipmentDesignPreset.parse(request.other()).equals(EquipmentDesignPreset.from(fixture.tankDesigner(),fixture.tankDesigner().name())),"Preset preserves name, chassis, modules and upgrade levels");
+            }
+        } catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}
+        finally {
+            try {if(original==null)java.nio.file.Files.deleteIfExists(path);else java.nio.file.Files.write(path,original);}
+            catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}
         }
         context.getInput().resizeWindow(1600,1000);
     }
@@ -275,6 +307,7 @@ public final class ScreenIndustryChecks {
         check(chromium.extracted()<0&&chromium.imported()>0&&chromium.available()<0,"Partial chromium imports still leave a deficit");
         tankDesigner(context);
         branchDesigners(context);
+        designPresets(context);
         longNames(context,v);
         tradeTooltips(context,v);
         var sourceEquipment=new ArrayList<IndustryView.Equipment>();

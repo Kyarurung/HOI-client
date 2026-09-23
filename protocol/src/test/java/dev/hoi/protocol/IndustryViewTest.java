@@ -7,6 +7,16 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndustryViewTest {
+    @Test void designerAdjustmentsPreserveSignsAndLegacyAbsence() {
+        var gson=new com.google.gson.Gson();
+        var adjustment=new TankDesignerView.Adjustment("forest",-.2,0,.1);
+        var design=new TankDesignerView("chassis","name","texture",List.of(),List.of(),List.of(),Map.of(),1,0,List.of(),List.of(),List.of(adjustment));
+        assertEquals(design,gson.fromJson(gson.toJson(design),TankDesignerView.class));
+        var legacy=gson.toJsonTree(design).getAsJsonObject();legacy.remove("adjustments");
+        assertTrue(gson.fromJson(legacy,TankDesignerView.class).adjustments().isEmpty());
+        assertThrows(IllegalArgumentException.class,()->new TankDesignerView.Adjustment("forest",Double.NaN,0,0));
+        assertThrows(IllegalArgumentException.class,()->new TankDesignerView("chassis","name","texture",List.of(),List.of(),List.of(),Map.of(),1,0,List.of(),List.of(),Collections.nCopies(17,adjustment)));
+    }
     @Test void equipmentSourceReferenceIsOptionalAndBounded() {
         var gson=new com.google.gson.Gson();
         var old=new IndustryView.Equipment("old","Old","old","infantry",false,true,1,4,Map.of(),5,2,1,0);

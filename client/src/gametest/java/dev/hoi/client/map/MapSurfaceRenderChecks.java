@@ -88,7 +88,7 @@ public final class MapSurfaceRenderChecks {
                 if(!frontCity)throw new AssertionError("The front province city must move south to the cell immediately north of Seoul");
             }
             int size=scene.get("size").getAsInt();
-            for(String mode:new String[]{"ARMY","NAVY","AIR","SUPPLY"}) {
+            for(String mode:new String[]{"ARMY","NAVY","AIR","SUPPLY","RESOURCES"}) {
                 command.accept("kill @e[type=minecraft:block_display]");command.accept("kill @e[type=minecraft:item_display]");command.accept("kill @e[type=minecraft:text_display]");
                 command.accept("fill 0 66 0 "+(size-1)+" 68 "+(size-1)+" minecraft:air");
                 command.accept("fill 0 64 0 "+(size-1)+" 64 "+(size-1)+" minecraft:stone");
@@ -115,9 +115,39 @@ public final class MapSurfaceRenderChecks {
                     if(MapSceneRenderer.tileCount()==0)throw new AssertionError("Static scene did not assemble");
                 });
 
+                if(mode.equals("RESOURCES")) {
+                    var resources=data.getAsJsonArray("resources");
+                    if(resources.isEmpty())throw new AssertionError("Resource mode needs actual state resource markers");
+                    for(var entry:resources) {
+                        var row=entry.getAsJsonArray();
+                        command.accept("summon minecraft:text_display "+row.get(0).getAsDouble()+" "+row.get(1).getAsDouble()+" "+row.get(2).getAsDouble()+" "+row.get(3));
+                    }
+                    context.getInput().resizeWindow(2560,1440);
+                    command.accept("tp @a 28 111 28 180 90");context.waitTicks(25);
+                    checkPixels(context.takeScreenshot("hoi-atlas-resources-gui2"),false);
+                    command.accept("tp @a 23 90 32 180 90");context.waitTicks(25);
+                    checkPixels(context.takeScreenshot("hoi-atlas-resources-detail-gui2"),false);
+                    command.accept("tp @a 23 78 15 0 30");context.waitTicks(25);
+                    checkPixels(context.takeScreenshot("hoi-atlas-resources-floating-gui2"),false);
+                    context.getInput().resizeWindow(1400,1000);
+                }
                 command.accept("tp @a 28 111 28 180 90");context.waitTicks(25);
                 var screenshot=context.takeScreenshot("hoi-atlas-"+mode.toLowerCase()+"-coasts");checkPixels(screenshot,false);
                 if(mode.equals("ARMY")) {
+                    context.getInput().resizeWindow(2560,1440);
+                    for(var countryVictory:data.getAsJsonArray("victories"))summonFixtureModel(command,countryVictory.getAsJsonArray(),true);
+                    for(int distance=0;distance<2;distance++) {
+                        command.accept("kill @e[type=minecraft:text_display]");
+                        for(var entry:data.getAsJsonArray("countryNames")) {
+                            var row=entry.getAsJsonArray();
+                            if(row.get(4+distance).getAsBoolean())command.accept("summon minecraft:text_display "+row.get(0).getAsDouble()+" "+row.get(1).getAsDouble()+" "+row.get(2).getAsDouble()+" "+row.get(3));
+                        }
+                        command.accept(distance==0?"tp @a 28 111 28 180 90":"tp @a 23 77 32 180 90");context.waitTicks(25);
+                        checkPixels(context.takeScreenshot("hoi-country-names-"+(distance==0?"far":"near")+"-gui2"),false);
+                    }
+                    command.accept("kill @e[type=minecraft:text_display]");
+                    command.accept("kill @e[type=minecraft:item_display]");
+                    context.getInput().resizeWindow(1400,1000);
                     for(var facility:data.getAsJsonArray("facilities"))summonFixtureModel(command,facility.getAsJsonArray(),false);
                     var city=boxes.stream().filter(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY).findFirst().orElseThrow();
                     double cityX=city.x()+city.sx()/2,cityZ=city.z()+city.sz()/2;

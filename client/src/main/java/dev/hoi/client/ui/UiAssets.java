@@ -60,6 +60,10 @@ public final class UiAssets {
         g.blit(id, left, top, left + fitW, top + fitH, (float)trimLeft / size[0], 1 - (float)trimRight / size[0], 0, 1);
         return true;
     }
+    public static boolean drawBottom(GuiGraphicsExtractor g,String path,int x,int y,int width,int height) {
+        int fittedHeight=Math.min(height,imageHeight(path,width));
+        return fittedHeight>0&&draw(g,path,x,y+height-fittedHeight,width,fittedHeight);
+    }
     public static boolean drawContent(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         if (id == null || w <= 0 || h <= 0) return false;
@@ -70,6 +74,24 @@ public final class UiAssets {
         int fitW = Math.max(1, (int)Math.round(sourceW * scale)), fitH = Math.max(1, (int)Math.round(sourceH * scale));
         int left = x + (w - fitW) / 2, top = y + (h - fitH) / 2;
         g.blit(id, left, top, left + fitW, top + fitH, (float)bounds[2] / bounds[0], (float)bounds[4] / bounds[0], (float)bounds[3] / bounds[1], (float)bounds[5] / bounds[1]);
+        return true;
+    }
+    public static boolean drawAlignedContent(GuiGraphicsExtractor g,String path,String reference,float x,float y,float w,float h) {
+        var id=Identifier.tryParse("hoi:textures/gui/"+path+".png");
+        var anchor=Identifier.tryParse("hoi:textures/gui/"+reference+".png");
+        if(id==null||anchor==null||w<=0||h<=0)return false;
+        int[] bounds=CONTENT_BOUNDS.computeIfAbsent(anchor,UiAssets::contentBounds);
+        int[] imageSize=DIMENSIONS.computeIfAbsent(id,UiAssets::dimensions);
+        if(bounds.length==0||imageSize[0]!=bounds[0]||imageSize[1]!=bounds[1])return false;
+        int contentW=bounds[4]-bounds[2],contentH=bounds[5]-bounds[3];
+        float scale=Math.min(w/imageSize[0],h/imageSize[1]);
+        float guiScale=Minecraft.getInstance().getWindow().getGuiScale();
+        float left=x+w/2f-(bounds[2]+contentW/2f)*scale,top=y+h/2f-(bounds[3]+contentH/2f)*scale;
+        g.pose().pushMatrix();
+        g.pose().translate(Math.round(left*guiScale)/guiScale,Math.round(top*guiScale)/guiScale);
+        g.pose().scale(scale);
+        g.blit(id,0,0,imageSize[0],imageSize[1],0,1,0,1);
+        g.pose().popMatrix();
         return true;
     }
     private static int[] contentBounds(Identifier id) {
@@ -118,7 +140,7 @@ public final class UiAssets {
         }
         return hasTexture(common) ? common : "";
     }
-    static int imageHeight(String path, int width) {
+    public static int imageHeight(String path, int width) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         if (id == null) return 0;
         int[] size = DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions);

@@ -33,6 +33,9 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private MenuTab tab;
     private IndustryView view;
     private final Map<String,Equipment> equipmentById=new HashMap<>();
+    private final Map<String,Equipment> equipmentBySource=new HashMap<>();
+    private final Map<String,String> navalFamilyByTexture=new HashMap<>();
+    private final Map<String,TankDesignerView.Slot> designSlots=new HashMap<>();
     private final Map<String,Template> templatesById=new HashMap<>();
     private final Map<String,NavalRepair> repairShipsById=new HashMap<>();
     private List<Equipment> productionItems=List.of(),navalTypes=List.of();
@@ -59,6 +62,11 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private EditBox nameBox, tankNameBox;
     private String tankName="",tankSlot="";
     private int tankScroll;
+    private boolean designPresetsOpen,presetApplying;
+    private String presetMessage="";
+    private List<EquipmentDesignPreset> designPresets=List.of();
+    private final dev.hoi.client.ui.EquipmentDesignPresets presetStore=new dev.hoi.client.ui.EquipmentDesignPresets(
+            net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("hoi/equipment-design-presets.json"));
     private final Set<String> collapsedRecruitment = new HashSet<>();
     private GuiGraphicsExtractor graphics;
     private int mouseX, mouseY;
@@ -95,6 +103,10 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if (next.draft() != null && (view == null || view.draft() == null)) draftName = next.draft().name();
         if (designer && next.draft() == null) designer = false;
         if(next.tankDesigner()!=null&&!tankDesigner()) {tankName=next.tankDesigner().name();tankSlot="";tankScroll=0;}
+        if(presetApplying) {
+            if(next.tankDesigner()!=null&&next.message().equals("저장된 설계를 불러왔습니다."))tankName=next.tankDesigner().name();
+            presetApplying=false;
+        }
         view = next; pending = 0; indexView();
         if (selectingDeployment && (next.message().equals("배치 장소를 지정했습니다.") || next.recruits().stream().noneMatch(r -> r.id().equals(locationRecruit)))) {
             selectingDeployment = false; dev.hoi.client.map.MapSceneRenderer.clearDeployment();
@@ -106,10 +118,15 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     int panelWidth() { return pane; }
     private boolean compact() { return height - top < 300; }
     private void indexView() {
-        equipmentById.clear();templatesById.clear();repairShipsById.clear();
+        equipmentById.clear();equipmentBySource.clear();navalFamilyByTexture.clear();designSlots.clear();templatesById.clear();repairShipsById.clear();
         militaryFactories=0;navalFactories=0;
         if(view==null)return;
-        view.equipment().forEach(e->equipmentById.putIfAbsent(e.id(),e));
+        for(var e:view.equipment()) {
+            equipmentById.putIfAbsent(e.id(),e);
+            if(e.sourceEquipment()!=null)equipmentBySource.putIfAbsent(e.sourceEquipment(),e);
+            if(e.naval()&&e.family()!=null)navalFamilyByTexture.putIfAbsent(e.texture(),e.family());
+        }
+        if(view.tankDesigner()!=null)view.tankDesigner().slots().forEach(slot->designSlots.putIfAbsent(slot.id(),slot));
         view.templates().forEach(t->templatesById.putIfAbsent(t.id(),t));
         if(view.navalRepairs()!=null)view.navalRepairs().ships().forEach(ship->repairShipsById.putIfAbsent(ship.id(),ship));
         for(var line:view.lines()) {
@@ -977,34 +994,41 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(graphics==null) {
             var toggle=new UiPanelButton("구형 장비 표시",x+63,y+5,w-91,16,()->{showOutdated=!showOutdated;pickerScroll=0;rebuildWidgets();}) {
                 @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                    UiAssets.draw(g,"production/picker/text_bg",getX()+16,getY()+1,getWidth()-19,14);
-                    UiAssets.draw(g,"production/picker/check_"+(showOutdated?"on":"off"),getX(),getY(),13,13);
-                    UiText.text(g,font,Component.literal("구형 장비").withColor(GOLD).append(Component.literal(" 표시").withColor(TEXT)),getX()+16,getY()+3,TEXT);
+                    var label=Component.literal("구형 장비").withColor(GOLD).append(Component.literal(" 표시").withColor(TEXT));
+                    int labelWidth=(int)Math.ceil(font.width(label)*UiText.scale(font));
+                    int labelAreaWidth=labelWidth+8,groupWidth=13+3+labelAreaWidth;
+                    int groupX=getX()+(getWidth()-groupWidth)/2;
+                    UiAssets.draw(g,"production/picker/text_bg",groupX+16,getY()+(getHeight()-14)/2,labelAreaWidth,14);
+                    g.pose().pushMatrix();g.pose().translate(groupX,getY()+(getHeight()-13)/2);g.pose().scale(1,14f/13);
+                    UiAssets.draw(g,"production/picker/check_"+(showOutdated?"on":"off"),0,0,13,13);
+                    g.pose().popMatrix();
+                    UiText.text(g,font,label,groupX+20,getY()+(getHeight()-Math.round(font.lineHeight*UiText.scale(font)))/2,TEXT);
                 }
             };
             toggle.active=pending==0;addRenderableWidget(toggle);
         }
         recess(x+7,y+5,45,16);
         art("production/picker/manufacturer",x+11,y+7,12,12);
-        cellText("—",x+26,y+5,24,16,GOLD,false);
+        cellText("0",x+26,y+5,24,16,GOLD,false);
         tip("군수산업조직 현황 미제공",x+7,y+5,45,16);
         var items=productionItems;
         int filtersY=y+25;
         if(naval) {
             var types=navalTypes;
-            int cell=(w-48)/4;
+            int cell=(w-48)/3;
             for(int i=0;i<types.size();i++) {
                 var model=types.get(i);String type=model.family();
-                int bx=x+6+i%4*cell,by=filtersY+i/4*14;
+                int bx=x+6+i%3*cell,by=filtersY+i/3*20;
                 if(graphics==null) {
-                    var filter=new UiPanelButton(familyName(model),bx,by,cell-2,13,()->{navalFamily=navalFamily.equals(type)?"":type;pickerScroll=0;rebuildWidgets();}) {
+                    var filter=new UiPanelButton(familyName(model),bx,by,cell-2,18,()->{navalFamily=navalFamily.equals(type)?"":type;pickerScroll=0;rebuildWidgets();}) {
                         @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                             UiAssets.draw(g,"production/picker/filter_bg",bx,by,getWidth(),getHeight());
                             if(navalFamily.equals(type))UiAssets.draw(g,"production/picker/filter_highlight",bx,by,getWidth(),getHeight());
                             String icon=navalSilhouette(type);
-                            UiAssets.draw(g,icon,bx+3,by+2,Math.max(1,getWidth()-18),getHeight()-4);
+                            int numberWidth=14,padding=4;
+                            UiAssets.draw(g,icon,bx+padding,by+2,Math.max(1,getWidth()-numberWidth-padding*2),getHeight()-4);
                             long count=navalCounts.getOrDefault(type,0L);
-                            UiText.cell(g,font,Long.toString(count),bx+getWidth()-14,by,12,getHeight(),TEXT,true);
+                            productionText(g,Long.toString(count),bx+getWidth()-numberWidth-padding,by+2,numberWidth,getHeight()-4,TEXT);
                         }
                     };
                     filter.active=pending==0;filter.setTooltip(UiTooltips.create(Component.literal(familyName(model))));addRenderableWidget(filter);
@@ -1024,7 +1048,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             }
         }
         int start=y+49;
-        if(naval)start=y+29+Math.max(2,(navalTypes.size()+3)/4)*14;
+        if(naval)start=y+29+Math.max(2,(navalTypes.size()+2)/3)*20;
         var current=view.lines().stream().filter(l->l.id().equals(switchLine)).findFirst().orElse(null);
         int row=Math.max(34,Math.round((w-12)*80f/460));
         pickerScroll=clampScroll(pickerScroll,items.size(),row,start);
@@ -1099,7 +1123,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         return String.join("\n\n",errors);
     }
     private boolean tankDesigner() {return view!=null&&view.tankDesigner()!=null;}
-    private void openTank(Equipment equipment) {tankSlot="";tankScroll=0;send(TANK_OPEN,equipment.id(),"",0);}
+    private void openTank(Equipment equipment) {tankSlot="";tankScroll=0;designPresetsOpen=false;presetMessage="";send(TANK_OPEN,equipment.id(),"",0);}
     private static String tankValue(TankDesignerView.Stat stat) {
         if(stat.id().equals("carrier_size"))return Long.toString((long)stat.value());
         int decimals=Set.of("supply_consumption","fuel_consumption","build_cost_ic").contains(stat.id())?2:1;
@@ -1137,6 +1161,8 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private void layoutEquipmentDesigner() {
         var d=view.tankDesigner();
         var displayedStats=d.missions().stream().filter(m->m.id().equals(designMission)).map(TankDesignerView.Mission::stats).findFirst().orElse(d.stats());
+        var statsById=new HashMap<String,TankDesignerView.Stat>();
+        displayedStats.forEach(stat->statsById.putIfAbsent(stat.id(),stat));
         String branch=designBranch(),title=designerTitle(branch);
         boolean armor=branch.equals("army"),navy=branch.equals("navy");
         Double experience=armor?view.economy().armyXp():navy?view.hud().navyExperience():view.hud().airExperience();
@@ -1157,15 +1183,15 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             graphics.text(font,title,-font.width(title)/2,0,TEXT,false);graphics.pose().popMatrix();
         }
         button(title+" 창 닫기","×",px.applyAsInt(1048),py.applyAsInt(10),size.applyAsInt(31),size.applyAsInt(29),true,()->send(TANK_CLOSE,"","",0));
-        if(tankSlot.isEmpty()) {
-            if(graphics!=null)UiAssets.nineSlice(graphics,"production/tank/name",px.applyAsInt(24),py.applyAsInt(59),size.applyAsInt(300),size.applyAsInt(29),4,.5);
-            art(armor?"production/tank/blueprint_icon":"production/picker/variant_"+branch,px.applyAsInt(25),py.applyAsInt(61),size.applyAsInt(27),size.applyAsInt(26));
+        if(tankSlot.isEmpty()&&!designPresetsOpen) {
+            if(graphics!=null)UiAssets.nineSlice(graphics,"production/tank/name",px.applyAsInt(24),py.applyAsInt(59),size.applyAsInt(305),size.applyAsInt(29),4,.5);
+            art(armor?"production/tank/blueprint_icon":"production/design/controls/"+branch+"_name",px.applyAsInt(25),py.applyAsInt(61),size.applyAsInt(27),size.applyAsInt(26));
             if(graphics==null) {
-                tankNameBox=new EditBox(font,px.applyAsInt(54),py.applyAsInt(64)+3,size.applyAsInt(265),size.applyAsInt(23),Component.literal(title+" 이름"));
+                tankNameBox=new EditBox(font,px.applyAsInt(54),py.applyAsInt(64)+3,size.applyAsInt(270),size.applyAsInt(23),Component.literal(title+" 이름"));
                 tankNameBox.setBordered(false);tankNameBox.setCentered(false);
                 tankNameBox.setMaxLength(80);tankNameBox.setValue(tankName);tankNameBox.moveCursorToStart(false);tankNameBox.setResponder(value->tankName=value);addRenderableWidget(tankNameBox);
             }
-            String chassis=view.equipment().stream().filter(e->d.chassis().equals(e.sourceEquipment())).map(ScreenIndustry::familyName).findFirst().orElse(d.name());
+            String chassis=Optional.ofNullable(equipmentBySource.get(d.chassis())).map(ScreenIndustry::familyName).orElse(d.name());
             if(!armor)branchDesignContents(d,navy,px,py,size);
             else {
             recess(px.applyAsInt(24),py.applyAsInt(95),size.applyAsInt(305),size.applyAsInt(35));
@@ -1185,7 +1211,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             int[][] positions={{0,topSlotY},{1,topSlotY},{0,bottomSlotY},{1,bottomSlotY},{2,bottomSlotY},{2,topSlotY},{3,topSlotY},{4,topSlotY},{5,topSlotY},{3,bottomSlotY},{6,topSlotY},{0,py.applyAsInt(196)}};
             for(int i=0;i<slotIds.size();i++) {
                 String slotId=slotIds.get(i);
-                var slot=d.slots().stream().filter(v->v.id().equals(slotId)).findFirst().orElse(null);
+                var slot=designSlots.get(slotId);
                 int bx=slotLeft+positions[i][0]*(slotWidth+slotGap),by=positions[i][1],bw=slotWidth,bh=slotHeight;
                 if(slot!=null) {
                     tankSlotButton(slot,bx,by,bw,bh);
@@ -1200,8 +1226,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 }
             }
             cellText(chassis,px.applyAsInt(31),py.applyAsInt(201)+4,size.applyAsInt(478),size.applyAsInt(22),TEXT,false);
-            originalButton("§e최신 특성으로 개량\n§f이 장비에 적용할 수 있는 새로운 특성이 없으므로 개량할 필요가 없습니다.\n\n이전의 §e군수산업체§f에서 제작된 장비에 최신 §e설계국§f 특성을 적용하려면 개량을 거쳐야 합니다.","production/tank/refit",px.applyAsInt(425),py.applyAsInt(397),size.applyAsInt(30),size.applyAsInt(35),false,()->{});
-            originalButton("전차 설계사","production/tank/manufacturer",px.applyAsInt(461),py.applyAsInt(382),size.applyAsInt(63),size.applyAsInt(63),true,()->{});
             for(int i=0;i<d.upgrades().size();i++) {
                 var u=d.upgrades().get(i);int bx=309+i*106;
                 cellText(u.name(),px.applyAsInt(bx),py.applyAsInt(445),size.applyAsInt(99),size.applyAsInt(20),TEXT,false);
@@ -1213,16 +1237,37 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 tip("§e레벨마다 획득:\n"+tankChanges(u.perLevel())+"\n\n"+requirements,controlX+buttonSize,controlY,controlWidth-2*buttonSize,buttonSize);
             }
             }
+            originalButton("파일로 저장","production/design/controls/save_preset",px.applyAsInt(24),py.applyAsInt(396),size.applyAsInt(22),size.applyAsInt(22),!tankName.isBlank(),()->saveDesignPreset());
+            originalButton("저장된 설계 보기","production/design/controls/open_preset",px.applyAsInt(24),py.applyAsInt(419),size.applyAsInt(22),size.applyAsInt(22),true,()->openDesignPresets());
+            if(!presetMessage.isEmpty())tip(presetMessage,px.applyAsInt(24),py.applyAsInt(396),size.applyAsInt(22),size.applyAsInt(45));
+            int designButtonY=py.applyAsInt(372),designButtonSize=size.applyAsInt(70);
+            String upgradeTexture=navy?"production/design/controls/upgrade":"production/tank/refit";
+            String manufacturerTexture=armor?"production/tank/manufacturer":"production/design/controls/"+branch+"_manufacturer";
+            originalButton("최신 특성으로 개량 · 군수산업체 특성 개량은 아직 지원하지 않습니다.",upgradeTexture,px.applyAsInt(408),designButtonY,size.applyAsInt(40),designButtonSize,false,()->{},upgradeTexture+"_disabled");
+            originalButton(title+" · 군수산업체 선택은 아직 지원하지 않습니다.",manufacturerTexture,px.applyAsInt(454),designButtonY,designButtonSize,designButtonSize,false,()->{},manufacturerTexture+"_disabled");
+        } else if(designPresetsOpen) {
+            recess(px.applyAsInt(16),py.applyAsInt(48),size.applyAsInt(508),size.applyAsInt(446));
+            leftText("저장된 설계",px.applyAsInt(30),py.applyAsInt(65),size.applyAsInt(330),TEXT);
+            button("저장된 설계 닫기","뒤로",px.applyAsInt(414),py.applyAsInt(58),size.applyAsInt(94),size.applyAsInt(34),true,()->{designPresetsOpen=false;tankScroll=0;rebuildWidgets();});
+            if(!presetMessage.isEmpty())leftText(presetMessage,px.applyAsInt(30),py.applyAsInt(101),size.applyAsInt(478),MUTED);
+            int rowHeight=31,rows=Math.max(1,(py.applyAsInt(490)-py.applyAsInt(140))/rowHeight);
+            tankScroll=Math.clamp(tankScroll,0,Math.max(0,designPresets.size()-rows));
+            for(int i=tankScroll;i<Math.min(designPresets.size(),tankScroll+rows);i++) {
+                var preset=designPresets.get(i);
+                button("저장된 설계 불러오기: "+preset.name(),preset.name(),px.applyAsInt(30),py.applyAsInt(140)+(i-tankScroll)*rowHeight,size.applyAsInt(478),27,true,()->{
+                    presetApplying=true;designPresetsOpen=false;tankScroll=0;send(TANK_PRESET,"",preset.json(),0);
+                });
+            }
         } else {
             int left=size.applyAsInt(508),footer=py.applyAsInt(496);
             recess(px.applyAsInt(16),py.applyAsInt(48),left,footer-py.applyAsInt(48));
-            var slot=d.slots().stream().filter(s->s.id().equals(tankSlot)).findFirst().orElseThrow();
+            var slot=Objects.requireNonNull(designSlots.get(tankSlot));
             leftText(slot.name(),px.applyAsInt(30),py.applyAsInt(65),left-70,TEXT);
             button("모듈 선택 닫기","뒤로",px.applyAsInt(414),py.applyAsInt(58),size.applyAsInt(94),size.applyAsInt(34),true,()->{tankSlot="";tankScroll=0;rebuildWidgets();});
             int card=(left-14)/2,rows=Math.max(1,(footer-py.applyAsInt(111))/34),total=slot.choices().size()+1;
             tankScroll=Math.clamp(tankScroll,0,Math.max(0,(total+1)/2-rows));
-            for(int i=0;i<total;i++) {
-                int row=i/2-tankScroll;if(row<0||row>=rows)continue;
+            for(int i=tankScroll*2;i<Math.min(total,(tankScroll+rows)*2);i++) {
+                int row=i/2-tankScroll;
                 int bx=px.applyAsInt(24)+i%2*(card+4),by=py.applyAsInt(111)+row*34;
                 var part=i==0?null:slot.choices().get(i-1);
                 tankPartButton(part,slot,bx,by,card,31);
@@ -1240,41 +1285,41 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             int sx=543+col*175,column=size.applyAsInt(171);
             tankStatText(headings[col],px.applyAsInt(sx+3),py.applyAsInt(48),column-3,size.applyAsInt(24),false,1.35f);
             for(int row=0;row<groups.get(col).size();row++) {
-                String key=groups.get(col).get(row);var stat=displayedStats.stream().filter(v->v.id().equals(key)).findFirst().orElse(null);
+                String key=groups.get(col).get(row);var stat=statsById.get(key);
                 if(key.equals("carrier_size")) {
                     if(!d.chassis().contains("carrier"))continue;
                     if(stat==null)stat=new TankDesignerView.Stat(key,dev.hoi.client.ui.UiEquipmentDesigns.statName(key),0,false);
                 }
+                int rowTop=py.applyAsInt(73+row*20),rowHeight=py.applyAsInt(93+row*20)-rowTop,by=rowTop+1;
+                int valueWidth=size.applyAsInt(key.equals("maximum_speed")?82:57);
+                String icon=armor?tankStatIcon(key):"production/design/stats/"+key;
+                if(graphics!=null)UiAssets.drawAlignedContent(graphics,icon,icon,px.applyAsInt(sx+2),by+(rowHeight-size.applyAsInt(18))/2f,size.applyAsInt(19),size.applyAsInt(18));
                 if(stat==null&&!armor) {
-                    int by=py.applyAsInt(73+row*20),valueWidth=size.applyAsInt(57);
                     String label=dev.hoi.client.ui.UiEquipmentDesigns.statName(key).replaceAll("£[^ ]+\\s*","").replace(":","").strip();
-                    art("production/design/stats/"+key,px.applyAsInt(sx+2),by+(size.applyAsInt(20)-size.applyAsInt(18))/2,size.applyAsInt(19),size.applyAsInt(18));
-                    tankStatText(label,px.applyAsInt(sx+24),by,column-valueWidth-size.applyAsInt(25),size.applyAsInt(20),false);
-                    tankStatText("—",px.applyAsInt(sx)+column-valueWidth,by,valueWidth,size.applyAsInt(20),true);
-                    tip(label+": 현재 설계 데이터에 없는 수치입니다.",px.applyAsInt(sx),by,column,size.applyAsInt(20));
+                    tankStatText(label,px.applyAsInt(sx+24),by,column-valueWidth-size.applyAsInt(25),rowHeight,false);
+                    tankStatText("—",px.applyAsInt(sx)+column-valueWidth,by,valueWidth,rowHeight,true);
+                    tip(label+": 현재 설계 데이터에 없는 수치입니다.",px.applyAsInt(sx),by,column,rowHeight);
                     continue;
                 }
                 if(stat==null)stat=new TankDesignerView.Stat(key,switch(key) {
                     case "supply_consumption"->"보급품 소비:";case "air_attack"->"대공 공격:";case "fuel_capacity"->"연료 보유량:";
                     case "suppression"->"제압:";case "recon"->"수색:";case "entrenchment"->"참호:";default->key;
                 },0,false);
-                int by=py.applyAsInt(73+row*20),valueWidth=size.applyAsInt(key.equals("maximum_speed")?82:57);
                 String label=stat.name().replaceAll("£[^ ]+\\s*","").replace(":","").strip();
-                art(armor?tankStatIcon(key):"production/design/stats/"+key,px.applyAsInt(sx+2),by+(size.applyAsInt(20)-size.applyAsInt(18))/2,size.applyAsInt(19),size.applyAsInt(18));
-                tankStatText(label,px.applyAsInt(sx+24),by,column-valueWidth-size.applyAsInt(25),size.applyAsInt(20),false);
+                tankStatText(label,px.applyAsInt(sx+24),by,column-valueWidth-size.applyAsInt(25),rowHeight,false);
                 double change=preview.getOrDefault(key,0.0);
                 var displayed=new TankDesignerView.Stat(stat.id(),stat.name(),stat.value()+change,stat.percent());
-                tankStatText(tankValue(displayed),px.applyAsInt(sx)+column-valueWidth,by,valueWidth,size.applyAsInt(20),true);
-                tip(stat.name()+" "+tankValue(stat),px.applyAsInt(sx),by,column,size.applyAsInt(20));
+                tankStatText(tankValue(displayed),px.applyAsInt(sx)+column-valueWidth,by,valueWidth,rowHeight,true);
+                tip(stat.name()+" "+tankValue(stat),px.applyAsInt(sx),by,column,rowHeight);
             }
         }
         int adjustmentTop=navy?331:260;
         if(graphics!=null) {
-            float captionScale=Math.min(1.4f,size.applyAsInt(22)/(float)font.lineHeight);
+            float captionScale=Math.min(1.55f,size.applyAsInt(24)/(float)font.lineHeight);
             graphics.pose().pushMatrix();graphics.pose().translate(px.applyAsInt(562),py.applyAsInt(adjustmentTop));graphics.pose().scale(captionScale);
             graphics.text(font,Component.literal("조정치").withStyle(net.minecraft.ChatFormatting.BOLD),0,0,0xFFFFFFFF,false);graphics.pose().popMatrix();
         }
-        int adjustmentY=adjustmentTop+25;
+        int adjustmentY=adjustmentTop+28;
         if(armor||navy) {
             var environments=navy?List.of("water_shallow_sea","water_deep_ocean","water_fjords"):
                     List.of("plains","forest","hills","mountain","urban","jungle","marsh","desert");
@@ -1300,7 +1345,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             String label=d.errors().isEmpty()?"설계 저장 · "+(armor?"육군":navy?"해군":"공군")+" 경험치 "+d.experience():tankErrors(d);
             var save=new UiPanelButton(label,bx,by,bw,bh,()->send(TANK_SAVE,tankName,"",0)) {
                 @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                    UiMenuStyle.control(g,bx,by,bw,bh,isHoveredOrFocused(),!active);
+                    UiMenuStyle.control(g,bx,by,bw,bh,false,false);
                     tankExperienceCaption(g,"저장",d.experience(),bx+bw/2,by+(bh-UiText.MIN_HEIGHT)/2);
                 }
             };
@@ -1325,15 +1370,27 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         }
         if(!view.message().isEmpty())tip(view.message(),px.applyAsInt(140),py.applyAsInt(508),size.applyAsInt(137),size.applyAsInt(30));
     }
+    private void saveDesignPreset() {
+        try {presetStore.save(EquipmentDesignPreset.from(view.tankDesigner(),tankName));presetMessage="파일로 저장했습니다.";}
+        catch(java.io.IOException|IllegalArgumentException error){presetMessage=error.getMessage();}
+        if(minecraft.player!=null)minecraft.player.sendSystemMessage(Component.literal(presetMessage));
+        rebuildWidgets();
+    }
+    private void openDesignPresets() {
+        try {
+            designPresets=presetStore.load().stream().filter(p->p.chassis().equals(view.tankDesigner().chassis())).toList();
+            presetMessage=designPresets.isEmpty()?"이 차체·함체·기체의 저장된 설계가 없습니다.":"같은 이름으로 저장하면 기존 설계를 교체합니다.";
+        } catch(java.io.IOException error){designPresets=List.of();presetMessage=error.getMessage();}
+        tankSlot="";tankScroll=0;designPresetsOpen=true;rebuildWidgets();
+    }
     private void branchDesignContents(TankDesignerView d,boolean navy,java.util.function.IntUnaryOperator px,java.util.function.IntUnaryOperator py,java.util.function.IntUnaryOperator size) {
         String branch=navy?"navy":"air";
-        var equipment=view.equipment().stream().filter(e->d.chassis().equals(e.sourceEquipment())).findFirst().orElse(null);
+        var equipment=equipmentBySource.get(d.chassis());
         String chassis=equipment==null?d.name():equipment.familyName();
         recess(px.applyAsInt(24),py.applyAsInt(95),size.applyAsInt(305),size.applyAsInt(35));
         if(navy) {
-            art("production/design/controls/silhouette_bg",px.applyAsInt(24),py.applyAsInt(95),size.applyAsInt(108),size.applyAsInt(35));
-            art(d.chassis().contains("carrier")?"production/picker/filter_carrier":equipment==null?"production/picker/filter_unknown":navalSilhouette(equipment.family()),px.applyAsInt(30),py.applyAsInt(100),size.applyAsInt(96),size.applyAsInt(25));
-            cellText(chassis,px.applyAsInt(137),py.applyAsInt(98),size.applyAsInt(187),size.applyAsInt(28),TEXT,false);
+            art("production/design/controls/navy_role",px.applyAsInt(29),py.applyAsInt(97),size.applyAsInt(32),size.applyAsInt(31));
+            leftText(chassis,px.applyAsInt(68),py.applyAsInt(98)+Math.round((size.applyAsInt(28)-font.lineHeight*UiText.scale(font))/2),size.applyAsInt(256),TEXT);
         } else {
             String role=dev.hoi.client.ui.UiEquipmentDesigns.role(d),label=dev.hoi.client.ui.UiEquipmentDesigns.roleName(role);
             int rx=px.applyAsInt(24),ry=py.applyAsInt(95),rw=size.applyAsInt(305),rh=size.applyAsInt(35);
@@ -1351,8 +1408,23 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 roleButton.setTooltip(UiTooltips.create(Component.literal(label+"\n주무장을 선택하면 항공기 역할이 변경됩니다.")));addRenderableWidget(roleButton);
             }
         }
-        art("production/design/controls/role_bg",px.applyAsInt(329),py.applyAsInt(99),size.applyAsInt(24),size.applyAsInt(24));
-        if(graphics!=null&&!UiAssets.draw(graphics,d.texture()+"_"+view.country().toLowerCase(Locale.ROOT),px.applyAsInt(353),py.applyAsInt(64),size.applyAsInt(154),size.applyAsInt(60)))art(d.texture(),px.applyAsInt(353),py.applyAsInt(64),size.applyAsInt(154),size.applyAsInt(60));
+        if(graphics!=null) {
+            int imageX=px.applyAsInt(353),imageBottom=navy?py.applyAsInt(95)+size.applyAsInt(35):py.applyAsInt(124),imageWidth=size.applyAsInt(154),imageHeight=size.applyAsInt(60);
+            String national=d.texture()+"_"+view.country().toLowerCase(Locale.ROOT);
+            if(navy) {
+                if(!UiAssets.drawBottom(graphics,national,imageX,imageBottom-imageHeight,imageWidth,imageHeight))UiAssets.drawBottom(graphics,d.texture(),imageX,imageBottom-imageHeight,imageWidth,imageHeight);
+            } else if(!UiAssets.draw(graphics,national,imageX,imageBottom-imageHeight,imageWidth,imageHeight))UiAssets.draw(graphics,d.texture(),imageX,imageBottom-imageHeight,imageWidth,imageHeight);
+        }
+        if(navy&&(!d.family().isEmpty()||equipment!=null)) {
+            String family=d.family().isEmpty()?equipment.family():d.family();
+            String category=family.equals("submarine")?"submarine":Set.of("destroyer","light_cruiser").contains(family)?"screen":"capital";
+            int imageWidth=size.applyAsInt(154),photoHeight=UiAssets.imageHeight(d.texture()+"_"+view.country().toLowerCase(Locale.ROOT),imageWidth);
+            if(photoHeight==0)photoHeight=UiAssets.imageHeight(d.texture(),imageWidth);
+            int cx=px.applyAsInt(481),cw=size.applyAsInt(26),ch=size.applyAsInt(23);
+            int cy=py.applyAsInt(95)+size.applyAsInt(35)-Math.min(size.applyAsInt(60),photoHeight)-ch-size.applyAsInt(2);
+            art("production/design/controls/ship_category_"+category,cx,cy,cw,ch);
+            tip(category.equals("capital")?"주력함":category.equals("submarine")?"잠수함":"보조함",cx,cy,cw,ch);
+        }
         int bx=px.applyAsInt(16),by=py.applyAsInt(196),bw=size.applyAsInt(508),bh=size.applyAsInt(248);
         art("production/design/"+branch+"_blueprint_bg",bx,by,bw,bh);
         if(graphics!=null) {
@@ -1375,7 +1447,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             int left=bx+(bw-7*sw-6*gap)/2,sy=py.applyAsInt(row==0?146:447);
             for(int i=0;i<ids.size();i++) {
                 String id=ids.get(i);int sx=left+i*(sw+gap);
-                var slot=d.slots().stream().filter(v->v.id().equals(id)).findFirst().orElse(null);
+                var slot=designSlots.get(id);
                 if(slot!=null) {
                     tankSlotButton(slot,sx,sy,sw,sh);
                     if(mouseX>=sx&&mouseX<sx+sw&&mouseY>=sy&&mouseY<sy+sh)hovered=id;
@@ -1392,22 +1464,34 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             art("production/design/controls/silhouette_bg",px.applyAsInt(451),py.applyAsInt(146),size.applyAsInt(69),size.applyAsInt(46));
             art("production/design/roles/"+dev.hoi.client.ui.UiEquipmentDesigns.role(d),px.applyAsInt(456),py.applyAsInt(150),size.applyAsInt(59),size.applyAsInt(38));
         }
-        originalButton("최신 특성으로 개량 · 군수산업체 특성 개량은 아직 지원하지 않습니다.","production/design/controls/upgrade",px.applyAsInt(437),py.applyAsInt(406),size.applyAsInt(25),size.applyAsInt(28),false,()->{});
-        originalButton((navy?"해군":"공군")+" 설계사 · 군수산업체 선택은 아직 지원하지 않습니다.","production/design/controls/"+branch+"_manufacturer",px.applyAsInt(475),py.applyAsInt(397),size.applyAsInt(43),size.applyAsInt(43),false,()->{});
-        if(navy)button("역사적 설계 · 현재는 개별 모듈로 설계합니다.","역사적",px.applyAsInt(25),py.applyAsInt(418),size.applyAsInt(112),size.applyAsInt(23),false,()->{});
-        else for(int i=0;i<2;i++)originalButton("설계 프리셋 "+(i==0?"파일 저장":"파일 불러오기")+" · 아직 지원하지 않습니다.","production/design/controls/"+(i==0?"save_preset":"open_preset"),px.applyAsInt(24),py.applyAsInt(396+i*23),size.applyAsInt(22),size.applyAsInt(22),false,()->{});
+
     }
     private void designerAdjustment(String id,String label,int x,int y,java.util.function.IntUnaryOperator px,java.util.function.IntUnaryOperator py,java.util.function.IntUnaryOperator size,boolean enabled,Runnable action) {
         int bx=px.applyAsInt(x),by=py.applyAsInt(y),bw=size.applyAsInt(84),bh=size.applyAsInt(67);
         if(graphics!=null)return;
+        int frameW=size.applyAsInt(64),frameH=size.applyAsInt(57);
+        double frameScale=Math.min(frameW/70.0,frameH/62.0);
+        int fitW=(int)Math.round(70*frameScale),fitH=(int)Math.round(62*frameScale);
+        int frameX=bx+size.applyAsInt(7)+(frameW-fitW)/2,frameY=by+size.applyAsInt(5)+(frameH-fitH)/2;
+        var adjustment=view.tankDesigner().adjustments().stream().filter(a->a.id().equals(id)).findFirst().orElse(null);
+        double[] values=adjustment==null?null:new double[]{adjustment.movement(),adjustment.attack(),adjustment.defense()};
         var button=new UiPanelButton("설계 조정치 · "+id,bx,by,bw,bh,action) {
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                UiAssets.draw(g,"production/design/adjusters/"+id,bx+size.applyAsInt(18),by+size.applyAsInt(11),size.applyAsInt(44),size.applyAsInt(44));
-                UiAssets.draw(g,"production/design/controls/adjuster_frame",bx+size.applyAsInt(7),by+size.applyAsInt(5),size.applyAsInt(64),size.applyAsInt(64));
-                for(int j=0;j<3;j++)UiAssets.draw(g,"production/design/controls/"+(j==0?(designBranch().equals("navy")?"ship_movement":"movement"):j==1?"attack":"defense"),bx+size.applyAsInt(11+j*23),by+size.applyAsInt(42),size.applyAsInt(19),size.applyAsInt(19));
+                UiAssets.draw(g,"production/design/adjusters/"+id,bx+size.applyAsInt(19),by+size.applyAsInt(10),size.applyAsInt(40),size.applyAsInt(40));
+                UiAssets.draw(g,"production/design/controls/adjuster_frame",bx+size.applyAsInt(7),by+size.applyAsInt(5),size.applyAsInt(64),size.applyAsInt(57));
+                if(values!=null)for(int j=0;j<3;j++) {
+                    String icon=j==0?(designBranch().equals("navy")?"ship_movement":"movement"):j==1?"attack":"defense";
+                    String path="production/design/controls/"+icon,state=values[j]>1e-8?"positive":values[j]<-1e-8?"negative":"neutral";
+                    float iconSize=21/2f;
+                    float inset=(size.applyAsInt(15)-iconSize)/2f;
+                    float iconX=j<2?frameX+fitW*(j==0?12.5f:35f)/70f-iconSize/2f+(j==0&&!designBranch().equals("army")?1:0):bx+size.applyAsInt(52)+inset;
+                    float iconY=j<2?frameY+fitH*49.5f/62f-iconSize/2f:by+size.applyAsInt(42)+inset+1;
+                    UiAssets.drawAlignedContent(g,path+"_"+state,path+"_neutral",iconX,iconY,iconSize,iconSize);
+                }
             }
         };
-        button.active=enabled&&pending==0;button.setTooltip(UiTooltips.create(Component.literal(label)));addRenderableWidget(button);
+        String explanation=values==null?"\n조정치 정보가 제공되지 않았습니다.":designBranch().equals("air")?"\n부호: 기본 설계 대비 이 임무의 속도 / 공격 / 방어 변화":"\n부호: 날씨·보급 적용 전 지형의 이동 / 공격 / 방어 조정치";
+        button.active=enabled&&pending==0;button.setTooltip(UiTooltips.create(Component.literal(label+explanation)));addRenderableWidget(button);
     }
     private void tankExperienceCaption(GuiGraphicsExtractor g,String label,int amount,int centerX,int y) {
         var cost=dev.hoi.client.ui.UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal("§f£"+designBranch()+"_experience §e"+amount),false),false);
@@ -1425,7 +1509,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(!right)caption.withStyle(net.minecraft.ChatFormatting.BOLD);
         float scale=Math.min(Math.min(1.1f,Math.max(.8f,this.width/1100f))*multiplier,(float)width/Math.max(1,font.width(caption)));
         scale=Math.min(scale,(float)Math.max(1,height-2)/font.lineHeight);
-        graphics.pose().pushMatrix();graphics.pose().translate(x+(right?width-font.width(caption)*scale:0),y+(height-font.lineHeight*scale)/2);graphics.pose().scale(scale);
+        graphics.pose().pushMatrix();graphics.pose().translate(x+(right?width-font.width(caption)*scale:0),y+(height-(font.lineHeight-(right?2:0))*scale)/2);graphics.pose().scale(scale);
         graphics.text(font,caption,0,0,0xFF13170E,false);graphics.pose().popMatrix();
     }
     private void tankSlotButton(TankDesignerView.Slot slot,int x,int y,int w,int h) {
@@ -1499,17 +1583,17 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(decrease!=null)decrease.setTooltip(assignmentTip);
         if(increase!=null)increase.setTooltip(assignmentTip);
         tip("함선 수리에 배정할 수 있는 §e조선소§r의 최대 숫자입니다.\n\n§7현재 서버는 수리 조선소를 자동 배정합니다.",x+8,y+27,67,17);
+        var represented=new HashSet<String>();repairs.ports().forEach(port->represented.addAll(port.ships()));
         var expand=originalButton("수리 목록 펼치기/접기","production/picker/"+(expandedRepairPorts.isEmpty()?"collapse":"expand"),x+81,y+28,38,15,true,()->{
             if(expandedRepairPorts.isEmpty()) {
                 repairs.ports().forEach(port->expandedRepairPorts.add(port.id()));
-                repairs.ships().stream().filter(ship->repairs.ports().stream().noneMatch(port->port.ships().contains(ship.id())))
+                repairs.ships().stream().filter(ship->!represented.contains(ship.id()))
                         .forEach(ship->expandedRepairPorts.add(ship.id()));
             } else expandedRepairPorts.clear();
             pickerScroll=0;rebuildWidgets();
         });
         if(expand!=null)expand.setTooltip(UiTooltips.create(Component.literal("§a클릭§r하여 모든 대기열 펴기/접기")));
         var ports=new ArrayList<>(repairs.ports());
-        var represented=new HashSet<String>();ports.forEach(port->represented.addAll(port.ships()));
         for(var ship:repairs.ships())if(!represented.contains(ship.id())) {
             ports.add(new RepairPort(ship.id(),ship.port(),0,0,List.of(ship.id())));
         }
@@ -1551,7 +1635,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 if(ship==null||sy<start||sy+shipRow>end-3)continue;
                 int sx=x+15,sw=w-27,label=sx+sw*132/401,labelWidth=sw*130/401;
                 art("production/picker/repair_ship",sx,sy,sw,shipHeight);
-                String family=view.equipment().stream().filter(e->e.naval()&&e.texture().equals(ship.texture())).map(Equipment::family).filter(Objects::nonNull).findFirst().orElse(ship.texture().substring(ship.texture().lastIndexOf('/')+1));
+                String family=navalFamilyByTexture.getOrDefault(ship.texture(),ship.texture().substring(ship.texture().lastIndexOf('/')+1));
                 art(navalSilhouette(family),sx+Math.round(sw*24f/401),sy+Math.round(sw*8f/401),Math.round(sw*112f/401),Math.round(sw*18f/401));
                 leftText(UiText.ellipsize(font,ship.name(),(int)(labelWidth/UiText.scale(font))),label,sy+2,labelWidth,TEXT);
                 leftText(repairState(ship),label,sy+shipHeight-9,labelWidth,repairState(ship).equals("수리 중")?GOOD:MUTED);
@@ -1861,10 +1945,13 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         originalButton(name, texture, x, y, w, h, true, action);
     }
     private UiPanelButton originalButton(String name, String texture, int x, int y, int w, int h, boolean enabled, Runnable action) {
+        return originalButton(name,texture,x,y,w,h,enabled,action,null);
+    }
+    private UiPanelButton originalButton(String name, String texture, int x, int y, int w, int h, boolean enabled, Runnable action, String disabledTexture) {
         if (graphics != null) return null;
         var button = new UiPanelButton(name, x, y, w, h, action) {
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-                UiAssets.draw(g, texture, x, y, w, h);
+                UiAssets.draw(g,!active&&disabledTexture!=null?disabledTexture:texture,x,y,w,h);
             }
         };
         button.active = enabled && pending == 0;
