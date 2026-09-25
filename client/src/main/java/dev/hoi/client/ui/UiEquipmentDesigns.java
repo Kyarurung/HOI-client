@@ -54,9 +54,6 @@ public final class UiEquipmentDesigns {
             role=switch(role){case "transport_plane"->"transport";case "tfr_attack_helicopter"->"attack_helicopter";default->role;};
             return java.util.Set.of("fighter","heavy_fighter","cas","naval_bomber","tactical_bomber","strategic_bomber","transport","scout_plane","scout","carrier_fighter","carrier_bomber","attack_helicopter").contains(role)?"production/design/roles/"+role:"";
         }
-        if(role.equals("convoy"))return "";
-        if(equipment.group().equals("navy"))return "production/design/roles/"+(role.equals("submarine")?"submarine":java.util.Set.of("destroyer","light_cruiser").contains(role)?"screen":"capital");
-        if(equipment.group().equals("armor"))return "production/design/roles/tank_modern";
         return "";
     }
     public static String roleTooltip(String role) {
@@ -72,30 +69,26 @@ public final class UiEquipmentDesigns {
     }
     private static String missionEffects(JsonObject rule) {
         var lines=new java.util.ArrayList<String>();
-        for(String group:List.of("add","multiply"))for(var value:object(rule,group).entrySet()) {
+        for(String group:List.of("add","average","multiply"))for(var value:object(rule,group).entrySet()) {
             double amount=value.getValue().getAsDouble();
             if(amount==0)continue;
-            lines.add("§f"+statCaption(value.getKey(),statName(value.getKey()))+" "+(beneficial(value.getKey(),amount)?"§a":"§c")+(amount>0?"+":"")+number(amount*(group.equals("multiply")?100:1),1)+(group.equals("multiply")?"%":"")+"§f");
+            lines.add("§f"+statCaption(value.getKey(),statName(value.getKey()))+" "+(beneficial(value.getKey(),amount)?"§a":"§c")+(amount>0?"+":"")+number(amount*(group.equals("multiply")?100:1),1)+(group.equals("multiply")?"%":"")+"§f"+(group.equals("average")?averageLabel():""));
         }
         return String.join("\n",lines);
     }
     public static String missionTooltip(TankDesignerView design,String id) {
-        var mission=object(object(details(),"missions"),id);
-        var sections=new java.util.ArrayList<String>();
-        sections.add("§e"+missionName(id));
-        if(mission.has("description"))sections.add("§f"+sourceText(mission.get("description").getAsString()));
-        for(var slot:design.slots()) {
-            var module=object(object(details(),"modules"),slot.selected());
-            if(!module.has("missionStats"))continue;
-            for(var value:module.getAsJsonArray("missionStats")) {
-                var rule=value.getAsJsonObject();
-                if(rule.getAsJsonArray("missions").asList().stream().anyMatch(m->m.getAsString().equals(id))) {
-                    String name=slot.choices().stream().filter(p->p.id().equals(slot.selected())).map(TankDesignerView.Part::name).findFirst().orElse(slot.selected());
-                    sections.add("§e"+name+"§f\n"+missionEffects(rule));
-                }
+        var lines=new java.util.ArrayList<String>();
+        lines.add("§e"+design.missions().stream().filter(m->m.id().equals(id)).map(TankDesignerView.Mission::name).findFirst().orElseGet(()->missionName(id)));
+        design.adjustments().stream().filter(a->a.id().equals(id)).findFirst().ifPresent(adjustment->{
+            for(var stat:adjustment.effects()) {
+                double amount=stat.value();
+                lines.add("§f"+statCaption(stat.id(),stat.name())+" "+(beneficial(stat.id(),amount)?"§a":"§c")+(amount>0?"+":"")+number(amount*(stat.percent()?100:1),1)+(stat.percent()?"%":"")+"§f"+(stat.averaged()?averageLabel():""));
             }
-        }
-        return UiTooltipText.sections(sections.toArray(String[]::new));
+        });
+        return String.join("\n",lines);
+    }
+    private static String averageLabel() {
+        return " §f("+tooltip("EQUIPMENT_MODULE_STAT_AVERAGED").strip().replace("(","").replace(")","")+")";
     }
     private static String moduleMissions(JsonObject module) {
         var sections=new java.util.ArrayList<String>();
@@ -184,7 +177,7 @@ public final class UiEquipmentDesigns {
     }
     public static String moduleEffects(String id) {
         var module=object(object(details(),"modules"),id);
-        var added=object(module,"add");var multiplied=object(module,"multiply");
+        var added=object(module,"add").deepCopy();object(module,"average").entrySet().forEach(e->added.add(e.getKey(),e.getValue()));var multiplied=object(module,"multiply");
         var lines=new java.util.LinkedHashMap<String,String>();
         for(var stat:moduleStats(id)) {
             String key=stat.id();if(lines.containsKey(key))continue;
@@ -192,7 +185,7 @@ public final class UiEquipmentDesigns {
             String modifier=multiplied.has(key)?moduleModifier(key,multiplied.get(key).getAsDouble()):"";
             if(key.endsWith("_factor")&&added.has(key))base=moduleModifier(key,added.get(key).getAsDouble());
             String value=base+(base.isEmpty()||modifier.isEmpty()?"":", ")+modifier;
-            if(java.util.Set.of("lg_armor_piercing","hg_armor_piercing").contains(key))value+=" §f("+tooltip("EQUIPMENT_MODULE_STAT_AVERAGED").strip().replace("(","").replace(")","")+")";
+            if(object(module,"average").has(key))value+=averageLabel();
             String caption=statCaption(key,stat.name()).strip();
             if(key.equals("build_cost_ic")&&module.has("branch")&&module.get("branch").getAsString().equals("NAVY"))caption="£navprod_cost "+statName(key);
             lines.put(key,"§f"+caption+" "+value+"§f");
@@ -231,7 +224,7 @@ public final class UiEquipmentDesigns {
     private static java.util.List<TankDesignerView.Stat> readModuleStats(String id) {
         var module=object(object(details(),"modules"),id);
         var result=new java.util.ArrayList<TankDesignerView.Stat>();
-        for(String group:java.util.List.of("add","multiply"))for(var entry:object(module,group).entrySet()) {
+        for(String group:java.util.List.of("add","average","multiply"))for(var entry:object(module,group).entrySet()) {
             double value=entry.getValue().getAsDouble();
             if(value!=0)result.add(new TankDesignerView.Stat(entry.getKey(),statName(entry.getKey()),value,group.equals("multiply")||java.util.Set.of("reliability","hardness").contains(entry.getKey())));
         }

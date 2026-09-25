@@ -3,6 +3,7 @@
   "package": "dev.hoi.client.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "MixinAtlasBorder",
     "MixinConstructionClick",
     "MixinKeyboardShortcut",
     "MixinMenuTooltip",

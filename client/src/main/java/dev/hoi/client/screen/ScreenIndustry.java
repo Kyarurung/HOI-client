@@ -1072,7 +1072,11 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 int resourceX=x+Math.round(366*scale),resourceRight=x+Math.round(403*scale);
                 if(equipment.outdated())UiAssets.cover(g,"production/picker/outdated_overlay",x+3,y+3,resourceX-1-(x+3),h-6);
                 int labelX=x+Math.round((equipment.naval()?62:206)*scale),right=x+Math.round(337*scale)-3;
-                UiAssets.draw(g,dev.hoi.client.ui.UiEquipmentDesigns.productionRoleIcon(equipment),x+Math.round(339*scale),y+Math.round(5*scale),Math.round(27*scale),Math.round(14*scale));
+                if(equipment.group().equals("air")) {
+                    int roleWidth=Math.round(27*scale),roleRight=resourceX-Math.max(3,Math.round(5*scale));
+                    right=Math.min(right,roleRight-roleWidth-3);
+                    UiAssets.draw(g,dev.hoi.client.ui.UiEquipmentDesigns.productionRoleIcon(equipment),roleRight-roleWidth,y+Math.round(5*scale),roleWidth,Math.round(14*scale));
+                }
                 if(equipment.naval()) {
                     pickerRightText(g,UiText.ellipsize(font,equipment.name(),(int)((right-labelX)/UiText.scale(font))),labelX,y+Math.round(6*scale),right-labelX);
                     pickerRightText(g,familyName(equipment),labelX,y+Math.round(22*scale),right-labelX);
@@ -1572,7 +1576,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                     float iconX=j<2?frameX+fitW*(j==0?12.5f:35f)/70f-iconSize/2f:bx+size.applyAsInt(52+centering)+inset;
                     float iconY=j<2?frameY+fitH*49.5f/62f-iconSize/2f:by+size.applyAsInt(42)+inset+1;
                     UiAssets.drawAlignedContent(g,path+"_"+state,path+"_neutral",iconX,iconY,iconSize,iconSize);
-                    if(mx>=iconX&&mx<iconX+iconSize&&my>=iconY&&my<iconY+iconSize)hovered=hints[j];
+                    if(!designBranch().equals("air")&&mx>=iconX&&mx<iconX+iconSize&&my>=iconY&&my<iconY+iconSize)hovered=hints[j];
                 }
                 if(isHovered())setTooltip(UiTooltips.createExact(hovered.isEmpty()?designerAdjustmentTooltip(label,values,adjustment):hovered));
             }

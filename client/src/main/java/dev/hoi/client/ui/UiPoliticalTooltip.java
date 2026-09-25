@@ -50,7 +50,7 @@ public final class UiPoliticalTooltip {
                 if(line.startsWith("[caption:"))continue;
                 var value = UiTooltips.sentences(Component.literal(line));
                 measured = Math.max(measured, line.startsWith("[image:") ? 170
-                        : font.width(icons ? UiKeywordIcons.decorate(value) : value));
+                        : font.width(icons ? UiKeywordIcons.decorateLines(value) : value));
             }
             width = Math.min(width, measured + (flag.isEmpty() ? 0 : 15));
         }

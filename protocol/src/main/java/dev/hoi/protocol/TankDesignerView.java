@@ -32,8 +32,9 @@ public record TankDesignerView(String chassis,String name,String texture,List<Sl
     public record Contribution(String name,double value) {
         public Contribution {IndustryView.text(name,128);if(!Double.isFinite(value))throw new IllegalArgumentException("Invalid stat contribution");}
     }
-    public record Stat(String id,String name,double value,boolean percent,List<Contribution> contributions,double change) {
+    public record Stat(String id,String name,double value,boolean percent,List<Contribution> contributions,double change,boolean averaged) {
         public Stat(String id,String name,double value,boolean percent) {this(id,name,value,percent,List.of(),0);}
+        public Stat(String id,String name,double value,boolean percent,List<Contribution> contributions,double change) {this(id,name,value,percent,contributions,change,false);}
         public Stat {IndustryView.text(id,64);IndustryView.text(name,128);contributions=contributions==null?List.of():List.copyOf(contributions);if(!Double.isFinite(value)||!Double.isFinite(change)||contributions.size()>64)throw new IllegalArgumentException("Invalid design stat");}
     }
     public record UpgradeStep(int amount,int level,int experience,List<Stat> changes,Map<String,Double> resources) {

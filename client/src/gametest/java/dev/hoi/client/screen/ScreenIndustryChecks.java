@@ -22,6 +22,20 @@ public final class ScreenIndustryChecks {
         var requests=new ArrayList<IndustryProtocol.Request>();
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->client.options.guiScale().set(2));
+        var missionFixture=tankFixture("air-mission-effects-fixture.json");
+        context.runOnClient(client->{
+            var design=missionFixture.tankDesigner();
+            String naval=dev.hoi.client.ui.UiEquipmentDesigns.missionTooltip(design,"naval_bomber");
+            check(naval.contains("+7.5")&&naval.contains("(평균)"),"Mixed armaments display the server average and original average suffix");
+            check(naval.split("\\n").length==5&&!naval.contains("\n\n"),"Mission tooltip contains one title and four aggregate stat rows");
+            check(!dev.hoi.client.ui.UiEquipmentDesigns.missionTooltip(design,"naval_patrol").contains("\n"),"Patrol without source modifiers has only its title");
+            for(var equipment:missionFixture.equipment())if(!equipment.group().equals("air"))check(dev.hoi.client.ui.UiEquipmentDesigns.productionRoleIcon(equipment).isEmpty(),"Non-air equipment has no resource-adjacent role icon");
+        });
+        context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,missionFixture.session(),missionFixture,requests::add));context.waitTicks(2);
+        for(String mission:List.of("naval_bomber","port_strike","attack_logistics","naval_patrol")) {
+            var point=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),"설계 조정치 · "+mission);return new double[]{2*(b.getX()+b.getWidth()/2.0),2*(b.getY()+b.getHeight()/3.0)};});
+            context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);context.takeScreenshot("hoi-air-effects-"+mission+"-gui2");
+        }
         for(String group:List.of("navy","air")) {
             var fixture=tankFixture("initial-"+group+"-fixture.json");
             check(fixture.equipment().stream().anyMatch(e->e.group().equals(group)&&e.designer()!=null&&!e.id().startsWith("hoi:design/")&&dev.hoi.client.ui.UiEquipmentDesigns.productionDesign(e).editable()),"Initial national equipment exposes an editable design");

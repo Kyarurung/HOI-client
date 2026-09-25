@@ -8,6 +8,25 @@ import java.util.*;
 
 final class ScreenMapDetailChecks {
     static void run(ClientGameTestContext context) {
+        DialogView tokyo;
+        try(var input=ScreenMapDetailChecks.class.getResourceAsStream("/tokyo-slots-fixture.json")) {
+            tokyo=new com.google.gson.Gson().fromJson(new java.io.InputStreamReader(Objects.requireNonNull(input),java.nio.charset.StandardCharsets.UTF_8),DialogView.class);
+        } catch(java.io.IOException e) {throw new java.io.UncheckedIOException(e);}
+        context.getInput().resizeWindow(2560,1440);
+        context.runOnClient(client->{
+            client.options.guiScale().set(2);
+            var slots=tokyo.tiles().stream().filter(t->t.section().equals("slots")).findFirst().orElseThrow();
+            var styled=dev.hoi.client.ui.UiTooltips.styled(net.minecraft.network.chat.Component.literal(slots.detail()),false);
+            var decorated=dev.hoi.client.ui.UiKeywordIcons.decorateLines(styled,false);
+            if(!decorated.getString().contains("경제 침체")||decorated.getString().contains("£"))throw new AssertionError("Slot tooltip must resolve its original spirit icon and name");
+            boolean red=decorated.visit((style,part)->part.contains("-20%")&&style.getColor()!=null&&style.getColor().getValue()==0xFF3232?Optional.of(true):Optional.empty(),net.minecraft.network.chat.Style.EMPTY).orElse(false);
+            if(!red)throw new AssertionError("Slot reduction must retain the original red effect colour");
+            if(decorated.getString().codePoints().noneMatch(c->c>=0xe000&&c<=0xf8ff))throw new AssertionError("The economic stagnation icon must render as a source glyph");
+        });
+        context.setScreen(()->new ScreenMapDetail(tokyo));context.waitTicks(3);
+        var slotPoint=context.computeOnClient(client->{var screen=(ScreenMapDetail)client.gui.screen();double scale=screen.panelWidth()/463.0;return new double[]{2*(screen.panelLeft()+250*scale),2*(screen.panelTop()+148*scale)};});
+        context.getInput().setCursorPos(slotPoint[0],slotPoint[1]);context.waitTicks(8);context.takeScreenshot("hoi-tokyo-slot-effects-gui2");
+
         context.runOnClient(client -> {
             var text=dev.hoi.client.ui.UiTooltips.sentences(net.minecraft.network.chat.Component.literal("§e집권 정당: §#3659D9더불어민주당§r"));
             if(!text.getString().equals("집권 정당: 더불어민주당"))throw new AssertionError("TFR RGB markup leaked into tooltip text");
@@ -26,8 +45,8 @@ final class ScreenMapDetailChecks {
         own.add(new DialogView.Tile("population", "인구", "3.41M", "hud/manpower", "§f§e모병 가능 인구§r: §e34.10K§r/§e31.00K§r\n§f§e민간인 인구§r: §e3.38M§r/§e3.07M§r\n\n§f£pol_idea 광범위한 징병: §e2.00%§r\n\n§f실질 총인력이 §c50%§r(으)로 변동되는 이유:\n§f  £pol_idea 일반적인 면제: §c-50.0%§r\n\n§f§e일간 성장§r: 0.00% (모병 가능: §a1§r, 민간인: §a10§r)\n\n§f기본: §e0.00%§r\n§f  £pol_idea 약화되는 고령화 문제: §c-75.0%§r\n\n§f이 주에 살고 있는 인구수입니다. 징병법에 의거해 일정 비율의 인구를 육, 해, 공군에서 복무할 인력으로 활용할 수 있습니다."));
         var buildings = List.of("infrastructure", "air_base", "anti_air", "radar", "railway");
         for (String id : buildings) own.add(tile("state", id, id.equals("radar") ? "2/2" : "5/5", "construction/" + id));
-        own.add(new DialogView.Tile("slots", "열린 슬롯", "9/25", "", "대도시: §a+5§r\n원자로: §a+1§r\n부산광역시: §a+1§r\n원자로: §a+40%§r"));
-        for (int i = 0; i < 25; i++) own.add(tile("shared", i < 6 ? "민간공장" : i < 9 ? "빈 건설 슬롯" : "잠긴 건설 슬롯", "", i < 6 ? "construction/civilian_factory" : i < 9 ? "construction/empty_slot" : "map_detail/locked_slot"));
+        own.add(new DialogView.Tile("slots", "열린 슬롯", "10/25", "", "대도시: §a+5§r\n원자로: §a+1§r\n부산광역시: §a+1§r\n원자로: §a+40%§r"));
+        for (int i = 0; i < 25; i++) own.add(tile("shared", i < 6 ? "민간공장" : i < 10 ? "빈 건설 슬롯" : "잠긴 건설 슬롯", "", i < 6 ? "construction/civilian_factory" : i < 10 ? "construction/empty_slot" : "map_detail/locked_slot"));
         int power=java.util.stream.IntStream.range(0,own.size()).filter(i->own.get(i).section().equals("shared")).findFirst().orElseThrow()+4;
         own.set(power,new DialogView.Tile("shared","발전소","","construction/power_plant",
                 "§e발전소§r (주 등급: §e3§r)\n발전소의 잠재 최대 레벨: §e4§r\n\n이 건물은 국가에 §a+6§r£resources_strip|7 을 제공하며, §c-4§r£resources_strip|1 및 §c-1§r£resources_strip|5 을(를) 소비합니다.\n\n§c이 주는 §e원자로§r나 §e에너지 농장§r을 건설할 수 없는 주입니다!§r"));
