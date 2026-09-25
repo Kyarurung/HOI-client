@@ -24,7 +24,6 @@ public final class AudioUiSounds {
             case SELECT -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.HudProtocol.State.HIDDEN); AudioKoreanMusic.select(); }
             case START -> {AudioKoreanMusic.enable();START_SOUNDS.forEach(AudioUiSounds::play);}
             case STOP -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.HudProtocol.State.HIDDEN); reset(); dev.hoi.client.screen.ScreenDialogCoordinator.reset(); }
-            case MAP_ARMY,MAP_NAVY,MAP_AIR,MAP_SUPPLY,MAP_CONSTRUCTION -> {AudioKoreanMusic.mapChanged();play(cue.sound());}
             default -> play(cue.sound());
         }
     }

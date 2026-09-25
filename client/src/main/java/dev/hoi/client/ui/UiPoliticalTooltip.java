@@ -69,7 +69,7 @@ public final class UiPoliticalTooltip {
             for (int i = 0; i < roleLines.size(); i++) rows.add(new UiTooltipRow(roleLines.get(i), i == 0 ? flag : "", font.lineHeight + 1));
             if (!detail.isEmpty()) rows.add(new UiTooltipRow(Component.empty().getVisualOrderText(), "", font.lineHeight + 1));
         }
-        for (String line : !flag.isEmpty() && detail.isEmpty() ? new String[0] : detail.split("\\R", -1)) {
+        for (String line : !flag.isEmpty() && detail.isEmpty() ? java.util.List.<String>of() : UiTooltipText.colorLines(detail)) {
             if(line.startsWith("[caption:")&&line.endsWith("]")&&!rows.isEmpty()&&rows.getLast().text()==null) {
                 var previous=rows.removeLast();
                 var caption=UiTooltips.styled(Component.literal(line.substring(9,line.length()-1)),false).getVisualOrderText();

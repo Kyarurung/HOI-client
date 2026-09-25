@@ -10,7 +10,8 @@
     "MixinMenuSound",
     "MixinManagerAccess",
     "MixinEngineAccess",
-    "MixinSoundResume"
+    "MixinSoundResume",
+    "MixinCountryNameWater"
   ],
   "injectors": {
     "defaultRequire": 1

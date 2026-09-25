@@ -154,7 +154,10 @@ public record IndustryView(String session, long revision, String country, Countr
         }
     }
     public record Line(String id, String equipment, int factories, int availableFactories, double efficiency,
-            double daily, double progress, double shortage, Conversion conversion, Integer operating, Integer damaged, Double efficiencyGain, Double efficiencyBaseGain, Double efficiencyResourcePenalty) {
+            double daily, double progress, double shortage, Conversion conversion, Integer operating, Integer damaged, Double efficiencyGain, Double efficiencyBaseGain, Double efficiencyResourcePenalty, Set<String> missingResources) {
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain,Double efficiencyBaseGain,Double efficiencyResourcePenalty) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,efficiencyBaseGain,efficiencyResourcePenalty,Set.of());
+        }
         public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain) {
             this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,null,null);
         }
@@ -168,6 +171,9 @@ public record IndustryView(String session, long revision, String country, Countr
         public int damagedFactories() {return damaged==null?0:damaged;}
         public int reservedFactories() {return factories-operatingFactories()-damagedFactories();}
         public Line {
+            missingResources=missingResources==null?Set.of():Set.copyOf(missingResources);
+            if(missingResources.size()>8)throw new IllegalArgumentException("Too many missing resources");
+            missingResources.forEach(resource->text(resource,32));
             if(efficiencyGain!=null&&!Double.isFinite(efficiencyGain))throw new IllegalArgumentException("Invalid efficiency gain");
             if(efficiencyBaseGain!=null&&(!Double.isFinite(efficiencyBaseGain)||efficiencyBaseGain<0)
                     ||efficiencyResourcePenalty!=null&&(!Double.isFinite(efficiencyResourcePenalty)||efficiencyResourcePenalty<0||efficiencyResourcePenalty>1))

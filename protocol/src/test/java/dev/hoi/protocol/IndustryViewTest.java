@@ -7,6 +7,27 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndustryViewTest {
+    @Test void productionResourceShortagesRoundTripWithoutGuessingLegacyValues() {
+        var gson=new com.google.gson.Gson();
+        var line=new IndustryView.Line("line","equipment",15,150,.5,10,.2,.8,null,10,2,.00003,.0001,.7,java.util.Set.of("RUBBER"));
+        assertEquals(line,gson.fromJson(gson.toJson(line),IndustryView.Line.class));
+        var legacy=gson.toJsonTree(line).getAsJsonObject();legacy.remove("missingResources");
+        assertTrue(gson.fromJson(legacy,IndustryView.Line.class).missingResources().isEmpty());
+        assertThrows(UnsupportedOperationException.class,()->line.missingResources().add("STEEL"));
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.Line("line","equipment",15,150,.5,10,.2,.8,null,10,2,.00003,.0001,.7,java.util.Set.of("x".repeat(33))));
+        assertThrows(IllegalArgumentException.class,()->new IndustryView.Line("line","equipment",15,150,.5,10,.2,.8,null,10,2,.00003,.0001,.7,java.util.stream.IntStream.range(0,9).mapToObj(Integer::toString).collect(java.util.stream.Collectors.toSet())));
+    }
+    @Test void designerContributionsPreserveLegacyStatsAndBoundedDeltas() {
+        var gson=new com.google.gson.Gson();
+        var stat=new TankDesignerView.Stat("hard_attack","대물 공격",46,false,List.of(new TankDesignerView.Contribution("강선포",40)),46);
+        assertEquals(stat,gson.fromJson(gson.toJson(stat),TankDesignerView.Stat.class));
+        var legacy=gson.toJsonTree(stat).getAsJsonObject();legacy.remove("contributions");legacy.remove("change");
+        var restored=gson.fromJson(legacy,TankDesignerView.Stat.class);
+        assertEquals(46,restored.value());assertEquals(0,restored.change());assertTrue(restored.contributions().isEmpty());
+        assertThrows(IllegalArgumentException.class,()->new TankDesignerView.Stat("hard_attack","",46,false,Collections.nCopies(65,new TankDesignerView.Contribution("part",1)),0));
+        assertThrows(IllegalArgumentException.class,()->new TankDesignerView.Contribution("part",Double.NaN));
+        assertThrows(IllegalArgumentException.class,()->new TankDesignerView.Stat("hard_attack","",46,false,List.of(),Double.POSITIVE_INFINITY));
+    }
     @Test void designerAdjustmentsPreserveSignsAndLegacyAbsence() {
         var gson=new com.google.gson.Gson();
         var adjustment=new TankDesignerView.Adjustment("forest",-.2,0,.1);

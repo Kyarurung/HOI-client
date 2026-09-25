@@ -13,6 +13,12 @@ final class ScreenMapDetailChecks {
             if(!text.getString().equals("집권 정당: 더불어민주당"))throw new AssertionError("TFR RGB markup leaked into tooltip text");
             boolean blue=text.visit((style,part)->part.equals("더불어민주당")&&style.getColor()!=null&&style.getColor().getValue()==0x3659D9?Optional.of(true):Optional.empty(),net.minecraft.network.chat.Style.EMPTY).orElse(false);
             if(!blue)throw new AssertionError("TFR party name lost its original blue color");
+            for(var entry:Map.of("§e서울특별시장:",0xFFBD00,"§f박원순",0xFFFFFF,"§#CD3737국민의힘",0xCD3737,"§#23CEFF조국혁신당",0x23CEFF,"§#FCA97D설명",0xFCA97D,"§#FB607FSeoul, my soul",0xFB607F).entrySet()) {
+                var styled=dev.hoi.client.ui.UiTooltips.styled(net.minecraft.network.chat.Component.literal(entry.getKey()),false);
+                boolean correct=styled.visit((style,part)->style.getColor()!=null&&style.getColor().getValue()==entry.getValue()?Optional.of(true):Optional.empty(),net.minecraft.network.chat.Style.EMPTY).orElse(false);
+                if(!correct)throw new AssertionError("TFRKP tooltip color mismatch: "+entry.getKey());
+            }
+
         });
         var own = new ArrayList<DialogView.Tile>();
         own.add(tile("owner", "주 소유국", "대한민국", "country/kor/flag"));
@@ -26,7 +32,7 @@ final class ScreenMapDetailChecks {
         own.set(power,new DialogView.Tile("shared","발전소","","construction/power_plant",
                 "§e발전소§r (주 등급: §e3§r)\n발전소의 잠재 최대 레벨: §e4§r\n\n이 건물은 국가에 §a+6§r£resources_strip|7 을 제공하며, §c-4§r£resources_strip|1 및 §c-1§r£resources_strip|5 을(를) 소비합니다.\n\n§c이 주는 §e원자로§r나 §e에너지 농장§r을 건설할 수 없는 주입니다!§r"));
         for (String id : List.of("civilian_factory", "military_factory", "dockyard", "office_park", "refinery", "fuel_silo", "rocket_site", "nuclear_reactor", "power_plant", "energy_farm")) own.add(tile("limits", id, "1/4", "construction/" + id));
-        for (String id : List.of("oil", "aluminum", "rubber", "tungsten", "iron", "chromium", "coal")) own.add(tile("resources", id, id.equals("oil") ? "-12" : "917", "production/resources/" + id));
+        for (String id : List.of("oil", "aluminum", "rubber", "tungsten", "iron", "chromium")) own.add(tile("resources", id, id.equals("oil") ? "-12" : id.equals("iron") ? "1379" : "123456", "production/resources/" + id));
         int oilCell=java.util.stream.IntStream.range(0,own.size()).filter(i->own.get(i).icon().equals("production/resources/oil")).findFirst().orElseThrow();
         own.set(oilCell,new DialogView.Tile("resources","석유","-12","production/resources/oil","§e석유§r\n기본: §e0§r £resources_strip|1\n건물: §e-12§r £resources_strip|1\n   기반시설: §ex2.00§r\n   보급 경로: §ex1.10§r\n---------------------\n석유는 연료, 윤활유, 화학 제품 등으로 정제되는 주요 자원입니다. 이는 수송망에 동력을 공급하고 산업 활동을 지원하며, 차량, 항공기, 해상 운송 운영에 필수적입니다."));
         own.add(new DialogView.Tile("energy", "에너지 효율", "158", "map_detail/energy", "에너지 효율: §e1.67§r\n  사무단지: §c-2%§r\n  사무단지: §c-2%§r\n공장 에너지 소비량: §c-15%§r\n공장 에너지 사용량: §e157.67§r\n군수공장 에너지 사용량: §e67.57§r\n해군 조선소 에너지 사용량: §e7.50§r\n민간공장 에너지 사용량: §e82.59§r"));
@@ -94,7 +100,14 @@ final class ScreenMapDetailChecks {
             var t=occupied.get(i);
             if(t.section().equals("shared")&&overlayIndex<2)occupied.set(i,new DialogView.Tile(t.section(),t.name(),t.value(),t.icon(),t.detail(),t.gauge(),"map_detail/"+(overlayIndex++==0?"constructing":"repairing")));
         }
-        var fixtures = List.of(view("부산", "map_detail/terrain/urban", own), view("평안남도", "map_detail/terrain/plains", hidden), view("동해", "map_detail/sea", sea), view("도쿄", "map_detail/terrain/toyko", occupied));
+        var seoul=new ArrayList<>(own);
+        for(int i=0;i<seoul.size();i++) {
+            var t=seoul.get(i);
+            if(t.section().equals("features"))seoul.set(i,new DialogView.Tile("features","서울특별시","","map_detail/art/gfx_modifiers_kor_seoul","§e서울특별시장:§r\n[image:map_detail/art/gfx_park_won_soon_portrait]\n[caption:§f박원순§r]\n\n§e집권 정당: §#3659D9더불어민주당§r"));
+        }
+        for(int i=0;i<own.size();i++)if(own.get(i).section().equals("terrain"))own.set(i,new DialogView.Tile("terrain","지역","부산","","§e부산§r\n§e부대 효과:§r\n이동: §e95.0%§r\n공격: §e30.0%§r\n방어: §e106.0%§r\n전투 너비: §e96§r (추가 공격: §e32§r)\n적 공중 지원: §a-50%§r\n보급 물류 감소: §e0.0%§r\n이 지형 내에서의 이동 비용 §e×3.20§r\n\n----\n§#FCA97D대한민국 제2의 도시이자 최대 항구 도시인 부산은 남동쪽 해안에서 바다와 함께 숨 쉬는 역동적인 도시입니다. 한국 전쟁 당시 임시 수도로서 수많은 피난민을 끌어안으며 국가의 마지막 보루 역할을 했던 이곳은 강인한 생명력과 포용의 정신을 간직하고 있습니다.\n\n오늘날 부산은 세계적인 물류 허브이자 아시아 최대 영화 축제인 부산국제영화제(BIFF)가 열리는 '영화의 도시'로 국제적인 명성을 떨치고 있습니다. 해운대의 눈부신 해변과 광안대교의 야경, 자갈치 시장의 활기, 그리고 감천문화마을의 예술적인 풍경은 부산만의 다채로운 매력을 선사합니다. 거친 파도와 같은 열정과 드넓은 바다 같은 포용력을 지닌 부산은 사람과 문화, 산업이 어우러져 끊임없이 새로운 이야기를 만들어가는 곳입니다.§r\n\n§#FB607F돌아와요 부산항에..§r"));
+        for(int i=0;i<seoul.size();i++)if(seoul.get(i).section().equals("terrain"))seoul.set(i,new DialogView.Tile("terrain","지역","서울","","§e서울§r\n§e부대 효과:§r\n이동: §e95.0%§r\n공격: §e30.0%§r\n방어: §e106.0%§r\n전투 너비: §e96§r (추가 공격: §e32§r)\n적 공중 지원: §a-50%§r\n보급 물류 감소: §e0.0%§r\n이 지형 내에서의 이동 비용 §e×3.20§r\n\n----\n§#FCA97D600년 넘게 한 민족의 심장 역할을 해온 수도 서울은 유구한 역사와 눈부신 현대성이 공존하는 역동적인 대도시입니다. 조선 왕조의 수도였던 한양에서 시작하여 한국 전쟁의 폐허를 딛고 '한강의 기적'을 이뤄낸 서울은 불굴의 의지와 끊임없는 혁신의 상징이 되었습니다.\n\n오늘날 서울은 대한민국 정부와 삼성, 현대 등 세계적인 기업들의 본사가 자리한 정치, 경제의 중심지이자, K팝과 영화를 필두로 한 한류 문화를 통해 전 세계에 막대한 영향력을 미치는 문화 도시입니다. 경복궁과 같은 고궁의 장엄함과 미래지향적인 동대문디자인플라자(DDP)가 어우러져 있으며, 세계적인 수준의 대중교통 시스템은 도시의 활기 넘치는 리듬을 뒷받침합니다. 서울은 24시간 잠들지 않는 에너지와 무한한 가능성으로 가득 찬, 과거와 미래가 만나는 도시입니다.§r\n\n§#FB607FSeoul, my soul§r"));
+        var fixtures = List.of(view("부산", "map_detail/terrain/urban", own), view("평안남도", "map_detail/terrain/plains", hidden), view("동해", "map_detail/sea", sea), view("도쿄", "map_detail/terrain/toyko", occupied), view("서울", "map_detail/terrain/seoul", seoul));
         int index = 0;
         for (var view : fixtures) {
             context.runOnClient(client -> {
@@ -112,11 +125,7 @@ final class ScreenMapDetailChecks {
                     if (screen.panelTop() < dev.hoi.client.ui.UiMenuBar.height(screen.width)) throw new AssertionError("Detail cannot overlap the top menu");
                     for (var child : screen.children()) if (child instanceof Button b && (b.getX() < 0 || b.getY() < 0 || b.getRight() > screen.width || b.getBottom() > screen.height)) throw new AssertionError("Detail button escaped viewport");
                     if (!screen.allowsMovement()) throw new AssertionError("Map movement remains available");
-                    if(size[0]==2560&&view.tiles().stream().anyMatch(t->t.section().equals("resources"))) {
-                        double ratio=screen.panelWidth()/463.0;
-                        for(String number:List.of("917","-12")) if(client.font.width(number)*Math.max(10,12*ratio)/client.font.lineHeight>Math.round(30*ratio))
-                            throw new AssertionError("Resource number escaped its cell: "+number);
-                    }
+
                 });
                 context.takeScreenshot("hoi-map-detail-" + index + "-" + size[0] + "-gui2");
                 if(index==3&&size[0]==2560)context.runOnClient(client -> {
@@ -158,6 +167,18 @@ final class ScreenMapDetailChecks {
                         });
                         context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(3);
                         context.takeScreenshot("hoi-state-tooltip-"+cell[0]+"-gui2");
+                    }
+                    context.getInput().setCursorPos(1800,600);context.waitTicks(2);
+                }
+                if(index==4&&size[0]==2560) {
+                    for(int[] cell:new int[][]{{35,445},{230,530}}) {
+                        var point=context.computeOnClient(client -> {
+                            var screen=(ScreenMapDetail)client.gui.screen();
+                            double ratio=screen.panelWidth()/463.0,gui=client.getWindow().getGuiScale();
+                            return new double[]{cell[0]*ratio*gui,(screen.panelTop()+cell[1]*ratio)*gui};
+                        });
+                        context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(3);
+                        context.takeScreenshot("hoi-seoul-"+(cell[0]==35?"modifier":"terrain")+"-tooltip-gui2");
                     }
                     context.getInput().setCursorPos(1800,600);context.waitTicks(2);
                 }

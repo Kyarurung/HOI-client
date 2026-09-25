@@ -106,11 +106,51 @@ public final class ScreenIndustryChecks {
         }
         context.getInput().resizeWindow(1600,1000);
     }
+    private static void tankStatTooltips(ClientGameTestContext context,IndustryView view) {
+        context.runOnClient(client->{
+            for(var stat:view.tankDesigner().stats()) {
+                String text=dev.hoi.client.ui.UiEquipmentDesigns.statTooltip(stat);
+                check(!text.contains("$"),"Source tooltip references are resolved: "+stat.id());
+                check(text==dev.hoi.client.ui.UiEquipmentDesigns.statTooltip(stat),"Unchanged snapshots reuse formatted stat descriptions");
+                if(!stat.contributions().isEmpty())check(text.contains("\n\n"),"Source contributions have an empty paragraph separator");
+                if(stat.change()!=0&&!stat.id().equals("build_cost_ic"))check(text.contains("변경 사항이 저장되지 않음:"),"Unsaved delta is derived from the installed design");
+            }
+            var stat=new TankDesignerView.Stat("fuel_consumption","연료 사용량",2,false,List.of(new TankDesignerView.Contribution("엔진",2)),.05);
+            String fuel=dev.hoi.client.ui.UiEquipmentDesigns.statTooltip(stat);
+            check(fuel.contains("§c+2.00")&&fuel.contains("§c+0.05"),"Higher fuel use is red with source precision");
+            String text="§e관통\n§f설명\n\n§a+170.0";
+            var lines=dev.hoi.client.ui.UiTooltips.lines(client.font,text,1280);
+            check(lines==dev.hoi.client.ui.UiTooltips.lines(client.font,text,1280),"Repeated hover reuses wrapped text");
+            dev.hoi.client.ui.UiTooltips.clear();
+            check(lines!=dev.hoi.client.ui.UiTooltips.lines(client.font,text,1280),"Resource reload invalidates wrapped text");
+        });
+        String[][] keys={{"maximum_speed","reliability","supply_consumption"},{"soft_attack","hard_attack","ap_attack","hardness","armor_value","breakthrough","defense","air_attack"},{"fuel_capacity","fuel_consumption","suppression","recon","entrenchment"}};
+        var bounds=context.computeOnClient(client->{var screen=(ScreenIndustry)client.gui.screen();int w=Math.min(screen.width-24,Math.max(780,screen.width*5/8));return new int[]{(screen.width-w)/2,(screen.height-w*553/1092)/2,w};});
+        for(int col=0;col<keys.length;col++)for(int row=0;row<keys[col].length;row++) {
+            context.getInput().setCursorPos(2*(bounds[0]+(543+col*175+80)*bounds[2]/1092),2*(bounds[1]+(83+row*20)*bounds[2]/1092));
+            context.waitTicks(3);context.takeScreenshot("hoi-tank-stat-"+keys[col][row]+"-gui2");
+        }
+        for(int[] target:List.of(new int[]{76,0},new int[]{331,1},new int[]{456,2},new int[]{1010,3})) {
+            context.getInput().setCursorPos(2*(bounds[0]+target[0]*bounds[2]/1092),2*(bounds[1]+522*bounds[2]/1092));
+            context.waitTicks(15);context.takeScreenshot("hoi-tank-footer-"+List.of("reset","experience","save","cost").get(target[1])+"-gui2");
+        }
+        context.getInput().setCursorPos(2400,1300);
+    }
     private static void tankDesigner(ClientGameTestContext context) {
         var empty=tankFixture("tank-empty-fixture.json");var ready=tankFixture("tank-designer-fixture.json");
         var requests=new ArrayList<IndustryProtocol.Request>();
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->client.options.guiScale().set(2));
+        var installed=tankFixture("tank-installed-fixture.json");
+        var replaced=tankFixture("tank-replaced-fixture.json");
+        var reset=tankFixture("tank-reset-fixture.json");
+        check(installed.tankDesigner().equals(reset.tankDesigner()),"Reset response restores installed modules, upgrades and stats");
+        check(!replaced.tankDesigner().equals(reset.tankDesigner()),"Replacement draft differs from the installed baseline");
+        context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,replaced.session(),replaced,requests::add));context.waitTicks(2);
+        click(context,"설계 초기화");
+        check(requests.getLast().action()==IndustryProtocol.Action.TANK_RESET,"Reset submits the authoritative baseline restore request");
+        context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,reset.session(),reset,requests::add));context.waitTicks(2);
+        context.getInput().setCursorPos(2400,1300);context.takeScreenshot("hoi-tank-reset-installed-gui2");
         var production=ready.withTankDesigner(null);
         context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,production.session(),production,requests::add));context.waitTicks(3);
         click(context,"기갑 차량 제작");context.waitTicks(2);
@@ -128,27 +168,101 @@ public final class ScreenIndustryChecks {
         context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,ready.session(),ready,requests::add));context.waitTicks(3);
         context.runOnClient(client->checkBounds((ScreenIndustry)client.gui.screen()));
         context.takeScreenshot("hoi-tank-designer-ready-gui2");
+        tankStatTooltips(context,ready);
+        context.runOnClient(client->{
+            var screen=(ScreenIndustry)client.gui.screen();
+            var adjusters=screen.children().stream().filter(widget->widget instanceof Button b&&b.getMessage().getString().startsWith("설계 조정치 · ")).map(widget->(Button)widget).toList();
+            check(adjusters.size()==11,"Tank designer exposes all eleven environment adjusters");
+            var rows=adjusters.stream().collect(java.util.stream.Collectors.groupingBy(Button::getY,java.util.TreeMap::new,java.util.stream.Collectors.counting()));
+            check(new ArrayList<>(rows.values()).equals(List.of(5L,5L,1L)),"Environment adjusters use five/five/one rows");
+        });
+        click(context,"전차 역할 선택");context.waitTicks(2);context.takeScreenshot("hoi-tank-roles-gui2");
+        click(context,"전차 역할 선택");context.waitTicks(2);
+        for(String environment:List.of("plains","forest","hills","mountain","urban","jungle","marsh","desert","fort","river","amphibious")) {
+            var point=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),"설계 조정치 · "+environment);return new double[]{b.getX()+b.getWidth()/2.0,b.getY()+b.getHeight()/3.0};});
+            context.getInput().setCursorPos(point[0]*2,point[1]*2);context.waitTicks(3);
+            context.takeScreenshot("hoi-tank-adjuster-"+environment+"-gui2");
+        }
+        context.runOnClient(client->{
+            var engine=ready.tankDesigner().upgrades().getFirst();
+            var armor=ready.tankDesigner().upgrades().getLast();
+            String engineText=ScreenIndustry.tankUpgradeChanges(engine,1),armorText=ScreenIndustry.tankUpgradeChanges(armor,1);
+            check(ScreenIndustry.tankValue(new TankDesignerView.Stat("maximum_speed","",9.085,false)).equals("9.0km/h"),"Source design speed truncates to one decimal");
+            check(ScreenIndustry.tankValue(new TankDesignerView.Stat("reliability","",.8865,true)).equals("88.6%"),"Source design reliability truncates after percent conversion");
+            check(ScreenIndustry.tankValue(new TankDesignerView.Stat("armor_value","",24.75,false)).equals("24.7"),"Source armor preview retains native precision");
+            check(ScreenIndustry.tankValue(new TankDesignerView.Stat("build_cost_ic","",5.519999999999999,false)).equals("5.52"),"Binary arithmetic residue does not reduce a displayed cost");
+            check(engineText.contains("-1.5%")&&engineText.contains("0.10")&&engineText.contains("0.05")&&engineText.contains("0.1km/h"),"Engine tooltip uses source upgrade coefficients before design multipliers");
+            check(armorText.contains("-1.5%")&&armorText.contains("0.20")&&armorText.contains("2.5")&&armorText.contains("1.2")&&armorText.contains("-0.1km/h"),"Armor tooltip preserves native coefficients and truncated breakthrough precision");
+            check(ScreenIndustry.tankUpgradeChanges(engine,-1).contains("1.5%")&&ScreenIndustry.tankUpgradeChanges(engine,5).contains("-7.5%"),"Upgrade tooltips retain signed decrease and multi-level coefficients");
+            check(engine.steps().stream().filter(step->step.amount()==1).flatMap(step->step.changes().stream()).anyMatch(stat->stat.id().equals("build_cost_ic")&&Math.abs(stat.value()-.08)<1e-8),"Actual preview still uses common design multipliers instead of raw tooltip coefficients");
+        });
         var enginePoint=context.computeOnClient(client->{
             var screen=(ScreenIndustry)client.gui.screen();
-            var plus=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().replaceAll("§.","").startsWith("다음 업그레이드:")).findFirst().orElseThrow();
+            var plus=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(ready.tankDesigner().upgrades().getFirst().name()+" 증가")).findFirst().orElseThrow();
             return new double[]{plus.getX()+plus.getWidth()/2.0,plus.getY()+plus.getHeight()/2.0,plus.getWidth()*37.5/29};
         });
         context.getInput().setCursorPos(enginePoint[0]*2,enginePoint[1]*2);context.waitTicks(5);
         context.takeScreenshot("hoi-tank-engine-upgrade-tooltip-gui2");
         context.getInput().setCursorPos((enginePoint[0]-enginePoint[2])*2,enginePoint[1]*2);context.waitTicks(5);
         context.takeScreenshot("hoi-tank-engine-level-tooltip-gui2");
+        var armorPoint=context.computeOnClient(client->{
+            var plus=button((ScreenIndustry)client.gui.screen(),ready.tankDesigner().upgrades().getLast().name()+" 증가");
+            return new double[]{plus.getX()+plus.getWidth()/2.0,plus.getY()+plus.getHeight()/2.0,plus.getWidth()*37.5/29};
+        });
+        context.getInput().setCursorPos(armorPoint[0]*2,armorPoint[1]*2);context.waitTicks(5);
+        context.takeScreenshot("hoi-tank-armor-upgrade-tooltip-gui2");
+        context.getInput().setCursorPos((armorPoint[0]-armorPoint[2])*2,armorPoint[1]*2);context.waitTicks(5);
+        context.takeScreenshot("hoi-tank-armor-level-tooltip-gui2");
         context.getInput().setCursorPos(2400,1300);context.waitTicks(3);
         var slot=ready.tankDesigner().slots().stream().filter(s->s.id().equals("main_armament_slot")).findFirst().orElseThrow();
         String label=slot.name()+" · 필수"+slot.choices().stream().filter(p->p.id().equals(slot.selected())).map(p->"\n"+p.name()).findFirst().orElse("");
+        var slotPoint=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),label);return new double[]{b.getX()+b.getWidth()/2.0,b.getY()+b.getHeight()/2.0};});
+        context.getInput().setCursorPos(slotPoint[0]*2,slotPoint[1]*2);context.waitTicks(4);context.takeScreenshot("hoi-tank-slot-tooltip-gui2");
         click(context,label);context.waitTicks(3);
         context.runOnClient(client->checkBounds((ScreenIndustry)client.gui.screen()));
-        context.takeScreenshot("hoi-tank-modules-gui2");
-        var part=slot.choices().getFirst();click(context,part.name());
+        context.takeScreenshot("hoi-tank-module-categories-gui2");
+        var part=slot.choices().getFirst();
+        String category=context.computeOnClient(client->dev.hoi.client.ui.UiEquipmentDesigns.categoryName(dev.hoi.client.ui.UiEquipmentDesigns.moduleCategory(part.id())));
+        int beforeCategory=requests.size();click(context,"모듈 분류: "+category);context.waitTicks(3);
+        check(requests.size()==beforeCategory,"Choosing a module category does not mutate the design");
+        context.getInput().setCursorPos(2400,1300);context.takeScreenshot("hoi-tank-modules-gui2");
+        var partPoint=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),part.name());return new double[]{b.getX()+b.getWidth()/2.0,b.getY()+b.getHeight()/2.0};});
+        context.getInput().setCursorPos(partPoint[0]*2,partPoint[1]*2);context.waitTicks(5);context.takeScreenshot("hoi-tank-module-tooltip-gui2");
+        context.getInput().setCursorPos(2400,1300);context.waitTicks(3);context.takeScreenshot("hoi-tank-module-preview-restored-gui2");
+        check(requests.size()==beforeCategory,"Hovering a replacement restores the installed preview without submitting a module change");
+        click(context,"모듈 선택 뒤로");context.waitTicks(2);
+        click(context,"모듈 분류: "+category);context.waitTicks(2);click(context,part.name());
         check(requests.getLast().action()==IndustryProtocol.Action.TANK_MODULE&&requests.getLast().item().equals(slot.id())&&requests.getLast().other().equals(part.id()),"Module selection uses the server-issued slot and part");
+        for(String slotId:List.of("special_type_slot_1","suspension_type_slot","armor_type_slot","engine_type_slot","special_type_slot_5","turret_type_slot")) {
+            context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,ready.session(),ready,requests::add));context.waitTicks(2);
+            var current=ready.tankDesigner().slots().stream().filter(entry->entry.id().equals(slotId)).findFirst().orElseThrow();
+            String currentLabel=current.name()+(current.required()?" · 필수":"")+current.choices().stream().filter(entry->entry.id().equals(current.selected())).map(entry->"\n"+entry.name()).findFirst().orElse("");
+            click(context,currentLabel);context.waitTicks(2);context.getInput().setCursorPos(2400,1300);context.takeScreenshot("hoi-tank-categories-"+slotId+"-gui2");
+            var candidate=slotId.equals("special_type_slot_1")?current.choices().stream().filter(entry->entry.id().equals("auto_loader")).findFirst().orElseThrow():current.choices().getFirst();
+            String moduleCategory=context.computeOnClient(client->dev.hoi.client.ui.UiEquipmentDesigns.categoryName(dev.hoi.client.ui.UiEquipmentDesigns.moduleCategory(candidate.id())));
+            int beforeList=requests.size();
+            boolean categorized=slotId.equals("special_type_slot_1");
+            context.runOnClient(client->{
+                var screen=(ScreenIndustry)client.gui.screen();
+                check(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("장착 모듈 제거")),"Armored module list has no removal button");
+                check(screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().startsWith("모듈 분류: "))==categorized,"Only categorized slots open a classification screen");
+            });
+            if(categorized)click(context,"모듈 분류: "+moduleCategory);
+            context.waitTicks(2);context.takeScreenshot("hoi-tank-parts-"+slotId+"-gui2");
+            var candidatePoint=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),candidate.name());return new double[]{b.getX()+b.getWidth()/2.0,b.getY()+b.getHeight()/2.0};});
+            context.getInput().setCursorPos(candidatePoint[0]*2,candidatePoint[1]*2);context.waitTicks(4);context.takeScreenshot("hoi-tank-tooltip-"+slotId+"-gui2");
+            click(context,"모듈 선택 뒤로");context.waitTicks(2);
+            check(requests.size()==beforeList,"Opening, hovering and leaving the list does not change installed modules");
+            if(!categorized) {
+                context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),currentLabel).active,"Back returns directly to the designer"));
+                click(context,currentLabel);context.waitTicks(2);click(context,candidate.name());
+                check(requests.getLast().action()==IndustryProtocol.Action.TANK_MODULE&&requests.getLast().item().equals(slotId)&&requests.getLast().other().equals(candidate.id()),"Direct list still selects the server-issued module");
+            }
+        }
         context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,ready.session(),ready,requests::add));context.waitTicks(2);
         context.runOnClient(client->{
             var screen=(ScreenIndustry)client.gui.screen();
-            var plus=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().replaceAll("§.","").startsWith("다음 업그레이드:")).findFirst().orElseThrow();
+            var plus=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(ready.tankDesigner().upgrades().getFirst().name()+" 증가")).findFirst().orElseThrow();
             plus.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0));
         });
         check(requests.getLast().action()==IndustryProtocol.Action.TANK_UPGRADE&&requests.getLast().amount()==1,"Engine upgrade sends a bounded level request");
@@ -158,6 +272,38 @@ public final class ScreenIndustryChecks {
         check(requests.size()==beforeManufacturer,"Manufacturer placeholder does not send gameplay requests");
         click(context,"설계 저장 · 육군 경험치 "+ready.tankDesigner().experience());
         check(requests.getLast().action()==IndustryProtocol.Action.TANK_SAVE&&requests.getLast().item().equals(ready.tankDesigner().name()),"Save retains the source design name");
+        context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,empty.session(),empty,requests::add));context.waitTicks(3);
+        var emptySlot=empty.tankDesigner().slots().stream().filter(entry->entry.id().equals("main_armament_slot")).findFirst().orElseThrow();
+        check(emptySlot.selected().isEmpty(),"Module preview starts from an empty main armament slot");
+        context.runOnClient(client->{
+            var rifled=emptySlot.choices().stream().filter(entry->entry.id().equals("tank_heavy_cannon")).findFirst().orElseThrow();
+            for(String key:List.of("hard_attack","ap_attack")) {
+                String name=key.equals("hard_attack")?"대물 공격":"관통";
+                String token=key.equals("hard_attack")?"hard_attack_texticon":"piercing_texticon";
+                check(dev.hoi.client.ui.UiEquipmentDesigns.statName(key).contains(name),"Zero-valued tank stats retain Korean source labels: "+key);
+                check(dev.hoi.client.ui.UiEquipmentDesigns.statCaption(key,key).contains("£"+token),"Tank stat tooltip uses its TFR modifier icon: "+key);
+                check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/design/stats/"+key+".png")).isPresent(),"Tank stat texture exists: "+key);
+                var change=rifled.changes().stream().filter(stat->stat.id().equals(key)).findFirst().orElseThrow();
+                check(change.name().contains(name)&&change.value()==(key.equals("hard_attack")?20.0:90.0),"Empty-slot rifled gun preview retains source hard attack and piercing values: "+key);
+            }
+        });
+        click(context,emptySlot.name()+" · 필수");context.waitTicks(2);
+        click(context,"모듈 분류: "+category);context.waitTicks(2);
+        context.runOnClient(client->{
+            var screen=(ScreenIndustry)client.gui.screen();
+            var back=button(screen,"모듈 선택 뒤로");
+            int right=emptySlot.choices().stream().map(entry->button(screen,entry.name())).mapToInt(widget->widget.getX()+widget.getWidth()).max().orElseThrow();
+            check(back.getX()+back.getWidth()==right,"Back button aligns with the module card right edge");
+        });
+        context.getInput().setCursorPos(2400,1300);context.takeScreenshot("hoi-tank-empty-module-preview-gui2");
+        int beforeHover=requests.size();
+        for(var candidate:emptySlot.choices().stream().filter(entry->entry.id().equals("tank_heavy_cannon")||entry.id().equals("tank_high_velocity_cannon")).toList()) {
+            var point=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),candidate.name());return new double[]{b.getX()+b.getWidth()/2.0,b.getY()+b.getHeight()/2.0};});
+            context.getInput().setCursorPos(point[0]*2,point[1]*2);context.waitTicks(4);
+            context.takeScreenshot("hoi-tank-empty-module-preview-"+candidate.id()+"-gui2");
+        }
+        context.getInput().setCursorPos(2400,1300);context.waitTicks(3);context.takeScreenshot("hoi-tank-empty-module-preview-restored-gui2");
+        check(requests.size()==beforeHover,"Empty-slot hover previews never install equipment or send mutation requests");
         for(int generation=2;generation<=5;generation++) {
             var variant=tankFixture("tank-generation-"+generation+"-fixture.json");
             context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,variant.session(),variant,requests::add));context.waitTicks(2);
@@ -189,7 +335,9 @@ public final class ScreenIndustryChecks {
                     target.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0));
                 });
                 context.waitTicks(2);
-                var module=extraSlot.choices().getFirst();click(context,module.name());
+                var module=extraSlot.choices().getFirst();
+                String extraCategory=context.computeOnClient(client->dev.hoi.client.ui.UiEquipmentDesigns.categoryName(dev.hoi.client.ui.UiEquipmentDesigns.moduleCategory(module.id())));
+                click(context,"모듈 분류: "+extraCategory);context.waitTicks(2);click(context,module.name());
                 check(requests.getLast().action()==IndustryProtocol.Action.TANK_MODULE&&requests.getLast().item().equals(extra),"Extra slot submits its own server-issued identity");
             }
         }
@@ -267,7 +415,21 @@ public final class ScreenIndustryChecks {
         var resources = v.resources().stream().map(r -> new IndustryView.Resource(r.id(), r.name(), r.extracted(), r.imported(), r.exported(),
                 r.id().equals("ALUMINUM") ? 32 : r.id().equals("COAL") ? 0 : r.demand(),
                 r.id().equals("ALUMINUM") ? 210 : r.id().equals("COAL") ? 129 : r.demand())).toList();
-        var shortage = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), resources, v.modifiers(), v.equipment(), v.lines(),
+        var json = new com.google.gson.Gson().toJsonTree(v).getAsJsonObject();
+        var equipment = json.getAsJsonArray("equipment").get(0).getAsJsonObject();
+        var costs = new com.google.gson.JsonObject();
+        costs.addProperty("IRON", 2); costs.addProperty("RUBBER", 2); costs.addProperty("TUNGSTEN", 2);
+        equipment.add("resources", costs);
+        var lines = new com.google.gson.JsonArray();
+        for (int i = 0; i < 3; i++) {
+            var line = new IndustryView.Line("resource-check-" + i, equipment.get("id").getAsString(), 15, 150, .5, 5, .2,
+                    i == 1 ? .5 : 0, null, i == 2 ? 0 : 15, 0, .001, .001, i == 1 ? .5 : 0,
+                    i == 1 ? java.util.Set.of("RUBBER") : java.util.Set.of());
+            lines.add(new com.google.gson.Gson().toJsonTree(line));
+        }
+        json.add("lines", lines);
+        var fixture = new IndustryProtocol.Response(json.toString()).view();
+        var shortage = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), resources, v.modifiers(), fixture.equipment(), fixture.lines(),
                 v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), v.recruits(), v.deployed(), v.draft(), v.message(), v.navalRepairs(), v.specialForces());
         context.getInput().resizeWindow(2560, 1440);
         context.runOnClient(client -> client.options.guiScale().set(2));
@@ -294,9 +456,114 @@ public final class ScreenIndustryChecks {
                 }
                 check(missing ? iconRed > 5 && numberRed > 5 : numberRed == 0, "Shortage icon and signed amount follow each resource balance: " + resources.get(i).id());
             }
+            var geometry = context.computeOnClient(client -> {
+                var screen = (ScreenIndustry)client.gui.screen();
+                float scale = (screen.panelWidth() - 12) / 511f;
+                int x = 6 + Math.round(464 * scale), w = screen.panelWidth() - 9 - x;
+                int textWidth = Math.min(w - 10, Math.round(client.font.width("30") * dev.hoi.client.ui.UiText.scale(client.font)));
+                int left = x + (w - 8 - textWidth) / 2;
+                return new float[]{scale, left, textWidth, dev.hoi.client.ui.UiMenuBar.height(screen.width) + 135,
+                        Math.max(62, Math.round((screen.panelWidth() - 12) * 116f / 511)) + 2};
+            });
+            var model = fixture.equipment().getFirst();
+            for (int i = 0; i < 2; i++) {
+                int row = 0;
+                for (String resource : model.resources().keySet()) {
+                    int y0 = (int)geometry[3] + i * (int)geometry[4] + Math.round((33 + row++ * 23) * geometry[0]) + 1;
+                    int iconRed = 0, numberRed = 0;
+                    for (int y = y0 * 2; y < (y0 + Math.round(22 * geometry[0])) * 2; y++)
+                        for (int x = (int)geometry[1] * 2; x < ((int)geometry[1] + 8 + (int)geometry[2]) * 2; x++) {
+                            int pixel = image.getRGB(x, y), red = pixel >> 16 & 255, green = pixel >> 8 & 255, blue = pixel & 255;
+                            if (x < ((int)geometry[1] + 7) * 2) {
+                                if (red > 100 && red > green + 20 && red > blue + 20) iconRed++;
+                            } else if ((pixel & 0xFFFFFF) == dev.hoi.client.ui.UiTooltips.BAD) numberRed++;
+                        }
+                    boolean missing = i == 1 && resource.equals("RUBBER");
+                    check(missing ? iconRed > 5 && numberRed > 5 : iconRed == 0 && numberRed == 0,
+                            "Only the deficient line resource has original red icon and TFR red number: " + i + ":" + resource);
+                }
+            }
         } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
     }
+    public static void productionPickerDetails(ClientGameTestContext context) {
+        var data=new com.google.gson.Gson().toJsonTree(tankFixture("industry-upgrade-fixture.json")).getAsJsonObject();
+        data.getAsJsonArray("equipment").forEach(row->row.getAsJsonObject().addProperty("unlocked",true));
+        var fixture=new IndustryProtocol.Response(data.toString()).view();
+        var requests=new ArrayList<IndustryProtocol.Request>();
+        context.getInput().resizeWindow(2560,1440);
+        context.runOnClient(client->client.options.guiScale().set(2));
+        context.runOnClient(client->{
+            String retired=dev.hoi.client.ui.UiEquipmentDesigns.productionObsoleteTooltip(false);
+            String restored=dev.hoi.client.ui.UiEquipmentDesigns.productionObsoleteTooltip(true);
+            check(retired.startsWith("퇴역\n\n§a클릭§f"),"Retirement preserves source title, blank line and green click instruction");
+            check(restored.startsWith("재취역\n\n§a클릭§f"),"Recommission preserves source title, blank line and green click instruction");
+            check(dev.hoi.client.ui.UiEquipmentDesigns.tooltip("PRODUCTION_CREATE_VARIANT").equals("§e파생형 제작§f"),"Variant title uses source gold");
+        });
+        for(String category:List.of("보병 및 포병 장비 제작","기갑 차량 제작","항공기 제작","함선 건조")) {
+            context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
+            click(context,category);context.waitTicks(2);
+            var rowName=context.computeOnClient(client->client.gui.screen().children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().startsWith("생산: ")).map(w->((Button)w).getMessage().getString()).findFirst().orElseThrow());
+            for(boolean obsolete:List.of(true,false)) {
+                var point=context.computeOnClient(client->{
+                    var row=button((ScreenIndustry)client.gui.screen(),rowName);
+                    return new double[]{(row.getX()+row.getWidth()+13)*client.getWindow().getGuiScale(),(row.getY()+(obsolete?8:row.getHeight()-13))*client.getWindow().getGuiScale()};
+                });
+                context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);
+                context.takeScreenshot("hoi-production-"+category+"-"+(obsolete?"retire":"variant")+"-gui2");
+            }
+            if(category.equals("함선 건조")) {
+                var models=new LinkedHashMap<String,IndustryView.Equipment>();
+                fixture.equipment().stream().filter(e->e.unlocked()&&e.naval()&&!"convoy".equals(e.family())).forEach(e->models.putIfAbsent(e.family(),e));
+                for(var model:models.values()) {
+                    click(context,model.familyName()==null?model.name():model.familyName());context.waitTicks(2);
+                    context.getInput().setCursorPos(2400,1300);context.waitTicks(2);
+                    context.runOnClient(client->{
+                        var screen=(ScreenIndustry)client.gui.screen();checkBounds(screen);
+                        for(var e:fixture.equipment())if(e.naval()&&e.unlocked()&&!e.outdated()) {
+                            boolean visible=screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().equals("생산: "+e.name()));
+                            check(visible==Objects.equals(e.family(),model.family()),"Naval selection filters only its family: "+model.family());
+                        }
+                    });
+                    context.takeScreenshot("hoi-production-naval-filter-"+model.family()+"-gui2");
+                }
+            }
+        }
+        context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
+        click(context,"보병 및 포병 장비 제작");click(context,"구형 장비 표시");context.waitTicks(2);
+        var old=fixture.equipment().stream().filter(IndustryView.Equipment::outdated).findFirst().orElseThrow();
+        var point=context.computeOnClient(client->{
+            var row=button((ScreenIndustry)client.gui.screen(),"생산: "+old.name());
+            return new double[]{(row.getX()+row.getWidth()+13)*client.getWindow().getGuiScale(),(row.getY()+8)*client.getWindow().getGuiScale()};
+        });
+        context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);context.takeScreenshot("hoi-production-recommission-gui2");
+        var replacements=data.getAsJsonArray("equipment");
+        String first=replacements.get(0).getAsJsonObject().get("id").getAsString(),second=replacements.get(1).getAsJsonObject().get("id").getAsString();
+        replacements.forEach(row->row.getAsJsonObject().addProperty("replacement",row.getAsJsonObject().get("id").getAsString().equals(first)?second:first));
+        var obsoleteFixture=new IndustryProtocol.Response(data.toString()).view();
+        check(obsoleteFixture.equipment().stream().allMatch(IndustryView.Equipment::outdated),"Every branch fixture has an obsolete replacement");
+        for(String category:List.of("보병 및 포병 장비 제작","기갑 차량 제작","항공기 제작","함선 건조")) {
+            context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,obsoleteFixture.session(),obsoleteFixture,requests::add));context.waitTicks(2);
+            click(context,category);click(context,"구형 장비 표시");context.waitTicks(2);
+            context.getInput().setCursorPos(2400,1300);context.waitTicks(2);
+            context.takeScreenshot("hoi-production-obsolete-mask-"+category+"-gui2");
+        }
+        check(requests.stream().allMatch(r->r.action()==IndustryProtocol.Action.REFRESH||r.action()==IndustryProtocol.Action.CLOSE),"Tooltip and naval category checks send no gameplay mutations: "+requests);
+        for(String file:List.of("tank-designer-fixture.json","branch-ready-ship_hull_light_1-fixture.json","branch-ready-small_plane_airframe_1-fixture.json")) {
+            var v=tankFixture(file).withTankDesigner(null);
+            String expectedGroup=file.startsWith("tank-")?"armor":file.contains("ship_")?"navy":"air";
+            var e=v.equipment().stream().filter(item->item.group().equals(expectedGroup)&&dev.hoi.client.ui.UiEquipmentDesigns.productionDesign(item).editable()).findFirst().orElseThrow();
+            String category=switch(e.group()){case "navy"->"함선 건조";case "air"->"항공기 제작";default->"기갑 차량 제작";};
+            context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,v.session(),v,requests::add));context.waitTicks(2);click(context,category);context.waitTicks(2);
+            var design=dev.hoi.client.ui.UiEquipmentDesigns.productionDesign(e);
+            var position=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),design.title());return new double[]{(b.getX()+b.getWidth()/2.0)*client.getWindow().getGuiScale(),(b.getY()+b.getHeight()/2.0)*client.getWindow().getGuiScale()};});
+            context.getInput().setCursorPos(position[0],position[1]);context.waitTicks(5);context.takeScreenshot("hoi-production-modular-"+e.group()+"-variant-gui2");
+            click(context,design.title());
+            check(requests.getLast().action()==IndustryProtocol.Action.TANK_OPEN,"Modular variant opens the issued designer");
+        }
+        context.getInput().resizeWindow(1600,1000);
+    }
     public static void run(ClientGameTestContext context, CountryHud hud) {
+        productionPickerDetails(context);
         IndustryView fixture;
         try (var in = ScreenIndustryChecks.class.getResourceAsStream("/industry-fixture.json")) {
             fixture = new IndustryProtocol.Response(new String(Objects.requireNonNull(in).readAllBytes(), StandardCharsets.UTF_8)).view();

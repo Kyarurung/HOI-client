@@ -10,7 +10,11 @@ import net.minecraft.util.FormattedCharSequence;
 
 public final class UiTooltips {
     public static final int GOLD = 0xFFBD00, GOOD = 0x009F03, BAD = 0xFF3232;
+    private record LayoutKey(Font font,String text,int width,boolean icons) {}
+    private static final java.util.LinkedHashMap<LayoutKey,List<FormattedCharSequence>> LAYOUTS = new java.util.LinkedHashMap<>(64,.75f,true);
+    private static final java.util.regex.Pattern SENTENCES = java.util.regex.Pattern.compile("([.!?。！？](?:§.)*)\\h+(?=\\S)");
     private UiTooltips() {}
+    public static void clear() {LAYOUTS.clear();}
 
     private static net.minecraft.network.chat.Style sourceColor(net.minecraft.network.chat.Style style) {
         var color = style.getColor();
@@ -24,7 +28,7 @@ public final class UiTooltips {
     }
 
     public static String sentences(String text) {
-        return text.replaceAll("([.!?。！？](?:§.)*)\\h+(?=\\S)", "$1\n");
+        return SENTENCES.matcher(text).replaceAll("$1\n");
     }
 
     public static Component sentences(Component text) {
@@ -35,7 +39,7 @@ public final class UiTooltips {
         var result = Component.empty();
         text.visit((style, part) -> {
             String prose = wrapSentences?sentences(part):part;
-            var codes = java.util.regex.Pattern.compile("(?i)§(#[0-9a-f]{6}|[0-9a-fk-or])").matcher(prose);
+            var codes = UiTooltipText.COLORS.matcher(prose);
             var current = style;
             int start = 0;
             while (codes.find()) {
@@ -54,7 +58,11 @@ public final class UiTooltips {
     }
 
     public static net.minecraft.client.gui.components.Tooltip create(Component text) {
-        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(sentences(format(text))));
+        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(format(text),false)));
+    }
+
+    public static net.minecraft.client.gui.components.Tooltip createExact(String text) {
+        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(Component.literal(UiTooltipText.spacing(text)),false)));
     }
 
     public static Component productionText(Component text) {
@@ -81,12 +89,12 @@ public final class UiTooltips {
             return java.util.Optional.empty();
         }, net.minecraft.network.chat.Style.EMPTY);
         var result = Component.empty();
-        boolean space = false;
+        boolean space = false, added = false;
         for (var row : rows) {
-            if (UiTooltipText.blank(row.getString())) { space = !result.getString().isEmpty(); continue; }
+            if (UiTooltipText.blank(row.getString())) { space = added; continue; }
             if (!UiTooltipText.visible(row.getString())) continue;
-            if (!result.getString().isEmpty()) result.append(space ? "\n\n" : "\n");
-            result.append(row); space = false;
+            if (added) result.append(space ? "\n\n" : "\n");
+            result.append(row); space = false; added = true;
         }
         return result;
     }
@@ -101,15 +109,23 @@ public final class UiTooltips {
 
     static List<FormattedCharSequence> formattedLines(Font font, String text, int viewportWidth, boolean icons) {
         int width = Math.max(80, Math.min(300, viewportWidth - 24));
+        var key = new LayoutKey(font,text,width,icons);
+        var cached = LAYOUTS.get(key);
+        if(cached!=null)return cached;
         var lines = new ArrayList<FormattedCharSequence>();
-        for (String line : UiTooltipText.spacing(sentences(text)).split("\\R", -1)) {
+        for (String line : UiTooltipText.colorLines(UiTooltipText.spacing(text))) {
             if (line.isEmpty()) lines.add(Component.empty().getVisualOrderText());
             else {
-                var value = sentences(Component.literal(line));
+                var value = styled(Component.literal(line),false);
                 lines.addAll(font.split(icons ? UiKeywordIcons.decorateLines(value) : value, width));
             }
         }
-        return List.copyOf(lines);
+        var result = List.copyOf(lines);
+        if(text.length()<=16384) {
+            if(LAYOUTS.size()>=64)LAYOUTS.pollFirstEntry();
+            LAYOUTS.put(key,result);
+        }
+        return result;
     }
 
     public static void draw(GuiGraphicsExtractor graphics, Font font, String text, int x, int y) {

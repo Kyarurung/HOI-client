@@ -695,6 +695,23 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.waitTicks(3);
     }
     private static void hudHover(ClientGameTestContext context, MenuView menu) {
+        context.runOnClient(client->{
+            var rows=List.of(new dev.hoi.protocol.HudDetail.Row("증감", "+0.125", dev.hoi.protocol.HudDetail.Tone.GOOD),new dev.hoi.protocol.HudDetail.Row("영점", "0.00", dev.hoi.protocol.HudDetail.Tone.NORMAL),new dev.hoi.protocol.HudDetail.Row("---", "", dev.hoi.protocol.HudDetail.Tone.NORMAL));
+            var source=new dev.hoi.protocol.HudDetail(List.of(),"§a+0.125\n§a---\n0.00");
+            for(var detail:List.of(new dev.hoi.protocol.HudDetail(rows),source)) {
+                var hud=new CountryHud(0.0,0.0,0.0,null,null,null,false,0L,null,Map.of("political_power",detail));
+                var indicator=new UiMenuBar.UiIndicator("political_power","정치력",0.0,UiMenuBar.UiFormat.NUMBER);
+                var body=dev.hoi.client.ui.UiHudTooltip.body(client.font,1280,hud,indicator);
+                var text=new StringBuilder();
+                for(var line:body)line.accept((index,style,character)->{
+                    text.appendCodePoint(character);
+                    if(detail==source)check(style.getColor()!=null&&style.getColor().getValue()==dev.hoi.client.ui.UiTooltips.GOOD,"Source color survives the separator paragraph");
+                    return true;
+                });
+                check(text.toString().contains("+0.125")&&text.toString().contains("0.00")&&!text.toString().contains("---"),"HUD retains issued precision, sign and zero rows");
+                check(body.stream().anyMatch(line->line==net.minecraft.util.FormattedCharSequence.EMPTY),"HUD separator becomes a blank line");
+            }
+        });
         var issued=new MenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),dev.hoi.client.screen.ScreenIndustryChecks.tankFixture("tank-empty-fixture.json").hud());
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->client.options.guiScale().set(2));
@@ -724,7 +741,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             });
             var sourceMenu = new MenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),original);
             context.setScreen(() -> new ScreenMenu(sourceMenu)); context.waitTicks(3);
-            for (String key : List.of("political_power","stability","war_support","manpower","factories","command_power","army_experience","navy_experience","air_experience","party_support","nuclear","gdp","debt")) {
+            for (String key : List.of("political_power","stability","war_support","manpower","factories","fuel","supplies","convoys","command_power","army_experience","navy_experience","air_experience","party_support","nuclear","gdp","debt")) {
                 context.runOnClient(client -> {
                     var indicator = UiMenuBar.indicators(original).stream().filter(i -> i.icon().equals(key)).findFirst().orElseThrow();
                     var body = dev.hoi.client.ui.UiHudTooltip.body(client.font,1280,original,indicator);

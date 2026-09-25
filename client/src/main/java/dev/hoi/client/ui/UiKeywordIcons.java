@@ -13,6 +13,7 @@ public final class UiKeywordIcons {
     private record UiIconBinding(String label, String glyph) {}
     private static List<UiIconBinding> bindings;
     private static Map<String,String> tokens=Map.of();
+    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)");
     private UiKeywordIcons() {}
     static void clear() { bindings = null; tokens=Map.of(); }
     public static Component decorateLines(Component text) {
@@ -20,7 +21,7 @@ public final class UiKeywordIcons {
     }
     public static Component decorateLines(Component text, boolean inferIcons) {
         var result = Component.empty();
-        var line = new Component[]{Component.empty()};
+        var line = new net.minecraft.network.chat.MutableComponent[]{Component.empty()};
         text.visit((style, part) -> {
             String[] parts = part.split("\\R", -1);
             for (int i = 0; i < parts.length; i++) {
@@ -28,7 +29,7 @@ public final class UiKeywordIcons {
                     result.append(decorateSource(line[0], inferIcons)).append("\n");
                     line[0] = Component.empty();
                 }
-                line[0] = line[0].copy().append(Component.literal(parts[i]).withStyle(style));
+                line[0].append(Component.literal(parts[i]).withStyle(style));
             }
             return Optional.empty();
         }, net.minecraft.network.chat.Style.EMPTY);
@@ -40,7 +41,7 @@ public final class UiKeywordIcons {
         if(bindings==null)bindings=load();
         var result=Component.empty();
         text.visit((style,part)->{
-            var matcher=java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)").matcher(part);
+            var matcher=TOKENS.matcher(part);
             int start=0;
             while(matcher.find()) {
                 result.append(Component.literal(part.substring(start,matcher.start())).withStyle(style));

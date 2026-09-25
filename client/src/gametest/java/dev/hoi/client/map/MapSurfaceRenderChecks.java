@@ -35,6 +35,7 @@ public final class MapSurfaceRenderChecks {
             context.setScreen(()->null);
             context.runOnClient(client->{client.options.fov().set(60);client.options.guiScale().set(2);});
 
+            countryNamesAboveWater(context,command);
             command.accept("tp @a 6 70 -8 0 0");
             String[] shapes={"square","pentagon","circle","star"},tones={"own","enemy","neutral"};
             for(int row=0;row<3;row++)for(int col=0;col<4;col++) {
@@ -88,7 +89,7 @@ public final class MapSurfaceRenderChecks {
                 if(!frontCity)throw new AssertionError("The front province city must move south to the cell immediately north of Seoul");
             }
             int size=scene.get("size").getAsInt();
-            for(String mode:new String[]{"ARMY","NAVY","AIR","SUPPLY","RESOURCES"}) {
+            for(String mode:new String[]{"ARMY","NAVY","AIR","SUPPLY","RESOURCES","FACTIONS"}) {
                 command.accept("kill @e[type=minecraft:block_display]");command.accept("kill @e[type=minecraft:item_display]");command.accept("kill @e[type=minecraft:text_display]");
                 command.accept("fill 0 66 0 "+(size-1)+" 68 "+(size-1)+" minecraft:air");
                 command.accept("fill 0 64 0 "+(size-1)+" 64 "+(size-1)+" minecraft:stone");
@@ -133,21 +134,23 @@ public final class MapSurfaceRenderChecks {
                 }
                 command.accept("tp @a 28 111 28 180 90");context.waitTicks(25);
                 var screenshot=context.takeScreenshot("hoi-atlas-"+mode.toLowerCase()+"-coasts");checkPixels(screenshot,false);
-                if(mode.equals("ARMY")) {
+                if(mode.equals("ARMY")||mode.equals("FACTIONS")) {
                     context.getInput().resizeWindow(2560,1440);
                     for(var countryVictory:data.getAsJsonArray("victories"))summonFixtureModel(command,countryVictory.getAsJsonArray(),true);
-                    for(int distance=0;distance<2;distance++) {
+                    for(int distance=0;distance<3;distance++) {
                         command.accept("kill @e[type=minecraft:text_display]");
                         for(var entry:data.getAsJsonArray("countryNames")) {
                             var row=entry.getAsJsonArray();
-                            if(row.get(4+distance).getAsBoolean())command.accept("summon minecraft:text_display "+row.get(0).getAsDouble()+" "+row.get(1).getAsDouble()+" "+row.get(2).getAsDouble()+" "+row.get(3));
+                            if(row.get(distance==1?5:4).getAsBoolean())command.accept("summon minecraft:text_display "+row.get(0).getAsDouble()+" "+row.get(1).getAsDouble()+" "+row.get(2).getAsDouble()+" "+row.get(3));
                         }
-                        command.accept(distance==0?"tp @a 28 111 28 180 90":"tp @a 23 77 32 180 90");context.waitTicks(25);
-                        checkPixels(context.takeScreenshot("hoi-country-names-"+(distance==0?"far":"near")+"-gui2"),false);
+                        command.accept(distance==0?"tp @a 28 111 28 180 90":distance==1?"tp @a 23 77 32 180 90":"tp @a 28 160 28 180 90");context.waitTicks(25);
+                        checkPixels(context.takeScreenshot("hoi-country-names-"+(mode.equals("FACTIONS")?"factions-":"")+(distance==0?"far":distance==1?"near":"distant")+"-gui2"),false);
                     }
                     command.accept("kill @e[type=minecraft:text_display]");
                     command.accept("kill @e[type=minecraft:item_display]");
                     context.getInput().resizeWindow(1400,1000);
+                }
+                if(mode.equals("ARMY")) {
                     for(var facility:data.getAsJsonArray("facilities"))summonFixtureModel(command,facility.getAsJsonArray(),false);
                     var city=boxes.stream().filter(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY).findFirst().orElseThrow();
                     double cityX=city.x()+city.sx()/2,cityZ=city.z()+city.sz()/2;
@@ -349,6 +352,33 @@ public final class MapSurfaceRenderChecks {
         try {
             var field=MapSceneRenderer.class.getDeclaredField("sprites");field.setAccessible(true);return field.get(null);
         } catch(ReflectiveOperationException error) {throw new AssertionError(error);}
+    }
+    private static void countryNamesAboveWater(ClientGameTestContext context,java.util.function.Consumer<String> command) {
+        command.accept("fill -16 100 -16 16 102 16 minecraft:air strict");
+        command.accept("fill -16 100 -16 16 100 16 minecraft:stone strict");
+        command.accept("tp @a 0 135 0 180 90");
+        command.accept("summon minecraft:text_display 0 101.03 0 {Tags:[\"hoi_country_water_test\"],text:{text:\"뉴질랜드\",font:\"hoi:country_names\",color:\"white\"},billboard:\"fixed\",background:0,see_through:true,line_width:1024,transformation:{translation:[0f,0f,0f],scale:[12f,12f,12f],left_rotation:[-0.70710677f,0f,0f,0.70710677f],right_rotation:[0f,0f,0f,1f]},brightness:{block:15,sky:15},view_range:64f}");
+        context.waitTicks(30);
+        int land=whitePixels(context.takeScreenshot("hoi-country-name-over-land-gui2"));
+        command.accept("fill -16 100 -16 16 100 16 minecraft:water strict");
+        context.waitTicks(30);
+        int water=whitePixels(context.takeScreenshot("hoi-country-name-over-water-gui2"));
+        command.accept("fill -16 101 -16 16 101 16 minecraft:stone strict");
+        context.waitTicks(10);
+        int raised=whitePixels(context.takeScreenshot("hoi-country-name-through-terrain-gui2"));
+        if(land<1000||water<land*.98||raised<land*.85)throw new AssertionError("Country glyphs must remain white over water and terrain: "+land+"/"+water+"/"+raised);
+        command.accept("kill @e[tag=hoi_country_water_test]");
+        command.accept("fill -16 100 -16 16 102 16 minecraft:air strict");
+    }
+    private static int whitePixels(Path path) {
+        try {
+            var image=javax.imageio.ImageIO.read(path.toFile());int count=0;
+            for(int y=image.getHeight()/4;y<image.getHeight()*3/4;y++)for(int x=image.getWidth()/4;x<image.getWidth()*3/4;x++) {
+                int color=image.getRGB(x,y);
+                if(((color>>16)&255)>230&&((color>>8)&255)>230&&(color&255)>230)count++;
+            }
+            return count;
+        } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
     }
     private static void checkPixels(Path path,boolean victory) {
         try {

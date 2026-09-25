@@ -82,11 +82,6 @@ public final class AudioKoreanMusic {
         if (channel != null) channel.execute(value -> value.pause());
     }
     public static void suspend(){PLAYBACK.tick(false);}
-    public static void mapChanged() {
-        enable();AudioStoryMusic.reset();
-        if(AudioSuperEvent.active()||manuallyStopped||PLAYBACK.paused())return;
-        if(stationEnabled&&!PLAYBACK.tracks().isEmpty())PLAYBACK.step(1);
-    }
     public static void play(int index){manuallyStopped=false;stationEnabled=true;enabled=true;AudioStoryMusic.reset();PLAYBACK.play(index);}
     static SoundInstance playing(){return sound;}
     public static void tick() {

@@ -38,7 +38,7 @@ public final class AudioKoreanMusicChecks {
                     var button=screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("TFR Korea Plus ON/OFF")).map(w -> (Button)w).findFirst().orElseThrow();
                     screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX()+10,button.getY()+10,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
                     if(AudioKoreanMusic.stationEnabled()||AudioKoreanMusic.PLAYBACK.requested())throw new AssertionError("Station OFF stops playlist");
-                    AudioKoreanMusic.mapChanged();
+                    AudioUiSounds.receive(dev.hoi.protocol.AudioProtocol.Cue.MAP_NAVY);
                     if(AudioKoreanMusic.stationEnabled()||AudioKoreanMusic.PLAYBACK.requested())throw new AssertionError("Map switch preserves station OFF");
                 });
                 context.getInput().setCursorPos(1500,950);context.waitTicks(3);
@@ -50,7 +50,8 @@ public final class AudioKoreanMusicChecks {
                 context.runOnClient(client -> {
                     var button=client.gui.screen().children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("일시정지")).map(w -> (Button)w).findFirst().orElseThrow();
                     button.onPress(new net.minecraft.client.input.MouseButtonEvent(button.getX()+2,button.getY()+2,new net.minecraft.client.input.MouseButtonInfo(0,0)));
-                    if(!AudioKoreanMusic.PLAYBACK.paused())throw new AssertionError("Pause control must pause selected stream");
+                    AudioUiSounds.receive(dev.hoi.protocol.AudioProtocol.Cue.MAP_ARMY);
+                    if(!AudioKoreanMusic.PLAYBACK.paused())throw new AssertionError("Pause control and map switch must preserve the paused stream");
                 });
                 context.waitTicks(25);
                 context.takeScreenshot("hoi-korean-music-paused-1600");
@@ -140,7 +141,7 @@ public final class AudioKoreanMusicChecks {
             client.gui.screen().onClose();
             client.getSoundManager().resume();
             AudioKoreanMusic.enable();
-            AudioKoreanMusic.mapChanged();
+            AudioUiSounds.receive(dev.hoi.protocol.AudioProtocol.Cue.MAP_NAVY);
         });
         context.waitTicks(25);
         context.runOnClient(client -> {

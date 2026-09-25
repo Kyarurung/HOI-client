@@ -27,9 +27,9 @@ public final class UiHudTooltip {
         var lines = new ArrayList<FormattedCharSequence>();
         var original = hud.details().get(item.icon());
         if (original != null && original.sourceText() != null) {
-            for (String line : original.sourceText().split("\\n", -1)) {
-                if (line.isEmpty()) lines.add(FormattedCharSequence.EMPTY);
-                else lines.addAll(font.split(UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal(line).withColor(0xFFFFFF), false), !List.of("stability", "gdp", "debt").contains(item.icon())), item.icon().equals("gdp") ? wrap : Math.min(175, wrap)));
+            for (String line : UiTooltipText.colorLines(original.sourceText())) {
+                if (UiTooltipText.blank(line)) lines.add(FormattedCharSequence.EMPTY);
+                else lines.addAll(font.split(UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal(line).withColor(0xFFFFFF), false), false), item.icon().equals("gdp") ? wrap : Math.min(175, wrap)));
             }
             cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;
             cachedBody = List.copyOf(lines); return cachedBody;
@@ -37,11 +37,10 @@ public final class UiHudTooltip {
         if (item.icon().equals("fuel")) lines.add(FormattedCharSequence.EMPTY);
         String current = (item.icon().equals("party_support") || item.icon().equals("supplies")) ? item.value() : item.raw() == null ? "0" : item.format() == UiMenuBar.UiFormat.PERCENT
                 ? UiMenuBar.rawNumber(item.raw().doubleValue() * 100) + "%" : UiMenuBar.rawNumber(item.raw());
-        if (!item.icon().equals("party_support")) current = UiTooltipText.numbers(current);
         if (!item.icon().equals("fuel") && !item.icon().equals("world_tension") && !item.icon().equals("convoys") && !item.icon().equals("supplies") && UiTooltipText.visible(current)) lines.addAll(font.split(Component.literal("현재: " + current).withColor(UiMenuBar.indicatorColor(item)), wrap));
         var detail = hud.details().get(item.icon());
         if (detail != null) for (var row : detail.rows()) {
-            if (row.label().isEmpty() && row.value().isEmpty()) {
+            if (UiTooltipText.blank(row.label()) && row.value().isEmpty()) {
                 lines.add(FormattedCharSequence.EMPTY);
                 continue;
             }
@@ -49,14 +48,13 @@ public final class UiHudTooltip {
                 case GOOD -> UiTooltips.GOOD; case BAD -> UiTooltips.BAD; case MUTED -> 0x9BABB4;
                 case HEADING -> UiTooltips.GOLD; default -> item.icon().equals("fuel") || item.icon().equals("supplies") ? 0xFFFFFF : 0xE0E6E8;
             };
-            String value = item.icon().equals("party_support") ? row.value() : UiTooltipText.numbers(row.value());
-            if (!item.icon().equals("fuel") && !item.icon().equals("convoys") && !item.icon().equals("supplies") && !row.value().isEmpty() && !UiTooltipText.visible(value)) continue;
+            String value = row.value();
             var text = Component.literal(row.label() + (value.isEmpty() ? "" : ": " + value))
                     .withStyle(style -> style.withColor(color));
-            lines.addAll(font.split(item.icon().equals("fuel") ? fuelNumbers(text.getString(), color) : item.icon().equals("convoys") ? convoyNumbers(text.getString(), color) : UiTooltips.sentences(text), wrap));
+            lines.addAll(font.split(item.icon().equals("fuel") ? fuelNumbers(text.getString(), color) : item.icon().equals("convoys") ? convoyNumbers(text.getString(), color) : UiTooltips.styled(text, false), wrap));
         } else {
             if (item.barLabel() != null && item.ratio() != null && item.ratio() != 0) lines.addAll(font.split(Component.literal(item.barLabel() + ": "
-                    + (item.ratio() == null ? "0" : UiTooltipText.numbers(UiMenuBar.rawNumber(item.ratio() * 100)) + "%")), wrap));
+                    + (item.ratio() == null ? "0" : UiMenuBar.rawNumber(item.ratio() * 100) + "%")), wrap));
             lines.addAll(font.split(Component.literal("세부 내역 없음").withStyle(s -> s.withColor(0x9BABB4)), wrap));
         }
         cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;

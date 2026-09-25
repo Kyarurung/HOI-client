@@ -41,11 +41,15 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         label(g,value,x,y,w,h,color,12,true);
     }
     private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,int size,boolean centered) {
+        label(g,value,px,py,w,h,color,size,centered,true);
+    }
+    private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,int size,boolean centered,boolean wrap) {
         float textScale=(float)(Math.max(10,size*scale)/font.lineHeight);
         var text=UiTooltips.sentences(Component.literal(value));
+        if(!wrap)textScale=Math.min(textScale,n(w)/(float)Math.max(1,font.width(text)));
         var lines=font.split(text,Math.max(1,(int)(n(w)/textScale)));
         if(lines.isEmpty())return;
-        var line=lines.getFirst();
+        var line=wrap?lines.getFirst():text.getVisualOrderText();
         float offset=centered?(n(w)-font.width(line)*textScale)/2:0;
         g.pose().pushMatrix();
         g.pose().translate(x(px)+offset,y(py)+(n(h)-font.lineHeight*textScale)/2);
@@ -198,8 +202,10 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         for(int i=0;i<resources.size();i++) {
             int step=resources.size()>6?24:31,cellHeight=step-2;
             var t=resources.get(i);int px=32+i%2*50,py=302+i/2*step;
-            art(g,t.icon(),px,py,14,cellHeight);label(g,t.value(),px+16,py,30,cellHeight,UiMenuStyle.TEXT);
-            hovers.add(new ScreenMapHover(t,x(px),y(py),n(46),n(cellHeight)));
+            g.pose().pushMatrix();g.pose().translate(-1,0);
+            art(g,t.icon(),px,py,14,cellHeight);label(g,t.value(),px+16,py,34,cellHeight,UiMenuStyle.TEXT,12,false,false);
+            g.pose().popMatrix();
+            hovers.add(new ScreenMapHover(t,x(px)-1,y(py),n(46),n(cellHeight)));
         }
         label(g,"주 변동치",44,398,200,19,UiMenuStyle.TEXT,12,false);
         var features=tiles("features");

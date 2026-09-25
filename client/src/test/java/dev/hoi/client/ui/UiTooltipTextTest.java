@@ -4,8 +4,19 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UiTooltipTextTest {
+    @Test void terrainColorsContinueAcrossParagraphsUntilReset() {
+        assertEquals(java.util.List.of("§#FCA97D서울 설명", "", "§#FCA97D다음 문단§r", "§#FB607FSeoul, my soul§r", "기본"),
+                UiTooltipText.colorLines("§#FCA97D서울 설명\n\n다음 문단§r\n§#FB607FSeoul, my soul§r\n기본"));
+        assertEquals(java.util.List.of("§e직함", "[image:portrait]", "[caption:§f박원순§r]", "정당"),
+                UiTooltipText.colorLines("§e직함\n[image:portrait]\n[caption:§f박원순§r]\n정당"));
+    }
+
     @Test void exactTooltipSpacingPreservesZeroAndPrecisionWithoutEmptyMargins() {
         assertEquals("수송선: 0\n\n효율: §c20.00%§r",UiTooltipText.spacing("\n§r\n수송선: 0\n\n \n효율: §c20.00%§r\n\n§r"));
+    }
+
+    @Test void sourceSeparatorsBecomeBlankLinesWithoutChangingHyphenatedValues() {
+        assertEquals("숲\n\n공격: -12.5%",UiTooltipText.spacing("숲\n§f----§r\n공격: -12.5%"));
     }
 
     @Test void populationPreservesZeroGrowthAndParagraphs() {

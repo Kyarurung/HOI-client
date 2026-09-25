@@ -32,6 +32,26 @@ public final class AudioMusicRoutingChecks {
                     throw new AssertionError("Every country must automatically start Korean playlist: "+country);
             });
         }
+        for (var cue : new AudioProtocol.Cue[]{AudioProtocol.Cue.MAP_ARMY, AudioProtocol.Cue.MAP_NAVY,
+                AudioProtocol.Cue.MAP_AIR, AudioProtocol.Cue.MAP_SUPPLY, AudioProtocol.Cue.MAP_CONSTRUCTION}) {
+            var before = new Object[3];
+            context.runOnClient(client -> {
+                var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
+                before[0] = AudioKoreanMusic.playing();
+                before[1] = AudioKoreanMusic.PLAYBACK.selected();
+                before[2] = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().get(before[0]);
+                if (before[0] == null || before[2] == null) throw new AssertionError("Playlist channel must be active before " + cue);
+                AudioUiSounds.receive(cue);
+            });
+            context.waitTicks(5);
+            context.runOnClient(client -> {
+                var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
+                var channel = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().get(AudioKoreanMusic.playing());
+                if (AudioKoreanMusic.playing() != before[0] || !before[1].equals(AudioKoreanMusic.PLAYBACK.selected())
+                        || channel != before[2] || !client.getSoundManager().isActive(AudioKoreanMusic.playing()))
+                    throw new AssertionError("Map switch must retain the current track and playing channel: " + cue);
+            });
+        }
         for (boolean chooseTrack : new boolean[]{false, true}) {
             context.runOnClient(client -> AudioStoryMusic.play("music.korea.extinction"));
             context.waitTicks(25);
@@ -82,7 +102,7 @@ public final class AudioMusicRoutingChecks {
         });
         context.waitTicks(25);
         context.runOnClient(client->{
-            if(AudioKoreanMusic.playing()==null||!client.getSoundManager().isActive(AudioKoreanMusic.playing()))throw new AssertionError("Map returns to Korean playlist");
+            if(AudioKoreanMusic.playing()==null||!client.getSoundManager().isActive(AudioKoreanMusic.playing()))throw new AssertionError("Finished super event returns to Korean playlist");
             AudioSuperEvent.play("routing-end","super_event/prc_invasion_of_taiwan_super_event");
         });
         context.waitTicks(5);
@@ -98,6 +118,9 @@ public final class AudioMusicRoutingChecks {
                 var f=AudioStoryMusic.class.getDeclaredField("sound");f.setAccessible(true);
                 var sound=(net.minecraft.client.resources.sounds.SoundInstance)f.get(null);
                 if(sound==null||!client.getSoundManager().isActive(sound))throw new AssertionError("Original focus music is actually active");
+                AudioUiSounds.receive(AudioProtocol.Cue.MAP_AIR);
+                if (!AudioStoryMusic.active() || f.get(null) != sound || !client.getSoundManager().isActive(sound))
+                    throw new AssertionError("Map switch preserves the active focus stream");
                 client.getSoundManager().stop(sound);
             }catch(ReflectiveOperationException e){throw new AssertionError(e);}
         });
