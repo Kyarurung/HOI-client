@@ -22,6 +22,16 @@ public final class ScreenIndustryChecks {
         var requests=new ArrayList<IndustryProtocol.Request>();
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->client.options.guiScale().set(2));
+        for(String group:List.of("navy","air")) {
+            var fixture=tankFixture("initial-"+group+"-fixture.json");
+            check(fixture.equipment().stream().anyMatch(e->e.group().equals(group)&&e.designer()!=null&&!e.id().startsWith("hoi:design/")&&dev.hoi.client.ui.UiEquipmentDesigns.productionDesign(e).editable()),"Initial national equipment exposes an editable design");
+            context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
+            context.runOnClient(client->{
+                checkBounds((ScreenIndustry)client.gui.screen());
+                for(var slot:fixture.tankDesigner().slots())if(!slot.selected().isEmpty())check(slot.choices().stream().anyMatch(part->part.id().equals(slot.selected())),"Installed initial modules remain visible in their choices");
+            });
+            context.getInput().setCursorPos(2400,1300);context.takeScreenshot("hoi-initial-"+group+"-designer-gui2");
+        }
         for(String id:List.of("ship_hull_light_1","ship_hull_cruiser_2","ship_hull_carrier_2","ship_hull_carrier_conversion_ca","ship_hull_submarine_3","ship_hull_heavy_2","ship_hull_super_heavy_1","small_plane_airframe_3","large_plane_airframe_1","medium_plane_airframe_1","cv_small_plane_airframe_3")) {
             var fixture=tankFixture("branch-"+id+"-fixture.json");
             check(!fixture.tankDesigner().family().isEmpty(),"Designer family is supplied independently of production-list eligibility");
@@ -50,10 +60,17 @@ public final class ScreenIndustryChecks {
                 var mission=fixture.tankDesigner().missions().getFirst();int count=requests.size();
                 click(context,"설계 조정치 · "+mission.id());context.waitTicks(2);
                 check(requests.size()==count,"Mission preview does not send a gameplay mutation");
+                var point=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),"설계 조정치 · "+mission.id());return new double[]{2*(b.getX()+b.getWidth()/2.0),2*(b.getY()+b.getHeight()/3.0)};});
+                context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);
                 context.takeScreenshot("hoi-designer-air-mission-gui2");
                 click(context,"항공기 역할 · 주무장 선택");context.waitTicks(2);
                 var primary=fixture.tankDesigner().slots().stream().filter(item->item.id().equals("fixed_main_weapon_slot")).findFirst().orElseThrow();
-                var choice=primary.choices().getFirst();click(context,choice.name());
+                var choice=primary.choices().getFirst();
+                if(context.computeOnClient(client->dev.hoi.client.ui.UiEquipmentDesigns.categoryIds(fixture.tankDesigner().chassis(),primary.id()).size()>1)) {
+                    String category=context.computeOnClient(client->dev.hoi.client.ui.UiEquipmentDesigns.categoryName(dev.hoi.client.ui.UiEquipmentDesigns.moduleCategory(choice.id())));
+                    click(context,"모듈 분류: "+category);context.waitTicks(2);
+                }
+                click(context,choice.name());
                 check(requests.getLast().action()==IndustryProtocol.Action.TANK_MODULE&&requests.getLast().other().equals(choice.id()),"Role field selects the issued main armament");
                 context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
             }
@@ -61,7 +78,18 @@ public final class ScreenIndustryChecks {
             String label=slot.name()+(slot.required()?" · 필수":"")+slot.choices().stream().filter(part->part.id().equals(slot.selected())).map(part->"\n"+part.name()).findFirst().orElse("");
             click(context,label);context.waitTicks(2);context.runOnClient(client->checkBounds((ScreenIndustry)client.gui.screen()));
             context.takeScreenshot("hoi-designer-"+(navy?"navy":"air")+"-modules-gui2");
-            var part=slot.choices().getFirst();click(context,part.name());
+            var part=slot.choices().getFirst();
+            if(context.computeOnClient(client->dev.hoi.client.ui.UiEquipmentDesigns.categoryIds(fixture.tankDesigner().chassis(),slot.id()).size()>1)) {
+                String category=context.computeOnClient(client->dev.hoi.client.ui.UiEquipmentDesigns.categoryName(dev.hoi.client.ui.UiEquipmentDesigns.moduleCategory(part.id())));
+                click(context,"모듈 분류: "+category);context.waitTicks(2);
+            }
+            if(!navy)context.runOnClient(client->check(client.gui.screen().children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("장착 모듈 제거")),"Air module chooser omits the remove button"));
+            {
+                var hover=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),part.name());return new double[]{(b.getX()+b.getWidth()/2.0)*2,(b.getY()+b.getHeight()/2.0)*2};});
+                context.getInput().setCursorPos(hover[0],hover[1]);context.waitTicks(5);
+                context.takeScreenshot("hoi-"+(navy?"naval":"air")+"-module-tooltip-gui2");
+            }
+            click(context,part.name());
             check(requests.getLast().action()==IndustryProtocol.Action.TANK_MODULE&&requests.getLast().other().equals(part.id()),"Module picker submits the issued part");
             context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
             click(context,"설계 저장 · "+(navy?"해군":"공군")+" 경험치 "+fixture.tankDesigner().experience());
@@ -349,34 +377,60 @@ public final class ScreenIndustryChecks {
         context.getInput().resizeWindow(1600,1000);
     }
 
-    private static void designPresets(ClientGameTestContext context) {
-        var path=net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("hoi/equipment-design-presets.json");
-        byte[] original;
-        try {original=java.nio.file.Files.exists(path)?java.nio.file.Files.readAllBytes(path):null;}
-        catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}
-        try {
-            context.getInput().resizeWindow(2560,1440);context.runOnClient(client->client.options.guiScale().set(2));
-            for(String file:List.of("tank-designer-fixture.json","branch-ready-ship_hull_light_1-fixture.json","branch-ready-small_plane_airframe_1-fixture.json")) {
-                var fixture=tankFixture(file);var requests=new ArrayList<IndustryProtocol.Request>();
-                context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
-                click(context,"파일로 저장");context.waitTicks(1);
-                var store=new dev.hoi.client.ui.EquipmentDesignPresets(path);
-                check(store.load().contains(EquipmentDesignPreset.from(fixture.tankDesigner(),fixture.tankDesigner().name())),"Common preset button persists the complete branch design");
-                context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));context.waitTicks(2);
-                click(context,"저장된 설계 보기");context.waitTicks(2);
-                context.runOnClient(client->checkBounds((ScreenIndustry)client.gui.screen()));
-                context.getInput().setCursorPos(2400,1300);context.takeScreenshot("hoi-design-presets-"+fixture.tankDesigner().chassis()+"-gui2");
-                click(context,"저장된 설계 불러오기: "+fixture.tankDesigner().name());
-                var request=requests.getLast();
-                check(request.action()==IndustryProtocol.Action.TANK_PRESET,"Preset application uses one revision-checked request");
-                check(EquipmentDesignPreset.parse(request.other()).equals(EquipmentDesignPreset.from(fixture.tankDesigner(),fixture.tankDesigner().name())),"Preset preserves name, chassis, modules and upgrade levels");
-            }
-        } catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}
-        finally {
-            try {if(original==null)java.nio.file.Files.deleteIfExists(path);else java.nio.file.Files.write(path,original);}
-            catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}
+    public static void designers(ClientGameTestContext context) {
+        branchDesigners(context);
+        context.runOnClient(client->{
+            var stats=dev.hoi.client.ui.UiEquipmentDesigns.moduleEffects("ship_anti_air_1");
+            check(stats.contains("§e1.5")&&stats.contains("§a+10.0%")&&stats.contains("§c-0.5%"),"Installed naval modules distinguish base values and signed modifiers");
+            check(!stats.contains("kn")&&!stats.contains("km/h"),"Multipliers never include speed units");
+            String category=dev.hoi.client.ui.UiEquipmentDesigns.shipCategoryTooltip("screen");
+            check(category.split("\n\n").length==3&&category.contains("§e보조함§f")&&category.contains("\n\n§e장비 모듈 선택은"),"Screen ship tooltip retains all three source paragraphs and yellow emphasis");
+            String personnel=dev.hoi.client.ui.UiEquipmentDesigns.statTooltip(new TankDesignerView.Stat("manpower","인력",250,false));
+            check(!personnel.contains("\n")&&personnel.startsWith("§f"),"Personnel tooltip is the original white caption only");
+        });
+        context.getInput().resizeWindow(2560,1440);
+        context.runOnClient(client->client.options.guiScale().set(2));
+        var army=tankFixture("tank-designer-fixture.json");
+        context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,army.session(),army,request->{}));context.waitTicks(2);
+        int[] armyColumns=context.computeOnClient(client->client.gui.screen().children().stream().filter(widget->widget instanceof Button b&&b.getMessage().getString().startsWith("설계 조정치 · ")).map(widget->(Button)widget).limit(5).mapToInt(Button::getX).toArray());
+        var naval=tankFixture("branch-ready-ship_hull_light_1-fixture.json");
+        check(dev.hoi.client.ui.UiMenuBar.indicators(naval.hud()).stream().filter(indicator->indicator.icon().endsWith("_experience")).map(dev.hoi.client.ui.UiMenuBar.UiIndicator::icon).toList().equals(List.of("army_experience","navy_experience","air_experience")),"Menu experience order is army, navy, air");
+        check(naval.tankDesigner().adjustments().stream().anyMatch(adjustment->adjustment.effects().stream().anyMatch(stat->stat.id().equals("naval_mine_hit_chance")&&stat.value()==-.5)),"Naval environment effects come from the server snapshot");
+        context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,naval.session(),naval,request->{}));context.waitTicks(2);
+        context.runOnClient(client->{
+            var screen=(ScreenIndustry)client.gui.screen();
+            var adjusters=screen.children().stream().filter(widget->widget instanceof Button b&&b.getMessage().getString().startsWith("설계 조정치 · ")).map(widget->(Button)widget).toList();
+            for(int i=0;i<3;i++)check(adjusters.get(i).getX()==armyColumns[i],"Naval adjusters start at the upper left on the armor column baselines");
+            check(dev.hoi.client.ui.UiEquipmentDesigns.moduleEffects("ship_anti_air_1").contains("£navprod_cost"),"Naval module costs always use navprod_cost");
+        });
+        var categoryPoint=context.computeOnClient(client->{
+            var screen=(ScreenIndustry)client.gui.screen();
+            int minY=dev.hoi.client.ui.UiMenuBar.height(screen.width)+client.font.lineHeight+8;
+            int w=Math.min(Math.min(screen.width-24,Math.max(780,screen.width*5/8)),(screen.height-minY-12)*1092/553);
+            int h=w*553/1092,x=(screen.width-w)/2,y=Math.max(minY,(screen.height-h)/2);
+            return new double[]{2*(x+494*w/1092),2*(y+73*w/1092)};
+        });
+        context.getInput().setCursorPos(categoryPoint[0],categoryPoint[1]);context.waitTicks(5);
+        context.takeScreenshot("hoi-naval-screen-tooltip-gui2");
+        for(String environment:List.of("water_fjords","water_shallow_sea","water_deep_ocean")) {
+            var point=context.computeOnClient(client->{var b=button((ScreenIndustry)client.gui.screen(),"설계 조정치 · "+environment);return new double[]{(b.getX()+b.getWidth()/2.0)*2,(b.getY()+b.getHeight()/3.0)*2};});
+            context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);
+            context.takeScreenshot("hoi-naval-adjuster-"+environment+"-gui2");
         }
-        context.getInput().resizeWindow(1600,1000);
+        for(int badge=1;badge<=2;badge++) {
+            int index=badge;
+            var point=context.computeOnClient(client->{
+                var b=button((ScreenIndustry)client.gui.screen(),"설계 조정치 · water_deep_ocean");
+                return new double[]{2*(b.getX()+b.getWidth()*(index==1?42.0:62.0)/84),2*(b.getY()+b.getHeight()*50.0/67)};
+            });
+            context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);
+            context.takeScreenshot("hoi-naval-badge-"+(badge==1?"combat":"environment")+"-gui2");
+        }
+        for(String file:List.of("tank-designer-fixture.json","branch-ready-ship_hull_light_1-fixture.json","branch-ready-small_plane_airframe_1-fixture.json")) {
+            var fixture=tankFixture(file);
+            context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,request->{}));context.waitTicks(2);
+            context.runOnClient(client->check(client.gui.screen().children().stream().noneMatch(widget->widget instanceof Button button&&(button.getMessage().getString().contains("파일로 저장")||button.getMessage().getString().contains("저장된 설계"))),"All designers omit file preset controls"));
+        }
     }
 
     private static Button generationSlot(List<Button> buttons,boolean secondRow) {
@@ -574,7 +628,7 @@ public final class ScreenIndustryChecks {
         check(chromium.extracted()<0&&chromium.imported()>0&&chromium.available()<0,"Partial chromium imports still leave a deficit");
         tankDesigner(context);
         branchDesigners(context);
-        designPresets(context);
+
         longNames(context,v);
         tradeTooltips(context,v);
         var sourceEquipment=new ArrayList<IndustryView.Equipment>();

@@ -19,8 +19,9 @@ public record TankDesignerView(String chassis,String name,String texture,List<Sl
     public record Mission(String id,String name,List<Stat> stats) {
         public Mission {IndustryView.text(id,64);IndustryView.text(name,128);stats=List.copyOf(stats);if(stats.size()>64)throw new IllegalArgumentException("Too many mission stats");}
     }
-    public record Adjustment(String id,double movement,double attack,double defense) {
-        public Adjustment {IndustryView.text(id,64);if(!Double.isFinite(movement)||!Double.isFinite(attack)||!Double.isFinite(defense))throw new IllegalArgumentException("Invalid adjustment");}
+    public record Adjustment(String id,double movement,double attack,double defense,List<Stat> effects) {
+        public Adjustment(String id,double movement,double attack,double defense) {this(id,movement,attack,defense,List.of());}
+        public Adjustment {effects=effects==null?List.of():List.copyOf(effects);IndustryView.text(id,64);if(effects.size()>8||!Double.isFinite(movement)||!Double.isFinite(attack)||!Double.isFinite(defense))throw new IllegalArgumentException("Invalid adjustment");}
     }
     public record Part(String id,String name,String texture,int experience,List<Stat> changes) {
         public Part {IndustryView.text(id,128);IndustryView.text(name,128);IndustryView.text(texture,160);changes=List.copyOf(changes);if(changes.size()>32||experience<0)throw new IllegalArgumentException("Invalid module");}

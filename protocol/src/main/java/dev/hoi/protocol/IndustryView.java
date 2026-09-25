@@ -103,9 +103,18 @@ public record IndustryView(String session, long revision, String country, Countr
     public record Resource(String id, String name, double extracted, double imported, double exported,
             double available, double demand) {}
     public record Modifier(String id, String name, double value, String detail) {}
+    public record DesignInfo(String chassis,String role,List<String> missions) {
+        public DesignInfo {text(chassis,128);text(role,128);missions=List.copyOf(missions);if(missions.size()>16)throw new IllegalArgumentException("Too many missions");missions.forEach(id->text(id,128));}
+    }
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
             double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
-            String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning) {
+            String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer) {
+
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,null);
+        }
 
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,

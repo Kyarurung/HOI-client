@@ -65,6 +65,12 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             }
             return;
         }
+        if (System.getProperty("hoi.testSuite", "all").equals("designers")) {
+            context.waitFor(client -> client.gui.overlay() == null);
+            ScreenIndustryChecks.designers(context);
+            context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
+            return;
+        }
         AudioChecks.run(context);
         MapSurfaceRenderChecks.run(context);
         dev.hoi.client.map.MapArmyRenderChecks.run(context);
@@ -140,7 +146,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.takeScreenshot("hoi-menu-country");
             check(UiMenuBar.indicators(menu.hud()).stream().limit(13).map(UiMenuBar.UiIndicator::icon).toList().equals(List.of(
                     "political_power", "stability", "war_support", "manpower", "factories", "fuel", "supplies", "convoys", "command_power",
-                    "army_experience", "air_experience", "navy_experience", "party_support")), "National indicators follow the requested order");
+                    "army_experience", "navy_experience", "air_experience", "party_support")), "National indicators follow the requested order");
             check(UiMenuBar.indicators(menu.hud()).stream().anyMatch(i -> i.icon().equals("nuclear") && i.label().equals("핵폭탄")), "Nuclear bombs appear from campaign start without research");
             var armed = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational());
             check(UiMenuBar.indicators(armed).stream().anyMatch(i -> i.icon().equals("nuclear") && i.value().equals("0")), "Completed nuclear research shows zero inventory");
@@ -733,8 +739,10 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 rows.add(text.toString());
             }
             check(rows.getFirst().isEmpty(),"Fuel title is separated from current fuel");
-            long blanks=issued.hud().details().get("fuel").rows().stream().filter(r->r.label().isEmpty()&&r.value().isEmpty()).count();
-            check(blanks>=5&&rows.stream().filter(String::isEmpty).count()==blanks+1,"Fuel preserves every server paragraph break plus title spacing");
+            var fuel=issued.hud().details().get("fuel");
+            long blanks=fuel.sourceText()==null?1+fuel.rows().stream().filter(r->r.label().isEmpty()&&r.value().isEmpty()).count()
+                    :Arrays.stream(fuel.sourceText().split("\\R",-1)).filter(String::isEmpty).count();
+            check(blanks>=5&&rows.stream().filter(String::isEmpty).count()==blanks,"Fuel preserves the issued paragraph breaks and title spacing");
         });
         try (var stream = ResearchScreenGameTest.class.getResourceAsStream("/hud-source-fixture.json")) {
             if (stream == null) throw new AssertionError("Missing source HUD fixture");

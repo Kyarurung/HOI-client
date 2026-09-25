@@ -33,7 +33,7 @@ public final class UiEquipmentDesigns {
         boolean blueprint=equipment.id().startsWith("hoi:blueprint/");
         boolean chassis=equipment.id().startsWith("hoi:chassis/");
         boolean saved=equipment.id().startsWith("hoi:design/");
-        boolean modular=blueprint||chassis||saved;
+        boolean modular=blueprint||chassis||saved||equipment.designer()!=null;
         String suffix=switch(equipment.group()) {
             case "armor" -> modular?"_tank":"_armor";
             case "navy" -> "_navy";
@@ -46,7 +46,66 @@ public final class UiEquipmentDesigns {
             case "air" -> "항공기 설계사";
             default -> "파생형 제작";
         };
-        return new ProductionDesign("production/picker/variant"+suffix,title,blueprint,blueprint||chassis,chassis||saved);
+        return new ProductionDesign("production/picker/variant"+suffix,title,blueprint,blueprint||chassis,chassis||saved||equipment.designer()!=null);
+    }
+    public static String productionRoleIcon(dev.hoi.protocol.IndustryView.Equipment equipment) {
+        String role=equipment.designer()==null?java.util.Objects.toString(equipment.family(),""):equipment.designer().role();
+        if(equipment.group().equals("air")) {
+            role=switch(role){case "transport_plane"->"transport";case "tfr_attack_helicopter"->"attack_helicopter";default->role;};
+            return java.util.Set.of("fighter","heavy_fighter","cas","naval_bomber","tactical_bomber","strategic_bomber","transport","scout_plane","scout","carrier_fighter","carrier_bomber","attack_helicopter").contains(role)?"production/design/roles/"+role:"";
+        }
+        if(role.equals("convoy"))return "";
+        if(equipment.group().equals("navy"))return "production/design/roles/"+(role.equals("submarine")?"submarine":java.util.Set.of("destroyer","light_cruiser").contains(role)?"screen":"capital");
+        if(equipment.group().equals("armor"))return "production/design/roles/tank_modern";
+        return "";
+    }
+    public static String roleTooltip(String role) {
+        return role.isEmpty()?tooltip("EQUIPMENT_DESIGNER_PLANE_ROLE_REQUIRE_WEAPON"):"§e"+roleName(role);
+    }
+    public static String categoryTooltip(String id) {
+        var category=object(object(details(),"categories"),id);
+        return UiTooltipText.sections("§e"+categoryName(id),category.has("description")?sourceText(category.get("description").getAsString()):"");
+    }
+    private static String missionName(String id) {
+        var mission=object(object(details(),"missions"),id);
+        return mission.has("name")?sourceText(mission.get("name").getAsString()):id;
+    }
+    private static String missionEffects(JsonObject rule) {
+        var lines=new java.util.ArrayList<String>();
+        for(String group:List.of("add","multiply"))for(var value:object(rule,group).entrySet()) {
+            double amount=value.getValue().getAsDouble();
+            if(amount==0)continue;
+            lines.add("§f"+statCaption(value.getKey(),statName(value.getKey()))+" "+(beneficial(value.getKey(),amount)?"§a":"§c")+(amount>0?"+":"")+number(amount*(group.equals("multiply")?100:1),1)+(group.equals("multiply")?"%":"")+"§f");
+        }
+        return String.join("\n",lines);
+    }
+    public static String missionTooltip(TankDesignerView design,String id) {
+        var mission=object(object(details(),"missions"),id);
+        var sections=new java.util.ArrayList<String>();
+        sections.add("§e"+missionName(id));
+        if(mission.has("description"))sections.add("§f"+sourceText(mission.get("description").getAsString()));
+        for(var slot:design.slots()) {
+            var module=object(object(details(),"modules"),slot.selected());
+            if(!module.has("missionStats"))continue;
+            for(var value:module.getAsJsonArray("missionStats")) {
+                var rule=value.getAsJsonObject();
+                if(rule.getAsJsonArray("missions").asList().stream().anyMatch(m->m.getAsString().equals(id))) {
+                    String name=slot.choices().stream().filter(p->p.id().equals(slot.selected())).map(TankDesignerView.Part::name).findFirst().orElse(slot.selected());
+                    sections.add("§e"+name+"§f\n"+missionEffects(rule));
+                }
+            }
+        }
+        return UiTooltipText.sections(sections.toArray(String[]::new));
+    }
+    private static String moduleMissions(JsonObject module) {
+        var sections=new java.util.ArrayList<String>();
+        if(module.has("missions"))for(var mission:module.getAsJsonArray("missions"))sections.add(tooltip("MODULE_ALLOW_MISSION").replace("$MISSION|H$","§e"+missionName(mission.getAsString())+"§f"));
+        if(module.has("missionStats"))for(var value:module.getAsJsonArray("missionStats")) {
+            var rule=value.getAsJsonObject();
+            String names=rule.getAsJsonArray("missions").asList().stream().map(m->"§e"+missionName(m.getAsString())+"§f").collect(java.util.stream.Collectors.joining(", "));
+            sections.add(tooltip("MODULE_MISSION_RESTRICTED_STATS_HEADER").replace("$MISSIONS$",names)+"\n"+missionEffects(rule));
+        }
+        return UiTooltipText.sections(sections.toArray(String[]::new));
     }
     public static String productionObsoleteTooltip(boolean outdated) {
         String key="PRODUCTION_VARIANT_OBSOLETE_"+(outdated?"YES":"NO");
@@ -93,15 +152,55 @@ public final class UiEquipmentDesigns {
         var formats=object(details(),"statDiffFormats");
         return formats.has(id)&&formats.get(id).getAsString().contains("|=-")?change<0:change>=0;
     }
+    private static String number(double value,int decimals) {
+        return java.math.BigDecimal.valueOf(value).setScale(8,java.math.RoundingMode.HALF_UP).setScale(decimals,java.math.RoundingMode.DOWN).toPlainString();
+    }
     public static String statValue(TankDesignerView.Stat stat,double value) {
-        if(stat.id().equals("carrier_size"))return Long.toString((long)value);
-        int decimals=java.util.Set.of("supply_consumption","fuel_consumption","build_cost_ic").contains(stat.id())?2:1;
-        return java.math.BigDecimal.valueOf(value).multiply(java.math.BigDecimal.valueOf(stat.percent()?100:1))
-                .setScale(8,java.math.RoundingMode.HALF_UP).setScale(decimals,java.math.RoundingMode.DOWN).toPlainString()
-                +(stat.percent()?"%":stat.id().equals("maximum_speed")?"km/h":stat.id().equals("naval_speed")?"kn":java.util.Set.of("air_range","naval_range").contains(stat.id())?"km":"");
+        var formats=object(details(),"statValueFormats");
+        String format=formats.has(stat.id())?formats.get(stat.id()).getAsString():"";
+        var precision=java.util.regex.Pattern.compile("\\|[^$]*?([0-9])").matcher(format);
+        int decimals=precision.find()?Integer.parseInt(precision.group(1)):1;
+        String unit=stat.percent()?"%":stat.id().equals("maximum_speed")?"km/h":stat.id().equals("naval_speed")?"kn":java.util.Set.of("air_range","naval_range").contains(stat.id())?"km":"";
+        return number(value*(stat.percent()?100:1),decimals)+unit;
     }
     public static String signedValue(TankDesignerView.Stat stat,double value) {
-        return (beneficial(stat.id(),value)?"§a":"§c")+(value>=0?"+":"")+statValue(stat,value)+"§f";
+        int decimals=java.util.Set.of("supply_consumption","fuel_consumption","build_cost_ic").contains(stat.id())?2:1;
+        boolean weather=stat.id().equals("naval_weather_penalty_factor");
+        return (weather?"§e":beneficial(stat.id(),value)?"§a":"§c")+(weather?"":value>=0?"+":"")+number(value*(stat.percent()?100:1),weather?0:decimals)+(stat.percent()?"%":"")+"§f";
+    }
+    public static boolean adjusterBeneficial(TankDesignerView.Stat stat) {
+        return java.util.Set.of("navy_fuel_consumption_factor","navy_visibility","naval_mine_hit_chance").contains(stat.id())?stat.value()<=0:stat.value()>=0;
+    }
+    public static String adjusterEffect(TankDesignerView.Stat stat) {
+        int decimals=stat.id().equals("positioning")?1:2;
+        return "§f"+tooltip("MODIFIER_"+(stat.id().equals("navy_visibility")?"NAVAL_VISIBILITY_FACTOR":stat.id().toUpperCase(java.util.Locale.ROOT)))+": "+(adjusterBeneficial(stat)?"§a":"§c")+(stat.value()>0?"+":"")+number(stat.value()*100,decimals)+"%§f";
+    }
+    public static String shipCategoryTooltip(String category) {
+        String key="EQUIPMENT_DESIGNER_IS_"+category.toUpperCase(java.util.Locale.ROOT)+"_SHIP";
+        return category.equals("submarine")?"잠수함":UiTooltipText.sections(tooltip(key+"_TOOLTIP"),tooltip(key+"_EFFECTS_TOOLTIP"),tooltip("EQUIPMENT_DESIGNER_VARIABLE_CATEGORY_TOOLTIP"));
+    }
+    private static String moduleModifier(String id,double value) {
+        return (beneficial(id,value)?"§a":"§c")+(value>0?"+":"")+number(value*100,1)+"%§f";
+    }
+    public static String moduleEffects(String id) {
+        var module=object(object(details(),"modules"),id);
+        var added=object(module,"add");var multiplied=object(module,"multiply");
+        var lines=new java.util.LinkedHashMap<String,String>();
+        for(var stat:moduleStats(id)) {
+            String key=stat.id();if(lines.containsKey(key))continue;
+            String base=added.has(key)?"§e"+number(added.get(key).getAsDouble()*(java.util.Set.of("reliability","hardness").contains(key)?100:1),java.util.Set.of("fuel_consumption","build_cost_ic").contains(key)?2:1)+(java.util.Set.of("reliability","hardness").contains(key)?"%":""):"";
+            String modifier=multiplied.has(key)?moduleModifier(key,multiplied.get(key).getAsDouble()):"";
+            if(key.endsWith("_factor")&&added.has(key))base=moduleModifier(key,added.get(key).getAsDouble());
+            String value=base+(base.isEmpty()||modifier.isEmpty()?"":", ")+modifier;
+            if(java.util.Set.of("lg_armor_piercing","hg_armor_piercing").contains(key))value+=" §f("+tooltip("EQUIPMENT_MODULE_STAT_AVERAGED").strip().replace("(","").replace(")","")+")";
+            String caption=statCaption(key,stat.name()).strip();
+            if(key.equals("build_cost_ic")&&module.has("branch")&&module.get("branch").getAsString().equals("NAVY"))caption="£navprod_cost "+statName(key);
+            lines.put(key,"§f"+caption+" "+value+"§f");
+        }
+        String cost=lines.remove("build_cost_ic");
+        String category=moduleCategory(id);
+        String role=java.util.Set.of("ship_heavy_battery","ship_super_heavy_battery","ship_medium_battery").contains(category)?tooltip("EQUIPMENT_MODULE_ADD_CAPITAL_SHIP_CATEGORY"):"";
+        return UiTooltipText.sections(role,String.join("\n",lines.values()),moduleMissions(module),cost);
     }
     public static String statTooltip(TankDesignerView.Stat stat) {
         var cached=STAT_TOOLTIPS.get(stat);
@@ -112,9 +211,11 @@ public final class UiEquipmentDesigns {
         return result;
     }
     private static String buildStatTooltip(TankDesignerView.Stat stat) {
+        if(stat.id().equals("manpower"))return "§f"+statCaption(stat.id(),stat.name()).strip().replaceAll(":$","");
         String title=stat.id().equals("build_cost_ic")?tooltip("EQUIPMENT_DESIGNER_PRODUCTION_COST_DESC"):
                 "§e"+statCaption(stat.id(),stat.name()).strip().replaceAll(":$","")+"§f\n"+statDescription(stat.id());
         String sources=stat.contributions().stream().map(source->"§f"+source.name()+": "+signedValue(stat,source.value())).collect(java.util.stream.Collectors.joining("\n"));
+        if(stat.id().equals("hit_profile"))sources=stat.contributions().stream().map(source->"§e"+statCaption(source.name(),statName(source.name()))+" §f"+number(source.value()*100,1)+"%").collect(java.util.stream.Collectors.joining("\n"));
         String changed=Math.abs(stat.change())<1e-8||stat.id().equals("build_cost_ic")?"":
                 "§f"+tooltip("DESIGNER_UNSAVED_CHANGES")+" "+signedValue(stat,stat.change())
                 +(beneficial(stat.id(),stat.change())?"§a":"§c")+(stat.change()>0?"▲":"▼");
@@ -134,7 +235,7 @@ public final class UiEquipmentDesigns {
             double value=entry.getValue().getAsDouble();
             if(value!=0)result.add(new TankDesignerView.Stat(entry.getKey(),statName(entry.getKey()),value,group.equals("multiply")||java.util.Set.of("reliability","hardness").contains(entry.getKey())));
         }
-        var order=List.of("soft_attack","hard_attack","air_attack","defense","breakthrough","maximum_speed","armor_value","ap_attack","hardness","reliability","fuel_consumption","build_cost_ic");
+        var order=List.of("surface_visibility","surface_detection","sub_detection","lg_attack","lg_armor_piercing","hg_attack","hg_armor_piercing","torpedo_attack","sub_attack","anti_air_attack","naval_speed","naval_armor","max_strength","naval_light_gun_hit_chance_factor","naval_heavy_gun_hit_chance_factor","soft_attack","hard_attack","air_attack","defense","breakthrough","maximum_speed","armor_value","ap_attack","hardness","reliability","fuel_consumption","build_cost_ic");
         result.sort(java.util.Comparator.comparingInt(stat->order.contains(stat.id())?order.indexOf(stat.id()):order.size()));
         return java.util.List.copyOf(result);
     }

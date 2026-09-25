@@ -77,8 +77,8 @@ public final class UiMenuBar {
                 new UiIndicator("convoys", "수송", n.convoys(), UiFormat.NUMBER, "수송 효율", n.transportEfficiency()),
                 new UiIndicator("command_power", "지휘력", n.commandPower(), UiFormat.COMMAND_POWER),
                 new UiIndicator("army_experience", "육군 경험치", hud.armyExperience(), UiFormat.EXPERIENCE),
-                new UiIndicator("air_experience", "공군 경험치", hud.airExperience(), UiFormat.EXPERIENCE),
                 new UiIndicator("navy_experience", "해군 경험치", hud.navyExperience(), UiFormat.EXPERIENCE),
+                new UiIndicator("air_experience", "공군 경험치", hud.airExperience(), UiFormat.EXPERIENCE),
                 new UiIndicator("party_support", "정당 인기도", n.rulingPartySupport(), UiFormat.PERCENT)));
         items.add(new UiIndicator("nuclear", "핵폭탄", hud.nuclearStockpile(), UiFormat.NUCLEAR));
         items.add(new UiIndicator("gdp", "실질 GDP (십억 달러)", hud.gdpBillions(), UiFormat.MONEY));
