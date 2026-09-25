@@ -8,6 +8,7 @@ import net.minecraft.util.RandomSource;
 public final class AudioStoryMusic {
     private static String requested="";
     private static SoundInstance sound;
+    static SoundInstance playing(){return sound;}
     private static int retries, startup;
     private AudioStoryMusic() {}
     public static void play(String event) {reset();AudioKoreanMusic.enable();AudioKoreanMusic.suspend();requested=event;}

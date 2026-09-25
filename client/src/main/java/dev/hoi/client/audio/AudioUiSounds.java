@@ -27,5 +27,24 @@ public final class AudioUiSounds {
             default -> play(cue.sound());
         }
     }
+    public static void stopWorldSounds(net.minecraft.client.sounds.SoundManager sounds) {
+        if (AudioKoreanMusic.playing() == null && AudioStoryMusic.playing() == null && AudioSuperEvent.playing() == null) {
+            sounds.stop();
+            return;
+        }
+        var engine = ((dev.hoi.client.mixin.MixinManagerAccess)sounds).hoiSoundEngine();
+        var access = (dev.hoi.client.mixin.MixinEngineAccess)engine;
+        access.hoiQueuedSounds().clear();
+        access.hoiQueuedTickableSounds().clear();
+        for (var sound : java.util.List.copyOf(access.hoiChannels().keySet())) {
+            if (sound != AudioKoreanMusic.playing() && sound != AudioStoryMusic.playing() && sound != AudioSuperEvent.playing()) {
+                sounds.stop(sound);
+                access.hoiChannels().remove(sound);
+                access.hoiSoundDeleteTime().remove(sound);
+                access.hoiSoundsBySource().remove(sound.getSource(), sound);
+                access.hoiTickingSounds().remove(sound);
+            }
+        }
+    }
     public static void reset(){AudioKoreanMusic.reset();AudioStoryMusic.reset();AudioSuperEvent.reset();}
 }

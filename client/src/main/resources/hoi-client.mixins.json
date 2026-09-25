@@ -11,6 +11,7 @@
     "MixinManagerAccess",
     "MixinEngineAccess",
     "MixinSoundResume",
+    "MixinLevelSounds",
     "MixinCountryNameWater"
   ],
   "injectors": {

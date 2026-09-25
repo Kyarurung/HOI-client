@@ -10,6 +10,7 @@ import net.minecraft.util.RandomSource;
 public final class AudioSuperEvent {
     private static String token = "";
     private static SoundInstance sound;
+    static SoundInstance playing(){return sound;}
     private static int startup;
     private AudioSuperEvent() {}
     public static void play(String session, String path) {

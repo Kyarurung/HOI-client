@@ -7,7 +7,12 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.sounds.SoundSource;
 
 public final class AudioMusicRoutingChecks {
-    public static void run(ClientGameTestContext context) {
+    private static void transfer(ClientGameTestContext context, java.util.function.Consumer<String> command, String dimension) {
+        command.accept("execute in " + dimension + " run tp @a 0 100 0");
+        context.waitFor(client -> client.level != null && client.level.dimension().identifier().toString().equals(dimension));
+        context.waitTicks(25);
+    }
+    public static void run(ClientGameTestContext context, java.util.function.Consumer<String> command) {
         var volume=new double[1];
         context.runOnClient(client->{volume[0]=client.options.getSoundSourceVolume(SoundSource.MUSIC);client.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(0.0);});
         context.runOnClient(client -> { AudioUiSounds.reset(); AudioUiSounds.receive(AudioProtocol.Cue.SELECT); });
@@ -32,24 +37,39 @@ public final class AudioMusicRoutingChecks {
                     throw new AssertionError("Every country must automatically start Korean playlist: "+country);
             });
         }
+        int transition = 0;
         for (var cue : new AudioProtocol.Cue[]{AudioProtocol.Cue.MAP_ARMY, AudioProtocol.Cue.MAP_NAVY,
                 AudioProtocol.Cue.MAP_AIR, AudioProtocol.Cue.MAP_SUPPLY, AudioProtocol.Cue.MAP_CONSTRUCTION}) {
-            var before = new Object[3];
+            var before = new Object[4];
+            boolean paused = transition == 2;
+            if (paused) context.runOnClient(client -> AudioKoreanMusic.togglePause());
             context.runOnClient(client -> {
                 var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
                 before[0] = AudioKoreanMusic.playing();
                 before[1] = AudioKoreanMusic.PLAYBACK.selected();
                 before[2] = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().get(before[0]);
                 if (before[0] == null || before[2] == null) throw new AssertionError("Playlist channel must be active before " + cue);
+                before[3] = new net.minecraft.client.resources.sounds.SimpleSoundInstance(AudioUiSounds.id("music.tfr_theme"),
+                        SoundSource.MASTER, 1, 1, net.minecraft.util.RandomSource.create(), true, 40,
+                        net.minecraft.client.resources.sounds.SoundInstance.Attenuation.NONE, 0, 0, 0, true);
+                client.getSoundManager().play((net.minecraft.client.resources.sounds.SoundInstance)before[3]);
+                client.getSoundManager().playDelayed(AudioUiSounds.instance("ui.click"), 200);
                 AudioUiSounds.receive(cue);
             });
-            context.waitTicks(5);
+            String dimension = transition++ % 2 == 0 ? "minecraft:the_nether" : "minecraft:overworld";
+            transfer(context, command, dimension);
             context.runOnClient(client -> {
                 var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
                 var channel = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().get(AudioKoreanMusic.playing());
                 if (AudioKoreanMusic.playing() != before[0] || !before[1].equals(AudioKoreanMusic.PLAYBACK.selected())
                         || channel != before[2] || !client.getSoundManager().isActive(AudioKoreanMusic.playing()))
                     throw new AssertionError("Map switch must retain the current track and playing channel: " + cue);
+                if (AudioKoreanMusic.PLAYBACK.paused() != paused) throw new AssertionError("Dimension transfer preserves manual pause");
+                if (client.getSoundManager().isActive((net.minecraft.client.resources.sounds.SoundInstance)before[3]))
+                    throw new AssertionError("Previous dimension sound must stop");
+                if (!((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiQueuedSounds().isEmpty())
+                    throw new AssertionError("Previous dimension delayed sounds must clear");
+                if (paused) AudioKoreanMusic.togglePause();
             });
         }
         for (boolean chooseTrack : new boolean[]{false, true}) {
@@ -91,7 +111,11 @@ public final class AudioMusicRoutingChecks {
             if(!AudioSuperEvent.active()||AudioKoreanMusic.playing()!=null||AudioStoryMusic.active())throw new AssertionError("Super event replaces previous focus music");
         });
         context.waitTicks(25);
+        var superSound = context.computeOnClient(client -> AudioSuperEvent.playing());
+        transfer(context, command, "minecraft:overworld");
         context.runOnClient(client->{
+            if (AudioSuperEvent.playing() != superSound || !client.getSoundManager().isActive(superSound))
+                throw new AssertionError("Dimension transfer preserves the super event stream");
             if(!AudioSuperEvent.active()||AudioKoreanMusic.playing()!=null)throw new AssertionError("Super event lost priority during streaming");
             int before=AudioKoreanMusic.PLAYBACK.selected();AudioUiSounds.receive(AudioProtocol.Cue.MAP_NAVY);
             if(!AudioSuperEvent.active()||AudioKoreanMusic.playing()!=null)throw new AssertionError("Map switch cannot interrupt global super music");
@@ -113,7 +137,11 @@ public final class AudioMusicRoutingChecks {
             AudioStoryMusic.play("music.korea.extinction");
         });
         context.waitTicks(25);
+        var storySound = context.computeOnClient(client -> AudioStoryMusic.playing());
+        transfer(context, command, "minecraft:the_nether");
         context.runOnClient(client->{
+            if (AudioStoryMusic.playing() != storySound || !client.getSoundManager().isActive(storySound))
+                throw new AssertionError("Dimension transfer preserves the focus music stream");
             try {
                 var f=AudioStoryMusic.class.getDeclaredField("sound");f.setAccessible(true);
                 var sound=(net.minecraft.client.resources.sounds.SoundInstance)f.get(null);

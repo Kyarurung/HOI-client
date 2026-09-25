@@ -58,6 +58,13 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             ResearchProtocol.registerPayloadTypes(); ResearchProtocol.registerPayloadTypes();
         });
         loadPack(context);
+        if (System.getProperty("hoi.testSuite", "all").equals("audio")) {
+            try (var world = context.worldBuilder().create()) {
+                world.getServer().runCommand("gamemode spectator @a");
+                dev.hoi.client.audio.AudioMusicRoutingChecks.run(context, world.getServer()::runCommand);
+            }
+            return;
+        }
         AudioChecks.run(context);
         MapSurfaceRenderChecks.run(context);
         dev.hoi.client.map.MapArmyRenderChecks.run(context);
@@ -82,7 +89,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             ClientScoreboardChecks.run(context);
             var menu = fixtureMenu();
             dev.hoi.client.audio.AudioKoreanMusicChecks.run(context, menu);
-            dev.hoi.client.audio.AudioMusicRoutingChecks.run(context);
+            dev.hoi.client.audio.AudioMusicRoutingChecks.run(context, world.getServer()::runCommand);
             dev.hoi.client.audio.AudioUnitVoicesChecks.run(context);
             dev.hoi.client.map.MapUnitHudChecks.run(context);
             dev.hoi.client.screen.ScreenSelectionPreviewChecks.run(context, menu);
