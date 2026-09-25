@@ -21,3 +21,7 @@ __pycache__/
 .codegraph-*/
 /.codex/config.toml
 /_workspace/
+*.py[cod]
+*.sparkprofile
+*.hprof
+crash-reports/
