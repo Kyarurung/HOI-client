@@ -212,7 +212,7 @@ public final class MapSurfaceRenderChecks {
         context.runOnClient(client->client.options.renderDistance().set(12));
         context.runOnClient(client->MapSceneRenderer.clear());
         context.getInput().resizeWindow(2560,1440);
-        for(String region:java.util.List.of("186","193","76","79","80","93")) {
+        for(String region:java.util.List.of("186","193","76","79","80","72","93")) {
             var data=scenes.getAsJsonObject(region);int width=data.get("width").getAsInt(),depth=data.get("depth").getAsInt();
             command.accept("kill @e[type=minecraft:block_display]");command.accept("kill @e[type=minecraft:item_display]");command.accept("kill @e[type=minecraft:text_display]");
             for(int y=65;y<=67;y++)command.accept("fill 0 "+y+" 0 127 "+y+" 127 minecraft:air");
