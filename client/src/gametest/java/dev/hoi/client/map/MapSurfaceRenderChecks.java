@@ -134,6 +134,25 @@ public final class MapSurfaceRenderChecks {
                 }
                 command.accept("tp @a 28 111 28 180 90");context.waitTicks(25);
                 var screenshot=context.takeScreenshot("hoi-atlas-"+mode.toLowerCase()+"-coasts");checkPixels(screenshot,false);
+                if(java.util.Set.of("ARMY","NAVY","AIR").contains(mode)) {
+                    context.getInput().resizeWindow(2560,1440);
+                    var counters=new Gson().fromJson(data.get("unitCounters"),dev.hoi.protocol.UnitHudProtocol.Counter[].class);
+                    if(counters.length==0)throw new AssertionError("Missing starting counters: "+mode);
+                    for(var facility:data.getAsJsonArray("facilities"))summonFixtureModel(command,facility.getAsJsonArray(),false);
+                    context.waitTicks(10);
+                    context.runOnClient(client->MapUnitHud.accept(new dev.hoi.protocol.UnitHudProtocol.Snapshot("minecraft:overworld",java.util.List.of(counters))));
+                    context.waitTicks(3);
+                    context.takeScreenshot("hoi-starting-"+mode.toLowerCase()+"-gui2");
+                    context.runOnClient(client->{
+                        var box=MapUnitHud.boxes().stream().filter(b->mode.equals("ARMY")?!b.counter().navy()&&!b.counter().air():mode.equals("NAVY")?b.counter().navy():b.counter().air()).findFirst().orElseThrow();
+                        if(!MapUnitHud.selectAt(box.x()+box.width()/2.0,box.y()+box.height()/2.0))throw new AssertionError("Starting counter selection failed");
+                    });
+                    context.waitTicks(2);
+                    context.takeScreenshot("hoi-starting-"+mode.toLowerCase()+"-selected-gui2");
+                    context.runOnClient(client->MapUnitHud.reset());
+                    command.accept("kill @e[type=minecraft:item_display]");
+                    context.getInput().resizeWindow(1400,1000);
+                }
                 if(mode.equals("ARMY")||mode.equals("FACTIONS")) {
                     context.getInput().resizeWindow(2560,1440);
                     for(var countryVictory:data.getAsJsonArray("victories"))summonFixtureModel(command,countryVictory.getAsJsonArray(),true);
@@ -178,8 +197,50 @@ public final class MapSurfaceRenderChecks {
             checkRegion(context,command,"beijing",0);
             checkFacilities(context,command);
             checkDistance(context,command);
+            checkRegionNames(context,command);
             context.runOnClient(client->{client.options.fov().set(70);MapSceneRenderer.clear();});
         }
+    }
+    private static void checkRegionNames(ClientGameTestContext context,java.util.function.Consumer<String> command) {
+        JsonObject scenes;
+        try(var input=MapSurfaceRenderChecks.class.getResourceAsStream("/region-names-client-scene.json")) {
+            if(input==null)throw new AssertionError("Region label geometry fixture missing");
+            scenes=JsonParser.parseString(new String(input.readAllBytes(),StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
+        if(scenes.size()<6)throw new AssertionError("Expected complete sea/air region fixtures");
+        int renderDistance=context.computeOnClient(client->client.options.renderDistance().get());
+        context.runOnClient(client->client.options.renderDistance().set(12));
+        context.runOnClient(client->MapSceneRenderer.clear());
+        context.getInput().resizeWindow(2560,1440);
+        for(String region:java.util.List.of("186","193","76","79","80","93")) {
+            var data=scenes.getAsJsonObject(region);int width=data.get("width").getAsInt(),depth=data.get("depth").getAsInt();
+            command.accept("kill @e[type=minecraft:block_display]");command.accept("kill @e[type=minecraft:item_display]");command.accept("kill @e[type=minecraft:text_display]");
+            for(int y=65;y<=67;y++)command.accept("fill 0 "+y+" 0 127 "+y+" 127 minecraft:air");
+            for(var entry:data.getAsJsonArray("runs")) {
+                var row=entry.getAsJsonArray();
+                command.accept("fill "+row.get(0).getAsInt()+" "+row.get(3).getAsInt()+" "+row.get(2).getAsInt()+" "+row.get(1).getAsInt()+" "+row.get(3).getAsInt()+" "+row.get(2).getAsInt()+" "+row.get(4).getAsString()+" strict");
+            }
+            for(var entry:data.getAsJsonArray("names")) {
+                var row=entry.getAsJsonArray();
+                command.accept("summon minecraft:text_display "+row.get(0).getAsDouble()+" "+row.get(1).getAsDouble()+" "+row.get(2).getAsDouble()+" "+row.get(3));
+            }
+            double height=68+Math.max(depth*.95,width*.6);
+            command.accept("tp @a "+width/2.0+" "+height+" "+depth/2.0+" 180 90");context.waitTicks(30);
+            var screenshot=context.takeScreenshot("hoi-region-name-"+region+"-gui2");
+            checkPixels(screenshot,false);
+            if(whitePixels(screenshot)<500)throw new AssertionError("Region name is not visible: "+region);
+            try {
+                var pixels=javax.imageio.ImageIO.read(screenshot.toFile());int terrain=0;
+                for(int y=0;y<pixels.getHeight();y++)for(int x=0;x<pixels.getWidth();x++) {
+                    int rgb=pixels.getRGB(x,y);
+                    if(((rgb>>16)&255)<190&&((rgb>>8)&255)<190&&(rgb&255)<190)terrain++;
+                }
+                if(terrain<pixels.getWidth()*pixels.getHeight()/20)throw new AssertionError("Region terrain is outside the camera range: "+region);
+            } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
+        }
+        command.accept("kill @e[type=minecraft:text_display]");
+        context.runOnClient(client->client.options.renderDistance().set(renderDistance));
+        context.getInput().resizeWindow(1400,1000);
     }
     private static void checkRegion(ClientGameTestContext context,java.util.function.Consumer<String> command,String region,int routes) {
         JsonObject fixture;

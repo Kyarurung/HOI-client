@@ -77,13 +77,17 @@ public record IndustryView(String session, long revision, String country, Countr
                 throw new IllegalArgumentException("Invalid ship repair progress");
         }
     }
-    public record RepairPort(String id, String name, int capacity, int activeShips, List<String> ships) {
+    public record RepairPort(String id, String name, int capacity, int activeShips, List<String> ships, Integer priority, boolean disabled) {
+        public RepairPort(String id,String name,int capacity,int activeShips,List<String> ships) {this(id,name,capacity,activeShips,ships,1,false);}
         public RepairPort {
+            priority=priority==null?1:priority;
+            if(priority<0||priority>2)throw new IllegalArgumentException("Invalid repair priority");
             text(id,128); text(name,256); ships=bounded(ships,4096);
             if(capacity<0||activeShips<0||activeShips>capacity)throw new IllegalArgumentException("Invalid repair port");
         }
     }
-    public record NavalRepairs(int availableDockyards, List<NavalRepair> ships, Integer usedDockyards, List<RepairPort> ports) {
+    public record NavalRepairs(int availableDockyards, List<NavalRepair> ships, Integer usedDockyards, List<RepairPort> ports,Integer assignedDockyards,Integer maximumDockyards) {
+        public NavalRepairs(int availableDockyards,List<NavalRepair> ships,Integer usedDockyards,List<RepairPort> ports) {this(availableDockyards,ships,usedDockyards,ports,availableDockyards,availableDockyards);}
         public NavalRepairs(int availableDockyards, List<NavalRepair> ships, Integer usedDockyards) {
             this(availableDockyards,ships,usedDockyards,List.of());
         }
@@ -91,6 +95,9 @@ public record IndustryView(String session, long revision, String country, Countr
             this(availableDockyards, ships, null);
         }
         public NavalRepairs {
+            assignedDockyards=assignedDockyards==null?availableDockyards:assignedDockyards;
+            maximumDockyards=maximumDockyards==null?availableDockyards:maximumDockyards;
+            if(assignedDockyards<0||maximumDockyards<0)throw new IllegalArgumentException("Invalid repair allocation");
             if (availableDockyards < 0) throw new IllegalArgumentException("Invalid repair dockyards");
             if (usedDockyards != null && (usedDockyards < 0 || usedDockyards > availableDockyards))
                 throw new IllegalArgumentException("Invalid used repair dockyards");

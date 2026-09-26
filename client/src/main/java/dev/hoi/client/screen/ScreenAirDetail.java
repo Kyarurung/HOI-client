@@ -10,8 +10,9 @@ import net.minecraft.network.chat.Component;
 import java.util.*;
 
 final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement.InputMovementScreen {
-    private int left,top,pane,tall,category,scroll,tooltipScroll;
+    private int left,top,pane,tall,scroll,tooltipScroll;
     private double scale;
+    private final boolean[] categories={true,true,true};
     private DialogView.Tile hovered;
     private record ScreenAirHover(DialogView.Tile tile,int x,int y,int w,int h) {}
     private final List<ScreenAirHover> hovers=new ArrayList<>();
@@ -27,10 +28,19 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
         button("×",516,3,28,26,this::onClose);
         for(int i=0;i<3;i++) {
             int index=i;
-            var b=new UiMenuButton(List.of("전투기와 근접항공지원기 임무","해상 임무","폭격 임무").get(i),x(207+i*45),y(236),n(43),n(34),()->{category=index;scroll=0;});
-            b.background("none").caption("");addRenderableWidget(b);
+            var b=new UiMenuButton(title("mission_filter_"+i,"임무"),x(207+i*45),y(236),n(43),n(34),()->toggleCategory(index,UiPriorityControls.shifted()));
+            b.background("none").caption("").sound("ui.air.filter");b.setTooltip(null);addRenderableWidget(b);
         }
         if(dev.hoi.client.ClientCampaignHud.visible())UiMenuBar.buttons(width,dev.hoi.client.ClientCampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
+    }
+    void toggleCategory(int index,boolean only) {
+        if(only){Arrays.fill(categories,false);categories[index]=true;}else categories[index]=!categories[index];
+        scroll=0;
+    }
+    List<DialogView.Tile> missions(boolean enemy) {
+        var result=new ArrayList<DialogView.Tile>();
+        for(int i=0;i<categories.length;i++)if(categories[i])result.addAll(tiles((enemy?"enemy_":"")+"mission_"+i));
+        return List.copyOf(result);
     }
     private void button(String label,int px,int py,int w,int h,Runnable action){addRenderableWidget(new UiMenuButton(label,x(px),y(py),n(w),n(h),action));}
     private int x(double v){return left+n(v);}
@@ -94,11 +104,13 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
         combat(g,tile("air_losses"),false);
         combat(g,tile("air_kills"),true);
         for(int i=0;i<3;i++) {
-            art(g,"air_detail/category_bg_"+(category==i?2:0),207+45*i,236,43,34);
-            art(g,"air_detail/category_"+i,207+45*i,239,43,28);
+            boolean over=mx>=x(207+45*i)&&mx<x(250+45*i)&&my>=y(236)&&my<y(270);
+            art(g,"air_detail/category_bg_"+(categories[i]?(over?1:2):(over?1:0)),207+45*i,236,43,34);
+            art(g,"air_detail/category_"+i,207+47*i,239,43,28);
+            hover(tile("mission_filter_"+i),207+45*i,236,43,34);
         }
-        var ownMissions=tiles("mission_"+category);
-        var enemyMissions=tiles("enemy_mission_"+category);
+        var ownMissions=missions(false);
+        var enemyMissions=missions(true);
         int maximum=Math.max(ownMissions.size(),enemyMissions.size());
         scroll=Math.clamp(scroll,0,Math.max(0,maximum-3));
         for(boolean enemy:List.of(false,true)) {

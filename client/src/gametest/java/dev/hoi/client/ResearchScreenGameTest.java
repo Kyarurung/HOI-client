@@ -71,6 +71,16 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.setScreen(net.minecraft.client.gui.screens.TitleScreen::new);
             return;
         }
+        if (System.getProperty("hoi.testSuite", "all").equals("unit-hud")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.map.MapUnitHudChecks.run(context);
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("maps")) {
+            MapSurfaceRenderChecks.run(context);
+            return;
+        }
         AudioChecks.run(context);
         MapSurfaceRenderChecks.run(context);
         dev.hoi.client.map.MapArmyRenderChecks.run(context);

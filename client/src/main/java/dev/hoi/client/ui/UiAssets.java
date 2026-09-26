@@ -34,7 +34,13 @@ public final class UiAssets {
         return draw(g, path, x, y, w, h, 0, 0);
     }
 
+    public static boolean drawTinted(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,int tint) {
+        return draw(g,path,x,y,w,h,0,0,tint);
+    }
     public static boolean draw(GuiGraphicsExtractor g, String path, int x, int y, int w, int h, int trimLeft, int trimRight) {
+        return draw(g,path,x,y,w,h,trimLeft,trimRight,0xFFFFFFFF);
+    }
+    private static boolean draw(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,int trimLeft,int trimRight,int tint) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         if (id == null || w <= 0 || h <= 0) return false;
         int[] size = DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions);
@@ -57,7 +63,7 @@ public final class UiAssets {
         double scale = Math.min((double) w / sourceW, (double) h / size[1]);
         int fitW = Math.max(1, (int)Math.round(sourceW * scale)), fitH = Math.max(1, (int)Math.round(size[1] * scale));
         int left = x + (w - fitW) / 2, top = y + (h - fitH) / 2;
-        g.blit(id, left, top, left + fitW, top + fitH, (float)trimLeft / size[0], 1 - (float)trimRight / size[0], 0, 1);
+        g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED,id,left,top,trimLeft,0,fitW,fitH,sourceW,size[1],size[0],size[1],tint);
         return true;
     }
     public static boolean drawBottom(GuiGraphicsExtractor g,String path,int x,int y,int width,int height) {

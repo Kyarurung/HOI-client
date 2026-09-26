@@ -18,7 +18,7 @@ final class ScreenDiplomacyHeader {
     static int tabs(int top) { return top + 70; }
     static int politicsTop(int top) { return tabs(top) + 24; }
     static int leaderHeight(int pane) { return Math.max(80, scaled(175, pane)); }
-    static int spiritsTop(int top, int pane) { return politicsTop(top) + leaderHeight(pane) + 4; }
+    static int spiritsTop(int top, int pane) { return politicsTop(top) + leaderHeight(pane) + 5; }
     static int body(int top, int pane) { return spiritsTop(top, pane) + Math.max(32, scaled(72, pane)) + 8; }
     static MenuView.Entry entry(CountryView view, String name) {
         return view.diplomacy().stream().filter(e -> e.name().equals(name)).findFirst().orElse(new MenuView.Entry(name, "정보 없음", ""));

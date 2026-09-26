@@ -665,7 +665,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             bar(meterX, meterY, meterW, meterH, ratio == null ? (category.equals("upgrade") ? 1 : 0) : ratio, 0xFF7EAF69);
             if (ratio == null && !category.equals("upgrade")) cellText("—", meterX, meterY, meterW, meterH, MUTED, false);
             if (i == 0 && ratio != null) {
-                String needs = policy.reinforcementNeeds().entrySet().stream().map(e -> familyName(equipment(e.getKey())) + " · 부족 " + e.getValue()).collect(java.util.stream.Collectors.joining("\n"));
+                String needs = policy.reinforcementNeeds().entrySet().stream().map(e -> equipmentLabel(e.getKey()) + " · 부족 " + e.getValue()).collect(java.util.stream.Collectors.joining("\n"));
                 tip("증원 · 장비 충족률 " + percent(policy.reinforcementRatio()) + (needs.isEmpty() ? "\n부족한 장비 없음" : "\n" + needs), 7, y, (int)(400 * scale), rowHeight);
             } else tip(names[i] + (ratio == null ? " · 장비 배정 현황 미제공" : " · 장비 충족률 " + percent(ratio)), 7, y, (int)(400 * scale), rowHeight);
         }
@@ -1208,7 +1208,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             graphics.text(font,title,-font.width(title)/2,0,TEXT,false);graphics.pose().popMatrix();
         }
         int closeWidth=size.applyAsInt(31),closeHeight=size.applyAsInt(29);
-        int closeX=px.applyAsInt(navy?1048:1044)+(size.applyAsInt(navy?37:38)-closeWidth)/2+2;
+        int closeX=px.applyAsInt(navy?1048:1044)+(size.applyAsInt(navy?37:38)-closeWidth)/2+(navy?1:2);
         int closeY=py.applyAsInt(navy?4:8)+(size.applyAsInt(navy?38:34)-closeHeight)/2+2;
         button(title+" 창 닫기","×",closeX,closeY,closeWidth,closeHeight,true,()->send(TANK_CLOSE,"","",0));
         if(tankSlot.isEmpty()) {
@@ -1467,11 +1467,8 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         String branch=navy?"navy":"air";
         var equipment=equipmentBySource.get(d.chassis());
         String chassis=equipment==null?d.name():equipment.familyName();
-        recess(px.applyAsInt(24),py.applyAsInt(95),size.applyAsInt(305),size.applyAsInt(35));
-        if(navy) {
-            art("production/design/controls/navy_role",px.applyAsInt(29),py.applyAsInt(97),size.applyAsInt(32),size.applyAsInt(31));
-            leftText(chassis,px.applyAsInt(68),py.applyAsInt(98)+Math.round((size.applyAsInt(28)-font.lineHeight*UiText.scale(font))/2),size.applyAsInt(256),TEXT);
-        } else {
+        if(!navy) {
+            recess(px.applyAsInt(24),py.applyAsInt(95),size.applyAsInt(305),size.applyAsInt(35));
             String role=dev.hoi.client.ui.UiEquipmentDesigns.role(d),label=dev.hoi.client.ui.UiEquipmentDesigns.roleName(role);
             int rx=px.applyAsInt(24),ry=py.applyAsInt(95),rw=size.applyAsInt(305),rh=size.applyAsInt(35);
             if(graphics==null) {
@@ -1737,17 +1734,24 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         long hours=ship.remainingHours();
         return hours>=24?(hours/24+(hours%24==0?0:1))+"일":hours+"시간";
     }
+    private static int repairAssignmentStep() {
+        if(dev.hoi.client.ui.UiPriorityControls.shifted())return 10;
+        long window=net.minecraft.client.Minecraft.getInstance().getWindow().handle();
+        return org.lwjgl.glfw.GLFW.glfwGetKey(window,org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL)==org.lwjgl.glfw.GLFW.GLFW_PRESS
+                ||org.lwjgl.glfw.GLFW.glfwGetKey(window,org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_CONTROL)==org.lwjgl.glfw.GLFW.GLFW_PRESS?5:1;
+    }
     private void layoutRepairPorts(int x,int y,int w,int end) {
         var repairs=view.navalRepairs();
         if(repairs==null){text("수리 현황을 확인할 수 없습니다.",x+9,y+36,w-18,MUTED);return;}
         art("production/summary/dockyard_icon_with_wrench",x+8,y+28,16,16);
-        var decrease=originalButton("수리 조선소 배정 감소 · 자동 배정 중","recruitment/decrease",x+26,y+29,13,13,false,()->{});
-        cellText(Integer.toString(repairs.availableDockyards()),x+39,y+28,22,16,TEXT,false);
-        var increase=originalButton("수리 조선소 배정 증가 · 자동 배정 중","recruitment/increase",x+61,y+29,13,13,false,()->{});
-        var assignmentTip=UiTooltips.create(Component.literal("함선 수리에 배정할 수 있는 §e조선소§r의 최대 숫자입니다.\n\n§7현재 서버는 수리 조선소를 자동 배정합니다."));
-        if(decrease!=null)decrease.setTooltip(assignmentTip);
-        if(increase!=null)increase.setTooltip(assignmentTip);
-        tip("함선 수리에 배정할 수 있는 §e조선소§r의 최대 숫자입니다.\n\n§7현재 서버는 수리 조선소를 자동 배정합니다.",x+8,y+27,67,17);
+        var decrease=originalButton("수리 조선소 배정 감소","recruitment/decrease",x+26,y+29,13,13,repairs.assignedDockyards()>0,
+                ()->send(REPAIR_DOCKYARDS,"","",Math.max(0,repairs.assignedDockyards()-repairAssignmentStep())));
+        cellText(Integer.toString(repairs.assignedDockyards()),x+39,y+28,22,16,TEXT,false);
+        var increase=originalButton("수리 조선소 배정 증가","recruitment/increase",x+61,y+29,13,13,repairs.assignedDockyards()<repairs.maximumDockyards(),
+                ()->send(REPAIR_DOCKYARDS,"","",Math.min(repairs.maximumDockyards(),repairs.assignedDockyards()+repairAssignmentStep())));
+        if(decrease!=null)decrease.setTooltip(UiTooltips.create(Component.literal("§a클릭§r하여 §e1§r 감소\n§aCtrl + 클릭§r하여 §e5§r 감소\n§aShift + 클릭§r하여 §e10§r 감소")));
+        if(increase!=null)increase.setTooltip(UiTooltips.create(Component.literal("§a클릭§r하여 §e1§r 증가\n§aCtrl + 클릭§r하여 §e5§r 증가\n§aShift + 클릭§r하여 §e10§r 증가")));
+        tip("함선 수리에 배정할 수 있는 §e조선소§r의 최대 숫자입니다.",x+39,y+27,22,17);
         var represented=new HashSet<String>();repairs.ports().forEach(port->represented.addAll(port.ships()));
         var expand=originalButton("수리 목록 펼치기/접기","production/picker/"+(expandedRepairPorts.isEmpty()?"collapse":"expand"),x+81,y+28,38,15,true,()->{
             if(expandedRepairPorts.isEmpty()) {
@@ -1776,15 +1780,27 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             if(py>=start&&py+row<=end-3) {
                 if(graphics==null) {
                     var listTip=UiTooltips.create(Component.literal(counts+"\n\n§a클릭§r하여 함선 대기열 목록을 전환합니다."));
-                    var policyTip=UiTooltips.create(Component.literal("§e수리 우선순위 선택§r\n\n우선순위가 더 높은 해군기지는 수리를 위한 조선소를 먼저 할당받습니다.\n\n§a클릭§r하여 우선순위를 바꾸십시오. §a우클릭§r하여 조선소의 수리 여부를 활성화하거나 비활성화하십시오.\n\n§7현재 서버는 자동 배정만 지원하며 위 우선순위 조작은 지원하지 않습니다."));
+                    var policyTip=UiTooltips.create(Component.literal((port.disabled()?"§c수리하지 않음":port.priority()==0?"§c수리 우선순위 - 낮음":port.priority()==1?"§e수리 우선순위 - 중간":"§a수리 우선순위 - 높음")+"§r\n\n우선순위가 더 높은 해군기지는 수리를 위한 조선소를 먼저 할당받습니다.\n\n§a클릭§r하여 우선순위를 바꾸십시오. §a우클릭§r하여 조선소의 수리 여부를 활성화하거나 비활성화하십시오."));
                     var shipsTip=UiTooltips.create(Component.literal("이 해군기지에서 함선 §e"+waiting+"§r척이 수리를 위해 대기 중입니다.\n\n"+counts));
                     var capacityTip=UiTooltips.create(Component.literal("§e"+waiting+"§r척의 함정이 수리 대기 중입니다.\n현재 수리 중: §e"+port.activeShips()+"§r척\n이 §e해군기지§r는 동시에 최대 §e"+(port.capacity()==0?"—":port.capacity())+"§r척의 수리 작업을 수행할 수 있습니다."));
                     var button=new UiPanelButton("수리 항구: "+port.name(),x+7,py,w-18,Math.round((w-18)*33f/400),()->{if(!expandedRepairPorts.add(port.id()))expandedRepairPorts.remove(port.id());rebuildWidgets();}) {
+                        @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice) {
+                            int column=(int)((event.x()-getX())*400/Math.max(1,getWidth()));
+                            if(isMouseOver(event.x(),event.y())&&column>=35&&column<60&&(event.button()==0||event.button()==1)) {
+                                if(pending==0&&port.capacity()>0) {
+                                    playDownSound(minecraft.getSoundManager());
+                                    if(event.button()==1)send(REPAIR_ENABLED,port.id(),"",port.disabled()?1:0);
+                                    else send(REPAIR_PRIORITY,port.id(),"",(port.priority()+1)%3);
+                                }
+                                return true;
+                            }
+                            return super.mouseClicked(event,twice);
+                        }
                         @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                            UiAssets.draw(g,"production/picker/repair_port",getX(),py,getWidth(),getHeight());
+                            UiAssets.draw(g,"production/picker/"+(expandedRepairPorts.contains(port.id())?"repair_port":"repair_port_collapsed"),getX(),py,getWidth(),getHeight());
                             int column=(mx-getX())*400/Math.max(1,getWidth());
                             setTooltip(column>=35&&column<60?policyTip:column>=200&&column<270?shipsTip:column>=270?capacityTip:listTip);
-                            UiAssets.draw(g,"production/picker/repair_state",getX()+Math.round(getWidth()*35f/400),py+2,Math.round(getWidth()*22f/400),getHeight()-4);
+                            UiAssets.draw(g,"production/picker/repair_state"+(port.disabled()?"_disabled":port.priority()==0?"_low":port.priority()==2?"_high":""),getX()+Math.round(getWidth()*35f/400),py+2,Math.round(getWidth()*22f/400),getHeight()-4);
                             UiText.text(g,font,font.plainSubstrByWidth(port.name(),Math.max(1,(int)((getWidth()*140f/400)/UiText.scale(font)))),getX()+Math.round(getWidth()*60f/400),py+4,TEXT);
                             UiAssets.draw(g,"production/picker/ships",getX()+getWidth()/2,py+3,15,10);
                             productionText(g,Long.toString(waiting),getX()+getWidth()*59/100,py,w*9/100,row-2,TEXT);
@@ -2020,6 +2036,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     @Override public boolean keyReleased(KeyEvent e) { return !modal() && InputSidebarMovement.consumes(minecraft, e) || super.keyReleased(e); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
+    private String equipmentLabel(String id) {var e=equipmentById.get(id);return e==null?id:familyName(e);}
     private Equipment equipment(String id) { return Objects.requireNonNull(equipmentById.get(id)); }
     private int factoryStep() {
         long window = minecraft.getWindow().handle();
@@ -2036,7 +2053,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         return resources.entrySet().stream().map(e -> resourceName(e.getKey()) + " " + decimal(e.getValue() * count)).reduce((a, b) -> a + " · " + b).orElse("자원 소모 없음");
     }
     private String equipmentList(Map<String,Long> need, Map<String,Long> current) {
-        return need.entrySet().stream().map(e -> familyName(equipment(e.getKey())) + ": " + current.getOrDefault(e.getKey(), 0L) + " / " + e.getValue()).reduce((a, b) -> a + "\n" + b).orElse("필요 장비 없음");
+        return need.entrySet().stream().map(e -> equipmentLabel(e.getKey()) + ": " + current.getOrDefault(e.getKey(), 0L) + " / " + e.getValue()).reduce((a, b) -> a + "\n" + b).orElse("필요 장비 없음");
     }
     static double fillRatio(Map<String,Long> need, Map<String,Long> current) {
         double required = 0;
@@ -2119,6 +2136,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 UiAssets.draw(g,!active&&disabledTexture!=null?disabledTexture:texture,x,y,w,h);
             }
         };
+        if(texture.startsWith("production/actions/")||texture.equals("production/picker/expand")||texture.equals("production/picker/collapse")||texture.contains("checkbox"))button.sound("ui.checkbox");
         button.active = enabled && pending == 0;
         button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(name.contains(" · ×") ? name.substring(name.indexOf(" · ×") + 3) + " · 다시 누르면 ×1" : name)));
         addRenderableWidget(button);

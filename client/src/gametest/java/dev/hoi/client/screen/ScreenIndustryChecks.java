@@ -673,6 +673,7 @@ public final class ScreenIndustryChecks {
         var empty = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), List.of(), List.of(), null, "", v.navalRepairs(), v.specialForces());
         conversion(context,v);
         factoryControls(context,v);
+        repairPolicies(context,v);
         resourceShortages(context, v);
         var requests = new ArrayList<IndustryProtocol.Request>();
         for (var tab : List.of(MenuTab.PRODUCTION, MenuTab.TRADE, MenuTab.LOGISTICS, MenuTab.RECRUITMENT)) {
@@ -879,7 +880,7 @@ public final class ScreenIndustryChecks {
                         t.id(), group == 0 ? "" : v.recruits().getFirst().location(), row % 3, .25 + row * .2, t.manpower(), supplied, group == 0 ? 0 : 5, row));
             }
         }
-        var trainingView = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), trainingRows, List.of(), null, "", v.navalRepairs(), v.specialForces(), new IndustryView.RecruitmentPolicy(Set.of(), Map.of("reinforcement", 2, "upgrade", 1, "supply", 1, "operation", 1, "garrison", 1, "raid", 0), .65, Map.of(), null, Map.of("supply", .25, "operation", .5, "garrison", .75, "raid", 1.0)));
+        var trainingView = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), trainingRows, List.of(), null, "", v.navalRepairs(), v.specialForces(), new IndustryView.RecruitmentPolicy(Set.of(), Map.of("reinforcement", 2, "upgrade", 1, "supply", 1, "operation", 1, "garrison", 1, "raid", 0), .65, Map.of("hoi:missing-reinforcement-label", 26L), null, Map.of("supply", .25, "operation", .5, "garrison", .75, "raid", 1.0)));
         for (int[] size : new int[][]{{1600, 1000}, {2560, 1440}}) {
             context.getInput().resizeWindow(size[0], size[1]);
             context.setScreen(() -> new ScreenIndustry(MenuTab.RECRUITMENT, trainingView.session(), trainingView, requests::add));
@@ -1201,6 +1202,39 @@ public final class ScreenIndustryChecks {
     }
     private static Button button(ScreenIndustry screen, String name) {
         return (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow(() -> new AssertionError("Missing control: " + name));
+    }
+    private static void repairPolicies(ClientGameTestContext context,IndustryView fixture) {
+        var json=new com.google.gson.Gson().toJsonTree(fixture).getAsJsonObject();
+        var gson=new com.google.gson.Gson();
+        var requests=new ArrayList<IndustryProtocol.Request>();
+        context.setScreen(()->new ScreenIndustry(MenuTab.PRODUCTION,fixture.session(),fixture,requests::add));
+        context.waitTicks(2);click(context,"해군 수리 대기열");
+        int collapsed=context.computeOnClient(client->button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY());
+        for(int expected:new int[]{2,0,1}) {
+            context.runOnClient(client->{
+                var screen=(ScreenIndustry)client.gui.screen();var row=button(screen,"수리 항구: 부산");
+                screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(row.getX()+row.getWidth()*46/400.0,row.getY()+row.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
+                var request=requests.getLast();
+                check(request.action()==IndustryProtocol.Action.REPAIR_PRIORITY&&request.item().equals("busan")&&request.amount()==expected,"Port icon cycles normal, high, low, normal");
+                check(button(screen,"수리 항구: 진해").getY()==collapsed,"Priority icon never expands port rows");
+                for(var item:json.getAsJsonObject("navalRepairs").getAsJsonArray("ports"))if(item.getAsJsonObject().get("id").getAsString().equals("busan"))item.getAsJsonObject().addProperty("priority",expected);
+                json.addProperty("revision",json.get("revision").getAsLong()+1);screen.update(gson.fromJson(json,IndustryView.class));
+            });
+            context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-repair-priority-"+expected);
+        }
+        for(boolean disabled:new boolean[]{true,false}) {
+            context.runOnClient(client->{
+                var screen=(ScreenIndustry)client.gui.screen();var row=button(screen,"수리 항구: 부산");
+                screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(row.getX()+row.getWidth()*46/400.0,row.getY()+row.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(1,0)),false);
+                var request=requests.getLast();check(request.action()==IndustryProtocol.Action.REPAIR_ENABLED&&request.amount()==(disabled?0:1),"Right click toggles repair prohibition");
+                for(var item:json.getAsJsonObject("navalRepairs").getAsJsonArray("ports"))if(item.getAsJsonObject().get("id").getAsString().equals("busan"))item.getAsJsonObject().addProperty("disabled",disabled);
+                json.addProperty("revision",json.get("revision").getAsLong()+1);screen.update(gson.fromJson(json,IndustryView.class));
+            });
+            context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-repair-disabled-"+disabled);
+        }
+        int count=requests.size();
+        click(context,"수리 항구: 부산");context.waitTicks(2);
+        context.runOnClient(client->{check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsed,"Port body independently expands its ships");check(requests.size()==count,"Expansion is local and does not change repair policy");});
     }
     private static void click(ClientGameTestContext context, String name) {
         context.runOnClient(client -> { var b = button((ScreenIndustry)client.gui.screen(), name); check(b.active, "Enabled control: " + name); b.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0)); });
