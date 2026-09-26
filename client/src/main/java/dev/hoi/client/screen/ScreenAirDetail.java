@@ -2,7 +2,7 @@ package dev.hoi.client.screen;
 
 import dev.hoi.client.ui.*;
 import dev.hoi.client.input.InputSidebarMovement;
-import dev.hoi.protocol.DialogView;
+import dev.hoi.protocol.ProtocolDialogView;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -13,10 +13,10 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
     private int left,top,pane,tall,scroll,tooltipScroll;
     private double scale;
     private final boolean[] categories={true,true,true};
-    private DialogView.Tile hovered;
-    private record ScreenAirHover(DialogView.Tile tile,int x,int y,int w,int h) {}
+    private ProtocolDialogView.Tile hovered;
+    private record ScreenAirHover(ProtocolDialogView.Tile tile,int x,int y,int w,int h) {}
     private final List<ScreenAirHover> hovers=new ArrayList<>();
-    ScreenAirDetail(DialogView view){super(view);}
+    ScreenAirDetail(ProtocolDialogView view){super(view);}
     @Override int panelLeft(){return left;}
     @Override int panelTop(){return top;}
     @Override int panelWidth(){return pane;}
@@ -37,8 +37,8 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
         if(only){Arrays.fill(categories,false);categories[index]=true;}else categories[index]=!categories[index];
         scroll=0;
     }
-    List<DialogView.Tile> missions(boolean enemy) {
-        var result=new ArrayList<DialogView.Tile>();
+    List<ProtocolDialogView.Tile> missions(boolean enemy) {
+        var result=new ArrayList<ProtocolDialogView.Tile>();
         for(int i=0;i<categories.length;i++)if(categories[i])result.addAll(tiles((enemy?"enemy_":"")+"mission_"+i));
         return List.copyOf(result);
     }
@@ -46,8 +46,8 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
     private int x(double v){return left+n(v);}
     private int y(double v){return top+n(v);}
     private int n(double v){return (int)Math.round(v*scale);}
-    private List<DialogView.Tile> tiles(String section){return view().tiles().stream().filter(t->t.section().equals(section)).toList();}
-    private DialogView.Tile tile(String section){return tiles(section).stream().findFirst().orElse(null);}
+    private List<ProtocolDialogView.Tile> tiles(String section){return view().tiles().stream().filter(t->t.section().equals(section)).toList();}
+    private ProtocolDialogView.Tile tile(String section){return tiles(section).stream().findFirst().orElse(null);}
     private String title(String section,String fallback){var t=tile(section);return t==null?fallback:t.name();}
     private void art(GuiGraphicsExtractor g,String path,int px,int py,int w,int h){UiAssets.draw(g,path,x(px),y(py),n(w),n(h));}
     private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,boolean center) {
@@ -61,7 +61,7 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
         g.pose().pushMatrix();g.pose().translate(x(px)+offset,y(py)+(n(h)-(font.lineHeight-1)*factor)/2);g.pose().scale(factor);
         g.text(font,line,0,0,UiMenuStyle.TEXT);g.pose().popMatrix();
     }
-    private void hover(DialogView.Tile t,int px,int py,int w,int h){if(t!=null)hovers.add(new ScreenAirHover(t,x(px),y(py),n(w),n(h)));}
+    private void hover(ProtocolDialogView.Tile t,int px,int py,int w,int h){if(t!=null)hovers.add(new ScreenAirHover(t,x(px),y(py),n(w),n(h)));}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
         hovers.clear();
         if(!ScreenDialogCoordinator.renderingContent())dev.hoi.client.ClientCampaignHud.draw(g);
@@ -147,12 +147,12 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
             g.pose().popMatrix();
         }
     }
-    private void stat(GuiGraphicsExtractor g,DialogView.Tile tile,int px,int py,int iconX) {
+    private void stat(GuiGraphicsExtractor g,ProtocolDialogView.Tile tile,int px,int py,int iconX) {
         if(tile==null)return;
         art(g,"air_detail/mini_bg",px,py,69,25);art(g,tile.icon(),iconX,py-2,24,26);
         text(g,tile.value(),px+(iconX<=px?24:0),py,43,25,true);hover(tile,Math.min(px,iconX),py-2,74,28);
     }
-    private void combat(GuiGraphicsExtractor g,DialogView.Tile result,boolean killed) {
+    private void combat(GuiGraphicsExtractor g,ProtocolDialogView.Tile result,boolean killed) {
         if(result==null)return;
         int px=killed?416:18,imageY=181,imageWidth=118,imageHeight=46;
         int iconX=killed?px-12-72:px+imageWidth+12,resultY=imageY+(imageHeight-22)/2;

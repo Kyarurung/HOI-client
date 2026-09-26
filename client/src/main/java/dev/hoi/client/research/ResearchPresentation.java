@@ -1,7 +1,7 @@
 package dev.hoi.client.research;
 
 import com.google.gson.JsonParser;
-import dev.hoi.protocol.ResearchView.Tech;
+import dev.hoi.protocol.ProtocolResearchView.Tech;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import java.util.*;

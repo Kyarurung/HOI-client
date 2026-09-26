@@ -1,15 +1,15 @@
 package dev.hoi.client.research;
 
-import dev.hoi.protocol.ResearchProtocol;
-import dev.hoi.protocol.ResearchView;
+import dev.hoi.protocol.ProtocolResearchPayloads;
+import dev.hoi.protocol.ProtocolResearchView;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ResearchSourceLayoutTest {
-    private List<ResearchView.Tech> catalog() throws Exception {
+    private List<ProtocolResearchView.Tech> catalog() throws Exception {
         try (var in = getClass().getResourceAsStream("/tfr-research-view.json")) {
-            return new ResearchProtocol.Response(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).view().technologies();
+            return new ProtocolResearchPayloads.Response(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).view().technologies();
         }
     }
     private ResearchLayout.ResearchNode node(ResearchLayout layout, String id) {

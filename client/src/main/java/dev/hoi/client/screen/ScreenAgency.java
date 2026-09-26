@@ -12,7 +12,7 @@ import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
 
 import dev.hoi.protocol.*;
-import dev.hoi.protocol.AgencyView.*;
+import dev.hoi.protocol.ProtocolAgencyView.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -29,28 +29,28 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     public static final List<String> UPGRADE_ORDER = List.of("foreign_intelligence", "domestic_intelligence", "military_intelligence", "planning_and_direction", "collection", "processing_and_exploitation", "analysis", "dissemination", "humint", "sigint", "masint", "osint", "geoint", "cell_system", "communication_security", "support_services", "enhanced_interrogation_techniques", "termination", "elint", "comint", "advanced_cryptoanalytical_attack_models", "cryptosystem_algorithm_upgrade", "quantum_cryptography");
     private static final String[] UPGRADE_GROUPS = {"정보공동체", "정보 순환", "정보 수집 분야", "휴민트", "신호 정보"};
     private final Screen parent;
-    private final Consumer<AgencyProtocol.Request> transport;
+    private final Consumer<ProtocolAgencyPayloads.Request> transport;
     private final String token;
-    private AgencyView view;
+    private ProtocolAgencyView view;
     private String group = "operations", selectedId;
     private final List<String> arguments = new ArrayList<>();
     private int pane, top, scroll, detailScroll, choosing = -1, choiceScroll, pendingTicks, refreshTicks, overlayStart;
     private String searchText = "";
     private EditBox search;
-    private AgencyProtocol.Kind pendingKind;
+    private ProtocolAgencyPayloads.Kind pendingKind;
     private String queuedUpgrade;
 
     public ScreenAgency(Screen parent) {
         this(parent, UUID.randomUUID().toString(), null, request -> {
-            if (ClientPlayNetworking.canSend(AgencyProtocol.Request.TYPE)) ClientPlayNetworking.send(request);
+            if (ClientPlayNetworking.canSend(ProtocolAgencyPayloads.Request.TYPE)) ClientPlayNetworking.send(request);
         });
     }
-    public ScreenAgency(Screen parent, String token, AgencyView fixture, Consumer<AgencyProtocol.Request> transport) {
+    public ScreenAgency(Screen parent, String token, ProtocolAgencyView fixture, Consumer<ProtocolAgencyPayloads.Request> transport) {
         super(Component.literal("정보기관")); this.parent = parent; this.token = token; this.view = fixture; this.transport = transport;
     }
     String session() { return token; }
-    public void open() { send(AgencyProtocol.Kind.OPEN, "", List.of()); }
-    public void update(AgencyView next) {
+    public void open() { send(ProtocolAgencyPayloads.Kind.OPEN, "", List.of()); }
+    public void update(ProtocolAgencyView next) {
         if (!next.session().equals(token)) return;
         if (next.country().isEmpty() || view != null && !next.country().equals(view.country())) { minecraft.gui.setScreen(null); return; }
         if (view != null && next.revision() <= view.revision()) return;
@@ -64,7 +64,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         String queued = queuedUpgrade;
         queuedUpgrade = null;
         if (queued != null && view.items().stream().anyMatch(i -> i.id().equals(queued) && i.enabled() && i.parameters().isEmpty())) {
-            send(AgencyProtocol.Kind.CALL, queued, List.of());
+            send(ProtocolAgencyPayloads.Kind.CALL, queued, List.of());
         } else rebuildWidgets();
     }
     private void normalizeArguments(Item item) {
@@ -84,11 +84,11 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     @Override protected void init() {
         overlayStart = 0;
         InputSidebarMovement.release(minecraft);
-        pane = Math.min(width - 16, Math.max(360, UiPanelLayout.width(MenuTab.INTELLIGENCE, width)));
+        pane = Math.min(width - 16, Math.max(360, UiPanelLayout.width(ProtocolMenuTab.INTELLIGENCE, width)));
         top = UiMenuBar.height(width);
-        UiMenuBar.buttons(width, view == null ? "" : view.country(), MenuTab.INTELLIGENCE, tab -> {
-            if (tab == MenuTab.INTELLIGENCE) return;
-            if (tab == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
+        UiMenuBar.buttons(width, view == null ? "" : view.country(), ProtocolMenuTab.INTELLIGENCE, tab -> {
+            if (tab == ProtocolMenuTab.INTELLIGENCE) return;
+            if (tab == ProtocolMenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new UiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
         if (view == null) return;
@@ -102,7 +102,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
             var action = view.items().stream().filter(i -> i.id().equals("create") || i.id().equals("cancel_project")).findFirst().orElse(null);
             if (action != null) {
                 var button = new UiPanelButton(action.id().equals("create") ? "정보기관 창설" : "기관 창설 취소", 10, top + 29, pane - 20, 59,
-                        () -> send(AgencyProtocol.Kind.CALL, action.id(), List.of())) {
+                        () -> send(ProtocolAgencyPayloads.Kind.CALL, action.id(), List.of())) {
                     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                     }
                 };
@@ -150,7 +150,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         if (project != null) {
             recruitButton.setY(top + 191); recruitButton.setHeight(18);
             var cancel = new UiMenuButton(project.value(), recruitX(), top + 169, pane - recruitX() - 10, 20,
-                    () -> send(AgencyProtocol.Kind.CALL, project.id(), List.of()));
+                    () -> send(ProtocolAgencyPayloads.Kind.CALL, project.id(), List.of()));
             cancel.active = pendingTicks == 0; addRenderableWidget(cancel);
         }
         overlayStart = children().size();
@@ -261,7 +261,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
             }
             if (!item.button().isBlank()) {
                 var action = new UiPanelButton(pendingTicks > 0 ? "응답 대기…" : item.button(), dx + dw / 2 - 65, bottom, 130, 24,
-                        () -> send(AgencyProtocol.Kind.CALL, item.id(), List.copyOf(arguments)));
+                        () -> send(ProtocolAgencyPayloads.Kind.CALL, item.id(), List.copyOf(arguments)));
                 action.active = item.enabled() && pendingTicks == 0 && arguments.stream().noneMatch(String::isEmpty);
                 addRenderableWidget(action);
             }
@@ -299,13 +299,13 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     private void selectItem(Item item) {
         if ((item.id().startsWith("upgrade:") || item.group().equals("cryptology")) && item.parameters().isEmpty()) {
             if (item.enabled()) {
-                if (pendingTicks == 0) send(AgencyProtocol.Kind.CALL, item.id(), List.of());
-                else if (pendingKind == AgencyProtocol.Kind.REFRESH && item.id().startsWith("upgrade:") && queuedUpgrade == null) queuedUpgrade = item.id();
+                if (pendingTicks == 0) send(ProtocolAgencyPayloads.Kind.CALL, item.id(), List.of());
+                else if (pendingKind == ProtocolAgencyPayloads.Kind.REFRESH && item.id().startsWith("upgrade:") && queuedUpgrade == null) queuedUpgrade = item.id();
             }
             return;
         }
         if (item.id().startsWith("operation:")) {
-            minecraft.gui.setScreen(new ScreenAgencyOperation(this, item, args -> send(AgencyProtocol.Kind.CALL, item.id(), args)));
+            minecraft.gui.setScreen(new ScreenAgencyOperation(this, item, args -> send(ProtocolAgencyPayloads.Kind.CALL, item.id(), args)));
             return;
         }
         selectedId = item.id(); arguments.clear(); normalizeArguments(item); detailScroll = 0; rebuildWidgets();
@@ -358,18 +358,18 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     }
     private int detailX() { return Math.min(pane + 12, width - 260); }
     private int detailWidth() { return Math.min(540, width - detailX() - 12); }
-    private void send(AgencyProtocol.Kind kind, String item, List<String> args) {
-        if (pendingTicks > 0 && kind == AgencyProtocol.Kind.CALL) return;
-        boolean passive = kind == AgencyProtocol.Kind.REFRESH;
+    private void send(ProtocolAgencyPayloads.Kind kind, String item, List<String> args) {
+        if (pendingTicks > 0 && kind == ProtocolAgencyPayloads.Kind.CALL) return;
+        boolean passive = kind == ProtocolAgencyPayloads.Kind.REFRESH;
         pendingTicks = 100; pendingKind = kind;
-        transport.accept(new AgencyProtocol.Request(kind, token, view == null ? 0 : view.revision(), item, args));
+        transport.accept(new ProtocolAgencyPayloads.Request(kind, token, view == null ? 0 : view.revision(), item, args));
         if (!passive) rebuildWidgets();
     }
     @Override public void tick() {
         if (pendingTicks > 0 && --pendingTicks == 0) {
 
-            send(view == null ? AgencyProtocol.Kind.OPEN : AgencyProtocol.Kind.REFRESH, "", List.of());
-        } else if (++refreshTicks % 60 == 0 && pendingTicks == 0 && choosing < 0 && selectedId == null) send(AgencyProtocol.Kind.REFRESH, "", List.of());
+            send(view == null ? ProtocolAgencyPayloads.Kind.OPEN : ProtocolAgencyPayloads.Kind.REFRESH, "", List.of());
+        } else if (++refreshTicks % 60 == 0 && pendingTicks == 0 && choosing < 0 && selectedId == null) send(ProtocolAgencyPayloads.Kind.REFRESH, "", List.of());
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         UiMenuStyle.panel(g, 0, top, pane, height - top);
@@ -515,7 +515,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         return super.keyReleased(event);
     }
     @Override public void onClose() {
-        transport.accept(new AgencyProtocol.Request(AgencyProtocol.Kind.CLOSE, token, view == null ? 0 : view.revision(), "", List.of()));
+        transport.accept(new ProtocolAgencyPayloads.Request(ProtocolAgencyPayloads.Kind.CLOSE, token, view == null ? 0 : view.revision(), "", List.of()));
         minecraft.gui.setScreen(parent);
     }
     @Override public void removed() { InputSidebarMovement.release(minecraft); }

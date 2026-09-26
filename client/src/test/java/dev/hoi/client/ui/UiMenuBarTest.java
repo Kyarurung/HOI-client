@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class UiMenuBarTest {
     @Test void fuelTrendUsesOriginalIconsDaysColorsAndStockGauge() {
         var gson=new com.google.gson.Gson();
-        var up=gson.fromJson("{\"fuel\":500,\"fuelRatio\":0.25,\"fuelDailyChange\":100,\"fuelDays\":15}",dev.hoi.protocol.CountryHud.NationalIndicators.class);
-        var down=gson.fromJson("{\"fuel\":500,\"fuelRatio\":0.25,\"fuelDailyChange\":-100,\"fuelDays\":5}",dev.hoi.protocol.CountryHud.NationalIndicators.class);
+        var up=gson.fromJson("{\"fuel\":500,\"fuelRatio\":0.25,\"fuelDailyChange\":100,\"fuelDays\":15}",dev.hoi.protocol.ProtocolCountryHud.NationalIndicators.class);
+        var down=gson.fromJson("{\"fuel\":500,\"fuelRatio\":0.25,\"fuelDailyChange\":-100,\"fuelDays\":5}",dev.hoi.protocol.ProtocolCountryHud.NationalIndicators.class);
         for(String change:new String[]{"100","0","-100","null"}) {
-            var full=gson.fromJson("{\"fuel\":2000,\"fuelRatio\":1,\"fuelDailyChange\":"+change+",\"fuelDays\":0}",dev.hoi.protocol.CountryHud.NationalIndicators.class);
+            var full=gson.fromJson("{\"fuel\":2000,\"fuelRatio\":1,\"fuelDailyChange\":"+change+",\"fuelDays\":0}",dev.hoi.protocol.ProtocolCountryHud.NationalIndicators.class);
             assertEquals("가득 참",UiMenuBar.fuelIndicator(full).value());
             assertEquals(0xFF009F03,UiMenuBar.indicatorColor(UiMenuBar.fuelIndicator(full)));
         }
@@ -18,7 +18,7 @@ class UiMenuBarTest {
         assertEquals("fuel_increasing",UiMenuBar.icon(rising));assertEquals("fuel_decreasing",UiMenuBar.icon(falling));
         assertEquals(0xFF009F03,UiMenuBar.indicatorColor(rising));assertEquals(0xFFFF3232,UiMenuBar.indicatorColor(falling));
         assertEquals(.25,rising.ratio());assertEquals(.25,falling.ratio());
-        assertEquals("fuel",UiMenuBar.icon(UiMenuBar.fuelIndicator(dev.hoi.protocol.CountryHud.NationalIndicators.UNKNOWN)));
+        assertEquals("fuel",UiMenuBar.icon(UiMenuBar.fuelIndicator(dev.hoi.protocol.ProtocolCountryHud.NationalIndicators.UNKNOWN)));
     }
 
     @Test void suppliesUseTheAuthoritativeRatioAndFactoriesKeepFiveDigits() {

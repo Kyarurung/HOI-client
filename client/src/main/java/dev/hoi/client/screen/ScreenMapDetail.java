@@ -2,7 +2,7 @@ package dev.hoi.client.screen;
 
 import dev.hoi.client.ui.*;
 import dev.hoi.client.input.InputSidebarMovement;
-import dev.hoi.protocol.DialogView;
+import dev.hoi.protocol.ProtocolDialogView;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -14,10 +14,10 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
     private double scale;
     private final UiFlagStack ownerFlags = new UiFlagStack(), claimFlags = new UiFlagStack();
     private int tooltipScroll;
-    private DialogView.Tile hovered;
-    private record ScreenMapHover(DialogView.Tile tile, int x, int y, int w, int h) {}
+    private ProtocolDialogView.Tile hovered;
+    private record ScreenMapHover(ProtocolDialogView.Tile tile, int x, int y, int w, int h) {}
     private final List<ScreenMapHover> hovers = new ArrayList<>();
-    ScreenMapDetail(DialogView view) { super(view); }
+    ScreenMapDetail(ProtocolDialogView view) { super(view); }
     private boolean sea() { return view().image().equals("map_detail/sea"); }
     @Override int panelLeft() { return left; }
     @Override int panelTop() { return top; }
@@ -35,7 +35,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
     private int x(double n) { return left + (int)Math.round(n * scale); }
     private int y(double n) { return top + (int)Math.round(n * scale); }
     private int n(double n) { return (int)Math.round(n * scale); }
-    private List<DialogView.Tile> tiles(String section) { return view().tiles().stream().filter(t -> t.section().equals(section)).toList(); }
+    private List<ProtocolDialogView.Tile> tiles(String section) { return view().tiles().stream().filter(t -> t.section().equals(section)).toList(); }
     private void art(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) { UiAssets.draw(g,path,x(x),y(y),n(w),n(h)); }
     private void label(GuiGraphicsExtractor g,String value,int x,int y,int w,int h,int color) {
         label(g,value,x,y,w,h,color,12,true);
@@ -57,7 +57,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         g.text(font,line,0,0,color);
         g.pose().popMatrix();
     }
-    private void cell(GuiGraphicsExtractor g,DialogView.Tile tile,int x,int y,int w,int h,boolean standing) {
+    private void cell(GuiGraphicsExtractor g,ProtocolDialogView.Tile tile,int x,int y,int w,int h,boolean standing) {
         art(g,standing?"map_detail/standing":"map_detail/shared",x,y,w,h);
         double cellScale=Math.min(n(w)/(double)w,n(h)/(double)h);
         int cellWidth=(int)Math.round(w*cellScale),cellHeight=(int)Math.round(h*cellScale);
@@ -98,7 +98,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
             if(fraction>0)g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/map_detail/damage_bar.png"),0,0,Math.round(gaugeHeight*fraction),gaugeWidth,0,fraction,0,1);
             g.pose().popMatrix();
             g.disableScissor();
-            var gauge=new DialogView.Tile(tile.section(),tile.name(),"","",tile.gauge().tooltip());
+            var gauge=new ProtocolDialogView.Tile(tile.section(),tile.name(),"","",tile.gauge().tooltip());
             hovers.addFirst(new ScreenMapHover(gauge,(int)Math.floor(slotLeft),slotY,(int)Math.ceil(slotEnd)-(int)Math.floor(slotLeft),slotBottom-slotY));
         }
     }
@@ -107,7 +107,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         if(parts.length==2&&parts[0].equals(parts[1]))return "§a"+value+"§r";
         return value;
     }
-    private void flags(GuiGraphicsExtractor g,List<DialogView.Tile> values,UiFlagStack stack,int py) {
+    private void flags(GuiGraphicsExtractor g,List<ProtocolDialogView.Tile> values,UiFlagStack stack,int py) {
         var order=stack.update(values.stream().map(t->t.section()+":"+t.icon()).toList());
         for(int i=0;i<order.size();i++) {
             String id=order.get(i);
@@ -195,7 +195,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         for(int i=0;i<25;i++) {
             int index=sharedScroll*5+i;
             if(index>=shared.size()&&!unknown)break;
-            var t=unknown?new DialogView.Tile("shared","정보 부족","?","map_detail/unknown","이 주의 공장에 대한 정보가 없습니다"):shared.get(index);
+            var t=unknown?new ProtocolDialogView.Tile("shared","정보 부족","?","map_detail/unknown","이 주의 공장에 대한 정보가 없습니다"):shared.get(index);
             cell(g,t,149+i%5*58,162+i/5*47,56,46,false);
         }
         var resources=tiles("resources");

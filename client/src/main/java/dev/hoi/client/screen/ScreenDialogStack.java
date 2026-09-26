@@ -1,6 +1,6 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.protocol.DialogView;
+import dev.hoi.protocol.ProtocolDialogView;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -19,9 +19,9 @@ final class ScreenDialogStack extends Screen {
     Screen backdrop() { return backdrop; }
     void backdrop(Screen screen) { backdrop = screen; }
     Screen detachBackdrop() { var parent = backdrop; backdrop = null; return parent; }
-    List<DialogView> views() { return windows.stream().map(ScreenDialog::view).toList(); }
+    List<ProtocolDialogView> views() { return windows.stream().map(ScreenDialog::view).toList(); }
     ScreenDialog find(String token) { return windows.stream().filter(w -> w.view().token().equals(token)).findFirst().orElse(null); }
-    void add(DialogView view) {
+    void add(ProtocolDialogView view) {
         var old = find(view.token());
         if (old != null) { old.update(view); return; }
         if (windows.size() >= 64) return;
@@ -50,7 +50,7 @@ final class ScreenDialogStack extends Screen {
         ScreenDialog event = null, superEvent = null, completion = null;
         for (var window : windows) {
             if (window.view().completion()) completion = window;
-            else if (window.view().kind() == DialogView.Kind.SUPER_EVENT) superEvent = window;
+            else if (window.view().kind() == ProtocolDialogView.Kind.SUPER_EVENT) superEvent = window;
             else event = window;
         }
         var layers = new ArrayList<Screen>(4);

@@ -1,8 +1,8 @@
 package dev.hoi.client.map;
 
-import dev.hoi.protocol.AtlasSceneProtocol.Box;
-import dev.hoi.protocol.AtlasSceneProtocol.Material;
-import dev.hoi.protocol.AtlasVisibility;
+import dev.hoi.protocol.ProtocolAtlasScene.Box;
+import dev.hoi.protocol.ProtocolAtlasScene.Material;
+import dev.hoi.protocol.ProtocolAtlasVisibility;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -43,13 +43,13 @@ record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long
     private static int cell(double value) { return (int)Math.floor(value/16); }
     private static long cellKey(int x,int z) { return ((long)x<<32)|(z&0xffffffffL); }
     int collect(Vec3 camera,List<MapTile> result) {
-        double radius=Math.max(AtlasVisibility.BOUNDARY_RANGE,AtlasVisibility.DETAIL_RANGE);
+        double radius=Math.max(ProtocolAtlasVisibility.BOUNDARY_RANGE,ProtocolAtlasVisibility.DETAIL_RANGE);
         var seen=new LinkedHashSet<Integer>(large);
         for(int z=cell(camera.z-radius);z<=cell(camera.z+radius);z++)for(int x=cell(camera.x-radius);x<=cell(camera.x+radius);x++) {
             var entries=cells.get(cellKey(x,z));if(entries!=null)seen.addAll(entries);
         }
         for(int id:seen) {
-            var tile=tiles.get(id);double range=AtlasVisibility.range(tile.material());
+            var tile=tiles.get(id);double range=ProtocolAtlasVisibility.range(tile.material());
             if(tile.bounds().distanceToSqr(camera)<=range*range)result.add(tile);
         }
         return seen.size();

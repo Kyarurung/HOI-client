@@ -3,7 +3,7 @@ package dev.hoi.client.research;
 import dev.hoi.client.ui.UiAssets;
 
 import com.google.gson.JsonParser;
-import dev.hoi.protocol.ResearchView.Tech;
+import dev.hoi.protocol.ProtocolResearchView.Tech;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import java.util.*;

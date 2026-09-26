@@ -8,9 +8,9 @@ import java.util.*;
 
 final class ScreenDiplomacyHeader {
     private final List<int[]> chart;
-    private final List<MenuView.Entry> spirits;
+    private final List<ProtocolMenuView.Entry> spirits;
     private int spiritScroll;
-    ScreenDiplomacyHeader(CountryView view, int pane) {
+    ScreenDiplomacyHeader(ProtocolCountryView view, int pane) {
         chart = chart(view, scaled(80, pane));
         spirits = view.diplomacy().stream().filter(e -> e.detail().startsWith("국가 정신\n")).toList();
     }
@@ -20,10 +20,10 @@ final class ScreenDiplomacyHeader {
     static int leaderHeight(int pane) { return Math.max(80, scaled(175, pane)); }
     static int spiritsTop(int top, int pane) { return politicsTop(top) + leaderHeight(pane) + 5; }
     static int body(int top, int pane) { return spiritsTop(top, pane) + Math.max(32, scaled(72, pane)) + 8; }
-    static MenuView.Entry entry(CountryView view, String name) {
-        return view.diplomacy().stream().filter(e -> e.name().equals(name)).findFirst().orElse(new MenuView.Entry(name, "정보 없음", ""));
+    static ProtocolMenuView.Entry entry(ProtocolCountryView view, String name) {
+        return view.diplomacy().stream().filter(e -> e.name().equals(name)).findFirst().orElse(new ProtocolMenuView.Entry(name, "정보 없음", ""));
     }
-    void draw(GuiGraphicsExtractor g, Font font, CountryView view, int pane, int top) {
+    void draw(GuiGraphicsExtractor g, Font font, ProtocolCountryView view, int pane, int top) {
         int y = politicsTop(top), leaderX = scaled(13, pane), leaderW = scaled(134, pane), leaderH = leaderHeight(pane);
         var leader = entry(view, "지도자");
         UiAssets.draw(g, leader.icon().isEmpty() ? "politics/empty/leader" : leader.icon(), leaderX + 3, y + 3, leaderW - 6, leaderH - 6);
@@ -44,7 +44,7 @@ final class ScreenDiplomacyHeader {
         int focusY = y + leaderH - focusH - 3, focusX = right + scaled(100, pane);
         UiAssets.draw(g, "politics/empty/focus", right + 4, focusY, scaled(90, pane), focusH);
         UiAssets.nineSlice(g, "diplomacy/focus", focusX, focusY, pane - focusX - 12, focusH, 5, pane / 550.0);
-        var focus = view.focuses().stream().filter(e -> !e.value().equals("완료")).findFirst().orElse(new MenuView.Entry("선택된 중점 없음", "", ""));
+        var focus = view.focuses().stream().filter(e -> !e.value().equals("완료")).findFirst().orElse(new ProtocolMenuView.Entry("선택된 중점 없음", "", ""));
         UiText.centered(g, font, focus.name(), focusX + 4, focusY + 3, pane - focusX - 20, focusH - 6, UiMenuStyle.TEXT);
         int spiritY = spiritsTop(top, pane), spiritH = Math.max(32, scaled(72, pane));
         UiAssets.nineSlice(g, "diplomacy/spirits", scaled(15, pane), spiritY, pane - scaled(30, pane), spiritH, 5, pane / 550.0);
@@ -68,7 +68,7 @@ final class ScreenDiplomacyHeader {
             g.fill(trackX, thumbY, trackX + 2, thumbY + thumbH, 0xFFD5D5D0);
         }
     }
-    MenuView.Entry partyAt(CountryView view, double x, double mouseY, int pane, int top) {
+    ProtocolMenuView.Entry partyAt(ProtocolCountryView view, double x, double mouseY, int pane, int top) {
         int right=scaled(147,pane),rightW=pane-right-scaled(12,pane),edge=Math.max(1,scaled(5,pane));
         int cellW=edge+Math.round((rightW-edge*2)*99f/388),cellH=edge+Math.round((leaderHeight(pane)-edge*2)*85f/157);
         int size=scaled(80,pane),left=right+(cellW-size)/2+2,upper=politicsTop(top)+(cellH-size)/2+1;
@@ -84,7 +84,7 @@ final class ScreenDiplomacyHeader {
     private static int spiritRowHeight(int pane) { return Math.max(12, Math.max(32, scaled(72, pane)) - 10); }
     private static int spiritViewportHeight(int pane) { return Math.max(32, scaled(72, pane)) - 8; }
     private int maxSpiritScroll(int pane) { return Math.max(0, (spirits.size() + 5) / 6 * spiritRowHeight(pane) - spiritViewportHeight(pane)); }
-    MenuView.Entry spiritAt(double x, double y, int pane, int top) {
+    ProtocolMenuView.Entry spiritAt(double x, double y, int pane, int top) {
         int start = spiritStart(pane), sy = spiritsTop(top, pane) + 4, gridWidth = spiritWidth(pane), rowHeight = spiritRowHeight(pane);
         if (x < start || x >= start + gridWidth || y < sy || y >= sy + spiritViewportHeight(pane)) return null;
         int column = Math.min(5, ((int)(x - start) * 6 + 5) / gridWidth);
@@ -98,7 +98,7 @@ final class ScreenDiplomacyHeader {
         spiritScroll = Math.clamp(spiritScroll - steps * spiritRowHeight(pane), 0, maxSpiritScroll(pane));
         return true;
     }
-    private static List<int[]> chart(CountryView view, int size) {
+    private static List<int[]> chart(ProtocolCountryView view, int size) {
         var result = new ArrayList<int[]>();
         var parties = view.diplomacy().stream().filter(e -> e.detail().startsWith("정당 지지도")).toList();
         double radius = size / 2.0;

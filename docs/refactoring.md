@@ -6,7 +6,7 @@
 
 `client`는 초기화와 캠페인 HUD 수명, `network`는 요청·응답과 늦은 응답 폐기, `input`은 입력 소유권, `map`은 장면·메시·부대 표시, `research`는 연구 배치·상세·조회, `screen`은 화면과 해당 화면의 순수 계산, `ui`는 공용 셀·글꼴·툴팁·아트, `audio`는 음악·효과음 수명을 맡는다. 이 경계를 유지하고 타입 이름은 패키지 마지막 부분의 PascalCase 접두어와 책임 단어 최대 두 개로 맞췄다. 테스트는 해당 이름에 `Test` 또는 `Checks`를 붙인다. 예를 들어 `map.MapSceneMesh`, `screen.ScreenIndustry`, `ui.UiFlagStack`이다.
 
-Fabric 등록 계약인 `HoiClient`와 `ResearchScreenGameTest`는 유지한다. 공유 `protocol`의 기존 공개 DTO·중첩 타입은 두 배포물의 소스 API이므로 이름을 유지한다. 내부 JSON 해석기는 `ProtocolJson`, 새 공용 형식은 `ProtocolNumbers`와 `ProtocolText`다. mixin 타입 이름과 JSON 등록을 함께 바꿨으며 Minecraft 대상 메서드·접근자 시그니처는 유지한다. 통신·저장·명령·콘텐츠 ID는 변경하지 않는다.
+Fabric 등록 계약인 `HoiClient`와 `ResearchScreenGameTest`는 유지한다. 공유 `protocol`의 기존 공개 DTO·중첩 타입은 두 배포물의 소스 API이므로 이름을 유지한다. 내부 JSON 해석기는 `ProtocolJsonCodec`, 새 공용 형식은 `ProtocolNumberBounds`와 `ProtocolTextBounds`다. mixin 타입 이름과 JSON 등록을 함께 바꿨으며 Minecraft 대상 메서드·접근자 시그니처는 유지한다. 통신·저장·명령·콘텐츠 ID는 변경하지 않는다.
 
 [타입·경로 대응표](type-renames.json)는 클라이언트 최상위 타입/파일 95개, 클래스별 내부 이름 대응 및 공용 내부 타입·테스트 4개의 변경을 보관한다. [클래스 검토 목록](code-review.csv)은 파일·타입·책임·의존성·검증 근거·결정·이름 예외를 기록한다. 파일은 main 78개, test 13개, gametest 25개, benchmark 2개이며 내부 선언을 포함한 타입은 각각 116·14·27·4개다. protocol 검토는 HOI의 공유 프로토콜 범위에 속한다.
 
@@ -14,7 +14,7 @@ main 77개 파일과 모든 JUnit·GameTest·benchmark 파일은 메서드 본�
 
 ## 공통화와 계산 경계
 
-`ProtocolNumbers`는 기존 `Locale.ROOT` 소수점·백분율·부호 표시를 공유한다. 각 호출부의 정밀도, 미지값, 영 값 정규화, 배율과 색상은 그대로 둔다. 연구 효과의 `RoundingMode.DOWN`, 정수 내림, 단위 축약, 자릿수 구분과 원본 문단 처리는 서로 다른 계약이므로 유지한다. `ProtocolText`는 문자 수 제한에서 보조 평면 문자를 자르지 않는다.
+`ProtocolNumberBounds`는 기존 `Locale.ROOT` 소수점·백분율·부호 표시를 공유한다. 각 호출부의 정밀도, 미지값, 영 값 정규화, 배율과 색상은 그대로 둔다. 연구 효과의 `RoundingMode.DOWN`, 정수 내림, 단위 축약, 자릿수 구분과 원본 문단 처리는 서로 다른 계약이므로 유지한다. `ProtocolTextBounds`는 문자 수 제한에서 보조 평면 문자를 자르지 않는다.
 
 `UiText.ellipsize`는 기관·국가·대화·메뉴 화면에 중복됐던 픽셀 폭 제한을 처리한다. 기존 네 화면의 9px 말줄임 여백은 유지한다. 연구 화면의 실제 glyph 폭 기준은 별도 계약이다. GUI2의 기존 셀 정렬, 강조색, 툴팁 문단과 원본 아이콘을 유지한다.
 
@@ -64,6 +64,14 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-25.0.2'
 | `0298_hoi-map-detail-3-2560-gui2.png` | (0, 520, 620, 1440) | 0 |
 | `0409_hoi-menu-politics-gui2.png` | (0, 70, 726, 1440) | 0 |
 
-캡처는 `client/build/run/clientGameTest/screenshots`에 생성되며 다음 실행 시 교체되는 로컬 산출물이다. 위 픽셀 비교 결과와 검증 범위는 이 문서에 보존한다. 임시 캡처 사본·JUnit XML·로그·해시 목록은 정리했다. 당시 검증한 `build/libs/hoi-client-0.1.0-SNAPSHOT.jar`는 837,034바이트이며 SHA-256은 `fdd3630b04722f125113fffc9b4576e8ea48193ec92e3e8b30b4d933a63f1bbe`다. Fabric 진입점, 이름을 바꾼 mixin 8개와 중첩 protocol JAR를 확인했다. 이전 타입, benchmark 클래스와 정적 텍스처는 배포 JAR에 없다. protocol main 소스는 HOI와 바이트 단위로 같으며, 기존 `MenuViewTest`의 저장소별 추가 검사는 그대로 유지한다.
+캡처는 `client/build/run/clientGameTest/screenshots`에 생성되며 다음 실행 시 교체되는 로컬 산출물이다. 위 픽셀 비교 결과와 검증 범위는 이 문서에 보존한다. 임시 캡처 사본·JUnit XML·로그·해시 목록은 정리했다. 당시 검증한 `build/libs/hoi-client-0.1.0-SNAPSHOT.jar`는 837,034바이트이며 SHA-256은 `fdd3630b04722f125113fffc9b4576e8ea48193ec92e3e8b30b4d933a63f1bbe`다. Fabric 진입점, 이름을 바꾼 mixin 8개와 중첩 protocol JAR를 확인했다. 이전 타입, benchmark 클래스와 정적 텍스처는 배포 JAR에 없다. protocol main 소스는 HOI와 바이트 단위로 같으며, 기존 `ProtocolMenuViewTest`의 저장소별 추가 검사는 그대로 유지한다.
 
 CodeGraph는 소스 변경 후 동기화했고 `ScreenTradeAmounts` 관계를 실제 소스와 대조했다. `git diff --check`는 통과했다. RTK 결과의 대량 삭제 표시는 아직 stage하지 않은 파일 이름 변경의 한쪽만 포함하므로 코드 축소량으로 사용하지 않는다.
+
+## Shared protocol responsibility names
+
+All shared top-level protocol types now use the `Protocol` package prefix followed by their feature and responsibility, such as `ProtocolResearchPayloads` and `ProtocolIndustryView`. The server and client use the same 33 source files. Existing payload channel IDs, JSON fields, enum values, and wire versions remain unchanged; Java consumers must rebuild against the renamed types. Client screen layouts and interaction rules were not changed by this rename.
+
+Validation used Java 25.0.2 and `.\gradlew.bat test runGameTest remapJar --console=plain --no-daemon` after rebuilding HOI-resourcepack. The command succeeded in 7m 41s: 58 client unit tests and 39 protocol unit tests passed without skips or failures. The renderer run generated 659 captures, including 422 with GUI2 in their names. These are automated fixture rendering checks, not a live multiplayer synchronization test or a new pixel-by-pixel comparison against every original screenshot.
+
+The resulting client JAR is 910,378 bytes, SHA-256 `7607fea727990407cb673663c8b8ac3d46c9cab6eb938aaf8332b1c73c0165ab`. The operational server was not started, restarted, or deployed to. The earlier measurements and image comparisons above remain historical evidence for their own revisions.

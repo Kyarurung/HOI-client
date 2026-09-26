@@ -13,37 +13,37 @@ import java.time.LocalDate;
 import java.util.*;
 
 public final class ScreenWorldTension extends Screen {
-    private WorldTensionView view;
-    private WorldTensionView.Sort sort = WorldTensionView.Sort.DATE;
+    private ProtocolWorldTensionView view;
+    private ProtocolWorldTensionView.Sort sort = ProtocolWorldTensionView.Sort.DATE;
     private String token = UUID.randomUUID().toString(), warId;
     private boolean descending = true, pending = true, minors = true, capitulated = true, callable = true;
     private int offset, ticks = 39, x, y, panelWidth, panelHeight, leftScroll, rightScroll;
     private float scale;
     private final boolean fixture;
     public ScreenWorldTension() { super(Component.literal("세계 긴장도 이력")); fixture = false; }
-    public ScreenWorldTension(WorldTensionView view) { super(Component.literal("세계 긴장도 이력")); this.view = view; fixture = true; pending = false; }
+    public ScreenWorldTension(ProtocolWorldTensionView view) { super(Component.literal("세계 긴장도 이력")); this.view = view; fixture = true; pending = false; }
     String token() { return token; }
-    WorldTensionView view() { return view; }
-    WorldTensionView.Sort sort() { return sort; }
+    ProtocolWorldTensionView view() { return view; }
+    ProtocolWorldTensionView.Sort sort() { return sort; }
     String warId() { return warId; }
-    void select(WorldTensionView.Sort next) {
-        descending = sort == next ? !descending : next != WorldTensionView.Sort.COUNTRY;
+    void select(ProtocolWorldTensionView.Sort next) {
+        descending = sort == next ? !descending : next != ProtocolWorldTensionView.Sort.COUNTRY;
         sort = next; offset = 0; warId = null; requestChanged();
     }
     private void requestChanged() {
         token = UUID.randomUUID().toString(); pending = !fixture; ticks = 30;
-        if (fixture && view != null && sort != WorldTensionView.Sort.WARS) {
-            Comparator<WorldTensionView.Entry> order = switch (sort) {
-                case COUNTRY -> Comparator.comparing(WorldTensionView.Entry::name);
-                case TENSION -> Comparator.comparingDouble(WorldTensionView.Entry::current);
-                default -> Comparator.comparingLong(WorldTensionView.Entry::day);
+        if (fixture && view != null && sort != ProtocolWorldTensionView.Sort.WARS) {
+            Comparator<ProtocolWorldTensionView.Entry> order = switch (sort) {
+                case COUNTRY -> Comparator.comparing(ProtocolWorldTensionView.Entry::name);
+                case TENSION -> Comparator.comparingDouble(ProtocolWorldTensionView.Entry::current);
+                default -> Comparator.comparingLong(ProtocolWorldTensionView.Entry::day);
             };
             if (descending) order = order.reversed();
-            view = new WorldTensionView(view.viewer(),view.hud(),view.day(),view.offset(),view.total(),view.entries().stream().sorted(order).toList(),view.wars());
+            view = new ProtocolWorldTensionView(view.viewer(),view.hud(),view.day(),view.offset(),view.total(),view.entries().stream().sorted(order).toList(),view.wars());
         }
         rebuildWidgets();
     }
-    public void update(WorldTensionProtocol.Response packet) {
+    public void update(ProtocolWorldTension.Response packet) {
         if (!token.equals(packet.token())) return;
         if (packet.json().isEmpty()) { view = null; warId = null; minecraft.gui.setScreen(null); return; }
         var next = packet.view();
@@ -52,13 +52,13 @@ public final class ScreenWorldTension extends Screen {
         if (warId != null && war() == null) warId = null;
         rebuildWidgets();
     }
-    private WorldTensionView.War war() { return view == null || warId == null ? null : view.wars().stream().filter(w -> w.id().equals(warId)).findFirst().orElse(null); }
+    private ProtocolWorldTensionView.War war() { return view == null || warId == null ? null : view.wars().stream().filter(w -> w.id().equals(warId)).findFirst().orElse(null); }
     void openWar(String id) { if (view != null && view.wars().stream().anyMatch(w -> w.id().equals(id))) { warId = id; leftScroll = 0; rightScroll = 0; rebuildWidgets(); } }
     @Override public void tick() {
         if (fixture) return;
-        if (++ticks >= 40 && ClientPlayNetworking.canSend(WorldTensionProtocol.Request.TYPE)) {
+        if (++ticks >= 40 && ClientPlayNetworking.canSend(ProtocolWorldTension.Request.TYPE)) {
             ticks = 0; token = UUID.randomUUID().toString();
-            ClientPlayNetworking.send(new WorldTensionProtocol.Request(token,sort,descending,offset));
+            ClientPlayNetworking.send(new ProtocolWorldTension.Request(token,sort,descending,offset));
         }
     }
     @Override protected void init() {
@@ -66,12 +66,12 @@ public final class ScreenWorldTension extends Screen {
         scale = Math.min(Math.max(.5f, width / 2560f), Math.min((width-12f)/(detail?1167:527),(height-UiMenuBar.height(width)-12f)/(detail?780:534)));
         panelWidth = detail ? 1167 : 527; panelHeight = detail ? 780 : 534;
         x = (width - s(panelWidth))/2; y = Math.max(UiMenuBar.height(width)+5,(height-s(panelHeight))/2);
-        UiMenuBar.buttons(width,view==null?"":view.viewer(),null,tab -> { if (tab==MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab); }).forEach(this::addRenderableWidget);
+        UiMenuBar.buttons(width,view==null?"":view.viewer(),null,tab -> { if (tab==ProtocolMenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab); }).forEach(this::addRenderableWidget);
         if (!detail) {
             String[] labels = {"날짜","국가","세계 긴장도","현재 전쟁"}; int[] positions = {40,149,258,385};
-            for (var tab : WorldTensionView.Sort.values()) button(labels[tab.ordinal()],positions[tab.ordinal()],87,100,29,"tension/sort"+(sort==tab?"_selected":""),() -> select(tab));
+            for (var tab : ProtocolWorldTensionView.Sort.values()) button(labels[tab.ordinal()],positions[tab.ordinal()],87,100,29,"tension/sort"+(sort==tab?"_selected":""),() -> select(tab));
             button("닫기",204,484,123,28,null,this::onClose);
-            if (view != null && !pending && sort == WorldTensionView.Sort.WARS) {
+            if (view != null && !pending && sort == ProtocolWorldTensionView.Sort.WARS) {
                 for (int i=0;i<Math.min(7,view.wars().size());i++) {
                     var w = view.wars().get(i); button(w.name(),35,132+i*44,460,41,"",() -> openWar(w.id()));
                 }
@@ -84,10 +84,10 @@ public final class ScreenWorldTension extends Screen {
             sideButtons(war().attackers(),18,leftScroll); sideButtons(war().defenders(),589,rightScroll);
         }
     }
-    private List<WorldTensionView.Participant> filtered(List<WorldTensionView.Participant> side) {
+    private List<ProtocolWorldTensionView.Participant> filtered(List<ProtocolWorldTensionView.Participant> side) {
         return side.stream().filter(p -> (minors || p.leader()) && (capitulated || !p.capitulated()) && (callable || !p.callable())).toList();
     }
-    private void sideButtons(List<WorldTensionView.Participant> side,int px,int scroll) {
+    private void sideButtons(List<ProtocolWorldTensionView.Participant> side,int px,int scroll) {
         var rows=filtered(side); int start=Math.clamp(scroll,0,Math.max(0,rows.size()-12));
         for(int i=start;i<Math.min(rows.size(),start+12);i++) {
             var p=rows.get(i); button(p.name(),px,193+(i-start)*44,531,41,"",() -> HoiClient.openCountry(p.country()));
@@ -118,7 +118,7 @@ public final class ScreenWorldTension extends Screen {
         g.pose().popMatrix();
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
-        UiMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
+        UiMenuBar.draw(g,width,view==null?ProtocolCountryHud.UNKNOWN:view.hud(),mx,my,0);
         begin(g);
         if(war()==null) history(g); else detail(g,war());
         end(g); super.extractRenderState(g,mx,my,delta);
@@ -127,11 +127,11 @@ public final class ScreenWorldTension extends Screen {
         UiAssets.draw(g,"tension/background",0,0,527,534);
         text(g,"세계 긴장도 이력",20,28,500,0xFFE0E0DA,true);
         if(view==null || pending) { text(g,"서버 정보 불러오는 중…",30,176,467,0xFFA8ABA9,true); return; }
-        int count=sort==WorldTensionView.Sort.WARS?view.wars().size():view.entries().size();
-        if(count==0) text(g,sort==WorldTensionView.Sort.WARS?"현재 진행 중인 전쟁이 없습니다.":"세계 긴장도 발생 기록이 없습니다.",30,176,467,0xFFA8ABA9,true);
+        int count=sort==ProtocolWorldTensionView.Sort.WARS?view.wars().size():view.entries().size();
+        if(count==0) text(g,sort==ProtocolWorldTensionView.Sort.WARS?"현재 진행 중인 전쟁이 없습니다.":"세계 긴장도 발생 기록이 없습니다.",30,176,467,0xFFA8ABA9,true);
         for(int i=0;i<Math.min(7,count);i++) {
             int py=132+i*44;
-            if(sort==WorldTensionView.Sort.WARS) {
+            if(sort==ProtocolWorldTensionView.Sort.WARS) {
                 var w=view.wars().get(i); UiAssets.draw(g,"tension/war_entry",35,py,460,41);
                 text(g,w.name(),77,py+4,250,0xFFE0E0DA,false); score(g,77,py+22,260,12,w.balance());
                 if(!w.attackers().isEmpty()) flag(g,w.attackers().getFirst().country(),359,py+7,36,24);
@@ -150,7 +150,7 @@ public final class ScreenWorldTension extends Screen {
         }
         scrollbar(g,503,133,328,offset,view.total(),7);
     }
-    private void detail(GuiGraphicsExtractor g,WorldTensionView.War war) {
+    private void detail(GuiGraphicsExtractor g,ProtocolWorldTensionView.War war) {
         var id=Identifier.parse("hoi:textures/gui/tension/war_background.png");
         g.blit(id,0,0,1167,240,0,1,0,240f/506);
         g.blit(id,0,240,1167,514,0,1,239f/506,240f/506);
@@ -162,7 +162,7 @@ public final class ScreenWorldTension extends Screen {
         text(g,"손실: —",20,90,264,0xFFE7C34C,true); text(g,"손실: —",889,90,258,0xFFE7C34C,true);
         drawSide(g,war.attackers(),18,leftScroll); drawSide(g,war.defenders(),589,rightScroll);
     }
-    private void drawSide(GuiGraphicsExtractor g,List<WorldTensionView.Participant> side,int px,int scroll) {
+    private void drawSide(GuiGraphicsExtractor g,List<ProtocolWorldTensionView.Participant> side,int px,int scroll) {
         String[] icons={"tension/surrender","tension/contribution","tension/divisions","hud/factories","tension/casualties"};
         int[] columns={233,283,346,422,485};
         for(int i=0;i<icons.length;i++) UiAssets.draw(g,icons[i],px+columns[i],157,22,22);
@@ -182,7 +182,7 @@ public final class ScreenWorldTension extends Screen {
         }
         scrollbar(g,px+553,193,548,start,rows.size(),12);
     }
-    private String sum(List<WorldTensionView.Participant> side) {
+    private String sum(List<ProtocolWorldTensionView.Participant> side) {
         long total=0;
         for(var p:side) if(!p.callable()) { try {total=Math.addExact(total,Long.parseLong(p.manpower()));} catch(NumberFormatException|ArithmeticException e) {return "?";} }
         return UiMenuBar.number((double)total);

@@ -54,8 +54,9 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             var dispatcher = new com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>();
             HoiClient.registerCommands(dispatcher);
             check(dispatcher.getRoot().getChild("hoi") == null, "Never shadow the server /hoi command");
-            check(dispatcher.getRoot().getChild("hoi-research") != null, "Independent research shortcut");
-            ResearchProtocol.registerPayloadTypes(); ResearchProtocol.registerPayloadTypes();
+            check(dispatcher.getRoot().getChild("hoi-research") == null, "Removed research shortcut stays absent");
+            check(dispatcher.getRoot().getChild("준비") == null && dispatcher.getRoot().getChild("시작") == null, "Lobby commands belong to the server");
+            ProtocolResearchPayloads.registerPayloadTypes(); ProtocolResearchPayloads.registerPayloadTypes();
         });
         loadPack(context);
         if (System.getProperty("hoi.testSuite", "all").equals("audio")) {
@@ -109,7 +110,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             dev.hoi.client.audio.AudioUnitVoicesChecks.run(context);
             dev.hoi.client.map.MapUnitHudChecks.run(context);
             dev.hoi.client.screen.ScreenSelectionPreviewChecks.run(context, menu);
-            context.runOnClient(client -> ClientCampaignHud.accept(HudProtocol.State.of("KOR",menu.hud())));
+            context.runOnClient(client -> ClientCampaignHud.accept(ProtocolHudPayloads.State.of("KOR",menu.hud())));
             context.setScreen(() -> null); context.waitTicks(3); context.takeScreenshot("hoi-persistent-country-hud");
             context.runOnClient(client -> {
                 var shiftF=new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_F,0,org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT);
@@ -134,7 +135,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.setScreen(() -> null); context.waitTicks(2);
             context.runOnClient(client -> {
                 check(ClientCampaignHud.visible(), "Closing politics keeps the country HUD");
-                ClientCampaignHud.accept(HudProtocol.State.HIDDEN);
+                ClientCampaignHud.accept(ProtocolHudPayloads.State.HIDDEN);
                 check(!ClientCampaignHud.visible(), "Stop/unassignment immediately hides the country HUD");
             });
             ResearchArtChecks.run(context);
@@ -152,13 +153,13 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             ScreenDialogChecks.run(context);
             ScreenRegimentChecks.run(context);
             context.setScreen(() -> new ScreenMenu(menu)); context.waitTicks(5);
-            context.runOnClient(client -> check(((ScreenMenu)client.gui.screen()).panelWidth() == UiPanelLayout.width(MenuTab.POLITICS,client.gui.screen().width), "Country panel follows the original 726-pixel container"));
+            context.runOnClient(client -> check(((ScreenMenu)client.gui.screen()).panelWidth() == UiPanelLayout.width(ProtocolMenuTab.POLITICS,client.gui.screen().width), "Country panel follows the original 726-pixel container"));
             context.takeScreenshot("hoi-menu-country");
             check(UiMenuBar.indicators(menu.hud()).stream().limit(13).map(UiMenuBar.UiIndicator::icon).toList().equals(List.of(
                     "political_power", "stability", "war_support", "manpower", "factories", "fuel", "supplies", "convoys", "command_power",
                     "army_experience", "navy_experience", "air_experience", "party_support")), "National indicators follow the requested order");
             check(UiMenuBar.indicators(menu.hud()).stream().anyMatch(i -> i.icon().equals("nuclear") && i.label().equals("핵폭탄")), "Nuclear bombs appear from campaign start without research");
-            var armed = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational());
+            var armed = new ProtocolCountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational());
             check(UiMenuBar.indicators(armed).stream().anyMatch(i -> i.icon().equals("nuclear") && i.value().equals("0")), "Completed nuclear research shows zero inventory");
             check(UiMenuBar.maximumScroll(1024, armed) == 0, "All national and financial indicators fit the normal viewport");
             context.runOnClient(client -> {
@@ -180,10 +181,10 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 }
             });
             context.runOnClient(client -> check(UiMenuBar.scroll(427, armed, 0, 0, -100) == UiMenuBar.maximumScroll(427, armed), "Compact HUD can reach the final indicators"));
-            context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), armed)));
+            context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), armed)));
             context.waitTicks(2); context.takeScreenshot("hoi-hud-nuclear-researched-zero");
-            var stocked = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 12L, fixtureNational());
-            context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), stocked)));
+            var stocked = new ProtocolCountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 12L, fixtureNational());
+            context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), stocked)));
             context.waitTicks(2); context.takeScreenshot("hoi-hud-nuclear-stockpile");
             check(UiMenuBar.defconFrame(null) == -1, "Unknown tension must not imply DEFCON 5");
             check(UiMenuBar.defconFrame(0.0) == 0 && UiMenuBar.defconFrame(1.0) == 9,
@@ -195,16 +196,16 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                         "DEFCON changes exactly at " + step * 10 + "%");
             }
             for (Double tension : new Double[]{0.0, .4, .6, 1.0, null}) {
-                var hud = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, tension, false, 0L, fixtureNational());
-                context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), hud)));
+                var hud = new ProtocolCountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, tension, false, 0L, fixtureNational());
+                context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), hud)));
                 context.waitTicks(2); context.takeScreenshot("hoi-defcon-frame-" + UiMenuBar.defconFrame(tension));
             }
             context.setScreen(() -> new ScreenMenu(menu)); context.waitTicks(2);
             context.takeScreenshot("hoi-menu-politics"); gui2Screenshot(context, "hoi-menu-politics");
             context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(child -> child instanceof Button b && b.getMessage().getString().equals("권력의 균형")), "Inactive power balance remains hidden"));
-            var balance = new MenuView.Balance("PRC_Liberal_Conservative_power_balance", "민주주의의 바람", "보수파", "개혁파", "bop/prc_conservate_side", "bop/prc_liberal_side", .985,
-                    List.of(new MenuView.Entry("보수파의 통제", "-100% ~ -15%", "", -1), new MenuView.Entry("균형", "-15% ~ 15%", "", -.15), new MenuView.Entry("개혁파의 통제", "15% ~ 100%", "", .15)));
-            context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), menu.hud(), menu.manufacturers(), balance)));
+            var balance = new ProtocolMenuView.Balance("PRC_Liberal_Conservative_power_balance", "민주주의의 바람", "보수파", "개혁파", "bop/prc_conservate_side", "bop/prc_liberal_side", .985,
+                    List.of(new ProtocolMenuView.Entry("보수파의 통제", "-100% ~ -15%", "", -1), new ProtocolMenuView.Entry("균형", "-15% ~ 15%", "", -.15), new ProtocolMenuView.Entry("개혁파의 통제", "15% ~ 100%", "", .15)));
+            context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), menu.hud(), menu.manufacturers(), balance)));
             click(context, "권력의 균형"); context.waitTicks(2); gui2Screenshot(context, "hoi-politics-power-balance");
             context.runOnClient(c -> ((ScreenMenu)c.gui.screen()).update(menu));
             context.waitTicks(2);
@@ -225,7 +226,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             click(context, "세부 사항"); context.waitTicks(2); context.takeScreenshot("hoi-politics-manufacturer-detail");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
-            for (var tab : MenuTab.ORDER) if (tab != MenuTab.RESEARCH && tab != MenuTab.INTELLIGENCE) {
+            for (var tab : ProtocolMenuTab.ORDER) if (tab != ProtocolMenuTab.RESEARCH && tab != ProtocolMenuTab.INTELLIGENCE) {
                 click(context, tab.label() + " 메뉴");
                 context.runOnClient(client -> {
                     var screen = (ScreenMenu)client.gui.screen();
@@ -234,10 +235,10 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                     check(screen.panelWidth() == UiPanelLayout.width(tab,screen.width), "Original container width for " + tab);
                 });
             }
-            for (var captureTab : List.of(MenuTab.DECISIONS, MenuTab.LOGISTICS)) {
+            for (var captureTab : List.of(ProtocolMenuTab.DECISIONS, ProtocolMenuTab.LOGISTICS)) {
                 click(context, captureTab.label() + " 메뉴"); context.waitTicks(2); gui2Screenshot(context, "hoi-menu-" + captureTab.id());
             }
-            click(context, MenuTab.OFFICER_CORPS.label() + " 메뉴");
+            click(context, ProtocolMenuTab.OFFICER_CORPS.label() + " 메뉴");
             context.waitTicks(2); context.takeScreenshot("hoi-menu-officers"); gui2Screenshot(context, "hoi-menu-officers");
             click(context, "무역 & 경제 메뉴"); context.waitTicks(2); context.takeScreenshot("hoi-menu-economy");
             click(context, "무역"); context.waitTicks(2); context.takeScreenshot("hoi-menu-trade");
@@ -245,7 +246,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.runOnClient(client -> client.gui.screen().mouseScrolled(100, 5, 0, -100));
             context.waitTicks(2); context.takeScreenshot("hoi-hud-compact-final-indicators");
             context.runOnClient(client -> client.gui.screen().mouseScrolled(100, 5, 0, 100));
-            for (var tab : List.of(MenuTab.POLITICS, MenuTab.TRADE, MenuTab.RECRUITMENT)) {
+            for (var tab : List.of(ProtocolMenuTab.POLITICS, ProtocolMenuTab.TRADE, ProtocolMenuTab.RECRUITMENT)) {
                 click(context, tab.label() + " 메뉴");
                 context.runOnClient(client -> {
                     var screen = (ScreenMenu)client.gui.screen(); checkToolbar(screen);
@@ -261,9 +262,9 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
             movement(context);
             agency(context);
-            var requests = new ArrayList<ResearchProtocol.Request>();
+            var requests = new ArrayList<ProtocolResearchPayloads.Request>();
             var view = fixtureResearch();
-            context.setScreen(() -> fixtureMainMenu(menu, MenuTab.RECRUITMENT, view, requests));
+            context.setScreen(() -> fixtureMainMenu(menu, ProtocolMenuTab.RECRUITMENT, view, requests));
             click(context, "연구 메뉴"); context.waitTicks(3);
             context.takeScreenshot("hoi-research-slots"); gui2Screenshot(context, "hoi-research-slots");
             context.runOnClient(client -> {
@@ -288,7 +289,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.runOnClient(client -> {
                 check(requests.size() == 1, "Exactly one request");
                 var request = requests.getFirst();
-                check(request.action() == ResearchProtocol.Action.START && request.slot() == 0
+                check(request.action() == ProtocolResearchPayloads.Action.START && request.slot() == 0
                         && request.session().equals(view.session()) && request.revision() == view.revision(), "Authenticated research request");
                 check(client.gui.screen().children().stream().anyMatch(c -> c instanceof ResearchSlotButton), "Research start returns to the overview");
                 check(client.gui.screen().children().stream().noneMatch(c -> c instanceof Button b
@@ -308,23 +309,23 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             });
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
 
-            context.setScreen(() -> fixtureMainMenu(menu, MenuTab.POLITICS, view, requests));
+            context.setScreen(() -> fixtureMainMenu(menu, ProtocolMenuTab.POLITICS, view, requests));
             click(context, "연구 메뉴");
             click(context, "슬롯 2 · 진행 연구");
             click(context, "연구 중단");
-            context.runOnClient(client -> check(requests.getLast().action() == ResearchProtocol.Action.CANCEL
+            context.runOnClient(client -> check(requests.getLast().action() == ProtocolResearchPayloads.Action.CANCEL
                     && requests.getLast().slot() == 1, "Cancel uses the actual active slot"));
             click(context, "무역 & 경제 메뉴");
             context.runOnClient(client -> {
-                check(client.gui.screen() instanceof ScreenMenu screen && screen.selectedTab() == MenuTab.TRADE,
+                check(client.gui.screen() instanceof ScreenMenu screen && screen.selectedTab() == ProtocolMenuTab.TRADE,
                         "Shared navigation works from research detail");
-                check(requests.getLast().action() == ResearchProtocol.Action.CLOSE, "Leaving research closes its private session");
+                check(requests.getLast().action() == ProtocolResearchPayloads.Action.CLOSE, "Leaving research closes its private session");
             });
             click(context, "연구 메뉴");
             context.runOnClient(client -> checkToolbar(client.gui.screen()));
             dev.hoi.client.network.NetworkMenuTransitionChecks.run(context, menu);
-            var six = new ResearchView(view.session(), view.revision(), view.country(), view.countryName(), view.day(), view.date(), view.speed(),
-                    java.util.stream.IntStream.range(0, 6).mapToObj(i -> new ResearchView.Slot(i, "", 0)).toList(), List.of(), view.message());
+            var six = new ProtocolResearchView(view.session(), view.revision(), view.country(), view.countryName(), view.day(), view.date(), view.speed(),
+                    java.util.stream.IntStream.range(0, 6).mapToObj(i -> new ProtocolResearchView.Slot(i, "", 0)).toList(), List.of(), view.message());
             context.getInput().resizeWindow(854, 480); context.waitTicks(2);
             context.setScreen(() -> new ResearchScreen(six, requests::add)); context.waitTicks(2);
             context.runOnClient(client -> {
@@ -336,10 +337,10 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             context.takeScreenshot("hoi-research-six-slot-capacity");
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
             var source = view.technologies().getFirst();
-            var active = new ResearchView.Tech(source.id(), source.category(), source.name(), source.year(), source.tier(),
-                    source.baseDays(), 30, source.dailyRate(), source.prerequisites(), source.effects(), source.unlocks(), ResearchView.Status.ACTIVE);
-            var centered = new ResearchView(view.session(), view.revision() + 1, view.country(), view.countryName(), view.day(), view.date(), view.speed(),
-                    java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ResearchView.Slot(i, i == 0 ? active.id() : "", 12)).toList(), List.of(active), "", view.hud());
+            var active = new ProtocolResearchView.Tech(source.id(), source.category(), source.name(), source.year(), source.tier(),
+                    source.baseDays(), 30, source.dailyRate(), source.prerequisites(), source.effects(), source.unlocks(), ProtocolResearchView.Status.ACTIVE);
+            var centered = new ProtocolResearchView(view.session(), view.revision() + 1, view.country(), view.countryName(), view.day(), view.date(), view.speed(),
+                    java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ProtocolResearchView.Slot(i, i == 0 ? active.id() : "", 12)).toList(), List.of(active), "", view.hud());
             context.setScreen(() -> new ResearchScreen(centered, requests::add)); context.waitTicks(2);
             context.takeScreenshot("hoi-research-centered-image");
             context.runOnClient(client -> check(active.remainingDays(centered.slots().getFirst().savedDays()) == 58,
@@ -352,11 +353,11 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
     }
 
     private static void fullTfrCatalog(ClientGameTestContext context) {
-        ResearchView view;
+        ProtocolResearchView view;
         try(var in=ResearchScreenGameTest.class.getResourceAsStream("/tfr-research-view.json")) {
-            view=new ResearchProtocol.Response(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).view();
+            view=new ProtocolResearchPayloads.Response(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).view();
         } catch(java.io.IOException e) {throw new java.io.UncheckedIOException(e);}
-        var requests=new ArrayList<ResearchProtocol.Request>();
+        var requests=new ArrayList<ProtocolResearchPayloads.Request>();
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
         context.setScreen(()->new ResearchScreen(view,requests::add));context.waitTicks(2);context.takeScreenshot("hoi-tfr-benefits-slots");
         context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().startsWith("제한된 혜택")),"Limited benefits is a passive indicator"));
@@ -427,7 +428,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
             }
         }
         context.getInput().resizeWindow(854,480); context.waitTicks(2); context.takeScreenshot("hoi-detail-cards-compact");
-        context.setScreen(() -> new ScreenIndustry(MenuTab.PRODUCTION,"loading",null,r -> {}));
+        context.setScreen(() -> new ScreenIndustry(ProtocolMenuTab.PRODUCTION,"loading",null,r -> {}));
         context.waitTicks(2); context.takeScreenshot("hoi-loading-blank-flag");
         context.runOnClient(client -> check(UiMenuBar.flagTexture("").isEmpty() && UiMenuBar.flagTexture("KOR").equals("country/kor/flag"), "Loading flag stays blank until the country is known"));
 
@@ -516,7 +517,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.runOnClient(client -> check(client.getResourceManager().getResource(
                 Identifier.fromNamespaceAndPath("hoi", "textures/gui/panel/research_banner.png")).isPresent(), "External art loaded"));
         context.runOnClient(client -> {
-            for (var item : UiMenuBar.indicators(CountryHud.UNKNOWN))
+            for (var item : UiMenuBar.indicators(ProtocolCountryHud.UNKNOWN))
                 check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/" + item.icon() + ".png")).isPresent(),
                         "External HUD icon loaded: " + item.icon());
             for (int frame = 0; frame < 10; frame++)
@@ -527,17 +528,17 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         });
     }
     private static void agency(ClientGameTestContext context) {
-        var create = new AgencyView.Item("create", "agents", "정보기관 설립", "민간공장 5개 · 30일", "", "agency/recruit", "설립", true, -1, List.of());
-        var before = new AgencyView("agency-create", 1, "KOR", "국가정보원", "미설립", List.of(create), "");
-        var creationRequests = new ArrayList<AgencyProtocol.Request>();
+        var create = new ProtocolAgencyView.Item("create", "agents", "정보기관 설립", "민간공장 5개 · 30일", "", "agency/recruit", "설립", true, -1, List.of());
+        var before = new ProtocolAgencyView("agency-create", 1, "KOR", "국가정보원", "미설립", List.of(create), "");
+        var creationRequests = new ArrayList<ProtocolAgencyPayloads.Request>();
         context.setScreen(() -> new ScreenAgency(null, before.session(), before, creationRequests::add)); context.waitTicks(2);
         gui2Screenshot(context, "hoi-agency-before-creation");
         context.runOnClient(client -> check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b && b.getMessage().getString().equals("정보공동체") && !b.active), "Unestablished agency disables upgrades"));
         click(context, "정보기관 창설");
         context.runOnClient(client -> {
             check(creationRequests.getLast().item().equals("create") && creationRequests.getLast().revision() == 1, "Creation uses issued action and revision");
-            var project = new AgencyView.Item("cancel_project", "upgrades", "기관 설립", "기관 설립 · 15일 남음", "", "agency/upgrade", "취소", true, .5, List.of());
-            ((ScreenAgency) client.gui.screen()).update(new AgencyView(before.session(), 2, "KOR", before.name(), "창설 중", List.of(project), ""));
+            var project = new ProtocolAgencyView.Item("cancel_project", "upgrades", "기관 설립", "기관 설립 · 15일 남음", "", "agency/upgrade", "취소", true, .5, List.of());
+            ((ScreenAgency) client.gui.screen()).update(new ProtocolAgencyView(before.session(), 2, "KOR", before.name(), "창설 중", List.of(project), ""));
         });
         context.waitTicks(2); gui2Screenshot(context, "hoi-agency-creation-progress");
         context.getInput().setCursorPos(220, 155); context.waitTicks(3);
@@ -547,22 +548,22 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.getInput().setCursorPos(1500, 800);
         click(context, "기관 창설 취소");
         context.runOnClient(client -> check(creationRequests.getLast().item().equals("cancel_project") && creationRequests.getLast().revision() == 2, "Creation cancellation uses latest revision"));
-        var items = new ArrayList<AgencyView.Item>();
-        items.add(new AgencyView.Item("recruit", "agents", "첩보원 고용", "1 / 2", "새로운 요원을 고용합니다.", "agency/recruit", "고용", true, -1, List.of()));
-        items.add(new AgencyView.Item("spy_master", "agents", "세력 첩보장", "", "", "agency/spy_master", "취임", false, -1, List.of()));
+        var items = new ArrayList<ProtocolAgencyView.Item>();
+        items.add(new ProtocolAgencyView.Item("recruit", "agents", "첩보원 고용", "1 / 2", "새로운 요원을 고용합니다.", "agency/recruit", "고용", true, -1, List.of()));
+        items.add(new ProtocolAgencyView.Item("spy_master", "agents", "세력 첩보장", "", "", "agency/spy_master", "취임", false, -1, List.of()));
         String[] upgradeNames = {"외국 정보", "국내 정보", "군사 정보", "계획 및 지휘", "수집", "처리 및 활용", "분석", "전파", "인적 정보", "신호 정보", "계측기호정보", "공개출처정보", "지형공간정보", "점조직 체계", "통신 보안", "지원 서비스", "강화된 심문 기술", "제거", "전자정보", "통신정보", "암호 분석 공격 모델", "암호화 체계 연산법 개선", "양자 암호학"};
         int[] maxima = {4,4,4,1,1,1,1,1,1,1,2,2,3,3,3,3,3,2,1,3,4,4,3};
         for (int i = 0; i < ScreenAgency.UPGRADE_ORDER.size(); i++) {
             String upgrade = ScreenAgency.UPGRADE_ORDER.get(i);
             int level = i % 3 == 0 ? maxima[i] : i % 3 == 1 ? maxima[i] / 2 : 0;
-            items.add(new AgencyView.Item("upgrade:" + upgrade, "upgrades", upgradeNames[i], level + " / " + maxima[i], "민간공장 5개 · 30일", "agency/" + upgrade, "개선", i % 3 == 1, level / (double)maxima[i], List.of()));
+            items.add(new ProtocolAgencyView.Item("upgrade:" + upgrade, "upgrades", upgradeNames[i], level + " / " + maxima[i], "민간공장 5개 · 30일", "agency/" + upgrade, "개선", i % 3 == 1, level / (double)maxima[i], List.of()));
         }
         dev.hoi.client.screen.ScreenAgencyChecks.run(context, items);
-        items.add(new AgencyView.Item("decrypt:PRK", "cryptology", "북한 암호", "해독 중", "해독 진행: 1200 / 12000", "agency/cryptology", "일시 정지", true, .1, List.of()));
-        items.add(new AgencyView.Item("operation:CAPTURE_CIPHER", "operations", "암호 탈취", "60일", "정보망 50과 대기 요원 2명이 필요합니다.\n민간공장 3개가 사용됩니다.", "agency/capture_cipher", "작전 준비", true, -1,
-                List.of(new AgencyView.Parameter("대상 국가", List.of(new AgencyView.Choice("PRK", "북한"), new AgencyView.Choice("JAP", "일본"))))));
-        var fixture = new AgencyView("agency-fixture", 1, "KOR", "국가정보원", "무선 감청 · 21일 남음", items, "검증용 기관 데이터");
-        var requests = new ArrayList<AgencyProtocol.Request>();
+        items.add(new ProtocolAgencyView.Item("decrypt:PRK", "cryptology", "북한 암호", "해독 중", "해독 진행: 1200 / 12000", "agency/cryptology", "일시 정지", true, .1, List.of()));
+        items.add(new ProtocolAgencyView.Item("operation:CAPTURE_CIPHER", "operations", "암호 탈취", "60일", "정보망 50과 대기 요원 2명이 필요합니다.\n민간공장 3개가 사용됩니다.", "agency/capture_cipher", "작전 준비", true, -1,
+                List.of(new ProtocolAgencyView.Parameter("대상 국가", List.of(new ProtocolAgencyView.Choice("PRK", "북한"), new ProtocolAgencyView.Choice("JAP", "일본"))))));
+        var fixture = new ProtocolAgencyView("agency-fixture", 1, "KOR", "국가정보원", "무선 감청 · 21일 남음", items, "검증용 기관 데이터");
+        var requests = new ArrayList<ProtocolAgencyPayloads.Request>();
         context.setScreen(() -> new ScreenAgency(null, fixture.session(), fixture, requests::add)); context.waitTicks(2);
         context.takeScreenshot("hoi-agency-operatives");
         context.runOnClient(client -> {
@@ -573,9 +574,9 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         });
         click(context, "정보원 모집"); context.waitTicks(2); click(context, "고용");
         context.runOnClient(client -> {
-            check(requests.size() == 1 && requests.getFirst().kind() == AgencyProtocol.Kind.CALL && requests.getFirst().revision() == 1, "Agency uses issued session and revision");
+            check(requests.size() == 1 && requests.getFirst().kind() == ProtocolAgencyPayloads.Kind.CALL && requests.getFirst().revision() == 1, "Agency uses issued session and revision");
             check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b && !b.active && b.getMessage().getString().equals("응답 대기…")), "Pending agency action disabled");
-            ((ScreenAgency)client.gui.screen()).update(new AgencyView(fixture.session(), 2, "KOR", fixture.name(), fixture.status(), items, "고용 완료"));
+            ((ScreenAgency)client.gui.screen()).update(new ProtocolAgencyView(fixture.session(), 2, "KOR", fixture.name(), fixture.status(), items, "고용 완료"));
         });
         click(context, "닫기"); click(context, "정보공동체"); context.waitTicks(2); context.takeScreenshot("hoi-agency-upgrades"); gui2Screenshot(context, "hoi-agency-upgrades");
         context.runOnClient(client -> check(client.gui.screen().children().stream().anyMatch(c -> c instanceof Button b && b.getMessage().getString().equals("암호학") && !b.active), "Upgrade overlay blocks background tabs"));
@@ -584,7 +585,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         click(context, "대상 국가: 북한"); context.waitTicks(1); context.takeScreenshot("hoi-agency-operation-target-japan"); click(context, "준비하기");
         context.runOnClient(client -> {
             check(requests.getLast().arguments().equals(List.of("JAP")), "Choice picker sends selected target without country authority");
-            ((ScreenAgency)client.gui.screen()).update(new AgencyView(fixture.session(), 0, "", "", "", List.of(), "권한 만료"));
+            ((ScreenAgency)client.gui.screen()).update(new ProtocolAgencyView(fixture.session(), 0, "", "", "", List.of(), "권한 만료"));
             check(client.gui.screen() == null, "Revocation closes even a newer private snapshot");
         });
         context.setScreen(() -> null);
@@ -622,60 +623,60 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
     }
     private static void checkToolbar(net.minecraft.client.gui.screens.Screen screen) {
         var tabs = screen.children().stream().filter(c -> c instanceof UiMenuBar.UiTabButton).map(c -> (UiMenuBar.UiTabButton)c).toList();
-        check(tabs.size() == MenuTab.ORDER.size() && tabs.stream().allMatch(b -> b.active && b.visible
+        check(tabs.size() == ProtocolMenuTab.ORDER.size() && tabs.stream().allMatch(b -> b.active && b.visible
                 && (b.getY() == 3 || b.getY() == 17) && b.getBottom() < UiMenuBar.height(screen.width)), "Common navigation stays usable below the resource strip");
         check(tabs.getLast().getRight() < UiMenuBar.dockWidth(screen.width)
                 && UiMenuBar.dockWidth(screen.width) <= screen.width, "Compact original-art toolbar fits the viewport");
         check(UiMenuBar.tensionX(screen.width) + 30 == screen.width - 4
                 && UiMenuBar.tensionX(screen.width) > UiMenuBar.dockWidth(screen.width), "Flag-sized tension display stays at the far right");
     }
-    private static ScreenMenu fixtureMainMenu(MenuView menu, MenuTab selected, ResearchView research, List<ResearchProtocol.Request> requests) {
+    private static ScreenMenu fixtureMainMenu(ProtocolMenuView menu, ProtocolMenuTab selected, ProtocolResearchView research, List<ProtocolResearchPayloads.Request> requests) {
         return new ScreenMenu(menu, selected, () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(
                 new ResearchScreen(research, requests::add, tab -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(
                         fixtureMainMenu(menu, tab, research, requests)))));
     }
-    private static MenuView fixtureMenu() {
-        var pages = MenuTab.ORDER.stream().map(tab -> new MenuView.Page(tab, tab == MenuTab.POLITICS ? ScreenCountryChecks.politics()
-                : tab == MenuTab.TRADE ? List.of(
-                        new MenuView.Section("경제 현황", "trade", List.of(new MenuView.Entry("민간공장", "20", "화면 검증용 데이터"),
-                                new MenuView.Entry("군수공장", "18", "화면 검증용 데이터"))),
-                        new MenuView.Section("자원 무역", "trade", List.of(new MenuView.Entry("석유", "38", "화면 검증용 데이터"),
-                                new MenuView.Entry("강철", "200", "화면 검증용 데이터"))))
-                : tab == MenuTab.OFFICER_CORPS ? fixtureOfficers()
-                : List.of(new MenuView.Section(tab.label(), tab.id(), List.of(new MenuView.Entry("진행 현황", "12", "검증용 데이터")))))).toList();
-        return new MenuView("KOR", "대한민국", "2020년 1월 1일 00시", "PAUSED", pages,
-                new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, false, null, fixtureNational()), List.of(
-                        new MenuView.Manufacturer("fixture:artillery", List.of("armor", "materiel"), new MenuView.Entry("포 제조사", "포 · 기갑", "검증용: 포 연구 +5% · 기갑 연구 +10%", -1, "politics/tank_manufacturer")),
-                        new MenuView.Manufacturer("fixture:infantry", List.of("materiel"), new MenuView.Entry("보병 장비 제조사", "보병", "검증용: 보병 연구 +15%", -1, "politics/materiel_manufacturer"))));
+    private static ProtocolMenuView fixtureMenu() {
+        var pages = ProtocolMenuTab.ORDER.stream().map(tab -> new ProtocolMenuView.Page(tab, tab == ProtocolMenuTab.POLITICS ? ScreenCountryChecks.politics()
+                : tab == ProtocolMenuTab.TRADE ? List.of(
+                        new ProtocolMenuView.Section("경제 현황", "trade", List.of(new ProtocolMenuView.Entry("민간공장", "20", "화면 검증용 데이터"),
+                                new ProtocolMenuView.Entry("군수공장", "18", "화면 검증용 데이터"))),
+                        new ProtocolMenuView.Section("자원 무역", "trade", List.of(new ProtocolMenuView.Entry("석유", "38", "화면 검증용 데이터"),
+                                new ProtocolMenuView.Entry("강철", "200", "화면 검증용 데이터"))))
+                : tab == ProtocolMenuTab.OFFICER_CORPS ? fixtureOfficers()
+                : List.of(new ProtocolMenuView.Section(tab.label(), tab.id(), List.of(new ProtocolMenuView.Entry("진행 현황", "12", "검증용 데이터")))))).toList();
+        return new ProtocolMenuView("KOR", "대한민국", "2020년 1월 1일 00시", "PAUSED", pages,
+                new ProtocolCountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, false, null, fixtureNational()), List.of(
+                        new ProtocolMenuView.Manufacturer("fixture:artillery", List.of("armor", "materiel"), new ProtocolMenuView.Entry("포 제조사", "포 · 기갑", "검증용: 포 연구 +5% · 기갑 연구 +10%", -1, "politics/tank_manufacturer")),
+                        new ProtocolMenuView.Manufacturer("fixture:infantry", List.of("materiel"), new ProtocolMenuView.Entry("보병 장비 제조사", "보병", "검증용: 보병 연구 +15%", -1, "politics/materiel_manufacturer"))));
     }
-    private static List<MenuView.Section> fixtureOfficers() {
-        var sections = new ArrayList<MenuView.Section>();
-        sections.add(new MenuView.Section("최고사령부", "high_command", java.util.stream.IntStream.range(0, 3)
-                .mapToObj(i -> new MenuView.Entry("최고사령부 " + (i + 1), "미지정", "정치에서 임명", 0, "politics/high_command")).toList()));
-        sections.add(new MenuView.Section("국가 선호 전술", "preferred_tactic", List.of(
-                new MenuView.Entry("국가 선호 전술", "미지정", "육군 교리", 0, "officer/preferred_tactic"))));
+    private static List<ProtocolMenuView.Section> fixtureOfficers() {
+        var sections = new ArrayList<ProtocolMenuView.Section>();
+        sections.add(new ProtocolMenuView.Section("최고사령부", "high_command", java.util.stream.IntStream.range(0, 3)
+                .mapToObj(i -> new ProtocolMenuView.Entry("최고사령부 " + (i + 1), "미지정", "정치에서 임명", 0, "politics/high_command")).toList()));
+        sections.add(new ProtocolMenuView.Section("국가 선호 전술", "preferred_tactic", List.of(
+                new ProtocolMenuView.Entry("국가 선호 전술", "미지정", "육군 교리", 0, "officer/preferred_tactic"))));
         for (var branch : List.of("army", "navy", "air")) {
             String name = branch.equals("army") ? "육군" : branch.equals("navy") ? "해군" : "공군";
-            var entries = new ArrayList<MenuView.Entry>();
-            entries.add(new MenuView.Entry(name + " 참모총장", "미지정", "정치에서 임명", 0, "politics/" + branch + "_chief"));
-            entries.add(new MenuView.Entry(name + " 교리", "미지정", "미지정 교리", 0, "officer/" + branch + "/doctrine"));
+            var entries = new ArrayList<ProtocolMenuView.Entry>();
+            entries.add(new ProtocolMenuView.Entry(name + " 참모총장", "미지정", "정치에서 임명", 0, "politics/" + branch + "_chief"));
+            entries.add(new ProtocolMenuView.Entry(name + " 교리", "미지정", "미지정 교리", 0, "officer/" + branch + "/doctrine"));
             for (var medal : branch.equals("air") ? List.of("air", "command") : List.of("academy", branch, "command"))
-                entries.add(new MenuView.Entry("정신", "미지정", "정신 선택", 0, "officer/medal/" + medal));
-            sections.add(new MenuView.Section(name + " 사령부", branch, entries));
+                entries.add(new ProtocolMenuView.Entry("정신", "미지정", "정신 선택", 0, "officer/medal/" + medal));
+            sections.add(new ProtocolMenuView.Section(name + " 사령부", branch, entries));
         }
-        sections.add(new MenuView.Section("특수부대", "special", List.of(
-                new MenuView.Entry("특수부대 교리", "미지정", "미지정 교리", 0, "officer/special/doctrine"))));
+        sections.add(new ProtocolMenuView.Section("특수부대", "special", List.of(
+                new ProtocolMenuView.Entry("특수부대 교리", "미지정", "미지정 교리", 0, "officer/special/doctrine"))));
         return sections;
     }
-    private static void convoyGauge(ClientGameTestContext context, MenuView menu) {
+    private static void convoyGauge(ClientGameTestContext context, ProtocolMenuView menu) {
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client -> client.options.guiScale().set(2));
         context.getInput().setCursorPos(2400,1300);
         for (double ratio : new double[]{1,.5,0}) {
             var n=fixtureNational();
-            var national=new CountryHud.NationalIndicators(n.politicalPower(),n.stability(),n.warSupport(),n.factories(),n.energyRatio(),n.fuel(),n.supplies(),n.supplyEfficiency(),n.convoys(),ratio,n.commandPower(),n.rulingPartySupport(),n.manpower(),n.fuelRatio());
-            var hud=new CountryHud(150.0,119.0,209.0,1707.0,704.314,.36,false,0L,national);
-            context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),hud)));
+            var national=new ProtocolCountryHud.NationalIndicators(n.politicalPower(),n.stability(),n.warSupport(),n.factories(),n.energyRatio(),n.fuel(),n.supplies(),n.supplyEfficiency(),n.convoys(),ratio,n.commandPower(),n.rulingPartySupport(),n.manpower(),n.fuelRatio());
+            var hud=new ProtocolCountryHud(150.0,119.0,209.0,1707.0,704.314,.36,false,0L,national);
+            context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),hud)));
             context.waitTicks(3);
             try {
                 var image=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-convoy-efficiency-"+(int)(ratio*100)+"-gui2").toFile());
@@ -690,15 +691,15 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.getInput().resizeWindow(1600,1000);
         context.waitTicks(3);
     }
-    private static void fuelGauge(ClientGameTestContext context, MenuView menu) {
+    private static void fuelGauge(ClientGameTestContext context, ProtocolMenuView menu) {
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client -> client.options.guiScale().set(2));
         context.getInput().setCursorPos(2400,1300);
         for (double ratio : new double[]{1,.5,0}) {
             var n=fixtureNational();
-            var national=new CountryHud.NationalIndicators(n.politicalPower(),n.stability(),n.warSupport(),n.factories(),n.energyRatio(),n.fuel(),n.supplies(),n.supplyEfficiency(),n.convoys(),n.transportEfficiency(),n.commandPower(),n.rulingPartySupport(),n.manpower(),ratio,ratio>.5?100.0:-100.0,5.0);
-            var hud=new CountryHud(150.0,119.0,209.0,1707.0,704.314,.36,false,0L,national);
-            context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),hud)));
+            var national=new ProtocolCountryHud.NationalIndicators(n.politicalPower(),n.stability(),n.warSupport(),n.factories(),n.energyRatio(),n.fuel(),n.supplies(),n.supplyEfficiency(),n.convoys(),n.transportEfficiency(),n.commandPower(),n.rulingPartySupport(),n.manpower(),ratio,ratio>.5?100.0:-100.0,5.0);
+            var hud=new ProtocolCountryHud(150.0,119.0,209.0,1707.0,704.314,.36,false,0L,national);
+            context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),hud)));
             context.waitTicks(3);
             check(UiMenuBar.indicators(hud).stream().filter(i->i.icon().equals("fuel")).findFirst().orElseThrow().value().equals(ratio>=1?"가득 참":"5일"),"Full fuel overrides day estimates with the TFR full label");
             try {
@@ -717,12 +718,12 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.getInput().resizeWindow(1600,1000);
         context.waitTicks(3);
     }
-    private static void hudHover(ClientGameTestContext context, MenuView menu) {
+    private static void hudHover(ClientGameTestContext context, ProtocolMenuView menu) {
         context.runOnClient(client->{
-            var rows=List.of(new dev.hoi.protocol.HudDetail.Row("증감", "+0.125", dev.hoi.protocol.HudDetail.Tone.GOOD),new dev.hoi.protocol.HudDetail.Row("영점", "0.00", dev.hoi.protocol.HudDetail.Tone.NORMAL),new dev.hoi.protocol.HudDetail.Row("---", "", dev.hoi.protocol.HudDetail.Tone.NORMAL));
-            var source=new dev.hoi.protocol.HudDetail(List.of(),"§a+0.125\n§a---\n0.00");
-            for(var detail:List.of(new dev.hoi.protocol.HudDetail(rows),source)) {
-                var hud=new CountryHud(0.0,0.0,0.0,null,null,null,false,0L,null,Map.of("political_power",detail));
+            var rows=List.of(new dev.hoi.protocol.ProtocolHudDetail.Row("증감", "+0.125", dev.hoi.protocol.ProtocolHudDetail.Tone.GOOD),new dev.hoi.protocol.ProtocolHudDetail.Row("영점", "0.00", dev.hoi.protocol.ProtocolHudDetail.Tone.NORMAL),new dev.hoi.protocol.ProtocolHudDetail.Row("---", "", dev.hoi.protocol.ProtocolHudDetail.Tone.NORMAL));
+            var source=new dev.hoi.protocol.ProtocolHudDetail(List.of(),"§a+0.125\n§a---\n0.00");
+            for(var detail:List.of(new dev.hoi.protocol.ProtocolHudDetail(rows),source)) {
+                var hud=new ProtocolCountryHud(0.0,0.0,0.0,null,null,null,false,0L,null,Map.of("political_power",detail));
                 var indicator=new UiMenuBar.UiIndicator("political_power","정치력",0.0,UiMenuBar.UiFormat.NUMBER);
                 var body=dev.hoi.client.ui.UiHudTooltip.body(client.font,1280,hud,indicator);
                 var text=new StringBuilder();
@@ -735,7 +736,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 check(body.stream().anyMatch(line->line==net.minecraft.util.FormattedCharSequence.EMPTY),"HUD separator becomes a blank line");
             }
         });
-        var issued=new MenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),dev.hoi.client.screen.ScreenIndustryChecks.tankFixture("tank-empty-fixture.json").hud());
+        var issued=new ProtocolMenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),dev.hoi.client.screen.ScreenIndustryChecks.tankFixture("tank-empty-fixture.json").hud());
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->client.options.guiScale().set(2));
         context.setScreen(()->new ScreenMenu(issued));context.waitTicks(3);
@@ -756,7 +757,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         });
         try (var stream = ResearchScreenGameTest.class.getResourceAsStream("/hud-source-fixture.json")) {
             if (stream == null) throw new AssertionError("Missing source HUD fixture");
-            var original = new com.google.gson.Gson().fromJson(new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8), CountryHud.class);
+            var original = new com.google.gson.Gson().fromJson(new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8), ProtocolCountryHud.class);
             context.runOnClient(client -> {
                 var debt = dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("GDP 대비 부채: +4.52%"), false);
                 check(debt.getString().equals("GDP 대비 부채: +4.52%"), "Original debt row never inherits a keyword icon");
@@ -764,7 +765,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 var inflation = dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£inflation 인플레이션: -0.95%"), false);
                 check(!inflation.getString().contains("£") && inflation.getString().codePoints().anyMatch(c -> c >= 0xe000 && c <= 0xf8ff), "Original inflation token renders its actual icon");
             });
-            var sourceMenu = new MenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),original);
+            var sourceMenu = new ProtocolMenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),original);
             context.setScreen(() -> new ScreenMenu(sourceMenu)); context.waitTicks(3);
             for (String key : List.of("political_power","stability","war_support","manpower","factories","fuel","supplies","convoys","command_power","army_experience","navy_experience","air_experience","party_support","nuclear","gdp","debt")) {
                 context.runOnClient(client -> {
@@ -813,21 +814,21 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
         context.getInput().setCursorPos(2200,1100);context.waitTicks(5);
         context.takeScreenshot("hoi-hud-tooltip-pointer-outside-gui2");
     }
-    private static CountryHud.NationalIndicators fixtureNational() {
-        return new CountryHud.NationalIndicators(1350.75, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 10000L, .95, 150.75, .36, 280_900L, .27);
+    private static ProtocolCountryHud.NationalIndicators fixtureNational() {
+        return new ProtocolCountryHud.NationalIndicators(1350.75, .62, .48, 45L, .85, 894_920.0, 580.0, .72, 10000L, .95, 150.75, .36, 280_900L, .27);
     }
-    private static ResearchView fixtureResearch() {
-        var technologies = new ArrayList<ResearchView.Tech>();
-        technologies.add(new ResearchView.Tech("hoi:infantry/modern_small_arms_1", "INFANTRY", "보병 장비", 2000, 1, 100, 0, 1,
-                List.of(), List.of("시험 효과 +5%"), List.of("시험 장비"), ResearchView.Status.AVAILABLE));
-        technologies.add(new ResearchView.Tech("hoi:test/active", "INFANTRY", "진행 연구", 2006, 2, 160, 63, 1.25,
-                List.of("hoi:infantry/modern_small_arms_1"), List.of(), List.of(), ResearchView.Status.ACTIVE));
-        for (int i = 0; i < 16; i++) technologies.add(new ResearchView.Tech("hoi:test/armor_" + i, "ARMOR", "기갑 연구 " + i,
+    private static ProtocolResearchView fixtureResearch() {
+        var technologies = new ArrayList<ProtocolResearchView.Tech>();
+        technologies.add(new ProtocolResearchView.Tech("hoi:infantry/modern_small_arms_1", "INFANTRY", "보병 장비", 2000, 1, 100, 0, 1,
+                List.of(), List.of("시험 효과 +5%"), List.of("시험 장비"), ProtocolResearchView.Status.AVAILABLE));
+        technologies.add(new ProtocolResearchView.Tech("hoi:test/active", "INFANTRY", "진행 연구", 2006, 2, 160, 63, 1.25,
+                List.of("hoi:infantry/modern_small_arms_1"), List.of(), List.of(), ProtocolResearchView.Status.ACTIVE));
+        for (int i = 0; i < 16; i++) technologies.add(new ProtocolResearchView.Tech("hoi:test/armor_" + i, "ARMOR", "기갑 연구 " + i,
                 new int[]{1980,2018,2020,2022,2024,2028,2032}[i % 7], 1, 180, 0, 1,
-                List.of(), List.of(), List.of(), ResearchView.Status.LOCKED));
-        return new ResearchView("ui-test", 17, "KOR", "대한민국", 72, "2020년 1월 1일 00시", "PAUSED",
-                java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ResearchView.Slot(i, i == 1 ? "hoi:test/active" : "", i == 0 ? 12 : 0)).toList(), technologies, "UI 검증용 데이터",
-                new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational()));
+                List.of(), List.of(), List.of(), ProtocolResearchView.Status.LOCKED));
+        return new ProtocolResearchView("ui-test", 17, "KOR", "대한민국", 72, "2020년 1월 1일 00시", "PAUSED",
+                java.util.stream.IntStream.range(0, 5).mapToObj(i -> new ProtocolResearchView.Slot(i, i == 1 ? "hoi:test/active" : "", i == 0 ? 12 : 0)).toList(), technologies, "UI 검증용 데이터",
+                new ProtocolCountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational()));
     }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }
 }

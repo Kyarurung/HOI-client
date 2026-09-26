@@ -1,6 +1,6 @@
 package dev.hoi.client.ui;
 
-import dev.hoi.protocol.CountryHud;
+import dev.hoi.protocol.ProtocolCountryHud;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -12,7 +12,7 @@ import java.util.List;
 
 public final class UiHudTooltip {
     private static Font cachedFont;
-    private static CountryHud cachedHud;
+    private static ProtocolCountryHud cachedHud;
     private static UiMenuBar.UiIndicator cachedItem;
     private static int cachedWidth;
     private static List<FormattedCharSequence> cachedBody = List.of();
@@ -21,7 +21,7 @@ public final class UiHudTooltip {
         cachedFont = null; cachedHud = null; cachedItem = null; cachedBody = List.of();
     }
 
-    public static List<FormattedCharSequence> body(Font font, int width, CountryHud hud, UiMenuBar.UiIndicator item) {
+    public static List<FormattedCharSequence> body(Font font, int width, ProtocolCountryHud hud, UiMenuBar.UiIndicator item) {
         if (font == cachedFont && hud == cachedHud && item.equals(cachedItem) && width == cachedWidth) return cachedBody;
         int wrap = Math.max(60, (int)(Math.min(item.icon().equals("gdp") ? 360 : 310, width - 36) / UiText.scale(font)));
         var lines = new ArrayList<FormattedCharSequence>();
@@ -85,7 +85,7 @@ public final class UiHudTooltip {
         return result.append(Component.literal(text.substring(start)).withColor(color));
     }
 
-    static void draw(GuiGraphicsExtractor g, int width, CountryHud hud, UiMenuBar.UiIndicator item, int mx, int my) {
+    static void draw(GuiGraphicsExtractor g, int width, ProtocolCountryHud hud, UiMenuBar.UiIndicator item, int mx, int my) {
         var client = Minecraft.getInstance();
         if (item == null) return;
         var font = client.font;

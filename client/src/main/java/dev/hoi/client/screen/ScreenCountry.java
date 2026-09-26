@@ -20,26 +20,26 @@ import org.lwjgl.glfw.GLFW;
 
 
 public final class ScreenCountry extends Screen implements InputSidebarMovement.InputMovementScreen {
-    private CountryView view;
+    private ProtocolCountryView view;
     private ScreenDiplomacyHeader header;
     private String target, token = UUID.randomUUID().toString();
-    private IntelDomain domain = IntelDomain.CIVILIAN;
+    private ProtocolIntelDomain domain = ProtocolIntelDomain.CIVILIAN;
     private boolean ledger, choosing, pending;
-    private CountryView.Action confirmation;
+    private ProtocolCountryView.Action confirmation;
     private int pane, top, scroll, actionScroll, total, ticks, hudScroll;
-    private MenuView.Entry detail;
+    private ProtocolMenuView.Entry detail;
     private int detailScroll, leaderTooltipScroll, spiritTooltipScroll;
-    private MenuView.Entry hoveredSpirit;
+    private ProtocolMenuView.Entry hoveredSpirit;
     public ScreenCountry(String target) { super(Component.literal("외교")); this.target = target; choosing = target.isEmpty(); }
-    public ScreenCountry(CountryView fixture) { this(fixture.target()); view = fixture; }
+    public ScreenCountry(ProtocolCountryView fixture) { this(fixture.target()); view = fixture; }
     String token() { return token; }
-    CountryView view() { return view; }
+    ProtocolCountryView view() { return view; }
     int panelWidth() { return pane; }
     void select(String tag) {
         target = tag; view = null; token = UUID.randomUUID().toString(); scroll = 0; detail = null; confirmation = null; pending = false; choosing = false;
         ticks = 0; rebuildWidgets();
     }
-    public void update(CountryProtocol.Response packet) {
+    public void update(ProtocolCountryPayloads.Response packet) {
         if (!token.equals(packet.token())) return;
         if (packet.json().isEmpty()) { view = null; detail = null; minecraft.gui.setScreen(null); return; }
         var next = packet.view();
@@ -55,7 +55,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
     @Override protected void init() {
         pane = Math.min(width - 20, Math.max(210, width * 550 / 2560)); top = UiMenuBar.height(width);
         UiMenuBar.buttons(width, view == null ? "" : view.viewer(), null, tab -> {
-            if (tab == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
+            if (tab == ProtocolMenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new UiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
         if (view == null) return;
@@ -66,13 +66,13 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         addRenderableWidget(dip); addRenderableWidget(intel);
         if (ledger && !choosing) {
             int cell = (pane - 16) / 4;
-            for (var d : IntelDomain.values()) {
+            for (var d : ProtocolIntelDomain.values()) {
                 var report = view.report(d);
                 var button = new UiMenuButton(d.label + " 정보", d.icon, domain == d, 8 + d.ordinal() * cell, ScreenDiplomacyHeader.tabs(top) + 25, cell - 2, 30,
                         () -> { domain = d; scroll = 0; detail = null; rebuildWidgets(); });
                 String tips = "총 " + d.label + " 정보: " + String.format(Locale.ROOT, "%.1f%%", report.percent())
                         + (view.shared() ? "\n동맹 정보 공유" : "") + "\n\n" + d.tiers.stream()
-                        .map(t -> (IntelDomain.permits(report.percent(), view.shared(), t.percent()) ? "✓ " : "× ") + t.percent() + "% · " + t.description())
+                        .map(t -> (ProtocolIntelDomain.permits(report.percent(), view.shared(), t.percent()) ? "✓ " : "× ") + t.percent() + "% · " + t.description())
                         .collect(java.util.stream.Collectors.joining("\n"));
                 button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(tips))); addRenderableWidget(button);
             }
@@ -119,27 +119,27 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
     }
     private boolean actionsVisible() { return view != null && !ledger && !choosing && view.actions() != null && !view.actions().entries().isEmpty(); }
     private void sendAction() {
-        if (pending || confirmation == null || view == null || view.actions() == null || !ClientPlayNetworking.canSend(CountryProtocol.Action.TYPE)) return;
+        if (pending || confirmation == null || view == null || view.actions() == null || !ClientPlayNetworking.canSend(ProtocolCountryPayloads.Action.TYPE)) return;
         var action = view.actions();
         pending = true; ticks = 1;
-        ClientPlayNetworking.send(new CountryProtocol.Action(token, action.session(), action.revision(), confirmation.id()));
+        ClientPlayNetworking.send(new ProtocolCountryPayloads.Action(token, action.session(), action.revision(), confirmation.id()));
         rebuildWidgets();
     }
-    private List<MenuView.Entry> entries() {
+    private List<ProtocolMenuView.Entry> entries() {
         if (ledger) return view.report(domain).entries();
-        return view.relations().stream().map(r -> new MenuView.Entry(r.name(), "",
-                r.countries().stream().map(CountryView.Choice::name).collect(java.util.stream.Collectors.joining(" · ")))).toList();
+        return view.relations().stream().map(r -> new ProtocolMenuView.Entry(r.name(), "",
+                r.countries().stream().map(ProtocolCountryView.Choice::name).collect(java.util.stream.Collectors.joining(" · ")))).toList();
     }
     private int bodyTop() { return choosing ? ScreenDiplomacyHeader.tabs(top) + 25 : ledger ? ScreenDiplomacyHeader.tabs(top) + 75 : ScreenDiplomacyHeader.body(top, pane); }
     private int detailX() { return width - pane >= 200 ? pane + 5 : 5; }
     private int detailWidth() { return Math.min(330, width - detailX() - 6); }
     @Override public void tick() {
-        if (!pending && confirmation == null && ticks++ % 40 == 0 && ClientPlayNetworking.canSend(CountryProtocol.Request.TYPE)) {
-            token = UUID.randomUUID().toString(); ClientPlayNetworking.send(new CountryProtocol.Request(token, target));
+        if (!pending && confirmation == null && ticks++ % 40 == 0 && ClientPlayNetworking.canSend(ProtocolCountryPayloads.Request.TYPE)) {
+            token = UUID.randomUUID().toString(); ClientPlayNetworking.send(new ProtocolCountryPayloads.Request(token, target));
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-        UiMenuBar.draw(g, width, view == null ? CountryHud.UNKNOWN : view.hud(), mx, my, hudScroll);
+        UiMenuBar.draw(g, width, view == null ? ProtocolCountryHud.UNKNOWN : view.hud(), mx, my, hudScroll);
         UiMenuStyle.panel(g, 0, top, pane, height - top);
         UiMenuStyle.heading(g, font, "외교", 10, top + 9, pane - 44, UiMenuStyle.TEXT);
         if (view == null) dev.hoi.client.ui.UiText.text(g, font, "서버 정보 불러오는 중…", 12, top + 38, UiMenuStyle.MUTED);
@@ -149,12 +149,12 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             UiMenuStyle.recess(g, statsX, top + 4, statWidth * 2, 18);
             for (int i = 0; i < targetStats.length; i++) {
                 var stat = ScreenDiplomacyHeader.entry(view, targetStats[i]);
-                String value = stat.value().endsWith("%") ? ProtocolNumbers.percent(stat.progress(), 0) : stat.value();
+                String value = stat.value().endsWith("%") ? ProtocolNumberBounds.percent(stat.progress(), 0) : stat.value();
                 int x = statsX + i * statWidth;
                 dev.hoi.client.ui.UiText.iconText(g, font, i == 0 ? "hud/stability" : "hud/war_support",
                         value.equals("정보 없음") ? "?" : value, x, top + 4, statWidth, 18, 11, UiMenuStyle.TEXT);
                 if (mx >= x && mx < x + statWidth && my >= top + 4 && my < top + 22)
-                    dev.hoi.client.ui.UiTooltips.drawExact(g, font, view.name() + " · " + stat.name() + ": " + (stat.value().endsWith("%") ? ProtocolNumbers.percent(stat.progress(), 2) : stat.value()), mx, my);
+                    dev.hoi.client.ui.UiTooltips.drawExact(g, font, view.name() + " · " + stat.name() + ": " + (stat.value().endsWith("%") ? ProtocolNumberBounds.percent(stat.progress(), 2) : stat.value()), mx, my);
             }
             int headerX = ScreenDiplomacyHeader.scaled(139, pane), headerW = pane - headerX - 7;
             UiAssets.nineSlice(g, "diplomacy/header", headerX, top + 30, headerW, 38, 5, pane / 550.0);
@@ -165,7 +165,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             int ideologyX = headerX + headerEdge, textX = headerX + ideologyCell + 5;
             var ideology = ScreenDiplomacyHeader.entry(view, "이념");
             UiAssets.draw(g, ideology.icon().isEmpty() ? "politics/empty/ideology" : ideology.icon(), ideologyX, top + 33, Math.max(1, ideologyCell - headerEdge), 32);
-            String faction = view.diplomacy().stream().filter(e -> e.name().equals("세력")).map(MenuView.Entry::value).findFirst().orElse("세력 없음");
+            String faction = view.diplomacy().stream().filter(e -> e.name().equals("세력")).map(ProtocolMenuView.Entry::value).findFirst().orElse("세력 없음");
             String[] info = {view.name(), faction, ScreenDiplomacyHeader.entry(view, "지도자").value()};
             for (int i = 0; i < info.length; i++)
                 dev.hoi.client.ui.UiText.text(g, font, trim(info[i], pane - textX - 47), textX, top + 34 + i * 10, UiMenuStyle.TEXT);
@@ -176,7 +176,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 if (mx >= pane - 44 && mx < pane - 12 && my >= top + 33 && my < top + 65)
                     dev.hoi.client.ui.UiTooltips.draw(g, font, factionEntry.value() + "\n" + factionEntry.detail(), mx, my);
             }
-            if (ledger && !choosing) for (var d : IntelDomain.values()) {
+            if (ledger && !choosing) for (var d : ProtocolIntelDomain.values()) {
                 int cell = (pane - 16) / 4, x = 8 + d.ordinal() * cell;
                 dev.hoi.client.ui.UiText.text(g, font, (int)view.report(d).percent() + "%", x + 10, ScreenDiplomacyHeader.tabs(top) + 58, UiMenuStyle.TEXT);
             }
@@ -258,11 +258,11 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             if (!java.util.Objects.equals(spirit, hoveredSpirit)) spiritTooltipScroll = 0;
             hoveredSpirit = spirit;
             if (spirit != null) spiritTooltipScroll = dev.hoi.client.ui.UiPoliticalTooltip.draw(g, font,
-                    new MenuView.Entry(spirit.name(), "", spirit.detail().substring("국가 정신\n".length()), spirit.progress(), spirit.icon()),
+                    new ProtocolMenuView.Entry(spirit.name(), "", spirit.detail().substring("국가 정신\n".length()), spirit.progress(), spirit.icon()),
                     mx, my, width, height, spiritTooltipScroll);
         }
     }
-    CountryView.Choice flagAt(double x,double y) {
+    ProtocolCountryView.Choice flagAt(double x,double y) {
         if(view==null||ledger||choosing||detail!=null||confirmation!=null
                 ||x<9||x>=pane/2-3||y<bodyTop()||y>=height-33||view.relations().isEmpty())return null;
         int row=(int)(y-bodyTop()+scroll)/39;
@@ -286,7 +286,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
     private String trim(String text, int w) { return dev.hoi.client.ui.UiText.ellipsize(font, text, w); }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
         if (y < UiMenuBar.STATS_HEIGHT && x >= 40 && x < UiMenuBar.statsRight(width)) {
-            hudScroll = UiMenuBar.scroll(width, view == null ? CountryHud.UNKNOWN : view.hud(), hudScroll, horizontal, vertical); return true;
+            hudScroll = UiMenuBar.scroll(width, view == null ? ProtocolCountryHud.UNKNOWN : view.hud(), hudScroll, horizontal, vertical); return true;
         }
         if (view != null && !ledger && !choosing && detail == null && confirmation == null
                 && header.spiritAt(x, y, pane, top) != null

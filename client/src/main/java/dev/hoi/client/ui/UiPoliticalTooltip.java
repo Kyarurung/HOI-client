@@ -1,6 +1,6 @@
 package dev.hoi.client.ui;
 
-import dev.hoi.protocol.MenuView;
+import dev.hoi.protocol.ProtocolMenuView;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -12,37 +12,37 @@ public final class UiPoliticalTooltip {
     private record UiTooltipRow(net.minecraft.util.FormattedCharSequence text, String image, int height, boolean caption) {
         UiTooltipRow(net.minecraft.util.FormattedCharSequence text,String image,int height) {this(text,image,height,false);}
     }
-    public static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry,
+    public static int draw(GuiGraphicsExtractor g, Font font, ProtocolMenuView.Entry entry,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         return draw(g, font, entry, "", "", mouseX, mouseY, viewportWidth, viewportHeight, scroll);
     }
-    public static int drawLeader(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String country, String countryName,
+    public static int drawLeader(GuiGraphicsExtractor g, Font font, ProtocolMenuView.Entry entry, String country, String countryName,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         return draw(g, font, entry, "country/" + country.toLowerCase(java.util.Locale.ROOT) + "/flag", countryName,
                 mouseX, mouseY, viewportWidth, viewportHeight, scroll);
     }
-    public static int drawCountryDetail(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String country,
+    public static int drawCountryDetail(GuiGraphicsExtractor g, Font font, ProtocolMenuView.Entry entry, String country,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         return draw(g, font, entry, "country/" + country.toLowerCase(java.util.Locale.ROOT) + "/flag", "",
                 mouseX, mouseY, viewportWidth, viewportHeight, scroll, true, false);
     }
     public static int drawDetail(GuiGraphicsExtractor g, Font font, String detail,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
-        return draw(g, font, new MenuView.Entry("", "", detail, -1, ""), "", "",
+        return draw(g, font, new ProtocolMenuView.Entry("", "", detail, -1, ""), "", "",
                 mouseX, mouseY, viewportWidth, viewportHeight, scroll, true, true);
     }
     public static int drawTextDetail(GuiGraphicsExtractor g, Font font, String detail,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
-        return draw(g, font, new MenuView.Entry("", "", detail, -1, ""), "", "",
+        return draw(g, font, new ProtocolMenuView.Entry("", "", detail, -1, ""), "", "",
                 mouseX, mouseY, viewportWidth, viewportHeight, scroll, true, false);
     }
-    private static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String flag, String countryName,
+    private static int draw(GuiGraphicsExtractor g, Font font, ProtocolMenuView.Entry entry, String flag, String countryName,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         return draw(g, font, entry, flag, countryName, mouseX, mouseY, viewportWidth, viewportHeight, scroll, false, true);
     }
-    private static int draw(GuiGraphicsExtractor g, Font font, MenuView.Entry entry, String flag, String countryName,
+    private static int draw(GuiGraphicsExtractor g, Font font, ProtocolMenuView.Entry entry, String flag, String countryName,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, boolean compact, boolean icons) {
-        entry = new MenuView.Entry(entry.name(), entry.value(), UiTooltipText.format(entry.detail(),true), entry.progress(), entry.icon());
+        entry = new ProtocolMenuView.Entry(entry.name(), entry.value(), UiTooltipText.format(entry.detail(),true), entry.progress(), entry.icon());
         int width = Math.max(80, Math.min(270, viewportWidth - 24));
         if (compact) {
             int measured = 80;

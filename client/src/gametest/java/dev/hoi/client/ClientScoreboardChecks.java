@@ -1,6 +1,6 @@
 package dev.hoi.client;
 
-import dev.hoi.protocol.CampaignStyle;
+import dev.hoi.protocol.ProtocolCampaignStyle;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.numbers.BlankFormat;
@@ -26,7 +26,7 @@ final class ClientScoreboardChecks {
                     title.append(Component.literal(name.substring(i, i + 1)).withColor(color).withStyle(net.minecraft.ChatFormatting.BOLD));
                 }
                 var objective = board.addObjective("hoi_preview", ObjectiveCriteria.DUMMY, title, ObjectiveCriteria.RenderType.INTEGER, false, BlankFormat.INSTANCE);
-                var rows = new Component[]{Component.literal("게임 속도: ").append(CampaignStyle.speed(speed)),
+                var rows = new Component[]{Component.literal("게임 속도: ").append(ProtocolCampaignStyle.speed(speed)),
                         Component.literal("Kiruy, ").append(Component.literal("대한민국").withColor(0x4d64af))};
                 for (int i = 0; i < rows.length; i++) {
                     var score = board.getOrCreatePlayerScore(ScoreHolder.forNameOnly("hoi_row_" + i), objective);

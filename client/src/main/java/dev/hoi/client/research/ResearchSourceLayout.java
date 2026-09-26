@@ -1,6 +1,6 @@
 package dev.hoi.client.research;
 
-import dev.hoi.protocol.ResearchView.Tech;
+import dev.hoi.protocol.ProtocolResearchView.Tech;
 import java.util.*;
 
 

@@ -4,18 +4,18 @@ import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiAssets;
 
-import dev.hoi.protocol.DialogView;
+import dev.hoi.protocol.ProtocolDialogView;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
 
 final class ScreenCompletion extends ScreenDialog {
-    private final java.util.function.BiConsumer<DialogView, String> send;
+    private final java.util.function.BiConsumer<ProtocolDialogView, String> send;
     private net.minecraft.client.gui.screens.Screen backdrop;
     private int left, top, pane, panelHeight, bodyTop, bodyBottom, scroll, total;
 
-    ScreenCompletion(DialogView view) { this(view, ScreenDialogCoordinator::choose); }
-    ScreenCompletion(DialogView view, net.minecraft.client.gui.screens.Screen backdrop) {
+    ScreenCompletion(ProtocolDialogView view) { this(view, ScreenDialogCoordinator::choose); }
+    ScreenCompletion(ProtocolDialogView view, net.minecraft.client.gui.screens.Screen backdrop) {
         this(view); this.backdrop = backdrop;
     }
     net.minecraft.client.gui.screens.Screen backdrop() { return backdrop; }
@@ -29,7 +29,7 @@ final class ScreenCompletion extends ScreenDialog {
         super.removed();
         if (backdrop != null && !ScreenDialogCoordinator.suspending()) { backdrop.removed(); backdrop = null; }
     }
-    ScreenCompletion(DialogView view, java.util.function.BiConsumer<DialogView, String> send) {
+    ScreenCompletion(ProtocolDialogView view, java.util.function.BiConsumer<ProtocolDialogView, String> send) {
         super(view); this.send = send;
     }
     @Override int panelTop() { return top; }

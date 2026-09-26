@@ -1,7 +1,7 @@
 package dev.hoi.client.map;
 
-import dev.hoi.protocol.AtlasSceneProtocol.Box;
-import dev.hoi.protocol.AtlasSceneProtocol.Material;
+import dev.hoi.protocol.ProtocolAtlasScene.Box;
+import dev.hoi.protocol.ProtocolAtlasScene.Material;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.*;

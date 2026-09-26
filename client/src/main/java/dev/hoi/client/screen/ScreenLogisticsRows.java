@@ -1,7 +1,7 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.protocol.IndustryView;
-import dev.hoi.protocol.IndustryView.Equipment;
+import dev.hoi.protocol.ProtocolIndustryView;
+import dev.hoi.protocol.ProtocolIndustryView.Equipment;
 import java.util.*;
 
 
@@ -46,8 +46,8 @@ final class ScreenLogisticsRows {
         String number = String.format(Locale.ROOT, scaled < 9.95 ? "%.1f" : "%.0f", scaled);
         return (number.endsWith(".0") ? number.substring(0, number.length() - 2) : number) + units[unit];
     }
-    static List<ScreenLogisticsRow> create(List<Equipment> equipment, List<IndustryView.Line> lines, String group) {
-        var linesByEquipment = new HashMap<String, List<IndustryView.Line>>();
+    static List<ScreenLogisticsRow> create(List<Equipment> equipment, List<ProtocolIndustryView.Line> lines, String group) {
+        var linesByEquipment = new HashMap<String, List<ProtocolIndustryView.Line>>();
         for (var line : lines) linesByEquipment.computeIfAbsent(line.equipment(), key -> new ArrayList<>()).add(line);
         var families = new LinkedHashMap<String,List<Equipment>>();
         for (var item : equipment) {

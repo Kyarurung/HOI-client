@@ -11,8 +11,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class ScreenConstructionChecks {
-    public static void run(ClientGameTestContext context,CountryHud hud) {
-        var requests=new ArrayList<ConstructionProtocol.Request>();String token=UUID.randomUUID().toString();
+    public static void run(ClientGameTestContext context,ProtocolCountryHud hud) {
+        var requests=new ArrayList<ProtocolConstructionPayloads.Request>();String token=UUID.randomUUID().toString();
         context.setScreen(()->new ScreenConstruction(token,null,requests::add));
         context.runOnClient(client->{
             var screen=(ScreenConstruction)client.gui.screen();screen.open();
@@ -24,27 +24,27 @@ public final class ScreenConstructionChecks {
         context.runOnClient(client->{for(int i=0;i<200;i++)client.gui.screen().tick();});
         ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-timeout");
         context.setScreen(()->null);requests.clear();
-        var buildings=new ArrayList<ConstructionView.Building>();
+        var buildings=new ArrayList<ProtocolConstructionView.Building>();
         for(String id:List.of("infrastructure","air_base","anti_air","radar","military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","rocket_site","nuclear_reactor","power_plant","energy_farm","conversion","fort","coastal_fort","port","hub","railway","dam","dam_mountain"))
-            buildings.add(new ConstructionView.Building(id,buildingName(id),"construction/"+id,!Set.of("dam","dam_mountain").contains(id),"좌클릭: 건설 · Shift+좌클릭: 최대 건설\n우클릭: 취소 · Shift+우클릭: 전체 취소"));
-        var projects=new ArrayList<ConstructionView.Project>();
-        for(int i=0;i<16;i++)projects.add(new ConstructionView.Project("p"+i,"state"+i,i%2==0?"civilian_factory":"military_factory",i%2==0?"경상북도":"서울",i==0?16:1,i<2?15:0,2500,90,10800));
-        var summary=new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,10,21.862500000000004,2,
+            buildings.add(new ProtocolConstructionView.Building(id,buildingName(id),"construction/"+id,!Set.of("dam","dam_mountain").contains(id),"좌클릭: 건설 · Shift+좌클릭: 최대 건설\n우클릭: 취소 · Shift+우클릭: 전체 취소"));
+        var projects=new ArrayList<ProtocolConstructionView.Project>();
+        for(int i=0;i<16;i++)projects.add(new ProtocolConstructionView.Project("p"+i,"state"+i,i%2==0?"civilian_factory":"military_factory",i%2==0?"경상북도":"서울",i==0?16:1,i<2?15:0,2500,90,10800));
+        var summary=new ProtocolConstructionView.Summary(43,7,2,30,4,0,4,1.31,10,21.862500000000004,2,
                 "건설 속도\n무역법: +15%\n국가 보정: +16%\n최종 배율 = 최대(0, 1 + 0.31) = 1.31",
                 "사용 가능한 에너지: 10\n공급 = 기본 10 + 석탄 0 × 9 = 10\n총수요: 21.8625\n잉여분 = 공급 − 수요 = −11.8625",
                 "소비재: 7 공장\n필요 공장 = 내림((민간 43 + 군수 10) × 0.14) = 7\n최종 배정 = 최소(43, 7) = 7");
-        var view=new ConstructionView(token,1,"KOR",hud,"civilian_factory",summary,buildings,projects,"");
+        var view=new ProtocolConstructionView(token,1,"KOR",hud,"civilian_factory",summary,buildings,projects,"");
         var ref=new AtomicReference<ScreenConstruction>();
         context.setScreen(()->{var screen=new ScreenConstruction(token,view,requests::add);ref.set(screen);return screen;});
         context.waitTicks(3);context.takeScreenshot("hoi-construction-queue");
         ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-queue");
-        context.runOnClient(client -> ref.get().update(new ConstructionView(token,2,"KOR",hud,"civilian_factory",
-                new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,30,21.8625,2),buildings,projects,"")));
+        context.runOnClient(client -> ref.get().update(new ProtocolConstructionView(token,2,"KOR",hud,"civilian_factory",
+                new ProtocolConstructionView.Summary(43,7,2,30,4,0,4,1.31,30,21.8625,2),buildings,projects,"")));
         context.waitTicks(2); context.takeScreenshot("hoi-construction-energy-surplus");
-        context.runOnClient(client -> ref.get().update(new ConstructionView(token,3,"KOR",hud,"civilian_factory",
-                new ConstructionView.Summary(43,7,2,30,4,0,4,1.31,10,10,2),buildings,projects,"")));
+        context.runOnClient(client -> ref.get().update(new ProtocolConstructionView(token,3,"KOR",hud,"civilian_factory",
+                new ProtocolConstructionView.Summary(43,7,2,30,4,0,4,1.31,10,10,2),buildings,projects,"")));
         context.waitTicks(2); context.takeScreenshot("hoi-construction-energy-zero");
-        context.runOnClient(client -> ref.get().update(new ConstructionView(token,4,"KOR",hud,"civilian_factory",summary,buildings,projects,"")));
+        context.runOnClient(client -> ref.get().update(new ProtocolConstructionView(token,4,"KOR",hud,"civilian_factory",summary,buildings,projects,"")));
         context.getInput().setCursorPos(40,190); context.waitTicks(2); context.takeScreenshot("hoi-construction-multiline-tooltip");
         context.runOnClient(client -> {
             var lines=UiTooltips.lines(client.font,"첫 줄\n사용 가능한 에너지 10 / 필요량 21.86\n긴 설명 "+"읽기 쉬운 설명 ".repeat(40),427);
@@ -56,9 +56,9 @@ public final class ScreenConstructionChecks {
         });
         context.getInput().setCursorPos(800,500);
         context.runOnClient(client->{
-            for(String art:java.util.stream.Stream.concat(buildings.stream().map(ConstructionView.Building::texture).filter(t->!t.isBlank()),java.util.stream.Stream.of("construction/consumer_goods","construction/energy","construction/energy_deficit","construction/summary/civilian_factory","construction/summary/civilian_factory_repair","construction/conversion_background","construction/conversion_civilian","construction/conversion_military")).toList())
+            for(String art:java.util.stream.Stream.concat(buildings.stream().map(ProtocolConstructionView.Building::texture).filter(t->!t.isBlank()),java.util.stream.Stream.of("construction/consumer_goods","construction/energy","construction/energy_deficit","construction/summary/civilian_factory","construction/summary/civilian_factory_repair","construction/conversion_background","construction/conversion_civilian","construction/conversion_military")).toList())
                 if(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+art+".png")).isEmpty())throw new AssertionError("Missing construction art: "+art);
-            var screen=ref.get();if(screen.panelWidth()!=UiPanelLayout.width(MenuTab.CONSTRUCTION,screen.width))throw new AssertionError("Construction sidebar ratio");
+            var screen=ref.get();if(screen.panelWidth()!=UiPanelLayout.width(ProtocolMenuTab.CONSTRUCTION,screen.width))throw new AssertionError("Construction sidebar ratio");
             assertNoDams(screen);
             var stateBottom=List.of("infrastructure","air_base","anti_air","radar").stream().map(id->buildingButton(screen,id)).mapToInt(b->b.getY()+b.getHeight()).max().orElseThrow();
             var sharedTop=buildingButton(screen,"군수공장").getY();
@@ -74,21 +74,21 @@ public final class ScreenConstructionChecks {
             if(sharedTop-stateBottom<7||localTop-sharedBottom<7)throw new AssertionError("State, shared, and local buildings need separate rows and divider space");
             var button=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("민간공장")).findFirst().orElseThrow();
             button.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));
-            if(requests.size()!=1||requests.getFirst().action()!=ConstructionProtocol.Action.SELECT)throw new AssertionError("Building must issue a server selection");
-            screen.update(new ConstructionView(token,5,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
+            if(requests.size()!=1||requests.getFirst().action()!=ProtocolConstructionPayloads.Action.SELECT)throw new AssertionError("Building must issue a server selection");
+            screen.update(new ProtocolConstructionView(token,5,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
             var plus=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("+")).findFirst().orElseThrow();
             plus.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));
-            if(requests.getLast().action()!=ConstructionProtocol.Action.REPAIR||requests.getLast().amount()!=5)throw new AssertionError("Repair factory control must issue a bounded server request");
-            screen.update(new ConstructionView(token,6,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
+            if(requests.getLast().action()!=ProtocolConstructionPayloads.Action.REPAIR||requests.getLast().amount()!=5)throw new AssertionError("Repair factory control must issue a bounded server request");
+            screen.update(new ProtocolConstructionView(token,6,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
             for(int mouseButton:new int[]{1,0}) {
                 screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(screen.panelWidth()+50,screen.height/2.0,
                         new net.minecraft.client.input.MouseButtonInfo(mouseButton,0)),false);
                 var last=requests.getLast();
-                if(last.action()!=(mouseButton==0?ConstructionProtocol.Action.PLACE:ConstructionProtocol.Action.CANCEL_AT))
+                if(last.action()!=(mouseButton==0?ProtocolConstructionPayloads.Action.PLACE:ProtocolConstructionPayloads.Action.CANCEL_AT))
                     throw new AssertionError("Left click builds and right click cancels on the map");
                 if(Math.abs(last.dx()*last.dx()+last.dy()*last.dy()+last.dz()*last.dz()-1)>.001)
                     throw new AssertionError("Map input sends a normalized ray, not a trusted province");
-                screen.update(new ConstructionView(token,last.revision()+1,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
+                screen.update(new ProtocolConstructionView(token,last.revision()+1,"KOR",hud,"civilian_factory",summary,buildings,projects,""));
             }
             screen.mouseScrolled(30,170,0,-100);
         });
@@ -109,18 +109,18 @@ public final class ScreenConstructionChecks {
         context.runOnClient(client->{
             var camera=client.gameRenderer.mainCamera();var forward=camera.forwardVector();
             var center=camera.position().add(forward.x()*12,forward.y()*12,forward.z()*12);
-            var states=List.of(new ConstructionView.ConversionState("test-state","경기도",4056,center.x,center.y,center.z,5,4));
-            ref.get().update(new ConstructionView(token,1000,"KOR",hud,"conversion",summary,buildings,projects,"",states));
+            var states=List.of(new ProtocolConstructionView.ConversionState("test-state","경기도",4056,center.x,center.y,center.z,5,4));
+            ref.get().update(new ProtocolConstructionView(token,1000,"KOR",hud,"conversion",summary,buildings,projects,"",states));
         });
         context.waitTicks(3);ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-conversion");
         context.runOnClient(client->{
             var screen=ref.get();
             screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(screen.width/2.0-37,screen.height/2.0,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
             var request=requests.getLast();
-            if(request.action()!=ConstructionProtocol.Action.CONVERT||request.amount()!=0||!request.item().equals("test-state"))throw new AssertionError("Conversion civilian icon sends civilian target for the issued state");
+            if(request.action()!=ProtocolConstructionPayloads.Action.CONVERT||request.amount()!=0||!request.item().equals("test-state"))throw new AssertionError("Conversion civilian icon sends civilian target for the issued state");
         });
         context.runOnClient(client->{
-            ref.get().update(new ConstructionView(token,0,"",null,"",null,List.of(),List.of(),"권한 만료"));
+            ref.get().update(new ProtocolConstructionView(token,0,"",null,"",null,List.of(),List.of(),"권한 만료"));
             if(client.gui.screen()!=null)throw new AssertionError("Revoked construction must close");
         });
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);

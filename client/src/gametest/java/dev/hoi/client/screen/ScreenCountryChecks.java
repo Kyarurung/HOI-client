@@ -39,7 +39,7 @@ public final class ScreenCountryChecks {
         });
         try {
             partyChartTooltips(context, directory);
-            var menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+            var menu = new ProtocolMenuPayloads.OpenScreen(java.nio.file.Files.readString(
                     java.nio.file.Path.of(directory, "KNU.json"))).view();
             context.setScreen(() -> new ScreenMenu(menu));
             context.waitTicks(3);
@@ -72,7 +72,7 @@ public final class ScreenCountryChecks {
         } catch (java.io.IOException e) { throw new AssertionError("Server HUD snapshot unavailable", e); }
         for (String tag : List.of("KOR", "PRC")) {
             try {
-                var menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory, tag + ".json"))).view();
+                var menu = new ProtocolMenuPayloads.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory, tag + ".json"))).view();
                 String banner = tag.equals("KOR") ? "gfx_banner_kor_dominance_of_chaebols" : "gfx_prc_down_with_bureaucracy_banner";
                 context.setScreen(() -> new ScreenMenu(menu));
                 context.waitTicks(3);
@@ -96,7 +96,7 @@ public final class ScreenCountryChecks {
             } catch (java.io.IOException error) { throw new AssertionError(error); }
         }
         try {
-            var menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory, "PRK.json"))).view();
+            var menu = new ProtocolMenuPayloads.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory, "PRK.json"))).view();
             context.setScreen(() -> new ScreenMenu(menu)); context.waitTicks(3);
             var point = context.computeOnClient(c -> {
                 var screen = (ScreenMenu)c.gui.screen();
@@ -119,7 +119,7 @@ public final class ScreenCountryChecks {
                     java.nio.file.Path.of(directory, "all-country-spirits.json"))).getAsJsonObject();
             int rendered = 0;
             for (var country : all.entrySet()) for (var raw : country.getValue().getAsJsonArray()) {
-                var entry = new com.google.gson.Gson().fromJson(raw, MenuView.Entry.class);
+                var entry = new com.google.gson.Gson().fromJson(raw, ProtocolMenuView.Entry.class);
                 context.runOnClient(c -> {
                     var images = java.util.regex.Pattern.compile("\\[image:([a-z0-9_/]+)\\]").matcher(entry.detail());
                     while (images.find()) {
@@ -142,9 +142,9 @@ public final class ScreenCountryChecks {
         String[] tags = {"KOR", "KOR", "KOR", "KOR", "KOR", "PRC", "KOR", "PRC", "PRK", "CAM"};
         String[] labels = {"내무장관", "금리법", "군사 훈련", "여성권", "산업 개발", "공군참모총장", "지도자", "지도자", "지도자", "지도자"};
         for (int i = 0; i < labels.length; i++) {
-            final MenuView menu;
+            final ProtocolMenuView menu;
             try {
-                menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+                menu = new ProtocolMenuPayloads.OpenScreen(java.nio.file.Files.readString(
                         java.nio.file.Path.of(directory, tags[i] + ".json"))).view();
             } catch (java.io.IOException e) { throw new AssertionError("Server tooltip snapshot unavailable", e); }
             String label = labels[i];
@@ -176,7 +176,7 @@ public final class ScreenCountryChecks {
             context.takeScreenshot("hoi-server-policy-" + i + "-gui2");
         }
         try {
-            var backdrop = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"KOR.json"))).view();
+            var backdrop = new ProtocolMenuPayloads.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"KOR.json"))).view();
             context.setScreen(() -> new ScreenMenu(backdrop));context.waitTicks(3);
             var economyPoint=context.computeOnClient(c -> {
                 var screen=(ScreenMenu)c.gui.screen();
@@ -188,7 +188,7 @@ public final class ScreenCountryChecks {
             context.takeScreenshot("hoi-economic-model-icon-spacing-gui2");
             var partyPoint=context.computeOnClient(c -> {
                 var screen=(ScreenMenu)c.gui.screen();
-                int pane=dev.hoi.client.ui.UiPanelLayout.width(MenuTab.POLITICS,screen.width);
+                int pane=dev.hoi.client.ui.UiPanelLayout.width(ProtocolMenuTab.POLITICS,screen.width);
                 var layout=new dev.hoi.client.ui.UiPoliticsLayout(pane,dev.hoi.client.ui.UiMenuBar.height(screen.width));
                 var list=layout.parties();
                 for(int i=0;i<20;i++) {
@@ -204,7 +204,7 @@ public final class ScreenCountryChecks {
             context.getInput().setCursorPos(partyPoint[0],partyPoint[1]);context.waitTicks(3);
             context.takeScreenshot("hoi-party-scaled-effects-gui2");
             for(String power:List.of("0","2000","minority","economic","farming")) {
-                var choices=new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"choices-"+power+".json")),DialogView.class);
+                var choices=new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"choices-"+power+".json")),ProtocolDialogView.class);
                 context.setScreen(() -> new ScreenMenu(backdrop));context.waitTicks(3);
                 context.runOnClient(c -> c.gui.setScreen(new ScreenPoliticsChoice(choices,c.gui.screen())));
                 context.getInput().setCursorPos(1600,1000);context.waitTicks(3);
@@ -220,7 +220,7 @@ public final class ScreenCountryChecks {
                 context.takeScreenshot("hoi-politics-choice-tooltip-"+power+"-gui2");
             }
             for (int index = 0; index < 6; index++) {
-                var cabinet = new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(java.nio.file.Path.of(directory, "cabinet-" + index + ".json")), DialogView.class);
+                var cabinet = new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(java.nio.file.Path.of(directory, "cabinet-" + index + ".json")), ProtocolDialogView.class);
                 context.setScreen(() -> new ScreenMenu(backdrop)); context.waitTicks(2);
                 context.runOnClient(c -> c.gui.setScreen(new ScreenPoliticsChoice(cabinet, c.gui.screen())));
                 context.getInput().setCursorPos(1800, 1100); context.waitTicks(3);
@@ -230,20 +230,20 @@ public final class ScreenCountryChecks {
             if(!party.value().matches("[0-9]+%"))throw new AssertionError("HUD party precision: "+party.value());
         } catch(java.io.IOException e) {throw new AssertionError("Cost snapshots unavailable",e);}
         try {
-            var source = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+            var source = new ProtocolMenuPayloads.OpenScreen(java.nio.file.Files.readString(
                     java.nio.file.Path.of(directory, "KOR.json"))).view();
-            var pages = source.pages().stream().map(page -> page.tab() != MenuTab.POLITICS ? page
-                    : new MenuView.Page(page.tab(), page.sections().stream().map(section -> !section.title().equals("국가 중점") ? section
-                            : new MenuView.Section(section.title(), section.icon(), section.entries().stream().map(entry -> entry.progress() < 0 ? entry
-                                    : new MenuView.Entry(entry.name(), entry.value(), entry.detail(), .5, entry.icon())).toList())).toList())).toList();
-            context.setScreen(() -> new ScreenMenu(new MenuView(source.country(), source.countryName(), source.date(), source.speed(),
+            var pages = source.pages().stream().map(page -> page.tab() != ProtocolMenuTab.POLITICS ? page
+                    : new ProtocolMenuView.Page(page.tab(), page.sections().stream().map(section -> !section.title().equals("국가 중점") ? section
+                            : new ProtocolMenuView.Section(section.title(), section.icon(), section.entries().stream().map(entry -> entry.progress() < 0 ? entry
+                                    : new ProtocolMenuView.Entry(entry.name(), entry.value(), entry.detail(), .5, entry.icon())).toList())).toList())).toList();
+            context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(source.country(), source.countryName(), source.date(), source.speed(),
                     pages, source.hud(), source.manufacturers(), source.balance())));
             context.getInput().setCursorPos(1500, 800);
             context.waitTicks(3);
             context.takeScreenshot("hoi-focus-half-progress-fixture-gui2");
         } catch (java.io.IOException e) { throw new AssertionError("Server focus snapshot unavailable", e); }
         try {
-            var foreign = new CountryProtocol.Response(java.util.UUID.randomUUID().toString(),
+            var foreign = new ProtocolCountryPayloads.Response(java.util.UUID.randomUUID().toString(),
                     java.nio.file.Files.readString(java.nio.file.Path.of(directory, "diplomacy-PRC.json"))).view();
             context.setScreen(() -> new ScreenCountry(foreign));
             context.getInput().setCursorPos(1500, 800);
@@ -270,20 +270,20 @@ public final class ScreenCountryChecks {
             context.waitTicks(3);
             context.takeScreenshot("hoi-server-diplomacy-leader-PRC-gui2");
             context.getInput().setCursorPos(1500, 800);
-            var changed = new CountryProtocol.Response(java.util.UUID.randomUUID().toString(),
+            var changed = new ProtocolCountryPayloads.Response(java.util.UUID.randomUUID().toString(),
                     java.nio.file.Files.readString(java.nio.file.Path.of(directory, "diplomacy-PRC-changed.json"))).view();
             context.runOnClient(c -> {
                 var screen = (ScreenCountry)c.gui.screen();
-                screen.update(CountryProtocol.Response.of(java.util.UUID.randomUUID().toString(), changed));
+                screen.update(ProtocolCountryPayloads.Response.of(java.util.UUID.randomUUID().toString(), changed));
                 if (!screen.view().equals(foreign)) throw new AssertionError("Unissued party update accepted");
-                screen.update(CountryProtocol.Response.of(screen.token(), changed));
+                screen.update(ProtocolCountryPayloads.Response.of(screen.token(), changed));
                 if (!screen.view().equals(changed)) throw new AssertionError("Party update not applied");
             });
             context.waitTicks(3);
             context.takeScreenshot("hoi-server-diplomacy-PRC-changed-gui2");
-            var originalMenu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+            var originalMenu = new ProtocolMenuPayloads.OpenScreen(java.nio.file.Files.readString(
                     java.nio.file.Path.of(directory, "PRC.json"))).view();
-            var changedMenu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(
+            var changedMenu = new ProtocolMenuPayloads.OpenScreen(java.nio.file.Files.readString(
                     java.nio.file.Path.of(directory, "PRC-changed.json"))).view();
             context.setScreen(() -> new ScreenMenu(originalMenu));
             context.waitTicks(3);
@@ -293,12 +293,12 @@ public final class ScreenCountryChecks {
             context.takeScreenshot("hoi-server-parties-PRC-changed-gui2");
         } catch (java.io.IOException e) { throw new AssertionError("Server diplomacy snapshot unavailable", e); }
         try {
-            var menu = new MenuProtocol.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory, "KNU.json"))).view();
+            var menu = new ProtocolMenuPayloads.OpenScreen(java.nio.file.Files.readString(java.nio.file.Path.of(directory, "KNU.json"))).view();
             context.setScreen(() -> new ScreenMenu(menu));
             context.getInput().setCursorPos(1500, 800);
             context.waitTicks(3);
             context.takeScreenshot("hoi-server-politics-KNU-gui2");
-            var foreign = new CountryProtocol.Response(java.util.UUID.randomUUID().toString(),
+            var foreign = new ProtocolCountryPayloads.Response(java.util.UUID.randomUUID().toString(),
                     java.nio.file.Files.readString(java.nio.file.Path.of(directory, "diplomacy-KNU.json"))).view();
             context.setScreen(() -> new ScreenCountry(foreign));
             context.waitTicks(3);
@@ -315,26 +315,26 @@ public final class ScreenCountryChecks {
         context.waitTicks(3);
     }
 
-    public static void politicsHover(ClientGameTestContext context, MenuView source) {
+    public static void politicsHover(ClientGameTestContext context, ProtocolMenuView source) {
         var sections = new ArrayList<>(politics());
         var overview = new ArrayList<>(sections.getFirst().entries());
-        overview.set(1, new MenuView.Entry("지도자", "검증용 지도자", "검증용 특성\n안정도: §a+5%§r\n정치력: §4-3%§r\n\n지도자 설명 줄바꿈과 호버 영역을 확인하는 렌더링 검증 데이터입니다.", -1, "politics/empty/leader"));
-        overview.add(new MenuView.Entry("점령지", "0개 주", "점령지 없음", 0));
-        overview.add(new MenuView.Entry("협력정부", "1개국", "검증용 종속국", 1));
+        overview.set(1, new ProtocolMenuView.Entry("지도자", "검증용 지도자", "검증용 특성\n안정도: §a+5%§r\n정치력: §4-3%§r\n\n지도자 설명 줄바꿈과 호버 영역을 확인하는 렌더링 검증 데이터입니다.", -1, "politics/empty/leader"));
+        overview.add(new ProtocolMenuView.Entry("점령지", "0개 주", "점령지 없음", 0));
+        overview.add(new ProtocolMenuView.Entry("협력정부", "1개국", "검증용 종속국", 1));
         overview.removeIf(e -> e.name().equals("이념"));
-        overview.add(new MenuView.Entry("세부 이념", "공격적 자유주의", "[image:politics/banner/gfx_ideology_ultra_conservatism]\n\n설명 이미지는 툴팁 안에 표시합니다.\n\n긴 설명은 화면 폭에 맞춰 줄바꿈합니다."));
+        overview.add(new ProtocolMenuView.Entry("세부 이념", "공격적 자유주의", "[image:politics/banner/gfx_ideology_ultra_conservatism]\n\n설명 이미지는 툴팁 안에 표시합니다.\n\n긴 설명은 화면 폭에 맞춰 줄바꿈합니다."));
         overview.removeIf(e -> e.icon().startsWith("politics/ideology/"));
         String[] names = {"민중민주당", "민주노동당", "민주노동당", "민주노동당", "더불어민주당", "국민의힘", "국민의힘", "우리공화당", "대한민국 국군", "자유의새벽당", "가자코리아"};
         int[] shares = {0,5,6,5,33,36,3,5,0,1,6};
         String[] colors = {"640000","a40000","ce3b3b","e76d77","e4bf39","eddf58","3261d0","434b81","636369","70411d","312b20"};
-        for (int i = 0; i < names.length; i++) overview.add(new MenuView.Entry(names[i], shares[i] + "%", "정당 지지도 · 검증용 분포", shares[i] / 100.0, "politics/party/" + colors[i]));
-        sections.set(0, new MenuView.Section("국가 현황", "politics", overview));
-        sections.set(1, new MenuView.Section("국가 정신", "politics", java.util.stream.IntStream.range(0, 24)
-                .mapToObj(i -> new MenuView.Entry("검증용 정신 " + i, "", "연구 속도: §a+5%§r\n안정도: §4-3%§r\n\n현재 아이콘에 해당하는 설명입니다.", -1, "menu/politics")).toList()));
+        for (int i = 0; i < names.length; i++) overview.add(new ProtocolMenuView.Entry(names[i], shares[i] + "%", "정당 지지도 · 검증용 분포", shares[i] / 100.0, "politics/party/" + colors[i]));
+        sections.set(0, new ProtocolMenuView.Section("국가 현황", "politics", overview));
+        sections.set(1, new ProtocolMenuView.Section("국가 정신", "politics", java.util.stream.IntStream.range(0, 24)
+                .mapToObj(i -> new ProtocolMenuView.Entry("검증용 정신 " + i, "", "연구 속도: §a+5%§r\n안정도: §4-3%§r\n\n현재 아이콘에 해당하는 설명입니다.", -1, "menu/politics")).toList()));
         sections.removeIf(section -> section.icon().equals("government"));
-        sections.add(new MenuView.Section("정부", "government", List.of(new MenuView.Entry("정부 수반", "검증용 관료", "안정도: §a+5%§r\n정치력: §4-3%§r", -1, "politics/empty/leader"))));
-        var pages = source.pages().stream().map(p -> p.tab() == MenuTab.POLITICS ? new MenuView.Page(p.tab(), sections) : p).toList();
-        context.setScreen(() -> new ScreenMenu(new MenuView(source.country(), source.countryName(), source.date(), source.speed(), pages, source.hud())));
+        sections.add(new ProtocolMenuView.Section("정부", "government", List.of(new ProtocolMenuView.Entry("정부 수반", "검증용 관료", "안정도: §a+5%§r\n정치력: §4-3%§r", -1, "politics/empty/leader"))));
+        var pages = source.pages().stream().map(p -> p.tab() == ProtocolMenuTab.POLITICS ? new ProtocolMenuView.Page(p.tab(), sections) : p).toList();
+        context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(source.country(), source.countryName(), source.date(), source.speed(), pages, source.hud())));
         context.waitTicks(2);
         context.runOnClient(c -> {
             var screen = (ScreenMenu)c.gui.screen(); var layout = screen.politicsLayout();
@@ -413,10 +413,10 @@ public final class ScreenCountryChecks {
         });
         context.waitTicks(2); context.takeScreenshot("hoi-politics-party-list-scrolled");
         context.getInput().setCursorPos(1500,800);
-        sections.set(1, new MenuView.Section("국가 정신", "politics", List.of(sections.get(1).entries().getFirst())));
-        sections.replaceAll(s -> s.title().equals("국가 중점") ? new MenuView.Section("국가 중점", "research", List.of()) : s);
-        var singleSpiritPages = source.pages().stream().map(p -> p.tab() == MenuTab.POLITICS ? new MenuView.Page(p.tab(), sections) : p).toList();
-        context.setScreen(() -> new ScreenMenu(new MenuView(source.country(), source.countryName(), source.date(), source.speed(), singleSpiritPages, source.hud())));
+        sections.set(1, new ProtocolMenuView.Section("국가 정신", "politics", List.of(sections.get(1).entries().getFirst())));
+        sections.replaceAll(s -> s.title().equals("국가 중점") ? new ProtocolMenuView.Section("국가 중점", "research", List.of()) : s);
+        var singleSpiritPages = source.pages().stream().map(p -> p.tab() == ProtocolMenuTab.POLITICS ? new ProtocolMenuView.Page(p.tab(), sections) : p).toList();
+        context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(source.country(), source.countryName(), source.date(), source.speed(), singleSpiritPages, source.hud())));
         context.waitTicks(2);
         context.runOnClient(c -> {
             var screen = (ScreenMenu)c.gui.screen(); int top = dev.hoi.client.ui.UiMenuBar.height(screen.width);
@@ -433,12 +433,12 @@ public final class ScreenCountryChecks {
         for (var entry : cases.entrySet()) for (boolean selection : new boolean[]{false, true}) {
             String mode = selection ? "selection" : "politics";
             String json = java.nio.file.Files.readString(java.nio.file.Path.of(directory, "party-chart-" + entry.getKey() + "-" + mode + ".json"));
-            var view = selection ? new MenuProtocol.SelectionPreview(json).view() : new MenuProtocol.OpenScreen(json).view();
+            var view = selection ? new ProtocolMenuPayloads.SelectionPreview(json).view() : new ProtocolMenuPayloads.OpenScreen(json).view();
             String icon = entry.getValue().getAsJsonArray().get(1).getAsString();
-            var parties = view.page(MenuTab.POLITICS).sections().stream().flatMap(section -> section.entries().stream())
+            var parties = view.page(ProtocolMenuTab.POLITICS).sections().stream().flatMap(section -> section.entries().stream())
                     .filter(party -> party.icon().startsWith("politics/party/") && party.progress() >= 0).toList();
             var expected = parties.stream().filter(party -> party.icon().equals(icon)).findFirst().orElseThrow();
-            double before = parties.subList(0, parties.indexOf(expected)).stream().mapToDouble(MenuView.Entry::progress).sum();
+            double before = parties.subList(0, parties.indexOf(expected)).stream().mapToDouble(ProtocolMenuView.Entry::progress).sum();
             double angle = (before + expected.progress() / 2) * Math.PI * 2 - Math.PI / 2;
             context.setScreen(() -> selection ? ScreenMenu.selection(view) : new ScreenMenu(view));
             context.waitTicks(3);
@@ -488,20 +488,20 @@ public final class ScreenCountryChecks {
         dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-adviser-original-frames");
     }
 
-    public static List<MenuView.Section> politics() {
-        var result = new ArrayList<MenuView.Section>();
-        result.add(new MenuView.Section("국가 현황", "politics", List.of(new MenuView.Entry("정치력","72","화면 검증용 데이터"),
-                new MenuView.Entry("지도자","정보 없음","",-1,"politics/empty/leader"),
-                new MenuView.Entry("집권 정당","민주주의",""),new MenuView.Entry("이념","민주주의",""),
-                new MenuView.Entry("경제-정치 연합","정보 없음",""),new MenuView.Entry("통치 형태","민주주의",""),
-                new MenuView.Entry("다음 선거","5월 2032",""),
-                new MenuView.Entry("경제 모델","정보 없음",""),new MenuView.Entry("세력","미가입",""),new MenuView.Entry("정치 체제","정보 없음",""),
-                new MenuView.Entry("민주주의","70%","검증 데이터",.7,"politics/ideology/democratic"),
-                new MenuView.Entry("공산주의","10%","검증 데이터",.1,"politics/ideology/communist"),
-                new MenuView.Entry("파시즘","5%","검증 데이터",.05,"politics/ideology/fascist"),
-                new MenuView.Entry("비동맹","15%","검증 데이터",.15,"politics/ideology/non_aligned"))));
-        result.add(new MenuView.Section("국가 정신", "politics", List.of(new MenuView.Entry("국가 정신","활성",""))));
-        result.add(new MenuView.Section("국가 중점", "research", List.of(new MenuView.Entry("산업 시설 확대","진행 중","검증용 중점",.3))));
+    public static List<ProtocolMenuView.Section> politics() {
+        var result = new ArrayList<ProtocolMenuView.Section>();
+        result.add(new ProtocolMenuView.Section("국가 현황", "politics", List.of(new ProtocolMenuView.Entry("정치력","72","화면 검증용 데이터"),
+                new ProtocolMenuView.Entry("지도자","정보 없음","",-1,"politics/empty/leader"),
+                new ProtocolMenuView.Entry("집권 정당","민주주의",""),new ProtocolMenuView.Entry("이념","민주주의",""),
+                new ProtocolMenuView.Entry("경제-정치 연합","정보 없음",""),new ProtocolMenuView.Entry("통치 형태","민주주의",""),
+                new ProtocolMenuView.Entry("다음 선거","5월 2032",""),
+                new ProtocolMenuView.Entry("경제 모델","정보 없음",""),new ProtocolMenuView.Entry("세력","미가입",""),new ProtocolMenuView.Entry("정치 체제","정보 없음",""),
+                new ProtocolMenuView.Entry("민주주의","70%","검증 데이터",.7,"politics/ideology/democratic"),
+                new ProtocolMenuView.Entry("공산주의","10%","검증 데이터",.1,"politics/ideology/communist"),
+                new ProtocolMenuView.Entry("파시즘","5%","검증 데이터",.05,"politics/ideology/fascist"),
+                new ProtocolMenuView.Entry("비동맹","15%","검증 데이터",.15,"politics/ideology/non_aligned"))));
+        result.add(new ProtocolMenuView.Section("국가 정신", "politics", List.of(new ProtocolMenuView.Entry("국가 정신","활성",""))));
+        result.add(new ProtocolMenuView.Section("국가 중점", "research", List.of(new ProtocolMenuView.Entry("산업 시설 확대","진행 중","검증용 중점",.3))));
         String[] names = {"정부","경제법","군법","사회법","발전도","군사 참모","연구 & 생산"};
         String[] ids = {"government","economic_laws","military_laws","social_laws","development","military_staff","research_production"};
         String[][] icons = {
@@ -513,37 +513,37 @@ public final class ScreenCountryChecks {
                 {"army_chief","navy_chief","air_chief","high_command","high_command","high_command"},
                 {"tank_manufacturer","naval_manufacturer","aircraft_manufacturer","materiel_manufacturer"}};
         for (int i=0;i<7;i++) {
-            var entries=new ArrayList<MenuView.Entry>();
-            for(int j=0;j<icons[i].length;j++) entries.add(new MenuView.Entry(names[i]+" 선택 "+j,i!=0&&j==0?"적용 중":"미지정","선택된 항목의 설명",-1,"politics/"+icons[i][j]));
-            result.add(new MenuView.Section(names[i],ids[i],entries));
+            var entries=new ArrayList<ProtocolMenuView.Entry>();
+            for(int j=0;j<icons[i].length;j++) entries.add(new ProtocolMenuView.Entry(names[i]+" 선택 "+j,i!=0&&j==0?"적용 중":"미지정","선택된 항목의 설명",-1,"politics/"+icons[i][j]));
+            result.add(new ProtocolMenuView.Section(names[i],ids[i],entries));
         }
         return result;
     }
-    public static void run(ClientGameTestContext context, CountryHud hud) {
-        CountryProtocol.registerPayloadTypes(); CountryProtocol.registerPayloadTypes();
+    public static void run(ClientGameTestContext context, ProtocolCountryHud hud) {
+        ProtocolCountryPayloads.registerPayloadTypes(); ProtocolCountryPayloads.registerPayloadTypes();
         context.runOnClient(client -> {
-            for (var domain : IntelDomain.values()) if (client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/" + domain.icon + ".png")).isEmpty())
+            for (var domain : ProtocolIntelDomain.values()) if (client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/" + domain.icon + ".png")).isEmpty())
                 throw new AssertionError("Missing vanilla intelligence icon: " + domain);
         });
-        var reports = Arrays.stream(IntelDomain.values()).map(d -> new CountryView.Report(d,new double[]{59.6,29.6,56.6,34.3}[d.ordinal()],List.of(
-                new MenuView.Entry(d.label+" 예상 수량","50–99","실제 서버 값을 사용하지 않는 렌더링 검증 데이터"),
-                new MenuView.Entry("정보가 충분하지 않습니다","상세 첩보 필요","공개 기준 확인")))).toList();
-        var diplomacy = new ArrayList<MenuView.Entry>(List.of(
-                new MenuView.Entry("관계", "비동맹", ""),
-                new MenuView.Entry("집권 정당", "중국공산당", ""),
-                new MenuView.Entry("이념", "덩샤오핑 이론", "", -1, "politics/art/gfx_ideology_prc_market_socialism"),
-                new MenuView.Entry("지도자", "시진핑", "", -1, "politics/leaders/prc_xi_jinping"),
-                new MenuView.Entry("다음 선거", "선거 없음", ""),
-                new MenuView.Entry("안정도", "64.73%", "현재 안정도", .6473, "hud/stability"),
-                new MenuView.Entry("전쟁 지지도", "43.21%", "현재 전쟁 지지도", .4321, "hud/war_support")));
-        diplomacy.add(new MenuView.Entry("세력","검증용 세력","",-1,"politics/art/gfx_faction_member"));
-        for (int i = 0; i < 24; i++) diplomacy.add(new MenuView.Entry("보유 국민정신 " + i, "", "국가 정신\n안정도: §a+5%§r", -1, "politics/art/gfx_idea_prc_chinese_communist_party"));
-        var fixture = new CountryView("KOR",hud,"PRC","중화인민공화국",false,List.of(new CountryView.Choice("KOR","대한민국"),new CountryView.Choice("PRC","중국")),
-                diplomacy,List.of(new MenuView.Entry("알려지지 않은 중점","민간 첩보 70% 필요","")),reports,null,List.of(
-                    new CountryView.Relation("세력","diplomacy/relations/faction",List.of(new CountryView.Choice("PRK","조선민주주의인민공화국"),new CountryView.Choice("JAP","일본"),new CountryView.Choice("KOR","대한민국"))),
-                    new CountryView.Relation("군사 통행권","diplomacy/relations/offer_military_access_initiator",List.of(new CountryView.Choice("KOR","대한민국")))));
+        var reports = Arrays.stream(ProtocolIntelDomain.values()).map(d -> new ProtocolCountryView.Report(d,new double[]{59.6,29.6,56.6,34.3}[d.ordinal()],List.of(
+                new ProtocolMenuView.Entry(d.label+" 예상 수량","50–99","실제 서버 값을 사용하지 않는 렌더링 검증 데이터"),
+                new ProtocolMenuView.Entry("정보가 충분하지 않습니다","상세 첩보 필요","공개 기준 확인")))).toList();
+        var diplomacy = new ArrayList<ProtocolMenuView.Entry>(List.of(
+                new ProtocolMenuView.Entry("관계", "비동맹", ""),
+                new ProtocolMenuView.Entry("집권 정당", "중국공산당", ""),
+                new ProtocolMenuView.Entry("이념", "덩샤오핑 이론", "", -1, "politics/art/gfx_ideology_prc_market_socialism"),
+                new ProtocolMenuView.Entry("지도자", "시진핑", "", -1, "politics/leaders/prc_xi_jinping"),
+                new ProtocolMenuView.Entry("다음 선거", "선거 없음", ""),
+                new ProtocolMenuView.Entry("안정도", "64.73%", "현재 안정도", .6473, "hud/stability"),
+                new ProtocolMenuView.Entry("전쟁 지지도", "43.21%", "현재 전쟁 지지도", .4321, "hud/war_support")));
+        diplomacy.add(new ProtocolMenuView.Entry("세력","검증용 세력","",-1,"politics/art/gfx_faction_member"));
+        for (int i = 0; i < 24; i++) diplomacy.add(new ProtocolMenuView.Entry("보유 국민정신 " + i, "", "국가 정신\n안정도: §a+5%§r", -1, "politics/art/gfx_idea_prc_chinese_communist_party"));
+        var fixture = new ProtocolCountryView("KOR",hud,"PRC","중화인민공화국",false,List.of(new ProtocolCountryView.Choice("KOR","대한민국"),new ProtocolCountryView.Choice("PRC","중국")),
+                diplomacy,List.of(new ProtocolMenuView.Entry("알려지지 않은 중점","민간 첩보 70% 필요","")),reports,null,List.of(
+                    new ProtocolCountryView.Relation("세력","diplomacy/relations/faction",List.of(new ProtocolCountryView.Choice("PRK","조선민주주의인민공화국"),new ProtocolCountryView.Choice("JAP","일본"),new ProtocolCountryView.Choice("KOR","대한민국"))),
+                    new ProtocolCountryView.Relation("군사 통행권","diplomacy/relations/offer_military_access_initiator",List.of(new ProtocolCountryView.Choice("KOR","대한민국")))));
         context.setScreen(() -> new ScreenCountry(fixture)); context.waitTicks(3); context.takeScreenshot("hoi-country-diplomacy"); dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-diplomacy");
-        var sixSpirits = new CountryView(fixture.viewer(), fixture.hud(), fixture.target(), fixture.name(), fixture.shared(), fixture.countries(),
+        var sixSpirits = new ProtocolCountryView(fixture.viewer(), fixture.hud(), fixture.target(), fixture.name(), fixture.shared(), fixture.countries(),
                 diplomacy.subList(0, diplomacy.size() - 18), fixture.focuses(), fixture.reports(), fixture.actions(), fixture.relations());
         context.setScreen(() -> new ScreenCountry(sixSpirits)); context.waitTicks(3);
         context.runOnClient(c -> {
@@ -560,8 +560,8 @@ public final class ScreenCountryChecks {
                 .keySet().stream().map(id -> id.getPath().split("/")[3].toUpperCase(Locale.ROOT)).sorted().toList());
         if (allFlags.isEmpty()) throw new AssertionError("Country flags unavailable for diplomacy coverage");
         for (String tag : allFlags) {
-            var country = new CountryView(fixture.viewer(), fixture.hud(), tag, tag, false, fixture.countries(),
-                    List.of(new MenuView.Entry("관계", "비동맹", "")), fixture.focuses(), fixture.reports(), null, List.of());
+            var country = new ProtocolCountryView(fixture.viewer(), fixture.hud(), tag, tag, false, fixture.countries(),
+                    List.of(new ProtocolMenuView.Entry("관계", "비동맹", "")), fixture.focuses(), fixture.reports(), null, List.of());
             context.setScreen(() -> new ScreenCountry(country)); context.waitTicks(1);
             context.runOnClient(c -> {
                 var screen = (ScreenCountry)c.gui.screen();
@@ -576,8 +576,8 @@ public final class ScreenCountryChecks {
         System.out.println("Current diplomacy layout checked for " + allFlags.size() + " country flags");
         dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-empty-relations");
         var noFactionEntries = new ArrayList<>(diplomacy.stream().filter(e -> !e.name().equals("세력")).toList());
-        noFactionEntries.add(new MenuView.Entry("세력", "세력 없음", "", -1, "politics/art/gfx_faction_member"));
-        var noFaction = new CountryView(fixture.viewer(), fixture.hud(), fixture.target(), fixture.name(), fixture.shared(), fixture.countries(),
+        noFactionEntries.add(new ProtocolMenuView.Entry("세력", "세력 없음", "", -1, "politics/art/gfx_faction_member"));
+        var noFaction = new ProtocolCountryView(fixture.viewer(), fixture.hud(), fixture.target(), fixture.name(), fixture.shared(), fixture.countries(),
                 noFactionEntries, fixture.focuses(), fixture.reports(), fixture.actions(), List.of());
         context.setScreen(() -> new ScreenCountry(noFaction)); context.waitTicks(3);
         dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-no-faction");
@@ -631,24 +631,24 @@ public final class ScreenCountryChecks {
             String previous=screen.token();
             if(!screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(40,y,new net.minecraft.client.input.MouseButtonInfo(0,0)),false)
                     ||screen.view()!=null||screen.token().equals(previous))throw new AssertionError("Flag click must open a fresh country request");
-            screen.update(CountryProtocol.Response.of(screen.token(),fixture));
+            screen.update(ProtocolCountryPayloads.Response.of(screen.token(),fixture));
             if(screen.view()!=null)throw new AssertionError("Clicked flag must not accept another country's response");
-            var response=new CountryView(fixture.viewer(),fixture.hud(),"PRK","조선민주주의인민공화국",false,fixture.countries(),
+            var response=new ProtocolCountryView(fixture.viewer(),fixture.hud(),"PRK","조선민주주의인민공화국",false,fixture.countries(),
                     fixture.diplomacy(),fixture.focuses(),fixture.reports(),null,fixture.relations());
-            screen.update(CountryProtocol.Response.of(screen.token(),response));
+            screen.update(ProtocolCountryPayloads.Response.of(screen.token(),response));
             if(screen.view()==null||!screen.view().target().equals("PRK"))throw new AssertionError("Clicked country's diplomacy did not open");
             c.gui.setScreen(new ScreenCountry(fixture));
         });
         click(context,"첩보 장부");
-        for (var d : IntelDomain.values()) { click(context,d.label+" 정보"); context.waitTicks(2); context.takeScreenshot("hoi-intel-"+d.name().toLowerCase(Locale.ROOT)); }
+        for (var d : ProtocolIntelDomain.values()) { click(context,d.label+" 정보"); context.waitTicks(2); context.takeScreenshot("hoi-intel-"+d.name().toLowerCase(Locale.ROOT)); }
         context.getInput().resizeWindow(854,480);context.waitTicks(3);context.takeScreenshot("hoi-intel-compact");
         context.runOnClient(client -> {
             var screen=(ScreenCountry)client.gui.screen();
             for(var child:screen.children()) if(child instanceof Button b && (b.getX()<0||b.getY()<0||b.getRight()>screen.width||b.getBottom()>screen.height)) throw new AssertionError("Foreign UI overflow");
             String old=screen.token();screen.select("KOR");
-            screen.update(CountryProtocol.Response.of(old,fixture));
+            screen.update(ProtocolCountryPayloads.Response.of(old,fixture));
             if(screen.view()!=null)throw new AssertionError("Late foreign response leaked after target change");
-            screen.update(new CountryProtocol.Response(screen.token(),""));
+            screen.update(new ProtocolCountryPayloads.Response(screen.token(),""));
             if(client.gui.screen()!=null)throw new AssertionError("Revoked foreign UI must close");
         });
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);

@@ -573,9 +573,9 @@
     ]
   ],
   "protocolInternal": {
-    "PayloadJson": "ProtocolJson",
-    "PayloadDecodeTest": "ProtocolJsonTest",
+    "PayloadJson": "ProtocolJsonCodec",
+    "PayloadDecodeTest": "ProtocolJsonCodecTest",
     "FuelHudTest": "ProtocolFuelHudTest",
-    "PresentationViewTest": "ProtocolPresentationTest"
+    "PresentationViewTest": "ProtocolViewPresentationTest"
   }
 }

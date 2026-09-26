@@ -1,6 +1,6 @@
 package dev.hoi.client.audio;
 
-import dev.hoi.protocol.AudioProtocol;
+import dev.hoi.protocol.ProtocolAudioPayloads;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.Identifier;
@@ -19,11 +19,11 @@ public final class AudioUiSounds {
         var sounds=Minecraft.getInstance().getSoundManager();var id=id(path);
         if(sounds.getSoundEvent(id)!=null)sounds.play(instance(path));
     }
-    public static void receive(AudioProtocol.Cue cue) {
+    public static void receive(ProtocolAudioPayloads.Cue cue) {
         switch(cue) {
-            case SELECT -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.HudProtocol.State.HIDDEN); AudioKoreanMusic.select(); }
+            case SELECT -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.ProtocolHudPayloads.State.HIDDEN); AudioKoreanMusic.select(); }
             case START -> {AudioKoreanMusic.enable();START_SOUNDS.forEach(AudioUiSounds::play);}
-            case STOP -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.HudProtocol.State.HIDDEN); reset(); dev.hoi.client.screen.ScreenDialogCoordinator.reset(); }
+            case STOP -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.ProtocolHudPayloads.State.HIDDEN); reset(); dev.hoi.client.screen.ScreenDialogCoordinator.reset(); }
             default -> play(cue.sound());
         }
     }

@@ -56,9 +56,9 @@ public final class MapSurfaceRenderChecks {
             command.accept("kill @e[type=minecraft:item_display]");command.accept("time set noon");
             context.runOnClient(client -> {
                 MapSceneRenderer.clear();
-                MapSceneRenderer.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(java.util.UUID.randomUUID(), "minecraft:overworld", 0, 1, java.util.List.of(
-                    new dev.hoi.protocol.AtlasSceneProtocol.Box(0, 72, 8, 12, .2f, .2f, 0, dev.hoi.protocol.AtlasSceneProtocol.Material.DMZ),
-                    new dev.hoi.protocol.AtlasSceneProtocol.Box(0, 69, 8, 12, .2f, .2f, 0, dev.hoi.protocol.AtlasSceneProtocol.Material.RED))));
+                MapSceneRenderer.receive(new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(), "minecraft:overworld", 0, 1, java.util.List.of(
+                    new dev.hoi.protocol.ProtocolAtlasScene.Box(0, 72, 8, 12, .2f, .2f, 0, dev.hoi.protocol.ProtocolAtlasScene.Material.DMZ),
+                    new dev.hoi.protocol.ProtocolAtlasScene.Box(0, 69, 8, 12, .2f, .2f, 0, dev.hoi.protocol.ProtocolAtlasScene.Material.RED))));
             });
             command.accept("time set midnight"); context.waitTicks(5); context.takeScreenshot("hoi-dmz-emissive-night");
             context.runOnClient(client -> MapSceneRenderer.clear()); command.accept("time set noon");
@@ -104,15 +104,15 @@ public final class MapSurfaceRenderChecks {
                 for(var entry:data.getAsJsonArray("relief")) {
                     var c=entry.getAsJsonArray();command.accept("setblock "+c.get(0).getAsInt()+" "+c.get(3).getAsInt()+" "+c.get(1).getAsInt()+" "+c.get(2).getAsString()+" strict");
                 }
-                var boxes=new java.util.ArrayList<dev.hoi.protocol.AtlasSceneProtocol.Box>();
+                var boxes=new java.util.ArrayList<dev.hoi.protocol.ProtocolAtlasScene.Box>();
                 for(var entry:data.getAsJsonArray("meshes")) {
-                    var b=entry.getAsJsonArray();boxes.add(new dev.hoi.protocol.AtlasSceneProtocol.Box(
+                    var b=entry.getAsJsonArray();boxes.add(new dev.hoi.protocol.ProtocolAtlasScene.Box(
                             b.get(0).getAsFloat(),b.get(1).getAsFloat(),b.get(2).getAsFloat(),b.get(3).getAsFloat(),b.get(4).getAsFloat(),b.get(5).getAsFloat(),b.get(6).getAsFloat(),
-                            dev.hoi.protocol.AtlasSceneProtocol.Material.valueOf(b.get(7).getAsString())));
+                            dev.hoi.protocol.ProtocolAtlasScene.Material.valueOf(b.get(7).getAsString())));
                 }
                 context.runOnClient(client->{
                     MapSceneRenderer.clear();var id=java.util.UUID.randomUUID();int count=(boxes.size()+1023)/1024;
-                    for(int i=0;i<count;i++)MapSceneRenderer.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(id,"minecraft:overworld",i,count,boxes.subList(i*1024,Math.min((i+1)*1024,boxes.size()))));
+                    for(int i=0;i<count;i++)MapSceneRenderer.receive(new dev.hoi.protocol.ProtocolAtlasScene.Page(id,"minecraft:overworld",i,count,boxes.subList(i*1024,Math.min((i+1)*1024,boxes.size()))));
                     if(MapSceneRenderer.tileCount()==0)throw new AssertionError("Static scene did not assemble");
                 });
 
@@ -136,11 +136,11 @@ public final class MapSurfaceRenderChecks {
                 var screenshot=context.takeScreenshot("hoi-atlas-"+mode.toLowerCase()+"-coasts");checkPixels(screenshot,false);
                 if(java.util.Set.of("ARMY","NAVY","AIR").contains(mode)) {
                     context.getInput().resizeWindow(2560,1440);
-                    var counters=new Gson().fromJson(data.get("unitCounters"),dev.hoi.protocol.UnitHudProtocol.Counter[].class);
+                    var counters=new Gson().fromJson(data.get("unitCounters"),dev.hoi.protocol.ProtocolUnitHud.Counter[].class);
                     if(counters.length==0)throw new AssertionError("Missing starting counters: "+mode);
                     for(var facility:data.getAsJsonArray("facilities"))summonFixtureModel(command,facility.getAsJsonArray(),false);
                     context.waitTicks(10);
-                    context.runOnClient(client->MapUnitHud.accept(new dev.hoi.protocol.UnitHudProtocol.Snapshot("minecraft:overworld",java.util.List.of(counters))));
+                    context.runOnClient(client->MapUnitHud.accept(new dev.hoi.protocol.ProtocolUnitHud.Snapshot("minecraft:overworld",java.util.List.of(counters))));
                     context.waitTicks(3);
                     context.takeScreenshot("hoi-starting-"+mode.toLowerCase()+"-gui2");
                     context.runOnClient(client->{
@@ -171,7 +171,7 @@ public final class MapSurfaceRenderChecks {
                 }
                 if(mode.equals("ARMY")) {
                     for(var facility:data.getAsJsonArray("facilities"))summonFixtureModel(command,facility.getAsJsonArray(),false);
-                    var city=boxes.stream().filter(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY).findFirst().orElseThrow();
+                    var city=boxes.stream().filter(b->b.material()==dev.hoi.protocol.ProtocolAtlasScene.Material.CITY).findFirst().orElseThrow();
                     double cityX=city.x()+city.sx()/2,cityZ=city.z()+city.sz()/2;
                     command.accept("tp @a "+cityX+" "+(city.y()+1)+" "+(cityZ-2.6)+" 0 35");
                     context.waitTicks(20);checkPixels(context.takeScreenshot("hoi-city-detail"),false);
@@ -266,27 +266,27 @@ public final class MapSurfaceRenderChecks {
         for(var entry:data.getAsJsonArray("relief")) {
             var c=entry.getAsJsonArray();command.accept("setblock "+c.get(0).getAsInt()+" "+c.get(3).getAsInt()+" "+c.get(1).getAsInt()+" "+c.get(2).getAsString()+" strict");
         }
-        var boxes=new java.util.ArrayList<dev.hoi.protocol.AtlasSceneProtocol.Box>();
+        var boxes=new java.util.ArrayList<dev.hoi.protocol.ProtocolAtlasScene.Box>();
         for(var entry:data.getAsJsonArray("meshes")) {
-            var b=entry.getAsJsonArray();boxes.add(new dev.hoi.protocol.AtlasSceneProtocol.Box(
+            var b=entry.getAsJsonArray();boxes.add(new dev.hoi.protocol.ProtocolAtlasScene.Box(
                     b.get(0).getAsFloat(),b.get(1).getAsFloat(),b.get(2).getAsFloat(),b.get(3).getAsFloat(),b.get(4).getAsFloat(),b.get(5).getAsFloat(),b.get(6).getAsFloat(),
-                    dev.hoi.protocol.AtlasSceneProtocol.Material.valueOf(b.get(7).getAsString())));
+                    dev.hoi.protocol.ProtocolAtlasScene.Material.valueOf(b.get(7).getAsString())));
         }
-        if(boxes.stream().filter(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.RED).count()!=routes)
+        if(boxes.stream().filter(b->b.material()==dev.hoi.protocol.ProtocolAtlasScene.Material.RED).count()!=routes)
             throw new AssertionError("Unexpected connection count in "+region);
         context.runOnClient(client->{
             var id=java.util.UUID.randomUUID();int count=(boxes.size()+1023)/1024;
-            for(int i=0;i<count;i++)MapSceneRenderer.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(id,"minecraft:overworld",i,count,boxes.subList(i*1024,Math.min((i+1)*1024,boxes.size()))));
+            for(int i=0;i<count;i++)MapSceneRenderer.receive(new dev.hoi.protocol.ProtocolAtlasScene.Page(id,"minecraft:overworld",i,count,boxes.subList(i*1024,Math.min((i+1)*1024,boxes.size()))));
         });
         for(var f:data.getAsJsonArray("facilities"))summonFixtureModel(command,f.getAsJsonArray(),false);
         var cityIds=new java.util.HashSet<Integer>();
         for(var city:data.getAsJsonArray("cities"))cityIds.add(city.getAsInt());
-        if(boxes.stream().filter(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY).count()!=cityIds.size())
+        if(boxes.stream().filter(b->b.material()==dev.hoi.protocol.ProtocolAtlasScene.Material.CITY).count()!=cityIds.size())
             throw new AssertionError("Current urban provinces must retain exactly one city model each");
         for(var v:data.getAsJsonArray("victories")) {
             var row=v.getAsJsonArray();summonFixtureModel(command,row,true);
             double x=row.get(1).getAsDouble(),z=row.get(3).getAsDouble();
-            if(cityIds.contains(row.get(0).getAsInt())&&boxes.stream().noneMatch(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY
+            if(cityIds.contains(row.get(0).getAsInt())&&boxes.stream().noneMatch(b->b.material()==dev.hoi.protocol.ProtocolAtlasScene.Material.CITY
                     &&Math.abs(b.x()+b.sx()/2-x)<.0001&&Math.abs(b.z()+b.sz()/2-z)<.0001))
                 throw new AssertionError("Victory marker lacks its centered city model");
         }
@@ -296,7 +296,7 @@ public final class MapSurfaceRenderChecks {
         command.accept("tp @a "+x+" "+(y+4)+" "+(z-8)+" 0 32");context.waitTicks(20);
         checkPixels(context.takeScreenshot("hoi-"+region+"-city-and-port"),false);
         if(beijing) {
-            if(boxes.stream().noneMatch(b->b.material()==dev.hoi.protocol.AtlasSceneProtocol.Material.CITY
+            if(boxes.stream().noneMatch(b->b.material()==dev.hoi.protocol.ProtocolAtlasScene.Material.CITY
                     &&Math.abs(b.x()+b.sx()/2-x)<.0001&&Math.abs(b.z()+b.sz()/2-z)<.0001))
                 throw new AssertionError("Beijing capital marker must have a centered city model");
             for(var entry:data.getAsJsonArray("capitalName"))
@@ -307,10 +307,10 @@ public final class MapSurfaceRenderChecks {
             context.waitTicks(20);context.takeScreenshot("hoi-beijing-city-gui2");
             command.accept("tp @a "+x+" "+(y+10)+" "+(z-14)+" 0 42");
             context.waitTicks(20);context.takeScreenshot("hoi-beijing-map-gui2");
-            dev.hoi.protocol.DialogView view;
+            dev.hoi.protocol.ProtocolDialogView view;
             try(var input=MapSurfaceRenderChecks.class.getResourceAsStream("/beijing-air-detail.json")) {
                 if(input==null)throw new AssertionError("Beijing server air report missing");
-                view=new Gson().fromJson(new String(input.readAllBytes(),StandardCharsets.UTF_8),dev.hoi.protocol.DialogView.class);
+                view=new Gson().fromJson(new String(input.readAllBytes(),StandardCharsets.UTF_8),dev.hoi.protocol.ProtocolDialogView.class);
             } catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
             command.accept("tp @a "+(x+13)+" "+(y+10)+" "+(z-14)+" 0 42");
             context.runOnClient(client->dev.hoi.client.screen.ScreenAirDetailChecks.show(view));
@@ -366,17 +366,17 @@ public final class MapSurfaceRenderChecks {
     private static void checkDistance(ClientGameTestContext context,java.util.function.Consumer<String> command) {
         context.runOnClient(client->{
             MapSceneRenderer.clear();
-            var boxes=new java.util.ArrayList<dev.hoi.protocol.AtlasSceneProtocol.Box>();
+            var boxes=new java.util.ArrayList<dev.hoi.protocol.ProtocolAtlasScene.Box>();
             int index=0;
-            for(var material:dev.hoi.protocol.AtlasSceneProtocol.Material.values()) {
-                boxes.add(new dev.hoi.protocol.AtlasSceneProtocol.Box(4+index++*2,70,8,1,1,1,0,material));
+            for(var material:dev.hoi.protocol.ProtocolAtlasScene.Material.values()) {
+                boxes.add(new dev.hoi.protocol.ProtocolAtlasScene.Box(4+index++*2,70,8,1,1,1,0,material));
             }
-            for(int i=0;i<256;i++)boxes.add(new dev.hoi.protocol.AtlasSceneProtocol.Box(
-                    512+(i%16)*32,70,512+(i/16)*32,1,1,1,0,dev.hoi.protocol.AtlasSceneProtocol.Material.BLACK));
-            MapSceneRenderer.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,boxes));
+            for(int i=0;i<256;i++)boxes.add(new dev.hoi.protocol.ProtocolAtlasScene.Box(
+                    512+(i%16)*32,70,512+(i/16)*32,1,1,1,0,dev.hoi.protocol.ProtocolAtlasScene.Material.BLACK));
+            MapSceneRenderer.receive(new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,boxes));
         });
         command.accept("tp @a 11 110 8 0 90");
-        context.waitFor(client->MapSceneRenderer.visibleTileCount()==dev.hoi.protocol.AtlasSceneProtocol.Material.values().length);
+        context.waitFor(client->MapSceneRenderer.visibleTileCount()==dev.hoi.protocol.ProtocolAtlasScene.Material.values().length);
         context.takeScreenshot("hoi-atlas-near-all-materials");
         var cached=new java.util.concurrent.atomic.AtomicReference<Object>();
         context.runOnClient(client->cached.set(sprites()));
@@ -387,25 +387,25 @@ public final class MapSurfaceRenderChecks {
         var reload=new java.util.concurrent.atomic.AtomicReference<java.util.concurrent.CompletableFuture<Void>>();
         context.runOnClient(client->reload.set(client.reloadResourcePacks()));
         context.waitFor(client->reload.get().isDone());reload.get().join();
-        context.waitFor(client->client.gui.overlay()==null&&MapSceneRenderer.visibleTileCount()==dev.hoi.protocol.AtlasSceneProtocol.Material.values().length&&sprites()!=null&&sprites()!=cached.get());
+        context.waitFor(client->client.gui.overlay()==null&&MapSceneRenderer.visibleTileCount()==dev.hoi.protocol.ProtocolAtlasScene.Material.values().length&&sprites()!=null&&sprites()!=cached.get());
         context.takeScreenshot("hoi-atlas-after-resource-reload");
         context.runOnClient(client->{
             if(MapSceneRenderer.examinedTileCount()>=MapSceneRenderer.tileCount()/4)
                 throw new AssertionError("Distance selection scanned distant tiles");
         });
         command.accept("tp @a 11 132 8 0 90");
-        context.waitFor(client->MapSceneRenderer.visibleTileCount()==dev.hoi.protocol.AtlasSceneProtocol.Material.values().length);
+        context.waitFor(client->MapSceneRenderer.visibleTileCount()==dev.hoi.protocol.ProtocolAtlasScene.Material.values().length);
         context.takeScreenshot("hoi-atlas-within-64-all-materials");
         command.accept("tp @a 11 140 8 0 90");
         context.waitFor(client->MapSceneRenderer.visibleTileCount()==0);
         context.takeScreenshot("hoi-atlas-far-hidden");
         command.accept("tp @a 11 110 8 0 90");
-        context.waitFor(client->MapSceneRenderer.visibleTileCount()==dev.hoi.protocol.AtlasSceneProtocol.Material.values().length);
+        context.waitFor(client->MapSceneRenderer.visibleTileCount()==dev.hoi.protocol.ProtocolAtlasScene.Material.values().length);
         context.takeScreenshot("hoi-atlas-return-near");
         context.runOnClient(client->{
             MapSceneRenderer.clear();
-            var longBox=new dev.hoi.protocol.AtlasSceneProtocol.Box(-512,70,8,1024,1,1,0,dev.hoi.protocol.AtlasSceneProtocol.Material.BLACK);
-            MapSceneRenderer.receive(new dev.hoi.protocol.AtlasSceneProtocol.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,java.util.List.of(longBox)));
+            var longBox=new dev.hoi.protocol.ProtocolAtlasScene.Box(-512,70,8,1024,1,1,0,dev.hoi.protocol.ProtocolAtlasScene.Material.BLACK);
+            MapSceneRenderer.receive(new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,java.util.List.of(longBox)));
         });
         context.waitFor(client->MapSceneRenderer.visibleTileCount()==1);
     }

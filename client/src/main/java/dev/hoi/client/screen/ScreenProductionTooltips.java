@@ -1,14 +1,14 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.protocol.IndustryView;
+import dev.hoi.protocol.ProtocolIndustryView;
 import java.util.Locale;
 
 final class ScreenProductionTooltips {
     private ScreenProductionTooltips() {}
-    static String modifier(IndustryView.Modifier modifier) {
+    static String modifier(ProtocolIndustryView.Modifier modifier) {
         return "§e"+modifier.name()+"§r\n"+modifier.detail();
     }
-    static String efficiency(IndustryView view,IndustryView.Line line) {
+    static String efficiency(ProtocolIndustryView view,ProtocolIndustryView.Line line) {
         var text=new StringBuilder("£prod_eff 생산 효율: §e").append(percent(line.efficiency(),2)).append("§r");
         var cap=view.modifiers().stream().filter(m->m.id().equals("cap")).findFirst();
         if(line.efficiencyGain()!=null&&cap.map(value->line.efficiency()+1e-12<value.value()).orElse(true))
@@ -25,18 +25,18 @@ final class ScreenProductionTooltips {
         cap.ifPresent(value->{int split=value.detail().lastIndexOf("\n\n");if(split>=0)text.append("\n\n").append(value.detail().substring(split+2));});
         return text.toString();
     }
-    private static String contributions(IndustryView.Modifier modifier) {
+    private static String contributions(ProtocolIndustryView.Modifier modifier) {
         int split=modifier.detail().lastIndexOf("\n\n");
         return split<0?"":modifier.detail().substring(0,split);
     }
-    static String equipment(IndustryView view,IndustryView.Line line,IndustryView.Equipment equipment) {
+    static String equipment(ProtocolIndustryView view,ProtocolIndustryView.Line line,ProtocolIndustryView.Equipment equipment) {
         var text=new StringBuilder("§e").append(equipment.name()).append("§r");
         if(equipment.familyName()!=null&&!equipment.familyName().equals(equipment.name()))text.append("\n§e").append(equipment.familyName()).append("§r");
-        text.append("\n\n일일 생산량: §e").append(dev.hoi.protocol.ProtocolNumbers.fixed(line.daily(), 2)).append("§r");
+        text.append("\n\n일일 생산량: §e").append(dev.hoi.protocol.ProtocolNumberBounds.fixed(line.daily(), 2)).append("§r");
         var models=view.equipment().stream().filter(e->e.group().equals(equipment.group())&&(equipment.family()==null?e.id().equals(equipment.id()):equipment.family().equals(e.family()))).toList();
         if(models.stream().allMatch(e->e.demand()!=null)) {
-            long demand=models.stream().mapToLong(IndustryView.Equipment::demand).sum();
-            long stock=models.stream().mapToLong(IndustryView.Equipment::stockpile).sum();
+            long demand=models.stream().mapToLong(ProtocolIndustryView.Equipment::demand).sum();
+            long stock=models.stream().mapToLong(ProtocolIndustryView.Equipment::stockpile).sum();
             text.append(demand<=stock?"\n현재로서는 수요가 §a충족§r된 상태입니다.":"\n충원 수요 부족: §c"+(demand-stock)+"§r");
         }
         dev.hoi.client.research.ResearchDetails.equipment(equipment.sourceEquipment()).ifPresent(card->{
@@ -44,11 +44,11 @@ final class ScreenProductionTooltips {
             card.effects().stream().filter(stat->!stat.startsWith("생산 비용:")).forEach(stat->text.append("\n").append(stat.replaceFirst(": (.*)",": §e$1§r")));
         });
         boolean conversion=line.conversion()!=null&&line.conversion().source()!=null;
-        text.append("\n생산 비용: §e").append(dev.hoi.protocol.ProtocolNumbers.fixed(conversion?line.conversion().cost():equipment.cost(), 2)).append("§r");
+        text.append("\n생산 비용: §e").append(dev.hoi.protocol.ProtocolNumberBounds.fixed(conversion?line.conversion().cost():equipment.cost(), 2)).append("§r");
         text.append("\n\n§e공장당 자원 사용:§r");
         var costs=conversion?line.conversion().resources():equipment.resources();
         for(var entry:new java.util.TreeMap<>(costs).entrySet())if(entry.getValue()>0) {
-            String label=view.resources().stream().filter(r->r.id().equals(entry.getKey())).map(IndustryView.Resource::name).findFirst().orElse(entry.getKey());
+            String label=view.resources().stream().filter(r->r.id().equals(entry.getKey())).map(ProtocolIndustryView.Resource::name).findFirst().orElse(entry.getKey());
             text.append("\n").append(label).append(": §e").append(java.math.BigDecimal.valueOf(entry.getValue()).stripTrailingZeros().toPlainString()).append("§r");
         }
         text.append("\n§a생산 장비를 변경하려면 클릭하십시오.");
@@ -57,6 +57,6 @@ final class ScreenProductionTooltips {
         return text.toString();
     }
     private static String percent(double value,int places) {
-        return dev.hoi.protocol.ProtocolNumbers.percent(value, places);
+        return dev.hoi.protocol.ProtocolNumberBounds.percent(value, places);
     }
 }

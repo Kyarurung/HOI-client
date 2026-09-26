@@ -1,15 +1,15 @@
 package dev.hoi.client.audio;
 
-import dev.hoi.protocol.AudioProtocol;
+import dev.hoi.protocol.ProtocolAudioPayloads;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import java.util.*;
 
 public final class AudioChecks {
     public static void run(ClientGameTestContext context) {
         context.runOnClient(client -> {
-            AudioProtocol.registerPayloadTypes();AudioProtocol.registerPayloadTypes();
+            ProtocolAudioPayloads.registerPayloadTypes();ProtocolAudioPayloads.registerPayloadTypes();
             var sounds=client.getSoundManager();var required=new HashSet<String>();
-            for(var cue:AudioProtocol.Cue.values()) if(!cue.sound().isEmpty())required.add(cue.sound());
+            for(var cue:ProtocolAudioPayloads.Cue.values()) if(!cue.sound().isEmpty())required.add(cue.sound());
             required.addAll(List.of("music.tfr_theme","ui.menu_tab","ui.click","ui.close","ui.research.select"));
             for(String c:List.of("infantry","support","artillery","armor","navy","air","engineering","industry"))required.add("ui.research.tab."+c);
             if (!AudioUiSounds.START_SOUNDS.equals(List.of("ui.game_start", "ui.game_start_signal")))
@@ -24,14 +24,14 @@ public final class AudioChecks {
                     || dev.hoi.client.ui.UiEffectColors.color(0xFFFFAA00) != 0xFFFFAA00)
                 throw new AssertionError("HUD effect palette preserves alpha and neutral colors");
             for(String event:required)if(sounds.getSoundEvent(AudioUiSounds.id(event))==null)throw new AssertionError("External sound is missing: "+event);
-            for(var cue:AudioProtocol.Cue.values()) {
+            for(var cue:ProtocolAudioPayloads.Cue.values()) {
                 var buffer=new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),net.minecraft.core.RegistryAccess.EMPTY);
                 try {
-                    var value=new AudioProtocol.Signal(cue);AudioProtocol.Signal.CODEC.encode(buffer,value);
-                    if(!value.equals(AudioProtocol.Signal.CODEC.decode(buffer))||buffer.readableBytes()!=0)throw new AssertionError("Audio cue codec");
+                    var value=new ProtocolAudioPayloads.Signal(cue);ProtocolAudioPayloads.Signal.CODEC.encode(buffer,value);
+                    if(!value.equals(ProtocolAudioPayloads.Signal.CODEC.decode(buffer))||buffer.readableBytes()!=0)throw new AssertionError("Audio cue codec");
                 } finally {buffer.release();}
             }
-            AudioUiSounds.receive(AudioProtocol.Cue.START);AudioUiSounds.reset();
+            AudioUiSounds.receive(ProtocolAudioPayloads.Cue.START);AudioUiSounds.reset();
         });
     }
 }

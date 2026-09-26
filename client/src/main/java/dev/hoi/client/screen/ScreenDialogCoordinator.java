@@ -11,7 +11,7 @@ import net.minecraft.client.gui.screens.Screen;
 import java.util.*;
 
 public final class ScreenDialogCoordinator {
-    private static final LinkedHashMap<String, DialogView> pending = new LinkedHashMap<>();
+    private static final LinkedHashMap<String, ProtocolDialogView> pending = new LinkedHashMap<>();
     private static ScreenDialogStack notifications;
     private static boolean suspending;
     public static boolean renderingContent() { return ScreenDialogStack.contentPass; }
@@ -27,7 +27,7 @@ public final class ScreenDialogCoordinator {
                 && !(screen instanceof ScreenDialog) && !(screen instanceof ScreenDialogStack);
     }
     private static boolean canOverlay(Screen screen) { return screen == null || screen instanceof ScreenDialog || screen instanceof ScreenDialogStack || menuScreen(screen); }
-    private static boolean notification(DialogView view) {
+    private static boolean notification(ProtocolDialogView view) {
         return view.completion() || switch (view.kind()) {
             case EVENT, GLOBAL_EVENT, SUPER_EVENT, DIPLOMACY -> true;
             default -> false;
@@ -35,10 +35,10 @@ public final class ScreenDialogCoordinator {
     }
     private ScreenDialogCoordinator() {}
     public static void register() {
-        DialogProtocol.registerPayloadTypes();
-        ClientPlayNetworking.registerGlobalReceiver(DialogProtocol.Show.TYPE, (p, c) -> receive(p));
-        ClientPlayNetworking.registerGlobalReceiver(DialogProtocol.Close.TYPE, (p, c) -> close(p.token()));
-        ClientPlayNetworking.registerGlobalReceiver(DialogProtocol.Details.TYPE, (p, c) -> details(p));
+        ProtocolDialogPayloads.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(ProtocolDialogPayloads.Show.TYPE, (p, c) -> receive(p));
+        ClientPlayNetworking.registerGlobalReceiver(ProtocolDialogPayloads.Close.TYPE, (p, c) -> close(p.token()));
+        ClientPlayNetworking.registerGlobalReceiver(ProtocolDialogPayloads.Details.TYPE, (p, c) -> details(p));
         ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> reset());
         ClientTickEvents.END_CLIENT_TICK.register(c -> {
             if (canOverlay(c.gui.screen())) {
@@ -58,13 +58,13 @@ public final class ScreenDialogCoordinator {
         var current = contentScreen();
         return current instanceof ScreenDialog screen && screen.view().token().equals(token) ? screen : null;
     }
-    static void receive(DialogProtocol.Show packet) {
-        DialogView view;
+    static void receive(ProtocolDialogPayloads.Show packet) {
+        ProtocolDialogView view;
         try { view = packet.view(); } catch (IllegalArgumentException error) { return; }
         var existing = find(view.token());
         if (existing != null) {
             if(view.revision()<existing.view().revision())return;
-            if(view.kind()==DialogView.Kind.STATE&&(existing instanceof ScreenAirDetail||existing instanceof ScreenMapDetail)
+            if(view.kind()==ProtocolDialogView.Kind.STATE&&(existing instanceof ScreenAirDetail||existing instanceof ScreenMapDetail)
                     &&(existing instanceof ScreenAirDetail)!=view.image().equals("air_detail/background"))show(view);
             else existing.update(view);
             return;
@@ -74,11 +74,11 @@ public final class ScreenDialogCoordinator {
         if (!packet.open()) { if (old != null) pending.put(view.token(), view); return; }
         if (pending.size() >= 64) return;
         pending.put(view.token(), view);
-        if(view.kind()==DialogView.Kind.SUPER_EVENT)AudioSuperEvent.play(view.token(),view.sound());
+        if(view.kind()==ProtocolDialogView.Kind.SUPER_EVENT)AudioSuperEvent.play(view.token(),view.sound());
         var client = Minecraft.getInstance();
         if (canOverlay(client.gui.screen()) || !notification(view) || view.completion() && client.level != null) show(view);
     }
-    static void details(DialogProtocol.Details packet) {
+    static void details(ProtocolDialogPayloads.Details packet) {
         var window = find(packet.token());
         if (window == null || !window.view().completion()) return;
         close(packet.token());
@@ -87,21 +87,21 @@ public final class ScreenDialogCoordinator {
         else if (packet.target().startsWith("source-focus/")) dev.hoi.client.network.NetworkScreens.openSourceFocusDetail(id);
         else dev.hoi.client.network.NetworkScreens.openFocusDetail(id);
     }
-    private static void show(DialogView view) {
+    private static void show(ProtocolDialogView view) {
         pending.remove(view.token());
         var client = Minecraft.getInstance();
         if (notification(view)) {
             if (notifications == null) notifications = new ScreenDialogStack(null);
             notifications.add(view);
             showNotifications();
-            if (view.kind() == DialogView.Kind.SUPER_EVENT) AudioSuperEvent.play(view.token(), view.sound());
+            if (view.kind() == ProtocolDialogView.Kind.SUPER_EVENT) AudioSuperEvent.play(view.token(), view.sound());
             else if (view.completion()) dev.hoi.client.audio.AudioUiSounds.play(
                     view.presentation().equals("research_complete") ? "ui.research.complete" : "ui.focus.complete");
         } else {
             HoiClient.cancelOpen();
             var parent = contentScreen();
             if (parent instanceof ScreenPoliticsChoice politics) parent = politics.backdrop();
-            var screen = view.kind() == DialogView.Kind.POLITICS ? new ScreenPoliticsChoice(view, parent) : view.kind() == DialogView.Kind.STATE ? (view.image().equals("air_detail/background") ? new ScreenAirDetail(view) : new ScreenMapDetail(view)) : new ScreenDialog(view);
+            var screen = view.kind() == ProtocolDialogView.Kind.POLITICS ? new ScreenPoliticsChoice(view, parent) : view.kind() == ProtocolDialogView.Kind.STATE ? (view.image().equals("air_detail/background") ? new ScreenAirDetail(view) : new ScreenMapDetail(view)) : new ScreenDialog(view);
             if (client.gui.screen() == notifications && notifications != null) {
                 notifications.backdrop(screen); screen.init(notifications.width, notifications.height);
             } else client.gui.setScreen(screen);
@@ -137,8 +137,8 @@ public final class ScreenDialogCoordinator {
             else client.gui.setScreen(null);
         }
     }
-    static void choose(DialogView view, String choice) {
-        if (!view.token().isEmpty() && ClientPlayNetworking.canSend(DialogProtocol.Action.TYPE))
-            ClientPlayNetworking.send(new DialogProtocol.Action(view.token(), view.revision(), choice));
+    static void choose(ProtocolDialogView view, String choice) {
+        if (!view.token().isEmpty() && ClientPlayNetworking.canSend(ProtocolDialogPayloads.Action.TYPE))
+            ClientPlayNetworking.send(new ProtocolDialogPayloads.Action(view.token(), view.revision(), choice));
     }
 }

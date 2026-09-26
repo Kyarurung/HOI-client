@@ -11,10 +11,10 @@ import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
 
-import dev.hoi.protocol.ResearchProtocol;
-import dev.hoi.protocol.ResearchView;
-import dev.hoi.protocol.ResearchView.Tech;
-import dev.hoi.protocol.MenuTab;
+import dev.hoi.protocol.ProtocolResearchPayloads;
+import dev.hoi.protocol.ProtocolResearchView;
+import dev.hoi.protocol.ProtocolResearchView.Tech;
+import dev.hoi.protocol.ProtocolMenuTab;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -31,7 +31,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     private static final String[] CATEGORIES = {"INFANTRY", "SUPPORT", "ARMOR", "ARTILLERY", "NAVY", "NAVAL_SUPPORT", "AIR", "ENGINEERING", "INDUSTRY"};
     private static final String[] LABELS = {"보병", "지상 & 항공 지원", "기갑", "포", "해군", "해군 지원 장비", "공군", "공학", "산업"};
     private static final int GOLD = 0xFFFFAA00, TEXT = 0xFFE0E6E8, MUTED = 0xFF9BABB4;
-    private ResearchView view;
+    private ProtocolResearchView view;
     private ResearchLayout layout;
     private List<ResearchSourceLayout.ResearchConnection> referenceConnections = List.of();
     private List<ResearchTreeLabels.ResearchLabel> referenceLabels = List.of();
@@ -39,19 +39,19 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     private int selectedSlot, slotOffset, treeTop, treeBottom, treePadding, panelX, panelY, panelW, panelH, detailScroll, pending, hudScroll;
     private double scrollX, scrollY;
     private boolean panning, overview = true;
-    private final java.util.function.Consumer<ResearchProtocol.Request> requests;
-    private final java.util.function.Consumer<MenuTab> menus;
+    private final java.util.function.Consumer<ProtocolResearchPayloads.Request> requests;
+    private final java.util.function.Consumer<ProtocolMenuTab> menus;
     private final List<Button> baseButtons = new ArrayList<>();
 
-    public ResearchScreen(ResearchView view) { this(view, HoiClient::send); }
-    public ResearchScreen(ResearchView view, java.util.function.Consumer<ResearchProtocol.Request> requests) {
+    public ResearchScreen(ProtocolResearchView view) { this(view, HoiClient::send); }
+    public ResearchScreen(ProtocolResearchView view, java.util.function.Consumer<ProtocolResearchPayloads.Request> requests) {
         this(view, requests, HoiClient::openMenu);
     }
-    public ResearchScreen(ResearchView view, java.util.function.Consumer<ResearchProtocol.Request> requests, java.util.function.Consumer<MenuTab> menus) {
+    public ResearchScreen(ProtocolResearchView view, java.util.function.Consumer<ProtocolResearchPayloads.Request> requests, java.util.function.Consumer<ProtocolMenuTab> menus) {
         super(Component.literal("HOI · 연구")); this.view = view; this.requests = requests; this.menus = menus;
     }
     public String session() { return view.session(); }
-    public void update(ResearchView next) {
+    public void update(ProtocolResearchView next) {
         if (!next.session().equals(view.session())) return;
         if (!next.country().equals(view.country())) { minecraft.gui.setScreen(null); return; }
         if (next.revision() <= view.revision()) return;
@@ -63,8 +63,8 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     @Override protected void init() {
         if (!overview) InputSidebarMovement.release(minecraft);
         clearWidgets(); baseButtons.clear();
-        UiMenuBar.buttons(width, view.country(), MenuTab.RESEARCH, tab -> {
-            if (tab == MenuTab.RESEARCH) { HoiClient.cancelOpen(); overview = true; detail = null; rebuildWidgets(); }
+        UiMenuBar.buttons(width, view.country(), ProtocolMenuTab.RESEARCH, tab -> {
+            if (tab == ProtocolMenuTab.RESEARCH) { HoiClient.cancelOpen(); overview = true; detail = null; rebuildWidgets(); }
             else menus.accept(tab);
         }).forEach(this::addRenderableWidget);
         if (overview) { initOverview(); return; }
@@ -84,7 +84,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     public int treeTop() { return treeTop; }
     private int visibleSlots() { return 6; }
     private int menuBottom() { return UiMenuBar.height(width); }
-    private int overviewWidth() { return UiPanelLayout.width(MenuTab.RESEARCH, width); }
+    private int overviewWidth() { return UiPanelLayout.width(ProtocolMenuTab.RESEARCH, width); }
     private int slotPitch() { return Math.min(54, Math.max(17, (height - slotsTop() - 8) / visibleSlots())); }
     private int bannerHeight() { return Math.max(1, Math.min((overviewWidth() - 12) * 138 / 532, height - menuBottom() - 80 - visibleSlots() * 17)); }
     private int slotsTop() { return menuBottom() + 72 + bannerHeight(); }
@@ -138,7 +138,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         overview = false; category = ResearchLayout.category(target);
         AudioUiSounds.play("ui.research.select");
         var chosen=view.technology(id); int free=view.availableSlot(selectedSlot);
-        if(chosen!=null&&chosen.status()==ResearchView.Status.AVAILABLE&&free>=0) selectedSlot=free;
+        if(chosen!=null&&chosen.status()==ProtocolResearchView.Status.AVAILABLE&&free>=0) selectedSlot=free;
         detail = id; focusedTech = id; detailScroll = 0; rebuildWidgets();
         layout.nodes().stream().filter(n -> n.tech().id().equals(id)).findFirst().ifPresent(n -> {
             scrollX = n.x() - (width - 20 - n.width()) / 2.0;
@@ -154,14 +154,14 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         var tech = view.technology(detail);
         button("×", panelX + panelW - 28, panelY + 8, 20, 20, () -> { detail = null; rebuildWidgets(); });
         var activeSlot = view.slots().stream().filter(s -> s.technology().equals(detail)).findFirst();
-        String action = tech.status() == ResearchView.Status.ACTIVE ? "연구 중단"
-                : tech.status() == ResearchView.Status.COMPLETED ? "연구 완료"
-                : tech.status() == ResearchView.Status.LOCKED ? "선행 연구 필요"
+        String action = tech.status() == ProtocolResearchView.Status.ACTIVE ? "연구 중단"
+                : tech.status() == ProtocolResearchView.Status.COMPLETED ? "연구 완료"
+                : tech.status() == ProtocolResearchView.Status.LOCKED ? "선행 연구 필요"
                 : view.availableSlot(selectedSlot)>=0 ? "연구" : "빈 슬롯 필요";
         var start = button(pending > 0 ? "응답 대기…" : action, panelX + panelW - 104, panelY + 37, 90, 22, () -> {
             pending = 100;
-            requests.accept(new ResearchProtocol.Request(activeSlot.isPresent() ? ResearchProtocol.Action.CANCEL : ResearchProtocol.Action.START,
-                    view.session(), view.revision(), activeSlot.map(ResearchView.Slot::index).orElse(view.availableSlot(selectedSlot)), detail));
+            requests.accept(new ProtocolResearchPayloads.Request(activeSlot.isPresent() ? ProtocolResearchPayloads.Action.CANCEL : ProtocolResearchPayloads.Action.START,
+                    view.session(), view.revision(), activeSlot.map(ProtocolResearchView.Slot::index).orElse(view.availableSlot(selectedSlot)), detail));
             detail = null;
             overview = true;
             rebuildWidgets();
@@ -180,7 +180,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
                 }
             }).setTooltip(dev.hoi.client.ui.UiTooltips.create(tooltip));
         }
-        start.active = pending == 0 && (activeSlot.isPresent() || tech.status() == ResearchView.Status.AVAILABLE
+        start.active = pending == 0 && (activeSlot.isPresent() || tech.status() == ProtocolResearchView.Status.AVAILABLE
                 && view.availableSlot(selectedSlot)>=0);
     }
     @Override public void tick() { if (pending > 0 && --pending == 0) rebuildWidgets(); }
@@ -190,10 +190,10 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         g.fill(10, treeTop, width - 10, treeBottom, 0xFF101A21);
         g.outline(10, treeTop, width - 20, treeBottom - treeTop, 0xFF778178);
         drawTree(g, mouseX, mouseY);
-        g.text(font, "완료", 12, height - 24, color(ResearchView.Status.COMPLETED));
-        g.text(font, "가능", 44, height - 24, color(ResearchView.Status.AVAILABLE));
-        g.text(font, "진행", 76, height - 24, color(ResearchView.Status.ACTIVE));
-        g.text(font, "잠김", 108, height - 24, color(ResearchView.Status.LOCKED));
+        g.text(font, "완료", 12, height - 24, color(ProtocolResearchView.Status.COMPLETED));
+        g.text(font, "가능", 44, height - 24, color(ProtocolResearchView.Status.AVAILABLE));
+        g.text(font, "진행", 76, height - 24, color(ProtocolResearchView.Status.ACTIVE));
+        g.text(font, "잠김", 108, height - 24, color(ProtocolResearchView.Status.LOCKED));
         if (detail != null) g.text(font, trim(view.message().isEmpty() ? "휠: 세로  ·  가로 휠/우클릭 드래그: 이동  ·  방향키/Enter: 기술 선택" : view.message(), width - 24), 12, height - 12, MUTED);
         if (detail != null) drawDetail(g);
         UiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll);
@@ -210,7 +210,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         g.outline(6, bannerY, pane - 12, bannerHeight(), 0xFFA070B5);
         researchIndicator(g,"제한된 혜택:","research/limited_benefits",Integer.toString(view.benefits().remainingUses()),12,slotsTop()-33,pane/2-18,GOLD,false);
         double researchSpeed=view.benefits().researchSpeed();
-        researchIndicator(g,"연구 속도:","research/speed",dev.hoi.protocol.ProtocolNumbers.signedPercent(researchSpeed, 0),pane/2+6,slotsTop()-33,pane/2-18,0xFF000000 | (researchSpeed>=0?dev.hoi.client.ui.UiTooltips.GOOD:dev.hoi.client.ui.UiTooltips.BAD),true);
+        researchIndicator(g,"연구 속도:","research/speed",dev.hoi.protocol.ProtocolNumberBounds.signedPercent(researchSpeed, 0),pane/2+6,slotsTop()-33,pane/2-18,0xFF000000 | (researchSpeed>=0?dev.hoi.client.ui.UiTooltips.GOOD:dev.hoi.client.ui.UiTooltips.BAD),true);
     }
     private void researchIndicator(GuiGraphicsExtractor g,String label,String icon,String value,int x,int y,int max,int color,boolean right) {
         int natural=font.width(label)+15+font.width(value);
@@ -248,14 +248,14 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
                 x1=(int)(10+parent.x()+parent.width()/2-scrollX);y1=(int)(treeTop+parent.y()+parent.height()-scrollY);
                 x2=(int)(10+node.x()+node.width()/2-scrollX);y2=(int)(treeTop+node.y()-scrollY);
                 int midY=(y1+y2)/2;
-                int tint=parent.tech().status()==ResearchView.Status.COMPLETED?0xFF567D57:0xFF49525A;
+                int tint=parent.tech().status()==ProtocolResearchView.Status.COMPLETED?0xFF567D57:0xFF49525A;
                 g.fill(x1,Math.min(y1,midY),x1+2,Math.max(y1,midY)+2,tint);
                 g.fill(Math.min(x1,x2),midY,Math.max(x1,x2)+2,midY+2,tint);
                 g.fill(x2,Math.min(midY,y2),x2+2,Math.max(midY,y2)+2,tint);
                 continue;
             }
             int mid = Math.max(x1 + 10, (x1 + x2) / 2);
-            int line = parent.tech().status() == ResearchView.Status.COMPLETED ? 0xFF567D57 : 0xFF49525A;
+            int line = parent.tech().status() == ProtocolResearchView.Status.COMPLETED ? 0xFF567D57 : 0xFF49525A;
             g.fill(Math.min(x1, mid), y1, Math.max(x1, mid) + 2, y1 + 2, line);
             g.fill(mid, Math.min(y1, y2), mid + 2, Math.max(y1, y2) + 2, line);
             g.fill(Math.min(mid, x2), y2, Math.max(mid, x2) + 2, y2 + 2, line);
@@ -275,7 +275,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
                 int size=subTechnologySize(n);
                 drawSubTechnology(g,child,x+cardW-size,y,size);
             }
-            if (tech.status() == ResearchView.Status.ACTIVE) {
+            if (tech.status() == ProtocolResearchView.Status.ACTIVE) {
                 g.fill(x + 2, y + cardH - 4, x + cardW - 2, y + cardH - 1, 0xFF0D151A);
                 g.fill(x + 2, y + cardH - 4, x + 2 + (int)((cardW - 4) * tech.fraction()), y + cardH - 1, color(tech.status()));
             }
@@ -325,7 +325,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         String state=switch(tech.status()) { case COMPLETED->"researched";case AVAILABLE,ACTIVE->"available";default->"unavailable"; };
         UiAssets.draw(g,"research/subtechnology/"+state,x,y,size,size);
         UiAssets.draw(g,"research/subtechnology/"+(tech.category().equals("NAVY")?"battlecruiser":"rocket"),x,y,size,size);
-        if(tech.status()==ResearchView.Status.ACTIVE)g.outline(x,y,size,size,color(tech.status()));
+        if(tech.status()==ProtocolResearchView.Status.ACTIVE)g.outline(x,y,size,size,color(tech.status()));
     }
     private void drawReferenceCaptions(GuiGraphicsExtractor g) {
         g.nextStratum();
@@ -357,7 +357,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             g.outline(x,y,group.width(),group.height(),0xFF9F8153);
         }
         for (var connection : referenceConnections) {
-            int tint = connection.parent().status() == ResearchView.Status.COMPLETED ? 0xFF567D57 : 0xFF49525A;
+            int tint = connection.parent().status() == ProtocolResearchView.Status.COMPLETED ? 0xFF567D57 : 0xFF49525A;
             for (var segment : connection.segments()) {
                 int x1 = (int)(10 + segment.x1() - scrollX), y1 = (int)(treeTop + segment.y1() - scrollY);
                 int x2 = (int)(10 + segment.x2() - scrollX), y2 = (int)(treeTop + segment.y2() - scrollY);
@@ -382,7 +382,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         UiAssets.technology(g, view.country(), tech, panelX + 12, panelY + 39, 52, 37, GOLD);
         g.fill(panelX + 70, panelY + 37, panelX + panelW - 110, panelY + 59, 0xFF0C1014);
         int bank = view.slots().stream().filter(slot -> slot.technology().equals(tech.id())).findFirst()
-                .map(ResearchView.Slot::savedDays).orElse(view.slots().get(selectedSlot).savedDays());
+                .map(ProtocolResearchView.Slot::savedDays).orElse(view.slots().get(selectedSlot).savedDays());
         g.centeredText(font, tech.remainingDays(bank) + "일", panelX + (70 + panelW - 110) / 2, panelY + 44, GOLD);
         g.text(font, status(tech.status()) + " · " + tech.year() + "년", panelX + 70, panelY + 65, MUTED);
         int contentHeight = panelH - 100;
@@ -479,12 +479,12 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (tech.source() != null && !tech.source().anyOf().isEmpty()
                 && tech.source().anyOf().stream().noneMatch(this::completed))
             missing.add(String.join(" 또는 ", tech.source().anyOf().stream().map(this::technologyName).toList()));
-        if (tech.status() != ResearchView.Status.COMPLETED && !missing.isEmpty())
+        if (tech.status() != ProtocolResearchView.Status.COMPLETED && !missing.isEmpty())
             lines.add(Component.literal("기술 필요 (" + String.join(", ", missing) + ")").withStyle(net.minecraft.ChatFormatting.DARK_RED));
-        if (tech.status() == ResearchView.Status.COMPLETED) lines.add(Component.literal("연구됨").withStyle(net.minecraft.ChatFormatting.GREEN));
+        if (tech.status() == ProtocolResearchView.Status.COMPLETED) lines.add(Component.literal("연구됨").withStyle(net.minecraft.ChatFormatting.GREEN));
         else {
             int bank = view.slots().stream().filter(s -> s.technology().equals(tech.id())).findFirst()
-                    .map(ResearchView.Slot::savedDays).orElse(view.slots().get(selectedSlot).savedDays());
+                    .map(ProtocolResearchView.Slot::savedDays).orElse(view.slots().get(selectedSlot).savedDays());
             lines.add(ResearchText.white("연구 시간: ").append(ResearchText.gold(Long.toString(tech.remainingDays(bank)))).append(ResearchText.white("일")));
             var date = java.time.LocalDate.of(2020, 1, 1).plusDays(view.day());
             double years = Math.max(0, tech.year() - (date.getYear() + (date.getDayOfYear() - 1.0) / date.lengthOfYear()));
@@ -501,11 +501,11 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         }
         return lines;
     }
-    private boolean completed(String id) { var tech = view.technology(id); return tech != null && tech.status() == ResearchView.Status.COMPLETED; }
+    private boolean completed(String id) { var tech = view.technology(id); return tech != null && tech.status() == ProtocolResearchView.Status.COMPLETED; }
     private String technologyName(String id) { var tech = view.technology(id); return tech == null ? id : tech.name(); }
     private String researchName(String id) {
         var t=view.technology(id);
-        return (t!=null&&t.status()==ResearchView.Status.COMPLETED?"✓ ":"○ ")+(t==null?id:t.name());
+        return (t!=null&&t.status()==ProtocolResearchView.Status.COMPLETED?"✓ ":"○ ")+(t==null?id:t.name());
     }
     private boolean insideTree(double x, double y) { return !overview && x >= 10 && x < width - 10 && y >= treeTop && y < treeBottom; }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
@@ -562,14 +562,14 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     }
     @Override public int unitHudLeft(){return overviewWidth();}
     @Override public boolean allowsMovement() { return overview && detail == null; }
-    @Override public void removed() { InputSidebarMovement.release(minecraft); if (ScreenDialogCoordinator.suspending()) return; requests.accept(new ResearchProtocol.Request(ResearchProtocol.Action.CLOSE, view.session(), 0, -1, "")); }
+    @Override public void removed() { InputSidebarMovement.release(minecraft); if (ScreenDialogCoordinator.suspending()) return; requests.accept(new ProtocolResearchPayloads.Request(ProtocolResearchPayloads.Action.CLOSE, view.session(), 0, -1, "")); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private String trim(String value, int max) { return font.width(value) <= max ? value : font.plainSubstrByWidth(value, Math.max(1, max - font.width("…"))) + "…"; }
-    private static String status(ResearchView.Status status) {
+    private static String status(ProtocolResearchView.Status status) {
         return switch (status) { case LOCKED -> "잠김"; case AVAILABLE -> "연구 가능"; case ACTIVE -> "연구 중"; case COMPLETED -> "연구 완료"; };
     }
-    private static int color(ResearchView.Status status) {
+    private static int color(ProtocolResearchView.Status status) {
         return switch (status) { case LOCKED -> 0xFF77838C; case AVAILABLE -> GOLD; case ACTIVE -> 0xFF74BCD8; case COMPLETED -> 0xFF8DBD81; };
     }
 }

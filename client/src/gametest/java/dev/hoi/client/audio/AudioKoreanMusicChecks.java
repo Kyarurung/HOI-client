@@ -5,7 +5,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 
 public final class AudioKoreanMusicChecks {
-    public static void run(ClientGameTestContext context, dev.hoi.protocol.MenuView menu) {
+    public static void run(ClientGameTestContext context, dev.hoi.protocol.ProtocolMenuView menu) {
         double[] previousMusic=new double[1];
         context.runOnClient(client -> {
             previousMusic[0]=client.options.getSoundSourceVolume(net.minecraft.sounds.SoundSource.MUSIC);
@@ -38,7 +38,7 @@ public final class AudioKoreanMusicChecks {
                     var button=screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("TFR Korea Plus ON/OFF")).map(w -> (Button)w).findFirst().orElseThrow();
                     screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX()+10,button.getY()+10,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
                     if(AudioKoreanMusic.stationEnabled()||AudioKoreanMusic.PLAYBACK.requested())throw new AssertionError("Station OFF stops playlist");
-                    AudioUiSounds.receive(dev.hoi.protocol.AudioProtocol.Cue.MAP_NAVY);
+                    AudioUiSounds.receive(dev.hoi.protocol.ProtocolAudioPayloads.Cue.MAP_NAVY);
                     if(AudioKoreanMusic.stationEnabled()||AudioKoreanMusic.PLAYBACK.requested())throw new AssertionError("Map switch preserves station OFF");
                 });
                 context.getInput().setCursorPos(1500,950);context.waitTicks(3);
@@ -50,7 +50,7 @@ public final class AudioKoreanMusicChecks {
                 context.runOnClient(client -> {
                     var button=client.gui.screen().children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("일시정지")).map(w -> (Button)w).findFirst().orElseThrow();
                     button.onPress(new net.minecraft.client.input.MouseButtonEvent(button.getX()+2,button.getY()+2,new net.minecraft.client.input.MouseButtonInfo(0,0)));
-                    AudioUiSounds.receive(dev.hoi.protocol.AudioProtocol.Cue.MAP_ARMY);
+                    AudioUiSounds.receive(dev.hoi.protocol.ProtocolAudioPayloads.Cue.MAP_ARMY);
                     if(!AudioKoreanMusic.PLAYBACK.paused())throw new AssertionError("Pause control and map switch must preserve the paused stream");
                 });
                 context.waitTicks(25);
@@ -141,7 +141,7 @@ public final class AudioKoreanMusicChecks {
             client.gui.screen().onClose();
             client.getSoundManager().resume();
             AudioKoreanMusic.enable();
-            AudioUiSounds.receive(dev.hoi.protocol.AudioProtocol.Cue.MAP_NAVY);
+            AudioUiSounds.receive(dev.hoi.protocol.ProtocolAudioPayloads.Cue.MAP_NAVY);
         });
         context.waitTicks(25);
         context.runOnClient(client -> {

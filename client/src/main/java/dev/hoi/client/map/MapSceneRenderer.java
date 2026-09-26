@@ -1,8 +1,8 @@
 package dev.hoi.client.map;
 
-import dev.hoi.protocol.AtlasSceneProtocol;
-import dev.hoi.protocol.AtlasVisibility;
-import dev.hoi.protocol.AtlasSceneProtocol.Material;
+import dev.hoi.protocol.ProtocolAtlasScene;
+import dev.hoi.protocol.ProtocolAtlasVisibility;
+import dev.hoi.protocol.ProtocolAtlasScene.Material;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -45,12 +45,12 @@ public final class MapSceneRenderer {
     private record MapRenderFrame(List<MapTile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city) {}
 
     public static void register() {
-        AtlasSceneProtocol.registerPayloadTypes();
-        ClientPlayNetworking.registerGlobalReceiver(AtlasSceneProtocol.Page.TYPE, (page, context) -> {
-            if (receive(page)) ClientPlayNetworking.send(new AtlasSceneProtocol.Ready(page.scene()));
+        ProtocolAtlasScene.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(ProtocolAtlasScene.Page.TYPE, (page, context) -> {
+            if (receive(page)) ClientPlayNetworking.send(new ProtocolAtlasScene.Ready(page.scene()));
         });
-        dev.hoi.protocol.IndustryProtocol.registerPayloadTypes();
-        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.IndustryProtocol.DeploymentOverlay.TYPE, (packet, context) -> {
+        dev.hoi.protocol.ProtocolIndustryPayloads.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolIndustryPayloads.DeploymentOverlay.TYPE, (packet, context) -> {
             if (!(context.client().gui.screen() instanceof dev.hoi.client.screen.ScreenIndustry screen) || !screen.acceptsDeploymentOverlay(packet.session(), packet.revision())) return;
             var boxes = DEPLOYMENT.accept(packet.page());
             if (boxes != null) deployment = MapSceneMesh.build(packet.page().dimension(), boxes);
@@ -86,7 +86,7 @@ public final class MapSceneRenderer {
         LevelRenderEvents.COLLECT_SUBMITS.register(MapSceneRenderer::draw);
     }
 
-    static boolean receive(AtlasSceneProtocol.Page page) {
+    static boolean receive(ProtocolAtlasScene.Page page) {
         var complete = ASSEMBLER.accept(page);
         if (complete == null) return false;
         active = MapSceneMesh.build(page.dimension(), complete); return true;
@@ -105,7 +105,7 @@ public final class MapSceneRenderer {
         for (var tile : frame.tiles()) {
             if (tile.material() == Material.CITY) {
                 for (var box : tile.cities()) {
-                    if(camera.distanceToSqr(box.x()+box.sx()/2,box.y()+box.sy()/2,box.z()+box.sz()/2)>AtlasVisibility.DETAIL_RANGE*AtlasVisibility.DETAIL_RANGE)continue;
+                    if(camera.distanceToSqr(box.x()+box.sx()/2,box.y()+box.sy()/2,box.z()+box.sz()/2)>ProtocolAtlasVisibility.DETAIL_RANGE*ProtocolAtlasVisibility.DETAIL_RANGE)continue;
                     pose.pushPose(); pose.translate(box.x()+box.sx()/2,box.y()+box.sy()/2,box.z()+box.sz()/2); pose.scale(box.sx(),box.sy(),box.sz());
                     frame.city().submit(pose,context.submitNodeCollector(),15728880,net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY,0);
                     pose.popPose();

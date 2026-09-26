@@ -12,8 +12,8 @@ import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiText;
 
 import dev.hoi.protocol.*;
-import dev.hoi.protocol.IndustryView.*;
-import static dev.hoi.protocol.IndustryProtocol.Action.*;
+import dev.hoi.protocol.ProtocolIndustryView.*;
+import static dev.hoi.protocol.ProtocolIndustryPayloads.Action.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -29,13 +29,13 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private static final int TEXT = UiMenuStyle.TEXT, MUTED = UiMenuStyle.MUTED;
     private static final int GOOD = 0xFF000000 | UiTooltips.GOOD, BAD = 0xFF000000 | UiTooltips.BAD, GOLD = 0xFF000000 | UiTooltips.GOLD;
     private final String token;
-    private final Consumer<IndustryProtocol.Request> transport;
-    private MenuTab tab;
-    private IndustryView view;
+    private final Consumer<ProtocolIndustryPayloads.Request> transport;
+    private ProtocolMenuTab tab;
+    private ProtocolIndustryView view;
     private final Map<String,Equipment> equipmentById=new HashMap<>();
     private final Map<String,Equipment> equipmentBySource=new HashMap<>();
     private final Map<String,String> navalFamilyByTexture=new HashMap<>();
-    private final Map<String,TankDesignerView.Slot> designSlots=new HashMap<>();
+    private final Map<String,ProtocolTankDesigner.Slot> designSlots=new HashMap<>();
     private final Map<String,Template> templatesById=new HashMap<>();
     private final Map<String,NavalRepair> repairShipsById=new HashMap<>();
     private List<Equipment> productionItems=List.of(),navalTypes=List.of();
@@ -67,27 +67,27 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private GuiGraphicsExtractor graphics;
     private int mouseX, mouseY;
 
-    public ScreenIndustry(MenuTab tab) {
+    public ScreenIndustry(ProtocolMenuTab tab) {
         this(tab, UUID.randomUUID().toString(), null, request -> {
-            if (ClientPlayNetworking.canSend(IndustryProtocol.Request.TYPE)) ClientPlayNetworking.send(request);
+            if (ClientPlayNetworking.canSend(ProtocolIndustryPayloads.Request.TYPE)) ClientPlayNetworking.send(request);
         });
     }
-    public ScreenIndustry(MenuTab tab, String token, IndustryView fixture, Consumer<IndustryProtocol.Request> transport) {
+    public ScreenIndustry(ProtocolMenuTab tab, String token, ProtocolIndustryView fixture, Consumer<ProtocolIndustryPayloads.Request> transport) {
         super(Component.literal(title(tab)));
         this.tab = tab; this.token = token; this.view = fixture; this.transport = transport;
         indexView();
         if(fixture!=null&&fixture.tankDesigner()!=null)tankName=fixture.tankDesigner().name();
 
     }
-    public static boolean supports(MenuTab tab) {
-        return tab == MenuTab.PRODUCTION || tab == MenuTab.TRADE || tab == MenuTab.LOGISTICS || tab == MenuTab.RECRUITMENT;
+    public static boolean supports(ProtocolMenuTab tab) {
+        return tab == ProtocolMenuTab.PRODUCTION || tab == ProtocolMenuTab.TRADE || tab == ProtocolMenuTab.LOGISTICS || tab == ProtocolMenuTab.RECRUITMENT;
     }
-    private static String title(MenuTab tab) {
+    private static String title(ProtocolMenuTab tab) {
         return switch (tab) { case PRODUCTION -> "생산"; case TRADE -> "경제 · 무역";
             case LOGISTICS -> "군수"; case RECRUITMENT -> "모병 및 배치"; default -> "산업"; };
     }
     public void open() { send(OPEN, "", "", 0); }
-    public void update(IndustryView next) {
+    public void update(ProtocolIndustryView next) {
         if (closed || !next.session().equals(token)) return;
         if (next.country().isEmpty() || view != null && !next.country().equals(view.country())) {
             closed = true; minecraft.gui.setScreen(null);
@@ -145,7 +145,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private int rightWidth() { return Math.min(Math.max(176, width * 380 / 2560), width - pane - 8); }
     private boolean modal() { return tankDesigner() || designer || !picker.isEmpty() || !partner.isEmpty(); }
     private int productionPickerWidth() { return Math.min(width-16,Math.max(196,Math.round(pane*(picker.equals("repairs")?444f:495f)/550))); }
-    private boolean dockedProductionPicker() { return !tankDesigner() && tab==MenuTab.PRODUCTION && (picker.equals("equipment")||picker.equals("repairs")) && width-pane>=productionPickerWidth()+4; }
+    private boolean dockedProductionPicker() { return !tankDesigner() && tab==ProtocolMenuTab.PRODUCTION && (picker.equals("equipment")||picker.equals("repairs")) && width-pane>=productionPickerWidth()+4; }
     @Override protected void rebuildWidgets() {
         var focused = getFocused();
         super.rebuildWidgets();
@@ -158,7 +158,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if (selectingDeployment) return;
         UiMenuBar.buttons(width, view == null ? "" : view.country(), tab, next -> {
             if (next == tab) return;
-            if (next == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(next);
+            if (next == ProtocolMenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(next);
         }).forEach(this::addRenderableWidget);
         if (!modal() || dockedProductionPicker()) button("닫기", "×", pane - 25, top + 3, 19, 19, true, this::onClose);
         if (view != null) {
@@ -318,7 +318,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private void productionStock(Equipment equipment, int x, int y, int w, int h) {
         if(graphics!=null)return;
         var button=new UiPanelButton(equipment.name()+" · 재고량 · 군수 보기",x,y,w,h,()->{
-            tab=MenuTab.LOGISTICS; logisticsEquipment=equipment.id(); scroll=0;
+            tab=ProtocolMenuTab.LOGISTICS; logisticsEquipment=equipment.id(); scroll=0;
             var rows=ScreenLogisticsRows.create(view.equipment(),view.lines(),"all");
             for(int i=0;i<rows.size();i++)if(rows.get(i).models().stream().anyMatch(e->e.id().equals(logisticsEquipment))) {scroll=i*39;break;}
             rebuildWidgets();
@@ -510,7 +510,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 tip(resourceName(resource.getKey()) + ": " + decimal(resource.getValue()), resourceX + n % 3 * size, resourceY + n / 3 * size, size, size);
                 n++;
             }
-            tip("평균 생산 효율: " + (row.efficiency() == null ? "—" : ProtocolNumbers.percent(row.efficiency(), 1)), cols[0], y, cols[1] - cols[0], h);
+            tip("평균 생산 효율: " + (row.efficiency() == null ? "—" : ProtocolNumberBounds.percent(row.efficiency(), 1)), cols[0], y, cols[1] - cols[0], h);
             tip(row.supplyDetail(), cols[3], y, cols[6] - cols[3], h);
             tip(familyName(e) + "\n충원에 추가로 필요한 수량: " + row.deficit() + "\n\n" + row.models().stream().map(model -> model.name() + "\n보관 재고: " + model.stockpile()
                     + "\n훈련에 지급: " + model.reserved() + "\n배치 부대 보유: " + model.deployed()
@@ -559,7 +559,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         for (int j = 0; !compact() && j < labels.length; j++) cellText(labels[j], 8, top + 102 + j * 13, labelWidth - 4, 12, MUTED, true);
         int heading = top + (compact() ? 104 : 172);
         var contracts = view.trades().stream().filter(t -> t.importing() && t.resource().equals(resource))
-                .collect(java.util.stream.Collectors.groupingBy(IndustryView.Trade::partner));
+                .collect(java.util.stream.Collectors.groupingBy(ProtocolIndustryView.Trade::partner));
         int rowX = 6, rowWidth = pane - 12;
         double rowScale = rowWidth / 576.0;
         int start = heading + 18, rowHeight = Math.max(20, (int)Math.round(45 * rowScale)), h = rowHeight + 1;
@@ -572,9 +572,9 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         for (int i = 0; i < partners.size(); i++) {
             var p = partners.get(i); int y = start + i * h - scroll; if (!visible(y, h, start)) continue;
             var active = contracts.getOrDefault(p.id(), List.of());
-            double delivered = active.stream().mapToDouble(IndustryView.Trade::delivered).sum();
+            double delivered = active.stream().mapToDouble(ProtocolIndustryView.Trade::delivered).sum();
             var detail=p.detail()==null?null:p.detail().resources().get(resource);
-            double total=p.exports().getOrDefault(resource,0.0),requested=active.stream().mapToInt(IndustryView.Trade::factories).sum()*(p.resourcesPerFactory()==null?8:p.resourcesPerFactory());
+            double total=p.exports().getOrDefault(resource,0.0),requested=active.stream().mapToInt(ProtocolIndustryView.Trade::factories).sum()*(p.resourcesPerFactory()==null?8:p.resourcesPerFactory());
             if(detail!=null)requested=detail.requested();
             double remaining=detail==null?Math.max(0,total-delivered):detail.remaining();
             art(!active.isEmpty() ? "trade/row_active" : !p.route() ? "trade/row_blocked" : "trade/row", rowX, y, rowWidth, rowHeight);
@@ -591,7 +591,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             String convoy=detail!=null&&!active.isEmpty()&&detail.convoyNeeded()>0?""+detail.convoyUsed():ScreenTradeAmounts.convoyCell(p.convoys());
             tradeValue(Component.literal(convoy),cols[3],y,ends[3]-cols[3],rowHeight,active.isEmpty()?TEXT:GOOD);
             if (graphics == null) {
-                var row = new UiPanelButton(p.name() + "에서 수입", 6, y, pane - 12, rowHeight, () -> { partner = p.id(); tradeAmount = active.stream().mapToInt(IndustryView.Trade::factories).sum(); rebuildWidgets(); }) {
+                var row = new UiPanelButton(p.name() + "에서 수입", 6, y, pane - 12, rowHeight, () -> { partner = p.id(); tradeAmount = active.stream().mapToInt(ProtocolIndustryView.Trade::factories).sum(); rebuildWidgets(); }) {
                     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                         if (isHoveredOrFocused()) g.outline(getX(), getY(), getWidth(), getHeight(), 0xFFFFFFFF);
                     }
@@ -943,7 +943,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             addRenderableWidget(save);
         }
     }
-    private static String statValue(IndustryView.Stat stat) {
+    private static String statValue(ProtocolIndustryView.Stat stat) {
         String value = stat.unit().equals("PEOPLE") ? manpower(stat.value()) : stat.unit().equals("PERCENT") ? percent(stat.value()) : (stat.unit().equals("DAYS") || Set.of("WEIGHT", "COMBAT_WIDTH").contains(stat.id())) ? integer(stat.value()) : decimal(stat.value());
         return value + (stat.unit().equals("KM_PER_HOUR") ? "km/h" : stat.unit().equals("DAYS") ? "일" : "");
     }
@@ -1117,8 +1117,8 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(tank)originalButton(design.title(),design.icon(),x+w-23,y+h-23,19,19,true,()->openTank(equipment))
                 .setTooltip(UiTooltips.createExact(dev.hoi.client.ui.UiEquipmentDesigns.tooltip("PRODUCTION_CREATE_VARIANT")));
     }
-    private static String tankErrors(TankDesignerView view) {
-        var missing=view.slots().stream().filter(s->s.required()&&s.selected().isEmpty()).map(TankDesignerView.Slot::name).toList();
+    private static String tankErrors(ProtocolTankDesigner view) {
+        var missing=view.slots().stream().filter(s->s.required()&&s.selected().isEmpty()).map(ProtocolTankDesigner.Slot::name).toList();
         var errors=new ArrayList<String>();
         if(!missing.isEmpty())errors.add(dev.hoi.client.ui.UiEquipmentDesigns.tooltip("REQUIRED_MODULE_EMPTY")+"\n§e"+String.join("\n",missing));
         view.errors().stream().filter(e->!missing.contains(e)).forEach(e->errors.add("§c"+e));
@@ -1126,22 +1126,22 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     }
     private boolean tankDesigner() {return view!=null&&view.tankDesigner()!=null;}
     private void openTank(Equipment equipment) {tankSlot="";tankScroll=0;send(TANK_OPEN,equipment.id(),"",0);}
-    static String tankValue(TankDesignerView.Stat stat) {
+    static String tankValue(ProtocolTankDesigner.Stat stat) {
         return dev.hoi.client.ui.UiEquipmentDesigns.statValue(stat,stat.value());
     }
-    private static String tankChanges(List<TankDesignerView.Stat> stats) {
+    private static String tankChanges(List<ProtocolTankDesigner.Stat> stats) {
         var order=List.of("breakthrough","maximum_speed","armor_value","reliability","fuel_consumption","build_cost_ic");
         return stats.stream().sorted(Comparator.comparingInt(s->order.contains(s.id())?order.indexOf(s.id()):order.size()))
                 .map(s->"§f"+dev.hoi.client.ui.UiEquipmentDesigns.statCaption(s.id(),s.name()).strip()+" "+(s.id().equals("reliability")?(s.value()>0?"§a":"§c"):"§e")+tankValue(s)).collect(java.util.stream.Collectors.joining("\n"));
     }
-    static String tankUpgradeChanges(TankDesignerView.Upgrade upgrade,int levels) {
-        return tankChanges(upgrade.perLevel().stream().map(stat->new TankDesignerView.Stat(stat.id(),stat.name(),stat.value()*levels,stat.percent())).toList());
+    static String tankUpgradeChanges(ProtocolTankDesigner.Upgrade upgrade,int levels) {
+        return tankChanges(upgrade.perLevel().stream().map(stat->new ProtocolTankDesigner.Stat(stat.id(),stat.name(),stat.value()*levels,stat.percent())).toList());
     }
-    private TankDesignerView.UpgradeStep tankUpgradeStep(TankDesignerView.Upgrade upgrade,boolean increase) {
+    private ProtocolTankDesigner.UpgradeStep tankUpgradeStep(ProtocolTankDesigner.Upgrade upgrade,boolean increase) {
         int amount=(increase?1:-1)*tankStep();
         return upgrade.steps().stream().filter(step->step.amount()==amount).findFirst().orElse(null);
     }
-    private String tankUpgradeTooltip(TankDesignerView.Upgrade upgrade,boolean increase) {
+    private String tankUpgradeTooltip(ProtocolTankDesigner.Upgrade upgrade,boolean increase) {
         var step=tankUpgradeStep(upgrade,increase);
         if(increase&&upgrade.level()>=upgrade.maximum()&&upgrade.maximum()<20)
             return dev.hoi.client.ui.UiEquipmentDesigns.tooltip("EQUIPMENT_UPGRADE_NEXT_LEVEL_BLOCKED_BY")+"\n"+String.join("\n",upgrade.requirements());
@@ -1157,7 +1157,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         String sign=increase?"+":"-";
         return result+"\n\n§f"+costText+"\n\n§a클릭§f하여 §e"+sign+"1\n§aCtrl + 클릭§f하여 §e"+sign+"5\n§aShift + 클릭§f하여 §e"+sign+"10";
     }
-    private void tankUpgradeButton(TankDesignerView.Upgrade upgrade,boolean increase,int x,int y,int size) {
+    private void tankUpgradeButton(ProtocolTankDesigner.Upgrade upgrade,boolean increase,int x,int y,int size) {
         if(graphics!=null)return;
         var button=new UiPanelButton(upgrade.name()+(increase?" 증가":" 감소"),x,y,size,size,()->{
             var step=tankUpgradeStep(upgrade,increase);
@@ -1185,8 +1185,8 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private String designMission="";
     private void layoutEquipmentDesigner() {
         var d=view.tankDesigner();
-        var displayedStats=d.missions().stream().filter(m->m.id().equals(designMission)).map(TankDesignerView.Mission::stats).findFirst().orElse(d.stats());
-        var statsById=new HashMap<String,TankDesignerView.Stat>();
+        var displayedStats=d.missions().stream().filter(m->m.id().equals(designMission)).map(ProtocolTankDesigner.Mission::stats).findFirst().orElse(d.stats());
+        var statsById=new HashMap<String,ProtocolTankDesigner.Stat>();
         displayedStats.forEach(stat->statsById.putIfAbsent(stat.id(),stat));
         String branch=designBranch(),title=designerTitle(branch);
         boolean armor=branch.equals("army"),navy=branch.equals("navy");
@@ -1277,7 +1277,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             recess(px.applyAsInt(16),py.applyAsInt(48),left,footer-py.applyAsInt(48));
             if(graphics!=null&&armor)graphics.fill(px.applyAsInt(18),py.applyAsInt(50),px.applyAsInt(522),footer-2,0xFF030803);
             var slot=Objects.requireNonNull(designSlots.get(tankSlot));
-            String selectedTexture=slot.choices().stream().filter(part->part.id().equals(slot.selected())).map(TankDesignerView.Part::texture).findFirst().orElse("production/designer/add");
+            String selectedTexture=slot.choices().stream().filter(part->part.id().equals(slot.selected())).map(ProtocolTankDesigner.Part::texture).findFirst().orElse("production/designer/add");
             recess(px.applyAsInt(30),py.applyAsInt(61),size.applyAsInt(73),size.applyAsInt(45));
             float headerCenter=py.applyAsInt(61)+size.applyAsInt(45)/2f;
             int card=size.applyAsInt(241),gap=size.applyAsInt(6),rowHeight=size.applyAsInt(69),cardHeight=size.applyAsInt(63);
@@ -1295,7 +1295,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                     .filter(category->slot.choices().stream().anyMatch(part->dev.hoi.client.ui.UiEquipmentDesigns.moduleCategory(part.id()).equals(category))).toList();
             boolean categorized=!armor?dev.hoi.client.ui.UiEquipmentDesigns.categoryIds(d.chassis(),slot.id()).size()>1:armor&&!Set.of("suspension_type_slot","armor_type_slot","engine_type_slot","special_type_slot_5","turret_type_slot").contains(slot.id());
             var parts=slot.choices().stream().filter(part->!categorized||dev.hoi.client.ui.UiEquipmentDesigns.moduleCategory(part.id()).equals(tankCategory)).toList();
-            if(armor)parts=parts.stream().sorted(Comparator.comparing((TankDesignerView.Part part)->switch(part.id()) {
+            if(armor)parts=parts.stream().sorted(Comparator.comparing((ProtocolTankDesigner.Part part)->switch(part.id()) {
                 case "tank_heavy_cannon"->"tank_gun_0";case "tank_high_velocity_cannon"->"tank_gun_1";
                 case "tank_high_velocity_cannon_2"->"tank_gun_2";case "tank_heavy_cannon_2"->"tank_gun_3";default->part.id();
             })).toList();
@@ -1330,7 +1330,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 String key=groups.get(col).get(row);var stat=statsById.get(key);
                 if(key.equals("carrier_size")) {
                     if(!d.chassis().contains("carrier"))continue;
-                    if(stat==null)stat=new TankDesignerView.Stat(key,dev.hoi.client.ui.UiEquipmentDesigns.statName(key),0,false);
+                    if(stat==null)stat=new ProtocolTankDesigner.Stat(key,dev.hoi.client.ui.UiEquipmentDesigns.statName(key),0,false);
                 }
                 int rowTop=py.applyAsInt(73+row*20),rowHeight=py.applyAsInt(93+row*20)-rowTop,by=rowTop+1;
                 int valueWidth=size.applyAsInt(key.equals("maximum_speed")?82:57);
@@ -1343,11 +1343,11 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                     tip(label+": 현재 설계 데이터에 없는 수치입니다.",px.applyAsInt(sx),by,column,rowHeight);
                     continue;
                 }
-                if(stat==null)stat=new TankDesignerView.Stat(key,dev.hoi.client.ui.UiEquipmentDesigns.statName(key),0,false);
+                if(stat==null)stat=new ProtocolTankDesigner.Stat(key,dev.hoi.client.ui.UiEquipmentDesigns.statName(key),0,false);
                 String label=stat.name().replaceAll("£[^ ]+\\s*","").replace(":","").strip();
                 tankStatText(label,px.applyAsInt(sx+24),by,column-valueWidth-size.applyAsInt(25),rowHeight,false);
                 double change=preview.getOrDefault(key,0.0);
-                var displayed=new TankDesignerView.Stat(stat.id(),stat.name(),stat.value()+change,stat.percent());
+                var displayed=new ProtocolTankDesigner.Stat(stat.id(),stat.name(),stat.value()+change,stat.percent());
                 tankStatText(tankValue(displayed),px.applyAsInt(sx)+column-valueWidth,by,valueWidth-(change==0?0:size.applyAsInt(10)),rowHeight,true);
                 if(graphics!=null&&change!=0) {
                     boolean beneficial=dev.hoi.client.ui.UiEquipmentDesigns.beneficial(key,change);
@@ -1414,7 +1414,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         for(int i=0;i<designResources.size();i++)art(resourceArt(designResources.get(i)),resourceLeft+i*size.applyAsInt(resourceStep),footerCenter-resourceIcon/2,resourceIcon,resourceIcon);
         tip("이 설계를 생산하는 데 사용되는 §e자원",resourceX,footerY,resourceWidth,footerHeight);
         if(graphics!=null) {
-            String label="생산 비용:",cost=ProtocolNumbers.fixed(d.cost()+preview.getOrDefault("build_cost_ic",0.0),navy?0:2);
+            String label="생산 비용:",cost=ProtocolNumberBounds.fixed(d.cost()+preview.getOrDefault("build_cost_ic",0.0),navy?0:2);
             float textScale=UiText.scale(font);
             int labelWidth=Math.round(font.width(label)*textScale),costWidth=Math.round(font.width(cost)*textScale),iconSize=size.applyAsInt(17),gap=2;
             int costLeft=px.applyAsInt(1060)-labelWidth-iconSize-costWidth-2*gap,textY=footerCenter-Math.round(font.lineHeight*textScale/2);
@@ -1463,7 +1463,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             addRenderableWidget(entry);
         }
     }
-    private void branchDesignContents(TankDesignerView d,boolean navy,java.util.function.IntUnaryOperator px,java.util.function.IntUnaryOperator py,java.util.function.IntUnaryOperator size) {
+    private void branchDesignContents(ProtocolTankDesigner d,boolean navy,java.util.function.IntUnaryOperator px,java.util.function.IntUnaryOperator py,java.util.function.IntUnaryOperator size) {
         String branch=navy?"navy":"air";
         var equipment=equipmentBySource.get(d.chassis());
         String chassis=equipment==null?d.name():equipment.familyName();
@@ -1507,9 +1507,9 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             if(!UiAssets.draw(graphics,texture+"_"+view.country().toLowerCase(Locale.ROOT),bx,by,bw,bh))UiAssets.draw(graphics,texture,bx,by,bw,bh);
         }
         cellText(chassis,px.applyAsInt(31),py.applyAsInt(201)+4,size.applyAsInt(478),size.applyAsInt(22),TEXT,false);
-        List<String> upper=navy?d.slots().stream().map(TankDesignerView.Slot::id).filter(id->id.endsWith("_custom_slot")).toList():
+        List<String> upper=navy?d.slots().stream().map(ProtocolTankDesigner.Slot::id).filter(id->id.endsWith("_custom_slot")).toList():
                 List.of("fixed_main_weapon_slot","fixed_auxiliary_weapon_slot_1","fixed_auxiliary_weapon_slot_2","fixed_auxiliary_weapon_slot_3","fixed_auxiliary_weapon_slot_4","fixed_auxiliary_weapon_slot_5");
-        List<String> lower=navy?d.slots().stream().map(TankDesignerView.Slot::id).filter(id->!id.endsWith("_custom_slot")).toList():
+        List<String> lower=navy?d.slots().stream().map(ProtocolTankDesigner.Slot::id).filter(id->!id.endsWith("_custom_slot")).toList():
                 List.of("engine_type_slot","special_type_slot_1","special_type_slot_2","special_type_slot_3","special_type_slot_4","special_type_slot_5","special_type_slot_6");
         var topSlots=new ArrayList<>(upper);var bottom=new ArrayList<>(lower);
         while(topSlots.size()<(navy?7:6))topSlots.add("locked_"+topSlots.size());
@@ -1586,7 +1586,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         String amount=String.format(java.util.Locale.ROOT,"%.1f%%",(total?1+value:value)*100);
         return "§f£"+token+" "+dev.hoi.client.ui.UiEquipmentDesigns.tooltip("STAT_ADJUSTER_"+key)+" "+(total?"§e":value<0?"§c":"§a")+(!total&&value>0?"+":"")+amount;
     }
-    private String designerAdjustmentTooltip(String label,double[] values,TankDesignerView.Adjustment adjustment) {
+    private String designerAdjustmentTooltip(String label,double[] values,ProtocolTankDesigner.Adjustment adjustment) {
         if(values==null||designBranch().equals("air"))return label;
         var lines=new ArrayList<String>();lines.add("§e"+label);
         if(designBranch().equals("navy")) {
@@ -1617,8 +1617,8 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         graphics.pose().pushMatrix();graphics.pose().translate(x+(right?width-font.width(caption)*scale:0),y+(height-(font.lineHeight-(right?2:0))*scale)/2);graphics.pose().scale(scale);
         graphics.text(font,caption,0,0,0xFF13170E,false);graphics.pose().popMatrix();
     }
-    private void tankSlotButton(TankDesignerView.Slot slot,int x,int y,int w,int h) {
-        String texture=slot.choices().stream().filter(p->p.id().equals(slot.selected())).map(TankDesignerView.Part::texture).findFirst().orElse("production/designer/add");
+    private void tankSlotButton(ProtocolTankDesigner.Slot slot,int x,int y,int w,int h) {
+        String texture=slot.choices().stream().filter(p->p.id().equals(slot.selected())).map(ProtocolTankDesigner.Part::texture).findFirst().orElse("production/designer/add");
         String label=dev.hoi.client.ui.UiEquipmentDesigns.tooltip("EQUIPMENT_DESIGNER_SLOT_NAME_TOOLTIP").replace("$NAME$",slot.name())+"\n";
         var selected=slot.choices().stream().filter(p->p.id().equals(slot.selected())).findFirst();
         label+=selected.isPresent()?dev.hoi.client.ui.UiEquipmentDesigns.tooltip("EQUIPMENT_DESIGNER_SLOT_MODULE_TOOLTIP").replace("$NAME$",selected.get().name()):dev.hoi.client.ui.UiEquipmentDesigns.tooltip("EQUIPMENT_DESIGNER_SLOT_EMPTY_TOOLTIP");
@@ -1681,7 +1681,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(resources.isEmpty())return "";
         return "§e"+dev.hoi.client.ui.UiEquipmentDesigns.tooltip("PRODUCTION_RESOURCES_PER_FACTORY")+"\n"+resources.entrySet().stream().map(entry->"  §f"+resourceName(entry.getKey())+": §e"+integer(entry.getValue())).collect(java.util.stream.Collectors.joining("\n"));
     }
-    private String tankModuleTooltip(TankDesignerView.Part part) {
+    private String tankModuleTooltip(ProtocolTankDesigner.Part part) {
         String label="§e"+part.name(),description=dev.hoi.client.ui.UiEquipmentDesigns.moduleDescription(part.id());
         if(!description.isEmpty())label+="\n\n§f"+description;
         String effects=dev.hoi.client.ui.UiEquipmentDesigns.moduleEffects(part.id());
@@ -1690,7 +1690,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(!resources.isEmpty())label+="\n\n"+resources;
         return label+"\n\n§f£"+designBranch()+"_experience "+dev.hoi.client.ui.UiEquipmentDesigns.tooltip("EQUIPMENT_DESIGNER_"+designBranch().toUpperCase(Locale.ROOT)+"_XP_COST").replace("$COST|Y0$","§e"+(dev.hoi.client.ui.UiEquipmentDesigns.moduleExperience(part.id())>0?dev.hoi.client.ui.UiEquipmentDesigns.moduleExperience(part.id()):part.experience()));
     }
-    private void tankPartButton(TankDesignerView.Part part,TankDesignerView.Slot slot,int x,int y,int w,int h) {
+    private void tankPartButton(ProtocolTankDesigner.Part part,ProtocolTankDesigner.Slot slot,int x,int y,int w,int h) {
         if(graphics!=null)return;
         boolean selected=part.id().equals(slot.selected());
         var button=new UiPanelButton(part.name(),x,y,w,h,()->{send(TANK_MODULE,slot.id(),part.id(),0);tankSlot="";tankCategory="";}) {
@@ -1975,11 +1975,11 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(count<lines.size())tip(value.getString(),x,y,width,height);
     }
 
-    private void send(IndustryProtocol.Action action, String item, String other, int amount) {
+    private void send(ProtocolIndustryPayloads.Action action, String item, String other, int amount) {
         if (closed || pending > 0 && action != CLOSE) return;
         boolean passive = action == REFRESH;
         if (!passive) pending = 100;
-        transport.accept(new IndustryProtocol.Request(action, token, view == null ? 0 : view.revision(), item, other, amount));
+        transport.accept(new ProtocolIndustryPayloads.Request(action, token, view == null ? 0 : view.revision(), item, other, amount));
         if (!passive) rebuildWidgets();
     }
     @Override public void tick() {
@@ -1998,15 +1998,15 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         else if (dockedProductionPicker() && x < pane) scroll -= (int)(vertical*productionRowHeight());
         else if (!picker.isEmpty()) pickerScroll -= (int) (vertical * 55);
         else if (modal()) return super.mouseScrolled(x, y, horizontal, vertical);
-        else if (tab == MenuTab.RECRUITMENT && x >= pane) secondScroll -= (int) (vertical * 40);
-        else scroll -= (int) (vertical * (tab == MenuTab.PRODUCTION ? productionRowHeight() : tab == MenuTab.RECRUITMENT ? (compact() ? 85 : 93) : tab == MenuTab.LOGISTICS ? 68 : tradeTab == 0 ? 35 : 34));
+        else if (tab == ProtocolMenuTab.RECRUITMENT && x >= pane) secondScroll -= (int) (vertical * 40);
+        else scroll -= (int) (vertical * (tab == ProtocolMenuTab.PRODUCTION ? productionRowHeight() : tab == ProtocolMenuTab.RECRUITMENT ? (compact() ? 85 : 93) : tab == ProtocolMenuTab.LOGISTICS ? 68 : tradeTab == 0 ? 35 : 34));
         rebuildWidgets(); return true;
     }
     @Override public void removed() {
         InputSidebarMovement.release(minecraft);
         if (ScreenDialogCoordinator.suspending()) return;
         closed = true; selectingDeployment = false; dev.hoi.client.map.MapSceneRenderer.clearDeployment();
-        transport.accept(new IndustryProtocol.Request(CLOSE, token, view == null ? 0 : view.revision(), "", "", 0));
+        transport.accept(new ProtocolIndustryPayloads.Request(CLOSE, token, view == null ? 0 : view.revision(), "", "", 0));
     }
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean twice) {
         if (!modal() && (event.button() == 0 || event.button() == 1) && view != null && pending == 0) {
@@ -2024,13 +2024,13 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 var ray = matrix.transformProject(new org.joml.Vector3f((float)(event.x() / width * 2 - 1), (float)(1 - event.y() / height * 2), 1)).normalize();
                 selectingDeployment = false; dev.hoi.client.map.MapSceneRenderer.clearDeployment();
                 pending = 100;
-                transport.accept(new IndustryProtocol.Request(LOCATION_AT, token, view.revision(), locationRecruit, "", 0, ray.x, ray.y, ray.z));
+                transport.accept(new ProtocolIndustryPayloads.Request(LOCATION_AT, token, view.revision(), locationRecruit, "", 0, ray.x, ray.y, ray.z));
                 rebuildWidgets();return true;
             }
         }
         return super.mouseClicked(event, twice);
     }
-    @Override public int unitHudLeft(){return tab==MenuTab.RECRUITMENT?pane+3+rightWidth():pane;}
+    @Override public int unitHudLeft(){return tab==ProtocolMenuTab.RECRUITMENT?pane+3+rightWidth():pane;}
     @Override public boolean allowsMovement() { return !modal(); }
     @Override public boolean keyPressed(KeyEvent e) { return !modal() && InputSidebarMovement.consumes(minecraft, e) || super.keyPressed(e); }
     @Override public boolean keyReleased(KeyEvent e) { return !modal() && InputSidebarMovement.consumes(minecraft, e) || super.keyReleased(e); }
@@ -2067,7 +2067,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     }
     private static String resourceArt(String id) { return "production/resources/" + id.toLowerCase(Locale.ROOT); }
     private static String ic(double n) { return java.math.BigDecimal.valueOf(n).setScale(0, java.math.RoundingMode.DOWN).toPlainString(); }
-    private static String integer(double n) { return ProtocolNumbers.fixed(n == 0 ? 0 : n, 0); }
+    private static String integer(double n) { return ProtocolNumberBounds.fixed(n == 0 ? 0 : n, 0); }
     private static String decimal(double n) { return String.format(Locale.ROOT, "%,.1f", n); }
     private static String percent(double n) { return integer(n * 100) + "%"; }
     private static String manpower(double n) { return UiMenuBar.number(n); }

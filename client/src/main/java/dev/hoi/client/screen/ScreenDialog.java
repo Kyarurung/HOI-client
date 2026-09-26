@@ -5,7 +5,7 @@ import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiAssets;
 
-import dev.hoi.protocol.DialogView;
+import dev.hoi.protocol.ProtocolDialogView;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -13,33 +13,33 @@ import java.util.*;
 
 
 public class ScreenDialog extends Screen {
-    private DialogView view;
+    private ProtocolDialogView view;
     boolean stacked;
     private int left, top, pane, panelHeight, bodyTop, bodyBottom, scroll, total, choicePage, quoteViewport;
 
-    ScreenDialog(DialogView view) { super(Component.literal(view.title())); this.view = view; }
-    DialogView view() { return view; }
+    ScreenDialog(ProtocolDialogView view) { super(Component.literal(view.title())); this.view = view; }
+    ProtocolDialogView view() { return view; }
     int panelTop() { return top; }
     int panelLeft() { return left; }
     int panelWidth() { return pane; }
     int panelHeight() { return panelHeight; }
     int bodyViewportHeight() { return bodyBottom - bodyTop; }
     int scrollOffset() { return scroll; }
-    void update(DialogView next) {
+    void update(ProtocolDialogView next) {
         if (!view.token().equals(next.token()) || next.revision() < view.revision()) return;
         view = next; rebuildWidgets();
     }
-    private boolean paper() { return view.kind() == DialogView.Kind.EVENT || view.kind() == DialogView.Kind.GLOBAL_EVENT; }
+    private boolean paper() { return view.kind() == ProtocolDialogView.Kind.EVENT || view.kind() == ProtocolDialogView.Kind.GLOBAL_EVENT; }
     float textScale() { return dev.hoi.client.ui.UiText.scale(font); }
     @Override protected void init() {
-        boolean event = paper() || view.kind() == DialogView.Kind.SUPER_EVENT;
+        boolean event = paper() || view.kind() == ProtocolDialogView.Kind.SUPER_EVENT;
         if (event) {
             double scale = Math.min(width / 1280.0, height / 720.0);
-            boolean wide = view.kind() == DialogView.Kind.SUPER_EVENT;
+            boolean wide = view.kind() == ProtocolDialogView.Kind.SUPER_EVENT;
             pane = Math.min(width - 16, Math.max(wide ? 320 : 240, (int)Math.round((wide ? 500 : 310) * scale)));
             panelHeight = Math.min(height - 16, Math.max(220, (int)Math.round(pane * (wide ? .64 : 800.0 / 620))));
         } else {
-            pane = Math.min(width - 16, view.kind() == DialogView.Kind.STATE ? 440 : 450);
+            pane = Math.min(width - 16, view.kind() == ProtocolDialogView.Kind.STATE ? 440 : 450);
             panelHeight = Math.min(height - 16, 530);
         }
         left = (width - pane) / 2; top = (height - panelHeight) / 2;
@@ -66,12 +66,12 @@ public class ScreenDialog extends Screen {
         scroll = Math.clamp(scroll, 0, Math.max(0, total - (bodyBottom - bodyTop)));
         for (var child : children()) if (child instanceof UiMenuButton button) {
             button.textScale(textScale());
-            if (view.kind() == DialogView.Kind.SUPER_EVENT && button.getY() >= bodyBottom) button.setTooltip(null);
+            if (view.kind() == ProtocolDialogView.Kind.SUPER_EVENT && button.getY() >= bodyBottom) button.setTooltip(null);
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         if (!stacked) g.fill(0, 0, width, height, 0x70000000);
-        if (view.kind() == DialogView.Kind.SUPER_EVENT) {
+        if (view.kind() == ProtocolDialogView.Kind.SUPER_EVENT) {
             superEvent(g); super.extractRenderState(g, mx, my, delta); return;
         }
         if (paper()) {
@@ -91,13 +91,13 @@ public class ScreenDialog extends Screen {
         text(g, Component.literal(trim(view.subtitle(), (int)((pane - 28) / textScale()))).getVisualOrderText(), left + 12, top + 48, paper() ? 0xff62566a : UiMenuStyle.MUTED);
         g.enableScissor(left + 8, bodyTop, left + pane - 8, bodyBottom);
         int y = bodyTop + 5 - scroll;
-        if (view.kind() != DialogView.Kind.EVENT) y = image(g, y);
-        if (view.kind() != DialogView.Kind.STATE) {
+        if (view.kind() != ProtocolDialogView.Kind.EVENT) y = image(g, y);
+        if (view.kind() != ProtocolDialogView.Kind.STATE) {
             for (var line : font.split(Component.literal(view.body()), (int)((pane - 32) / textScale()))) { text(g, line, left + 15, y, ink); y += paper() ? 12 : 13; }
             if (!view.body().isEmpty()) y += 10;
         }
-        if (view.kind() == DialogView.Kind.EVENT) y = image(g, y);
-        if (view.kind() == DialogView.Kind.STATE) {
+        if (view.kind() == ProtocolDialogView.Kind.EVENT) y = image(g, y);
+        if (view.kind() == ProtocolDialogView.Kind.STATE) {
             for (int i = 0; i < view.tiles().size(); i++) {
                 var tile = view.tiles().get(i); int cell = (pane - 32) / 3;
                 int x = left + 12 + (i % 3) * (cell + 4), ty = y + (i / 3) * 59;
@@ -156,7 +156,7 @@ public class ScreenDialog extends Screen {
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
         if (x >= left && x <= left + pane && y >= bodyTop && y <= bodyBottom) {
-            int visible = view.kind() == DialogView.Kind.SUPER_EVENT ? quoteViewport : bodyBottom - bodyTop;
+            int visible = view.kind() == ProtocolDialogView.Kind.SUPER_EVENT ? quoteViewport : bodyBottom - bodyTop;
             scroll = Math.clamp(scroll - (int)(vertical * 32), 0, Math.max(0, total - visible)); return true;
         }
         return super.mouseScrolled(x, y, horizontal, vertical);

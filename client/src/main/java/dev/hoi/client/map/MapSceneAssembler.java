@@ -1,6 +1,6 @@
 package dev.hoi.client.map;
 
-import dev.hoi.protocol.AtlasSceneProtocol;
+import dev.hoi.protocol.ProtocolAtlasScene;
 import java.util.*;
 
 
@@ -8,8 +8,8 @@ final class MapSceneAssembler {
     private UUID scene;
     private String dimension;
     private int count, next;
-    private final List<AtlasSceneProtocol.Box> staging = new ArrayList<>();
-    List<AtlasSceneProtocol.Box> accept(AtlasSceneProtocol.Page page) {
+    private final List<ProtocolAtlasScene.Box> staging = new ArrayList<>();
+    List<ProtocolAtlasScene.Box> accept(ProtocolAtlasScene.Page page) {
         if (page.index() == 0) { clear(); scene=page.scene(); dimension=page.dimension(); count=page.count(); }
         if (!page.scene().equals(scene) || !page.dimension().equals(dimension) || page.count()!=count || page.index()!=next) { clear(); return null; }
         staging.addAll(page.boxes()); next++;

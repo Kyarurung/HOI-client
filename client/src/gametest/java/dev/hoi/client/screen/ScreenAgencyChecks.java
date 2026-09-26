@@ -1,6 +1,6 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.protocol.AgencyView.Item;
+import dev.hoi.protocol.ProtocolAgencyView.Item;
 import java.util.List;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.resources.Identifier;
@@ -16,8 +16,8 @@ public final class ScreenAgencyChecks {
         if (ScreenAgency.upgradeStages(partial) != 4 || ScreenAgency.upgradeLevel(partial) != 2
                 || !ScreenAgency.upgradeIndicator(partial).equals("agency/researched/11"))
             throw new AssertionError("Two of four agency levels must use the original two-stripe indicator");
-        var requests = new java.util.ArrayList<dev.hoi.protocol.AgencyProtocol.Request>();
-        var view = new dev.hoi.protocol.AgencyView("agency-click", 1, "KOR", "국가정보원", "", items, "");
+        var requests = new java.util.ArrayList<dev.hoi.protocol.ProtocolAgencyPayloads.Request>();
+        var view = new dev.hoi.protocol.ProtocolAgencyView("agency-click", 1, "KOR", "국가정보원", "", items, "");
         context.setScreen(() -> new ScreenAgency(null, view.session(), view, requests::add));
         context.waitTicks(2);
         context.runOnClient(client -> {
@@ -36,10 +36,10 @@ public final class ScreenAgencyChecks {
                 press(screen, "정보공동체");
                 for (int i = 0; i < 60; i++) screen.tick();
                 press(screen, partial.title()); press(screen, partial.title());
-                if (requests.size() != 1 || requests.getFirst().kind() != dev.hoi.protocol.AgencyProtocol.Kind.REFRESH)
+                if (requests.size() != 1 || requests.getFirst().kind() != dev.hoi.protocol.ProtocolAgencyPayloads.Kind.REFRESH)
                     throw new AssertionError("Upgrade waits for the in-flight refresh revision");
                 var updated = items.stream().map(i -> i.id().equals(partial.id()) ? new Item(i.id(), i.group(), i.title(), i.value(), i.detail(), i.texture(), i.button(), stillEnabled, i.progress(), i.parameters()) : i).toList();
-                var next = new dev.hoi.protocol.AgencyView(view.session(), 2, view.country(), view.name(), "", updated, "");
+                var next = new dev.hoi.protocol.ProtocolAgencyView(view.session(), 2, view.country(), view.name(), "", updated, "");
                 screen.update(next); screen.update(next);
                 if (requests.size() != (stillEnabled ? 2 : 1)) throw new AssertionError("Queued click must run once only if still available");
                 if (stillEnabled && (requests.getLast().revision() != 2 || !requests.getLast().item().equals(partial.id())))
@@ -49,15 +49,15 @@ public final class ScreenAgencyChecks {
         var searchItems = new java.util.ArrayList<>(items);
         searchItems.removeIf(i -> i.id().equals("recruit"));
         searchItems.add(new Item("recruit", "agents", "정보원 모집", "0/1", "", "agency/operative", "모집", true, -1,
-                List.of(new dev.hoi.protocol.AgencyView.Parameter("대상 국가", List.of(new dev.hoi.protocol.AgencyView.Choice("KOR", "대한민국"), new dev.hoi.protocol.AgencyView.Choice("JAP", "일본"))))));
-        var searchable = new dev.hoi.protocol.AgencyView(view.session(), 1, view.country(), view.name(), "", searchItems, "");
+                List.of(new dev.hoi.protocol.ProtocolAgencyView.Parameter("대상 국가", List.of(new dev.hoi.protocol.ProtocolAgencyView.Choice("KOR", "대한민국"), new dev.hoi.protocol.ProtocolAgencyView.Choice("JAP", "일본"))))));
+        var searchable = new dev.hoi.protocol.ProtocolAgencyView(view.session(), 1, view.country(), view.name(), "", searchItems, "");
         context.setScreen(() -> new ScreenAgency(null, view.session(), searchable, requests::add));
         context.runOnClient(client -> {
             var screen = (ScreenAgency)client.gui.screen();
             press(screen, "정보원 모집"); press(screen, "대상 국가: 대한민국");
             var input = (net.minecraft.client.gui.components.EditBox)screen.children().stream().filter(c -> c instanceof net.minecraft.client.gui.components.EditBox).findFirst().orElseThrow();
             input.setValue("대한민국"); input.setCursorPosition(1); input.setHighlightPos(3);
-            screen.update(new dev.hoi.protocol.AgencyView(view.session(), 2, view.country(), view.name(), "", searchItems, ""));
+            screen.update(new dev.hoi.protocol.ProtocolAgencyView(view.session(), 2, view.country(), view.name(), "", searchItems, ""));
             if (!screen.children().contains(input) || screen.getFocused() != input || !input.isFocused()
                     || input.getCursorPosition() != 1 || !input.getHighlighted().equals("한민"))
                 throw new AssertionError("Agency search retains its editor, focus and selection across refresh");

@@ -2,8 +2,8 @@ package dev.hoi.client.ui;
 
 import dev.hoi.client.audio.AudioUiSounds;
 
-import dev.hoi.protocol.MenuTab;
-import dev.hoi.protocol.CountryHud;
+import dev.hoi.protocol.ProtocolMenuTab;
+import dev.hoi.protocol.ProtocolCountryHud;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 
 
 public final class UiMenuBar {
-    private static CountryHud cachedHud;
+    private static ProtocolCountryHud cachedHud;
     private static List<UiIndicator> cachedIndicators = List.of();
     private UiMenuBar() {}
     public static void clear() { cachedHud = null; cachedIndicators = List.of(); UiHudTooltip.clear(); }
@@ -24,10 +24,10 @@ public final class UiMenuBar {
     public static int height(int width) { return width >= 600 ? 36 : 34; }
 
     private static int tabWidth(int width) {
-        return Math.min(Math.min(28, Math.max(20, width * 7 / 200)), (width - 12) / MenuTab.ORDER.size());
+        return Math.min(Math.min(28, Math.max(20, width * 7 / 200)), (width - 12) / ProtocolMenuTab.ORDER.size());
     }
 
-    public static int dockWidth(int width) { return statsLeft(width) + tabWidth(width) * (MenuTab.ORDER.size() - 1); }
+    public static int dockWidth(int width) { return statsLeft(width) + tabWidth(width) * (ProtocolMenuTab.ORDER.size() - 1); }
 
     public static final int STATS_HEIGHT = 14;
     public static int flagWidth(int width) { return (height(width) - 6) * 98 / 67; }
@@ -43,7 +43,7 @@ public final class UiMenuBar {
         public UiIndicator(String icon, String label, Number raw, UiFormat format) { this(icon, label, raw, format, null, null); }
         public int width() { return format == UiFormat.MONEY ? 67 : format == UiFormat.POLITICAL_POWER || format == UiFormat.PERCENT ? 54 : format == UiFormat.EXPERIENCE || format == UiFormat.COMMAND_POWER ? 48 : icon.equals("manpower") || icon.equals("fuel") || icon.equals("convoys") || icon.equals("factories") ? 52 : 40; }
         private static String value(String icon, Number raw, UiFormat format) {
-            if (icon.equals("party_support")) return dev.hoi.protocol.ProtocolNumbers.percent(raw == null ? 0.0 : raw.doubleValue(), 0);
+            if (icon.equals("party_support")) return dev.hoi.protocol.ProtocolNumberBounds.percent(raw == null ? 0.0 : raw.doubleValue(), 0);
             if (raw == null) return icon.equals("supplies") ? "0%" : "0";
             if (icon.equals("supplies")) return (int)Math.floor(Math.clamp(raw.doubleValue(),0,1)*100)+"%";
             return switch (format) {
@@ -58,11 +58,11 @@ public final class UiMenuBar {
         }
     }
 
-    public static CountryHud snapshot(CountryHud supplied) {
-        return supplied == null || supplied.equals(CountryHud.UNKNOWN) ? dev.hoi.client.ClientCampaignHud.hud() : supplied;
+    public static ProtocolCountryHud snapshot(ProtocolCountryHud supplied) {
+        return supplied == null || supplied.equals(ProtocolCountryHud.UNKNOWN) ? dev.hoi.client.ClientCampaignHud.hud() : supplied;
     }
 
-    public static List<UiIndicator> indicators(CountryHud hud) {
+    public static List<UiIndicator> indicators(ProtocolCountryHud hud) {
         hud = snapshot(hud);
         if (hud == cachedHud) return cachedIndicators;
         var n = hud.national();
@@ -87,15 +87,15 @@ public final class UiMenuBar {
         return cachedIndicators;
     }
 
-    public static int maximumScroll(int width, CountryHud hud) {
+    public static int maximumScroll(int width, ProtocolCountryHud hud) {
         return Math.max(0, indicators(hud).stream().mapToInt(UiIndicator::width).sum() - (statsRight(width) - statsLeft(width) - 3));
     }
 
-    public static int scroll(int width, CountryHud hud, int offset, double horizontal, double vertical) {
+    public static int scroll(int width, ProtocolCountryHud hud, int offset, double horizontal, double vertical) {
         return Math.clamp(offset - (int)((horizontal != 0 ? horizontal : vertical) * 42), 0, maximumScroll(width, hud));
     }
 
-    public static void draw(GuiGraphicsExtractor g, int width, CountryHud hud, int mx, int my, int offset) {
+    public static void draw(GuiGraphicsExtractor g, int width, ProtocolCountryHud hud, int mx, int my, int offset) {
         if (dev.hoi.client.screen.ScreenDialogCoordinator.renderingContent()) return;
         hud = snapshot(hud);
         int dock = dockWidth(width), h = height(width);
@@ -120,17 +120,17 @@ public final class UiMenuBar {
         drawTension(g, width, hud, mx, my);
     }
 
-    public static void drawPassive(GuiGraphicsExtractor g, int width, CountryHud hud, String country) {
+    public static void drawPassive(GuiGraphicsExtractor g, int width, ProtocolCountryHud hud, String country) {
         UiMusicButton.draw(g, width);
         draw(g, width, hud, -1, -1, 0);
         int tabWidth = tabWidth(width);
-        for (var tab : MenuTab.ORDER) drawTab(g, tab, country, false,
-                tab == MenuTab.POLITICS ? 4 : statsLeft(width) + (tab.ordinal() - 1) * tabWidth,
-                tab == MenuTab.POLITICS ? 3 : 17, tab == MenuTab.POLITICS ? flagWidth(width) : tabWidth - 2,
-                height(width) - (tab == MenuTab.POLITICS ? 6 : 20));
+        for (var tab : ProtocolMenuTab.ORDER) drawTab(g, tab, country, false,
+                tab == ProtocolMenuTab.POLITICS ? 4 : statsLeft(width) + (tab.ordinal() - 1) * tabWidth,
+                tab == ProtocolMenuTab.POLITICS ? 3 : 17, tab == ProtocolMenuTab.POLITICS ? flagWidth(width) : tabWidth - 2,
+                height(width) - (tab == ProtocolMenuTab.POLITICS ? 6 : 20));
     }
 
-    private static void drawTension(GuiGraphicsExtractor g, int width, CountryHud hud, int mx, int my) {
+    private static void drawTension(GuiGraphicsExtractor g, int width, ProtocolCountryHud hud, int mx, int my) {
         int x = tensionX(width), h = height(width) - 6;
         var font = Minecraft.getInstance().font;
         int percentY = 3 + h + 2, percentHeight = font.lineHeight + 4;
@@ -176,7 +176,7 @@ public final class UiMenuBar {
         catch(NumberFormatException e){return value.toString();}
     }
 
-    private static String percent(double value) { return dev.hoi.protocol.ProtocolNumbers.percent(value, 0); }
+    private static String percent(double value) { return dev.hoi.protocol.ProtocolNumberBounds.percent(value, 0); }
 
     static String money(Double value) {
         if (value == null) return "0";
@@ -198,7 +198,7 @@ public final class UiMenuBar {
         }
     }
 
-    static UiIndicator fuelIndicator(CountryHud.NationalIndicators n) {
+    static UiIndicator fuelIndicator(ProtocolCountryHud.NationalIndicators n) {
         if(n.fuelRatio()!=null&&n.fuelRatio()>=1)return new UiIndicator("fuel","연료",n.fuel(),UiFormat.NUMBER,"연료 비축",n.fuelRatio(),"가득 참");
         if(n.fuelDailyChange()==null||n.fuelDays()==null||Math.abs(n.fuelDailyChange())<1e-9)
             return new UiIndicator("fuel","연료",n.fuel(),UiFormat.NUMBER,"연료 비축",n.fuelRatio());
@@ -217,12 +217,12 @@ public final class UiMenuBar {
         return item.icon().equals("gdp") ? UiEffectColors.GOOD : item.icon().equals("debt") ? UiEffectColors.BAD : UiMenuStyle.TEXT;
     }
 
-    public static List<Button> buttons(int width, String country, MenuTab selected, Consumer<MenuTab> select) {
+    public static List<Button> buttons(int width, String country, ProtocolMenuTab selected, Consumer<ProtocolMenuTab> select) {
         int tabWidth = tabWidth(width);
-        var buttons = new ArrayList<Button>(MenuTab.ORDER.stream().map(tab -> new UiTabButton(tab, country, selected == tab,
-                tab == MenuTab.POLITICS ? 4 : statsLeft(width) + (tab.ordinal() - 1) * tabWidth,
-                tab == MenuTab.POLITICS ? flagWidth(width) : tabWidth - 2, tab == MenuTab.POLITICS ? 3 : 17,
-                height(width) - (tab == MenuTab.POLITICS ? 6 : 20), () -> select.accept(tab))).toList());
+        var buttons = new ArrayList<Button>(ProtocolMenuTab.ORDER.stream().map(tab -> new UiTabButton(tab, country, selected == tab,
+                tab == ProtocolMenuTab.POLITICS ? 4 : statsLeft(width) + (tab.ordinal() - 1) * tabWidth,
+                tab == ProtocolMenuTab.POLITICS ? flagWidth(width) : tabWidth - 2, tab == ProtocolMenuTab.POLITICS ? 3 : 17,
+                height(width) - (tab == ProtocolMenuTab.POLITICS ? 6 : 20), () -> select.accept(tab))).toList());
         int defconHeight = height(width) - 6;
         for (int part = 0; part < 2; part++) {
             int buttonY = part == 0 ? 3 : 3 + defconHeight + 2;
@@ -243,14 +243,14 @@ public final class UiMenuBar {
 
     public static final class UiTabButton extends Button {
         @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play("ui.menu_tab"); }
-        private final MenuTab tab;
+        private final ProtocolMenuTab tab;
         private final String country;
         private final boolean selected;
 
-        private UiTabButton(MenuTab tab, String country, boolean selected, int x, int width, int y, int height, Runnable action) {
+        private UiTabButton(ProtocolMenuTab tab, String country, boolean selected, int x, int width, int y, int height, Runnable action) {
             super(x, y, width, height, Component.literal(tab.label() + " 메뉴"), b -> action.run(), DEFAULT_NARRATION);
             this.tab = tab; this.country = country; this.selected = selected;
-            if (tab != MenuTab.POLITICS) setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(tab.label())));
+            if (tab != ProtocolMenuTab.POLITICS) setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(tab.label())));
         }
 
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
@@ -273,13 +273,13 @@ public final class UiMenuBar {
         }
         UiAssets.draw(g, "menu/flag_overlay", x, y, w, h);
     }
-    private static void drawTab(GuiGraphicsExtractor g, MenuTab tab, String country, boolean selected, int x, int y, int w, int h) {
+    private static void drawTab(GuiGraphicsExtractor g, ProtocolMenuTab tab, String country, boolean selected, int x, int y, int w, int h) {
         if (dev.hoi.client.screen.ScreenDialogCoordinator.renderingContent()) return;
             var font = Minecraft.getInstance().font;
 
             if (selected) g.fillGradient(x, y, x + w, y + h, 0xFF454B4C, 0xFF202526);
-            String texture = tab == MenuTab.POLITICS ? flagTexture(country) : "menu/" + tab.id();
-            boolean flag = tab == MenuTab.POLITICS;
+            String texture = tab == ProtocolMenuTab.POLITICS ? flagTexture(country) : "menu/" + tab.id();
+            boolean flag = tab == ProtocolMenuTab.POLITICS;
             if (flag) drawFlag(g, country, x, y, w, h);
             else if (!UiAssets.draw(g, texture, x, y, w, h))
                 g.centeredText(font, "◇", x + w / 2, y + (h - 8) / 2, UiMenuStyle.ACCENT);

@@ -1,7 +1,7 @@
 package dev.hoi.client.audio;
 
-import dev.hoi.protocol.UnitAudioProtocol;
-import dev.hoi.protocol.UnitAudioProtocol.*;
+import dev.hoi.protocol.ProtocolUnitAudio;
+import dev.hoi.protocol.ProtocolUnitAudio.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.sounds.SoundEvent;
@@ -33,7 +33,7 @@ public final class AudioUnitVoices {
     private static boolean audible(Emitter emitter) {
         var client=Minecraft.getInstance();
         return client.player!=null&&emitter.distanceSquared(client.player.getX(),client.player.getY(),client.player.getZ())
-                <=UnitAudioProtocol.RANGE*UnitAudioProtocol.RANGE;
+                <=ProtocolUnitAudio.RANGE*ProtocolUnitAudio.RANGE;
     }
     public static void tick() {
         var client=Minecraft.getInstance();
@@ -45,7 +45,7 @@ public final class AudioUnitVoices {
     static final class AudioVoice extends AbstractTickableSoundInstance {
         private Emitter emitter;
         AudioVoice(Emitter emitter) {
-            super(SoundEvent.createFixedRangeEvent(AudioUiSounds.id(emitter.sound().event()),UnitAudioProtocol.RANGE),SoundSource.MASTER,RandomSource.create());
+            super(SoundEvent.createFixedRangeEvent(AudioUiSounds.id(emitter.sound().event()),ProtocolUnitAudio.RANGE),SoundSource.MASTER,RandomSource.create());
             looping=true;delay=emitter.sound().combat()?20:0;volume=.8f;pitch=1;relative=false;
             update(emitter);
         }

@@ -5,8 +5,8 @@ import dev.hoi.client.ui.UiMenuBar;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiText;
 import dev.hoi.client.ui.UiUnits;
-import dev.hoi.protocol.UnitHudProtocol;
-import dev.hoi.protocol.UnitHudProtocol.*;
+import dev.hoi.protocol.ProtocolUnitHud;
+import dev.hoi.protocol.ProtocolUnitHud.*;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -115,7 +115,7 @@ public final class MapUnitHud {
         g.enableScissor(left,top,g.guiWidth(),g.guiHeight());
         for(var rows:groups) {
             var c=rows.getFirst();
-            if(c.distanceSquared(client.player.getX(),client.player.getY(),client.player.getZ())>UnitHudProtocol.RANGE*UnitHudProtocol.RANGE)continue;
+            if(c.distanceSquared(client.player.getX(),client.player.getY(),client.player.getZ())>ProtocolUnitHud.RANGE*ProtocolUnitHud.RANGE)continue;
             var relative=new Vec3(c.x(),c.y()+3.1,c.z()).subtract(camera.position());
             if(relative.x*forward.x()+relative.y*forward.y()+relative.z*forward.z()<=0)continue;
             var projected=matrix.transformProject(relative.toVector3f());
@@ -196,7 +196,7 @@ public final class MapUnitHud {
         int i=0;
         for(var entry:new TreeMap<>(c.battalions()).entrySet()) {
             int bx=x+6+i%columns*cellWidth,by=line+40+i/columns*16;
-            UiAssets.drawTinted(g,"unit_hud/"+entry.getKey(),bx,by,16,12,0xFFFFFFFF);
+            UiAssets.drawTinted(g,"unit_hud/"+entry.getKey(),bx,by,16,12,tint(c.allegiance()));
             UiText.text(g,font,(c.unknown()?entry.getValue()+"–"+c.battalionMaximums().get(entry.getKey()):Integer.toString(entry.getValue())),bx+18,by+1,0xFFFFFFFF);i++;
         }
     }

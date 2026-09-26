@@ -1,6 +1,6 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.protocol.IndustryView;
+import dev.hoi.protocol.ProtocolIndustryView;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,7 +29,7 @@ class ScreenLogisticsRowsTest {
         var imported = equipment("imported", false, 7, "", "foreign");
         var legacy = equipment("legacy", true, 0, null, null);
         var input = List.of(future, hidden, old, current, imported, legacy);
-        var lines = List.of(new IndustryView.Line("line", old.id(), 1, 1, 1, 3.5, 0, 0));
+        var lines = List.of(new ProtocolIndustryView.Line("line", old.id(), 1, 1, 1, 3.5, 0, 0));
         var rows = ScreenLogisticsRows.create(input, lines, "all");
         assertEquals(1, rows.size());
         var rifles = rows.getFirst();
@@ -41,21 +41,21 @@ class ScreenLogisticsRowsTest {
         assertEquals(20, old.stockpile(), "Grouping does not convert existing stock");
     }
     @Test void unacquiredFamilyWithOnlyDemandRemainsHidden() {
-        var demand = new IndustryView.Equipment("old", "Old model", "image/old", "infantry", false, false, 1, 1,
+        var demand = new ProtocolIndustryView.Equipment("old", "Old model", "image/old", "infantry", false, false, 1, 1,
                 Map.of(), 0, 0, 0, 30, "", "rifles", "보병 장비");
         var rows = ScreenLogisticsRows.create(List.of(demand), List.of(), "all");
         assertTrue(rows.isEmpty());
     }
     @Test void currentDemandDrivesStatusAndSignedBalanceAcrossGenerations() {
-        var old = new IndustryView.Equipment("old", "old", "image/old", "infantry", false, false, 1, 1,
+        var old = new ProtocolIndustryView.Equipment("old", "old", "image/old", "infantry", false, false, 1, 1,
                 Map.of(), 10, 0, 0, 0, "new", "rifles", "보병 장비", 60L);
-        var modern = new IndustryView.Equipment("new", "new", "image/new", "infantry", false, true, 1, 1,
+        var modern = new ProtocolIndustryView.Equipment("new", "new", "image/new", "infantry", false, true, 1, 1,
                 Map.of(), 20, 0, 0, 0, "", "rifles", "보병 장비", 0L);
         var rows = ScreenLogisticsRows.create(List.of(old, modern), List.of(), "all");
         assertEquals(60L, rows.getFirst().demand());
         assertEquals(-30L, rows.getFirst().balance());
         assertEquals("부족", rows.getFirst().status());
-        var line = new IndustryView.Line("line", "new", 1, 1, 1, 10, 0, 0);
+        var line = new ProtocolIndustryView.Line("line", "new", 1, 1, 1, 10, 0, 0);
         var producing = ScreenLogisticsRows.create(List.of(old, modern), List.of(line), "all").getFirst();
         assertEquals("생산", producing.status());
         assertTrue(producing.supplyDetail().contains("3일"));
@@ -66,17 +66,17 @@ class ScreenLogisticsRowsTest {
     }
     @Test void acquisitionHistoryKeepsAnExhaustedFamilyVisibleButAnEmptyLineDoesNot() {
         var never = equipment("new", true, 0, "", "rifles");
-        var line = new IndustryView.Line("line", "new", 1, 1, 1, 10, 0, 0);
+        var line = new ProtocolIndustryView.Line("line", "new", 1, 1, 1, 10, 0, 0);
         assertTrue(ScreenLogisticsRows.create(List.of(never),List.of(line),"all").isEmpty());
-        var acquired = new IndustryView.Equipment("old","old","image/old","infantry",false,false,1,1,
+        var acquired = new ProtocolIndustryView.Equipment("old","old","image/old","infantry",false,false,1,1,
                 Map.of(),0,0,0,0,"new","rifles","보병 장비",0L,true);
         var rows = ScreenLogisticsRows.create(List.of(acquired,never),List.of(line),"all");
         assertEquals(1,rows.size());
         assertEquals("image/new",rows.getFirst().representative().texture());
         assertEquals(0,rows.getFirst().stockpile());
     }
-    private static IndustryView.Equipment equipment(String id, boolean unlocked, long stock, String replacement, String family) {
-        return new IndustryView.Equipment(id, id, "image/" + id, "infantry", false, unlocked, 1, 1,
+    private static ProtocolIndustryView.Equipment equipment(String id, boolean unlocked, long stock, String replacement, String family) {
+        return new ProtocolIndustryView.Equipment(id, id, "image/" + id, "infantry", false, unlocked, 1, 1,
                 Map.of(), stock, 0, 0, 0, replacement, family);
     }
 }

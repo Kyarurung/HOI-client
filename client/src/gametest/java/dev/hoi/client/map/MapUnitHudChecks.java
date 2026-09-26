@@ -1,7 +1,7 @@
 package dev.hoi.client.map;
 
 import dev.hoi.client.input.InputSidebarMovement;
-import dev.hoi.protocol.UnitHudProtocol.*;
+import dev.hoi.protocol.ProtocolUnitHud.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -43,7 +43,7 @@ public final class MapUnitHudChecks {
                 b.clear();b.writeUtf(snapshot.dimension(),128);b.writeVarInt(193);
                 try{Snapshot.CODEC.decode(b);throw new AssertionError("Oversized HUD accepted");}catch(IllegalArgumentException expected){}
             }finally{b.release();}
-            for(String type:dev.hoi.protocol.UnitHudProtocol.TYPES)if(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/unit_hud/"+type+".png")).isEmpty())throw new AssertionError("Missing non-NATO unit icon: "+type);
+            for(String type:dev.hoi.protocol.ProtocolUnitHud.TYPES)if(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/unit_hud/"+type+".png")).isEmpty())throw new AssertionError("Missing non-NATO unit icon: "+type);
             for(String asset:List.of("army_selected","navy_selected"))if(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/unit_hud/"+asset+".png")).isEmpty())throw new AssertionError("Missing original selection outline: "+asset);
             MapUnitHud.accept(snapshot);
         });
@@ -68,6 +68,14 @@ public final class MapUnitHudChecks {
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->{client.options.guiScale().set(2);MapUnitHud.accept(fixture(client));});
         context.waitTicks(3);context.takeScreenshot("hoi-unit-hud-counters-and-hover-gui2");
+        for(var allegiance:Allegiance.values()) {
+            context.runOnClient(client->{
+                var source=fixture(client);
+                MapUnitHud.accept(new Snapshot(source.dimension(),source.counters().stream().map(c->c.withAllegiance(allegiance)).toList()));
+            });
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-unit-tooltip-"+allegiance.name().toLowerCase(Locale.ROOT)+"-gui2");
+        }
         context.runOnClient(client->{
             var rows=fixture(client).counters();
             for(var c:rows) {
@@ -76,7 +84,7 @@ public final class MapUnitHudChecks {
                 if(MapUnitHud.selectable(c,"hoi:atlas_air_test")!=c.air())throw new AssertionError("Air selection filter");
                 if(MapUnitHud.selectable(c,"hoi:atlas_construction_test"))throw new AssertionError("Other map selection filter");
             }
-            dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.HudProtocol.State.of("KOR",dev.hoi.protocol.CountryHud.UNKNOWN));
+            dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.ProtocolHudPayloads.State.of("KOR",dev.hoi.protocol.ProtocolCountryHud.UNKNOWN));
         });
         context.setScreen(dev.hoi.client.screen.ScreenMapCursor::new);context.waitTicks(3);
         context.runOnClient(client->{

@@ -11,7 +11,7 @@ import dev.hoi.client.ui.UiTooltips;
 import dev.hoi.client.ui.UiAssets;
 
 import dev.hoi.protocol.*;
-import dev.hoi.protocol.ConstructionView.*;
+import dev.hoi.protocol.ProtocolConstructionView.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Tooltip;
@@ -33,8 +33,8 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
             List.of("hub","railway","port","fort","coastal_fort"));
     private record ScreenPaletteEntry(Building building,int column,int offset) {}
     private final String token;
-    private final Consumer<ConstructionProtocol.Request> transport;
-    private ConstructionView view;
+    private final Consumer<ProtocolConstructionPayloads.Request> transport;
+    private ProtocolConstructionView view;
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
     private List<Integer> paletteDividers=List.of();
     private boolean consumerTooltip, loadingFailed;
@@ -42,13 +42,13 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     private List<ScreenConversionBox> conversionBoxes=List.of();
     public boolean showingConsumerTooltip() { return consumerTooltip; }
     public ScreenConstruction() {
-        this(UUID.randomUUID().toString(),null,r->{if(ClientPlayNetworking.canSend(ConstructionProtocol.Request.TYPE))ClientPlayNetworking.send(r);});
+        this(UUID.randomUUID().toString(),null,r->{if(ClientPlayNetworking.canSend(ProtocolConstructionPayloads.Request.TYPE))ClientPlayNetworking.send(r);});
     }
-    ScreenConstruction(String token,ConstructionView fixture,Consumer<ConstructionProtocol.Request> transport) {
+    ScreenConstruction(String token,ProtocolConstructionView fixture,Consumer<ProtocolConstructionPayloads.Request> transport) {
         super(Component.literal("건설"));this.token=token;this.view=fixture;this.transport=transport;
     }
-    public void open(){send(ConstructionProtocol.Action.OPEN,"",0,null);}
-    public void update(ConstructionView next) {
+    public void open(){send(ProtocolConstructionPayloads.Action.OPEN,"",0,null);}
+    public void update(ProtocolConstructionView next) {
         if(!next.session().equals(token))return;
         if(next.country().isEmpty() || view!=null&&!next.country().equals(view.country())){
             if(!next.message().isBlank()&&minecraft.player!=null)minecraft.player.sendSystemMessage(Component.literal(next.message()));
@@ -59,10 +59,10 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     }
     int panelWidth(){return pane;}
     @Override protected void init() {
-        pane=UiPanelLayout.width(MenuTab.CONSTRUCTION,width);top=UiMenuBar.height(width);
-        UiMenuBar.buttons(width,view==null?"":view.country(),MenuTab.CONSTRUCTION,t->{
-            if(t==MenuTab.CONSTRUCTION)return;
-            if(t==MenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(t);
+        pane=UiPanelLayout.width(ProtocolMenuTab.CONSTRUCTION,width);top=UiMenuBar.height(width);
+        UiMenuBar.buttons(width,view==null?"":view.country(),ProtocolMenuTab.CONSTRUCTION,t->{
+            if(t==ProtocolMenuTab.CONSTRUCTION)return;
+            if(t==ProtocolMenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(t);
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new UiMenuButton("×",pane-25,top+3,19,19,this::onClose));
         if(view==null){
@@ -84,7 +84,7 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         for(var entry:entries) {
             var b=entry.building();int bx=x+entry.column()*(icon+2),by=y+entry.offset()-paletteScroll;
             if(by<y||by+icon>height-30)continue;
-            var button=new UiPanelButton(b.name(),bx,by,icon,icon,()->send(ConstructionProtocol.Action.SELECT,b.id(),0,null)) {
+            var button=new UiPanelButton(b.name(),bx,by,icon,icon,()->send(ProtocolConstructionPayloads.Action.SELECT,b.id(),0,null)) {
                 @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                     UiMenuStyle.control(g,bx,by,icon,icon,view.selected().equals(b.id()),isHoveredOrFocused());
                     if(!b.texture().isBlank())UiAssets.draw(g,b.texture(),bx+2,by+2,icon-4,icon-4);
@@ -98,7 +98,7 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         int repair=view.summary().repairPriority();
         for(int direction:new int[]{-1,1}) {
             var button=new UiMenuButton(direction<0?"−":"+",direction<0?pane-101:pane-47,top+3,21,19,
-                    ()->send(ConstructionProtocol.Action.REPAIR,"",Math.clamp(repair+direction,0,10000),null));
+                    ()->send(ProtocolConstructionPayloads.Action.REPAIR,"",Math.clamp(repair+direction,0,10000),null));
             button.active=pending==0&&(direction>0||repair>0);button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal("건설보다 수리를 우선하는 공장 수")));addRenderableWidget(button);
         }
         int visibleRows=Math.max(1,(height-queueY()-30)/rowHeight());
@@ -107,8 +107,8 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
             var p=view.projects().get(i);int by=queueY()+i*rowHeight()-scroll;
             if(by<queueY()||by+rowHeight()>height-30)continue;
             for(int action=0;action<3;action++) {
-                var kind=action==0?ConstructionProtocol.Action.UP:action==1?ConstructionProtocol.Action.DOWN:ConstructionProtocol.Action.CANCEL;
-                var button=new UiMenuButton(action==0?"↑":action==1?"↓":"×",x-63+action*19,by+rowHeight()-23,18,18,()->send(kind,p.id(),kind!=ConstructionProtocol.Action.CANCEL && dev.hoi.client.ui.UiPriorityControls.shifted()?1:0,null));
+                var kind=action==0?ProtocolConstructionPayloads.Action.UP:action==1?ProtocolConstructionPayloads.Action.DOWN:ProtocolConstructionPayloads.Action.CANCEL;
+                var button=new UiMenuButton(action==0?"↑":action==1?"↓":"×",x-63+action*19,by+rowHeight()-23,18,18,()->send(kind,p.id(),kind!=ProtocolConstructionPayloads.Action.CANCEL && dev.hoi.client.ui.UiPriorityControls.shifted()?1:0,null));
                 button.active=pending==0&&(action!=0||i>0)&&(action!=1||i<view.projects().size()-1);
                 button.setTooltip(dev.hoi.client.ui.UiTooltips.create(action<2?dev.hoi.client.ui.UiPriorityControls.tooltip(action==0):Component.literal("건설 취소")));addRenderableWidget(button);
             }
@@ -210,19 +210,19 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     private String calculation(String explanation,String label) {
         return explanation==null||explanation.isBlank()?label+"\n계산 내역이 제공되지 않았습니다.":explanation;
     }
-    private void send(ConstructionProtocol.Action action,String item,int amount,Vector3f ray) {
-        if(pending>0&&action!=ConstructionProtocol.Action.CLOSE)return;
-        boolean passive=action==ConstructionProtocol.Action.REFRESH;
-        if(action==ConstructionProtocol.Action.OPEN)loadingFailed=false;
-        if(!passive)pending=view==null?200:100;transport.accept(new ConstructionProtocol.Request(action,token,view==null?0:view.revision(),item,amount,ray==null?0:ray.x,ray==null?0:ray.y,ray==null?0:ray.z));
+    private void send(ProtocolConstructionPayloads.Action action,String item,int amount,Vector3f ray) {
+        if(pending>0&&action!=ProtocolConstructionPayloads.Action.CLOSE)return;
+        boolean passive=action==ProtocolConstructionPayloads.Action.REFRESH;
+        if(action==ProtocolConstructionPayloads.Action.OPEN)loadingFailed=false;
+        if(!passive)pending=view==null?200:100;transport.accept(new ProtocolConstructionPayloads.Request(action,token,view==null?0:view.revision(),item,amount,ray==null?0:ray.x,ray==null?0:ray.y,ray==null?0:ray.z));
         if(!passive)rebuildWidgets();
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
         if(view!=null&&view.selected().equals("conversion")&&event.x()>=pane) {
             if(event.button()==0&&pending==0)for(var box:conversionBoxes.reversed()) {
                 if(event.y()<box.y()||event.y()>=box.y()+26)continue;
-                if(event.x()>=box.x()+6&&event.x()<box.x()+26) {dev.hoi.client.audio.AudioUiSounds.play("ui.click");send(ConstructionProtocol.Action.CONVERT,box.state().state(),0,null);return true;}
-                if(event.x()>=box.x()+78&&event.x()<box.x()+98) {dev.hoi.client.audio.AudioUiSounds.play("ui.click");send(ConstructionProtocol.Action.CONVERT,box.state().state(),1,null);return true;}
+                if(event.x()>=box.x()+6&&event.x()<box.x()+26) {dev.hoi.client.audio.AudioUiSounds.play("ui.click");send(ProtocolConstructionPayloads.Action.CONVERT,box.state().state(),0,null);return true;}
+                if(event.x()>=box.x()+78&&event.x()<box.x()+98) {dev.hoi.client.audio.AudioUiSounds.play("ui.click");send(ProtocolConstructionPayloads.Action.CONVERT,box.state().state(),1,null);return true;}
             }
             return true;
         }
@@ -233,7 +233,7 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
                 }
                 var matrix=minecraft.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new Matrix4f()).invert();
                 var ray=matrix.transformProject(new Vector3f((float)(event.x()/width*2-1),(float)(1-event.y()/height*2),1)).normalize();
-                send(event.button()==0?ConstructionProtocol.Action.PLACE:ConstructionProtocol.Action.CANCEL_AT,"",dev.hoi.client.ui.UiPriorityControls.shifted()?1:0,ray);
+                send(event.button()==0?ProtocolConstructionPayloads.Action.PLACE:ProtocolConstructionPayloads.Action.CANCEL_AT,"",dev.hoi.client.ui.UiPriorityControls.shifted()?1:0,ray);
             }
             return true;
         }
@@ -247,13 +247,13 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     @Override public void tick() {
         if(pending>0&&--pending==0){
             if(view==null){loadingFailed=true;rebuildWidgets();}
-            else send(ConstructionProtocol.Action.REFRESH,"",0,null);
+            else send(ProtocolConstructionPayloads.Action.REFRESH,"",0,null);
         }
-        else if(view!=null&&++refresh%60==0&&pending==0)send(ConstructionProtocol.Action.REFRESH,"",0,null);
+        else if(view!=null&&++refresh%60==0&&pending==0)send(ProtocolConstructionPayloads.Action.REFRESH,"",0,null);
     }
     @Override public boolean keyPressed(KeyEvent e){return InputSidebarMovement.consumes(minecraft,e)||super.keyPressed(e);}
     @Override public boolean keyReleased(KeyEvent e){return InputSidebarMovement.consumes(minecraft,e)||super.keyReleased(e);}
-    @Override public void removed(){InputSidebarMovement.release(minecraft);if(ScreenDialogCoordinator.suspending())return;transport.accept(new ConstructionProtocol.Request(ConstructionProtocol.Action.CLOSE,token,view==null?0:view.revision(),"",0,0,0,0));}
+    @Override public void removed(){InputSidebarMovement.release(minecraft);if(ScreenDialogCoordinator.suspending())return;transport.accept(new ProtocolConstructionPayloads.Request(ProtocolConstructionPayloads.Action.CLOSE,token,view==null?0:view.revision(),"",0,0,0,0));}
     @Override public int unitHudLeft(){return pane;}
     @Override public boolean allowsMovement(){return true;}
     @Override public boolean isPauseScreen(){return false;}

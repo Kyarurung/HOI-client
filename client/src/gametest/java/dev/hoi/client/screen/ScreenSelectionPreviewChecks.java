@@ -1,11 +1,11 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.protocol.MenuView;
+import dev.hoi.protocol.ProtocolMenuView;
 import dev.hoi.client.ui.UiMenuBar;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 
 public final class ScreenSelectionPreviewChecks {
-    public static void run(ClientGameTestContext context, MenuView view) {
+    public static void run(ClientGameTestContext context, ProtocolMenuView view) {
         for (int[] size : new int[][]{{1600, 1000, 1}, {1600, 1000, 2}, {1600, 1000, 3}, {854, 480, 2}}) {
             context.getInput().resizeWindow(size[0], size[1]);
             context.runOnClient(client -> client.options.guiScale().set(size[2]));

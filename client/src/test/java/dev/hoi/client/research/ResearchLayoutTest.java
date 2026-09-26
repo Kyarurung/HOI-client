@@ -1,6 +1,6 @@
 package dev.hoi.client.research;
 
-import dev.hoi.protocol.ResearchView;
+import dev.hoi.protocol.ProtocolResearchView;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -8,8 +8,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class ResearchLayoutTest {
     @Test void prerequisiteFamiliesKeepTheirRowsAcrossYearColumns() {
         var first = tech("hoi:z_first", 2000);
-        var second = new ResearchView.Tech("hoi:a_next", "INFANTRY", "후속 연구", 2006, 2, 100, 0, 1,
-                List.of(first.id()), List.of(), List.of(), ResearchView.Status.LOCKED);
+        var second = new ProtocolResearchView.Tech("hoi:a_next", "INFANTRY", "후속 연구", 2006, 2, 100, 0, 1,
+                List.of(first.id()), List.of(), List.of(), ProtocolResearchView.Status.LOCKED);
         var layout = ResearchLayout.create(List.of(first, second, tech("hoi:other", 2006)), "INFANTRY", "");
         var firstNode = layout.nodes().stream().filter(n -> n.tech().id().equals(first.id())).findFirst().orElseThrow();
         var secondNode = layout.nodes().stream().filter(n -> n.tech().id().equals(second.id())).findFirst().orElseThrow();
@@ -18,9 +18,9 @@ class ResearchLayoutTest {
         assertNotEquals(firstNode.y(), otherNode.y());
     }
     @Test void fullSourceCatalogKeepsEveryNodeClickableAndNavalSupportSeparate() throws Exception {
-        ResearchView view;
+        ProtocolResearchView view;
         try(var in=getClass().getResourceAsStream("/tfr-research-view.json")) {
-            view=new dev.hoi.protocol.ResearchProtocol.Response(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).view();
+            view=new dev.hoi.protocol.ProtocolResearchPayloads.Response(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).view();
         }
         assertEquals(420,view.technologies().size());assertEquals(1,view.availableSlot(0));assertEquals(2,view.benefits().remainingUses());
         var ids=new HashSet<String>();
@@ -43,12 +43,12 @@ class ResearchLayoutTest {
             assertTrue(child.prerequisites().contains(child.source().parentTechnology()));
         }
     }
-    private ResearchView.Tech tech(String id, int year) {
-        return new ResearchView.Tech(id, "INFANTRY", "보병 " + id, year, 1, 100, 0, 1,
-                List.of(), List.of(), List.of(), ResearchView.Status.AVAILABLE);
+    private ProtocolResearchView.Tech tech(String id, int year) {
+        return new ProtocolResearchView.Tech(id, "INFANTRY", "보병 " + id, year, 1, 100, 0, 1,
+                List.of(), List.of(), List.of(), ProtocolResearchView.Status.AVAILABLE);
     }
     @Test void denseSameYearTreesNeverOverlapAndPickingUsesContentCoordinates() {
-        var list = new ArrayList<ResearchView.Tech>();
+        var list = new ArrayList<ProtocolResearchView.Tech>();
         for (int i = 0; i < 300; i++) list.add(tech("hoi:tech/" + i, 2000 + i % 10));
         var layout = ResearchLayout.create(list, "INFANTRY", "");
         assertEquals(300, layout.nodes().size());

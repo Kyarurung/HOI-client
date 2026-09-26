@@ -5,8 +5,8 @@ import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
-import dev.hoi.protocol.DialogView;
-import dev.hoi.protocol.MenuTab;
+import dev.hoi.protocol.ProtocolDialogView;
+import dev.hoi.protocol.ProtocolMenuTab;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Tooltip;
@@ -15,10 +15,10 @@ import net.minecraft.network.chat.Component;
 final class ScreenPoliticsChoice extends ScreenDialog {
     private final Screen parent;
     private int left, top, pane, bottom, scroll;
-    ScreenPoliticsChoice(DialogView view, Screen parent) { super(view); this.parent = parent; }
+    ScreenPoliticsChoice(ProtocolDialogView view, Screen parent) { super(view); this.parent = parent; }
     void dismiss() { minecraft.gui.setScreen(parent); }
     @Override protected void init() {
-        left = UiPanelLayout.width(MenuTab.POLITICS, width);
+        left = UiPanelLayout.width(ProtocolMenuTab.POLITICS, width);
         top = UiMenuBar.height(width);
         pane = Math.min(240, width - left - 6);
         if (pane < 170) { pane = Math.min(240, width - 12); left = width - pane - 6; }

@@ -1,7 +1,7 @@
 package dev.hoi.client.screen;
 
 import dev.hoi.client.ui.*;
-import dev.hoi.protocol.AgencyView;
+import dev.hoi.protocol.ProtocolAgencyView;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Tooltip;
@@ -11,18 +11,18 @@ import java.util.function.Consumer;
 
 final class ScreenAgencyOperation extends Screen {
     private final ScreenAgency parent;
-    private AgencyView.Item item;
+    private ProtocolAgencyView.Item item;
     private final Consumer<List<String>> submit;
     private final List<String> arguments = new ArrayList<>();
     private int x,y,w,h,left,scroll;
-    ScreenAgencyOperation(ScreenAgency parent, AgencyView.Item item, Consumer<List<String>> submit) {
+    ScreenAgencyOperation(ScreenAgency parent, ProtocolAgencyView.Item item, Consumer<List<String>> submit) {
         super(Component.literal(item.title())); this.parent=parent; this.item=item; this.submit=submit;
         for (int i=0;i<item.parameters().size();i++) {
             var choices=item.parameters().get(i).choices();
             arguments.add(choices.isEmpty()?"":choices.get(Math.min(i==2?1:0,choices.size()-1)).value());
         }
     }
-    void update(AgencyView view) {
+    void update(ProtocolAgencyView view) {
         var next=view.items().stream().filter(i->i.id().equals(item.id())).findFirst().orElse(null);
         if(next==null){minecraft.gui.setScreen(parent);return;}
         item=next;
@@ -41,7 +41,7 @@ final class ScreenAgencyOperation extends Screen {
         for(int i=0;i<item.parameters().size();i++) {
             int index=i; var parameter=item.parameters().get(i);
             if(parameter.choices().size() == 1) continue;
-            String selected=parameter.choices().stream().filter(c->c.value().equals(arguments.get(index))).map(AgencyView.Choice::label).findFirst().orElse("선택 없음");
+            String selected=parameter.choices().stream().filter(c->c.value().equals(arguments.get(index))).map(ProtocolAgencyView.Choice::label).findFirst().orElse("선택 없음");
             var button=new UiMenuButton(parameter.label()+": "+selected,x+8,y+98+i*39,left-16,35,()->{
                 var choices=parameter.choices(); if(choices.isEmpty())return;
                 int at=0;for(int j=0;j<choices.size();j++)if(choices.get(j).value().equals(arguments.get(index)))at=j;
@@ -63,8 +63,8 @@ final class ScreenAgencyOperation extends Screen {
         UiMenuStyle.recess(g,x+6,y+29,left-9,h-65);
         UiAssets.nineSlice(g,"agency/ui/target",x+9,y+32,left-15,61,5,.5);
         UiAssets.cover(g,item.texture(),x+12,y+35,55,55);
-        String country=item.parameters().isEmpty()?"":item.parameters().getFirst().choices().stream().filter(c->c.value().equals(arguments.getFirst())).findFirst().map(AgencyView.Choice::value).orElse("");
-        String countryName=item.parameters().isEmpty()?"":item.parameters().getFirst().choices().stream().filter(c->c.value().equals(arguments.getFirst())).findFirst().map(AgencyView.Choice::label).orElse("");
+        String country=item.parameters().isEmpty()?"":item.parameters().getFirst().choices().stream().filter(c->c.value().equals(arguments.getFirst())).findFirst().map(ProtocolAgencyView.Choice::value).orElse("");
+        String countryName=item.parameters().isEmpty()?"":item.parameters().getFirst().choices().stream().filter(c->c.value().equals(arguments.getFirst())).findFirst().map(ProtocolAgencyView.Choice::label).orElse("");
         UiAssets.draw(g,"country/"+country.toLowerCase(Locale.ROOT)+"/flag",x+73,y+37,25,17);
         UiText.centered(g,font,countryName,x+72,y+57,left-82,30,UiMenuStyle.TEXT);
         UiText.centered(g,font,item.value(),x+10,y+h-97,left-17,48,0xFFFFCC33);

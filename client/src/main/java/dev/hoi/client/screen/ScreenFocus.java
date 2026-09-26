@@ -15,9 +15,9 @@ import java.util.function.Consumer;
 public final class ScreenFocus extends Screen {
     private static final int NODE_W=84,NODE_H=80,X_PITCH=48,Y_PITCH=84;
     private final String token=UUID.randomUUID().toString();
-    private final Consumer<FocusProtocol.Request> sender;
+    private final Consumer<ProtocolFocusPayloads.Request> sender;
     private final boolean fixture;
-    private FocusProtocol.View view;
+    private ProtocolFocusPayloads.View view;
     private EditBox search;
     private String query="",selected="",completionTarget="";
     private float zoom=1,panX,panY;
@@ -25,12 +25,12 @@ public final class ScreenFocus extends Screen {
     private int top,waiting,ticks=999;
     public ScreenFocus(){this(null,ClientPlayNetworking::send,false);}
     public ScreenFocus(String completedFocus){this();completionTarget=completedFocus;}
-    public ScreenFocus(FocusProtocol.View view,Consumer<FocusProtocol.Request> sender){this(view,sender,true);}
-    private ScreenFocus(FocusProtocol.View view,Consumer<FocusProtocol.Request> sender,boolean fixture){super(Component.literal("중점 계통도"));this.view=view;this.sender=sender;this.fixture=fixture;}
+    public ScreenFocus(ProtocolFocusPayloads.View view,Consumer<ProtocolFocusPayloads.Request> sender){this(view,sender,true);}
+    private ScreenFocus(ProtocolFocusPayloads.View view,Consumer<ProtocolFocusPayloads.Request> sender,boolean fixture){super(Component.literal("중점 계통도"));this.view=view;this.sender=sender;this.fixture=fixture;}
     public String token(){return token;}
     String searchText(){return query;}
     float zoomLevel(){return zoom;}
-    public void update(FocusProtocol.Response packet) {
+    public void update(ProtocolFocusPayloads.Response packet) {
         if(!packet.token().equals(token))return;
         if(packet.json().isEmpty()){minecraft.gui.setScreen(null);return;}
         var next=packet.view();
@@ -43,12 +43,12 @@ public final class ScreenFocus extends Screen {
         }
         rebuildWidgets();
     }
-    private void request(FocusProtocol.Action action,String id) {
-        if(!fixture && !ClientPlayNetworking.canSend(FocusProtocol.Request.TYPE))return;
-        sender.accept(new FocusProtocol.Request(action,token,view==null?"":view.session(),view==null?0:view.revision(),id));ticks=0;
-        if(action==FocusProtocol.Action.START || action==FocusProtocol.Action.CANCEL)waiting=100;
+    private void request(ProtocolFocusPayloads.Action action,String id) {
+        if(!fixture && !ClientPlayNetworking.canSend(ProtocolFocusPayloads.Request.TYPE))return;
+        sender.accept(new ProtocolFocusPayloads.Request(action,token,view==null?"":view.session(),view==null?0:view.revision(),id));ticks=0;
+        if(action==ProtocolFocusPayloads.Action.START || action==ProtocolFocusPayloads.Action.CANCEL)waiting=100;
     }
-    @Override public void tick(){if(waiting>0)waiting--;if(!fixture && ++ticks>=120 && waiting==0)request(view==null?FocusProtocol.Action.OPEN:FocusProtocol.Action.REFRESH,"");}
+    @Override public void tick(){if(waiting>0)waiting--;if(!fixture && ++ticks>=120 && waiting==0)request(view==null?ProtocolFocusPayloads.Action.OPEN:ProtocolFocusPayloads.Action.REFRESH,"");}
     @Override protected void rebuildWidgets() {
         var focused=getFocused();
         super.rebuildWidgets();
@@ -71,9 +71,9 @@ public final class ScreenFocus extends Screen {
             var n=selectedNode();if(n==null){selected="";return;}
             int w=detailWidth(),x=(width-w)/2,y=detailY();
             addRenderableWidget(new UiMenuButton("×",x+w-25,y+3,19,19,() -> {selected="";rebuildWidgets();}));
-            var start=new UiMenuButton("중점 시작",x+w/2-52,y+detailHeight()-29,104,21,() -> {request(FocusProtocol.Action.START,n.id());rebuildWidgets();});start.active=n.enabled() && waiting==0;addRenderableWidget(start);
+            var start=new UiMenuButton("중점 시작",x+w/2-52,y+detailHeight()-29,104,21,() -> {request(ProtocolFocusPayloads.Action.START,n.id());rebuildWidgets();});start.active=n.enabled() && waiting==0;addRenderableWidget(start);
         }
-        if(view!=null && view.cancelable()) {var cancel=new UiMenuButton("중점 취소",8,height-28,85,21,() -> {request(FocusProtocol.Action.CANCEL,"");rebuildWidgets();});cancel.active=waiting==0;addRenderableWidget(cancel);}
+        if(view!=null && view.cancelable()) {var cancel=new UiMenuButton("중점 취소",8,height-28,85,21,() -> {request(ProtocolFocusPayloads.Action.CANCEL,"");rebuildWidgets();});cancel.active=waiting==0;addRenderableWidget(cancel);}
     }
     private void centerTree() {
         if(view.nodes().isEmpty()){panX=width/2f;panY=top+8;centered=true;return;}
@@ -82,15 +82,15 @@ public final class ScreenFocus extends Screen {
         zoom=1;
         panX=(float)(width/2.0-(minX+maxX)*zoom/2);panY=(float)(top+8-minY*zoom);centered=true;
     }
-    private float x(FocusProtocol.Node n){return (float)(panX+n.x()*X_PITCH*zoom);}
-    private float y(FocusProtocol.Node n){return (float)(panY+n.y()*Y_PITCH*zoom);}
-    private FocusProtocol.Node at(double mx,double my) {
+    private float x(ProtocolFocusPayloads.Node n){return (float)(panX+n.x()*X_PITCH*zoom);}
+    private float y(ProtocolFocusPayloads.Node n){return (float)(panY+n.y()*Y_PITCH*zoom);}
+    private ProtocolFocusPayloads.Node at(double mx,double my) {
         if(view==null || my<top || my>=height-5)return null;
         for(var n:view.nodes())if(mx>=x(n)-NODE_W*zoom/2 && mx<x(n)+NODE_W*zoom/2 && my>=y(n) && my<y(n)+NODE_H*zoom)return n;return null;
     }
-    private FocusProtocol.Node selectedNode(){return view==null?null:view.nodes().stream().filter(n -> n.id().equals(selected)).findFirst().orElse(null);}
+    private ProtocolFocusPayloads.Node selectedNode(){return view==null?null:view.nodes().stream().filter(n -> n.id().equals(selected)).findFirst().orElse(null);}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
-        g.fill(0,0,width,height,0xFF030804);UiMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
+        g.fill(0,0,width,height,0xFF030804);UiMenuBar.draw(g,width,view==null?ProtocolCountryHud.UNKNOWN:view.hud(),mx,my,0);
         UiMenuStyle.panel(g,0,top-29,width,29);
         g.text(font,font.plainSubstrByWidth((view==null?"":view.name()+" ")+"중점 계통도",Math.max(30,width-245)),10,top-19,UiMenuStyle.TEXT);
         g.enableScissor(4,top,width-4,height-5);
@@ -114,12 +114,12 @@ public final class ScreenFocus extends Screen {
         if(selected.isEmpty()) {var node=at(mx,my);if(node!=null)UiTooltips.draw(g,font,node.name()+"\n"+node.description()+"\n"+node.status()+(node.remaining()>0?" · "+((node.remaining()+23)/24)+"일 남음":""),mx,my);}
         if(view!=null && !view.message().isEmpty())g.text(font,font.plainSubstrByWidth(view.message(),width-115),105,height-19,UiMenuStyle.TEXT);
     }
-    private void link(GuiGraphicsExtractor g,FocusProtocol.Node parent,FocusProtocol.Node child) {
+    private void link(GuiGraphicsExtractor g,ProtocolFocusPayloads.Node parent,ProtocolFocusPayloads.Node child) {
         int px=(int)x(parent),py=(int)(y(parent)+NODE_H*zoom-2*zoom),cx=(int)x(child),cy=(int)y(child),middle=(py+cy)/2;
         int color=parent.status().equals("완료")?0xFF92A360:0xFF45616D;
         g.fill(px,Math.min(py,middle),px+1,Math.max(py,middle)+1,color);g.fill(Math.min(px,cx),middle,Math.max(px,cx)+1,middle+1,color);g.fill(cx,Math.min(middle,cy),cx+1,Math.max(middle,cy)+1,color);
     }
-    private void drawNode(GuiGraphicsExtractor g,FocusProtocol.Node n) {
+    private void drawNode(GuiGraphicsExtractor g,ProtocolFocusPayloads.Node n) {
         float left=x(n)-NODE_W*zoom/2,upper=y(n);
         if(left>width || left+NODE_W*zoom<0 || upper>height || upper+NODE_H*zoom<top)return;
         g.pose().pushMatrix();g.pose().translate(left,upper);g.pose().scale(zoom);
@@ -133,7 +133,7 @@ public final class ScreenFocus extends Screen {
         if(!match)g.fill(0,0,NODE_W,NODE_H,0xA0000000);
         g.pose().popMatrix();
     }
-    private void drawLabel(GuiGraphicsExtractor g,FocusProtocol.Node n) {
+    private void drawLabel(GuiGraphicsExtractor g,ProtocolFocusPayloads.Node n) {
         float left=x(n)-NODE_W*zoom/2,upper=y(n);
         if(left>width || left+NODE_W*zoom<0 || upper>height || upper+NODE_H*zoom<top)return;
         boolean match=query.isBlank() || n.name().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));

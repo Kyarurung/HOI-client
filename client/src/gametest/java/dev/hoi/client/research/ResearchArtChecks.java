@@ -10,9 +10,9 @@ import java.util.List;
 
 public final class ResearchArtChecks {
     public static void run(ClientGameTestContext context) {
-        ResearchView view;
+        ProtocolResearchView view;
         try (var input = ResearchArtChecks.class.getResourceAsStream("/tfr-research-view.json")) {
-            view = new ResearchProtocol.Response(new String(input.readAllBytes(), StandardCharsets.UTF_8)).view();
+            view = new ProtocolResearchPayloads.Response(new String(input.readAllBytes(), StandardCharsets.UTF_8)).view();
         } catch (Exception error) { throw new AssertionError(error); }
         var ids = List.of("antiair2", "advanced_small_airframe", "modern_small_airframe");
         context.runOnClient(client -> {

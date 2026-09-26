@@ -1,6 +1,6 @@
 package dev.hoi.client.input;
 
-import dev.hoi.protocol.ConstructionProtocol;
+import dev.hoi.protocol.ProtocolConstructionPayloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
@@ -14,7 +14,7 @@ public final class InputConstructionMap {
 
     private static boolean available(Minecraft client) {
         if (client.player == null || client.level == null || client.gui.screen() != null
-                || !ClientPlayNetworking.canSend(ConstructionProtocol.CancelMap.TYPE)) return false;
+                || !ClientPlayNetworking.canSend(ProtocolConstructionPayloads.CancelMap.TYPE)) return false;
         var item = client.player.getMainHandItem();
         var dimension = client.level.dimension().identifier();
         int slot = item.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getIntOr("hoi_atlas_selector", 0);
@@ -30,7 +30,7 @@ public final class InputConstructionMap {
 
     public static boolean cancel(Minecraft client) {
         if (!available(client)) return false;
-        ClientPlayNetworking.send(ConstructionProtocol.CancelMap.INSTANCE);
+        ClientPlayNetworking.send(ProtocolConstructionPayloads.CancelMap.INSTANCE);
         return true;
     }
 }

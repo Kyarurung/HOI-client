@@ -14,22 +14,22 @@ import java.util.function.Consumer;
 
 public final class ScreenDecision extends Screen implements InputSidebarMovement.InputMovementScreen {
     private final String token = UUID.randomUUID().toString();
-    private final Consumer<DecisionProtocol.Request> sender;
+    private final Consumer<ProtocolDecisionPayloads.Request> sender;
     private final boolean fixture;
     private final Set<String> collapsed = new HashSet<>();
-    private DecisionProtocol.View view;
+    private ProtocolDecisionPayloads.View view;
     private int pane, top, scroll, total, page, ticks = 99, waiting;
-    private record ScreenDecisionHit(DecisionProtocol.Row row, int y, int height) {}
+    private record ScreenDecisionHit(ProtocolDecisionPayloads.Row row, int y, int height) {}
     private final List<ScreenDecisionHit> hits = new ArrayList<>();
     public ScreenDecision() { this(null, ClientPlayNetworking::send, false); }
-    public ScreenDecision(DecisionProtocol.View view, Consumer<DecisionProtocol.Request> sender) { this(view, sender, true); }
-    private ScreenDecision(DecisionProtocol.View view, Consumer<DecisionProtocol.Request> sender, boolean fixture) {
+    public ScreenDecision(ProtocolDecisionPayloads.View view, Consumer<ProtocolDecisionPayloads.Request> sender) { this(view, sender, true); }
+    private ScreenDecision(ProtocolDecisionPayloads.View view, Consumer<ProtocolDecisionPayloads.Request> sender, boolean fixture) {
         super(Component.literal("사건과 결정")); this.view=view;this.sender=sender;this.fixture=fixture;
     }
     public String token() { return token; }
     int scrollOffset() { return scroll; }
     boolean collapsed(String id) { return collapsed.contains(id); }
-    public void update(DecisionProtocol.Response packet) {
+    public void update(ProtocolDecisionPayloads.Response packet) {
         if (!packet.token().equals(token)) return;
         if (packet.json().isEmpty()) { minecraft.gui.setScreen(null); return; }
         var next=packet.view();
@@ -37,36 +37,36 @@ public final class ScreenDecision extends Screen implements InputSidebarMovement
         if (view!=null && view.session().equals(next.session()) && next.revision()<view.revision()) return;
         view=next;page=view.page();waiting=0;rebuildWidgets();
     }
-    private void request(DecisionProtocol.Action action, String id) {
-        if (!fixture && !ClientPlayNetworking.canSend(DecisionProtocol.Request.TYPE)) return;
-        sender.accept(new DecisionProtocol.Request(action,token,view==null?"":view.session(),view==null?0:view.revision(),id,page));
-        ticks=0;if(action==DecisionProtocol.Action.TAKE)waiting=100;
+    private void request(ProtocolDecisionPayloads.Action action, String id) {
+        if (!fixture && !ClientPlayNetworking.canSend(ProtocolDecisionPayloads.Request.TYPE)) return;
+        sender.accept(new ProtocolDecisionPayloads.Request(action,token,view==null?"":view.session(),view==null?0:view.revision(),id,page));
+        ticks=0;if(action==ProtocolDecisionPayloads.Action.TAKE)waiting=100;
     }
     @Override public void tick() {
         if (waiting>0) waiting--;
-        if (!fixture && ++ticks>=80 && waiting==0) request(view==null?DecisionProtocol.Action.OPEN:DecisionProtocol.Action.REFRESH,"");
+        if (!fixture && ++ticks>=80 && waiting==0) request(view==null?ProtocolDecisionPayloads.Action.OPEN:ProtocolDecisionPayloads.Action.REFRESH,"");
     }
     @Override protected void init() {
-        pane=UiPanelLayout.width(MenuTab.DECISIONS,width);top=UiMenuBar.height(width);
-        UiMenuBar.buttons(width,view==null?"":view.country(),MenuTab.DECISIONS,tab -> {
-            if(tab==MenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(tab);
+        pane=UiPanelLayout.width(ProtocolMenuTab.DECISIONS,width);top=UiMenuBar.height(width);
+        UiMenuBar.buttons(width,view==null?"":view.country(),ProtocolMenuTab.DECISIONS,tab -> {
+            if(tab==ProtocolMenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(tab);
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new UiMenuButton("×",pane-25,top+3,19,19,this::onClose));
         layout(null,false);
         scroll=Math.clamp(scroll,0,Math.max(0,total-contentBottom()+contentTop()));
         layout(null,true);
-        if(view!=null && view.total()>DecisionProtocol.PAGE_SIZE) {
+        if(view!=null && view.total()>ProtocolDecisionPayloads.PAGE_SIZE) {
             var back=new UiMenuButton("←",8,height-27,36,21,() -> changePage(-1));back.active=page>0;addRenderableWidget(back);
-            var next=new UiMenuButton("→",pane-44,height-27,36,21,() -> changePage(1));next.active=(page+1)*DecisionProtocol.PAGE_SIZE<view.total();addRenderableWidget(next);
+            var next=new UiMenuButton("→",pane-44,height-27,36,21,() -> changePage(1));next.active=(page+1)*ProtocolDecisionPayloads.PAGE_SIZE<view.total();addRenderableWidget(next);
         }
     }
-    private void changePage(int delta) { page+=delta;scroll=0;request(DecisionProtocol.Action.REFRESH,""); }
+    private void changePage(int delta) { page+=delta;scroll=0;request(ProtocolDecisionPayloads.Action.REFRESH,""); }
     private int contentTop() { return top+52; }
     private int contentBottom() { return height-32; }
     private void layout(GuiGraphicsExtractor g, boolean widgets) {
         if(view==null)return;
         if(widgets)hits.clear();
-        var groups=new LinkedHashMap<String,List<DecisionProtocol.Row>>();
+        var groups=new LinkedHashMap<String,List<ProtocolDecisionPayloads.Row>>();
         for(var row:view.rows())groups.computeIfAbsent(row.category(),k -> new ArrayList<>()).add(row);
         int y=contentTop()-scroll, header=Math.max(26,pane*52/550),rowHeight=Math.max(25,pane*40/550);
         for(var group:groups.entrySet()) {
@@ -96,7 +96,7 @@ public final class ScreenDecision extends Screen implements InputSidebarMovement
                 }
                 if(widgets && y>=contentTop() && y+rowHeight<=contentBottom()) {
                     hits.add(new ScreenDecisionHit(row,y,rowHeight));
-                    control(row.name(),7,y,pane-14,rowHeight,row.enabled() && waiting==0,() -> {request(DecisionProtocol.Action.TAKE,row.id());rebuildWidgets();});
+                    control(row.name(),7,y,pane-14,rowHeight,row.enabled() && waiting==0,() -> {request(ProtocolDecisionPayloads.Action.TAKE,row.id());rebuildWidgets();});
                 }
                 y+=rowHeight+3;
             }
@@ -113,14 +113,14 @@ public final class ScreenDecision extends Screen implements InputSidebarMovement
     private static String icon(String name) { return name.matches("[A-Za-z0-9_]+")?"decision/icon/"+name.toLowerCase(Locale.ROOT):""; }
     private static String format(double n) { return java.math.BigDecimal.valueOf(n).stripTrailingZeros().toPlainString(); }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
-        UiMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
+        UiMenuBar.draw(g,width,view==null?ProtocolCountryHud.UNKNOWN:view.hud(),mx,my,0);
         UiMenuStyle.panel(g,0,top,pane,height-top);
         g.text(font,"사건과 결정",10,top+9,UiMenuStyle.TEXT);
         String message=view==null?"서버 정보 불러오는 중…":view.message().isEmpty()?"국가중점과 사건에 따른 결정":view.message();
         g.text(font,font.plainSubstrByWidth(message,pane-20),10,top+34,UiMenuStyle.MUTED);
         g.enableScissor(3,contentTop(),pane-3,contentBottom());layout(g,false);g.disableScissor();
         if(view!=null && view.rows().isEmpty())g.text(font,"선택 가능한 결정 없음",12,contentTop()+12,UiMenuStyle.MUTED);
-        if(view!=null && view.total()>DecisionProtocol.PAGE_SIZE)g.centeredText(font,(page+1)+" / "+((view.total()+DecisionProtocol.PAGE_SIZE-1)/DecisionProtocol.PAGE_SIZE),pane/2,height-21,UiMenuStyle.TEXT);
+        if(view!=null && view.total()>ProtocolDecisionPayloads.PAGE_SIZE)g.centeredText(font,(page+1)+" / "+((view.total()+ProtocolDecisionPayloads.PAGE_SIZE-1)/ProtocolDecisionPayloads.PAGE_SIZE),pane/2,height-21,UiMenuStyle.TEXT);
         super.extractRenderState(g,mx,my,delta);
         if(mx>=7 && mx<pane-7)for(var hit:hits)if(my>=hit.y() && my<hit.y()+hit.height()) {
             var r=hit.row();UiTooltips.draw(g,font,r.name()+"\n"+r.description()+"\n정치력: "+format(r.cost())+"\n"+r.status(),mx,my);break;
