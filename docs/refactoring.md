@@ -6,7 +6,7 @@
 
 `client`는 초기화와 캠페인 HUD 수명, `network`는 요청·응답과 늦은 응답 폐기, `input`은 입력 소유권, `map`은 장면·메시·부대 표시, `research`는 연구 배치·상세·조회, `screen`은 화면과 해당 화면의 순수 계산, `ui`는 공용 셀·글꼴·툴팁·아트, `audio`는 음악·효과음 수명을 맡는다. 이 경계를 유지하고 타입 이름은 패키지 마지막 부분의 PascalCase 접두어와 책임 단어 최대 두 개로 맞췄다. 테스트는 해당 이름에 `Test` 또는 `Checks`를 붙인다. 예를 들어 `map.MapSceneMesh`, `screen.ScreenIndustry`, `ui.UiFlagStack`이다.
 
-Fabric 등록 계약인 `HoiClient`와 `ResearchScreenGameTest`는 유지한다. 공유 `protocol`의 기존 공개 DTO·중첩 타입은 두 배포물의 소스 API이므로 이름을 유지한다. 내부 JSON 해석기는 `ProtocolJsonCodec`, 새 공용 형식은 `ProtocolNumberBounds`와 `ProtocolTextBounds`다. mixin 타입 이름과 JSON 등록을 함께 바꿨으며 Minecraft 대상 메서드·접근자 시그니처는 유지한다. 통신·저장·명령·콘텐츠 ID는 변경하지 않는다.
+Fabric 초기화 진입점 `HoiClient`는 유지한다. 렌더링 검증 진입점은 `ResearchScreenTest`로 등록하며, GameTest 구현도 클래스명은 Test로 끝난다. `FabricClientGameTest` 인터페이스와 실행 태스크는 유지한다. 공유 `protocol`의 기존 공개 DTO·중첩 타입은 두 배포물의 소스 API이므로 이름을 유지한다. 내부 JSON 해석기는 `ProtocolJsonCodec`, 새 공용 형식은 `ProtocolNumberBounds`와 `ProtocolTextBounds`다. mixin 타입 이름과 JSON 등록을 함께 바꿨으며 Minecraft 대상 메서드·접근자 시그니처는 유지한다. 통신·저장·명령·콘텐츠 ID는 변경하지 않는다.
 
 [타입·경로 대응표](type-renames.json)는 클라이언트 최상위 타입/파일 95개, 클래스별 내부 이름 대응 및 공용 내부 타입·테스트 4개의 변경을 보관한다. [클래스 검토 목록](code-review.csv)은 파일·타입·책임·의존성·검증 근거·결정·이름 예외를 기록한다. 파일은 main 78개, test 13개, gametest 25개, benchmark 2개이며 내부 선언을 포함한 타입은 각각 116·14·27·4개다. protocol 검토는 HOI의 공유 프로토콜 범위에 속한다.
 

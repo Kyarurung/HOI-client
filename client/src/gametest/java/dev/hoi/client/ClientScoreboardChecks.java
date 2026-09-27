@@ -35,7 +35,7 @@ final class ClientScoreboardChecks {
                 board.setDisplayObjective(DisplaySlot.SIDEBAR, objective);
             });
             context.setScreen(() -> null); context.waitTicks(3);
-            ResearchScreenGameTest.gui2Screenshot(context, "hoi-scoreboard-" + speed.toLowerCase(java.util.Locale.ROOT));
+            ResearchScreenTest.gui2Screenshot(context, "hoi-scoreboard-" + speed.toLowerCase(java.util.Locale.ROOT));
         }
         context.runOnClient(client -> {
             var board = client.level.getScoreboard();

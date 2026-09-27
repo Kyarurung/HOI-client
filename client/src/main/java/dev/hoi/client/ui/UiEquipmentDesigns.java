@@ -67,6 +67,24 @@ public final class UiEquipmentDesigns {
         var mission=object(object(details(),"missions"),id);
         return mission.has("name")?sourceText(mission.get("name").getAsString()):id;
     }
+    public static String equipmentDescription(String country,String source) {
+        if(source==null)return "";
+        var descriptions=object(details(),"equipmentDescriptions");
+        String key=descriptions.has(country+"_"+source)?country+"_"+source:source;
+        return descriptions.has(key)?sourceText(descriptions.get(key).getAsString()):"";
+    }
+    public static String productionMissionTooltip(String id) {
+        return "§e"+missionName(id);
+    }
+    public static String productionMissionIcon(String id) {
+        int frame=switch(id) {
+            case "air_superiority"->0;case "cas"->1;case "interception"->2;case "strategic_bomber"->3;
+            case "naval_bomber"->4;case "air_supply"->7;case "port_strike"->8;
+            case "naval_mines_planting"->9;case "naval_mines_sweeping"->10;case "recon"->12;
+            case "attack_logistics"->13;case "naval_patrol"->14;case "kamikaze"->15;default->-1;
+        };
+        return frame<0?"":"air_detail/mission_"+frame;
+    }
     private static String missionEffects(JsonObject rule) {
         var lines=new java.util.ArrayList<String>();
         for(String group:List.of("add","average","multiply"))for(var value:object(rule,group).entrySet()) {

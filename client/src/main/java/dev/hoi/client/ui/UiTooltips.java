@@ -62,7 +62,7 @@ public final class UiTooltips {
     }
 
     public static net.minecraft.client.gui.components.Tooltip createExact(String text) {
-        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(Component.literal(UiTooltipText.spacing(text)),false)));
+        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(Component.literal(UiTooltipText.sourceSpacing(text)),false)));
     }
 
     public static Component productionText(Component text) {
@@ -113,7 +113,7 @@ public final class UiTooltips {
         var cached = LAYOUTS.get(key);
         if(cached!=null)return cached;
         var lines = new ArrayList<FormattedCharSequence>();
-        for (String line : UiTooltipText.colorLines(UiTooltipText.spacing(text))) {
+        for (String line : UiTooltipText.colorLines(UiTooltipText.sourceSpacing(text))) {
             if (line.isEmpty()) lines.add(Component.empty().getVisualOrderText());
             else {
                 var value = styled(Component.literal(line),false);

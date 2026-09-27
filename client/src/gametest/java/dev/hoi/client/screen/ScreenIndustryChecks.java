@@ -1,6 +1,6 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.client.ResearchScreenGameTest;
+import dev.hoi.client.ResearchScreenTest;
 import dev.hoi.client.ui.UiPanelLayout;
 
 import dev.hoi.protocol.*;
@@ -198,7 +198,14 @@ public final class ScreenIndustryChecks {
         click(context,"기갑 차량 제작");context.waitTicks(2);
         context.runOnClient(client->checkBounds((ScreenIndustry)client.gui.screen()));
         context.getInput().setCursorPos(2400,1300);context.takeScreenshot("hoi-production-tank-blueprint-gui2");
-        click(context,"전차 설계사");
+        context.runOnClient(client->{
+            var screen=(ScreenIndustry)client.gui.screen();
+            var blueprint=production.equipment().stream().filter(e->e.id().startsWith("hoi:chassis/modern_tank_")&&e.unlocked()&&e.replacement().isEmpty()).findFirst().orElseThrow();
+            var row=button(screen,"생산: "+blueprint.name());
+            var designer=screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("전차 설계사")&&b.getY()>=row.getY()&&b.getY()<row.getBottom()).map(w->(Button)w).findFirst().orElseThrow();
+            check(row.active&&designer.active,"Issued chassis exposes its row and designer entry points");
+            designer.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0));
+        });
         check(requests.getLast().action()==ProtocolIndustryPayloads.Action.TANK_OPEN&&requests.getLast().item().startsWith("hoi:chassis/"),"Blueprint equipment retains the issued chassis designer request");
         requests.clear();
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,empty.session(),empty,requests::add));context.waitTicks(3);
@@ -392,6 +399,7 @@ public final class ScreenIndustryChecks {
     }
 
     public static void designers(ClientGameTestContext context) {
+        ScreenProductionPresentationTest.run(context);
         branchDesigners(context);
         context.runOnClient(client->{
             var stats=dev.hoi.client.ui.UiEquipmentDesigns.moduleEffects("ship_anti_air_1");
@@ -587,10 +595,9 @@ public final class ScreenIndustryChecks {
                     context.getInput().setCursorPos(2400,1300);context.waitTicks(2);
                     context.runOnClient(client->{
                         var screen=(ScreenIndustry)client.gui.screen();checkBounds(screen);
-                        for(var e:fixture.equipment())if(e.naval()&&e.unlocked()&&!e.outdated()) {
-                            boolean visible=screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().equals("생산: "+e.name()));
-                            check(visible==Objects.equals(e.family(),model.family()),"Naval selection filters only its family: "+model.family());
-                        }
+                        var visible=screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().startsWith("생산: ")).map(w->((Button)w).getMessage().getString()).sorted().toList();
+                        var expected=fixture.equipment().stream().filter(e->e.naval()&&e.unlocked()&&!e.outdated()&&Objects.equals(e.family(),model.family())).map(e->"생산: "+e.name()).sorted().toList();
+                        check(visible.equals(expected),"Naval selection filters only its family: "+model.family());
                     });
                     context.takeScreenshot("hoi-production-naval-filter-"+model.family()+"-gui2");
                 }
@@ -631,6 +638,7 @@ public final class ScreenIndustryChecks {
         context.getInput().resizeWindow(1600,1000);
     }
     public static void run(ClientGameTestContext context, ProtocolCountryHud hud) {
+        ScreenProductionPresentationTest.run(context);
         productionPickerDetails(context);
         ProtocolIndustryView fixture;
         try (var in = ScreenIndustryChecks.class.getResourceAsStream("/industry-fixture.json")) {
@@ -652,12 +660,12 @@ public final class ScreenIndustryChecks {
                 "production/equipment/tfr/equipment/"+ids.get(i),"infantry",false,true,1,1,Map.of(),1,0,0,0,"",ids.get(i),names.get(i),0L,true));
         var illustrations=new ProtocolIndustryView(v.session(),v.revision(),v.country(),v.hud(),v.economy(),v.resources(),v.modifiers(),sourceEquipment,List.of(),v.partners(),v.trades(),v.templates(),v.battalions(),v.companies(),v.locations(),List.of(),List.of(),null,"",v.navalRepairs());
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.LOGISTICS,v.session(),illustrations,request->{}));
-        ResearchScreenGameTest.gui2Screenshot(context,"hoi-logistics-source-equipment-images");
+        ResearchScreenTest.gui2Screenshot(context,"hoi-logistics-source-equipment-images");
         var supplyModels = v.equipment().stream().map(e -> new ProtocolIndustryView.Equipment(e.id(), e.name(), e.texture(), e.group(), e.naval(), e.unlocked(),
                 e.cost(), e.factoryLimit(), e.id().equals("hoi:infantry_gear") ? Map.of("OIL", 1.0, "ALUMINUM", 2.0, "RUBBER", 3.0, "TUNGSTEN", 4.0, "IRON", 5.0, "CHROMIUM", 6.0) : e.resources(), e.stockpile() == 0 ? 50 : e.stockpile(), e.reserved(), e.deployed(), e.deficit(), e.replacement(), e.family(), e.familyName(), 100L)).toList();
         var supply = new ProtocolIndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), supplyModels, v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), v.recruits(), v.deployed(), v.draft(), v.message(), v.navalRepairs(), v.specialForces());
         context.setScreen(() -> new ScreenIndustry(ProtocolMenuTab.LOGISTICS, supply.session(), supply, request -> {}));
-        ResearchScreenGameTest.gui2Screenshot(context, "hoi-logistics-supply-status");
+        ResearchScreenTest.gui2Screenshot(context, "hoi-logistics-supply-status");
         context.getInput().resizeWindow(2560, 1440); context.waitTicks(3);
         for (int row : new int[]{0, 1}) {
             var point = context.computeOnClient(client -> {
@@ -678,7 +686,7 @@ public final class ScreenIndustryChecks {
         var requests = new ArrayList<ProtocolIndustryPayloads.Request>();
         for (var tab : List.of(ProtocolMenuTab.PRODUCTION, ProtocolMenuTab.TRADE, ProtocolMenuTab.LOGISTICS, ProtocolMenuTab.RECRUITMENT)) {
             context.setScreen(() -> new ScreenIndustry(tab, v.session(), tab == ProtocolMenuTab.RECRUITMENT ? empty : v, requests::add));
-            context.waitTicks(3); context.takeScreenshot("hoi-industry-" + tab.id()); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-" + tab.id());
+            context.waitTicks(3); context.takeScreenshot("hoi-industry-" + tab.id()); ResearchScreenTest.gui2Screenshot(context, "hoi-industry-" + tab.id());
             context.runOnClient(client -> {
                 var screen = (ScreenIndustry) client.gui.screen();
                 check(screen.panelWidth() == UiPanelLayout.width(tab, screen.width), "Original sidebar proportions");
@@ -716,7 +724,7 @@ public final class ScreenIndustryChecks {
         }
         context.setScreen(() -> new ScreenIndustry(ProtocolMenuTab.TRADE, v.session(), v, requests::add)); context.waitTicks(2);
         var seller = v.partners().stream().filter(p -> p.route() && p.exports().getOrDefault("IRON", 0.0) > 0).findFirst().orElseThrow();
-        click(context, seller.name() + "에서 수입"); context.waitTicks(2); context.takeScreenshot("hoi-industry-trade-contract"); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-trade-contract");
+        click(context, seller.name() + "에서 수입"); context.waitTicks(2); context.takeScreenshot("hoi-industry-trade-contract"); ResearchScreenTest.gui2Screenshot(context, "hoi-industry-trade-contract");
         context.runOnClient(client -> checkBounds((ScreenIndustry)client.gui.screen()));
         context.runOnClient(client -> {
             check(!button((ScreenIndustry)client.gui.screen(),"수입 계약 체결").active,"A new zero-quantity contract cannot be sent");
@@ -754,7 +762,7 @@ public final class ScreenIndustryChecks {
             check(seller.resourcesPerFactory()==8,"Ordinary trade imports eight resources per civilian factory");
             slider.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT,0,0));
         });context.waitTicks(2);
-        ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-trade-contract-quantity");
+        ResearchScreenTest.gui2Screenshot(context,"hoi-industry-trade-contract-quantity");
         click(context, "수입 계약 체결");
         context.runOnClient(client -> {
             var request = requests.getLast();
@@ -766,7 +774,7 @@ public final class ScreenIndustryChecks {
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.TRADE,partial.session(),partial,requests::add));context.waitTicks(2);
         click(context,seller.name()+"에서 수입");
         for(int i=0;i<6;i++)click(context,"무역 공장 늘리기");
-        ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-trade-partial-44");
+        ResearchScreenTest.gui2Screenshot(context,"hoi-industry-trade-partial-44");
         context.runOnClient(client->check(!button((ScreenIndustry)client.gui.screen(),"무역 공장 늘리기").active,"The last partial resource batch reaches the import limit"));
         click(context,"수입 계약 체결");
         context.runOnClient(client->check(requests.getLast().amount()==6,"Importing all 44 resources reserves six civilian factories"));
@@ -780,7 +788,7 @@ public final class ScreenIndustryChecks {
             check(!button(s, "공장 늘리기 · 부족분 예약").active, "No duplicate request while waiting");
             s.update(copy(v, hud, v.revision() + 1, null));
         });
-        click(context, "보병 및 포병 장비 제작"); context.waitTicks(2); ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-equipment-picker");
+        click(context, "보병 및 포병 장비 제작"); context.waitTicks(2); ResearchScreenTest.gui2Screenshot(context,"hoi-industry-equipment-picker");
         context.runOnClient(client -> { var screen=(ScreenIndustry)client.gui.screen(); checkBounds(screen); check(button(screen,"함선 건조").active,"Docked picker preserves production actions"); });
         var filteredEquipment=v.equipment().stream().filter(e->e.group().equals("infantry")&&e.unlocked()&&!e.outdated()&&!e.resources().isEmpty()).findFirst().orElseThrow();
         String filteredResource=filteredEquipment.resources().keySet().iterator().next();
@@ -794,18 +802,18 @@ public final class ScreenIndustryChecks {
         });
         click(context,filterName);
         for (String name : List.of("기갑 차량 제작", "항공기 제작", "함선 건조")) {
-            click(context, name); context.waitTicks(1); ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-picker-"+name);
+            click(context, name); context.waitTicks(1); ResearchScreenTest.gui2Screenshot(context,"hoi-production-picker-"+name);
             context.runOnClient(client -> checkBounds((ScreenIndustry)client.gui.screen()));
         }
         click(context, "해군 수리 대기열"); context.waitTicks(2);
         context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 제주").active,"Empty authoritative repair ports remain visible"));
-        ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-naval-repairs-collapsed");
+        ResearchScreenTest.gui2Screenshot(context,"hoi-industry-naval-repairs-collapsed");
         int collapsedY=context.computeOnClient(client->button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY());
-        click(context,"수리 항구: 부산");context.waitTicks(2); ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-naval-repairs");
+        click(context,"수리 항구: 부산");context.waitTicks(2); ResearchScreenTest.gui2Screenshot(context,"hoi-industry-naval-repairs");
         context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsedY,"Individual port expands beneath its header"));
         click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
         context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()==collapsedY,"Collapse all closes partially expanded queues"));
-        click(context,"수리 목록 펼치기/접기");context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-industry-naval-repairs-expanded");
+        click(context,"수리 목록 펼치기/접기");context.waitTicks(2);ResearchScreenTest.gui2Screenshot(context,"hoi-industry-naval-repairs-expanded");
         context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsedY,"Expand all opens ship rows from the collapsed queue"));
         click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
         context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()==collapsedY,"Collapse all restores adjacent port rows"));
@@ -839,7 +847,7 @@ public final class ScreenIndustryChecks {
             ((ScreenIndustry)client.gui.screen()).update(copy(v, hud, v.revision() + 1, null));
             check(client.gui.screen().children().stream().anyMatch(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소 · 지급 장비와 인력 반환")), "Authoritative recruit response creates a training line");
         });
-        context.waitTicks(2); ResearchScreenGameTest.gui2Screenshot(context, "hoi-recruitment-after-training");
+        context.waitTicks(2); ResearchScreenTest.gui2Screenshot(context, "hoi-recruitment-after-training");
         context.runOnClient(client -> {
             var screen = (ScreenIndustry)client.gui.screen();
             var cancel = (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().endsWith(" 부대 추가")).findFirst().orElseThrow();
@@ -917,7 +925,7 @@ public final class ScreenIndustryChecks {
             input.insertText("새 "); check(input.getValue().equals("입력 새 편제"), "Typing continues at the retained selection");
             input.setValue(v.templates().getFirst().name());
         });
-        context.waitTicks(3); context.takeScreenshot("hoi-industry-division-designer"); ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-division-designer");
+        context.waitTicks(3); context.takeScreenshot("hoi-industry-division-designer"); ResearchScreenTest.gui2Screenshot(context, "hoi-industry-division-designer");
         context.getInput().setCursorPos(220,615); context.waitTicks(2); context.takeScreenshot("hoi-industry-division-equipment-tooltip");
         context.getInput().setCursorPos(1500,800);
         context.runOnClient(client -> { var s = (ScreenIndustry)client.gui.screen(); check(!s.allowsMovement(), "Designer blocks movement"); checkBounds(s); });
@@ -928,7 +936,7 @@ public final class ScreenIndustryChecks {
             check(button(s, "보병 대대").active, "First slot can choose a subtype in its current category");
             check(button(s, "기갑 대대").active && button(s, "기동 대대").active, "First slot offers whole-column category replacement");
         });
-        ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-battalion-categories");
+        ResearchScreenTest.gui2Screenshot(context, "hoi-industry-battalion-categories");
         int beforeCategory = requests.size();
         click(context, "보병 대대");
         context.runOnClient(client -> {
@@ -939,7 +947,7 @@ public final class ScreenIndustryChecks {
         click(context, "기갑 대대");
         context.runOnClient(client -> check(requests.size() == beforeCategory, "Selecting a category must not insert a generic battalion"));
         context.waitTicks(2); context.takeScreenshot("hoi-industry-first-slot-details");
-        ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-first-slot-details");
+        ResearchScreenTest.gui2Screenshot(context, "hoi-industry-first-slot-details");
         click(context, v.battalions().stream().filter(c -> c.id().equals("TANK")).findFirst().orElseThrow().name());
         context.runOnClient(client -> {
             check(requests.getLast().action() == ProtocolIndustryPayloads.Action.LINE_COLUMN && requests.getLast().amount() == 0
@@ -958,7 +966,7 @@ public final class ScreenIndustryChecks {
             check(s.children().equals(controls) && button(s, "제거").active, "Passive refresh keeps button instances and enabled icons");
         });
         context.waitTicks(2); context.takeScreenshot("hoi-industry-battalion-choices");
-        ResearchScreenGameTest.gui2Screenshot(context, "hoi-industry-battalion-choices");
+        ResearchScreenTest.gui2Screenshot(context, "hoi-industry-battalion-choices");
         click(context, "대대 목록 닫기");
         context.runOnClient(client -> ((ScreenIndustry)client.gui.screen()).update(copy(v, hud, v.revision() + 5, v.templates().stream().filter(t -> t.support().size() < 4).findFirst().orElseThrow())));
         context.waitTicks(2); context.takeScreenshot("hoi-industry-support-add-and-lock");
@@ -1047,7 +1055,7 @@ public final class ScreenIndustryChecks {
     private static void factoryControls(ClientGameTestContext context, ProtocolIndustryView v) {
         context.runOnClient(client -> ScreenIndustry.clearPreferences());
         var gun=v.equipment().stream().filter(e->e.id().equals("hoi:modern_infantry_gear")).findFirst().orElseThrow();
-        var sourceGun=new ProtocolIndustryView.Equipment(gun.id(),gun.name(),gun.texture(),gun.group(),gun.naval(),gun.unlocked(),gun.cost(),gun.factoryLimit(),gun.resources(),gun.stockpile(),gun.reserved(),gun.deployed(),gun.deficit(),gun.replacement(),gun.family(),gun.familyName(),gun.demand(),gun.acquired(),"infantry_equipment_3");
+        var sourceGun=new ProtocolIndustryView.Equipment(gun.id(),gun.name(),gun.texture(),gun.group(),gun.naval(),gun.unlocked(),gun.cost(),gun.factoryLimit(),gun.resources(),gun.stockpile(),gun.reserved(),gun.deployed(),gun.deficit(),gun.replacement(),gun.family(),gun.familyName(),gun.demand(),gun.acquired(),"infantry_equipment_3",null,null,List.of(new ProtocolTankDesigner.Stat("defense","방어",1.5,false),new ProtocolTankDesigner.Stat("fuel_consumption","연료 사용량",.4,false)));
         var ship=v.equipment().stream().filter(e->e.naval()&&e.factoryLimit()==15).findFirst().orElseThrow();
         var lines=List.of(new ProtocolIndustryView.Line("military",gun.id(),15,150,.96378,10,.2,.8,null,10,2,.00003,.00009,.6453),
                 new ProtocolIndustryView.Line("naval",ship.id(),15,15,1,2,.2,0,null,10,2));
@@ -1069,7 +1077,7 @@ public final class ScreenIndustryChecks {
         check(ScreenIndustry.productionFactoryState(20,10,10,0,0,40,20)==4,"Cancelling previews warm icons after the target cell");
         check(ScreenIndustry.productionFactoryState(10,10,0,2,3,15,-1)==2,"A mixed group uses one complete damage icon");
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,issued.session(),issued,requests::add));
-        context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-factory-damage-reservations");
+        context.waitTicks(2);ResearchScreenTest.gui2Screenshot(context,"hoi-production-factory-damage-reservations");
         context.runOnClient(client->{
             var screen=(ScreenIndustry)client.gui.screen();checkBounds(screen);
             check(screen.panelWidth()>=275,"Production keeps GUI2 reference cell space when the viewport permits");
@@ -1092,7 +1100,7 @@ public final class ScreenIndustryChecks {
                 return java.util.Optional.empty();
             },net.minecraft.network.chat.Style.EMPTY);
             String equipmentTip=ScreenProductionTooltips.equipment(issued,lines.getFirst(),sourceGun);
-            check(equipmentTip.contains("원본 기본 능력치")&&equipmentTip.contains("1.5")&&!equipmentTip.contains("1.50"),"Equipment reference stats retain source precision");
+            check(!equipmentTip.contains("원본 기본 능력치")&&equipmentTip.contains("§e1.5§r")&&equipmentTip.contains("§e0.40§r"),"Equipment reference stats retain source precision");
             check(equipmentTip.contains("일일 생산량")&&equipmentTip.contains("공장당 자원 사용:"),"Equipment tooltip uses actual production and resources");
             String gauge=ScreenProductionTooltips.efficiency(issued,lines.getFirst());
             check(gauge.contains("96.38%")&&gauge.contains("0.00%")&&!gauge.contains("0.003%"),"Gauge precision is two decimal places");
@@ -1131,7 +1139,7 @@ public final class ScreenIndustryChecks {
         for(int multiplier:new int[]{5,10,1}) {
             click(context,"military · ×"+(multiplier==1?10:multiplier));
             check(requests.isEmpty(),"Display multiplier does not mutate production");
-            context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-factories-x"+multiplier);
+            context.waitTicks(2);ResearchScreenTest.gui2Screenshot(context,"hoi-production-factories-x"+multiplier);
         }
         click(context,"military · ×10");
         context.getInput().resizeWindow(2560,1440);context.waitTicks(2);
@@ -1149,7 +1157,7 @@ public final class ScreenIndustryChecks {
             click(context,"military · ×"+multiplier);
             context.setScreen(()->null);
             context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);
-            ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-reopened-x"+multiplier);
+            ResearchScreenTest.gui2Screenshot(context,"hoi-production-reopened-x"+multiplier);
             click(context,"military · 공장 3칸");
             context.runOnClient(client->check(requests.getLast().amount()==3*multiplier,"Factory cell applies its selected multiplier"));
         }
@@ -1163,7 +1171,7 @@ public final class ScreenIndustryChecks {
             check(requests.isEmpty(),"Opening stockpile does not close or mutate the server session");
             checkBounds(screen);
         });
-        context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-stockpile-logistics");
+        context.waitTicks(2);ResearchScreenTest.gui2Screenshot(context,"hoi-production-stockpile-logistics");
         context.runOnClient(client -> ScreenIndustry.clearPreferences());
     }
     private static void conversion(ClientGameTestContext context,ProtocolIndustryView v) {
@@ -1174,11 +1182,11 @@ public final class ScreenIndustryChecks {
         var view=new ProtocolIndustryView(v.session(),v.revision(),v.country(),v.hud(),v.economy(),v.resources(),v.modifiers(),v.equipment(),List.of(line),v.partners(),v.trades(),v.templates(),v.battalions(),v.companies(),v.locations(),v.recruits(),v.deployed(),null,"",v.navalRepairs());
         var requests=new ArrayList<ProtocolIndustryPayloads.Request>();
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,view.session(),view,requests::add));
-        context.waitTicks(3);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-conversion");
+        context.waitTicks(3);ResearchScreenTest.gui2Screenshot(context,"hoi-production-conversion");
         context.runOnClient(client->checkBounds((ScreenIndustry)client.gui.screen()));
         context.runOnClient(client->check(((ScreenIndustry)client.gui.screen()).children().stream().noneMatch(widget->widget instanceof Button b && Set.of("전환 변경","재고 전환").contains(b.getMessage().getString())),"Production rows have no conversion controls"));
         click(context,target.name()+" · 장비 교체");
-        context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-production-conversion-picker");
+        context.waitTicks(2);ResearchScreenTest.gui2Screenshot(context,"hoi-production-conversion-picker");
         context.runOnClient(client->checkBounds((ScreenIndustry)client.gui.screen()));
         context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"구형 장비 표시").active,"Conversion-capable line also opens the category picker first"));
         context.runOnClient(client->check(((ScreenIndustry)client.gui.screen()).children().stream().noneMatch(widget->widget instanceof Button b && b.getMessage().getString().contains("전환")),"Equipment picker has no stock conversion button"));
@@ -1220,7 +1228,7 @@ public final class ScreenIndustryChecks {
                 for(var item:json.getAsJsonObject("navalRepairs").getAsJsonArray("ports"))if(item.getAsJsonObject().get("id").getAsString().equals("busan"))item.getAsJsonObject().addProperty("priority",expected);
                 json.addProperty("revision",json.get("revision").getAsLong()+1);screen.update(gson.fromJson(json,ProtocolIndustryView.class));
             });
-            context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-repair-priority-"+expected);
+            context.waitTicks(2);ResearchScreenTest.gui2Screenshot(context,"hoi-repair-priority-"+expected);
         }
         for(boolean disabled:new boolean[]{true,false}) {
             context.runOnClient(client->{
@@ -1230,7 +1238,7 @@ public final class ScreenIndustryChecks {
                 for(var item:json.getAsJsonObject("navalRepairs").getAsJsonArray("ports"))if(item.getAsJsonObject().get("id").getAsString().equals("busan"))item.getAsJsonObject().addProperty("disabled",disabled);
                 json.addProperty("revision",json.get("revision").getAsLong()+1);screen.update(gson.fromJson(json,ProtocolIndustryView.class));
             });
-            context.waitTicks(2);ResearchScreenGameTest.gui2Screenshot(context,"hoi-repair-disabled-"+disabled);
+            context.waitTicks(2);ResearchScreenTest.gui2Screenshot(context,"hoi-repair-disabled-"+disabled);
         }
         int count=requests.size();
         click(context,"수리 항구: 부산");context.waitTicks(2);

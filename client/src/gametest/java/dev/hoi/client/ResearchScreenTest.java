@@ -39,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 
-public final class ResearchScreenGameTest implements FabricClientGameTest {
+public final class ResearchScreenTest implements FabricClientGameTest {
     public static void gui2Screenshot(ClientGameTestContext context, String name) {
         context.getInput().resizeWindow(2560, 1440);
         context.runOnClient(client -> client.options.guiScale().set(2)); context.waitTicks(3);
@@ -354,7 +354,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
 
     private static void fullTfrCatalog(ClientGameTestContext context) {
         ProtocolResearchView view;
-        try(var in=ResearchScreenGameTest.class.getResourceAsStream("/tfr-research-view.json")) {
+        try(var in=ResearchScreenTest.class.getResourceAsStream("/tfr-research-view.json")) {
             view=new ProtocolResearchPayloads.Response(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).view();
         } catch(java.io.IOException e) {throw new java.io.UncheckedIOException(e);}
         var requests=new ArrayList<ProtocolResearchPayloads.Request>();
@@ -490,7 +490,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                 }
 
                 com.google.gson.JsonObject fixture;
-                try (var input = ResearchScreenGameTest.class.getResourceAsStream("/atlas-client-scene.json")) {
+                try (var input = ResearchScreenTest.class.getResourceAsStream("/atlas-client-scene.json")) {
                     fixture = com.google.gson.JsonParser.parseString(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
                 }
                 var target = client.getResourcePackDirectory().resolve("hoi-test-carriers.zip");
@@ -755,7 +755,7 @@ public final class ResearchScreenGameTest implements FabricClientGameTest {
                     :Arrays.stream(fuel.sourceText().split("\\R",-1)).filter(String::isEmpty).count();
             check(blanks>=5&&rows.stream().filter(String::isEmpty).count()==blanks,"Fuel preserves the issued paragraph breaks and title spacing");
         });
-        try (var stream = ResearchScreenGameTest.class.getResourceAsStream("/hud-source-fixture.json")) {
+        try (var stream = ResearchScreenTest.class.getResourceAsStream("/hud-source-fixture.json")) {
             if (stream == null) throw new AssertionError("Missing source HUD fixture");
             var original = new com.google.gson.Gson().fromJson(new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8), ProtocolCountryHud.class);
             context.runOnClient(client -> {

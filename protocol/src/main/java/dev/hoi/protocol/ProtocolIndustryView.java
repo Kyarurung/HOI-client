@@ -115,7 +115,13 @@ public record ProtocolIndustryView(String session, long revision, String country
     }
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
             double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
-            String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer) {
+            String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer, List<ProtocolTankDesigner.Stat> stats) {
+
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,designer,List.of());
+        }
 
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
@@ -165,6 +171,7 @@ public record ProtocolIndustryView(String session, long revision, String country
             if (familyName != null) text(familyName,128);
             if (sourceEquipment != null) text(sourceEquipment,128);
             resources=boundedMap(resources,8);
+            stats=stats==null?List.of():bounded(stats,64);
             if (!Double.isFinite(cost) || cost <= 0 || factoryLimit < 1 || stockpile < 0 || reserved < 0 || deployed < 0 || deficit < 0 || demand != null && demand < 0)
                 throw new IllegalArgumentException("Invalid equipment amounts");
         }

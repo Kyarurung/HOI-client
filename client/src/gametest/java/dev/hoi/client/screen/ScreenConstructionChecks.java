@@ -1,6 +1,6 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.client.ResearchScreenGameTest;
+import dev.hoi.client.ResearchScreenTest;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiTooltips;
 
@@ -22,7 +22,7 @@ public final class ScreenConstructionChecks {
         });
         context.waitTicks(2);
         context.runOnClient(client->{for(int i=0;i<200;i++)client.gui.screen().tick();});
-        ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-timeout");
+        ResearchScreenTest.gui2Screenshot(context,"hoi-construction-timeout");
         context.setScreen(()->null);requests.clear();
         var buildings=new ArrayList<ProtocolConstructionView.Building>();
         for(String id:List.of("infrastructure","air_base","anti_air","radar","military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","rocket_site","nuclear_reactor","power_plant","energy_farm","conversion","fort","coastal_fort","port","hub","railway","dam","dam_mountain"))
@@ -37,7 +37,7 @@ public final class ScreenConstructionChecks {
         var ref=new AtomicReference<ScreenConstruction>();
         context.setScreen(()->{var screen=new ScreenConstruction(token,view,requests::add);ref.set(screen);return screen;});
         context.waitTicks(3);context.takeScreenshot("hoi-construction-queue");
-        ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-queue");
+        ResearchScreenTest.gui2Screenshot(context,"hoi-construction-queue");
         context.runOnClient(client -> ref.get().update(new ProtocolConstructionView(token,2,"KOR",hud,"civilian_factory",
                 new ProtocolConstructionView.Summary(43,7,2,30,4,0,4,1.31,30,21.8625,2),buildings,projects,"")));
         context.waitTicks(2); context.takeScreenshot("hoi-construction-energy-surplus");
@@ -112,7 +112,7 @@ public final class ScreenConstructionChecks {
             var states=List.of(new ProtocolConstructionView.ConversionState("test-state","경기도",4056,center.x,center.y,center.z,5,4));
             ref.get().update(new ProtocolConstructionView(token,1000,"KOR",hud,"conversion",summary,buildings,projects,"",states));
         });
-        context.waitTicks(3);ResearchScreenGameTest.gui2Screenshot(context,"hoi-construction-conversion");
+        context.waitTicks(3);ResearchScreenTest.gui2Screenshot(context,"hoi-construction-conversion");
         context.runOnClient(client->{
             var screen=ref.get();
             screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(screen.width/2.0-37,screen.height/2.0,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);

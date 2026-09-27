@@ -30,7 +30,7 @@ public final class ScreenDecisionChecks {
         });
         context.getInput().setCursorPos(100,260);context.waitTicks(2);
         context.takeScreenshot("hoi-decisions-original-assets");
-        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context,"hoi-decisions-gui2");
+        dev.hoi.client.ResearchScreenTest.gui2Screenshot(context,"hoi-decisions-gui2");
         context.runOnClient(c -> {
             var screen=(ScreenDecision)c.gui.screen();
             button(screen,"국군 혁신").onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0));

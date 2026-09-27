@@ -25,8 +25,6 @@ public final class ScreenAirDetailChecks {
         tiles.add(t("air_kills","적 공군 부대 격추","12","air_detail/damage_skull"));
         tiles.add(t("air_loss_art","현재 아군 전투기","199","production/equipment/fighter"));
         tiles.add(t("air_kill_art","현재 적군 전투기","191","production/equipment/fighter"));
-        tiles.add(t("air_aa_losses","대공에 손실된 공군 부대","2","air_detail/damage_aa"));
-        tiles.add(t("enemy_aa_losses","대공에 손실된 공군 부대","1","air_detail/damage_aa"));
         tiles.add(t("mission_0","공중 우세","199","production/equipment/fighter"));
         tiles.add(t("mission_0","근접항공지원","200","production/equipment/cas"));
         tiles.add(t("mission_0","병참 체계 공습","100","production/equipment/strategic_bomber"));

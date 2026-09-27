@@ -13,6 +13,10 @@ public final class UiTooltipText {
     public static String sections(String... paragraphs) {
         return java.util.Arrays.stream(paragraphs).filter(value->value!=null&&!value.isBlank()).collect(java.util.stream.Collectors.joining("\n\n"));
     }
+    public static String sourceSpacing(String text) {
+        return java.util.Arrays.stream(text.split("\\R",-1))
+                .map(line->blank(line)?"":line).collect(java.util.stream.Collectors.joining("\n"));
+    }
     public static java.util.List<String> colorLines(String text) {
         var lines=new java.util.ArrayList<String>();
         String active="";

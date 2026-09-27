@@ -2,8 +2,10 @@ package dev.hoi.client.screen;
 
 import dev.hoi.protocol.ProtocolIndustryView;
 import java.util.Locale;
+import dev.hoi.client.ui.UiEquipmentDesigns;
 
 final class ScreenProductionTooltips {
+    private static final java.util.List<String> STAT_ORDER=java.util.List.of("manpower","air_range","defense","breakthrough","hardness","soft_attack","hard_attack","air_defence","air_attack","air_agility","air_superiority","naval_strike_attack","naval_strike_targetting","surface_detection","sub_detection","surface_visibility","sub_visibility","lg_attack","lg_armor_piercing","hg_attack","hg_armor_piercing","torpedo_attack","sub_attack","anti_air_attack","maximum_speed","naval_speed","naval_range","max_organisation","max_strength","armor_value","ap_attack","reliability","fuel_consumption","weight","thrust");
     private ScreenProductionTooltips() {}
     static String modifier(ProtocolIndustryView.Modifier modifier) {
         return "§e"+modifier.name()+"§r\n"+modifier.detail();
@@ -30,19 +32,14 @@ final class ScreenProductionTooltips {
         return split<0?"":modifier.detail().substring(0,split);
     }
     static String equipment(ProtocolIndustryView view,ProtocolIndustryView.Line line,ProtocolIndustryView.Equipment equipment) {
+        return equipment(view,line,equipment,ScreenProductionIndicators.demand(view.equipment()).shortages().get(equipment.id()));
+    }
+    static String equipment(ProtocolIndustryView view,ProtocolIndustryView.Line line,ProtocolIndustryView.Equipment equipment,Long shortage) {
         var text=new StringBuilder("§e").append(equipment.name()).append("§r");
         if(equipment.familyName()!=null&&!equipment.familyName().equals(equipment.name()))text.append("\n§e").append(equipment.familyName()).append("§r");
         text.append("\n\n일일 생산량: §e").append(dev.hoi.protocol.ProtocolNumberBounds.fixed(line.daily(), 2)).append("§r");
-        var models=view.equipment().stream().filter(e->e.group().equals(equipment.group())&&(equipment.family()==null?e.id().equals(equipment.id()):equipment.family().equals(e.family()))).toList();
-        if(models.stream().allMatch(e->e.demand()!=null)) {
-            long demand=models.stream().mapToLong(ProtocolIndustryView.Equipment::demand).sum();
-            long stock=models.stream().mapToLong(ProtocolIndustryView.Equipment::stockpile).sum();
-            text.append(demand<=stock?"\n현재로서는 수요가 §a충족§r된 상태입니다.":"\n충원 수요 부족: §c"+(demand-stock)+"§r");
-        }
-        dev.hoi.client.research.ResearchDetails.equipment(equipment.sourceEquipment()).ifPresent(card->{
-            text.append("\n\n§e원본 기본 능력치§r");
-            card.effects().stream().filter(stat->!stat.startsWith("생산 비용:")).forEach(stat->text.append("\n").append(stat.replaceFirst(": (.*)",": §e$1§r")));
-        });
+        if(shortage!=null)text.append(shortage==0?"\n현재로서는 수요가 §a충족§r된 상태입니다.":"\n충원 수요 부족: §c"+shortage+"§r");
+        appendStats(text,equipment);
         boolean conversion=line.conversion()!=null&&line.conversion().source()!=null;
         text.append("\n생산 비용: §e").append(dev.hoi.protocol.ProtocolNumberBounds.fixed(conversion?line.conversion().cost():equipment.cost(), 2)).append("§r");
         text.append("\n\n§e공장당 자원 사용:§r");
@@ -51,10 +48,32 @@ final class ScreenProductionTooltips {
             String label=view.resources().stream().filter(r->r.id().equals(entry.getKey())).map(ProtocolIndustryView.Resource::name).findFirst().orElse(entry.getKey());
             text.append("\n").append(label).append(": §e").append(java.math.BigDecimal.valueOf(entry.getValue()).stripTrailingZeros().toPlainString()).append("§r");
         }
-        text.append("\n§a생산 장비를 변경하려면 클릭하십시오.");
-        if(!equipment.naval())text.append("\n관련 장비로 변경할 경우, 기존 생산 효율의 일부를 유지하게 됩니다.");
-        text.append("§r\n§c이 생산 라인의 진행도를 전부 잃게 됩니다.§r");
+        text.append("\n").append(UiEquipmentDesigns.tooltip(equipment.naval()?"PRODUCTION_LINE_CHANGE_NAVAL":"PRODUCTION_LINE_CHANGE"));
         return text.toString();
+    }
+    static String equipment(ProtocolIndustryView view,ProtocolIndustryView.Equipment equipment) {
+        var text=new StringBuilder("§e").append(equipment.name()).append("§r");
+        if(equipment.familyName()!=null&&!equipment.familyName().equals(equipment.name()))text.append("\n§e").append(equipment.familyName()).append("§r");
+        appendStats(text,equipment);
+        text.append("\n생산 비용: §e").append(dev.hoi.protocol.ProtocolNumberBounds.fixed(equipment.cost(),2)).append("§r");
+        text.append("\n\n§e공장당 자원 사용:§r");
+        for(var resource:view.resources()) {
+            double amount=equipment.resources().getOrDefault(resource.id(),0.0);
+            if(amount>0)text.append("\n  ").append(resource.name()).append(": §e").append(java.math.BigDecimal.valueOf(amount).stripTrailingZeros().toPlainString()).append("§r");
+        }
+        text.append("\n\n§a클릭§r하여 생산 시작");
+        String description=UiEquipmentDesigns.equipmentDescription(view.country(),equipment.sourceEquipment());
+        if(!description.isBlank())text.append("\n\n").append(description);
+        return text.toString();
+    }
+    private static void appendStats(StringBuilder text,ProtocolIndustryView.Equipment equipment) {
+        if(!equipment.stats().isEmpty())text.append("\n");
+        var ordered=equipment.stats().stream().sorted(java.util.Comparator.comparingInt(stat->{int index=STAT_ORDER.indexOf(stat.id());return index<0?STAT_ORDER.size():index;})).toList();
+        for(var stat:ordered)if(!stat.id().equals("build_cost_ic")) {
+            String caption=UiEquipmentDesigns.statCaption(stat.id(),stat.name()).strip();
+            text.append("\n").append(caption).append(caption.endsWith(":")?" ":": ").append("§e")
+                    .append(UiEquipmentDesigns.statValue(stat,stat.value())).append("§r");
+        }
     }
     private static String percent(double value,int places) {
         return dev.hoi.protocol.ProtocolNumberBounds.percent(value, places);

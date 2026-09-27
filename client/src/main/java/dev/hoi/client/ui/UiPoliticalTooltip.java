@@ -42,7 +42,7 @@ public final class UiPoliticalTooltip {
     }
     private static int draw(GuiGraphicsExtractor g, Font font, ProtocolMenuView.Entry entry, String flag, String countryName,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, boolean compact, boolean icons) {
-        entry = new ProtocolMenuView.Entry(entry.name(), entry.value(), UiTooltipText.format(entry.detail(),true), entry.progress(), entry.icon());
+        entry = new ProtocolMenuView.Entry(entry.name(), entry.value(), UiTooltipText.sourceSpacing(entry.detail()), entry.progress(), entry.icon());
         int width = Math.max(80, Math.min(270, viewportWidth - 24));
         if (compact) {
             int measured = 80;

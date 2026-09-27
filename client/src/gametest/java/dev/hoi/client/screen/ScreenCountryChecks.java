@@ -405,7 +405,7 @@ public final class ScreenCountryChecks {
         context.waitTicks(2); context.takeScreenshot("hoi-politics-description-image");
         context.getInput().setCursorPos(1500,800);
         context.takeScreenshot("hoi-politics-layout");
-        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-politics-party-names");
+        dev.hoi.client.ResearchScreenTest.gui2Screenshot(context, "hoi-politics-party-names");
         context.runOnClient(c -> {
             var screen = (ScreenMenu)c.gui.screen(); var list = screen.politicsLayout().parties();
             if (!screen.mouseScrolled(list.x() + 10, list.y() + 10, 0, -20))
@@ -485,7 +485,7 @@ public final class ScreenCountryChecks {
                 }
             }
         });
-        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-adviser-original-frames");
+        dev.hoi.client.ResearchScreenTest.gui2Screenshot(context, "hoi-adviser-original-frames");
     }
 
     public static List<ProtocolMenuView.Section> politics() {
@@ -542,7 +542,7 @@ public final class ScreenCountryChecks {
                 diplomacy,List.of(new ProtocolMenuView.Entry("알려지지 않은 중점","민간 첩보 70% 필요","")),reports,null,List.of(
                     new ProtocolCountryView.Relation("세력","diplomacy/relations/faction",List.of(new ProtocolCountryView.Choice("PRK","조선민주주의인민공화국"),new ProtocolCountryView.Choice("JAP","일본"),new ProtocolCountryView.Choice("KOR","대한민국"))),
                     new ProtocolCountryView.Relation("군사 통행권","diplomacy/relations/offer_military_access_initiator",List.of(new ProtocolCountryView.Choice("KOR","대한민국")))));
-        context.setScreen(() -> new ScreenCountry(fixture)); context.waitTicks(3); context.takeScreenshot("hoi-country-diplomacy"); dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-diplomacy");
+        context.setScreen(() -> new ScreenCountry(fixture)); context.waitTicks(3); context.takeScreenshot("hoi-country-diplomacy"); dev.hoi.client.ResearchScreenTest.gui2Screenshot(context, "hoi-country-diplomacy");
         var sixSpirits = new ProtocolCountryView(fixture.viewer(), fixture.hud(), fixture.target(), fixture.name(), fixture.shared(), fixture.countries(),
                 diplomacy.subList(0, diplomacy.size() - 18), fixture.focuses(), fixture.reports(), fixture.actions(), fixture.relations());
         context.setScreen(() -> new ScreenCountry(sixSpirits)); context.waitTicks(3);
@@ -554,7 +554,7 @@ public final class ScreenCountryChecks {
             header.scrollSpirits(x, y, -20, pane, top);
             if (!first.equals(header.spiritAt(x, y, pane, top))) throw new AssertionError("One spirit row must not scroll into an empty row");
         });
-        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-six-spirits");
+        dev.hoi.client.ResearchScreenTest.gui2Screenshot(context, "hoi-country-six-spirits");
         var allFlags = context.computeOnClient(c -> c.getResourceManager().listResources("textures/gui/country",
                 id -> id.getNamespace().equals("hoi") && id.getPath().matches("textures/gui/country/[a-z]{3}/flag\\.png"))
                 .keySet().stream().map(id -> id.getPath().split("/")[3].toUpperCase(Locale.ROOT)).sorted().toList());
@@ -574,13 +574,13 @@ public final class ScreenCountryChecks {
             });
         }
         System.out.println("Current diplomacy layout checked for " + allFlags.size() + " country flags");
-        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-empty-relations");
+        dev.hoi.client.ResearchScreenTest.gui2Screenshot(context, "hoi-country-empty-relations");
         var noFactionEntries = new ArrayList<>(diplomacy.stream().filter(e -> !e.name().equals("세력")).toList());
         noFactionEntries.add(new ProtocolMenuView.Entry("세력", "세력 없음", "", -1, "politics/art/gfx_faction_member"));
         var noFaction = new ProtocolCountryView(fixture.viewer(), fixture.hud(), fixture.target(), fixture.name(), fixture.shared(), fixture.countries(),
                 noFactionEntries, fixture.focuses(), fixture.reports(), fixture.actions(), List.of());
         context.setScreen(() -> new ScreenCountry(noFaction)); context.waitTicks(3);
-        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context, "hoi-country-no-faction");
+        dev.hoi.client.ResearchScreenTest.gui2Screenshot(context, "hoi-country-no-faction");
         context.setScreen(() -> new ScreenCountry(fixture)); context.waitTicks(3);
         context.getInput().resizeWindow(2560, 1440);
         context.runOnClient(c -> c.options.guiScale().set(2)); context.waitTicks(3);

@@ -24,11 +24,11 @@ public final class ScreenWorldTensionChecks {
             screen.update(new ProtocolWorldTension.Response(UUID.randomUUID().toString(),""));
             if(client.gui.screen()!=screen)throw new AssertionError("Stale rejection closed current screen");
         });
-        dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context,"hoi-world-tension-history");
+        dev.hoi.client.ResearchScreenTest.gui2Screenshot(context,"hoi-world-tension-history");
         context.runOnClient(client -> ((ScreenWorldTension)client.gui.screen()).select(ProtocolWorldTensionView.Sort.WARS));
-        context.waitTicks(3); dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context,"hoi-world-tension-wars");
+        context.waitTicks(3); dev.hoi.client.ResearchScreenTest.gui2Screenshot(context,"hoi-world-tension-wars");
         context.runOnClient(client -> ((ScreenWorldTension)client.gui.screen()).openWar("war"));
-        context.waitTicks(3); dev.hoi.client.ResearchScreenGameTest.gui2Screenshot(context,"hoi-world-tension-war-detail");
+        context.waitTicks(3); dev.hoi.client.ResearchScreenTest.gui2Screenshot(context,"hoi-world-tension-war-detail");
         context.runOnClient(client -> {
             var screen=(ScreenWorldTension)client.gui.screen();screen.onClose();
             if(screen.warId()!=null||client.gui.screen()!=screen)throw new AssertionError("Detail close must return to history");

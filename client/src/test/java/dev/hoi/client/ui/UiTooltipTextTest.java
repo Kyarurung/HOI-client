@@ -4,6 +4,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UiTooltipTextTest {
+    @Test void sourceSpacingPreservesBlankLinesColorsZeroValuesAndDecimalPlaces() {
+        String source="§e보급§r\n\n\n효율: §a+5.00%§r\n§f----§r\n연료: §e0.00§r\n";
+        assertEquals(source.replace("§f----§r",""),UiTooltipText.sourceSpacing(source));
+    }
     @Test void terrainColorsContinueAcrossParagraphsUntilReset() {
         assertEquals(java.util.List.of("§#FCA97D서울 설명", "", "§#FCA97D다음 문단§r", "§#FB607FSeoul, my soul§r", "기본"),
                 UiTooltipText.colorLines("§#FCA97D서울 설명\n\n다음 문단§r\n§#FB607FSeoul, my soul§r\n기본"));
