@@ -295,10 +295,11 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 () -> send(UP, line.id(), "", dev.hoi.client.ui.UiPriorityControls.shifted() ? 1 : 0));
         originalButton("생산 라인 한 칸 아래로", "production/line/down", controlsX, dy.applyAsInt(77), Math.round(24 * scale), Math.round(24 * scale), index < view.lines().size() - 1,
                 () -> send(DOWN, line.id(), "", dev.hoi.client.ui.UiPriorityControls.shifted() ? 1 : 0));
-        productionStock(e, infoX, dy.applyAsInt(78), x.applyAsInt(275) - infoX, Math.round(22 * scale));
+        int demandOffset=Math.round(new dev.hoi.client.ui.UiUnits(width,height).length(1));
+        productionStock(e, infoX, dy.applyAsInt(78)+demandOffset, x.applyAsInt(275) - infoX, Math.round(22 * scale));
         if(!e.naval()&&productionTargets.containsKey(e.id())) {
             int target=productionTargets.getOrDefault(e.id(),0);
-            int offset=Math.round(new dev.hoi.client.ui.UiUnits(width,height).length(1));
+            int offset=2*demandOffset;
             art("production/line/target_"+target,x.applyAsInt(248),dy.applyAsInt(50)+offset,Math.round(27*scale),Math.round(24*scale));
             productionTip(dev.hoi.client.ui.UiEquipmentDesigns.tooltip(ScreenProductionIndicators.targetKey(target)),x.applyAsInt(248),dy.applyAsInt(50)+offset,Math.round(27*scale),Math.round(24*scale));
         }
@@ -342,7 +343,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             rebuildWidgets();
         }) {
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                UiText.cell(g,font,ScreenLogisticsRows.stockLabel(equipment.stockpile()),x-offset,y,w,h,GOOD,true);
+                UiText.cell(g,font,ScreenLogisticsRows.stockLabel(equipment.stockpile()),x-offset,y,w,h,productionTargets.getOrDefault(equipment.id(),0)>0?GOLD:GOOD,true);
             }
         };
         button.active=pending==0;

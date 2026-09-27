@@ -10,6 +10,7 @@ final class ScreenProductionPresentationTest {
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->client.options.guiScale().set(2));
         var fixture=ScreenIndustryChecks.tankFixture("production-source-fixture.json");
+        stockColors(context,fixture);
         var designer=ScreenIndustryChecks.tankFixture("initial-air-fixture.json").tankDesigner();
         context.getInput().setCursorPos(2400,1300);
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,fixture.session(),fixture,request->{}));
@@ -55,6 +56,44 @@ final class ScreenProductionPresentationTest {
             });
             context.waitTicks(3);
             context.takeScreenshot("hoi-production-air-missions-"+source.country().toLowerCase(java.util.Locale.ROOT)+"-gui2");
+        }
+    }
+    private static void stockColors(ClientGameTestContext context,dev.hoi.protocol.ProtocolIndustryView fixture) {
+        var data=new com.google.gson.Gson().toJsonTree(fixture).getAsJsonObject();
+        var line=data.getAsJsonArray("lines").get(0).deepCopy();
+        String id=line.getAsJsonObject().get("equipment").getAsString();
+        var item=new com.google.gson.Gson().toJsonTree(fixture.equipment().stream().filter(e->e.id().equals(id)).findFirst().orElseThrow()).getAsJsonObject();
+        item.addProperty("stockpile",1234);
+        item.addProperty("deployed",0);
+        item.addProperty("replacement","");
+        var old=item.deepCopy();old.addProperty("id","hoi:test/old_model");old.addProperty("stockpile",0);old.addProperty("demand",0);
+        var equipment=new com.google.gson.JsonArray();equipment.add(item);equipment.add(old);data.add("equipment",equipment);
+        var lines=new com.google.gson.JsonArray();lines.add(line);data.add("lines",lines);
+        long revision=fixture.revision();
+        boolean opened=false;
+        for(int target:new int[]{2,1,0,2}) {
+            item.addProperty("demand",target==2?1235:0);
+            old.addProperty("deployed",target==1?1:0);old.addProperty("replacement",target==1?id:"");
+            data.addProperty("revision",++revision);
+            var next=new dev.hoi.protocol.ProtocolIndustryPayloads.Response(data.toString()).view();
+            if(!opened)context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,next.session(),next,request->{}));
+            else context.runOnClient(client->((ScreenIndustry)client.gui.screen()).update(next));
+            opened=true;
+            context.waitTicks(3);
+            var bounds=context.computeOnClient(client->{
+                var button=client.gui.screen().children().stream().filter(w->w instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().endsWith(" · 재고량 · 군수 보기")).map(w->(net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow();
+                return new int[]{button.getX()*2-4,button.getY()*2,button.getWidth()*2+4,button.getHeight()*2};
+            });
+            try {
+                var image=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-production-stock-"+target+"-"+revision+"-gui2").toFile());
+                int expected=target==0?0x009F03:0xFFBD00,unexpected=target==0?0xFFBD00:0x009F03,matching=0,wrong=0;
+                for(int y=bounds[1];y<bounds[1]+bounds[3];y++)for(int x=bounds[0];x<bounds[0]+bounds[2];x++) {
+                    int color=image.getRGB(x,y)&0xFFFFFF;
+                    if(color==expected)matching++;
+                    if(color==unexpected)wrong++;
+                }
+                if(matching<4||wrong>0)throw new AssertionError("Production stock color for target "+target+": expected pixels="+matching+", wrong pixels="+wrong);
+            } catch(java.io.IOException error) {throw new java.io.UncheckedIOException(error);}
         }
     }
 }
