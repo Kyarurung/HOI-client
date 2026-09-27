@@ -14,8 +14,10 @@ final class ScreenDialogStack extends Screen {
     private final List<ScreenDialog> windows = new ArrayList<>();
     private Screen backdrop;
     private Screen pressedTarget;
+    private final java.util.function.BiConsumer<ProtocolDialogView,String> send;
 
-    ScreenDialogStack(Screen backdrop) { super(Component.literal("알림")); this.backdrop = backdrop; }
+    ScreenDialogStack(Screen backdrop) {this(backdrop,ScreenDialogCoordinator::choose);}
+    ScreenDialogStack(Screen backdrop,java.util.function.BiConsumer<ProtocolDialogView,String> send) { super(Component.literal("알림")); this.backdrop = backdrop;this.send=send; }
     Screen backdrop() { return backdrop; }
     void backdrop(Screen screen) { backdrop = screen; }
     Screen detachBackdrop() { var parent = backdrop; backdrop = null; return parent; }
@@ -25,7 +27,7 @@ final class ScreenDialogStack extends Screen {
         var old = find(view.token());
         if (old != null) { old.update(view); return; }
         if (windows.size() >= 64) return;
-        var window = view.completion() ? new ScreenCompletion(view) : new ScreenDialog(view);
+        var window = view.completion() ? new ScreenCompletion(view,send) : new ScreenDialog(view);
         window.stacked = true;
         windows.add(window);
         if (width > 0) init();

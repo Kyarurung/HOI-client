@@ -116,6 +116,7 @@ public final class ScreenCompletionChecks {
             }
         }
         stacking(context);
+        completionActions(context);
         layers(context);
         backdrop(context);
         hud(context);
@@ -143,6 +144,44 @@ public final class ScreenCompletionChecks {
             } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
         });
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
+    }
+    private static void completionActions(ClientGameTestContext context) {
+        for(String style:List.of("focus_complete","research_complete"))for(String choice:List.of("ack","details")) {
+            var sent=new ArrayList<ProtocolDialogPayloads.Action>();
+            var event=new ProtocolDialogView(UUID.randomUUID().toString(),1,ProtocolDialogView.Kind.EVENT,"국가 이벤트","","본문","","","",List.of(),List.of(new ProtocolDialogView.Choice("yes","선택")));
+            var done=new ProtocolDialogView(UUID.randomUUID().toString(),2,ProtocolDialogView.Kind.DIPLOMACY,"완료","","","","menu/research","",List.of(),List.of(new ProtocolDialogView.Choice("ack","확인"),new ProtocolDialogView.Choice("details","세부 사항")),style);
+            var stack=context.computeOnClient(c->{
+                var screen=new ScreenDialogStack(null,(view,id)->sent.add(new ProtocolDialogPayloads.Action(view.token(),view.revision(),id)));
+                screen.add(event);screen.add(done);return screen;
+            });
+            context.setScreen(()->stack);context.waitTicks(2);
+            context.runOnClient(c->{
+                var button=(Button)stack.find(done.token()).children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(choice.equals("ack")?"확인":"세부 사항")).findFirst().orElseThrow();
+                var click=new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2.0,button.getY()+button.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(0,0));
+                check(stack.mouseClicked(click,false),"Completion accepts the actual mouse click over an event");stack.mouseReleased(click);
+                check(sent.equals(List.of(new ProtocolDialogPayloads.Action(done.token(),2,choice))),"Visible button sends its own issued token, revision and choice exactly once");
+                stack.close(done.token());
+                check(stack.views().equals(List.of(event)),"Server acknowledgement removes only the completion");
+            });
+        }
+        context.runOnClient(c->{
+            ScreenDialogCoordinator.reset();
+            var event=new ProtocolDialogView(UUID.randomUUID().toString(),1,ProtocolDialogView.Kind.EVENT,"보존할 국가 이벤트","","본문","","","",List.of(),List.of(new ProtocolDialogView.Choice("yes","선택")));
+            c.gui.setScreen(null);ScreenDialogCoordinator.receive(ProtocolDialogPayloads.Show.of(event,true));
+            var stack=(ScreenDialogStack)c.gui.screen();
+            var removed=new java.util.concurrent.atomic.AtomicInteger();
+            var old=new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("이전 상세")){@Override public void removed(){removed.incrementAndGet();}};
+            ScreenDialogCoordinator.setContent(old);
+            for(var screen:List.<net.minecraft.client.gui.screens.Screen>of(new ScreenAgency(null),new ScreenFocus(""))) {
+                ScreenDialogCoordinator.setContent(screen);
+                check(c.gui.screen()==stack&&ScreenDialogCoordinator.contentScreen()==screen,"Details navigation changes the content without replacing the event stack");
+                check(stack.views().equals(List.of(event)),"Details navigation preserves the unresolved event and revision");
+            }
+            check(removed.get()==1,"Replaced detail screen is closed once");
+            ScreenDialogCoordinator.setContent(null);
+            check(c.gui.screen()==stack&&stack.layers().contains(stack.find(event.token())),"Closing details reveals the same pending event");
+            ScreenDialogCoordinator.reset();
+        });
     }
     private static void stacking(ClientGameTestContext context) {
         context.runOnClient(client -> client.options.guiScale().set(2));

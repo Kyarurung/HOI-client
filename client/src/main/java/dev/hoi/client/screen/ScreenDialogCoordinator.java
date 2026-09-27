@@ -16,6 +16,15 @@ public final class ScreenDialogCoordinator {
     private static boolean suspending;
     public static boolean renderingContent() { return ScreenDialogStack.contentPass; }
     public static boolean suspending() { return suspending; }
+    public static void setContent(Screen screen) {
+        var client=Minecraft.getInstance();
+        if(notifications==null||client.gui.screen()!=notifications) {client.gui.setScreen(screen);return;}
+        var previous=notifications.backdrop();
+        if(previous==screen)return;
+        if(previous!=null)previous.removed();
+        notifications.backdrop(screen);
+        if(screen!=null)screen.init(notifications.width,notifications.height);
+    }
     public static Screen contentScreen() {
         var current = Minecraft.getInstance().gui.screen();
         if (current instanceof ScreenDialogStack stack) current = stack.backdrop();
