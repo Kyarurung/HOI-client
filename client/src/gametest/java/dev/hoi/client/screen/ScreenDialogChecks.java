@@ -135,7 +135,7 @@ public final class ScreenDialogChecks {
                             }
                             var next = (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("다음 선택지")).findFirst().orElseThrow();
                             if (!next.active) break;
-                            next.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER, 0, 0));
+                            next.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
                         }
                         if (reached.size() != 11) throw new AssertionError("Every server choice must remain accessible in a compact viewport");
                     }
@@ -152,7 +152,7 @@ public final class ScreenDialogChecks {
                     @Override protected void choose(String choice) { sent.add(view().token() + "/" + view().revision() + "/" + choice); }
                 };
                 client.gui.setScreen(screen);
-                for (int key : new int[]{org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER, org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER}) {
+                for (int key : new int[]{com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER}) {
                     int before = sent.size();
                     screen.keyPressed(new net.minecraft.client.input.KeyEvent(key, 0, 0));
                     if (sent.size() != before + 1 || !sent.getLast().equals(view.token() + "/7/issued-choice"))
@@ -161,13 +161,13 @@ public final class ScreenDialogChecks {
                 var multiple = new ProtocolDialogView(view.token(), 8, kind, view.title(), "", view.body(), "", "", "", List.of(),
                         List.of(new ProtocolDialogView.Choice("a", "첫 선택"), new ProtocolDialogView.Choice("b", "둘째 선택")));
                 screen.update(multiple); screen.setFocused(null);
-                screen.keyPressed(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER, 0, 0));
+                screen.keyPressed(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
                 if (!sent.getLast().equals(view.token() + "/8/") || client.gui.screen() != null)
                     throw new AssertionError("Enter without a selected option dismisses without choosing gameplay effects");
                 client.gui.setScreen(screen);
                 var second = (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("둘째 선택")).findFirst().orElseThrow();
                 screen.setFocused(second);
-                screen.keyPressed(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER, 0, 0));
+                screen.keyPressed(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
                 if (!sent.getLast().equals(view.token() + "/8/b")) throw new AssertionError("Enter activates the focused server choice");
             }
             client.gui.setScreen(null);

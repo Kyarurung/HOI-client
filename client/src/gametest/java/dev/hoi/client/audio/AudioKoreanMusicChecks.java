@@ -36,7 +36,7 @@ public final class AudioKoreanMusicChecks {
                 context.runOnClient(client -> {
                     var screen=client.gui.screen();
                     var button=screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("TFR Korea Plus ON/OFF")).map(w -> (Button)w).findFirst().orElseThrow();
-                    screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX()+10,button.getY()+10,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
+                    screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX()+10,button.getY()+10,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
                     if(AudioKoreanMusic.stationEnabled()||AudioKoreanMusic.PLAYBACK.requested())throw new AssertionError("Station OFF stops playlist");
                     AudioUiSounds.receive(dev.hoi.protocol.ProtocolAudioPayloads.Cue.MAP_NAVY);
                     if(AudioKoreanMusic.stationEnabled()||AudioKoreanMusic.PLAYBACK.requested())throw new AssertionError("Map switch preserves station OFF");
@@ -49,7 +49,7 @@ public final class AudioKoreanMusicChecks {
                 context.takeScreenshot("hoi-korean-music-on-1600");
                 context.runOnClient(client -> {
                     var button=client.gui.screen().children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("일시정지")).map(w -> (Button)w).findFirst().orElseThrow();
-                    button.onPress(new net.minecraft.client.input.MouseButtonEvent(button.getX()+2,button.getY()+2,new net.minecraft.client.input.MouseButtonInfo(0,0)));
+                    button.onPress(new net.minecraft.client.input.MouseButtonEvent(button.getX()+2,button.getY()+2,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)));
                     AudioUiSounds.receive(dev.hoi.protocol.ProtocolAudioPayloads.Cue.MAP_ARMY);
                     if(!AudioKoreanMusic.PLAYBACK.paused())throw new AssertionError("Pause control and map switch must preserve the paused stream");
                 });
@@ -77,14 +77,14 @@ public final class AudioKoreanMusicChecks {
                 context.waitTicks(3);
                 context.runOnClient(client -> {
                     var slider=client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.AbstractSliderButton).map(w -> (net.minecraft.client.gui.components.AbstractSliderButton)w).findFirst().orElseThrow();
-                    slider.onClick(new net.minecraft.client.input.MouseButtonEvent(slider.getX()+4,slider.getY()+5,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
+                    slider.onClick(new net.minecraft.client.input.MouseButtonEvent(slider.getX()+4,slider.getY()+5,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
                     if(AudioKoreanMusic.volume()!=0)throw new AssertionError("Volume click reaches mute");
                 });
                 context.waitTicks(3);
                 context.runOnClient(client -> {if(AudioKoreanMusic.playing()==null||AudioKoreanMusic.playing().getVolume()!=0)throw new AssertionError("Active stream updates to mute");});
                 context.runOnClient(client -> {
                     var slider=client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.AbstractSliderButton).map(w -> (net.minecraft.client.gui.components.AbstractSliderButton)w).findFirst().orElseThrow();
-                    slider.mouseDragged(new net.minecraft.client.input.MouseButtonEvent(slider.getX()+4+(slider.getWidth()-8)*.25,slider.getY()+5,new net.minecraft.client.input.MouseButtonInfo(0,0)),0,0);
+                    slider.mouseDragged(new net.minecraft.client.input.MouseButtonEvent(slider.getX()+4+(slider.getWidth()-8)*.25,slider.getY()+5,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),0,0);
                     if(Math.abs(AudioKoreanMusic.volume()-.25)>.001)throw new AssertionError("Volume drag reaches 25 percent");
                 });
                 context.waitTicks(3);
@@ -117,7 +117,7 @@ public final class AudioKoreanMusicChecks {
                 var button = screen.children().stream().filter(b -> b instanceof dev.hoi.client.ui.UiMusicButton)
                         .map(b -> (dev.hoi.client.ui.UiMusicButton)b).findFirst().orElseThrow();
                 screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX() + 9, button.getY() + 9,
-                        new net.minecraft.client.input.MouseButtonInfo(0, 0)), false);
+                        new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
                 if (!(client.gui.screen() instanceof ScreenKoreanMusic)) throw new AssertionError("Music icon click opens playlist");
                 client.gui.screen().onClose();
                 if (client.gui.screen() != screen) throw new AssertionError("Playlist returns to previous menu");

@@ -86,7 +86,7 @@ public final class AudioMusicRoutingChecks {
                         .filter(widget -> widget instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals(label))
                         .map(widget -> (net.minecraft.client.gui.components.Button)widget).findFirst().orElseThrow();
                 button.onPress(new net.minecraft.client.input.MouseButtonEvent(button.getX() + 2, button.getY() + 2,
-                        new net.minecraft.client.input.MouseButtonInfo(0, 0)));
+                        new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)));
                 if (AudioStoryMusic.active() || !AudioKoreanMusic.PLAYBACK.requested() || AudioKoreanMusic.PLAYBACK.paused())
                     throw new AssertionError("Playlist control replaces focus music immediately");
                 if (chooseTrack && AudioKoreanMusic.PLAYBACK.selected() != 1)

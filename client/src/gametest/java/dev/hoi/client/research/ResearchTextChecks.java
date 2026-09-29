@@ -152,13 +152,13 @@ public final class ResearchTextChecks {
             context.runOnClient(client->{
                 var button=client.gui.screen().children().stream().filter(c->c instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().equals(child.name()))
                         .map(c->(net.minecraft.client.gui.components.Button)c).findFirst().orElseThrow();
-                button.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));
+                button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
             });
             context.waitTicks(2);context.takeScreenshot("hoi-subtechnology-detail-"+child.source().id()+"-gui2");
             context.runOnClient(client->{
                 var button=client.gui.screen().children().stream().filter(c->c instanceof net.minecraft.client.gui.components.Button b&&b.active&&b.getMessage().getString().equals("연구"))
                         .map(c->(net.minecraft.client.gui.components.Button)c).findFirst().orElseThrow();
-                button.onPress(new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER,0,0));
+                button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
                 check(requests.size()==1&&requests.getFirst().action()==ProtocolResearchPayloads.Action.START&&requests.getFirst().technology().equals(child.id()),"Child button starts its own server research");
             });
         }
@@ -186,7 +186,7 @@ public final class ResearchTextChecks {
             screen.showDetail("hoi:tfr/technology/power_plants4");
             var close = screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals("×"))
                     .map(w -> (net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow();
-            close.onPress(new net.minecraft.client.input.MouseButtonEvent(close.getX() + 1, close.getY() + 1, new net.minecraft.client.input.MouseButtonInfo(0, 0)));
+            close.onPress(new net.minecraft.client.input.MouseButtonEvent(close.getX() + 1, close.getY() + 1, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)));
         });
         context.waitTicks(3); context.takeScreenshot("hoi-engineering-exclusive-caption-gui2");
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);

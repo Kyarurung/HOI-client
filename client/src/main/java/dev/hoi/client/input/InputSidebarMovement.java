@@ -27,8 +27,8 @@ public final class InputSidebarMovement {
             controlled = true;
             apply(client, key -> {
                 var bound = InputConstants.getKey(key.saveString());
-                return bound.getType() == InputConstants.Type.KEYSYM && bound.getValue() >= 0
-                        && InputConstants.isKeyDown(client.getWindow(), bound.getValue());
+                return bound.getType() == InputConstants.Type.KEYBOARD && bound.getValue() >= 0
+                        && InputConstants.isKeyDown(bound.getValue());
             });
         } else release(client);
     }

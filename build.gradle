@@ -35,7 +35,7 @@ tasks.register('runGameTest') {
 }
 tasks.register('remapJar', Sync) {
     group = 'build'
-    description = 'Stages only the client mod; Minecraft 26.2 is unobfuscated.'
+    description = 'Stages only the client mod; Minecraft 26.3 is unobfuscated.'
     dependsOn ':client:jar'
     from project(':client').tasks.named('jar', Jar).flatMap { it.archiveFile }
     into layout.buildDirectory.dir('libs')

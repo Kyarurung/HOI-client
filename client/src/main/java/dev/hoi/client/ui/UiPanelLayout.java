@@ -7,7 +7,7 @@ public final class UiPanelLayout {
     private UiPanelLayout() {}
 
     public static int width(ProtocolMenuTab tab, int screenWidth) {
-        if (tab == ProtocolMenuTab.PRODUCTION) return Math.max(1, Math.min(screenWidth - 16, Math.max(275, screenWidth * 550 / 2560)));
+        if (tab == ProtocolMenuTab.PRODUCTION || tab == ProtocolMenuTab.CONSTRUCTION) return Math.max(1, Math.min(screenWidth - 16, Math.max(275, screenWidth * 550 / 2560)));
         int reference = switch (tab) {
             case POLITICS -> 726;
             case TRADE -> 620;

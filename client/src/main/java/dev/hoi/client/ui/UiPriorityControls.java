@@ -3,14 +3,16 @@ package dev.hoi.client.ui;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
 
 public final class UiPriorityControls {
     private UiPriorityControls() {}
     public static boolean shifted() {
-        long window = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT);
+    }
+    public static boolean controlled() {
+        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LCONTROL)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RCONTROL);
     }
     public static Component tooltip(boolean up) {
         return Component.literal("우선순위를 " + (up ? "높이려면 " : "낮추려면 ")).withStyle(ChatFormatting.WHITE)

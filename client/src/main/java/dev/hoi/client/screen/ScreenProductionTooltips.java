@@ -6,6 +6,11 @@ import dev.hoi.client.ui.UiEquipmentDesigns;
 
 final class ScreenProductionTooltips {
     private static final java.util.List<String> STAT_ORDER=java.util.List.of("manpower","air_range","defense","breakthrough","hardness","soft_attack","hard_attack","air_defence","air_attack","air_agility","air_superiority","naval_strike_attack","naval_strike_targetting","surface_detection","sub_detection","surface_visibility","sub_visibility","lg_attack","lg_armor_piercing","hg_attack","hg_armor_piercing","torpedo_attack","sub_attack","anti_air_attack","maximum_speed","naval_speed","naval_range","max_organisation","max_strength","armor_value","ap_attack","reliability","fuel_consumption","weight","thrust");
+    static String navalWaiting(ProtocolIndustryView view,ProtocolIndustryView.Line line) {
+        String title=UiEquipmentDesigns.tooltip("PRODUCTION_CAN_NOT_DEPLOY");
+        String reason=view.navalDeployment().waiting().get(line.id());
+        return reason.equals("PRODUCTION_CAN_NOT_DEPLOY")?title:title+"\n"+UiEquipmentDesigns.tooltip(reason);
+    }
     private ScreenProductionTooltips() {}
     static String modifier(ProtocolIndustryView.Modifier modifier) {
         return "§e"+modifier.name()+"§r\n"+modifier.detail();

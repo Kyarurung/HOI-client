@@ -186,7 +186,7 @@ public final class MapUnitHudChecks {
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
     }
     private static net.minecraft.client.input.MouseButtonEvent mouse(double x,double y) {
-        return new net.minecraft.client.input.MouseButtonEvent(x,y,new net.minecraft.client.input.MouseButtonInfo(0,0));
+        return new net.minecraft.client.input.MouseButtonEvent(x,y,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));
     }
     private static final class MapTestSidebar extends Screen implements InputSidebarMovement.InputMovementScreen {
         private final boolean covered;

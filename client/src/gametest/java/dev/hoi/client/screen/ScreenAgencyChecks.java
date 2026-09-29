@@ -8,7 +8,7 @@ import net.minecraft.resources.Identifier;
 public final class ScreenAgencyChecks {
     private static void press(ScreenAgency screen, String label) {
         var button = screen.children().stream().filter(c -> c instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals(label)).map(c -> (net.minecraft.client.gui.components.Button)c).findFirst().orElseThrow();
-        screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX() + button.getWidth() / 2.0, button.getY() + button.getHeight() * .7, new net.minecraft.client.input.MouseButtonInfo(0, 0)), false);
+        screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX() + button.getWidth() / 2.0, button.getY() + button.getHeight() * .7, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
     }
 
     public static void run(ClientGameTestContext context, List<Item> items) {
@@ -23,9 +23,9 @@ public final class ScreenAgencyChecks {
         context.runOnClient(client -> {
             var screen = (ScreenAgency)client.gui.screen();
             var tab = screen.children().stream().filter(c -> c instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals("정보공동체")).map(c -> (net.minecraft.client.gui.components.Button)c).findFirst().orElseThrow();
-            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(tab.getX()+tab.getWidth()/2.0,tab.getY()+tab.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(tab.getX()+tab.getWidth()/2.0,tab.getY()+tab.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
             var button = screen.children().stream().filter(c -> c instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals(partial.title())).map(c -> (net.minecraft.client.gui.components.Button)c).findFirst().orElseThrow();
-            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2.0,button.getY()+47,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2.0,button.getY()+47,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
             if (requests.size()!=1 || !requests.getFirst().item().equals(partial.id())) throw new AssertionError("Clicking the visible enabled upgrade label must send its issued request: " + requests);
         });
         for (boolean stillEnabled : new boolean[]{true, false}) {

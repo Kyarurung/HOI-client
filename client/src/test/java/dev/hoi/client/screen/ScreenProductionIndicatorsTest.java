@@ -6,6 +6,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ScreenProductionIndicatorsTest {
+    @Test void navalCompletionRoundsUpPartialDaysAndHandlesStoppedProduction() {
+        assertEquals("30일",ScreenProductionIndicators.navalDays(.025,.25));
+        assertEquals("4일",ScreenProductionIndicators.navalDays(.2,.25));
+        assertEquals("1일",ScreenProductionIndicators.navalDays(2,.5));
+        assertEquals("0일",ScreenProductionIndicators.navalDays(.1,1));
+        assertEquals("생산량 없음",ScreenProductionIndicators.navalDays(0,.5));
+    }
     private ProtocolIndustryView.Equipment equipment(String id,long stock,long deployed,long demand,String replacement) {
         return new ProtocolIndustryView.Equipment(id,id,"","armor",false,true,1,10,Map.of(),stock,0,deployed,0,replacement,"tank","전차",demand,false,id);
     }

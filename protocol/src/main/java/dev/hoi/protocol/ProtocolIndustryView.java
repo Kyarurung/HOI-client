@@ -7,7 +7,34 @@ public record ProtocolIndustryView(String session, long revision, String country
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
         List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, ProtocolTankDesigner tankDesigner, NavalDeployment navalDeployment) {
+
+    public ProtocolIndustryView(String session, long revision, String country, ProtocolCountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
         Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, ProtocolTankDesigner tankDesigner) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,null);
+    }
+    public ProtocolIndustryView withNavalDeployment(NavalDeployment deployment) {
+        return new ProtocolIndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,deployment);
+    }
+    public record NavalTarget(String id,String name,String port,int level,int ships) {
+        public NavalTarget {text(id,128);text(name,256);text(port,128);if(level<0||ships<0)throw new IllegalArgumentException("Invalid naval destination");}
+        public boolean fleet(){return id.startsWith("fleet/");}
+    }
+    public record NavalDeployment(List<Choice> ports, Map<String,String> waiting,Map<String,String> destinations,List<NavalTarget> targets) {
+        public NavalDeployment(List<Choice> ports,Map<String,String> waiting,Map<String,String> destinations){this(ports,waiting,destinations,ports.stream().map(p->new NavalTarget(p.id(),p.name(),p.id(),0,0)).toList());}
+        public NavalDeployment {
+            ports=bounded(ports,2048);
+            targets=targets==null?List.of():bounded(targets,4096);
+            waiting=waiting==null?Map.of():Map.copyOf(waiting);
+            destinations=destinations==null?Map.of():Map.copyOf(destinations);
+            if(destinations.size()>512||waiting.size()>512)throw new IllegalArgumentException("Too many naval lines");
+            destinations.forEach((line,port)->{text(line,128);text(port,128);});
+            waiting.forEach((line,reason)->{text(line,128);if(!Set.of("PRODUCTION_CAN_NOT_DEPLOY_MANPOWER","PRODUCTION_NAVAL_DEPLOYMENT_INVALID_BASE","PRODUCTION_CAN_NOT_DEPLOY").contains(reason))throw new IllegalArgumentException("Invalid naval deployment status");});
+        }
+    }
 
     public ProtocolIndustryView(String session, long revision, String country, ProtocolCountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
@@ -17,7 +44,7 @@ public record ProtocolIndustryView(String session, long revision, String country
         this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,null);
     }
     public ProtocolIndustryView withTankDesigner(ProtocolTankDesigner designer) {
-        return new ProtocolIndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer);
+        return new ProtocolIndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer,navalDeployment);
     }
 
     public ProtocolIndustryView(String session, long revision, String country, ProtocolCountryHud hud, Economy economy,

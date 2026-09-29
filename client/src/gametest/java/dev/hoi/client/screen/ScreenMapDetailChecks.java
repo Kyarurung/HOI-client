@@ -107,9 +107,10 @@ final class ScreenMapDetailChecks {
         occupied.add(tile("controller","지배국","일본","country/jap/flag"));
         occupied.add(tile("claims","타국의 주장","일본","country/jap/flag"));
         occupied.add(tile("claims","타국의 주장","대한민국","country/kor/flag"));
-        occupied.add(new ProtocolDialogView.Tile("resistance","저항도","82%","map_detail/resistance","저항 강도: §c82.34%§r\n\n저항도 목표: §e31%§r\n  기본값: §e35%§r\n  지배국이 평화로운 상태: §a-10%§r\n  낮은 안정도: §c18%§r\n  순응도: §a-12%§r\n\n저항도 감소: §a0.100%§r"));
-        occupied.add(new ProtocolDialogView.Tile("compliance","순응도","24%","map_detail/compliance","순응 강도: §a24.56%§r\n\n순응도 증가: §a0.062%§r\n  기본값: §e0.075%§r\n  지배국이 평화로운 상태: §a10%§r\n추가 순응도 변화:\n  높은 순응도: §c-0.020%§r"));
-        occupied.add(new ProtocolDialogView.Tile("resistance_target","저항도 목표","","map_detail/resistance_target","저항도 목표: §e31%§r",new ProtocolDialogView.Gauge(.31,"저항도 목표: §e31%§r")));
+        try(var input=ScreenMapDetailChecks.class.getResourceAsStream("/occupation-tiles-fixture.json")) {
+            java.lang.reflect.Type type=new com.google.gson.reflect.TypeToken<List<ProtocolDialogView.Tile>>(){}.getType();
+            occupied.addAll(new com.google.gson.Gson().fromJson(new java.io.InputStreamReader(Objects.requireNonNull(input),java.nio.charset.StandardCharsets.UTF_8),type));
+        } catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}
         occupied.removeIf(t->t.section().equals("province_status"));
         occupied.add(new ProtocolDialogView.Tile("province_status","기온","","map_detail/temperature_0","§e혹독한 추위 · -18.0°C§r\n공격: §c-20.0%§r\n돌파: §c-30.0%§r\n조직력 회복: §c-5.0%§r\n보급 효율: §c-15.0%§r\n사단 손실: §c+20.0%§r"));
         occupied.add(new ProtocolDialogView.Tile("province_weather","날씨","","map_detail/weather_blizzard","§e눈보라§r\n조직력 회복: §c-10.0%§r\n보급 소비량: §c+15.0%§r\n보급 효율: §c-25.0%§r"));

@@ -4,7 +4,6 @@ import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.KeyEvent;
-import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 public final class ScreenCountryChecks {
@@ -457,7 +456,7 @@ public final class ScreenCountryChecks {
                         return true;
                     });
                 if (entry.getKey().equals("zero")) {
-                    if (expected.detail().contains("매일 변화:")) throw new AssertionError("Zero growth must stay hidden");
+                    if (!expected.detail().contains("매일 변화: §e+0.00§r")) throw new AssertionError("Zero growth must use the source two-decimal format");
                 } else {
                     int color = entry.getKey().equals("ruling-rise") || entry.getKey().equals("opposition-fall") ? 0x009F03 : 0xFF3232;
                     if (!colors.contains(color)) throw new AssertionError("Server drift lost its TFR color: " + expected.detail());
@@ -622,14 +621,14 @@ public final class ScreenCountryChecks {
             var screen=(ScreenCountry)c.gui.screen();
             int pane=screen.panelWidth(),top=dev.hoi.client.ui.UiMenuBar.height(screen.width);
             int y=ScreenDiplomacyHeader.body(top,pane)+18;
-            if(screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(15,y,new net.minecraft.client.input.MouseButtonInfo(0,0)),false))
+            if(screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(15,y,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false))
                 throw new AssertionError("Diplomacy relation background must not be clickable");
             if(screen.children().stream().anyMatch(w->w instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().startsWith("세력 ·")))
                 throw new AssertionError("Diplomacy relation row must not have hover/click widgets");
             var selected=screen.flagAt(40,y);
             if(selected==null||!selected.tag().equals("PRK"))throw new AssertionError("Visible diplomacy flag target");
             String previous=screen.token();
-            if(!screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(40,y,new net.minecraft.client.input.MouseButtonInfo(0,0)),false)
+            if(!screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(40,y,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false)
                     ||screen.view()!=null||screen.token().equals(previous))throw new AssertionError("Flag click must open a fresh country request");
             screen.update(ProtocolCountryPayloads.Response.of(screen.token(),fixture));
             if(screen.view()!=null)throw new AssertionError("Clicked flag must not accept another country's response");
@@ -654,6 +653,6 @@ public final class ScreenCountryChecks {
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
     }
     private static void click(ClientGameTestContext context,String label) {
-        context.runOnClient(client -> ((Button)client.gui.screen().children().stream().filter(c -> c instanceof Button b && b.getMessage().getString().equals(label)).findFirst().orElseThrow()).onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0)));
+        context.runOnClient(client -> ((Button)client.gui.screen().children().stream().filter(c -> c instanceof Button b && b.getMessage().getString().equals(label)).findFirst().orElseThrow()).onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0)));
     }
 }

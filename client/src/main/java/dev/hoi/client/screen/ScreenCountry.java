@@ -16,7 +16,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import java.util.*;
-import org.lwjgl.glfw.GLFW;
 
 
 public final class ScreenCountry extends Screen implements InputSidebarMovement.InputMovementScreen {
@@ -244,13 +243,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         if (view != null && !ledger && !choosing && detail == null && confirmation == null) {
             var spirit = header.spiritAt(mx, my, pane, top);
             var party = header.partyAt(view,mx,my,pane,top);
-            if(party!=null) {
-                var lines=new java.util.ArrayList<net.minecraft.util.FormattedCharSequence>();
-                lines.add(Component.literal(party.name()).withColor(dev.hoi.client.ui.UiTooltips.GOLD).getVisualOrderText());
-                lines.add(Component.literal(party.value()).getVisualOrderText());
-                lines.addAll(dev.hoi.client.ui.UiTooltips.lines(font,party.detail(),width));
-                g.setTooltipForNextFrame(font,lines,mx,my);
-            }
+            if(party!=null) dev.hoi.client.ui.UiTooltips.drawExact(g,font,party.detail(),mx,my);
             if (header.leaderAt(mx, my, pane, top))
                 leaderTooltipScroll = dev.hoi.client.ui.UiPoliticalTooltip.drawLeader(g, font, ScreenDiplomacyHeader.entry(view, "지도자"),
                         view.target(), view.name(), mx, my, width, height, leaderTooltipScroll);
@@ -277,7 +270,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         return null;
     }
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice) {
-        if(event.button()==0) {
+        if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             var country=flagAt(event.x(),event.y());
             if(country!=null){select(country.tag());return true;}
         }
@@ -290,15 +283,15 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         }
         if (view != null && !ledger && !choosing && detail == null && confirmation == null
                 && header.spiritAt(x, y, pane, top) != null
-                && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT)
-                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT))) {
+                && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT))) {
             spiritTooltipScroll -= (int)(vertical * 3); return true;
         }
         if (view != null && !ledger && !choosing && detail == null && confirmation == null
                 && header.scrollSpirits(x, y, horizontal != 0 ? horizontal : vertical, pane, top)) return true;
         if (view != null && !ledger && !choosing && detail == null && confirmation == null
-                && header.leaderAt(x, y, pane, top) && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT)
-                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT))) {
+                && header.leaderAt(x, y, pane, top) && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT))) {
             leaderTooltipScroll -= (int)(vertical * 3); return true;
         }
         if (detail != null) { detailScroll -= (int)(vertical * 26); return true; }
@@ -310,8 +303,8 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         return super.mouseScrolled(x, y, horizontal, vertical);
     }
     @Override public boolean keyPressed(KeyEvent event) {
-        if (confirmation != null && event.key() == GLFW.GLFW_KEY_ESCAPE && !pending) { confirmation = null; rebuildWidgets(); return true; }
-        if (detail != null && event.key() == GLFW.GLFW_KEY_ESCAPE) { detail = null; rebuildWidgets(); return true; }
+        if (confirmation != null && event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && !pending) { confirmation = null; rebuildWidgets(); return true; }
+        if (detail != null && event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { detail = null; rebuildWidgets(); return true; }
         if (allowsMovement() && InputSidebarMovement.consumes(minecraft, event)) return true;
         return super.keyPressed(event);
     }

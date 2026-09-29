@@ -10,7 +10,7 @@ import net.minecraft.util.FormattedCharSequence;
 
 public final class UiTooltips {
     public static final int GOLD = 0xFFBD00, GOOD = 0x009F03, BAD = 0xFF3232;
-    private record LayoutKey(Font font,String text,int width,boolean icons) {}
+    private record LayoutKey(Font font,String text,int width,boolean icons,boolean inferIcons) {}
     private static final java.util.LinkedHashMap<LayoutKey,List<FormattedCharSequence>> LAYOUTS = new java.util.LinkedHashMap<>(64,.75f,true);
     private static final java.util.regex.Pattern SENTENCES = java.util.regex.Pattern.compile("([.!?。！？](?:§.)*)\\h+(?=\\S)");
     private UiTooltips() {}
@@ -62,7 +62,7 @@ public final class UiTooltips {
     }
 
     public static net.minecraft.client.gui.components.Tooltip createExact(String text) {
-        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(Component.literal(UiTooltipText.sourceSpacing(text)),false)));
+        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(Component.literal(UiTooltipText.sourceSpacing(text)),false),false));
     }
 
     public static Component productionText(Component text) {
@@ -74,7 +74,7 @@ public final class UiTooltips {
     }
 
     public static void drawExact(GuiGraphicsExtractor graphics,Font font,String text,int x,int y) {
-        graphics.setTooltipForNextFrame(font,formattedLines(font,text,graphics.guiWidth(),true),x,y);
+        graphics.setTooltipForNextFrame(font,formattedLines(font,text,graphics.guiWidth(),true,false),x,y);
     }
     public static Component format(Component text) {
         var rows = new ArrayList<net.minecraft.network.chat.MutableComponent>();
@@ -108,8 +108,12 @@ public final class UiTooltips {
     }
 
     static List<FormattedCharSequence> formattedLines(Font font, String text, int viewportWidth, boolean icons) {
+        return formattedLines(font,text,viewportWidth,icons,true);
+    }
+
+    private static List<FormattedCharSequence> formattedLines(Font font,String text,int viewportWidth,boolean icons,boolean inferIcons) {
         int width = Math.max(80, Math.min(300, viewportWidth - 24));
-        var key = new LayoutKey(font,text,width,icons);
+        var key = new LayoutKey(font,text,width,icons,inferIcons);
         var cached = LAYOUTS.get(key);
         if(cached!=null)return cached;
         var lines = new ArrayList<FormattedCharSequence>();
@@ -117,7 +121,7 @@ public final class UiTooltips {
             if (line.isEmpty()) lines.add(Component.empty().getVisualOrderText());
             else {
                 var value = styled(Component.literal(line),false);
-                lines.addAll(font.split(icons ? UiKeywordIcons.decorateLines(value) : value, width));
+                lines.addAll(font.split(icons ? UiKeywordIcons.decorateLines(value,inferIcons) : value, width));
             }
         }
         var result = List.copyOf(lines);

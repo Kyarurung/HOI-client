@@ -104,6 +104,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
     }
     private static String level(String value) {
         String[] parts=value.split("/");
+        if(value.equals("0/0"))return "§7"+value+"§r";
         if(parts.length==2&&parts[0].equals(parts[1]))return "§a"+value+"§r";
         return value;
     }
@@ -152,6 +153,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
             var values=tiles(section);if(values.isEmpty())continue;
             var tile=values.getFirst();int py=section.equals("resistance")?198:233;
             art(g,tile.icon(),14,py-5,30,32);
+            g.pose().pushMatrix();g.pose().translate(-1,1);
             art(g,"map_detail/"+section+"_bg",50,py,86,22);
             double fraction=0;
             try{fraction=Math.clamp(Double.parseDouble(tile.value().replace("%",""))/100,0,1);}catch(NumberFormatException ignored){}
@@ -170,9 +172,10 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
                 int markerLeft=barLeft+(int)Math.round((barRight-barLeft)*target.gauge().fraction())-markerWidth/2;
                 int markerTop=y(py)-Math.round(n(22)*3f/19);
                 UiAssets.draw(g,target.icon(),markerLeft,markerTop,markerWidth,markerHeight);
-                hovers.add(new ScreenMapHover(target,markerLeft,markerTop,markerWidth,markerHeight));
+                hovers.add(new ScreenMapHover(target,markerLeft-1,markerTop+1,markerWidth,markerHeight));
             }
             label(g,tile.value(),50,py,86,22,UiMenuStyle.TEXT);
+            g.pose().popMatrix();
             hovers.add(new ScreenMapHover(tile,x(14),y(py-5),n(122),n(32)));
         }
         var buildings=tiles("state");for(int i=0;i<buildings.size();i++)cell(g,buildings.get(i),153+i*59,47,62,84,true);
@@ -300,13 +303,13 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         return "";
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
-        if(event.button()==0) {
+        if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             String country=flagAt(event.x(),event.y());
             if(!country.isEmpty()){dev.hoi.client.HoiClient.openCountry(country);return true;}
         }
         if(event.y()<top||event.x()>=pane) {
             if(event.y()<UiMenuBar.height(width))return super.mouseClicked(event,twice);
-            if(event.button()==0)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);
+            if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);
         }
         return super.mouseClicked(event,twice);
     }

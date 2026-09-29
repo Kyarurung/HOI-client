@@ -1,8 +1,8 @@
 # Repository Guidelines
 
-HOI-client is a Java 25, Minecraft 26.2 Fabric client mod. The Gradle modules are `client` and `protocol`. Keep `dev.hoi.client` and `dev.hoi.protocol`, stable `hoi:` payload IDs, and UTF-8 Java with four-space indentation. Project-owned test classes use the `Test` suffix, including GameTest implementations; preserve their framework interfaces, registration, source sets and execution tasks.
+HOI-client is a Java 25, Minecraft 26.3 Fabric client mod. The Gradle modules are `client` and `protocol`. Keep `dev.hoi.client` and `dev.hoi.protocol`, stable `hoi:` payload IDs, and UTF-8 Java with four-space indentation. Project-owned test classes use the `Test` suffix, including GameTest implementations; preserve their framework interfaces, registration, source sets and execution tasks.
 
-Run `./gradlew test runGameTest remapJar --console=plain --no-daemon` before delivering code/build changes. PowerShell uses `.\gradlew.bat`. `runGameTest` invokes actual client rendering and requires a display (use Xvfb in Linux CI). The root output is only `build/libs/hoi-client-0.1.0-SNAPSHOT.jar`. Never downgrade Minecraft or introduce obsolete mappings; 26.2 is unobfuscated.
+Run `./gradlew test runGameTest remapJar --console=plain --no-daemon` before delivering code/build changes. PowerShell uses `.\gradlew.bat`. `runGameTest` invokes actual client rendering and requires a display (use Xvfb in Linux CI). The root output is only `build/libs/hoi-client-1.0.0+26.3.jar`. Never downgrade Minecraft or introduce obsolete mappings; 26.3 is unobfuscated.
 
 The server owns research, time, country assignments, validation and persistence. This client sends bounded requests and renders private snapshots. Do not add core simulation, server worlds, Polymer or client-side rewards. Call `ProtocolResearchPayloads.registerPayloadTypes()` before registering receivers; repeated calls must be safe. Synchronize shared protocol changes with Kyarurung/HOI's `protocol` module and bump incompatible wire versions.
 
@@ -28,7 +28,7 @@ Repository skill: [hoi-client-development](.agents/skills/hoi-client-development
 
 ## Installed external skills and tools
 
-Use `minecraft-modding`, `minecraft-testing` and `minecraft-resource-pack` for resource interface changes from the installed Jahrome907/minecraft-agent-skills collection when applicable. `minecraft-plugin-dev` is installed for Paper/Bukkit work and does not apply to these Fabric repositories. Legacy mapping, launcher, dependency, license and release examples do not override this repository's Java 25 / Minecraft 26.2 configuration or operating rules.
+Use `minecraft-modding`, `minecraft-testing` and `minecraft-resource-pack` for resource interface changes from the installed Jahrome907/minecraft-agent-skills collection when applicable. `minecraft-plugin-dev` is installed for Paper/Bukkit work and does not apply to these Fabric repositories. Legacy mapping, launcher, dependency, license and release examples do not override this repository's Java 25 / Minecraft 26.3 configuration or operating rules.
 
 Apply Ponytail's existing-code/stdlib-first approach to coding while completing the user's requested scope and required validation. Use the requested i-have-adhd output preferences: state the result/action first, keep steps short and omit tangents; this is a writing preference, not a medical inference. `humanize-korean` from im-not-ai is available for Korean prose editing: preserve facts, identifiers, commands and links, and use its Codex references. Installing these skills does not authorize unrelated code audits or generating progress reports.
 

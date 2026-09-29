@@ -5,6 +5,9 @@ import java.util.*;
 
 final class ScreenProductionIndicators {
     private ScreenProductionIndicators() {}
+    static String navalDays(double daily,double progress) {
+        return daily>0?(long)Math.ceil(Math.max(0,1-progress)/daily)+"일":"생산량 없음";
+    }
     record Demand(Map<String,Integer> targets,Map<String,Long> shortages) {}
     static Demand demand(List<Equipment> equipment) {
         var demand=new HashMap<String,Long>();

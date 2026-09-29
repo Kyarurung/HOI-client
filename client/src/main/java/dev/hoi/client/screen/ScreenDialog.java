@@ -164,7 +164,7 @@ public class ScreenDialog extends Screen {
     protected void choose(String choice) { ScreenDialogCoordinator.choose(view, choice); }
     @Override public void onClose() { choose(""); if (stacked) ScreenDialogCoordinator.close(view.token()); else minecraft.gui.setScreen(null); }
     @Override public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
-        if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER || event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER) {
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
             if (view.choices().size() == 1) { choose(view.choices().getFirst().id()); return true; }
             if (view.choices().isEmpty()) { onClose(); return true; }
 

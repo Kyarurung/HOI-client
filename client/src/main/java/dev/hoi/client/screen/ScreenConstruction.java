@@ -36,7 +36,8 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     private final Consumer<ProtocolConstructionPayloads.Request> transport;
     private ProtocolConstructionView view;
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
-    private List<Integer> paletteDividers=List.of();
+    private record ScreenPaletteGroup(String name,int offset,int height) {}
+    private List<ScreenPaletteGroup> paletteGroups=List.of();
     private boolean consumerTooltip, loadingFailed;
     private record ScreenConversionBox(ConversionState state,int x,int y) {}
     private List<ScreenConversionBox> conversionBoxes=List.of();
@@ -70,30 +71,32 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         }
         int icon=paletteSize(),x=paletteX(),y=top+54;
         var entries=new ArrayList<ScreenPaletteEntry>();
-        var dividers=new ArrayList<Integer>();
+        var groups=new ArrayList<ScreenPaletteGroup>();
         int offset=0;
-        for(var ids:BUILDING_GROUPS) {
+        for(int groupIndex=0;groupIndex<BUILDING_GROUPS.size();groupIndex++) {
+            var ids=BUILDING_GROUPS.get(groupIndex);
             var group=ids.stream().flatMap(id->view.buildings().stream().filter(b->b.id().equals(id))).toList();
             if(group.isEmpty())continue;
-            if(!entries.isEmpty()){dividers.add(offset+2);offset+=7;}
-            for(int i=0;i<group.size();i++)entries.add(new ScreenPaletteEntry(group.get(i),i%2,offset+(i/2)*(icon+3)));
-            offset+=((group.size()+1)/2)*(icon+3);
+            int groupHeight=24+((group.size()+1)/2)*(icon+1);
+            groups.add(new ScreenPaletteGroup(List.of("state","shared","province").get(groupIndex),offset,groupHeight));
+            offset+=24;
+            for(int i=0;i<group.size();i++)entries.add(new ScreenPaletteEntry(group.get(i),i%2,offset+(i/2)*(icon+1)));
+            offset+=((group.size()+1)/2)*(icon+1);
         }
-        paletteDividers=List.copyOf(dividers);
-        paletteScroll=Math.clamp(paletteScroll,0,Math.max(0,offset-3-Math.max(0,height-y-30)));
+        paletteGroups=List.copyOf(groups);
+        paletteScroll=Math.clamp(paletteScroll,0,Math.max(0,offset-1-Math.max(0,height-y-30)));
         for(var entry:entries) {
-            var b=entry.building();int bx=x+entry.column()*(icon+2),by=y+entry.offset()-paletteScroll;
+            var b=entry.building();int bx=x+entry.column()*(icon+1),by=y+entry.offset()-paletteScroll;
             if(by<y||by+icon>height-30)continue;
             var button=new UiPanelButton(b.name(),bx,by,icon,icon,()->send(ProtocolConstructionPayloads.Action.SELECT,b.id(),0,null)) {
                 @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                    UiMenuStyle.control(g,bx,by,icon,icon,view.selected().equals(b.id()),isHoveredOrFocused());
-                    if(!b.texture().isBlank())UiAssets.draw(g,b.texture(),bx+2,by+2,icon-4,icon-4);
+                    if(!b.texture().isBlank())UiAssets.draw(g,b.texture()+(b.enabled()?"":"_disabled"),bx+2,by+2,icon-4,icon-4);
                     else dev.hoi.client.ui.UiText.cell(g,font,b.name(),bx+2,by+2,icon-4,icon-4,UiMenuStyle.TEXT,false);
-                    if(!b.enabled())g.fill(bx+1,by+1,bx+icon-1,by+icon-1,0x88000000);
+                    if(b.enabled()&&view.selected().equals(b.id()))g.outline(bx+2,by+2,icon-4,icon-4,0xFFFFFFFF);
                 }
             };
             button.active=b.enabled()&&pending==0;
-            button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(b.name()+"\n"+b.reason())));addRenderableWidget(button);
+            button.setTooltip(dev.hoi.client.ui.UiTooltips.createExact(b.tooltip()==null?b.name()+"\n"+b.reason():b.tooltip()));addRenderableWidget(button);
         }
         int repair=view.summary().repairPriority();
         for(int direction:new int[]{-1,1}) {
@@ -108,16 +111,24 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
             if(by<queueY()||by+rowHeight()>height-30)continue;
             for(int action=0;action<3;action++) {
                 var kind=action==0?ProtocolConstructionPayloads.Action.UP:action==1?ProtocolConstructionPayloads.Action.DOWN:ProtocolConstructionPayloads.Action.CANCEL;
-                var button=new UiMenuButton(action==0?"↑":action==1?"↓":"×",x-63+action*19,by+rowHeight()-23,18,18,()->send(kind,p.id(),kind!=ProtocolConstructionPayloads.Action.CANCEL && dev.hoi.client.ui.UiPriorityControls.shifted()?1:0,null));
+                String art="construction/ui/"+(action==0?"up":action==1?"down":"cancel");
+                var button=new UiPanelButton(action==0?"↑":action==1?"↓":"×",column(action==0?318:action==1?341:370),by+6,14,16,()->send(kind,p.id(),(kind==ProtocolConstructionPayloads.Action.CANCEL?dev.hoi.client.ui.UiPriorityControls.controlled():dev.hoi.client.ui.UiPriorityControls.shifted())?1:0,null)) {
+                    @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
+                        UiAssets.draw(g,art+(active?"":"_disabled"),getX(),getY(),getWidth(),getHeight());
+                        if(active&&isHoveredOrFocused())g.fill(getX(),getY(),getX()+getWidth(),getY()+getHeight(),0x18FFFFFF);
+                    }
+                };
                 button.active=pending==0&&(action!=0||i>0)&&(action!=1||i<view.projects().size()-1);
-                button.setTooltip(dev.hoi.client.ui.UiTooltips.create(action<2?dev.hoi.client.ui.UiPriorityControls.tooltip(action==0):Component.literal("건설 취소")));addRenderableWidget(button);
+                button.setTooltip(dev.hoi.client.ui.UiTooltips.create(action<2?dev.hoi.client.ui.UiPriorityControls.tooltip(action==0):Component.literal("§a클릭하면 §e건설이 취소§a됩니다.\nCtrl + 클릭하면 §e건설 모두 취소§a됩니다.")));addRenderableWidget(button);
             }
         }
     }
 
-    private int paletteSize(){return Math.min(29,Math.max(19,(height-top-137)/10-3));}
+    private int paletteSize(){return Math.min(29,Math.max(19,(height-top-156)/11-3));}
     private int paletteX(){return pane-2*(paletteSize()+2)-6;}
-    private int queueY(){return top+98;}
+    private int queueY(){return top+77+reservationHeight()*ScreenConstructionRows.count(view.summary());}
+    private int reservationHeight(){return Math.clamp((height-top-77-30-rowHeight())/ScreenConstructionRows.count(view.summary()),16,27);}
+    private int column(int sourceX){return 6+(paletteX()-11)*sourceX/402;}
     private int rowHeight(){return 29;}
     private String buildingName(String id) {
         return view.buildings().stream().filter(b->b.id().equals(id)).map(Building::name).findFirst().orElse(id);
@@ -125,61 +136,77 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
         consumerTooltip=false;
         UiMenuStyle.panel(g,0,top,pane,height-top);
+        UiAssets.nineSlice(g,"construction/ui/header",0,top,pane,25,4,.5);
         UiMenuStyle.heading(g, font,"건설",9,top+8, pane - 44,UiMenuStyle.TEXT);
         UiMenuBar.draw(g,width,view == null ? dev.hoi.client.ClientCampaignHud.hud() : view.hud(),mx,my,hudScroll);
         if(view!=null) {
             var s=view.summary();int q=paletteX()-5;
             UiAssets.draw(g,"construction/summary/civilian_factory_repair",pane-123,top+5,18,16);
-            UiMenuStyle.recess(g,pane-78,top+3,29,19);
+            UiAssets.nineSlice(g,"construction/ui/number_box",pane-78,top+3,29,19,4,.5);
             String repairCount=Integer.toString(s.repairPriority());
             dev.hoi.client.ui.UiText.cell(g,font,repairCount,pane-76,top+4,25,17,UiMenuStyle.TEXT,false);
             int cell=(q-6)/3;
-            UiMenuStyle.recess(g,6,top+27,q-6,25);
+            int summaryHeight=Math.min(49,UiAssets.imageHeight("construction/ui/summary_background",q-6));
+            int summaryY=top+27+(49-summaryHeight)/2;
+            int totalsY=summaryY+summaryHeight*3/98,totalsHeight=summaryHeight*58/98;
+            int labelsY=summaryY+summaryHeight*62/98,labelsHeight=summaryHeight*32/98;
+            UiAssets.draw(g,"construction/ui/summary_background",6,top+27,q-6,49);
             int assigned=s.used()+s.repair()+s.consumer()+s.reserved();
-            dev.hoi.client.ui.UiText.iconText(g,font,"construction/summary/civilian_factory",assigned+"/"+s.total(),7,top+28,cell-1,22,13,assigned==s.total()?0xFF55FF55:0xFFFFAA00);
+            dev.hoi.client.ui.UiText.iconText(g,font,"construction/summary/civilian_factory",assigned+"/"+s.total(),7,totalsY+1,cell-1,totalsHeight,13,assigned==s.total()?0xFF55FF55:0xFFFFAA00);
             long speedPercent=Math.round((s.speed()-1)*100);
-            dev.hoi.client.ui.UiText.iconText(g,font,"construction/speed",String.format(Locale.ROOT,"%+d%%",speedPercent),6+cell,top+28,cell,22,12,speedPercent>=0?0xFF55FF55:0xFFAA0000);
+            dev.hoi.client.ui.UiText.iconText(g,font,"construction/speed",String.format(Locale.ROOT,"%+d%%",speedPercent),6+cell,totalsY+1,cell,totalsHeight,12,speedPercent>=0?0xFF55FF55:0xFFAA0000);
             double energyBalance=s.energy()-s.demand();
-            dev.hoi.client.ui.UiText.iconText(g,font,energyBalance<0?"construction/energy_deficit":"construction/energy",UiMenuBar.rawNumber(energyBalance),6+cell*2,top+28,q-6-cell*2,22,12,energyBalance>=0?0xFF55FF55:0xFFAA0000);
-            UiMenuStyle.metal(g,6,top+54,q-6,18);
-            dev.hoi.client.ui.UiText.cell(g,font,"위치",8,top+55,Math.max(24,q-133),16,UiMenuStyle.TEXT,false);
-            dev.hoi.client.ui.UiText.cell(g,font,"작업",q-123,top+55,24,16,UiMenuStyle.TEXT,false);
-            UiAssets.draw(g,"construction/summary/civilian_factory",q-87,top+56,13,13);
-            dev.hoi.client.ui.UiText.cell(g,font,"우선순위",q-58,top+55,55,16,UiMenuStyle.TEXT,false);
-            UiMenuStyle.metal(g,6,top+75,q-6,21);
-            UiAssets.draw(g,"construction/consumer_goods",10,top+76,19,19);
-            dev.hoi.client.ui.UiText.text(g,font,"소비재",33,top+81,UiMenuStyle.TEXT);
-            dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(s.consumer()),q-94,top+77,35,17,UiMenuStyle.TEXT,false);
-            for(int divider:paletteDividers) {
-                int y=top+54+divider-paletteScroll;
-                if(y>=top+54&&y+1<height-30) {
-                    g.horizontalLine(paletteX(),pane-7,y,0xFF0B0D0F);
-                    g.horizontalLine(paletteX(),pane-7,y+1,0xFF55595D);
-                }
+            dev.hoi.client.ui.UiText.iconText(g,font,energyBalance<0?"construction/energy_deficit":"construction/energy",UiMenuBar.rawNumber(energyBalance),6+cell*2,totalsY+1,q-6-cell*2,totalsHeight,12,energyBalance>=0?0xFF55FF55:0xFFAA0000);
+            dev.hoi.client.ui.UiText.cell(g,font,"위치",column(20),labelsY+1,column(162)-column(20),labelsHeight,UiMenuStyle.TEXT,false);
+            dev.hoi.client.ui.UiText.cell(g,font,"작업",column(172),labelsY+1,23,labelsHeight,UiMenuStyle.TEXT,false);
+            UiAssets.draw(g,"construction/summary/civilian_factory",column(249)+1,labelsY+(labelsHeight-13)/2+1,column(310)-column(249),13);
+            dev.hoi.client.ui.UiText.cell(g,font,"우선순위",column(318),labelsY+1,column(370)+14-column(318),labelsHeight,UiMenuStyle.TEXT,false);
+            if(my>=labelsY&&my<labelsY+labelsHeight&&mx>=6&&mx<q) {
+                String header=mx<column(166)?"location":mx<column(231)?"task":mx<column(314)?"factories":"priority";
+                UiTooltips.drawExact(g,font,Component.translatable("hoi.construction.header."+header).getString(),mx,my);
+            }
+            ScreenConstructionRows.draw(g,font,s,6,top+75,q-6,reservationHeight(),mx,my);
+            g.enableScissor(paletteX()-2,top+54,pane-4,height-30);
+            for(var group:paletteGroups) {
+                int y=top+54+group.offset()-paletteScroll;
+                UiAssets.nineSlice(g,"construction/ui/group_"+group.name()+"_background",paletteX()-2,y,pane-paletteX()-3,group.height(),44,.5);
+                UiAssets.draw(g,"construction/ui/group_"+group.name(),paletteX(),y+1,22,21);
+            }
+            g.disableScissor();
+            for(var group:paletteGroups) {
+                int y=top+54+group.offset()-paletteScroll;
+                if(mx>=paletteX()&&mx<paletteX()+24&&my>=Math.max(top+54,y)&&my<Math.min(height-30,y+24))
+                    UiTooltips.drawExact(g,font,Component.translatable("hoi.construction.group."+group.name()).getString(),mx,my);
             }
             for(int i=0;i<view.projects().size();i++) {
                 var p=view.projects().get(i);int y=queueY()+i*rowHeight()-scroll;
                 if(y<queueY()||y+rowHeight()>height-30)continue;
-                UiMenuStyle.metal(g,6,y,q-6,rowHeight()-3);
-                dev.hoi.client.ui.UiText.cell(g,font,p.name(),10,y+4,Math.max(24,q-139),20,UiMenuStyle.TEXT,false);
-                UiAssets.draw(g,"construction/"+p.building(),q-124,y+2,23,23);
-                dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(p.levels()),q-113,y+14,12,11,UiMenuStyle.TEXT,true);
-                dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",q-96,y+1,31,17,UiMenuStyle.TEXT,false);
-                g.fill(q-96,y+19,q-65,y+23,0xFF101511);
-                g.fill(q-96,y+19,q-96+(int)(31*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1)),y+23,0xFF79945A);
-                if(mx>=6&&mx<q&&my>=y&&my<y+rowHeight()-3)UiTooltips.draw(g,font,p.name()+" · "+buildingName(p.building())+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.1f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"),mx,my);
+                UiAssets.draw(g,"construction/ui/entry",6,y,q-6,rowHeight()-2);
+                dev.hoi.client.ui.UiText.cell(g,font,p.name(),column(20),y+3,column(162)-column(20),20,UiMenuStyle.TEXT,false);
+                UiAssets.draw(g,"construction/"+p.building(),column(172),y+2,23,23);
+                dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(p.levels()),column(190),y+14,12,11,UiMenuStyle.TEXT,true);
+                dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",column(249)+1,y+1,column(310)-column(249),17,UiMenuStyle.TEXT,false);
+                int progressX=column(250),progressWidth=column(310)-progressX;
+                g.pose().pushMatrix();
+                g.pose().translate(0,-1f/minecraft.getWindow().getGuiScale());
+                UiAssets.draw(g,"construction/ui/progress_background",progressX,y+18,progressWidth,5);
+                int filled=(int)(progressWidth*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1));
+                if(filled>0) {
+                    g.enableScissor(progressX,y+17,progressX+filled,y+24);
+                    UiAssets.draw(g,"construction/ui/progress",progressX,y+18,progressWidth,5);
+                    g.disableScissor();
+                }
+                g.pose().popMatrix();
+                if(mx>=column(172)&&mx<column(172)+23&&my>=y+2&&my<y+25&&p.taskTooltip()!=null)UiTooltips.drawExact(g,font,p.taskTooltip(),mx,my);
+                else if(mx>=6&&mx<column(318)&&my>=y&&my<y+rowHeight()-3)UiTooltips.drawExact(g,font,p.tooltip()==null?p.name()+" · "+buildingName(p.building())+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.2f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"):p.tooltip(),mx,my);
             }
             if(mx>=pane-123&&mx<pane-27&&my>=top+3&&my<top+23)UiTooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
-            if(mx>=6&&mx<q&&my>=top+27&&my<top+52) {
+            if(mx>=6&&mx<q&&my>=top+27&&my<top+58) {
                 int column=Math.min(2,(mx-6)/cell);
-                String detail=column==0?"민간공장 "+assigned+"/"+s.total()+"\n소비재 "+s.consumer()+" · 무역/기관 예약 "+s.reserved()+"\n건설 "+s.used()+" · 수리 "+s.repair()+" · 미사용 "+s.idle()+"\n무역 상품 "+(s.tradeGoods()==null?"—":s.tradeGoods()):column==1?calculation(s.speedCalculation(),"건설 속도"):calculation(s.energyCalculation(),"사용 가능한 에너지");
-                UiTooltips.draw(g,font,detail,mx,my);
+                String detail=column==0?calculation(s.factoryCalculation(),"사용 중인 공장"):column==1?calculation(s.speedCalculation(),"건설 속도"):calculation(s.energyCalculation(),"사용 가능한 에너지");
+                UiTooltips.drawExact(g,font,detail,mx,my);
             }
-            if(mx>=6&&mx<q&&my>=top+75&&my<top+96) {
-                consumerTooltip=true;
-                UiTooltips.draw(g,font,calculation(s.consumerCalculation(),"소비재"),mx,my);
-                consumerTooltip=false;
-            }
+
         } else dev.hoi.client.ui.UiText.text(g, font,loadingFailed?"서버 응답이 없습니다.":"건설 현황을 불러오는 중…",10,top+40,UiMenuStyle.MUTED);
         drawConversions(g,mx,my);
         super.extractRenderState(g,mx,my,delta);
@@ -218,22 +245,26 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         if(!passive)rebuildWidgets();
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
+        int q=paletteX()-5,cell=(q-6)/3;
+        if(view!=null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&event.x()>=6+cell*2&&event.x()<q&&event.y()>=top+27&&event.y()<top+58) {
+            HoiClient.openMenu(ProtocolMenuTab.TRADE);return true;
+        }
         if(view!=null&&view.selected().equals("conversion")&&event.x()>=pane) {
-            if(event.button()==0&&pending==0)for(var box:conversionBoxes.reversed()) {
+            if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&pending==0)for(var box:conversionBoxes.reversed()) {
                 if(event.y()<box.y()||event.y()>=box.y()+26)continue;
                 if(event.x()>=box.x()+6&&event.x()<box.x()+26) {dev.hoi.client.audio.AudioUiSounds.play("ui.click");send(ProtocolConstructionPayloads.Action.CONVERT,box.state().state(),0,null);return true;}
                 if(event.x()>=box.x()+78&&event.x()<box.x()+98) {dev.hoi.client.audio.AudioUiSounds.play("ui.click");send(ProtocolConstructionPayloads.Action.CONVERT,box.state().state(),1,null);return true;}
             }
             return true;
         }
-        if((event.button()==0||event.button()==1)&&event.x()>=pane&&event.y()>top+22&&event.x()<UiMenuBar.statsRight(width)) {
+        if((event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT||event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT)&&event.x()>=pane&&event.y()>top+22&&event.x()<UiMenuBar.statsRight(width)) {
             if(view!=null&&pending==0&&minecraft.player!=null) {
                 if(!minecraft.options.getCameraType().isFirstPerson()) {
                     return true;
                 }
                 var matrix=minecraft.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new Matrix4f()).invert();
                 var ray=matrix.transformProject(new Vector3f((float)(event.x()/width*2-1),(float)(1-event.y()/height*2),1)).normalize();
-                send(event.button()==0?ProtocolConstructionPayloads.Action.PLACE:ProtocolConstructionPayloads.Action.CANCEL_AT,"",dev.hoi.client.ui.UiPriorityControls.shifted()?1:0,ray);
+                send(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT?ProtocolConstructionPayloads.Action.PLACE:ProtocolConstructionPayloads.Action.CANCEL_AT,"",dev.hoi.client.ui.UiPriorityControls.shifted()?1:0,ray);
             }
             return true;
         }
@@ -241,7 +272,7 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     }
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical) {
         if(y<top&&view!=null){hudScroll=UiMenuBar.scroll(width,view.hud(),hudScroll,horizontal,vertical);return true;}
-        if(x<pane){if(x>=paletteX())paletteScroll-=(int)(vertical*(paletteSize()+3));else scroll-=(int)(vertical*rowHeight());rebuildWidgets();return true;}
+        if(x<pane){if(x>=paletteX())paletteScroll-=(int)(vertical*(paletteSize()+1));else scroll-=(int)(vertical*rowHeight());rebuildWidgets();return true;}
         return super.mouseScrolled(x,y,horizontal,vertical);
     }
     @Override public void tick() {

@@ -168,7 +168,7 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
         if(event.x()<left||event.x()>=left+pane||event.y()<top||event.y()>=top+tall) {
             if(event.y()<UiMenuBar.height(width))return super.mouseClicked(event,twice);
-            if(event.button()==0)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);
+            if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);
         }
         return super.mouseClicked(event,twice);
     }

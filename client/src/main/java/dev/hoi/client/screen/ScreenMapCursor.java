@@ -39,19 +39,19 @@ public final class ScreenMapCursor extends Screen implements InputSidebarMovemen
     }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
         if (super.mouseClicked(event, twice)) return true;
-        if(event.button()!=0||event.y()<UiMenuBar.height(width)||minecraft.level==null)return false;
+        if(event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT||event.y()<UiMenuBar.height(width)||minecraft.level==null)return false;
         selecting=true;
         startX=endX=event.x();startY=endY=event.y();
         dragDimension=minecraft.level.dimension().identifier().toString();
         return true;
     }
     @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {
-        if(!selecting||event.button()!=0)return super.mouseDragged(event,dx,dy);
+        if(!selecting||event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return super.mouseDragged(event,dx,dy);
         endX=Math.clamp(event.x(),0,width);endY=Math.clamp(event.y(),UiMenuBar.height(width),height);
         return true;
     }
     @Override public boolean mouseReleased(MouseButtonEvent event) {
-        if(!selecting||event.button()!=0)return super.mouseReleased(event);
+        if(!selecting||event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return super.mouseReleased(event);
         mouseDragged(event,0,0);selecting=false;
         if(minecraft.level==null||!dragDimension.equals(minecraft.level.dimension().identifier().toString()))return true;
         if(dragged())dev.hoi.client.map.MapUnitHud.selectArea(startX,startY,endX,endY);

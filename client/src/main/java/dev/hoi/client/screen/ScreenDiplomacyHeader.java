@@ -73,7 +73,7 @@ final class ScreenDiplomacyHeader {
         int cellW=edge+Math.round((rightW-edge*2)*99f/388),cellH=edge+Math.round((leaderHeight(pane)-edge*2)*85f/157);
         int size=scaled(80,pane),left=right+(cellW-size)/2+2,upper=politicsTop(top)+(cellH-size)/2+1;
         double dx=x-left-size/2.0,dy=mouseY-upper-size/2.0;
-        return ScreenPartyChart.at(view.diplomacy().stream().filter(party->party.detail().startsWith("정당 지지도")).toList(),dx,dy,size/2.0);
+        return ScreenPartyChart.at(view.diplomacy().stream().filter(party->party.icon().startsWith("politics/party/") || party.icon().startsWith("politics/ideology/")).toList(),dx,dy,size/2.0);
     }
     boolean leaderAt(double x, double y, int pane, int top) {
         int left = scaled(13, pane), upper = politicsTop(top);
@@ -100,7 +100,7 @@ final class ScreenDiplomacyHeader {
     }
     private static List<int[]> chart(ProtocolCountryView view, int size) {
         var result = new ArrayList<int[]>();
-        var parties = view.diplomacy().stream().filter(e -> e.detail().startsWith("정당 지지도")).toList();
+        var parties = view.diplomacy().stream().filter(e -> e.icon().startsWith("politics/party/") || e.icon().startsWith("politics/ideology/")).toList();
         double radius = size / 2.0;
         int[] colors = {0xFF4267CE, 0xFFB52C39, 0xFF97652F, 0xFF939393};
         for (int row = 0; row < size; row++) {

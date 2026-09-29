@@ -8,7 +8,6 @@ import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.KeyEvent;
-import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 public final class ScreenCompletionChecks {
@@ -55,7 +54,7 @@ public final class ScreenCompletionChecks {
                     heard.clear();
                     press(screen, "세부 사항");
                     press(screen, "확인");
-                    screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0));
+                    screen.keyPressed(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
                     check(heard.equals(List.of("ui.click", "ui.confirm", "ui.confirm")), "Details, OK and Enter each play exactly one original click sound");
                 }
             } finally {
@@ -88,7 +87,7 @@ public final class ScreenCompletionChecks {
                     var s = (ScreenCompletion)c.gui.screen(); s.mouseScrolled(s.width / 2.0, s.height / 2.0, 0, -100);
                     check(s.scrollOffset() == 0, "Description body never enters the compact popup"); press(s, "확인");
                     check(sent.getLast().equals(view.token() + "/3/ack"), "Acknowledgement uses issued session without applying rewards");
-                    for (int key : new int[]{GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER}) {
+                    for (int key : new int[]{com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER}) {
                         int before = sent.size();
                         s.keyPressed(new KeyEvent(key, 0, 0));
                         check(sent.size() == before + 1 && sent.getLast().equals(view.token() + "/3/ack"), "Enter confirms exactly once while details are focused");
@@ -135,11 +134,11 @@ public final class ScreenCompletionChecks {
                 dev.hoi.client.ClientCampaignHud.accept(ProtocolHudPayloads.State.HIDDEN);
                 dev.hoi.client.HoiClient.openMenu(ProtocolMenuTab.POLITICS);
                 check(c.gui.screen() == null, "A menu is never constructed before campaign participation is authorized");
-                for(int modifiers:new int[]{GLFW.GLFW_MOD_SHIFT,0}) {
-                    method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_PRESS,new KeyEvent(GLFW.GLFW_KEY_F,0,modifiers));
+                for(int modifiers:new int[]{com.mojang.blaze3d.platform.InputConstants.MOD_SHIFT,0}) {
+                    method.invoke(c.keyboardHandler,c.getWindow().handle(),com.mojang.blaze3d.platform.InputConstants.PRESS,new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_F,0,modifiers));
                     check(c.options.keySwapOffhand.consumeClick(), "Outside a campaign F retains vanilla offhand swap");
                     check(messages.size()==messageCount&&c.gui.screen()==null, "F never opens politics or prints chat on unsupported servers");
-                    method.invoke(c.keyboardHandler,c.getWindow().handle(),GLFW.GLFW_RELEASE,new KeyEvent(GLFW.GLFW_KEY_F,0,modifiers));
+                    method.invoke(c.keyboardHandler,c.getWindow().handle(),com.mojang.blaze3d.platform.InputConstants.RELEASE,new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_F,0,modifiers));
                 }
             } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
         });
@@ -157,7 +156,7 @@ public final class ScreenCompletionChecks {
             context.setScreen(()->stack);context.waitTicks(2);
             context.runOnClient(c->{
                 var button=(Button)stack.find(done.token()).children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(choice.equals("ack")?"확인":"세부 사항")).findFirst().orElseThrow();
-                var click=new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2.0,button.getY()+button.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(0,0));
+                var click=new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2.0,button.getY()+button.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));
                 check(stack.mouseClicked(click,false),"Completion accepts the actual mouse click over an event");stack.mouseReleased(click);
                 check(sent.equals(List.of(new ProtocolDialogPayloads.Action(done.token(),2,choice))),"Visible button sends its own issued token, revision and choice exactly once");
                 stack.close(done.token());
@@ -227,7 +226,7 @@ public final class ScreenCompletionChecks {
                             var window = stack.find(completed.token());
                             var button = (Button)window.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow();
                             var click = new net.minecraft.client.input.MouseButtonEvent(button.getX() + button.getWidth() / 2.0,
-                                    button.getY() + button.getHeight() / 2.0, new net.minecraft.client.input.MouseButtonInfo(0, 0));
+                                    button.getY() + button.getHeight() / 2.0, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0));
                             check(stack.inputAt(click.x(), click.y()) == window, "Event behind completion must not receive its button click");
                             check(stack.mouseClicked(click, false), "Stack accepts completion button click");
                             stack.mouseReleased(click);
@@ -342,7 +341,7 @@ public final class ScreenCompletionChecks {
     private static void press(ScreenCompletion s, String name) {
         var button = (Button)s.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow();
         var event = new net.minecraft.client.input.MouseButtonEvent(button.getX() + button.getWidth() / 2.0,
-                button.getY() + button.getHeight() / 2.0, new net.minecraft.client.input.MouseButtonInfo(0, 0));
+                button.getY() + button.getHeight() / 2.0, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0));
         check(s.mouseClicked(event, false), "Visible completion button accepts a mouse click");
         s.mouseReleased(event);
     }

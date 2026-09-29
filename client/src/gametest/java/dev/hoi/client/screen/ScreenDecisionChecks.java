@@ -5,7 +5,6 @@ import dev.hoi.client.ui.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.KeyEvent;
-import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 public final class ScreenDecisionChecks {
@@ -23,7 +22,7 @@ public final class ScreenDecisionChecks {
                 if(c.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+path+".png")).isEmpty())throw new AssertionError("Missing decision art: "+path);
             var screen=(ScreenDecision)c.gui.screen();
             if(button(screen,"전투원 장비 개선").active)throw new AssertionError("An active decision must not be clickable again");
-            button(screen,"차세대 6.8mm 소총 개발").onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0));
+            button(screen,"차세대 6.8mm 소총 개발").onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
             if(sent.size()!=1||sent.getFirst().action()!=ProtocolDecisionPayloads.Action.TAKE||!sent.getFirst().id().equals("fixture_0"))throw new AssertionError("Decision must issue exactly one action");
             if(button(screen,"차세대 6.8mm 소총 개발").active)throw new AssertionError("Pending action must lock repeated clicks");
             screen.update(ProtocolDecisionPayloads.Response.of(screen.token(),new ProtocolDecisionPayloads.View("KOR",view.session(),2,"결정 실행",0,rows.size(),hud,rows)));
@@ -33,7 +32,7 @@ public final class ScreenDecisionChecks {
         dev.hoi.client.ResearchScreenTest.gui2Screenshot(context,"hoi-decisions-gui2");
         context.runOnClient(c -> {
             var screen=(ScreenDecision)c.gui.screen();
-            button(screen,"국군 혁신").onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0));
+            button(screen,"국군 혁신").onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
             screen.mouseScrolled(20,screen.height/2,0,-4);int scroll=screen.scrollOffset();
             screen.update(ProtocolDecisionPayloads.Response.of(screen.token(),new ProtocolDecisionPayloads.View("KOR",view.session(),3,"",0,rows.size(),hud,rows)));
             if(!screen.collapsed("category_0")||scroll!=screen.scrollOffset()||scroll==0)throw new AssertionError("Refresh must preserve fold and scroll");

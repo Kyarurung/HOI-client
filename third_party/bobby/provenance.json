@@ -1,0 +1,10 @@
+{
+  "upstream": "https://github.com/Johni0702/bobby",
+  "commit": "47868a67f24f2dc2670cbbb22fd3e3363cb152a1",
+  "minecraft": "26.3",
+  "version": "5.2.15+mc26.3-hoi.1",
+  "license": "LGPL-3.0-or-later",
+  "patchSha256": "66c8dcd88e00a868200f214d75de1a7b4e1cd50c311c87d352da079e757fefe4",
+  "jarSha256": "b63080dfc7f59c340fa8e755fa901f9e5e84000d941b62f82bebebdcd0465f63",
+  "sourceArchiveSha256": "4cdf112381b3baeed11f270fa5b51674d3078c97293bb3a7947bc6333131e572"
+}

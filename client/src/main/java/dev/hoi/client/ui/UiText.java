@@ -9,9 +9,12 @@ public final class UiText {
     public static final int MIN_HEIGHT = 9;
     private UiText() {}
     public static String ellipsize(Font font, String value, int width) {
+        return ellipsize(font,value,width,"…");
+    }
+    public static String ellipsize(Font font, String value, int width, String marker) {
         if(font.width(value)<=width)return value;
-        int suffix=font.width("…");
-        return width<suffix?"":font.plainSubstrByWidth(value,width-suffix)+"…";
+        int suffix=font.width(marker);
+        return width<suffix?"":font.plainSubstrByWidth(value,width-suffix)+marker;
     }
     public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right) {
         float scale = scale(font);

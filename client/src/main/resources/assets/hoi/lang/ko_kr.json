@@ -1,1 +1,9 @@
-{}
+{
+  "hoi.construction.group.state": "§e주 건물§r\n\n주에 지어지는 건물입니다. 각 건물은 자기만의 레벨 제한을 지닙니다.",
+  "hoi.construction.group.shared": "§e공유 건물§r\n\n주에 지어지는 건물입니다. 각 주에는 공유 건물이 함께 사용하는 고유한 수의 건설 슬롯이 있습니다.",
+  "hoi.construction.group.province": "§e지역 건물§r\n\n지역에 지어지는 건물입니다. 각 건물은 자기만의 레벨 제한을 지닙니다.",
+  "hoi.construction.header.location": "§e위치§r\n\n각 건설이 이루어질 위치입니다.",
+  "hoi.construction.header.task": "§e작업§r\n\n작업에 대한 설명입니다.",
+  "hoi.construction.header.factories": "§e민간공장 수§r\n\n각 특정 건설을 위해 사용되는 민간공장의 수",
+  "hoi.construction.header.priority": "§e우선순위§r\n\n건설 작업은 우선순위 순서로 정렬되어 있습니다. 우선순위가 높은 건설에 먼저 공장이 할당됩니다."
+}

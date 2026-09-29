@@ -13,7 +13,7 @@ public final class UiKeywordIcons {
     private record UiIconBinding(String label, String glyph) {}
     private static List<UiIconBinding> bindings;
     private static Map<String,String> tokens=Map.of();
-    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)");
+    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)£?");
     private UiKeywordIcons() {}
     static void clear() { bindings = null; tokens=Map.of(); }
     public static Component decorateLines(Component text) {
@@ -58,7 +58,7 @@ public final class UiKeywordIcons {
     public static Component decorate(Component text) {
         if (bindings == null) bindings = load();
         String label = text.getString().replaceAll("§.", "").stripLeading();
-        if (label.matches("에너지 농장[:：]?")) return text;
+        if (label.matches("에너지 농장[:：]?") || label.contains("자원 사보타주:")) return text;
         for (var binding : bindings) {
             if (!label.startsWith(binding.label())) continue;
             int end = binding.label().length();

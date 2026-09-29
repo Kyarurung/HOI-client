@@ -16,7 +16,14 @@ public record ProtocolConstructionView(String session, long revision, String cou
         }
     }
     public record Summary(int total, int consumer, int reserved, int used, int repair, int idle, int repairPriority,
-            double speed, double energy, double demand, Integer tradeGoods, String speedCalculation, String energyCalculation, String consumerCalculation) {
+            double speed, double energy, double demand, Integer tradeGoods, String speedCalculation, String energyCalculation, String consumerCalculation, String factoryCalculation,
+            Integer nationalProjects,String projectsCalculation,String tradeCalculation) {
+        public Summary(int total,int consumer,int reserved,int used,int repair,int idle,int repairPriority,double speed,double energy,double demand,Integer tradeGoods,String speedCalculation,String energyCalculation,String consumerCalculation,String factoryCalculation) {
+            this(total,consumer,reserved,used,repair,idle,repairPriority,speed,energy,demand,tradeGoods,speedCalculation,energyCalculation,consumerCalculation,factoryCalculation,null,null,null);
+        }
+        public Summary(int total,int consumer,int reserved,int used,int repair,int idle,int repairPriority,double speed,double energy,double demand,Integer tradeGoods,String speedCalculation,String energyCalculation,String consumerCalculation) {
+            this(total,consumer,reserved,used,repair,idle,repairPriority,speed,energy,demand,tradeGoods,speedCalculation,energyCalculation,consumerCalculation,null);
+        }
         public Summary(int total, int consumer, int reserved, int used, int repair, int idle, int repairPriority,
                 double speed, double energy, double demand, Integer tradeGoods) {
             this(total,consumer,reserved,used,repair,idle,repairPriority,speed,energy,demand,tradeGoods,null,null,null);
@@ -26,20 +33,31 @@ public record ProtocolConstructionView(String session, long revision, String cou
             this(total, consumer, reserved, used, repair, idle, repairPriority, speed, energy, demand, null);
         }
         public Summary {
-            for (String explanation : new String[]{speedCalculation,energyCalculation,consumerCalculation})
+            for (String explanation : new String[]{speedCalculation,energyCalculation,consumerCalculation,factoryCalculation})
                 if (explanation != null) text(explanation,8192);
+            for(String explanation:new String[]{projectsCalculation,tradeCalculation})if(explanation!=null)text(explanation,32768);
+            if(nationalProjects!=null&&nationalProjects<0)throw new IllegalArgumentException("Invalid national project factories");
             if (tradeGoods != null && tradeGoods < 0) throw new IllegalArgumentException("Invalid trade factories");
             for (int n : new int[]{total,consumer,reserved,used,repair,idle,repairPriority}) if(n<0) throw new IllegalArgumentException("Invalid factories");
             for (double n : new double[]{speed,energy,demand}) if(!Double.isFinite(n)||n<0) throw new IllegalArgumentException("Invalid economy");
         }
     }
-    public record Building(String id, String name, String texture, boolean enabled, String reason) {
-        public Building { text(id,64);text(name,80);text(texture,128);text(reason,256); }
+    public record Building(String id, String name, String texture, boolean enabled, String reason, String tooltip) {
+        public Building(String id,String name,String texture,boolean enabled,String reason) {this(id,name,texture,enabled,reason,null);}
+        public Building { text(id,64);text(name,80);text(texture,128);text(reason,256);if(tooltip!=null)text(tooltip,4096); }
     }
     public record Project(String id, String state, String building, String name, int levels, int factories,
-            double progress, double daily, double cost) {
+            double progress, double daily, double cost, String tooltip, String taskTooltip) {
+        public Project(String id,String state,String building,String name,int levels,int factories,double progress,double daily,double cost,String tooltip) {
+            this(id,state,building,name,levels,factories,progress,daily,cost,tooltip,null);
+        }
+        public Project(String id,String state,String building,String name,int levels,int factories,double progress,double daily,double cost) {
+            this(id,state,building,name,levels,factories,progress,daily,cost,null);
+        }
         public Project {
             text(id,128);text(state,128);text(building,64);text(name,128);
+            if(tooltip!=null)text(tooltip,4096);
+            if(taskTooltip!=null)text(taskTooltip,4096);
             if(levels<1||factories<0||factories>15)throw new IllegalArgumentException("Invalid project");
             for(double n:new double[]{progress,daily,cost})if(!Double.isFinite(n)||n<0)throw new IllegalArgumentException("Invalid work");
         }

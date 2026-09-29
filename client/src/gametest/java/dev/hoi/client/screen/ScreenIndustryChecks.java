@@ -7,7 +7,6 @@ import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.KeyEvent;
-import org.lwjgl.glfw.GLFW;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -204,7 +203,7 @@ public final class ScreenIndustryChecks {
             var row=button(screen,"생산: "+blueprint.name());
             var designer=screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("전차 설계사")&&b.getY()>=row.getY()&&b.getY()<row.getBottom()).map(w->(Button)w).findFirst().orElseThrow();
             check(row.active&&designer.active,"Issued chassis exposes its row and designer entry points");
-            designer.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0));
+            designer.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
         });
         check(requests.getLast().action()==ProtocolIndustryPayloads.Action.TANK_OPEN&&requests.getLast().item().startsWith("hoi:chassis/"),"Blueprint equipment retains the issued chassis designer request");
         requests.clear();
@@ -312,7 +311,7 @@ public final class ScreenIndustryChecks {
         context.runOnClient(client->{
             var screen=(ScreenIndustry)client.gui.screen();
             var plus=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(ready.tankDesigner().upgrades().getFirst().name()+" 증가")).findFirst().orElseThrow();
-            plus.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0));
+            plus.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
         });
         check(requests.getLast().action()==ProtocolIndustryPayloads.Action.TANK_UPGRADE&&requests.getLast().amount()==1,"Engine upgrade sends a bounded level request");
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,ready.session(),ready,requests::add));context.waitTicks(2);
@@ -381,7 +380,7 @@ public final class ScreenIndustryChecks {
                     var screen=(ScreenIndustry)client.gui.screen();
                     var buttons=screen.children().stream().filter(widget->widget instanceof Button b&&b.active&&b.getMessage().getString().equals(extraSlot.name())).map(widget->(Button)widget).toList();
                     var target=generationSlot(buttons,extra.equals("special_type_slot_7"));
-                    target.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0));
+                    target.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
                 });
                 context.waitTicks(2);
                 var module=extraSlot.choices().getFirst();
@@ -677,11 +676,27 @@ public final class ScreenIndustryChecks {
             context.getInput().setCursorPos(point[0], point[1]); context.waitTicks(3);
             context.takeScreenshot(row == 0 ? "hoi-logistics-resource-icon-hover-gui2" : "hoi-logistics-empty-resource-cell-gui2");
         }
+        for (int col = 0; col < 8; col++) {
+            int column = col;
+            var point = context.computeOnClient(client -> {
+                var screen = (ScreenIndustry) client.gui.screen();
+                String tooltip = ScreenLogisticsTooltips.header(column);
+                check(tooltip.startsWith("§e") && !tooltip.contains("LOGISTICS_"), "Original gold logistics title " + column);
+                check(column == 1 ? !tooltip.contains("\n") : tooltip.contains("§f\n\n"), "Original logistics blank line " + column);
+                int[] fractions = {0, 5, 29, 41, 55, 64, 74, 83, 100};
+                double scale = client.getWindow().getGuiScale();
+                return new double[]{(6 + (screen.panelWidth() - 12) * (fractions[column] + fractions[column + 1]) / 200.0) * scale,
+                        (dev.hoi.client.ui.UiMenuBar.height(screen.width) + 37) * scale};
+            });
+            context.getInput().setCursorPos(point[0], point[1]); context.waitTicks(2);
+            context.takeScreenshot("hoi-logistics-header-" + col + "-gui2");
+        }
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
         var empty = new ProtocolIndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), List.of(), List.of(), null, "", v.navalRepairs(), v.specialForces());
         conversion(context,v);
         factoryControls(context,v);
         repairPolicies(context,v);
+        ScreenNavalDeploymentTest.run(context,v);
         resourceShortages(context, v);
         var requests = new ArrayList<ProtocolIndustryPayloads.Request>();
         for (var tab : List.of(ProtocolMenuTab.PRODUCTION, ProtocolMenuTab.TRADE, ProtocolMenuTab.LOGISTICS, ProtocolMenuTab.RECRUITMENT)) {
@@ -760,7 +775,7 @@ public final class ScreenIndustryChecks {
             var slider=(net.minecraft.client.gui.components.AbstractSliderButton)client.gui.screen().children().stream()
                     .filter(w->w instanceof net.minecraft.client.gui.components.AbstractSliderButton).findFirst().orElseThrow();
             check(seller.resourcesPerFactory()==8,"Ordinary trade imports eight resources per civilian factory");
-            slider.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT,0,0));
+            slider.keyPressed(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT,0,0));
         });context.waitTicks(2);
         ResearchScreenTest.gui2Screenshot(context,"hoi-industry-trade-contract-quantity");
         click(context, "수입 계약 체결");
@@ -812,9 +827,8 @@ public final class ScreenIndustryChecks {
         click(context,"수리 항구: 부산");context.waitTicks(2); ResearchScreenTest.gui2Screenshot(context,"hoi-industry-naval-repairs");
         context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsedY,"Individual port expands beneath its header"));
         click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
-        context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()==collapsedY,"Collapse all closes partially expanded queues"));
-        click(context,"수리 목록 펼치기/접기");context.waitTicks(2);ResearchScreenTest.gui2Screenshot(context,"hoi-industry-naval-repairs-expanded");
-        context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsedY,"Expand all opens ship rows from the collapsed queue"));
+        context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsedY,"Global expand opens the remaining ports after individual expansion"));
+        ResearchScreenTest.gui2Screenshot(context,"hoi-industry-naval-repairs-expanded");
         click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
         context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()==collapsedY,"Collapse all restores adjacent port rows"));
         click(context,"수리 항구: 부산");
@@ -852,7 +866,7 @@ public final class ScreenIndustryChecks {
             var screen = (ScreenIndustry)client.gui.screen();
             var cancel = (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().endsWith(" 부대 추가")).findFirst().orElseThrow();
             screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(cancel.getX() - 20, cancel.getY() + cancel.getHeight()/2,
-                    new net.minecraft.client.input.MouseButtonInfo(0, 0)), false);
+                    new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
             check(screen.selectingDeployment() && screen.children().isEmpty(), "Location selection hides the client menu");
             check(requests.getLast().action() == ProtocolIndustryPayloads.Action.SELECT_LOCATION, "Selection starts with an authenticated request");
             screen.update(copy(v, hud, v.revision() + 2, null));
@@ -861,7 +875,7 @@ public final class ScreenIndustryChecks {
         context.runOnClient(client -> {
             var screen = (ScreenIndustry)client.gui.screen();
             screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(screen.width / 2, screen.height / 2,
-                    new net.minecraft.client.input.MouseButtonInfo(0, 0)), false);
+                    new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
             check(!screen.selectingDeployment() && !screen.children().isEmpty(), "Map left-click restores recruitment menu");
             check(requests.getLast().action() == ProtocolIndustryPayloads.Action.LOCATION_AT, "Map click submits the selected ray");
             check(!screen.acceptsDeploymentOverlay(v.session(), Long.MAX_VALUE), "Late green hatch cannot reappear after assignment");
@@ -957,7 +971,7 @@ public final class ScreenIndustryChecks {
             var first = button(s, v.battalions().stream().filter(c -> c.id().equals(v.templates().getFirst().line().getFirst())).findFirst().orElseThrow().name());
             var lower = (Button)s.children().stream().filter(w -> w instanceof Button b && b.getX() == first.getX() && b.getY() > first.getY())
                     .min(java.util.Comparator.comparingInt(w -> ((Button)w).getY())).orElseThrow();
-            lower.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0));
+            lower.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
             check(s.children().stream().noneMatch(w -> w instanceof Button b && (b.getMessage().getString().equals("기갑 대대")
                     || b.getMessage().getString().equals("기동 대대"))), "Lower slots cannot switch the column category");
             check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/designer/remove.png")).isPresent(), "Original removal image is packaged");
@@ -1025,7 +1039,7 @@ public final class ScreenIndustryChecks {
             check(obsoleteCheckbox(s).active,"Obsolete checkbox starts unchecked inside the picker"); checkBounds(s);
         });
         context.takeScreenshot("hoi-industry-current-model-picker");
-        context.runOnClient(client->obsoleteCheckbox((ScreenIndustry)client.gui.screen()).onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0)));
+        context.runOnClient(client->obsoleteCheckbox((ScreenIndustry)client.gui.screen()).onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0)));
         context.waitTicks(2); context.takeScreenshot("hoi-industry-show-outdated-picker");
         context.runOnClient(client->{
             var s=(ScreenIndustry)client.gui.screen();
@@ -1033,7 +1047,7 @@ public final class ScreenIndustryChecks {
             check(!button(s,"생산: "+old.name()).active,"Current equipment is visible but cannot retool to itself");
             check(requests.isEmpty(),"Changing a display filter sends no simulation request");
         });
-        context.runOnClient(client->obsoleteCheckbox((ScreenIndustry)client.gui.screen()).onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0)));
+        context.runOnClient(client->obsoleteCheckbox((ScreenIndustry)client.gui.screen()).onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0)));
         context.waitTicks(2);
         context.runOnClient(client->{
             var screen=(ScreenIndustry)client.gui.screen();
@@ -1164,7 +1178,8 @@ public final class ScreenIndustryChecks {
         requests.clear();context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);
         click(context,"naval · 조선소 15칸");context.runOnClient(client->check(requests.getLast().amount()==15&&requests.getLast().item().equals("naval"),"Dockyard cells reserve one per cell"));
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);requests.clear();
-        click(context,ship.name()+" · 재고량 · 군수 보기");
+        context.runOnClient(client->check(client.gui.screen().children().stream().noneMatch(w->w instanceof Button button&&button.getMessage().getString().equals(ship.name()+" · 재고량 · 군수 보기")),"Dockyard production quantities remain hidden"));
+        click(context,gun.name()+" · 재고량 · 군수 보기");
         context.runOnClient(client->{
             var screen=(ScreenIndustry)client.gui.screen();
             check(screen.getTitle().getString().equals("군수"),"Stockpile opens logistics in the current authenticated session");
@@ -1221,7 +1236,7 @@ public final class ScreenIndustryChecks {
         for(int expected:new int[]{2,0,1}) {
             context.runOnClient(client->{
                 var screen=(ScreenIndustry)client.gui.screen();var row=button(screen,"수리 항구: 부산");
-                screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(row.getX()+row.getWidth()*46/400.0,row.getY()+row.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(0,0)),false);
+                screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(row.getX()+row.getWidth()*46/400.0,row.getY()+row.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
                 var request=requests.getLast();
                 check(request.action()==ProtocolIndustryPayloads.Action.REPAIR_PRIORITY&&request.item().equals("busan")&&request.amount()==expected,"Port icon cycles normal, high, low, normal");
                 check(button(screen,"수리 항구: 진해").getY()==collapsed,"Priority icon never expands port rows");
@@ -1233,7 +1248,7 @@ public final class ScreenIndustryChecks {
         for(boolean disabled:new boolean[]{true,false}) {
             context.runOnClient(client->{
                 var screen=(ScreenIndustry)client.gui.screen();var row=button(screen,"수리 항구: 부산");
-                screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(row.getX()+row.getWidth()*46/400.0,row.getY()+row.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(1,0)),false);
+                screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(row.getX()+row.getWidth()*46/400.0,row.getY()+row.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT,0)),false);
                 var request=requests.getLast();check(request.action()==ProtocolIndustryPayloads.Action.REPAIR_ENABLED&&request.amount()==(disabled?0:1),"Right click toggles repair prohibition");
                 for(var item:json.getAsJsonObject("navalRepairs").getAsJsonArray("ports"))if(item.getAsJsonObject().get("id").getAsString().equals("busan"))item.getAsJsonObject().addProperty("disabled",disabled);
                 json.addProperty("revision",json.get("revision").getAsLong()+1);screen.update(gson.fromJson(json,ProtocolIndustryView.class));
@@ -1243,9 +1258,19 @@ public final class ScreenIndustryChecks {
         int count=requests.size();
         click(context,"수리 항구: 부산");context.waitTicks(2);
         context.runOnClient(client->{check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsed,"Port body independently expands its ships");check(requests.size()==count,"Expansion is local and does not change repair policy");});
+        click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
+        context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsed,"Expand all after opening one port must keep its ships open"));
+        ResearchScreenTest.gui2Screenshot(context,"hoi-repair-individual-then-expand-all");
+        click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
+        context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()==collapsed,"Collapse all closes every port"));
+        click(context,"수리 항구: 부산");context.waitTicks(2);
+        click(context,"수리 항구: 부산");context.waitTicks(2);
+        click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
+        context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsed,"Repeated individual toggles preserve the global expand action"));
+
     }
     private static void click(ClientGameTestContext context, String name) {
-        context.runOnClient(client -> { var b = button((ScreenIndustry)client.gui.screen(), name); check(b.active, "Enabled control: " + name); b.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0)); });
+        context.runOnClient(client -> { var b = button((ScreenIndustry)client.gui.screen(), name); check(b.active, "Enabled control: " + name); b.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0)); });
     }
     private static void checkBounds(ScreenIndustry screen) {
         var buttons = screen.children().stream().filter(w -> w instanceof Button).map(w -> (Button)w).toList();

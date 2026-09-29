@@ -23,7 +23,6 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 
@@ -129,7 +128,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 var box = politicsLayout().status(i);
                 var entry = politicsEntry(i == 0 ? "점령지" : "협력정부");
                 var button = new ScreenInvisibleButton(entry.name(), box.x(), box.y(), box.width(), box.height(),
-                        () -> showDetail(entry, "politics"));
+                        () -> { if(entry.name().equals("점령지"))dev.hoi.client.map.MapOccupationHud.open();else showDetail(entry, "politics"); });
                 button.active = entry.progress() > 0;
                 addRenderableWidget(button);
             }
@@ -580,6 +579,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             tooltipScroll = UiPoliticalTooltip.drawLeader(g, font, hovered, view.country(), view.countryName(), screenX, my, width, height, tooltipScroll);
         } else if (hovered != null && hovered.name().equals("세력") && hovered.value().equals("미가입")) {
             tooltipScroll = UiPoliticalTooltip.drawCountryDetail(g, font, hovered, view.country(), screenX, my, width, height, tooltipScroll);
+        } else if (hovered != null && (hovered.name().equals("점령지") || hovered.name().equals("협력정부") || hovered.icon().startsWith("politics/party/") || hovered.icon().startsWith("politics/ideology/"))) {
+            UiTooltips.drawExact(g, font, hovered.detail(), screenX, my);
         } else if (hovered != null && hovered.detail().contains("[image:")) {
             tooltipScroll = UiPoliticalTooltip.draw(g, font, hovered, screenX, my, width, height, tooltipScroll);
         } else if (hovered != null) {
@@ -647,6 +648,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (layout.ideology().contains(x, y)) return politicsEntry("세부 이념");
         if (layout.economy().contains(x, y)) return politicsEntry("경제 모델");
         if (layout.government().contains(x, y)) return politicsEntry("정치 체제");
+        if (!selectionPreview) for (int i=0;i<2;i++) if (layout.status(i).contains(x,y)) return politicsEntry(i==0?"점령지":"협력정부");
         var chart=layout.partyChart();
         var party=ScreenPartyChart.at(parties,x-chart.x()-chart.width()/2.0,y-chart.y()-chart.height()/2.0,chart.width()/2.0-3.8);
         if(party!=null)return party;
@@ -731,8 +733,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
 
             return true;
         }
-        if (politicsHover(x, y) != null && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT)
-                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT))) {
+        if (politicsHover(x, y) != null && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT))) {
             tooltipScroll -= (int)(vertical * 3); return true;
         }
         if (selected == ProtocolMenuTab.POLITICS && detail == null && manufacturerGroup == null
@@ -750,11 +752,11 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         return super.mouseScrolled(x, y, horizontal, vertical);
     }
     @Override public boolean keyPressed(KeyEvent event) {
-        if (detail != null && event.key() == GLFW.GLFW_KEY_ESCAPE) { detail = null; rebuildWidgets(); return true; }
-        if (manufacturerGroup != null && event.key() == GLFW.GLFW_KEY_ESCAPE) { manufacturerGroup = null; rebuildWidgets(); return true; }
+        if (detail != null && event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { detail = null; rebuildWidgets(); return true; }
+        if (manufacturerGroup != null && event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { manufacturerGroup = null; rebuildWidgets(); return true; }
         if (allowsMovement() && InputSidebarMovement.consumes(minecraft, event)) return true;
-        if (event.key() == GLFW.GLFW_KEY_PAGE_DOWN || event.key() == GLFW.GLFW_KEY_PAGE_UP) {
-            int amount = (event.key() == GLFW.GLFW_KEY_PAGE_DOWN ? 1 : -1) * 100;
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_PAGEDOWN || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_PAGEUP) {
+            int amount = (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_PAGEDOWN ? 1 : -1) * 100;
             if (detail != null) detailScroll += amount; else { scroll += amount; rebuildWidgets(); } return true;
         }
         return super.keyPressed(event);

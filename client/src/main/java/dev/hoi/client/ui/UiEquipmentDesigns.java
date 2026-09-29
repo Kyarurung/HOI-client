@@ -20,8 +20,8 @@ public final class UiEquipmentDesigns {
         details=new JsonObject();
         var resource=Minecraft.getInstance().getResourceManager().getResource(Identifier.parse("hoi:ui/equipment_design_details.json"));
         if(resource.isPresent())try(var input=resource.get().open()) {
-            var bytes=input.readNBytes(2_000_001);
-            if(bytes.length<=2_000_000)details=JsonParser.parseString(new String(bytes,java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+            var bytes=input.readNBytes(4_000_001);
+            if(bytes.length<=4_000_000)details=JsonParser.parseString(new String(bytes,java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
         } catch(java.io.IOException|RuntimeException ignored) {}
         return details;
     }

@@ -28,12 +28,15 @@ import dev.hoi.client.map.MapSceneMesh.MapTile;
 public final class MapSceneRenderer {
     private static final RenderStateDataKey<MapRenderFrame> FRAME = RenderStateDataKey.create(() -> "hoi:atlas_scene");
     private static final MapSceneAssembler ASSEMBLER = new MapSceneAssembler();
-    private static MapSceneMesh active, deployment;
+    private static MapSceneMesh active, deployment, occupation;
     private static final MapSceneAssembler DEPLOYMENT = new MapSceneAssembler();
+    private static final MapSceneAssembler OCCUPATION = new MapSceneAssembler();
     private static ItemStackRenderState city;
     private static Map<Material, TextureAtlasSprite> sprites;
     private static int visibleTiles, examinedTiles;
     private static final Map<Material, Identifier> TEXTURES = Map.ofEntries(
+            Map.entry(Material.RESISTANCE, Identifier.parse("minecraft:block/white_concrete")),
+            Map.entry(Material.COMPLIANCE, Identifier.parse("minecraft:block/white_concrete")),
             Map.entry(Material.DMZ, Identifier.parse("minecraft:block/white_concrete")),
             Map.entry(Material.BLACK, Identifier.parse("minecraft:block/black_concrete")), Map.entry(Material.RED, Identifier.parse("minecraft:block/red_concrete")),
             Map.entry(Material.WATER, Identifier.parse("minecraft:block/water_still")), Map.entry(Material.FOREST, Identifier.parse("minecraft:block/oak_sapling")),
@@ -55,18 +58,23 @@ public final class MapSceneRenderer {
             var boxes = DEPLOYMENT.accept(packet.page());
             if (boxes != null) deployment = MapSceneMesh.build(packet.page().dimension(), boxes);
         });
+        dev.hoi.protocol.ProtocolOccupation.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolOccupation.Overlay.TYPE,(packet,context)->{
+            receiveOccupation(packet.page());
+        });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
         LevelExtractionEvents.END_EXTRACTION.register(context -> {
             var scene = active;
             String dimension = context.level().dimension().identifier().toString();
             if (!(Minecraft.getInstance().gui.screen() instanceof dev.hoi.client.screen.ScreenIndustry screen) || !screen.selectingDeployment()) clearDeployment();
-            if ((scene == null || !dimension.equals(scene.dimension())) && (deployment == null || !dimension.equals(deployment.dimension()))) {
+            if ((scene == null || !dimension.equals(scene.dimension())) && (deployment == null || !dimension.equals(deployment.dimension())) && (occupation == null || !dimension.equals(occupation.dimension()))) {
                 visibleTiles=0;context.levelState().setData(FRAME, null); return;
             }
             var camera = context.levelState().cameraRenderState;
             var tiles = new ArrayList<MapTile>();examinedTiles=0;
             if (scene != null && dimension.equals(scene.dimension())) examinedTiles+=scene.collect(camera.pos, tiles);
             if (deployment != null && dimension.equals(deployment.dimension())) examinedTiles+=deployment.collect(camera.pos, tiles);
+            if (occupation != null && dimension.equals(occupation.dimension())) examinedTiles+=occupation.collect(camera.pos, tiles);
             tiles.removeIf(tile -> !camera.cullFrustum.isVisible(tile.bounds()));
             visibleTiles=tiles.size();
             var client = Minecraft.getInstance();
@@ -92,7 +100,12 @@ public final class MapSceneRenderer {
         active = MapSceneMesh.build(page.dimension(), complete); return true;
     }
     public static void clearDeployment() {deployment = null; DEPLOYMENT.clear();}
-    static void clear() { clearDeployment(); active = null; resourcesReloaded(); visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
+    static void receiveOccupation(ProtocolAtlasScene.Page page) {
+        var boxes=OCCUPATION.accept(page);
+        if(boxes!=null)occupation=MapSceneMesh.build(page.dimension(),boxes);
+    }
+    static void clearOccupation() {occupation=null;OCCUPATION.clear();}
+    static void clear() { clearDeployment(); clearOccupation(); active = null; resourcesReloaded(); visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
     public static void resourcesReloaded() { city = null; sprites = null; }
     static int tileCount() { return active == null ? 0 : active.tiles().size(); }
     static int visibleTileCount() { return visibleTiles; }
@@ -119,7 +132,7 @@ public final class MapSceneRenderer {
         pose.popPose();
     }
     private static void emit(MapTile tile, TextureAtlasSprite sprite, PoseStack.Pose pose, VertexConsumer consumer) {
-        int color = tile.material() == Material.DMZ ? 0xfeff0000 : tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
+        int color = tile.material() == Material.RESISTANCE ? 0xff9b6363 : tile.material() == Material.COMPLIANCE ? 0xff5b668f : tile.material() == Material.DMZ ? 0xfeff0000 : tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
         var v = tile.vertices();
         for (int i=0;i<v.length;i+=8) consumer.addVertex(pose,v[i],v[i+1],v[i+2]).setColor(color)
                 .setUv(sprite.getU(v[i+3]),sprite.getV(v[i+4])).setLight(15728880).setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).setNormal(pose,v[i+5],v[i+6],v[i+7]);

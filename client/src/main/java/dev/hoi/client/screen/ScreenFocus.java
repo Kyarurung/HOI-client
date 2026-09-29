@@ -169,8 +169,8 @@ public final class ScreenFocus extends Screen {
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
         if(!selected.isEmpty() || event.y()<top)return super.mouseClicked(event,twice);
         var n=at(event.x(),event.y());
-        if(event.button()==0 && n!=null){selected=n.id();rebuildWidgets();return true;}
-        if(event.button()==0 || event.button()==1 || event.button()==2){panning=true;return true;}
+        if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && n!=null){selected=n.id();rebuildWidgets();return true;}
+        if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT || event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT || event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_MIDDLE){panning=true;return true;}
         return super.mouseClicked(event,twice);
     }
     @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {if(panning){panX+=(float)dx;panY+=(float)dy;return true;}return super.mouseDragged(event,dx,dy);}

@@ -19,7 +19,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -502,11 +501,11 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         rebuildWidgets(); return true;
     }
     @Override public boolean keyPressed(KeyEvent event) {
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE && selectedId != null) {
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && selectedId != null) {
             if (choosing >= 0) choosing = -1; else selectedId = null;
             rebuildWidgets(); return true;
         }
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE && group.equals("upgrades")) { changeGroup("operations"); return true; }
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && group.equals("upgrades")) { changeGroup("operations"); return true; }
         if (allowsMovement() && InputSidebarMovement.consumes(minecraft, event)) return true;
         return super.keyPressed(event);
     }

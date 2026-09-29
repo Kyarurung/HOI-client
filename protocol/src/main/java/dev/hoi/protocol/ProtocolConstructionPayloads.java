@@ -39,9 +39,9 @@ public final class ProtocolConstructionPayloads {
         @Override public Type<Request> type(){return TYPE;}
     }
     public record Response(String json) implements CustomPacketPayload {
-        public Response { ProtocolConstructionView.text(json,160000); }
+        public Response { ProtocolConstructionView.text(json,320000); }
         public static final Type<Response> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","construction_response_v2"));
-        public static final StreamCodec<RegistryFriendlyByteBuf,Response> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,160000),b->new Response(b.readUtf(160000)));
+        public static final StreamCodec<RegistryFriendlyByteBuf,Response> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,320000),b->new Response(b.readUtf(320000)));
         public static Response of(ProtocolConstructionView view){return new Response(JSON.toJson(view));}
         public ProtocolConstructionView view() { return ProtocolJsonCodec.read(JSON, json, ProtocolConstructionView.class); }
         @Override public Type<Response> type(){return TYPE;}

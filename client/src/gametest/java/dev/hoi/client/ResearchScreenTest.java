@@ -14,7 +14,7 @@ import dev.hoi.client.research.ResearchTreeLabels;
 import dev.hoi.client.research.ResearchSourceLayout;
 import dev.hoi.client.screen.ScreenAgency;
 import dev.hoi.client.screen.ScreenCompletionChecks;
-import dev.hoi.client.screen.ScreenConstructionChecks;
+import dev.hoi.client.screen.ScreenConstructionTest;
 import dev.hoi.client.screen.ScreenCountryChecks;
 import dev.hoi.client.screen.ScreenDialogChecks;
 import dev.hoi.client.screen.ScreenMenu;
@@ -32,7 +32,6 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -47,8 +46,8 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         context.runOnClient(client -> client.options.guiScale().set(2));
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
     }
-    private static final KeyEvent ENTER = new KeyEvent(GLFW.GLFW_KEY_ENTER, 0, 0);
-    private static final KeyEvent ESCAPE = new KeyEvent(GLFW.GLFW_KEY_ESCAPE, 0, 0);
+    private static final KeyEvent ENTER = new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
+    private static final KeyEvent ESCAPE = new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE, 0, 0);
     @Override public void runTest(ClientGameTestContext context) {
         context.runOnClient(client -> {
             var dispatcher = new com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>();
@@ -59,6 +58,31 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             ProtocolResearchPayloads.registerPayloadTypes(); ProtocolResearchPayloads.registerPayloadTypes();
         });
         loadPack(context);
+        if (System.getProperty("hoi.testSuite", "all").equals("distant-terrain")) { dev.hoi.client.map.MapDistantTerrainTest.run(context); return; }
+        if (System.getProperty("hoi.testSuite", "all").equals("construction")) {
+            try (var world = context.worldBuilder().create()) {
+                world.getServer().runCommand("gamemode spectator @a");
+                world.getServer().runCommand("tp @a 0.5 100 0.5");
+                world.getServer().runCommand("time set day");
+                context.waitTicks(5);
+                ScreenConstructionTest.run(context,fixtureMenu().hud());
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("naval-production")) {
+            try(var world=context.worldBuilder().create()) {
+                world.getServer().runCommand("gamemode spectator @a");
+                world.getServer().runCommand("tp @a 0.5 150 0.5");
+                world.getServer().runCommand("time set day");
+                context.waitTicks(5);
+                dev.hoi.client.screen.ScreenNavalDeploymentTest.run(context);
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("occupation")) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenOccupationTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu()); }
+            return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("audio")) {
             try (var world = context.worldBuilder().create()) {
                 world.getServer().runCommand("gamemode spectator @a");
@@ -83,6 +107,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         AudioChecks.run(context);
+        dev.hoi.client.map.MapDistantTerrainTest.run(context);
         MapSurfaceRenderChecks.run(context);
         dev.hoi.client.map.MapArmyRenderChecks.run(context);
         context.getInput().resizeWindow(1600, 1000);
@@ -113,8 +138,8 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.runOnClient(client -> ClientCampaignHud.accept(ProtocolHudPayloads.State.of("KOR",menu.hud())));
             context.setScreen(() -> null); context.waitTicks(3); context.takeScreenshot("hoi-persistent-country-hud");
             context.runOnClient(client -> {
-                var shiftF=new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_F,0,org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT);
-                check(!dev.hoi.client.input.InputMenuShortcut.handle(client,client.getWindow().handle(),org.lwjgl.glfw.GLFW.GLFW_PRESS,shiftF), "Shift F is not a menu shortcut");
+                var shiftF=new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_F,0,com.mojang.blaze3d.platform.InputConstants.MOD_SHIFT);
+                check(!dev.hoi.client.input.InputMenuShortcut.handle(client,client.getWindow().handle(),com.mojang.blaze3d.platform.InputConstants.PRESS,shiftF), "Shift F is not a menu shortcut");
                 check(client.gui.screen() == null, "Shift F does not open politics");
             });
             context.getInput().holdKey(o -> o.keySwapOffhand); context.waitTicks(3);
@@ -143,9 +168,14 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             convoyGauge(context,menu);
             fuelGauge(context,menu);
             hudHover(context,menu);
+            world.getServer().runCommand("gamemode spectator @a");
+            world.getServer().runCommand("tp @a 0.5 150 0.5");
+            world.getServer().runCommand("time set day");
+            context.waitTicks(3);
             ScreenIndustryChecks.run(context,menu.hud());
             ScreenCompletionChecks.run(context);
-            ScreenConstructionChecks.run(context,menu.hud());
+            ScreenConstructionTest.run(context,menu.hud());
+            dev.hoi.client.screen.ScreenOccupationTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu());
             ScreenCountryChecks.run(context,menu.hud());
             dev.hoi.client.screen.ScreenDecisionChecks.run(context,menu.hud());
             dev.hoi.client.screen.ScreenFocusChecks.run(context);
@@ -281,7 +311,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 var screen = (ResearchScreen)client.gui.screen();
                 checkToolbar(screen);
                 check(!screen.allowsMovement(), "Full tree blocks world movement");
-                screen.clearFocus(); screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT, 0, 0)); screen.keyPressed(ENTER);
+                screen.clearFocus(); screen.keyPressed(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT, 0, 0)); screen.keyPressed(ENTER);
             });
             context.waitTicks(2); context.takeScreenshot("hoi-research-detail");
             context.runOnClient(client -> checkToolbar(client.gui.screen()));
@@ -398,12 +428,12 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         context.takeScreenshot("hoi-industry-rearranged-compact");
         context.runOnClient(client -> {
             var screen = (ResearchScreen)client.gui.screen(); screen.clearFocus();
-            for (int i=0;i<60;i++) screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT,0,0));
+            for (int i=0;i<60;i++) screen.keyPressed(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT,0,0));
             screen.keyPressed(ENTER);
         });
         context.waitTicks(2); context.takeScreenshot("hoi-industry-rearranged-compact-detail"); click(context,"×");
         context.getInput().resizeWindow(1600,1000); context.waitTicks(3); click(context,"공학"); context.waitTicks(2);
-        context.runOnClient(client->{var screen=(ResearchScreen)client.gui.screen();screen.clearFocus();screen.keyPressed(new KeyEvent(GLFW.GLFW_KEY_RIGHT,0,0));screen.keyPressed(ENTER);});
+        context.runOnClient(client->{var screen=(ResearchScreen)client.gui.screen();screen.clearFocus();screen.keyPressed(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT,0,0));screen.keyPressed(ENTER);});
         context.waitTicks(2);context.takeScreenshot("hoi-tfr-source-detail");click(context,"연구");
         check(requests.size()==1&&requests.getFirst().slot()==1,"Occupied slot zero falls back to the first free slot without cancellation");
         for (String id : List.of("advanced_ship_hull_light", "artillery2", "concentrated_industry", "tech_engineers4")) {
@@ -496,7 +526,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 var target = client.getResourcePackDirectory().resolve("hoi-test-carriers.zip");
                 try (var output = new java.util.zip.ZipOutputStream(Files.newOutputStream(target))) {
                     output.putNextEntry(new java.util.zip.ZipEntry("pack.mcmeta"));
-                    output.write("{\"pack\":{\"description\":\"HOI test carriers\",\"min_format\":88,\"max_format\":88}}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    output.write("{\"pack\":{\"description\":\"HOI test carriers\",\"min_format\":[97,1],\"max_format\":[97,1]}}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
                     output.closeEntry();
                     for (var entry : fixture.getAsJsonObject("blockstates").entrySet()) {
                         output.putNextEntry(new java.util.zip.ZipEntry(entry.getKey()));

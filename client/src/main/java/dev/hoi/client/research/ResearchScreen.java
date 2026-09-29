@@ -21,7 +21,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 
@@ -512,8 +511,8 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (event.y() < menuBottom()) return super.mouseClicked(event, twice);
         if (detail == null && insideTree(event.x(), event.y())) {
             clearFocus();
-            if (event.button() == 1 || event.button() == 2) { panning = true; return true; }
-            if (event.button() == 0) {
+            if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT || event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_MIDDLE) { panning = true; return true; }
+            if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
                 var child=subTechnologyAt(event.x(),event.y());
                 if(child!=null){showDetail(child.id());return true;}
                 var node = layout.at(event.x() - 10 + scrollX, event.y() - treeTop + scrollY);
@@ -542,14 +541,14 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     }
     @Override public boolean keyPressed(KeyEvent event) {
         if (allowsMovement() && InputSidebarMovement.consumes(minecraft, event)) return true;
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE && detail != null) { detail = null; rebuildWidgets(); return true; }
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE && !overview) { overview = true; rebuildWidgets(); return true; }
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && detail != null) { detail = null; rebuildWidgets(); return true; }
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && !overview) { overview = true; rebuildWidgets(); return true; }
         if (!overview && detail == null && getFocused() == null && !layout.nodes().isEmpty()) {
             int index = 0;
             for (int i = 0; i < layout.nodes().size(); i++) if (layout.nodes().get(i).tech().id().equals(focusedTech)) index = i;
-            if (event.key() == GLFW.GLFW_KEY_ENTER && focusedTech != null) { showDetail(focusedTech); return true; }
-            if (event.key() >= GLFW.GLFW_KEY_RIGHT && event.key() <= GLFW.GLFW_KEY_UP) {
-                if (focusedTech != null) index = Math.floorMod(index + (event.key() == GLFW.GLFW_KEY_LEFT || event.key() == GLFW.GLFW_KEY_UP ? -1 : 1), layout.nodes().size());
+            if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN && focusedTech != null) { showDetail(focusedTech); return true; }
+            if (event.key() >= com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT && event.key() <= com.mojang.blaze3d.platform.InputConstants.KEY_UP) {
+                if (focusedTech != null) index = Math.floorMod(index + (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_LEFT || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_UP ? -1 : 1), layout.nodes().size());
                 var node = layout.nodes().get(index); focusedTech = node.tech().id();
                 scrollX = node.x() - 20; scrollY = node.y() - 18; clampScroll(); return true;
             }

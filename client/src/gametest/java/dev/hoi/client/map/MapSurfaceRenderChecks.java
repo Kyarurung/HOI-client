@@ -64,6 +64,21 @@ public final class MapSurfaceRenderChecks {
             context.runOnClient(client -> MapSceneRenderer.clear()); command.accept("time set noon");
 
 
+            for(var material:java.util.List.of(dev.hoi.protocol.ProtocolAtlasScene.Material.RESISTANCE,dev.hoi.protocol.ProtocolAtlasScene.Material.COMPLIANCE)) {
+                context.runOnClient(client->{
+                    var stripes=new java.util.ArrayList<dev.hoi.protocol.ProtocolAtlasScene.Box>();
+                    for(int z=0;z<16;z++)for(int x=0;x<16;x++)if((x+z)%8<3)
+                        stripes.add(new dev.hoi.protocol.ProtocolAtlasScene.Box(x,70.03f,z,1,.015f,1,0,material));
+                    MapSceneRenderer.receiveOccupation(new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,stripes));
+                });
+                command.accept("tp @a 8 90 8 0 90");
+                context.waitFor(client->MapSceneRenderer.visibleTileCount()>0);
+                context.takeScreenshot("hoi-occupation-stripes-"+material.name().toLowerCase(java.util.Locale.ROOT));
+                context.runOnClient(client->MapSceneRenderer.receiveOccupation(new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,java.util.List.of())));
+                context.waitFor(client->MapSceneRenderer.visibleTileCount()==0);
+            }
+            context.runOnClient(client->MapSceneRenderer.clearOccupation());
+
             JsonObject scene;
             try(var input=MapSurfaceRenderChecks.class.getResourceAsStream("/atlas-client-scene.json")) {
                 if(input==null)throw new AssertionError("Production atlas geometry fixture missing");

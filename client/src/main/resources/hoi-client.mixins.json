@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_25",
   "client": [
     "MixinAtlasBorder",
+    "MixinAtlasRenderDistance",
     "MixinConstructionClick",
     "MixinKeyboardShortcut",
     "MixinMenuTooltip",

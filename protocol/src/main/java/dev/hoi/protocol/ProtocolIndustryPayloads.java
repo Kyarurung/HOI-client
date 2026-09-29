@@ -14,7 +14,7 @@ public final class ProtocolIndustryPayloads {
     public enum Action { OPEN, REFRESH, CLOSE, ADD, ASSIGN, SWITCH, REMOVE, FIRST, TRADE, CANCEL_TRADE,
         LOAD_TEMPLATE, NEW_TEMPLATE, LINE_SLOT, SUPPORT_SLOT, SAVE_TEMPLATE, RECRUIT, CANCEL_RECRUIT, PRIORITY, DEPLOY,
         LINE_COLUMN, REGIMENT_SUPPORT, UP, DOWN, DEPLOY_GROUP, CANCEL_GROUP, SERIES, LOCATION, GROUP_PRIORITY, RETIRE_TEMPLATE, ALLOCATION_PRIORITY, SELECT_LOCATION, LOCATION_AT, CONVERSION,
-        TANK_OPEN, TANK_MODULE, TANK_UPGRADE, TANK_SAVE, TANK_CLOSE, TANK_RESET, TANK_PRESET, REPAIR_PRIORITY, REPAIR_ENABLED, REPAIR_DOCKYARDS }
+        TANK_OPEN, TANK_MODULE, TANK_UPGRADE, TANK_SAVE, TANK_CLOSE, TANK_RESET, TANK_PRESET, REPAIR_PRIORITY, REPAIR_ENABLED, REPAIR_DOCKYARDS, NAVAL_PORT, NAVAL_LOCATE }
     public static synchronized void registerPayloadTypes() {
         if(registered)return;
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE,Request.CODEC);
@@ -36,7 +36,7 @@ public final class ProtocolIndustryPayloads {
     }
     public record DeploymentOverlay(String session,long revision,ProtocolAtlasScene.Page page) implements CustomPacketPayload {
         public DeploymentOverlay {ProtocolIndustryView.text(session,36);if(revision<0||page==null)throw new IllegalArgumentException("Invalid deployment overlay");}
-        public static final Type<DeploymentOverlay> TYPE=new Type<>(Identifier.parse("hoi:deployment_overlay_v1"));
+        public static final Type<DeploymentOverlay> TYPE=new Type<>(Identifier.parse("hoi:deployment_overlay_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf,DeploymentOverlay> CODEC=StreamCodec.of(
                 (b,p)->{b.writeUtf(p.session,36);b.writeVarLong(p.revision);ProtocolAtlasScene.Page.CODEC.encode(b,p.page);},
                 b->new DeploymentOverlay(b.readUtf(36),b.readVarLong(),ProtocolAtlasScene.Page.CODEC.decode(b)));

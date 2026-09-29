@@ -4,7 +4,6 @@ import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.KeyEvent;
-import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 public final class ScreenRegimentChecks {
@@ -79,6 +78,6 @@ public final class ScreenRegimentChecks {
     private static Button button(ScreenIndustry screen,String name) {
         return (Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(name)).findFirst().orElseThrow(()->new AssertionError("Missing "+name));
     }
-    private static void press(Button b) { check(b.active,"Control is active");b.onPress(new KeyEvent(GLFW.GLFW_KEY_ENTER,0,0)); }
+    private static void press(Button b) { check(b.active,"Control is active");b.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0)); }
     private static void check(boolean value,String message) { if(!value)throw new AssertionError(message); }
 }

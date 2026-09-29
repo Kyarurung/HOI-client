@@ -1,0 +1,323 @@
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 7efd8d7..6d70419 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -1,5 +1,5 @@
+ plugins {
+-	id("net.fabricmc.fabric-loom") version "1.15.5"
++	id("net.fabricmc.fabric-loom") version "1.17.20"
+ 	id("maven-publish")
+ 	id("com.github.breadmoirai.github-release") version "2.2.12"
+ 	id("com.matthewprenger.cursegradle") version "1.4.0"
+@@ -178,3 +178,39 @@ val publishAll by tasks.registering {
+ 	dependsOn(tasks.githubRelease)
+ 	dependsOn(tasks.modrinth)
+ }
++
++fabricApi {
++    configureTests {
++        createSourceSet = true
++        modId = "bobby-test"
++        enableGameTests = false
++        enableClientGameTests = true
++    }
++}
++
++loom {
++    mods {
++        register("bobby") {
++            sourceSet(sourceSets.main.get())
++            sourceSet(sourceSets["sodium06"])
++        }
++    }
++}
++
++dependencies {
++    runtimeOnly("maven.modrinth:sodium:${project.property("sodium06Version")}")
++}
++
++sourceSets.named("gametest") {
++    runtimeClasspath += sourceSets["sodium06"].output
++}
++
++tasks.withType<JavaExec>().configureEach {
++    if (name == "runClientGameTest") {
++        doFirst {
++            val config = layout.buildDirectory.file("run/clientGameTest/config/bobby.conf").get().asFile
++            config.parentFile.mkdirs()
++            config.writeText("enabled=true\nview-distance-overwrite=2\nunload-delay-secs=0\n")
++        }
++    }
++}
+diff --git a/gradle.properties b/gradle.properties
+index adfed8e..86dce2a 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -2,8 +2,8 @@ org.gradle.jvmargs=-Xmx2G
+ 
+ # Fabric Properties
+ 	# check these on https://fabricmc.net/develop
+-	minecraftVersion = 26.2
+-	loaderVersion = 0.19.3
++	minecraftVersion = 26.3
++	loaderVersion = 0.19.5
+ 
+ # Mod Properties
+ 	modVersion = 5.2.15
+@@ -18,12 +18,12 @@ org.gradle.jvmargs=-Xmx2G
+ 	# modrinth.token = ***
+ 
+ # Dependencies
+-	fabricApiVersion = 0.152.2+26.2
++	fabricApiVersion = 0.161.0+26.3
+ 	configurateVersion = 4.1.2
+ 	geantyrefVersion = 1.3.13
+ 	hoconVersion = 1.4.2
+ 	confabricateVersion = 2.1.0
+-	clothConfigVersion = 26.2.155
+-	modMenuVersion = 20.0.0-beta.3
+-	sodium06Version = mc26.2-0.9.0-fabric
++	clothConfigVersion = 26.3.159
++	modMenuVersion = 21.0.0
++	sodium06Version = mc26.3-0.9.2-fabric
+ 	starlightVersion = 1.1.3+1.20.3
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index c61a118..bd82f36 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -1,7 +1,10 @@
+ distributionBase=GRADLE_USER_HOME
+ distributionPath=wrapper/dists
+-distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-bin.zip
++distributionSha256Sum=bafc141b619ad6350fd975fc903156dd5c151998cc8b058e8c1044ab5f7b031f
++distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-bin.zip
+ networkTimeout=10000
++retries=0
++retryBackOffMs=500
+ validateDistributionUrl=true
+ zipStoreBase=GRADLE_USER_HOME
+ zipStorePath=wrapper/dists
+diff --git a/src/gametest/java/de/johni0702/minecraft/bobby/BobbyTerrainTest.java b/src/gametest/java/de/johni0702/minecraft/bobby/BobbyTerrainTest.java
+new file mode 100644
+index 0000000..8aad073
+--- /dev/null
++++ b/src/gametest/java/de/johni0702/minecraft/bobby/BobbyTerrainTest.java
+@@ -0,0 +1,60 @@
++package de.johni0702.minecraft.bobby;
++
++import de.johni0702.minecraft.bobby.ext.ClientChunkCacheExt;
++import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
++import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
++import net.minecraft.core.BlockPos;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.chunk.status.ChunkStatus;
++
++public final class BobbyTerrainTest implements FabricClientGameTest {
++    @Override
++    public void runTest(ClientGameTestContext context) {
++        context.runOnClient(client -> client.options.renderDistance().set(16));
++        try (var world = context.worldBuilder().create()) {
++            world.getServer().runCommand("gamemode spectator @a");
++            world.getServer().runCommand("tp @a 8 90 8");
++            world.getServer().runCommand("fill 0 70 0 15 95 15 minecraft:gold_block");
++            context.waitFor(client -> client.level != null && client.level.getBlockState(new BlockPos(8, 80, 8)).is(Blocks.GOLD_BLOCK));
++            for (int x = 40; x <= 168; x += 32) {
++                world.getServer().runCommand("tp @a " + x + " 90 8 90 5");
++                int chunkX = x / 16;
++                context.waitFor(client -> client.level.getChunkSource().getChunk(chunkX, 0, ChunkStatus.FULL, false) != null);
++                context.waitTicks(20);
++            }
++            context.waitFor(client -> client.level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false) instanceof FakeChunk);
++            context.waitTicks(100);
++            context.runOnClient(client -> {
++                if (!client.level.getBlockState(new BlockPos(8, 80, 8)).is(Blocks.GOLD_BLOCK)) throw new AssertionError("Cached terrain lost block data");
++                if (client.options.getEffectiveRenderDistance() != 16) throw new AssertionError("Client viewing distance was capped");
++            });
++            context.takeScreenshot("bobby-cached-terrain-beyond-server-distance");
++            var saved = context.computeOnClient(client -> ((ClientChunkCacheExt) client.level.getChunkSource()).bobby_getFakeChunkManager().getStorage().loadTag(new ChunkPos(0, 0)));
++            if (saved.join().isEmpty()) throw new AssertionError("Chunk was not stored on disk");
++            world.getServer().runCommand("tp @a 600 90 8");
++            context.waitFor(client -> client.level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false) == null);
++            world.getServer().runCommand("tp @a 168 90 8 90 5");
++            context.waitFor(client -> client.level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false) instanceof FakeChunk);
++            context.runOnClient(client -> {
++                if (!client.level.getBlockState(new BlockPos(8, 80, 8)).is(Blocks.GOLD_BLOCK)) throw new AssertionError("Reloaded cache lost block data");
++            });
++            world.getServer().runCommand("tp @a 8 90 8");
++            context.waitFor(client -> client.level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false) != null && !(client.level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false) instanceof FakeChunk));
++            world.getServer().runCommand("setblock 8 80 8 minecraft:diamond_block");
++            context.waitFor(client -> client.level.getBlockState(new BlockPos(8, 80, 8)).is(Blocks.DIAMOND_BLOCK));
++            var overworldStorage = context.computeOnClient(client -> ((ClientChunkCacheExt) client.level.getChunkSource()).bobby_getFakeChunkManager().getStorage());
++            world.getServer().runCommand("execute as @a in hoi:atlas_distant_test run tp @s 0 100 0");
++            context.waitFor(client -> client.level.dimension().identifier().toString().equals("hoi:atlas_distant_test"));
++            context.runOnClient(client -> {
++                if (((ClientChunkCacheExt) client.level.getChunkSource()).bobby_getFakeChunkManager() != null) throw new AssertionError("HOI atlas must not reuse stale chunk colours");
++            });
++            world.getServer().runCommand("execute as @a in minecraft:the_nether run tp @s 0 100 0");
++            context.waitFor(client -> client.level.dimension().identifier().toString().equals("minecraft:the_nether"));
++            context.runOnClient(client -> {
++                var manager = ((ClientChunkCacheExt) client.level.getChunkSource()).bobby_getFakeChunkManager();
++                if (manager == null || manager.getStorage() == overworldStorage) throw new AssertionError("Dimensions must use separate caches");
++            });
++        }
++    }
++}
+diff --git a/src/gametest/resources/data/hoi/dimension/atlas_distant_test.json b/src/gametest/resources/data/hoi/dimension/atlas_distant_test.json
+new file mode 100644
+index 0000000..6a5cda2
+--- /dev/null
++++ b/src/gametest/resources/data/hoi/dimension/atlas_distant_test.json
+@@ -0,0 +1 @@
++{"type":"minecraft:overworld","generator":{"type":"minecraft:flat","settings":{"biome":"minecraft:plains","layers":[{"block":"minecraft:air","height":1}],"features":false,"lakes":false,"structure_overrides":[]}}}
+diff --git a/src/gametest/resources/fabric.mod.json b/src/gametest/resources/fabric.mod.json
+new file mode 100644
+index 0000000..34f7b00
+--- /dev/null
++++ b/src/gametest/resources/fabric.mod.json
+@@ -0,0 +1,7 @@
++{
++  "schemaVersion": 1,
++  "id": "bobby-test",
++  "version": "1.0.0",
++  "environment": "client",
++  "entrypoints": {"fabric-client-gametest": ["de.johni0702.minecraft.bobby.BobbyTerrainTest"]}
++}
+diff --git a/src/main/java/de/johni0702/minecraft/bobby/ChunkSerializer.java b/src/main/java/de/johni0702/minecraft/bobby/ChunkSerializer.java
+index 6e6903f..91f8b74 100644
+--- a/src/main/java/de/johni0702/minecraft/bobby/ChunkSerializer.java
++++ b/src/main/java/de/johni0702/minecraft/bobby/ChunkSerializer.java
+@@ -344,16 +344,16 @@ public class ChunkSerializer {
+         LevelLightEngine lightingProvider = world.getChunkSource().getLightEngine();
+         ClientboundLightUpdatePacketData initialLightData = WorldChunkExt.get(original).bobby_getInitialLightData();
+         if (initialLightData != null) {
+-            Iterator<byte[]> blockNibbles = initialLightData.getBlockUpdates().iterator();
+-            Iterator<byte[]> skyNibbles = initialLightData.getSkyUpdates().iterator();
++            Iterator<byte[]> blockNibbles = initialLightData.blockUpdates().iterator();
++            Iterator<byte[]> skyNibbles = initialLightData.skyUpdates().iterator();
+             for (int y = lightingProvider.getMinLightSection(), i = 0; y < lightingProvider.getMaxLightSection(); y++, i++) {
+-                boolean hasBlockData = initialLightData.getBlockYMask().get(i);
+-                boolean isBlockZero = initialLightData.getEmptyBlockYMask().get(i);
++                boolean hasBlockData = initialLightData.blockYMask().get(i);
++                boolean isBlockZero = initialLightData.emptyBlockYMask().get(i);
+                 if (hasBlockData || isBlockZero) {
+                     blockLight[i] = hasBlockData ? new DataLayer(blockNibbles.next().clone()) : new DataLayer();
+                 }
+-                boolean hasSkyData = initialLightData.getSkyYMask().get(i);
+-                boolean isSkyZero = initialLightData.getEmptySkyYMask().get(i);
++                boolean hasSkyData = initialLightData.skyYMask().get(i);
++                boolean isSkyZero = initialLightData.emptySkyYMask().get(i);
+                 if (hasSkyData || isSkyZero) {
+                     skyLight[i] = hasSkyData ? new DataLayer(skyNibbles.next().clone()) : new DataLayer();
+                 }
+diff --git a/src/main/java/de/johni0702/minecraft/bobby/mixin/ClientChunkCacheMixin.java b/src/main/java/de/johni0702/minecraft/bobby/mixin/ClientChunkCacheMixin.java
+index d77d402..665fe5c 100644
+--- a/src/main/java/de/johni0702/minecraft/bobby/mixin/ClientChunkCacheMixin.java
++++ b/src/main/java/de/johni0702/minecraft/bobby/mixin/ClientChunkCacheMixin.java
+@@ -19,17 +19,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+-import java.util.Map;
+-import java.util.function.Consumer;
+ import java.util.function.Supplier;
+ import net.minecraft.client.multiplayer.ClientChunkCache;
+ import net.minecraft.client.multiplayer.ClientLevel;
+-import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.chunk.LevelChunk;
+ import net.minecraft.world.level.chunk.status.ChunkStatus;
+-import net.minecraft.world.level.levelgen.Heightmap;
+ 
+ @Mixin(ClientChunkCache.class)
+ public abstract class ClientChunkCacheMixin implements ClientChunkCacheExt {
+@@ -49,7 +45,7 @@ public abstract class ClientChunkCacheMixin implements ClientChunkCacheExt {
+ 
+     @Inject(method = "<init>", at = @At("RETURN"))
+     private void bobbyInit(ClientLevel world, int loadDistance, CallbackInfo ci) {
+-        if (Bobby.getInstance().isEnabled()) {
++        if (Bobby.getInstance().isEnabled() && !(world.dimension().identifier().getNamespace().equals("hoi") && world.dimension().identifier().getPath().startsWith("atlas_"))) {
+             bobbyChunkManager = new FakeChunkManager(world, (ClientChunkCache) (Object) this);
+             realChunksTracker.update(0, 0, calculateStorageRange(loadDistance), null, null);
+         }
+@@ -84,7 +80,7 @@ public abstract class ClientChunkCacheMixin implements ClientChunkCacheExt {
+     }
+ 
+     @Inject(method = "replaceWithPacketData", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientChunkCache$Storage;getIndex(II)I"))
+-    private void bobbyUnloadFakeChunk(int x, int z, FriendlyByteBuf buf, Map<Heightmap.Types, long[]> heightmaps, Consumer<ClientboundLevelChunkPacketData.BlockEntityTagOutput> consumer, CallbackInfoReturnable<LevelChunk> cir) {
++    private void bobbyUnloadFakeChunk(int x, int z, ClientboundLevelChunkPacketData data, CallbackInfoReturnable<LevelChunk> cir) {
+         if (bobbyChunkManager == null) {
+             return;
+         }
+diff --git a/src/main/java/de/johni0702/minecraft/bobby/mixin/ClientPacketListenerMixin.java b/src/main/java/de/johni0702/minecraft/bobby/mixin/ClientPacketListenerMixin.java
+index 23c4729..2aef5e0 100644
+--- a/src/main/java/de/johni0702/minecraft/bobby/mixin/ClientPacketListenerMixin.java
++++ b/src/main/java/de/johni0702/minecraft/bobby/mixin/ClientPacketListenerMixin.java
+@@ -32,15 +32,15 @@ public abstract class ClientPacketListenerMixin implements ClientPacketListenerE
+     // fake chunk creation code can then get it from in such cases.
+     //
+     //
+-    @Inject(method = "handleLevelChunkWithLight", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;updateLevelChunk(IILnet/minecraft/network/protocol/game/ClientboundLevelChunkPacketData;)V", shift = At.Shift.AFTER))
++    @Inject(method = "handleLevelChunkWithLight", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientChunkCache;replaceWithPacketData(IILnet/minecraft/network/protocol/game/ClientboundLevelChunkPacketData;)Lnet/minecraft/world/level/chunk/LevelChunk;", shift = At.Shift.AFTER))
+     private void storeInitialLightData(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
+-        int chunkX = packet.getX();
+-        int chunkZ = packet.getZ();
++        int chunkX = packet.x();
++        int chunkZ = packet.z();
+         LevelChunk chunk = this.level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
+         if (chunk == null || chunk instanceof FakeChunk) {
+             return; // failed to load, ignore
+         }
+-        WorldChunkExt.get(chunk).bobby_setInitialLightData(packet.getLightData());
++        WorldChunkExt.get(chunk).bobby_setInitialLightData(packet.lightData());
+     }
+ 
+     // Once MC does actually load the light data, we can drop our manually kept light data, so it can be GCed.
+diff --git a/src/main/java/de/johni0702/minecraft/bobby/mixin/LevelRendererMixin.java b/src/main/java/de/johni0702/minecraft/bobby/mixin/LevelRendererMixin.java
+index 9e788d1..e0c047b 100644
+--- a/src/main/java/de/johni0702/minecraft/bobby/mixin/LevelRendererMixin.java
++++ b/src/main/java/de/johni0702/minecraft/bobby/mixin/LevelRendererMixin.java
+@@ -1,6 +1,6 @@
+ package de.johni0702.minecraft.bobby.mixin;
+ 
+-import com.mojang.blaze3d.buffers.GpuBufferSlice;
++import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+ import de.johni0702.minecraft.bobby.ext.GameRendererExt;
+ import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.client.renderer.LevelRenderer;
+@@ -19,7 +19,7 @@ public abstract class LevelRendererMixin {
+ 
+     @Shadow @Final private LevelRenderState levelRenderState;
+ 
+-    @ModifyArg(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LevelRenderer;addSkyPass(Lcom/mojang/blaze3d/framegraph/FrameGraphBuilder;Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V"))
++    @ModifyArg(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LevelRenderer;addSkyPass(Lcom/mojang/blaze3d/framegraph/FrameGraphBuilder;Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;)V"))
+     private GpuBufferSlice clampMaxValue(GpuBufferSlice fogBuffer) {
+         if (levelRenderState.cameraRenderState.fogData.renderDistanceEnd >= 32 * 16) {
+             fogBuffer = ((GameRendererExt) gameRenderer).bobby_getSkyFogRenderer().getBuffer(FogRenderer.FogMode.WORLD);
+diff --git a/src/main/resources/fabric.mod.json b/src/main/resources/fabric.mod.json
+index 9266dab..af103bf 100644
+--- a/src/main/resources/fabric.mod.json
++++ b/src/main/resources/fabric.mod.json
+@@ -1,9 +1,9 @@
+ {
+   "schemaVersion": 1,
+   "id": "bobby",
+-  "version": "${version}",
++  "version": "${version}-hoi.1",
+ 
+-  "name": "Bobby",
++  "name": "Bobby (HOI 26.3 compatibility build)",
+   "description": "Allows for render distances greater than the server's view-distance setting.",
+   "authors": [
+     "johni0702"
+@@ -36,7 +36,8 @@
+ 
+   "depends": {
+     "fabricloader": ">=0.18.4",
+-    "minecraft": "~26.2"
++    "minecraft": "~26.3",
++    "sodium": "0.9.2"
+   },
+   "suggests": {
+     "cloth-config2": "^${clothConfigVersion}",
