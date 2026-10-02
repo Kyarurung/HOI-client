@@ -1,6 +1,5 @@
 package dev.hoi.protocol;
 
-
 public final class ProtocolAtlasVisibility {
     public static final double BOUNDARY_RANGE = 64;
     public static final double DETAIL_RANGE = 64;

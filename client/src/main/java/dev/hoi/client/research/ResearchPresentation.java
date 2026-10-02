@@ -6,7 +6,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import java.util.*;
 
-
 public final class ResearchPresentation {
     private ResearchPresentation() {}
     public static ResearchLayout apply(ResearchLayout fallback, ResourceManager resources, int viewport) {
@@ -31,7 +30,6 @@ public final class ResearchPresentation {
                 width = Math.max(width, x + ResearchLayout.CARD_WIDTH + 20);
                 height = Math.max(height, y + ResearchLayout.CARD_HEIGHT + 20);
             }
-
             for (int i = 0; i < nodes.size(); i++) for (int j = i + 1; j < nodes.size(); j++) {
                 var a = nodes.get(i); var b = nodes.get(j);
                 if (Math.abs(a.x() - b.x()) < ResearchLayout.CARD_WIDTH && Math.abs(a.y() - b.y()) < ResearchLayout.CARD_HEIGHT) return fallback;

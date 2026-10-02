@@ -10,6 +10,25 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public final class ScreenDialogChecks {
+    public static void disconnectThread(ClientGameTestContext context) {
+        var client = context.computeOnClient(c -> c);
+        var handler = context.computeOnClient(c -> c.getConnection());
+        var hud = context.computeOnClient(c -> dev.hoi.client.ClientCampaignHud.visible() ? ProtocolHudPayloads.State.of(dev.hoi.client.ClientCampaignHud.country(), dev.hoi.client.ClientCampaignHud.hud()) : ProtocolHudPayloads.State.HIDDEN);
+        var removedOnClient = new java.util.concurrent.atomic.AtomicReference<Boolean>();
+        context.runOnClient(c -> {
+            var detail = new ProtocolDialogView(UUID.randomUUID().toString(), 1, ProtocolDialogView.Kind.STATE,
+                    "연결 종료 검사", "", "", "", "", "", List.of(), List.of());
+            ScreenDialogCoordinator.receive(ProtocolDialogPayloads.Show.of(detail, true));
+            net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.remove(c.gui.screen()).register(screen -> removedOnClient.set(c.isSameThread()));
+        });
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.invoker().onPlayDisconnect(handler, client);
+        context.waitTicks(1);
+        context.runOnClient(c -> {
+            if (!Boolean.TRUE.equals(removedOnClient.get()) || c.gui.screen() != null)
+                throw new AssertionError("Disconnect must remove the dialog on the client thread");
+            dev.hoi.client.ClientCampaignHud.accept(hud);
+        });
+    }
     private static void detailFlags(ClientGameTestContext context) {
         var previous = context.computeOnClient(c -> dev.hoi.client.ClientCampaignHud.visible()
                 ? ProtocolHudPayloads.State.of(dev.hoi.client.ClientCampaignHud.country(), dev.hoi.client.ClientCampaignHud.hud()) : ProtocolHudPayloads.State.HIDDEN);
@@ -74,6 +93,7 @@ public final class ScreenDialogChecks {
     }
     record ScreenDialogFixtures(List<ProtocolDialogView> views, List<String> sounds) {}
     public static void run(ClientGameTestContext context) {
+        disconnectThread(context);
         ScreenMapDetailChecks.run(context);
         ScreenAirDetailChecks.run(context);
         detailFlags(context);

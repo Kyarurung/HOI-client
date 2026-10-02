@@ -8,12 +8,10 @@ import dev.hoi.protocol.ProtocolDialogView;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
-
 final class ScreenCompletion extends ScreenDialog {
     private final java.util.function.BiConsumer<ProtocolDialogView, String> send;
     private net.minecraft.client.gui.screens.Screen backdrop;
     private int left, top, pane, panelHeight, bodyTop, bodyBottom, scroll, total;
-
     ScreenCompletion(ProtocolDialogView view) { this(view, ScreenDialogCoordinator::choose); }
     ScreenCompletion(ProtocolDialogView view, net.minecraft.client.gui.screens.Screen backdrop) {
         this(view); this.backdrop = backdrop;

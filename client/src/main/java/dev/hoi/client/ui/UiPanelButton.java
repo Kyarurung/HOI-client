@@ -7,7 +7,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 
-
 public class UiPanelButton extends Button {
     private double progress = -1;
     private String clickSound = "ui.click";

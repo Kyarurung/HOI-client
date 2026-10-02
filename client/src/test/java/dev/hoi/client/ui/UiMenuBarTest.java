@@ -20,7 +20,6 @@ class UiMenuBarTest {
         assertEquals(.25,rising.ratio());assertEquals(.25,falling.ratio());
         assertEquals("fuel",UiMenuBar.icon(UiMenuBar.fuelIndicator(dev.hoi.protocol.ProtocolCountryHud.NationalIndicators.UNKNOWN)));
     }
-
     @Test void suppliesUseTheAuthoritativeRatioAndFactoriesKeepFiveDigits() {
         assertEquals("0%", new UiMenuBar.UiIndicator("supplies", "보급", null, UiMenuBar.UiFormat.PERCENT).value());
         var full = new UiMenuBar.UiIndicator("supplies", "보급", 1.0, UiMenuBar.UiFormat.PERCENT);
@@ -37,7 +36,6 @@ class UiMenuBarTest {
         assertEquals("0%",new UiMenuBar.UiIndicator("supplies","보급",0,UiMenuBar.UiFormat.PERCENT).value());
         assertEquals("99999", new UiMenuBar.UiIndicator("factories", "공장", 99999, UiMenuBar.UiFormat.NUMBER).value());
     }
-
     @Test void signedRatiosAndLimitedCountersKeepFullDigits() {
         assertEquals("-100%", new UiMenuBar.UiIndicator("stability", "안정도", -1.0, UiMenuBar.UiFormat.PERCENT).value());
         assertEquals("100%", new UiMenuBar.UiIndicator("party", "정당 인기도", 1.0, UiMenuBar.UiFormat.PERCENT).value());
@@ -57,20 +55,17 @@ class UiMenuBarTest {
         assertEquals("1999",UiMenuBar.politicalPower(1999.99));
         assertEquals("2000",UiMenuBar.politicalPower(2000.0));
     }
-
     @Test void commandPowerDropsDecimalsAndMissingIndicatorsDisplayZero() {
         assertEquals("0",new UiMenuBar.UiIndicator("command_power","지휘력",null,UiMenuBar.UiFormat.COMMAND_POWER).value());
         assertEquals("0",new UiMenuBar.UiIndicator("command_power","지휘력",0.99,UiMenuBar.UiFormat.COMMAND_POWER).value());
         assertEquals("150",new UiMenuBar.UiIndicator("command_power","지휘력",150.75,UiMenuBar.UiFormat.COMMAND_POWER).value());
         assertEquals("999",new UiMenuBar.UiIndicator("command_power","지휘력",999.99,UiMenuBar.UiFormat.COMMAND_POWER).value());
     }
-
     @Test void unknownCountryUsesNoDefaultNationalFlag() {
         assertEquals("",UiMenuBar.flagTexture(""));
         assertEquals("",UiMenuBar.flagTexture(null));
         assertEquals("country/kor/flag",UiMenuBar.flagTexture("KOR"));
     }
-
     @Test void moneyUsesTrillionsWithAtMostThreeDecimalsAndRawNumbersKeepTwo() {
         assertEquals("123.46",UiMenuBar.number(123.456789));
         assertEquals("0.704조",UiMenuBar.money(704.314));

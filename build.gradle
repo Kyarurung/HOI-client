@@ -10,6 +10,7 @@ subprojects {
         toolchain.languageVersion = JavaLanguageVersion.of(25)
         withSourcesJar()
     }
+    tasks.withType(Jar).configureEach { from(rootProject.files('LICENSE', 'LICENSE-SCOPE.md')) }
     tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
     tasks.withType(Test).configureEach { useJUnitPlatform() }
     dependencies {

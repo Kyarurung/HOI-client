@@ -162,7 +162,6 @@ public final class ResearchTextChecks {
                 check(requests.size()==1&&requests.getFirst().action()==ProtocolResearchPayloads.Action.START&&requests.getFirst().technology().equals(child.id()),"Child button starts its own server research");
             });
         }
-
         for (String id : List.of("mechanised_infantry3", "dispersed_industry4", "basic_nanomachines", "tech_10000_qubit_computing")) {
             var tech = source.technologies().stream().filter(t -> t.id().equals("hoi:tfr/technology/" + id)).findFirst();
             if (tech.isEmpty()) continue;

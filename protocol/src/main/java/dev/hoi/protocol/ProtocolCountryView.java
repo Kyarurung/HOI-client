@@ -2,7 +2,6 @@ package dev.hoi.protocol;
 
 import java.util.*;
 
-
 public record ProtocolCountryView(String viewer, ProtocolCountryHud hud, String target, String name, boolean shared,
         List<Choice> countries, List<ProtocolMenuView.Entry> diplomacy, List<ProtocolMenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations) {
     public ProtocolCountryView(String viewer, ProtocolCountryHud hud, String target, String name, boolean shared,
@@ -26,9 +25,12 @@ public record ProtocolCountryView(String viewer, ProtocolCountryHud hud, String 
         if (reports.size() != 4 || new HashSet<>(reports.stream().map(Report::domain).toList()).size() != 4)
             throw new IllegalArgumentException("Missing intelligence domains");
     }
-    public record Relation(String name, String icon, List<Choice> countries) {
+    public record Relation(String name, String icon, List<Choice> countries, String detail) {
+        public Relation(String name, String icon, List<Choice> countries) { this(name, icon, countries, ""); }
         public Relation {
             text(name, 128); text(icon, 160);
+            detail = detail == null ? "" : detail;
+            text(detail, 1000);
             if (!icon.matches("[a-z0-9_/]+")) throw new IllegalArgumentException("Invalid relation icon");
             countries = bounded(countries, 64);
             if (countries.stream().map(Choice::tag).distinct().count() != countries.size()) throw new IllegalArgumentException("Duplicate relation country");

@@ -24,7 +24,6 @@ class MapSceneMeshTest {
                 assertArrayEquals(normal, Arrays.copyOfRange(vertices, (face * 4 + vertex) * 8 + 5, (face * 4 + vertex) * 8 + 8));
         }
     }
-
     @Test void indexedSelectionMatchesFullScanIncludingLargeRotatedAndNegativeTiles() {
         var boxes=new ArrayList<Box>();
         for(int i=-100;i<=100;i++)boxes.add(new Box(i*32,70,i%3*32,2,3,4,i*.1f,Material.BLACK));

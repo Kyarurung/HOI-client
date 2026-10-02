@@ -25,7 +25,7 @@ public final class MapOccupationHud {
         ProtocolOccupation.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(Response.TYPE,(p,c)->{if(c.client().gui.screen() instanceof ScreenOccupation screen)screen.update(p.view());});
         ClientPlayNetworking.registerGlobalReceiver(MapResponse.TYPE,(p,c)->{view=p.view();age=0;if(view.rows().isEmpty())MapSceneRenderer.clearOccupation();});
-        ClientPlayConnectionEvents.DISCONNECT.register((h,c)->reset());
+        ClientPlayConnectionEvents.DISCONNECT.register((h,c)->c.execute(MapOccupationHud::reset));
         ClientTickEvents.END_CLIENT_TICK.register(c->{if(++age>60&&view!=null)reset();});
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR,Identifier.parse("hoi:occupation_hud"),(g,d)->{if(Minecraft.getInstance().gui.screen()==null){draw(g,0);tooltip(g,g.guiWidth()/2,g.guiHeight()/2);}});
         ScreenEvents.AFTER_INIT.register((c,s,w,h)->{if(s instanceof InputSidebarMovement.InputMovementScreen){

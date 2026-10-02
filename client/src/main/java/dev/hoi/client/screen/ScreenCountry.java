@@ -11,12 +11,10 @@ import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import java.util.*;
-
 
 public final class ScreenCountry extends Screen implements InputSidebarMovement.InputMovementScreen {
     private ProtocolCountryView view;
@@ -127,7 +125,20 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
     private List<ProtocolMenuView.Entry> entries() {
         if (ledger) return view.report(domain).entries();
         return view.relations().stream().map(r -> new ProtocolMenuView.Entry(r.name(), "",
-                r.countries().stream().map(ProtocolCountryView.Choice::name).collect(java.util.stream.Collectors.joining(" · ")))).toList();
+                relationTooltip(r))).toList();
+    }
+    private static String relationTooltip(ProtocolCountryView.Relation relation) {
+        return relation.name() + "\n" + (relation.detail().isEmpty()
+                ? relation.countries().stream().map(ProtocolCountryView.Choice::name).collect(java.util.stream.Collectors.joining(" · "))
+                : relation.detail());
+    }
+    String relationTooltipAt(double x, double y) {
+        if (view == null || ledger || choosing || detail != null || confirmation != null
+                || x < 9 || x >= pane / 2 - 3 || y < bodyTop() || y >= height - 33) return "";
+        int row = (int)(y - bodyTop() + scroll) / 39;
+        int rowY = bodyTop() + row * 39 - scroll;
+        return row >= 0 && row < view.relations().size() && y < rowY + 36
+                ? relationTooltip(view.relations().get(row)) : "";
     }
     private int bodyTop() { return choosing ? ScreenDiplomacyHeader.tabs(top) + 25 : ledger ? ScreenDiplomacyHeader.tabs(top) + 75 : ScreenDiplomacyHeader.body(top, pane); }
     private int detailX() { return width - pane >= 200 ? pane + 5 : 5; }
@@ -240,6 +251,8 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             }
         }
         super.extractRenderState(g, mx, my, delta);
+        String relationTooltip = relationTooltipAt(mx, my);
+        if (!relationTooltip.isEmpty()) dev.hoi.client.ui.UiTooltips.drawExact(g, font, relationTooltip, mx, my);
         if (view != null && !ledger && !choosing && detail == null && confirmation == null) {
             var spirit = header.spiritAt(mx, my, pane, top);
             var party = header.partyAt(view,mx,my,pane,top);

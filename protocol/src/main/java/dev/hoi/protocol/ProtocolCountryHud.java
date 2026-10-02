@@ -1,26 +1,22 @@
 package dev.hoi.protocol;
 
-
 public record ProtocolCountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                          Double gdpBillions, Double debtBillions, Double worldTension,
                          boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national,
                          java.util.Map<String, ProtocolHudDetail> details) {
     public static final ProtocolCountryHud UNKNOWN = new ProtocolCountryHud(null, null, null, null, null, null, false, null);
-
     public ProtocolCountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                       Double gdpBillions, Double debtBillions, Double worldTension,
                       boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national) {
         this(armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension,
                 nuclearResearched, nuclearStockpile, national, java.util.Map.of());
     }
-
     public ProtocolCountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                       Double gdpBillions, Double debtBillions, Double worldTension,
                       boolean nuclearResearched, Long nuclearStockpile) {
         this(armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension,
                 nuclearResearched, nuclearStockpile, NationalIndicators.UNKNOWN);
     }
-
     public ProtocolCountryHud {
         for (Double value : new Double[]{armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension})
             if (value != null && (!Double.isFinite(value) || value < 0)) throw new IllegalArgumentException("Invalid HUD value");
@@ -37,8 +33,6 @@ public record ProtocolCountryHud(Double armyExperience, Double navyExperience, D
         }
         if (characters > 24000) throw new IllegalArgumentException("HUD details exceed budget");
     }
-
-
     public record NationalIndicators(Double politicalPower, Double stability, Double warSupport,
                                      Long factories, Double energyRatio, Double fuel, Double supplies,
                                      Double supplyEfficiency, Long convoys, Double transportEfficiency,
@@ -58,7 +52,6 @@ public record ProtocolCountryHud(Double armyExperience, Double navyExperience, D
         }
         public static final NationalIndicators UNKNOWN = new NationalIndicators(
                 null, null, null, null, null, null, null, null, null, null, null, null, null);
-
         public NationalIndicators {
             if(fuelDailyChange!=null&&!Double.isFinite(fuelDailyChange)||fuelDays!=null&&(!Double.isFinite(fuelDays)||fuelDays<0))
                 throw new IllegalArgumentException("Invalid fuel trend");

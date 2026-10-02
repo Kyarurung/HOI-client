@@ -8,7 +8,6 @@ import net.minecraft.client.input.KeyEvent;
 import java.util.List;
 import java.util.function.Predicate;
 
-
 public final class InputSidebarMovement {
     public interface InputMovementScreen { boolean allowsMovement(); default int unitHudLeft(){return Integer.MAX_VALUE;} }
     private static boolean controlled;
@@ -32,14 +31,12 @@ public final class InputSidebarMovement {
             });
         } else release(client);
     }
-
     static void apply(Minecraft client, Predicate<KeyMapping> pressed) {
         for (var key : keys(client)) {
             boolean down = pressed.test(key);
             if (key instanceof ToggleKeyMapping toggle) toggle.shouldRestoreStateOnScreenClosed();
             if (key.isDown() == down) continue;
             key.setDown(down);
-
             if (!down && key.isDown()) key.setDown(true);
         }
     }

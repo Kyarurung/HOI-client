@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-
 public final class ResearchArtChecks {
     public static void run(ClientGameTestContext context) {
         ProtocolResearchView view;

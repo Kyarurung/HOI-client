@@ -143,7 +143,6 @@ class ProtocolIndustryViewTest {
         assertThrows(IllegalArgumentException.class, () -> new ProtocolIndustryPayloads.Request(ProtocolIndustryPayloads.Action.ADD, "s", -1, "", "", 0));
         assertThrows(IllegalArgumentException.class, () -> new ProtocolIndustryPayloads.Request(ProtocolIndustryPayloads.Action.ADD, "s", 0, "x".repeat(129), "", 0));
     }
-
     @Test void privateSnapshotsRemainBoundedAndRevocationRoundTrips() {
         var revoked = ProtocolIndustryView.revoked("session", "권한이 변경되었습니다.");
         assertEquals(revoked, ProtocolIndustryPayloads.Response.of(revoked).view());

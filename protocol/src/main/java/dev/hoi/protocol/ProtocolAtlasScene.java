@@ -7,7 +7,6 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import java.util.*;
 
-
 public final class ProtocolAtlasScene {
     public static final int PAGE_SIZE = 1024;
     public static final int MAX_PAGES = 256;

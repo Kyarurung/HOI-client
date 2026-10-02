@@ -15,7 +15,6 @@ class ResearchSourceLayoutTest {
     private ResearchLayout.ResearchNode node(ResearchLayout layout, String id) {
         return layout.nodes().stream().filter(n -> n.tech().source().id().equals(id)).findFirst().orElseThrow();
     }
-
     @Test void electronicsAndIndustryKeepOriginalHeadingAnchors() throws Exception {
         for (String category : List.of("ENGINEERING", "INDUSTRY")) {
             var layout = ResearchLayout.create(catalog(), category, "");
@@ -26,14 +25,12 @@ class ResearchSourceLayoutTest {
             }
         }
     }
-
     @Test void constructionKeepsItsOwnLaneAndSearchDoesNotReflowTheSource() throws Exception {
         var catalog = catalog();
         var layout = ResearchLayout.create(catalog, "INDUSTRY", "");
         assertEquals(60, layout.nodes().size());
         var construction = node(layout, "construction1");
         var rubber = node(layout, "rubber_processing");
-
         assertEquals(construction.tech().source().x(), rubber.tech().source().x());
         assertEquals(construction.tech().source().y(), rubber.tech().source().y());
         assertTrue(construction.x() < node(layout, "excavation1").x());
@@ -45,7 +42,6 @@ class ResearchSourceLayoutTest {
         assertEquals(layout.width(), filtered.width());
         assertEquals(layout.height(), filtered.height());
     }
-
     @Test void allReferenceCardsRemainDistinctAndConnectionsDoNotCutThroughCards() throws Exception {
         var catalog = catalog();
         for (var category : List.of("INFANTRY", "SUPPORT", "ARMOR", "ARTILLERY", "NAVY", "NAVAL_SUPPORT", "AIR", "ENGINEERING", "INDUSTRY")) for (int viewport : List.of(407, 780, 1100, 1260)) {
@@ -73,7 +69,6 @@ class ResearchSourceLayoutTest {
             }
         }
     }
-
     @Test void armorUsesSideConnectionsAndSeparateHullAndAmmunitionTimelines() throws Exception {
         var layout = ResearchLayout.create(catalog(), "ARMOR", "");
         var hull = node(layout, "gwtank_chassis");

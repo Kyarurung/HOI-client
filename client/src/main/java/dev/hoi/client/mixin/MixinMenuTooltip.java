@@ -15,17 +15,14 @@ public abstract class MixinMenuTooltip {
         return screen == null ? dev.hoi.client.ClientCampaignHud.visible()
                 : screen.getClass().getPackageName().startsWith("dev.hoi.client.");
     }
-
     @org.spongepowered.asm.mixin.injection.ModifyVariable(method = "text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)V", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private net.minecraft.util.FormattedCharSequence hoiEffectText(net.minecraft.util.FormattedCharSequence value) {
         return hoiText() ? dev.hoi.client.ui.UiEffectColors.text(value) : value;
     }
-
     @org.spongepowered.asm.mixin.injection.ModifyVariable(method = "text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)V", at = @At("HEAD"), argsOnly = true, ordinal = 2)
     private int hoiEffectColor(int value) {
         return hoiText() ? dev.hoi.client.ui.UiEffectColors.color(value) : value;
     }
-
     @Redirect(method = "tooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;extractTooltipBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIIILnet/minecraft/resources/Identifier;)V"))
     private void menuTooltipBackground(GuiGraphicsExtractor graphics, int x, int y, int width, int height, Identifier style) {
         if (hoiText()) {

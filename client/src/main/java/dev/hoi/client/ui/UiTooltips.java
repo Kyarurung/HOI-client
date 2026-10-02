@@ -7,7 +7,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 
-
 public final class UiTooltips {
     public static final int GOLD = 0xFFBD00, GOOD = 0x009F03, BAD = 0xFF3232;
     private record LayoutKey(Font font,String text,int width,boolean icons,boolean inferIcons) {}
@@ -15,7 +14,6 @@ public final class UiTooltips {
     private static final java.util.regex.Pattern SENTENCES = java.util.regex.Pattern.compile("([.!?。！？](?:§.)*)\\h+(?=\\S)");
     private UiTooltips() {}
     public static void clear() {LAYOUTS.clear();}
-
     private static net.minecraft.network.chat.Style sourceColor(net.minecraft.network.chat.Style style) {
         var color = style.getColor();
         if (color == null) return style;
@@ -26,15 +24,12 @@ public final class UiTooltips {
             default -> style;
         };
     }
-
     public static String sentences(String text) {
         return SENTENCES.matcher(text).replaceAll("$1\n");
     }
-
     public static Component sentences(Component text) {
         return styled(text,true);
     }
-
     public static Component styled(Component text,boolean wrapSentences) {
         var result = Component.empty();
         text.visit((style, part) -> {
@@ -56,25 +51,70 @@ public final class UiTooltips {
         }, net.minecraft.network.chat.Style.EMPTY);
         return result;
     }
-
     public static net.minecraft.client.gui.components.Tooltip create(Component text) {
         return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(format(text),false)));
     }
-
     public static net.minecraft.client.gui.components.Tooltip createExact(String text) {
         return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(Component.literal(UiTooltipText.sourceSpacing(text)),false),false));
     }
-
+    public static net.minecraft.client.gui.components.Tooltip createOfficer(String text) {
+        return createExact(officerCodes(text));
+    }
+    public record ScrolledTooltip(int x, int y, int width, int height, int scroll, int maxScroll) {}
+    public static ScrolledTooltip drawOfficerScrollable(GuiGraphicsExtractor graphics, Font font, String text,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
+        return drawOfficerScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,324);
+    }
+    public static ScrolledTooltip drawOfficerScrollable(GuiGraphicsExtractor graphics, Font font, String text,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth) {
+        var lines = exactLines(font, officerCodes(text), Math.min(viewportWidth, maxWidth));
+        int width = Math.min(Math.max(1, viewportWidth - 20), Math.max(80, lines.stream().mapToInt(font::width).max().orElse(80)));
+        int lineHeight = font.lineHeight + 1;
+        int total = lines.size() * lineHeight;
+        int height = Math.min(total, Math.max(1, viewportHeight - 20));
+        int maxScroll = Math.max(0, total - height);
+        scroll = Math.clamp(scroll, 0, maxScroll);
+        int x = Math.clamp(mouseX + 12, 5, Math.max(5, viewportWidth - width - 5));
+        int y = Math.clamp(mouseY - 12, 5, Math.max(5, viewportHeight - height - 5));
+        graphics.nextStratum();
+        graphics.fill(x - 4, y - 4, x + width + 4, y + height + 4, 0xFF9A45AB);
+        graphics.fill(x - 3, y - 3, x + width + 3, y + height + 3, 0xF0100914);
+        graphics.enableScissor(x, y, x + width, y + height);
+        for (int i = Math.max(0, scroll / lineHeight); i < lines.size(); i++) {
+            int top = y + i * lineHeight - scroll;
+            if (top >= y + height) break;
+            graphics.text(font, lines.get(i), x, top, 0xFFE0E0E0);
+        }
+        graphics.disableScissor();
+        if (maxScroll > 0) {
+            int thumb = Math.max(8, height * height / total);
+            int thumbY = y + (height - thumb) * scroll / maxScroll;
+            graphics.fill(x + width + 1, thumbY, x + width + 3, thumbY + thumb, GOLD | 0xFF000000);
+        }
+        return new ScrolledTooltip(x, y, width, height, scroll, maxScroll);
+    }
+    public static Component officerText(String text) {
+        return styled(Component.literal(officerCodes(text)), false);
+    }
+    private static String officerCodes(String text) {
+        return text.replace("§G", "§a").replace("§R", "§4")
+                .replace("§Y", "§e").replace("§H", "§e").replace("§W", "§f")
+                .replace("§B", "§9").replace("§C", "§b").replace("§O", "§6").replace("§!", "§r");
+    }
     public static Component productionText(Component text) {
         return UiKeywordIcons.decorateLines(sentences(text));
     }
-
     public static void background(GuiGraphicsExtractor graphics,int x,int y,int width,int height) {
         UiAssets.nineSlice(graphics,"production/tooltip",x,y,width,height,6,.5);
     }
-
     public static void drawExact(GuiGraphicsExtractor graphics,Font font,String text,int x,int y) {
-        graphics.setTooltipForNextFrame(font,formattedLines(font,text,graphics.guiWidth(),true,false),x,y);
+        graphics.setTooltipForNextFrame(font,exactLines(font,text,graphics.guiWidth()),x,y);
+    }
+    public static void drawExact(GuiGraphicsExtractor graphics, Font font, String text, int x, int y, int maxWidth) {
+        graphics.setTooltipForNextFrame(font, exactLines(font, text, Math.min(graphics.guiWidth(), maxWidth + 24)), x, y);
+    }
+    public static List<FormattedCharSequence> exactLines(Font font,String text,int viewportWidth) {
+        return formattedLines(font,text,viewportWidth,true,false);
     }
     public static Component format(Component text) {
         var rows = new ArrayList<net.minecraft.network.chat.MutableComponent>();
@@ -98,19 +138,15 @@ public final class UiTooltips {
         }
         return result;
     }
-
     public static List<FormattedCharSequence> lines(Font font, String text, int viewportWidth) {
         return lines(font, text, viewportWidth, true);
     }
-
     public static List<FormattedCharSequence> lines(Font font, String text, int viewportWidth, boolean icons) {
         return formattedLines(font, UiTooltipText.format(text), viewportWidth, icons);
     }
-
     static List<FormattedCharSequence> formattedLines(Font font, String text, int viewportWidth, boolean icons) {
         return formattedLines(font,text,viewportWidth,icons,true);
     }
-
     private static List<FormattedCharSequence> formattedLines(Font font,String text,int viewportWidth,boolean icons,boolean inferIcons) {
         int width = Math.max(80, Math.min(300, viewportWidth - 24));
         var key = new LayoutKey(font,text,width,icons,inferIcons);
@@ -131,7 +167,6 @@ public final class UiTooltips {
         }
         return result;
     }
-
     public static void draw(GuiGraphicsExtractor graphics, Font font, String text, int x, int y) {
         graphics.setTooltipForNextFrame(font, lines(font, text, graphics.guiWidth()), x, y);
     }

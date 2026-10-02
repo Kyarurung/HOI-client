@@ -6,7 +6,6 @@ import dev.hoi.client.screen.ScreenMapCursor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.KeyEvent;
 
-
 public final class InputMenuShortcut {
     private static boolean held;
     private InputMenuShortcut() {}

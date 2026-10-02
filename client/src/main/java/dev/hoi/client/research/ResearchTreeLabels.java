@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.TreeSet;
 import java.util.function.ToIntFunction;
 
-
 public final class ResearchTreeLabels {
     public record ResearchLabel(String text, int x, int y, int width, int height, boolean year) {}
     private record ResearchLabelBox(int x, int y, int width, int height) {
@@ -15,9 +14,7 @@ public final class ResearchTreeLabels {
                     && y < other.y + other.height + gap && y + height + gap > other.y;
         }
     }
-
     private ResearchTreeLabels() {}
-
     public static List<ResearchLabel> create(ResearchLayout layout, ToIntFunction<String> textWidth, int lineHeight) {
         var occupied = new ArrayList<ResearchLabelBox>();
         for (var node : layout.nodes()) occupied.add(new ResearchLabelBox(node.x(), node.y(), node.width(), node.height()));
@@ -27,7 +24,6 @@ public final class ResearchTreeLabels {
                 layout.nodes().isEmpty() || java.util.Set.of("ENGINEERING", "INDUSTRY").contains(layout.nodes().getFirst().tech().category()) ? 4 : 2);
         return List.copyOf(result);
     }
-
     private static List<ResearchSourceLayout.ResearchSourceLabel> centeredHeadings(ResearchLayout layout) {
         var headings = ResearchSourceLayout.headings(layout);
         if (layout.nodes().isEmpty() || java.util.Set.of("ENGINEERING", "INDUSTRY")
@@ -41,7 +37,6 @@ public final class ResearchTreeLabels {
                 .map(node -> new ResearchSourceLayout.ResearchSourceLabel(label.text(), node.x() + node.width() / 2, label.y()))
                 .orElse(label)).toList();
     }
-
     private static void place(List<ResearchSourceLayout.ResearchSourceLabel> anchors, boolean year, ToIntFunction<String> textWidth,
                               int lineHeight, List<ResearchLabelBox> occupied, List<ResearchLabel> result, int gap) {
         for (var anchor : anchors) {
@@ -55,7 +50,6 @@ public final class ResearchTreeLabels {
                 if (box.y() - lineHeight - gap >= 2) candidates.add(box.y() - lineHeight - gap);
                 candidates.add(box.y() + box.height() + gap);
             }
-
             int y = candidates.stream().filter(top -> year || top <= anchor.y()).filter(top -> occupied.stream()
                     .noneMatch(box -> box.overlaps(new ResearchLabelBox(x, top, width, lineHeight), gap))).findFirst().orElseThrow();
             occupied.add(new ResearchLabelBox(x, y, width, lineHeight));

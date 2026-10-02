@@ -13,13 +13,11 @@ import java.util.Map;
 import java.io.DataInputStream;
 import java.io.IOException;
 
-
 public final class UiAssets {
     private static final Map<Identifier, int[]> DIMENSIONS = new HashMap<>();
     private static final Map<Identifier, int[]> CONTENT_BOUNDS = new HashMap<>();
     private UiAssets() {}
     public static void clear() { DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); UiKeywordIcons.clear(); UiMenuBar.clear(); UiEquipmentDesigns.clear(); UiTooltips.clear(); }
-
     public static boolean cover(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         if (id == null || w <= 0 || h <= 0) return false;
@@ -33,7 +31,6 @@ public final class UiAssets {
     public static boolean draw(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         return draw(g, path, x, y, w, h, 0, 0);
     }
-
     public static boolean drawTinted(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,int tint) {
         return draw(g,path,x,y,w,h,0,0,tint);
     }
@@ -45,7 +42,6 @@ public final class UiAssets {
         if (id == null || w <= 0 || h <= 0) return false;
         int[] size = DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions);
         if (size[0] <= 0 || size[1] <= 0) return false;
-
         if (path.startsWith("politics/appointments/") && size[0] == 156 && size[1] == 210) {
             float scale = Math.min(w / 62f, h / 67f);
             g.pose().pushMatrix();
@@ -128,7 +124,6 @@ public final class UiAssets {
     private static int[] dimensions(Identifier id) {
         var resource = Minecraft.getInstance().getResourceManager().getResource(id);
         if (resource.isPresent()) try (var input = new DataInputStream(resource.get().open())) {
-
             if (input.readLong() == 0x89504E470D0A1A0AL && input.readInt() == 13 && input.readInt() == 0x49484452) {
                 int w = input.readInt(), h = input.readInt();
                 if (w > 0 && h > 0 && w <= 32768 && h <= 32768) return new int[]{w, h};
@@ -136,7 +131,6 @@ public final class UiAssets {
         } catch (IOException ignored) { }
         return new int[]{0, 0};
     }
-
     public static String technologyPath(String country, ProtocolResearchView.Tech tech) {
         if (!tech.id().startsWith("hoi:")) return "";
         String common = "technology/" + tech.id().substring(4);

@@ -10,9 +10,13 @@ import net.minecraft.client.input.KeyEvent;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-
 public final class ScreenIndustryChecks {
     public static ProtocolIndustryView tankFixture(String file) {
+        String directory = System.getenv("HOI_PRODUCTION_PREVIEW");
+        if (directory != null && (file.equals("production-source-fixture.json") || file.equals("production-china-fixture.json") || file.equals("production-train-upgrade-fixture.json"))) {
+            try { return new ProtocolIndustryPayloads.Response(java.nio.file.Files.readString(java.nio.file.Path.of(directory, file))).view(); }
+            catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+        }
         try(var in=ScreenIndustryChecks.class.getResourceAsStream("/"+file)) {
             return new ProtocolIndustryPayloads.Response(new String(Objects.requireNonNull(in).readAllBytes(),StandardCharsets.UTF_8)).view();
         } catch(java.io.IOException e) {throw new java.io.UncheckedIOException(e);}
@@ -396,7 +400,6 @@ public final class ScreenIndustryChecks {
         }
         context.getInput().resizeWindow(1600,1000);
     }
-
     public static void designers(ClientGameTestContext context) {
         ScreenProductionPresentationTest.run(context);
         branchDesigners(context);
@@ -453,11 +456,9 @@ public final class ScreenIndustryChecks {
             context.runOnClient(client->check(client.gui.screen().children().stream().noneMatch(widget->widget instanceof Button button&&(button.getMessage().getString().contains("파일로 저장")||button.getMessage().getString().contains("저장된 설계"))),"All designers omit file preset controls"));
         }
     }
-
     private static Button generationSlot(List<Button> buttons,boolean secondRow) {
         return buttons.stream().max(secondRow?Comparator.comparingInt(Button::getY):Comparator.comparingInt(Button::getX)).orElseThrow();
     }
-
     private static void tradeTooltips(ClientGameTestContext context, ProtocolIndustryView v) {
         var trade=v.trades().stream().filter(ProtocolIndustryView.Trade::importing).findFirst().orElseThrow();
         var partner=v.partners().stream().filter(p->p.id().equals(trade.partner())).findFirst().orElseThrow();
@@ -649,7 +650,6 @@ public final class ScreenIndustryChecks {
         check(chromium.extracted()<0&&chromium.imported()>0&&chromium.available()<0,"Partial chromium imports still leave a deficit");
         tankDesigner(context);
         branchDesigners(context);
-
         longNames(context,v);
         tradeTooltips(context,v);
         var sourceEquipment=new ArrayList<ProtocolIndustryView.Equipment>();
@@ -881,7 +881,6 @@ public final class ScreenIndustryChecks {
             check(!screen.acceptsDeploymentOverlay(v.session(), Long.MAX_VALUE), "Late green hatch cannot reappear after assignment");
         });
         context.waitTicks(2); context.takeScreenshot("hoi-deployment-menu-restored");
-
         context.runOnClient(client -> {
             var needs = Map.of("rifles", 900L, "support", 100L);
             check(ScreenIndustry.fillRatio(needs, Map.of("rifles", 450L)) == .45, "A missing equipment family must not hide supplied equipment");
@@ -1267,7 +1266,6 @@ public final class ScreenIndustryChecks {
         click(context,"수리 항구: 부산");context.waitTicks(2);
         click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
         context.runOnClient(client->check(button((ScreenIndustry)client.gui.screen(),"수리 항구: 진해").getY()>collapsed,"Repeated individual toggles preserve the global expand action"));
-
     }
     private static void click(ClientGameTestContext context, String name) {
         context.runOnClient(client -> { var b = button((ScreenIndustry)client.gui.screen(), name); check(b.active, "Enabled control: " + name); b.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0)); });

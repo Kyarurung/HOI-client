@@ -11,7 +11,6 @@ import java.util.*;
 record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long,List<Integer>> cells, List<Integer> large) {
     record MapTile(Material material, AABB bounds, float[] vertices, List<Box> cities) {}
     private record MapCellKey(int x, int z, Material material) {}
-
     static MapSceneMesh build(String dimension, List<Box> boxes) {
         var groups = new LinkedHashMap<MapCellKey, List<Box>>();
         for (var box : boxes) groups.computeIfAbsent(new MapCellKey((int)Math.floor(box.x()/16), (int)Math.floor(box.z()/16), box.material()), unused -> new ArrayList<>()).add(box);
@@ -30,7 +29,6 @@ record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long
         var cells = new HashMap<Long,List<Integer>>();var large=new ArrayList<Integer>();
         for (int i=0;i<tiles.size();i++) {
             var bounds=tiles.get(i).bounds();
-
             if((long)(cell(bounds.maxX)-cell(bounds.minX)+1)*(cell(bounds.maxZ)-cell(bounds.minZ)+1)>64) {
                 large.add(i);continue;
             }
@@ -39,7 +37,6 @@ record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long
         }
         return new MapSceneMesh(dimension, List.copyOf(tiles), cells, List.copyOf(large));
     }
-
     private static int cell(double value) { return (int)Math.floor(value/16); }
     private static long cellKey(int x,int z) { return ((long)x<<32)|(z&0xffffffffL); }
     int collect(Vec3 camera,List<MapTile> result) {
@@ -54,7 +51,6 @@ record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long
         }
         return seen.size();
     }
-
     private static final float[][][] FACES = {
             {{0,1,0},{0,0,0},{1,0,1},{1,1,1}},
             {{1,1,0},{1,0,0},{0,0,1},{0,1,1}},
@@ -67,7 +63,6 @@ record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long
             {{0,1,0},{0,0,0},{0,0,1},{0,1,1}},
             {{1,1,1},{1,0,1},{1,0,0},{1,1,0}}
     };
-
     private static void append(FloatArrayList output, Box box) {
         float sin = (float)Math.sin(box.yaw()), cos = (float)Math.cos(box.yaw());
         if (box.material() == Material.FOREST || box.material() == Material.JUNGLE) {

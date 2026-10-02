@@ -4,7 +4,6 @@ import dev.hoi.client.ui.*;
 import dev.hoi.protocol.ProtocolAgencyView;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import java.util.*;
 import java.util.function.Consumer;

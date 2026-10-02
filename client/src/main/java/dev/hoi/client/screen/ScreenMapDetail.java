@@ -140,7 +140,6 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
             g.pose().popMatrix();
         }
     }
-
     private void land(GuiGraphicsExtractor g) {
         label(g,"주 소유국",10,41,140,20,UiMenuStyle.TEXT);
         var owners=new ArrayList<>(tiles("owner"));owners.addAll(tiles("controller"));
@@ -295,7 +294,6 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         var logbook=tiles("logbook");
         if(!logbook.isEmpty())hovers.add(new ScreenMapHover(logbook.getFirst(),x(378),y(245),n(37),n(36)));
     }
-
     String flagAt(double px,double py) {
         for(var hover:hovers)if(px>=hover.x()&&px<hover.x()+hover.w()&&py>=hover.y()&&py<hover.y()+hover.h()
                 &&hover.tile().icon().matches("country/[a-z]{3}/flag"))

@@ -4,7 +4,6 @@ import dev.hoi.client.ui.UiAssets;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
-
 public final class ResearchIcons {
     private ResearchIcons() {}
     static void draw(GuiGraphicsExtractor g, String category, int x, int y, int color) {

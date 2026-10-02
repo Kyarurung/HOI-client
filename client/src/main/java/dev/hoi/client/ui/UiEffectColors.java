@@ -5,9 +5,7 @@ import net.minecraft.util.FormattedCharSequence;
 public final class UiEffectColors {
     public static final int GOOD = 0xFF94BA8A;
     public static final int BAD = 0xFFCB9292;
-
     private UiEffectColors() {}
-
     public static int color(int value) {
         int rgb = switch (value & 0xFFFFFF) {
             case 0x55FF55, 0x00AA00, 0x55AA33 -> GOOD;
@@ -16,7 +14,6 @@ public final class UiEffectColors {
         };
         return (value & 0xFF000000) | (rgb & 0xFFFFFF);
     }
-
     public static FormattedCharSequence text(FormattedCharSequence value) {
         return sink -> value.accept((index, style, character) -> {
             var tint = style.getColor();

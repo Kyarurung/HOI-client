@@ -12,7 +12,6 @@ import java.util.function.Supplier;
 
 public final class MapMeshBenchmark {
     private static volatile Object result;
-
     public static void main(String[] args) {
         var allocation = (ThreadMXBean) ManagementFactory.getThreadMXBean();
         allocation.setThreadAllocatedMemoryEnabled(true);
@@ -39,7 +38,6 @@ public final class MapMeshBenchmark {
             System.out.printf(Locale.ROOT, "%d,%.3f,%.3f,%d,%d%n", size, before[7] / 1e6, after[7] / 1e6, beforeBytes[7], afterBytes[7]);
         }
     }
-
     private static void measure(Supplier<Object> operation, long[] times, long[] bytes, int index, ThreadMXBean allocation) {
         long used = allocation.getThreadAllocatedBytes(Thread.currentThread().threadId());
         long started = System.nanoTime();
@@ -47,7 +45,6 @@ public final class MapMeshBenchmark {
         times[index] = System.nanoTime() - started;
         bytes[index] = allocation.getThreadAllocatedBytes(Thread.currentThread().threadId()) - used;
     }
-
     private static List<Box> boxes(int size) {
         var boxes = new ArrayList<Box>(size);
         var materials = Material.values();
@@ -55,7 +52,6 @@ public final class MapMeshBenchmark {
                 1 + i % 3, 1 + i % 5, 1 + i % 7, (i % 63 - 31) * .1f, materials[i % materials.length]));
         return List.copyOf(boxes);
     }
-
     private static void equivalent(List<Box> boxes) {
         var baseline = MapMeshBaseline.build("hoi:army", boxes);
         var current = MapSceneMesh.build("hoi:army", boxes);
@@ -69,6 +65,5 @@ public final class MapMeshBenchmark {
                 throw new AssertionError("Mesh differs at tile " + i);
         }
     }
-
     private MapMeshBenchmark() {}
 }

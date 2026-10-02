@@ -2,9 +2,6 @@ package dev.hoi.client.research;
 
 import java.util.*;
 
-
-
-
 final class ResearchSourcePlacements {
     static final Map<String, ResearchSourceLayout.ResearchPosition> POSITIONS = positions();
     private static Map<String, ResearchSourceLayout.ResearchPosition> positions() {

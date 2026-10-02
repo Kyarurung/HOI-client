@@ -1,6 +1,5 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.client.audio.AudioSuperEvent;
 import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiAssets;
@@ -11,12 +10,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import java.util.*;
 
-
 public class ScreenDialog extends Screen {
     private ProtocolDialogView view;
     boolean stacked;
     private int left, top, pane, panelHeight, bodyTop, bodyBottom, scroll, total, choicePage, quoteViewport;
-
     ScreenDialog(ProtocolDialogView view) { super(Component.literal(view.title())); this.view = view; }
     ProtocolDialogView view() { return view; }
     int panelTop() { return top; }
@@ -43,7 +40,6 @@ public class ScreenDialog extends Screen {
             panelHeight = Math.min(height - 16, 530);
         }
         left = (width - pane) / 2; top = (height - panelHeight) / 2;
-
         int capacity = 2 * Math.clamp((panelHeight - 60 - 40 - 34) / 24, 1, 3);
         int shown = Math.min(capacity, view.choices().size()), rows = (shown + 1) / 2;
         int footer = shown == 0 ? 30 : rows * 24 + 10 + (view.choices().size() > capacity ? 24 : 0);
@@ -81,7 +77,7 @@ public class ScreenDialog extends Screen {
         } else UiMenuStyle.panel(g, left, top, pane, panelHeight);
         String caption = switch (view.kind()) {
             case STATE -> "주 정보"; case DIPLOMACY -> "외교 알림"; case EVENT -> "국가 이벤트 · 자국";
-            case GLOBAL_EVENT -> "국제 뉴스 · 전 세계"; case SUPER_EVENT -> "SUPER EVENT · 전 세계"; case POLITICS -> "정치";
+            case GLOBAL_EVENT -> "국제 뉴스 · 전 세계"; case SUPER_EVENT -> "SUPER EVENT · 전 세계"; case POLITICS -> "정치"; case COMMANDER -> "지휘관";
         };
         UiMenuStyle.heading(g, font, caption, left + 12, top + 11, pane - 48, UiMenuStyle.TEXT);
         int ink = paper() ? 0xff29212b : UiMenuStyle.TEXT;
@@ -167,7 +163,6 @@ public class ScreenDialog extends Screen {
         if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
             if (view.choices().size() == 1) { choose(view.choices().getFirst().id()); return true; }
             if (view.choices().isEmpty()) { onClose(); return true; }
-
             if (getFocused() instanceof net.minecraft.client.gui.components.Button button && button.active)
                 button.onPress(event);
             else onClose();

@@ -37,7 +37,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-
 public final class ResearchScreenTest implements FabricClientGameTest {
     public static void gui2Screenshot(ClientGameTestContext context, String name) {
         context.getInput().resizeWindow(2560, 1440);
@@ -58,7 +57,41 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             ProtocolResearchPayloads.registerPayloadTypes(); ProtocolResearchPayloads.registerPayloadTypes();
         });
         loadPack(context);
-        if (System.getProperty("hoi.testSuite", "all").equals("distant-terrain")) { dev.hoi.client.map.MapDistantTerrainTest.run(context); return; }
+        if (System.getProperty("hoi.testSuite", "all").equals("research-slots")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.research.ResearchSlotTooltipTest.run(context, fixtureResearch());
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("disconnect")) {
+            try (var world = context.worldBuilder().create()) {
+                ScreenDialogChecks.disconnectThread(context);
+                dev.hoi.client.network.NetworkDisconnectTest.run(context, fixtureMenu());
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("missions")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.screen.ScreenBranchMissionSourceTest.run(context);
+                dev.hoi.client.screen.ScreenLandMissionSourceTest.run(context);
+                dev.hoi.client.map.MapCommanderHudTest.run(context,fixtureMenu().hud());
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("doctrine")) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenDoctrineSourceTest.run(context); }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("officers")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.screen.ScreenOfficerSourceTest.run(context);
+                dev.hoi.client.screen.ScreenCommanderSourceTest.run(context);
+                dev.hoi.client.map.MapCommanderHudTest.run(context,fixtureMenu().hud());
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("country-names")) { dev.hoi.client.map.MapCountryNameVisibilityTest.run(context); return; }
+        if (System.getProperty("hoi.testSuite", "all").equals("chunk-fade")) { dev.hoi.client.map.MapChunkFadeTest.run(context); return; }
         if (System.getProperty("hoi.testSuite", "all").equals("construction")) {
             try (var world = context.worldBuilder().create()) {
                 world.getServer().runCommand("gamemode spectator @a");
@@ -77,6 +110,17 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 context.waitTicks(5);
                 dev.hoi.client.screen.ScreenNavalDeploymentTest.run(context);
             }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("agency")) {
+            try (var world = context.worldBuilder().create()) {
+                agency(context);
+                dev.hoi.client.screen.ScreenAgencySourceTest.run(context);
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("politics")) {
+            try (var world = context.worldBuilder().create()) { ScreenCountryChecks.authoritativePoliticsTooltips(context); }
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("occupation")) {
@@ -107,7 +151,8 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         AudioChecks.run(context);
-        dev.hoi.client.map.MapDistantTerrainTest.run(context);
+        dev.hoi.client.map.MapCountryNameVisibilityTest.run(context);
+        dev.hoi.client.map.MapChunkFadeTest.run(context);
         MapSurfaceRenderChecks.run(context);
         dev.hoi.client.map.MapArmyRenderChecks.run(context);
         context.getInput().resizeWindow(1600, 1000);
@@ -182,6 +227,12 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             dev.hoi.client.screen.ScreenWorldTensionChecks.run(context,menu.hud());
             ScreenDialogChecks.run(context);
             ScreenRegimentChecks.run(context);
+            dev.hoi.client.screen.ScreenOfficerSourceTest.run(context);
+                dev.hoi.client.screen.ScreenCommanderSourceTest.run(context);
+            dev.hoi.client.screen.ScreenDoctrineSourceTest.run(context);
+            dev.hoi.client.screen.ScreenBranchMissionSourceTest.run(context);
+                dev.hoi.client.screen.ScreenLandMissionSourceTest.run(context);
+            dev.hoi.client.map.MapCommanderHudTest.run(context,menu.hud());
             context.setScreen(() -> new ScreenMenu(menu)); context.waitTicks(5);
             context.runOnClient(client -> check(((ScreenMenu)client.gui.screen()).panelWidth() == UiPanelLayout.width(ProtocolMenuTab.POLITICS,client.gui.screen().width), "Country panel follows the original 726-pixel container"));
             context.takeScreenshot("hoi-menu-country");
@@ -292,8 +343,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
             movement(context);
             agency(context);
+            dev.hoi.client.screen.ScreenAgencySourceTest.run(context);
             var requests = new ArrayList<ProtocolResearchPayloads.Request>();
             var view = fixtureResearch();
+            dev.hoi.client.research.ResearchSlotTooltipTest.run(context, view);
             context.setScreen(() -> fixtureMainMenu(menu, ProtocolMenuTab.RECRUITMENT, view, requests));
             click(context, "연구 메뉴"); context.waitTicks(3);
             context.takeScreenshot("hoi-research-slots"); gui2Screenshot(context, "hoi-research-slots");
@@ -338,7 +391,6 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 check(client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).count() == 5, "Five actual compact slots");
             });
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
-
             context.setScreen(() -> fixtureMainMenu(menu, ProtocolMenuTab.POLITICS, view, requests));
             click(context, "연구 메뉴");
             click(context, "슬롯 2 · 진행 연구");
@@ -354,6 +406,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             click(context, "연구 메뉴");
             context.runOnClient(client -> checkToolbar(client.gui.screen()));
             dev.hoi.client.network.NetworkMenuTransitionChecks.run(context, menu);
+            dev.hoi.client.network.NetworkDisconnectTest.run(context, menu);
             var six = new ProtocolResearchView(view.session(), view.revision(), view.country(), view.countryName(), view.day(), view.date(), view.speed(),
                     java.util.stream.IntStream.range(0, 6).mapToObj(i -> new ProtocolResearchView.Slot(i, "", 0)).toList(), List.of(), view.message());
             context.getInput().resizeWindow(854, 480); context.waitTicks(2);
@@ -381,7 +434,6 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.setScreen(() -> null);
         }
     }
-
     private static void fullTfrCatalog(ClientGameTestContext context) {
         ProtocolResearchView view;
         try(var in=ResearchScreenTest.class.getResourceAsStream("/tfr-research-view.json")) {
@@ -461,9 +513,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         context.setScreen(() -> new ScreenIndustry(ProtocolMenuTab.PRODUCTION,"loading",null,r -> {}));
         context.waitTicks(2); context.takeScreenshot("hoi-loading-blank-flag");
         context.runOnClient(client -> check(UiMenuBar.flagTexture("").isEmpty() && UiMenuBar.flagTexture("KOR").equals("country/kor/flag"), "Loading flag stays blank until the country is known"));
-
     }
-
     private static void checkResearchLabels(ResearchLayout tree, java.util.function.ToIntFunction<String> textWidth, int lineHeight) {
         var labels = ResearchTreeLabels.create(tree, textWidth, lineHeight);
         check(labels.size() == ResearchSourceLayout.yearLabels(tree).size() + ResearchSourceLayout.headings(tree).size(), "Every year and equipment heading remains visible");
@@ -495,7 +545,6 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                     && label.y() - 2 < other.y() + other.height() && label.y() + label.height() + 2 > other.y()), "Captions overlap: " + label.text());
         }
     }
-
     private static void loadPack(ClientGameTestContext context) {
         var pack = Path.of(System.getProperty("hoi.testResourcePack"));
         check(Files.isRegularFile(pack), "Build HOI-resourcepack first, or pass -PhoiResourcePack=<resources.zip>");
@@ -512,13 +561,11 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                     for (var row : data.getAsJsonArray("packs"))
                         parts.add(pack.resolveSibling(row.getAsJsonObject().get("file").getAsString()));
                 } else parts.add(pack);
-
                 for (int i = 0; i < parts.size(); i++) {
                     String name = "hoi-test-" + i + ".zip";
                     Files.copy(parts.get(i), client.getResourcePackDirectory().resolve(name), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     selected.add("file/" + name);
                 }
-
                 com.google.gson.JsonObject fixture;
                 try (var input = ResearchScreenTest.class.getResourceAsStream("/atlas-client-scene.json")) {
                     fixture = com.google.gson.JsonParser.parseString(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
@@ -583,8 +630,9 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         items.add(new ProtocolAgencyView.Item("spy_master", "agents", "세력 첩보장", "", "", "agency/spy_master", "취임", false, -1, List.of()));
         String[] upgradeNames = {"외국 정보", "국내 정보", "군사 정보", "계획 및 지휘", "수집", "처리 및 활용", "분석", "전파", "인적 정보", "신호 정보", "계측기호정보", "공개출처정보", "지형공간정보", "점조직 체계", "통신 보안", "지원 서비스", "강화된 심문 기술", "제거", "전자정보", "통신정보", "암호 분석 공격 모델", "암호화 체계 연산법 개선", "양자 암호학"};
         int[] maxima = {4,4,4,1,1,1,1,1,1,1,2,2,3,3,3,3,3,2,1,3,4,4,3};
-        for (int i = 0; i < ScreenAgency.UPGRADE_ORDER.size(); i++) {
-            String upgrade = ScreenAgency.UPGRADE_ORDER.get(i);
+        var commonUpgrades = ScreenAgency.UPGRADE_ORDER.stream().filter(id -> !id.equals("hidden_front")).toList();
+        for (int i = 0; i < commonUpgrades.size(); i++) {
+            String upgrade = commonUpgrades.get(i);
             int level = i % 3 == 0 ? maxima[i] : i % 3 == 1 ? maxima[i] / 2 : 0;
             items.add(new ProtocolAgencyView.Item("upgrade:" + upgrade, "upgrades", upgradeNames[i], level + " / " + maxima[i], "민간공장 5개 · 30일", "agency/" + upgrade, "개선", i % 3 == 1, level / (double)maxima[i], List.of()));
         }
@@ -730,7 +778,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             var national=new ProtocolCountryHud.NationalIndicators(n.politicalPower(),n.stability(),n.warSupport(),n.factories(),n.energyRatio(),n.fuel(),n.supplies(),n.supplyEfficiency(),n.convoys(),n.transportEfficiency(),n.commandPower(),n.rulingPartySupport(),n.manpower(),ratio,ratio>.5?100.0:-100.0,5.0);
             var hud=new ProtocolCountryHud(150.0,119.0,209.0,1707.0,704.314,.36,false,0L,national);
             context.setScreen(() -> new ScreenMenu(new ProtocolMenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),hud)));
-            context.waitTicks(3);
+            context.getInput().setCursorPos(2400,1300);context.waitTicks(3);
             check(UiMenuBar.indicators(hud).stream().filter(i->i.icon().equals("fuel")).findFirst().orElseThrow().value().equals(ratio>=1?"가득 참":"5일"),"Full fuel overrides day estimates with the TFR full label");
             try {
                 var image=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-fuel-stock-"+(int)(ratio*100)+"-gui2").toFile());

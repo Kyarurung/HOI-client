@@ -4,11 +4,9 @@ import java.util.*;
 import dev.hoi.client.research.ResearchLayout.ResearchNode;
 import dev.hoi.client.research.ResearchSourceLayout.ResearchSegment;
 
-
 final class ResearchRoutes {
     private record ResearchPoint(int x, int y) {}
     private record ResearchPending(int index, int distance, int estimate) {}
-
     static boolean blocked(ResearchSegment s, List<ResearchNode> nodes) {
         for (var n : nodes) {
             boolean cuts = s.x1() == s.x2()
@@ -18,12 +16,10 @@ final class ResearchRoutes {
         }
         return false;
     }
-
     private static List<ResearchPoint> ports(ResearchNode n) {
         int cx=n.x()+n.width()/2, cy=n.y()+n.height()/2;
         return List.of(new ResearchPoint(cx,n.y()),new ResearchPoint(cx,n.y()+n.height()),new ResearchPoint(n.x(),cy),new ResearchPoint(n.x()+n.width(),cy));
     }
-
     static List<ResearchSegment> around(ResearchNode from, ResearchNode to, ResearchLayout layout) {
         var starts=ports(from); var goals=ports(to);
         var xx=new TreeSet<Integer>(); var yy=new TreeSet<Integer>();

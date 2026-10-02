@@ -193,7 +193,7 @@ public final class ScreenCountryChecks {
                 for(int i=0;i<20;i++) {
                     int x=list.x()+8,y=list.y()+4+i*11+5;
                     var entry=screen.politicsHover(x,y);
-                    if(entry!=null && entry.detail().contains("25.00%")) {
+                    if(entry!=null && entry.icon().startsWith("politics/party/") && entry.progress() >= .4 && entry.progress() < .5) {
                         if(!entry.value().matches("[0-9]+\\.[0-9]{2}%"))throw new AssertionError("Party precision: "+entry.value());
                         double scale=c.getWindow().getGuiScale();return new double[]{x*scale,y*scale};
                     }
@@ -201,7 +201,7 @@ public final class ScreenCountryChecks {
                 throw new AssertionError("No original 40-50 percent party tooltip");
             });
             context.getInput().setCursorPos(partyPoint[0],partyPoint[1]);context.waitTicks(3);
-            context.takeScreenshot("hoi-party-scaled-effects-gui2");
+            context.takeScreenshot("hoi-party-source-precision-gui2");
             for(String power:List.of("0","2000","minority","economic","farming")) {
                 var choices=new com.google.gson.Gson().fromJson(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"choices-"+power+".json")),ProtocolDialogView.class);
                 context.setScreen(() -> new ScreenMenu(backdrop));context.waitTicks(3);
@@ -313,7 +313,6 @@ public final class ScreenCountryChecks {
         context.getInput().resizeWindow(1600, 1000);
         context.waitTicks(3);
     }
-
     public static void politicsHover(ClientGameTestContext context, ProtocolMenuView source) {
         var sections = new ArrayList<>(politics());
         var overview = new ArrayList<>(sections.getFirst().entries());
@@ -341,7 +340,6 @@ public final class ScreenCountryChecks {
                     .map(w -> (Button)w).findFirst().orElseThrow();
             var effects = screen.politicsHover(policy.getX() + 2, policy.getY() + 2);
             if (effects == null || !effects.detail().contains("+5%")) throw new AssertionError("Government hover exposes current effect values");
-
             for (int pane : new int[]{248,363,726}) {
                 var sizing = new dev.hoi.client.ui.UiPoliticsLayout(pane, 40);
                 var focusBox = sizing.focus(); var focusImage = sizing.focusImage();
@@ -450,11 +448,16 @@ public final class ScreenCountryChecks {
                 if (screen.politicsHover(box.x() + 1, box.y() + 1) != null)
                     throw new AssertionError("Chart corner must not have a tooltip");
                 var colors = new HashSet<Integer>();
-                for (var line : dev.hoi.client.ui.UiTooltips.lines(c.font, expected.detail(), 1280))
+                var rendered = new StringBuilder();
+                for (var line : dev.hoi.client.ui.UiTooltips.exactLines(c.font, expected.detail(), 1280))
                     line.accept((index, style, character) -> {
                         if (style.getColor() != null) colors.add(style.getColor().getValue());
+                        rendered.appendCodePoint(character);
                         return true;
                     });
+                String drift = expected.detail().substring(expected.detail().indexOf("매일 변화:"));
+                String plainDrift = drift.replaceAll("§.", "");
+                if (rendered.indexOf(plainDrift) < 0) throw new AssertionError("Party drift precision changed: " + rendered);
                 if (entry.getKey().equals("zero")) {
                     if (!expected.detail().contains("매일 변화: §e+0.00§r")) throw new AssertionError("Zero growth must use the source two-decimal format");
                 } else {
@@ -469,7 +472,6 @@ public final class ScreenCountryChecks {
         }
         context.getInput().setCursorPos(1500, 800);
     }
-
     public static void adviserFrames(ClientGameTestContext context) {
         context.setScreen(() -> new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("인물 프레임 검증")) {
             @Override public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor g, int mx, int my, float delta) {
@@ -486,7 +488,6 @@ public final class ScreenCountryChecks {
         });
         dev.hoi.client.ResearchScreenTest.gui2Screenshot(context, "hoi-adviser-original-frames");
     }
-
     public static List<ProtocolMenuView.Section> politics() {
         var result = new ArrayList<ProtocolMenuView.Section>();
         result.add(new ProtocolMenuView.Section("국가 현황", "politics", List.of(new ProtocolMenuView.Entry("정치력","72","화면 검증용 데이터"),
@@ -650,6 +651,7 @@ public final class ScreenCountryChecks {
             screen.update(new ProtocolCountryPayloads.Response(screen.token(),""));
             if(client.gui.screen()!=null)throw new AssertionError("Revoked foreign UI must close");
         });
+        ScreenJustificationTest.run(context, fixture);
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
     }
     private static void click(ClientGameTestContext context,String label) {

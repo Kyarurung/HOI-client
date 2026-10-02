@@ -23,10 +23,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import java.util.*;
 
-
 public final class ResearchScreen extends Screen implements InputSidebarMovement.InputMovementScreen {
-
-
     private static final String[] CATEGORIES = {"INFANTRY", "SUPPORT", "ARMOR", "ARTILLERY", "NAVY", "NAVAL_SUPPORT", "AIR", "ENGINEERING", "INDUSTRY"};
     private static final String[] LABELS = {"보병", "지상 & 항공 지원", "기갑", "포", "해군", "해군 지원 장비", "공군", "공학", "산업"};
     private static final int GOLD = 0xFFFFAA00, TEXT = 0xFFE0E6E8, MUTED = 0xFF9BABB4;
@@ -41,7 +38,6 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     private final java.util.function.Consumer<ProtocolResearchPayloads.Request> requests;
     private final java.util.function.Consumer<ProtocolMenuTab> menus;
     private final List<Button> baseButtons = new ArrayList<>();
-
     public ResearchScreen(ProtocolResearchView view) { this(view, HoiClient::send); }
     public ResearchScreen(ProtocolResearchView view, java.util.function.Consumer<ProtocolResearchPayloads.Request> requests) {
         this(view, requests, HoiClient::openMenu);
@@ -281,7 +277,6 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         }
         for (var label : referenceLabels) {
             int x = (int)(10 + label.x() - scrollX), y = (int)(treeTop + label.y() - scrollY);
-
             g.fill(x - 2, y - 1, x + label.width() + 2, y + label.height() + 1, 0xFF101A21);
             g.text(font, label.text(), x, y, label.year() ? TEXT : MUTED);
         }

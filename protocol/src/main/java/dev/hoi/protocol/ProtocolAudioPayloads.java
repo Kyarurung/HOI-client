@@ -7,7 +7,6 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import java.util.Objects;
 
-
 public final class ProtocolAudioPayloads {
     private static boolean registered;
     private ProtocolAudioPayloads() {}

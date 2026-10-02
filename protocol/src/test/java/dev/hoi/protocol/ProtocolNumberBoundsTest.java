@@ -19,7 +19,6 @@ class ProtocolNumberBoundsTest {
             Locale.setDefault(Locale.Category.FORMAT, original);
         }
     }
-
     @Test
     void preservesRoundingSignsAndLargeValuesWithoutClamping() {
         assertEquals("0", ProtocolNumberBounds.fixed(0, 0));
@@ -34,7 +33,6 @@ class ProtocolNumberBoundsTest {
         assertEquals("NaN", ProtocolNumberBounds.fixed(Double.NaN, 1));
         assertEquals("Infinity", ProtocolNumberBounds.fixed(Double.POSITIVE_INFINITY, 1));
     }
-
     @Test
     void rejectsUnboundedPrecision() {
         assertThrows(IllegalArgumentException.class, () -> ProtocolNumberBounds.fixed(1, -1));

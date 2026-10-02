@@ -2,7 +2,6 @@ package dev.hoi.client.screen;
 
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.audio.AudioSuperEvent;
-import dev.hoi.client.research.ResearchScreen;
 import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.*;
@@ -48,7 +47,7 @@ public final class ScreenDialogCoordinator {
         ClientPlayNetworking.registerGlobalReceiver(ProtocolDialogPayloads.Show.TYPE, (p, c) -> receive(p));
         ClientPlayNetworking.registerGlobalReceiver(ProtocolDialogPayloads.Close.TYPE, (p, c) -> close(p.token()));
         ClientPlayNetworking.registerGlobalReceiver(ProtocolDialogPayloads.Details.TYPE, (p, c) -> details(p));
-        ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> reset());
+        ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> c.execute(ScreenDialogCoordinator::reset));
         ClientTickEvents.END_CLIENT_TICK.register(c -> {
             if (canOverlay(c.gui.screen())) {
                 for (var view : List.copyOf(pending.values())) show(view);
@@ -110,7 +109,9 @@ public final class ScreenDialogCoordinator {
             HoiClient.cancelOpen();
             var parent = contentScreen();
             if (parent instanceof ScreenPoliticsChoice politics) parent = politics.backdrop();
-            var screen = view.kind() == ProtocolDialogView.Kind.POLITICS ? new ScreenPoliticsChoice(view, parent) : view.kind() == ProtocolDialogView.Kind.STATE ? (view.image().equals("air_detail/background") ? new ScreenAirDetail(view) : new ScreenMapDetail(view)) : new ScreenDialog(view);
+            if (parent instanceof ScreenCommanderRoster commander) parent = commander.backdrop();
+            if (parent instanceof ScreenCommanderTraits traits) parent = traits.backdrop();
+            var screen = view.kind() == ProtocolDialogView.Kind.COMMANDER ? (view.image().startsWith("commander/trait-")?new ScreenCommanderTraits(view,parent):new ScreenCommanderRoster(view,parent)) : view.kind() == ProtocolDialogView.Kind.POLITICS ? new ScreenPoliticsChoice(view, parent) : view.kind() == ProtocolDialogView.Kind.STATE ? (view.image().equals("air_detail/background") ? new ScreenAirDetail(view) : new ScreenMapDetail(view)) : new ScreenDialog(view);
             if (client.gui.screen() == notifications && notifications != null) {
                 notifications.backdrop(screen); screen.init(notifications.width, notifications.height);
             } else client.gui.setScreen(screen);
@@ -137,12 +138,14 @@ public final class ScreenDialogCoordinator {
             return;
         }
         if (notifications != null && notifications.backdrop() instanceof ScreenDialog screen && screen.view().token().equals(token)) {
-            notifications.backdrop(screen instanceof ScreenPoliticsChoice politics ? politics.backdrop() : null);
+            notifications.backdrop(screen instanceof ScreenPoliticsChoice politics ? politics.backdrop() : screen instanceof ScreenCommanderRoster commander ? commander.backdrop() : screen instanceof ScreenCommanderTraits traits ? traits.backdrop() : null);
             return;
         }
         if (client.gui.screen() instanceof ScreenDialog screen && screen.view().token().equals(token)) {
             if (screen instanceof ScreenCompletion completion) completion.dismiss();
             else if (screen instanceof ScreenPoliticsChoice politics) politics.dismiss();
+            else if (screen instanceof ScreenCommanderRoster commander) commander.dismiss();
+            else if (screen instanceof ScreenCommanderTraits traits) traits.dismiss();
             else client.gui.setScreen(null);
         }
     }

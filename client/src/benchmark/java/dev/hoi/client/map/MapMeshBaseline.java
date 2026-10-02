@@ -11,7 +11,6 @@ import java.util.*;
 record MapMeshBaseline(String dimension, List<MapMeshBaseline.MapBaselineTile> tiles, Map<Long,List<Integer>> cells, List<Integer> large) {
     record MapBaselineTile(Material material, AABB bounds, float[] vertices, List<Box> cities) {}
     private record MapBaselineKey(int x, int z, Material material) {}
-
     static MapMeshBaseline build(String dimension, List<Box> boxes) {
         var groups = new LinkedHashMap<MapBaselineKey, List<Box>>();
         for (var box : boxes) groups.computeIfAbsent(new MapBaselineKey((int)Math.floor(box.x()/16), (int)Math.floor(box.z()/16), box.material()), unused -> new ArrayList<>()).add(box);
@@ -30,7 +29,6 @@ record MapMeshBaseline(String dimension, List<MapMeshBaseline.MapBaselineTile> t
         var cells = new HashMap<Long,List<Integer>>();var large=new ArrayList<Integer>();
         for (int i=0;i<tiles.size();i++) {
             var bounds=tiles.get(i).bounds();
-
             if((long)(cell(bounds.maxX)-cell(bounds.minX)+1)*(cell(bounds.maxZ)-cell(bounds.minZ)+1)>64) {
                 large.add(i);continue;
             }
@@ -39,7 +37,6 @@ record MapMeshBaseline(String dimension, List<MapMeshBaseline.MapBaselineTile> t
         }
         return new MapMeshBaseline(dimension, List.copyOf(tiles), cells, List.copyOf(large));
     }
-
     private static int cell(double value) { return (int)Math.floor(value/16); }
     private static long cellKey(int x,int z) { return ((long)x<<32)|(z&0xffffffffL); }
     int collect(Vec3 camera,List<MapBaselineTile> result) {
@@ -54,7 +51,6 @@ record MapMeshBaseline(String dimension, List<MapMeshBaseline.MapBaselineTile> t
         }
         return seen.size();
     }
-
     private static void append(FloatArrayList output, Box box) {
         if (box.material() == Material.FOREST || box.material() == Material.JUNGLE) {
             face(output, box, new float[][]{{0,1,0},{0,0,0},{1,0,1},{1,1,1}}, 0,0,1);

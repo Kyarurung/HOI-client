@@ -6,7 +6,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 
-/** Scrollable original description images and text in one bounded tooltip. */
 public final class UiPoliticalTooltip {
     private UiPoliticalTooltip() {}
     private record UiTooltipRow(net.minecraft.util.FormattedCharSequence text, String image, int height, boolean caption) {

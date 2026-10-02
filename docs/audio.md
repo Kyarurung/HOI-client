@@ -41,3 +41,4 @@ MusicRoutingChecks와 DialogScreenChecks는 실제 Minecraft SoundManager의 중
 국가 중점 음악 재생 중에는 플레이리스트의 재생 버튼도 선택된 곡으로 전환한다. 이때 버튼은 일시정지가 아닌 재생으로 표시한다. 곡 직접 선택·이전 곡·다음 곡도 중점 음악을 중단하고 선택한 곡을 재생한다. 슈퍼 이벤트 음악의 우선순위는 유지한다. AudioMusicRoutingChecks는 실제 음악 창의 재생·곡 선택 버튼과 SoundManager의 전환을 검사한다. 플레이리스트 기본 음량은 기존 100%를 유지한다.
 
 음악 변경 검증은 `./gradlew test runGameTest remapJar -PhoiTestSuite=audio --console=plain --no-daemon`으로 실행한다. 전체 화면 순회 대신 기존 AudioMusicRoutingChecks를 실행하며 실제 네더·오버월드 왕복에서 선택 곡·채널·수동 일시정지·중점·슈퍼 이벤트 유지와 이전 차원 소리 정리를 검사한다. 운영 서버의 지도 차원·다른 클라이언트 모드 조합에 대한 접속 검증은 별도다.
+첩보 개선 버튼은 원본의 정보·정보 순환·수집 분야·휴민트·암호 분류별 효과음을 사용하며 비활성 개선은 소리를 내지 않습니다. 생산 분류·구형 표시·자원/함종 필터는 원본 체크박스 소리, 공장 할당 칸은 `click_scroll`, 닫기 표시는 닫기 소리를 사용합니다. 음원 원본 경로와 변환 이력은 리소스팩의 기존 sound-imports와 sound-provenance에 보존합니다.

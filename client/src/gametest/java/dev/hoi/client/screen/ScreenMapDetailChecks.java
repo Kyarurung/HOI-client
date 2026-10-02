@@ -26,7 +26,6 @@ final class ScreenMapDetailChecks {
         context.setScreen(()->new ScreenMapDetail(tokyo));context.waitTicks(3);
         var slotPoint=context.computeOnClient(client->{var screen=(ScreenMapDetail)client.gui.screen();double scale=screen.panelWidth()/463.0;return new double[]{2*(screen.panelLeft()+250*scale),2*(screen.panelTop()+148*scale)};});
         context.getInput().setCursorPos(slotPoint[0],slotPoint[1]);context.waitTicks(8);context.takeScreenshot("hoi-tokyo-slot-effects-gui2");
-
         context.runOnClient(client -> {
             var text=dev.hoi.client.ui.UiTooltips.sentences(net.minecraft.network.chat.Component.literal("§e집권 정당: §#3659D9더불어민주당§r"));
             if(!text.getString().equals("집권 정당: 더불어민주당"))throw new AssertionError("TFR RGB markup leaked into tooltip text");
@@ -37,7 +36,6 @@ final class ScreenMapDetailChecks {
                 boolean correct=styled.visit((style,part)->style.getColor()!=null&&style.getColor().getValue()==entry.getValue()?Optional.of(true):Optional.empty(),net.minecraft.network.chat.Style.EMPTY).orElse(false);
                 if(!correct)throw new AssertionError("TFRKP tooltip color mismatch: "+entry.getKey());
             }
-
         });
         var own = new ArrayList<ProtocolDialogView.Tile>();
         own.add(tile("owner", "주 소유국", "대한민국", "country/kor/flag"));
@@ -145,7 +143,6 @@ final class ScreenMapDetailChecks {
                     if (screen.panelTop() < dev.hoi.client.ui.UiMenuBar.height(screen.width)) throw new AssertionError("Detail cannot overlap the top menu");
                     for (var child : screen.children()) if (child instanceof Button b && (b.getX() < 0 || b.getY() < 0 || b.getRight() > screen.width || b.getBottom() > screen.height)) throw new AssertionError("Detail button escaped viewport");
                     if (!screen.allowsMovement()) throw new AssertionError("Map movement remains available");
-
                 });
                 context.takeScreenshot("hoi-map-detail-" + index + "-" + size[0] + "-gui2");
                 if(index==3&&size[0]==2560)context.runOnClient(client -> {

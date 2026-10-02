@@ -3,7 +3,6 @@ package dev.hoi.client.research;
 import dev.hoi.protocol.ProtocolResearchView.Tech;
 import java.util.*;
 
-
 public final class ResearchSourceLayout {
     private static final String PREFIX = "hoi:tfr/technology/";
     private static final Map<String, ResearchPosition> ARMOR = armor();
@@ -11,16 +10,13 @@ public final class ResearchSourceLayout {
     private static final List<Integer> ARMOR_YEARS = List.of(1980, 2018, 2020, 2022, 2024, 2028, 2032);
     private static final List<Integer> AMMUNITION_YEARS = List.of(1980, 2000, 2012, 2020, 2022, 2024, 2026);
     private static final List<Integer> INDUSTRY_YEARS = List.of(2020, 2021, 2023, 2025, 2027, 2029, 2031, 2033, 2035);
-
     record ResearchPosition(int centerX, int centerY, boolean hull) {}
     public record ResearchSourceLabel(String text, int x, int y) {}
     record ResearchSegment(int x1, int y1, int x2, int y2) {}
     record ResearchConnection(Tech parent, List<ResearchSegment> segments) {}
     record ResearchChoice(int x, int y, boolean horizontal) {}
     record ResearchGroup(int x, int y, int width, int height, String caption) {}
-
     private ResearchSourceLayout() {}
-
     private static Map<String, ResearchPosition> armor() {
         var p = new LinkedHashMap<String, ResearchPosition>();
         lane(p, 80, false, new int[]{84, 128, 216, 282}, "engine_tech_1", "engine_tech_2", "engine_tech_3", "engine_tech_4");
@@ -38,7 +34,6 @@ public final class ResearchSourceLayout {
         lane(p, 744, false, new int[]{62, 106, 172, 216}, "apds_tech", "heat_tech", "apfsds_tech", "heatfs_tech");
         return Map.copyOf(p);
     }
-
     private static Map<String, ResearchPosition> industry() {
         var p = new LinkedHashMap<String, ResearchPosition>();
         lane(p, 100, false, new int[]{40, 128, 172, 216, 304, 348, 392}, "basic_machine_tools", "improved_machine_tools", "advanced_machine_tools", "assembly_line_production", "industrial_software", "industrial_software2", "industrial_software3");
@@ -60,30 +55,24 @@ public final class ResearchSourceLayout {
         lane(p, 496, false, new int[]{128, 216, 304, 392}, "rubber_processing", "improved_rubber_processing", "advanced_rubber_processing", "modern_rubber_processing");
         return Map.copyOf(p);
     }
-
     private static void lane(Map<String, ResearchPosition> positions, int x, boolean hull, int[] rows, String... ids) {
         if (rows.length != ids.length) throw new IllegalArgumentException("Research lane length");
         for (int i = 0; i < ids.length; i++) positions.put(ids[i], new ResearchPosition(x, rows[i], hull));
     }
-
     private static Map<String, ResearchPosition> positions(String category) {
         return switch (category) { case "ARMOR" -> ARMOR; case "INDUSTRY" -> INDUSTRY; default -> ResearchSourcePlacements.POSITIONS; };
     }
-
     static ResearchPosition position(Tech tech) {
         return tech.source() != null && tech.id().equals(PREFIX + tech.source().id())
                 ? positions(ResearchLayout.category(tech)).get(tech.source().id()) : null;
     }
-
     static boolean applies(ResearchLayout layout) {
         return layout.nodes().stream().anyMatch(n -> position(n.tech()) != null);
     }
-
     static boolean iconOnly(Tech tech) {
         var position = position(tech);
         return position != null && !position.hull();
     }
-
     static ResearchLayout create(List<Tech> technologies, String category, String filter) {
         var available = technologies.stream().filter(t -> (t.source()==null || t.source().parentTechnology().isEmpty()) && ResearchLayout.category(t).equals(category)).toList();
         if (available.stream().noneMatch(t -> position(t) != null)) return null;
@@ -99,12 +88,10 @@ public final class ResearchSourceLayout {
             width = Math.max(width, position.centerX() + w / 2 + 64);
             height = Math.max(height, position.centerY() + headingSpace + h / 2 + 38);
         }
-
         var extra = ResearchLayout.sourceLayout(available.stream().filter(t -> position(t) == null).toList());
         for (var node : extra.nodes()) nodes.add(new ResearchLayout.ResearchNode(node.tech(), node.x(), height + node.y()));
         if (!extra.nodes().isEmpty()) { width = Math.max(width, extra.width()); height += extra.height(); }
         nodes.sort(Comparator.comparingInt(ResearchLayout.ResearchNode::y).thenComparingInt(ResearchLayout.ResearchNode::x).thenComparing(n -> n.tech().id()));
-
         var fullLayout = new ResearchLayout(nodes, List.of(), width, height);
         for (var label : yearLabels(fullLayout)) height = Math.max(height, label.y() + 24);
         for (var label : headings(fullLayout)) height = Math.max(height, label.y() + 24);
@@ -112,11 +99,9 @@ public final class ResearchSourceLayout {
                 || n.tech().id().toLowerCase(Locale.ROOT).contains(filter)).toList();
         return new ResearchLayout(visible, available.stream().map(Tech::year).distinct().sorted().toList(), width, height);
     }
-
     static double scale(ResearchLayout layout) {
         return layout.nodes().isEmpty() ? 1 : layout.nodes().getFirst().scale();
     }
-
     static ResearchLayout fit(ResearchLayout layout, int viewport) {
         double scale = Math.clamp(viewport / 800.0, 1, 1.6);
         if (scale == 1) return layout;
@@ -125,12 +110,10 @@ public final class ResearchSourceLayout {
                 (int)Math.round((n.y() + n.height() / 2.0) * scale) - (int)Math.round(n.height() * scale) / 2, scale)).toList();
         return new ResearchLayout(nodes, layout.years(), (int)Math.ceil(layout.width() * scale), (int)Math.ceil(layout.height() * scale));
     }
-
     private static List<ResearchSourceLabel> scaleLabels(List<ResearchSourceLabel> labels, ResearchLayout layout) {
         double scale = scale(layout);
         return labels.stream().map(l -> new ResearchSourceLabel(l.text(), (int)Math.round(l.x() * scale), (int)Math.round(l.y() * scale))).toList();
     }
-
     public static List<ResearchSourceLabel> yearLabels(ResearchLayout layout) {
         String category = ResearchLayout.category(layout.nodes().getFirst().tech());
         if (!Set.of("ARMOR", "INDUSTRY").contains(category)) return scaleLabels(referenceYears(category, layout), layout);
@@ -144,7 +127,6 @@ public final class ResearchSourceLayout {
         }
         return scaleLabels(labels, layout);
     }
-
     public static List<ResearchSourceLabel> headings(ResearchLayout layout) {
         String category = ResearchLayout.category(layout.nodes().getFirst().tech());
         if (!Set.of("ARMOR", "INDUSTRY").contains(category)) return scaleLabels(referenceHeadings(category).stream()
@@ -154,12 +136,9 @@ public final class ResearchSourceLayout {
                     new ResearchSourceLabel("수륙양용", 422, 2), new ResearchSourceLabel("장갑", 570, 2), new ResearchSourceLabel("보조 무기 및 탄약", 722, 2))
                 : List.of(new ResearchSourceLabel("생산", 100, 2), new ResearchSourceLabel("산업", 210, 46), new ResearchSourceLabel("건설", 298, 46), new ResearchSourceLabel("합성 석유", 518, 2)), layout);
     }
-
     private static int headingSpace(String category) {
-
         return Set.of("INFANTRY", "SUPPORT", "NAVY", "NAVAL_SUPPORT").contains(category) ? 14 : 0;
     }
-
     static List<ResearchConnection> connections(ResearchLayout layout) {
         var nodes = new LinkedHashMap<String, ResearchLayout.ResearchNode>();
         layout.nodes().forEach(n -> nodes.put(n.tech().id(), n));
@@ -186,7 +165,6 @@ public final class ResearchSourceLayout {
                 segment(segments, bus, py, bus, cy);
                 segment(segments, bus, cy, end, cy);
             } else if (py == cy) {
-
                 segment(segments, px < cx ? parent.x() + parent.width() : parent.x(), py,
                         px < cx ? child.x() : child.x() + child.width(), cy);
             } else if (cy > py) {
@@ -210,11 +188,9 @@ public final class ResearchSourceLayout {
         }
         return List.copyOf(result);
     }
-
     private static void segment(List<ResearchSegment> segments, int x1, int y1, int x2, int y2) {
         if (x1 != x2 || y1 != y2) segments.add(new ResearchSegment(x1, y1, x2, y2));
     }
-
     static List<ResearchChoice> choices(ResearchLayout layout) {
         var nodes = new HashMap<String, ResearchLayout.ResearchNode>();
         layout.nodes().forEach(n -> nodes.put(n.tech().id(), n));
@@ -230,7 +206,6 @@ public final class ResearchSourceLayout {
         }
         return List.copyOf(result);
     }
-
     static List<ResearchGroup> groups(ResearchLayout layout) {
         var result = new ArrayList<ResearchGroup>();
         addGroup(result, layout, "이 기술 중 하나만 연구할 수 있습니다.", Set.of("energy_farms3", "nuclear_reactors3", "power_plants4"));
@@ -250,7 +225,6 @@ public final class ResearchSourceLayout {
         int bottom=nodes.stream().mapToInt(n->n.y()+n.height()).max().orElseThrow()+margin;
         groups.add(new ResearchGroup(x,y,right-x,bottom-y,caption));
     }
-
     private static List<ResearchSourceLabel> referenceYears(String category, ResearchLayout layout) {
         int[] years, coordinates;
         switch (category) {
@@ -271,7 +245,6 @@ public final class ResearchSourceLayout {
         }
         return result;
     }
-
     private static List<ResearchSourceLabel> referenceHeadings(String category) {
         return switch (category) {
             case "INFANTRY" -> List.of(new ResearchSourceLabel("화기 & 장비",64,22),new ResearchSourceLabel("특수부대",64,448));

@@ -10,7 +10,6 @@ public final class ScreenAgencyChecks {
         var button = screen.children().stream().filter(c -> c instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals(label)).map(c -> (net.minecraft.client.gui.components.Button)c).findFirst().orElseThrow();
         screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(button.getX() + button.getWidth() / 2.0, button.getY() + button.getHeight() * .7, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
     }
-
     public static void run(ClientGameTestContext context, List<Item> items) {
         var partial = items.stream().filter(i -> i.id().equals("upgrade:domestic_intelligence")).findFirst().orElseThrow();
         if (ScreenAgency.upgradeStages(partial) != 4 || ScreenAgency.upgradeLevel(partial) != 2

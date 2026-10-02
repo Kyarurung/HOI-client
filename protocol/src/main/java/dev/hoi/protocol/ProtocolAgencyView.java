@@ -2,7 +2,6 @@ package dev.hoi.protocol;
 
 import java.util.List;
 
-
 public record ProtocolAgencyView(String session, long revision, String country, String name, String status,
         List<Item> items, String message) {
     public ProtocolAgencyView {
@@ -13,11 +12,19 @@ public record ProtocolAgencyView(String session, long revision, String country, 
             throw new IllegalArgumentException("Invalid agency catalog");
     }
     public record Item(String id, String group, String title, String value, String detail, String texture,
-            String button, boolean enabled, double progress, List<Parameter> parameters) {
+            String button, boolean enabled, double progress, List<Parameter> parameters, int factories, Boolean factoriesAvailable) {
+        public Item(String id, String group, String title, String value, String detail, String texture,
+                String button, boolean enabled, double progress, List<Parameter> parameters, int factories) {
+            this(id, group, title, value, detail, texture, button, enabled, progress, parameters, factories, null);
+        }
+        public Item(String id, String group, String title, String value, String detail, String texture,
+                String button, boolean enabled, double progress, List<Parameter> parameters) {
+            this(id, group, title, value, detail, texture, button, enabled, progress, parameters, 0);
+        }
         public Item {
             text(id, 128); text(group, 32); text(title, 128); text(value, 128); text(detail, 2000);
             text(texture, 128); text(button, 64); parameters = List.copyOf(parameters);
-            if (parameters.size() > 4 || !Double.isFinite(progress) || progress < -1 || progress > 1)
+            if (parameters.size() > 4 || !Double.isFinite(progress) || progress < -1 || progress > 1 || factories < 0 || factories > 1000)
                 throw new IllegalArgumentException("Invalid agency item");
         }
     }

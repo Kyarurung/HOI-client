@@ -2,13 +2,11 @@ package dev.hoi.protocol;
 
 import java.util.*;
 
-
 public record ProtocolIndustryView(String session, long revision, String country, ProtocolCountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
         List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
         Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, ProtocolTankDesigner tankDesigner, NavalDeployment navalDeployment) {
-
     public ProtocolIndustryView(String session, long revision, String country, ProtocolCountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
@@ -35,7 +33,6 @@ public record ProtocolIndustryView(String session, long revision, String country
             waiting.forEach((line,reason)->{text(line,128);if(!Set.of("PRODUCTION_CAN_NOT_DEPLOY_MANPOWER","PRODUCTION_NAVAL_DEPLOYMENT_INVALID_BASE","PRODUCTION_CAN_NOT_DEPLOY").contains(reason))throw new IllegalArgumentException("Invalid naval deployment status");});
         }
     }
-
     public ProtocolIndustryView(String session, long revision, String country, ProtocolCountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
@@ -46,7 +43,6 @@ public record ProtocolIndustryView(String session, long revision, String country
     public ProtocolIndustryView withTankDesigner(ProtocolTankDesigner designer) {
         return new ProtocolIndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer,navalDeployment);
     }
-
     public ProtocolIndustryView(String session, long revision, String country, ProtocolCountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
@@ -54,7 +50,6 @@ public record ProtocolIndustryView(String session, long revision, String country
         Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces) {
         this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,null);
     }
-
     public ProtocolIndustryView(String session, long revision, String country, ProtocolCountryHud hud, Economy economy,
             List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
             List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
@@ -143,31 +138,26 @@ public record ProtocolIndustryView(String session, long revision, String country
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
             double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
             String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer, List<ProtocolTankDesigner.Stat> stats) {
-
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
                 String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer) {
             this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,designer,List.of());
         }
-
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
                 String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning) {
             this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,null);
         }
-
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
                 String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment) {
             this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,null);
         }
-
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
                 String replacement, String family, String familyName, Long demand, Boolean acquired) {
             this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,null);
         }
-
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
                 String replacement, String family, String familyName, Long demand) {
@@ -179,13 +169,11 @@ public record ProtocolIndustryView(String session, long revision, String country
                 String replacement, String family, String familyName) {
             this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,null);
         }
-
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
                 String replacement, String family) {
             this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,null);
         }
-
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit) {
             this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,null,null);

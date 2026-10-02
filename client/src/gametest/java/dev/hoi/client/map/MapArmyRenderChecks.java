@@ -8,9 +8,7 @@ public final class MapArmyRenderChecks {
     private static final String[] TYPES = {"infantry", "marine", "airborne", "mountaineer",
             "motorized_infantry", "mechanized_infantry", "tank", "light_tank",
             "artillery", "self_propelled_artillery", "anti_tank", "air_defense", "special_forces", "militia"};
-
     private MapArmyRenderChecks() {}
-
     public static void run(ClientGameTestContext context) {
         context.runOnClient(client -> {
             for (String type : TYPES) {

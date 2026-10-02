@@ -7,7 +7,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
 
-
 public final class UiKeywordIcons {
     private static final FontDescription FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("hoi", "keywords"));
     private record UiIconBinding(String label, String glyph) {}
@@ -35,7 +34,6 @@ public final class UiKeywordIcons {
         }, net.minecraft.network.chat.Style.EMPTY);
         return result.append(decorateSource(line[0], inferIcons));
     }
-
     private static Component decorateSource(Component text, boolean inferIcons) {
         if(!text.getString().contains("£"))return inferIcons ? decorate(text) : text;
         if(bindings==null)bindings=load();
@@ -54,7 +52,6 @@ public final class UiKeywordIcons {
         },net.minecraft.network.chat.Style.EMPTY);
         return result;
     }
-
     public static Component decorate(Component text) {
         if (bindings == null) bindings = load();
         String label = text.getString().replaceAll("§.", "").stripLeading();
@@ -63,8 +60,6 @@ public final class UiKeywordIcons {
             if (!label.startsWith(binding.label())) continue;
             int end = binding.label().length();
             if (label.length() > end && !Character.isWhitespace(label.charAt(end)) && label.charAt(end) != ':' && label.charAt(end) != '：') continue;
-            // Source building labels contain indentation after their icon token.
-            // Remove it only on matched effect rows, preserving colours and paragraph spacing.
             var trimmed = Component.empty();
             boolean[] leading = {true};
             text.visit((style, part) -> {

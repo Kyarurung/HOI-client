@@ -10,6 +10,7 @@ final class ScreenProductionPresentationTest {
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->client.options.guiScale().set(2));
         var fixture=ScreenIndustryChecks.tankFixture("production-source-fixture.json");
+        researchedSuccessors(context);
         stockColors(context,fixture);
         priorityTooltips(context,fixture);
         var designer=ScreenIndustryChecks.tankFixture("initial-air-fixture.json").tankDesigner();
@@ -57,6 +58,86 @@ final class ScreenProductionPresentationTest {
             });
             context.waitTicks(3);
             context.takeScreenshot("hoi-production-air-missions-"+source.country().toLowerCase(java.util.Locale.ROOT)+"-gui2");
+            researchedEquipment(context, source);
+            for (String category : List.of("보병 및 포병 장비 제작", "기갑 차량 제작", "함선 건조")) {
+                context.setScreen(() -> new ScreenIndustry(ProtocolMenuTab.PRODUCTION, source.session(), source, request -> {}));
+                context.runOnClient(client -> {
+                    var screen = client.gui.screen();
+                    var button = screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals(category)).map(w -> (net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow();
+                    button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+                });
+                context.waitTicks(3);
+                context.takeScreenshot("hoi-production-catalog-" + source.country().toLowerCase(java.util.Locale.ROOT) + "-" + category);
+                if (category.equals("함선 건조")) context.runOnClient(client -> {
+                    var convoy = source.equipment().stream().filter(e -> e.family().equals("convoy") && e.unlocked()).findFirst().orElseThrow();
+                    if (client.gui.screen().children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals("생산: " + convoy.name()))) throw new AssertionError("The convoy must be present in the visible naval picker");
+                });
+            }
+        }
+    }
+    private static void researchedSuccessors(ClientGameTestContext context) {
+        researchedSuccessor(context, "hoi:train", "hoi:tfr/equipment/train_equipment_2", "train");
+        researchedSuccessor(context, "hoi:tfr/equipment/exoskeleton_equipment_1", "hoi:tfr/equipment/exoskeleton_equipment_2", "exoskeleton");
+    }
+    private static void researchedSuccessor(ClientGameTestContext context, String oldId, String newId, String family) {
+        var source = ScreenIndustryChecks.tankFixture("production-train-upgrade-fixture.json");
+        var old = source.equipment().stream().filter(e -> e.id().equals(oldId)).findFirst().orElseThrow();
+        var newer = source.equipment().stream().filter(e -> e.id().equals(newId)).findFirst().orElseThrow();
+        if (!old.unlocked() || !old.outdated() || !newer.unlocked() || newer.outdated()) throw new AssertionError("Server research successor state is incorrect: " + family);
+        var gson = new com.google.gson.Gson();
+        var json = gson.toJsonTree(source).getAsJsonObject();
+        for (var value : json.getAsJsonArray("equipment")) {
+            var equipment = value.getAsJsonObject();
+            if (!java.util.Set.of(old.id(), newer.id()).contains(equipment.get("id").getAsString())) equipment.addProperty("unlocked", false);
+        }
+        var view = new dev.hoi.protocol.ProtocolIndustryPayloads.Response(gson.toJson(json)).view();
+        context.setScreen(() -> new ScreenIndustry(ProtocolMenuTab.PRODUCTION, view.session(), view, request -> {}));
+        context.runOnClient(client -> {
+            var button = client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals("보병 및 포병 장비 제작")).map(w -> (net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow();
+            button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+        });
+        for (boolean showOld : new boolean[]{false, true}) {
+            context.runOnClient(client -> {
+                if (showOld) {
+                    var toggle = client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals("구형 장비 표시")).map(w -> (net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow();
+                    toggle.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+                }
+                var names = client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button).map(w -> ((net.minecraft.client.gui.components.Button)w).getMessage().getString()).toList();
+                if (names.contains("생산: " + old.name()) != showOld || !names.contains("생산: " + newer.name())) throw new AssertionError("Obsolete toggle does not match the researched successor: " + family);
+            });
+            context.getInput().setCursorPos(2400,1300);
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-production-" + family + "-obsolete-" + showOld + "-gui2");
+        }
+    }
+    private static void researchedEquipment(ClientGameTestContext context, dev.hoi.protocol.ProtocolIndustryView source) {
+        var ids = java.util.Set.of("exoskeleton_equipment_1", "exoskeleton_equipment_2", "train_equipment_2", "train_equipment_3", "floating_harbor_equipment_1");
+        var freight = source.equipment().stream().filter(e -> e.id().equals("hoi:tfr/equipment/train_equipment_2")).findFirst().orElseThrow();
+        var armored = source.equipment().stream().filter(e -> e.id().equals("hoi:tfr/equipment/train_equipment_3")).findFirst().orElseThrow();
+        if (freight.texture().equals(armored.texture())) throw new AssertionError("Armored freight train must use its dedicated source picture: " + source.country());
+        var gson = new com.google.gson.Gson();
+        var json = gson.toJsonTree(source).getAsJsonObject();
+        var missing = new java.util.TreeSet<>(ids);
+        for (var value : json.getAsJsonArray("equipment")) {
+            var equipment = value.getAsJsonObject();
+            boolean selected = ids.contains(equipment.get("id").getAsString().replace("hoi:tfr/equipment/", ""));
+            equipment.addProperty("unlocked", selected);
+            if (selected) missing.remove(equipment.get("id").getAsString().replace("hoi:tfr/equipment/", ""));
+        }
+        if (!missing.isEmpty()) throw new AssertionError("Missing research-unlocked production models for " + source.country() + ": " + missing);
+        var view = new dev.hoi.protocol.ProtocolIndustryPayloads.Response(gson.toJson(json)).view();
+        for (String category : List.of("보병 및 포병 장비 제작", "함선 건조")) {
+            context.setScreen(() -> new ScreenIndustry(ProtocolMenuTab.PRODUCTION, view.session(), view, request -> {}));
+            context.runOnClient(client -> {
+                var button = client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals(category)).map(w -> (net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow();
+                button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+                for (var equipment : view.equipment()) if (equipment.unlocked() && equipment.naval() == category.equals("함선 건조")) {
+                    if (client.gui.screen().children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals("생산: " + equipment.name())))
+                        throw new AssertionError("Researched model is absent from its picker: " + equipment.id());
+                }
+            });
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-production-researched-" + source.country().toLowerCase(java.util.Locale.ROOT) + "-" + category);
         }
     }
     private static void priorityTooltips(ClientGameTestContext context, dev.hoi.protocol.ProtocolIndustryView fixture) {

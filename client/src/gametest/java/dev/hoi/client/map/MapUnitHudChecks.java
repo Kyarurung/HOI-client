@@ -64,7 +64,6 @@ public final class MapUnitHudChecks {
             MapUnitHud.accept(snapshot);
         });
         context.waitTicks(3);context.takeScreenshot("hoi-unit-hud-unknown-composition");
-
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->{client.options.guiScale().set(2);MapUnitHud.accept(fixture(client));});
         context.waitTicks(3);context.takeScreenshot("hoi-unit-hud-counters-and-hover-gui2");

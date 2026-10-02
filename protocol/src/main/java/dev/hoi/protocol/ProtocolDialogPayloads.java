@@ -32,7 +32,6 @@ public final class ProtocolDialogPayloads {
         public static final StreamCodec<RegistryFriendlyByteBuf,Action> CODEC=StreamCodec.of((b,p)->{b.writeUtf(p.token,36);b.writeVarLong(p.revision);b.writeUtf(p.choice,160);},b->new Action(b.readUtf(36),b.readVarLong(),b.readUtf(160)));
         @Override public Type<Action> type(){return TYPE;}
     }
-
     public record Details(String token, String target) implements CustomPacketPayload {
         public Details {
             UUID.fromString(token);
@@ -48,8 +47,14 @@ public final class ProtocolDialogPayloads {
     }
     public record PoliticsOpen(String section, int slot) implements CustomPacketPayload {
         public PoliticsOpen {
-            if (!Set.of("government", "economic_laws", "military_laws", "social_laws", "development", "military_staff").contains(section)
-                    || slot < 0 || slot >= 6) throw new IllegalArgumentException("Invalid politics slot");
+            if (!Set.of("government", "economic_laws", "military_laws", "social_laws", "development", "military_staff",
+                    "officer_army", "officer_navy", "officer_air", "officer_high_command", "officer_preferred_tactic").contains(section)
+                    || slot < 0 || slot >= switch (section) {
+                        case "officer_army", "officer_navy" -> 4;
+                        case "officer_air", "officer_high_command" -> 3;
+                        case "officer_preferred_tactic" -> 1;
+                        default -> 6;
+                    }) throw new IllegalArgumentException("Invalid politics slot");
         }
         public static final Type<PoliticsOpen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "politics_open_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf, PoliticsOpen> CODEC = StreamCodec.of(
@@ -69,6 +74,7 @@ public final class ProtocolDialogPayloads {
     }
     public static synchronized void registerPayloadTypes() {
         if(registered)return;
+        ProtocolCommanderHud.registerPayloadTypes();
         PayloadTypeRegistry.clientboundPlay().register(Show.TYPE,Show.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Close.TYPE,Close.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Details.TYPE,Details.CODEC);

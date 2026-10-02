@@ -2,7 +2,6 @@ package dev.hoi.protocol;
 
 import java.util.List;
 
-
 public record ProtocolMenuView(String country, String countryName, String date, String speed, List<Page> pages, ProtocolCountryHud hud, List<Manufacturer> manufacturers, Balance balance) {
     public ProtocolMenuView(String country, String countryName, String date, String speed, List<Page> pages, ProtocolCountryHud hud) {
         this(country, countryName, date, speed, pages, hud, List.of());
@@ -27,7 +26,7 @@ public record ProtocolMenuView(String country, String countryName, String date, 
         manufacturers = manufacturers == null ? List.of() : List.copyOf(manufacturers);
         if (manufacturers.size() > 64 || manufacturers.stream().map(Manufacturer::id).distinct().count() != manufacturers.size())
             throw new IllegalArgumentException("Invalid manufacturer list");
-        bounded(country, 64); bounded(countryName, 128); bounded(date, 64); bounded(speed, 16);
+        bounded(country, 64); bounded(countryName, 128); bounded(date, 64); bounded(speed, 16); ProtocolCampaignStyle.requireSpeed(speed);
         pages = List.copyOf(pages);
         if (country.isBlank() || pages.size() != ProtocolMenuTab.ORDER.size()) throw new IllegalArgumentException("Invalid menu pages");
         for (int i = 0; i < pages.size(); i++) if (pages.get(i).tab() != ProtocolMenuTab.ORDER.get(i)) throw new IllegalArgumentException("Invalid menu order");

@@ -2,7 +2,6 @@ package dev.hoi.client.ui;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.client.Minecraft;
 
 public final class UiPriorityControls {
     private UiPriorityControls() {}

@@ -14,7 +14,6 @@ import dev.hoi.protocol.*;
 import dev.hoi.protocol.ProtocolConstructionView.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -24,9 +23,7 @@ import org.joml.Vector3f;
 import java.util.*;
 import java.util.function.Consumer;
 
-
 public final class ScreenConstruction extends Screen implements InputSidebarMovement.InputMovementScreen {
-
     private static final List<List<String>> BUILDING_GROUPS=List.of(
             List.of("infrastructure","air_base","anti_air","radar"),
             List.of("military_factory","civilian_factory","dockyard","office_park","refinery","fuel_silo","rocket_site","nuclear_reactor","power_plant","energy_farm","conversion"),
@@ -38,10 +35,9 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
     private record ScreenPaletteGroup(String name,int offset,int height) {}
     private List<ScreenPaletteGroup> paletteGroups=List.of();
-    private boolean consumerTooltip, loadingFailed;
+    private boolean loadingFailed;
     private record ScreenConversionBox(ConversionState state,int x,int y) {}
     private List<ScreenConversionBox> conversionBoxes=List.of();
-    public boolean showingConsumerTooltip() { return consumerTooltip; }
     public ScreenConstruction() {
         this(UUID.randomUUID().toString(),null,r->{if(ClientPlayNetworking.canSend(ProtocolConstructionPayloads.Request.TYPE))ClientPlayNetworking.send(r);});
     }
@@ -123,7 +119,6 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
             }
         }
     }
-
     private int paletteSize(){return Math.min(29,Math.max(19,(height-top-156)/11-3));}
     private int paletteX(){return pane-2*(paletteSize()+2)-6;}
     private int queueY(){return top+77+reservationHeight()*ScreenConstructionRows.count(view.summary());}
@@ -134,7 +129,6 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         return view.buildings().stream().filter(b->b.id().equals(id)).map(Building::name).findFirst().orElse(id);
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
-        consumerTooltip=false;
         UiMenuStyle.panel(g,0,top,pane,height-top);
         UiAssets.nineSlice(g,"construction/ui/header",0,top,pane,25,4,.5);
         UiMenuStyle.heading(g, font,"건설",9,top+8, pane - 44,UiMenuStyle.TEXT);
@@ -206,7 +200,6 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
                 String detail=column==0?calculation(s.factoryCalculation(),"사용 중인 공장"):column==1?calculation(s.speedCalculation(),"건설 속도"):calculation(s.energyCalculation(),"사용 가능한 에너지");
                 UiTooltips.drawExact(g,font,detail,mx,my);
             }
-
         } else dev.hoi.client.ui.UiText.text(g, font,loadingFailed?"서버 응답이 없습니다.":"건설 현황을 불러오는 중…",10,top+40,UiMenuStyle.MUTED);
         drawConversions(g,mx,my);
         super.extractRenderState(g,mx,my,delta);

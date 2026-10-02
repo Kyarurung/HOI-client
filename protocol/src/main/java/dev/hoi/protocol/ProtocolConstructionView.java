@@ -2,7 +2,6 @@ package dev.hoi.protocol;
 
 import java.util.List;
 
-
 public record ProtocolConstructionView(String session, long revision, String country, ProtocolCountryHud hud, String selected,
         Summary summary, List<Building> buildings, List<Project> projects, String message, List<ConversionState> conversions) {
     public ProtocolConstructionView(String session,long revision,String country,ProtocolCountryHud hud,String selected,Summary summary,List<Building> buildings,List<Project> projects,String message) {

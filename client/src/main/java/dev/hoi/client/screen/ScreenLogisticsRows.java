@@ -4,7 +4,6 @@ import dev.hoi.protocol.ProtocolIndustryView;
 import dev.hoi.protocol.ProtocolIndustryView.Equipment;
 import java.util.*;
 
-
 final class ScreenLogisticsRows {
     record ScreenLogisticsRow(Equipment representative, List<Equipment> models, double daily, Double efficiency, Map<String, Double> resources) {
         long stockpile() { return models.stream().mapToLong(Equipment::stockpile).sum(); }
@@ -58,7 +57,6 @@ final class ScreenLogisticsRows {
         var rows = new ArrayList<ScreenLogisticsRow>();
         for (var models : families.values()) {
             if(models.stream().noneMatch(Equipment::unlocked)||models.stream().noneMatch(Equipment::everAcquired))continue;
-
             var representative = models.stream().filter(Equipment::unlocked)
                     .min(Comparator.comparing(Equipment::outdated).thenComparing(Equipment::id)).orElse(models.getFirst());
             double daily = 0, weightedEfficiency = 0;

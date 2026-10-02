@@ -5,7 +5,6 @@ import dev.hoi.client.screen.ScreenKoreanMusic;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 
 public final class UiMusicButton extends Button {

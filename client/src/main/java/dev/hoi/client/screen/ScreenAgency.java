@@ -22,10 +22,9 @@ import net.minecraft.network.chat.Component;
 import java.util.*;
 import java.util.function.Consumer;
 
-
 public final class ScreenAgency extends Screen implements InputSidebarMovement.InputMovementScreen {
     private static final int TEXT = 0xFFE0E3DD, GOLD = 0xFFFFAA00, MUTED = 0xFF9AABA8;
-    public static final List<String> UPGRADE_ORDER = List.of("foreign_intelligence", "domestic_intelligence", "military_intelligence", "planning_and_direction", "collection", "processing_and_exploitation", "analysis", "dissemination", "humint", "sigint", "masint", "osint", "geoint", "cell_system", "communication_security", "support_services", "enhanced_interrogation_techniques", "termination", "elint", "comint", "advanced_cryptoanalytical_attack_models", "cryptosystem_algorithm_upgrade", "quantum_cryptography");
+    public static final List<String> UPGRADE_ORDER = List.of("foreign_intelligence", "domestic_intelligence", "military_intelligence", "hidden_front", "planning_and_direction", "collection", "processing_and_exploitation", "analysis", "dissemination", "humint", "sigint", "masint", "osint", "geoint", "cell_system", "communication_security", "support_services", "enhanced_interrogation_techniques", "termination", "elint", "comint", "advanced_cryptoanalytical_attack_models", "cryptosystem_algorithm_upgrade", "quantum_cryptography");
     private static final String[] UPGRADE_GROUPS = {"정보공동체", "정보 순환", "정보 수집 분야", "휴민트", "신호 정보"};
     private final Screen parent;
     private final Consumer<ProtocolAgencyPayloads.Request> transport;
@@ -38,7 +37,6 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     private EditBox search;
     private ProtocolAgencyPayloads.Kind pendingKind;
     private String queuedUpgrade;
-
     public ScreenAgency(Screen parent) {
         this(parent, UUID.randomUUID().toString(), null, request -> {
             if (ClientPlayNetworking.canSend(ProtocolAgencyPayloads.Request.TYPE)) ClientPlayNetworking.send(request);
@@ -83,7 +81,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     @Override protected void init() {
         overlayStart = 0;
         InputSidebarMovement.release(minecraft);
-        pane = Math.min(width - 16, Math.max(360, UiPanelLayout.width(ProtocolMenuTab.INTELLIGENCE, width)));
+        pane = UiPanelLayout.width(ProtocolMenuTab.INTELLIGENCE, width);
         top = UiMenuBar.height(width);
         UiMenuBar.buttons(width, view == null ? "" : view.country(), ProtocolMenuTab.INTELLIGENCE, tab -> {
             if (tab == ProtocolMenuTab.INTELLIGENCE) return;
@@ -94,13 +92,13 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         String[] countLabels = {"모집된 요원", "적에게 포획된 요원", "적에게 사살당한 정보원"};
         String[] countIcons = {"total_operatives", "arrested_operatives", "dead_operatives"};
         for (int i = 0; i < countLabels.length; i++) {
-            var indicator = new UiMenuButton(countLabels[i], "agency/" + countIcons[i], false, counterX(i), top + 169, counterWidth(), 28, () -> {});
-            indicator.background("none"); indicator.active = false; addRenderableWidget(indicator);
+            var indicator = new UiMenuButton(countLabels[i], "agency/" + countIcons[i], false, counterX(i), top + 159, counterWidth(), 28, () -> {});
+            indicator.background("none"); indicator.setTooltip(null); indicator.active = false; addRenderableWidget(indicator);
         }
         if (unestablished()) {
             var action = view.items().stream().filter(i -> i.id().equals("create") || i.id().equals("cancel_project")).findFirst().orElse(null);
             if (action != null) {
-                var button = new UiPanelButton(action.id().equals("create") ? "정보기관 창설" : "기관 창설 취소", 10, top + 29, pane - 20, 59,
+                var button = new UiPanelButton(action.id().equals("create") ? "정보기관 창설" : "기관 창설 취소", 10, top + 30, pane - 20, 45,
                         () -> send(ProtocolAgencyPayloads.Kind.CALL, action.id(), List.of())) {
                     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                     }
@@ -108,49 +106,57 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
                 button.active = action.enabled() && pendingTicks == 0; addRenderableWidget(button);
             }
             for (int i=0;i<UPGRADE_GROUPS.length;i++) {
-                var button=new UiMenuButton(UPGRADE_GROUPS[i],8+i*(pane-16)/5,top+108,(pane-20)/5,28,()->{});
-                button.textScale(.8f);button.active=false;addRenderableWidget(button);
+                var button=new UiMenuButton(UPGRADE_GROUPS[i],8+i*(pane-16)/5,top+98,(pane-20)/5,28,()->{});
+                button.background("agency/ui/category");button.textScale(.8f);button.active=false;addRenderableWidget(button);
             }
             for(int i=0;i<2;i++) {
                 String id=i==0?"operations":"cryptology";
-                var button=new UiMenuButton(i==0?"작전":"암호학",null,group.equals(id),8+i*(pane-16)/2,top+217,(pane-20)/2,23,()->changeGroup(id));
+                var button=new UiMenuButton(i==0?"작전":"암호학",null,group.equals(id),8+i*(pane-16)/2,top+199,(pane-20)/2,23,()->changeGroup(id));
                 button.background("agency/ui/tab" + i); button.textScale(.8f);addRenderableWidget(button);
             }
             return;
         }
         if (view.items().stream().noneMatch(i -> i.id().equals("recruit"))) return;
-        var master = new UiMenuButton("세력 첩보장", "agency/spy_master", false, pane - 39, top + 40, 29, 29, () -> {});
-        master.active = false;
-        master.setTooltip(dev.hoi.client.ui.UiTooltips.create(
-                Component.literal("첩보장").withStyle(style -> style.withColor(0xFFCC33))
-                        .append(Component.literal("은 현재 없습니다.").withStyle(style -> style.withColor(0xFFFFFF)))));
+        var master = new UiMenuButton("세력 첩보장", "agency/spy_master", false, pane - 39, top + 32, 29, 29, () -> {});
+        master.background("none"); master.active = false;
+        master.setTooltip(null);
         addRenderableWidget(master);
         for (int i = 0; i < UPGRADE_GROUPS.length; i++) {
             int category = i;
-            var improveButton = new UiMenuButton(UPGRADE_GROUPS[i], 8 + i * (pane - 16) / 5, top + 108, (pane - 20) / 5, 28, () -> {
+            var improveButton = new UiMenuButton(UPGRADE_GROUPS[i], 8 + i * (pane - 16) / 5, top + 98, (pane - 20) / 5, 28, () -> {
                 changeGroup("upgrades");
                 var items = visibleItems();
                 for (int n = 0; n < items.size(); n++) if (upgradeCategory(items.get(n)) == category) {
-                    int columns = Math.max(1, Math.min(5, (upgradeWidth() - 16) / 100));
-                    scroll = upgradeOffset(items, n, columns) - 16;
+                    int columns = upgradeColumns();
+                    scroll = upgradeOffset(items, n, columns) - 14;
                     rebuildWidgets(); break;
                 }
             });
-            improveButton.textScale(.8f); addRenderableWidget(improveButton);
+            improveButton.background("agency/ui/category"); improveButton.textScale(.8f); addRenderableWidget(improveButton);
         }
         for (int i = 0; i < 2; i++) {
             String id = i == 0 ? "operations" : "cryptology", label = i == 0 ? "작전" : "암호학";
-            addRenderableWidget(new UiMenuButton(label, null, group.equals(id), 8 + i * (pane - 16) / 2, top + 217, (pane - 20) / 2, 23, () -> changeGroup(id)).background("agency/ui/tab" + i));
+            addRenderableWidget(new UiMenuButton(label, null, group.equals(id), 8 + i * (pane - 16) / 2, top + 199, (pane - 20) / 2, 23, () -> changeGroup(id)).background("agency/ui/tab" + i));
         }
         var recruit = view.items().stream().filter(i -> i.id().equals("recruit")).findFirst().orElseThrow();
-        var recruitButton = new UiMenuButton("정보원 모집", recruitX(), top + 190, pane - recruitX() - 10, 20, () -> selectItem(recruit));
-        recruitButton.textScale(.8f); addRenderableWidget(recruitButton);
+        var days = view.items().stream().filter(i -> i.id().equals("recruit_days")).findFirst().orElse(null);
+        String remaining = days == null || days.progress() < 0 ? "" : days.value() + "일";
+        var recruitButton = agencyGauge("정보원 모집", remaining.isEmpty() ? "정보원 모집" : "정보원 모집중", remaining,
+                top + 181, days == null ? 0 : days.progress(), () -> selectItem(recruit));
+        recruitButton.setTooltip(null);
+        recruitButton.active = recruit.enabled() && pendingTicks == 0;
+        addRenderableWidget(recruitButton);
         var project = view.items().stream().filter(v -> v.id().equals("cancel_project")).findFirst().orElse(null);
+        String projectDays = project == null ? "" : project.value().substring(project.value().lastIndexOf('·') + 1).replace(" 남음", "").trim();
+        var improvement = agencyGauge("기관 개선 진행", project == null ? "진행 중인 개선 없음." : project.title(), projectDays,
+                top + 164, project == null ? 0 : project.progress(), () -> {});
+        improvement.active = false;
+        addRenderableWidget(improvement);
         if (project != null) {
-            recruitButton.setY(top + 191); recruitButton.setHeight(18);
-            var cancel = new UiMenuButton(project.value(), recruitX(), top + 169, pane - recruitX() - 10, 20,
-                    () -> send(ProtocolAgencyPayloads.Kind.CALL, project.id(), List.of()));
-            cancel.active = pendingTicks == 0; addRenderableWidget(cancel);
+            var cancel = new UiMenuButton("사업 취소", recruitX() + 113, top + 164, 10, 12,
+                    () -> send(ProtocolAgencyPayloads.Kind.CALL, project.id(), List.of())).caption("×");
+            cancel.active = pendingTicks == 0;
+            addRenderableWidget(cancel);
         }
         overlayStart = children().size();
         if (group.equals("upgrades")) {
@@ -159,16 +165,20 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         }
         var items = visibleItems();
         boolean grid = group.equals("upgrades");
-        int x = grid ? upgradeX() + 8 : 8, y = grid ? upgradeY() + 39 : top + 245;
-        int areaWidth = grid ? upgradeWidth() - 16 : pane - 16;
-        int columns = grid ? Math.max(1, Math.min(5, areaWidth / 100)) : 1;
-        int pitch = grid ? 72 : pane < 250 && group.equals("operations") ? 73 : 51;
+        int x = grid ? upgradeX() + 17 : 8, y = grid ? upgradeY() + 44 : top + (group.equals("cryptology") ? 254 : 226);
+        int areaWidth = grid ? upgradeWidth() - 28 : pane - 16;
+        int columns = grid ? upgradeColumns() : 1;
+        int pitch = grid ? 55 : pane < 250 && group.equals("operations") ? 73 : 51;
         int contentHeight = grid ? (items.isEmpty() ? 0 : upgradeOffset(items, items.size() - 1, columns) + pitch) : items.size() * pitch;
-        scroll = Math.clamp(scroll, 0, Math.max(0, contentHeight - (height - y - 40)));
+        scroll = Math.clamp(scroll, 0, Math.max(0, contentHeight - ((grid ? upgradeY() + upgradeHeight() - 5 : height - 40) - y)));
         if (selectedId == null || !grid) for (int i = 0; i < items.size(); i++) {
             var item = items.get(i); int position = grid ? upgradePosition(items, i, columns) : i;
             int bx = x + (position % columns) * areaWidth / columns, by = y + (grid ? upgradeOffset(items, i, columns) : i * pitch) - scroll;
-            if (by < y || by + pitch > height - 37) continue;
+            if (by < y || by + pitch > (grid ? upgradeY() + upgradeHeight() - 3 : height - 37)) continue;
+            if (grid) {
+                addRenderableWidget(new ScreenAgencyUpgradeButton(item, bx, by, areaWidth / columns - 4, pitch, () -> selectItem(item)));
+                continue;
+            }
             var button = new UiPanelButton(item.title(), bx, by, areaWidth / columns - 4, pitch - 5, () -> {
                 selectItem(item);
             }) {
@@ -208,29 +218,6 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
                         }
                         return;
                     }
-                    int labelY = grid ? by + 34 : by;
-                    int labelHeight = grid ? 26 : h;
-                    g.fillGradient(bx, labelY, bx + w, labelY + labelHeight, item.enabled() ? 0xFF354036 : 0xFF292C31, 0xFF101519);
-                    g.outline(bx, labelY, w, labelHeight, grid ? upgradeColor(item) : 0xFF62696F);
-                    int artWidth = grid ? w : 40, artHeight = 34;
-                    int ax = grid ? bx : bx + 2;
-                    if (!UiAssets.draw(g, item.texture(), ax, by, artWidth, artHeight)) UiAssets.draw(g, "menu/intelligence", ax, by, artWidth, artHeight);
-                    int tx = grid ? bx + w / 2 : bx + 44, ty = grid ? by + 37 : by + 7;
-                    if (grid) {
-                        UiText.centered(g, font, item.title(), bx + 3, by + 34, w - 6, 26, TEXT);
-                        int stages = upgradeStages(item);
-                        int completed = upgradeLevel(item);
-                        for (int stage = 0; stages > 1 && stage < stages; stage++)
-                            UiAssets.draw(g, stage < completed ? "agency/stage_complete" : "agency/stage_empty",
-                                    bx + (w - (stages - 1) * 6 - 11) / 2 + stage * 6, by + h - 5, 11, 11);
-                    } else {
-                        UiText.text(g, font, trim(item.title(), w - 49), tx, ty, TEXT);
-                        UiText.text(g, font, trim(item.value(), w - 49), tx, ty + 13, GOLD);
-                    }
-                    if (!grid && item.progress() >= 0) {
-                        g.fill(bx + 3, by + h - 4, bx + w - 3, by + h - 2, 0xFF151A13);
-                        g.fill(bx + 3, by + h - 4, bx + 3 + (int)((w - 6) * item.progress()), by + h - 2, 0xFF91AB70);
-                    }
                 }
             };
             button.active = selectedId == null && !item.group().equals("cryptology"); addRenderableWidget(button);
@@ -244,7 +231,6 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
                     action.active = reveal.enabled() && pendingTicks == 0; addRenderableWidget(action);
                 }
             }
-
         }
         var item = selected();
         if (item != null) {
@@ -292,7 +278,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     }
     private Item selected() { return view == null ? null : view.items().stream().filter(i -> i.id().equals(selectedId)).findFirst().orElse(null); }
     private List<Item> visibleItems() {
-        return view.items().stream().filter(i -> i.group().equals(group) && !i.id().equals("cancel_project") && !i.id().equals("spy_master") && !i.id().startsWith("reveal:")).sorted(group.equals("upgrades") ? Comparator.comparingInt(ScreenAgency::upgradeOrder) : Comparator.comparingInt(i -> 0)).toList();
+        return view.items().stream().filter(i -> i.group().equals(group) && !i.id().equals("cancel_project") && !i.id().equals("cipher_level") && !i.id().equals("spy_master") && !i.id().startsWith("reveal:")).sorted(group.equals("upgrades") ? Comparator.comparingInt(ScreenAgency::upgradeOrder) : Comparator.comparingInt(i -> 0)).toList();
     }
     private void changeGroup(String next) { queuedUpgrade = null; group = next; selectedId = null; choosing = -1; scroll = 0; rebuildWidgets(); }
     private void selectItem(Item item) {
@@ -310,8 +296,10 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         selectedId = item.id(); arguments.clear(); normalizeArguments(item); detailScroll = 0; rebuildWidgets();
     }
     private int upgradeWidth() { return Math.min(540, width - 16); }
+    private int upgradeHeight() { return Math.min(394, height - top - 12); }
+    private int upgradeColumns() { return Math.max(1, Math.min(5, (upgradeWidth() - 16) / 100)); }
     private int upgradeX() { return (width - upgradeWidth()) / 2; }
-    private int upgradeY() { return Math.max(top + 4, (height - 410) / 2); }
+    private int upgradeY() { return Math.max(top + 4, (height - upgradeHeight()) / 2); }
     static int upgradeOrder(Item item) {
         int index = UPGRADE_ORDER.indexOf(item.id().replace("upgrade:", "").toLowerCase(Locale.ROOT));
         return index < 0 ? UPGRADE_ORDER.size() : index;
@@ -338,9 +326,9 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         int maximum = upgradeStages(item);
         return maximum < 1 || maximum > 4 ? "" : "agency/researched/" + (maximum * (maximum + 1) / 2 - 1 + upgradeLevel(item));
     }
-    private static int upgradeCategory(Item item) {
+    static int upgradeCategory(Item item) {
         int index = upgradeOrder(item);
-        return index < 3 ? 0 : index < 8 ? 1 : index < 13 ? 2 : index < 18 ? 3 : 4;
+        return index < 4 ? 0 : index < 9 ? 1 : index < 14 ? 2 : index < 19 ? 3 : 4;
     }
     private static int upgradePosition(List<Item> items, int index, int columns) {
         int pos = 0;
@@ -353,7 +341,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     private static int upgradeOffset(List<Item> items, int index, int columns) {
         int headers = 1;
         for (int i = 1; i <= index; i++) if (upgradeCategory(items.get(i - 1)) != upgradeCategory(items.get(i))) headers++;
-        return upgradePosition(items, index, columns) / columns * 72 + headers * 16;
+        return upgradePosition(items, index, columns) / columns * 55 + headers * 14;
     }
     private int detailX() { return Math.min(pane + 12, width - 260); }
     private int detailWidth() { return Math.min(540, width - detailX() - 12); }
@@ -366,7 +354,6 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     }
     @Override public void tick() {
         if (pendingTicks > 0 && --pendingTicks == 0) {
-
             send(view == null ? ProtocolAgencyPayloads.Kind.OPEN : ProtocolAgencyPayloads.Kind.REFRESH, "", List.of());
         } else if (++refreshTicks % 60 == 0 && pendingTicks == 0 && choosing < 0 && selectedId == null) send(ProtocolAgencyPayloads.Kind.REFRESH, "", List.of());
     }
@@ -375,16 +362,33 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         UiMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, 0);
         UiMenuStyle.heading(g, font, "정보기관", 10, top + 9, pane - 44, UiMenuStyle.TEXT);
         if (unestablished()) { drawUnestablished(g); super.extractRenderState(g,mx,my,delta); return; }
-        String flag = view == null ? "menu/intelligence" : view.country().equals("KOR") ? "country/kor/intelligence" : "menu/intelligence";
-        UiAssets.cover(g, "agency/ui/header", 6, top + 29, pane - 12, 62);
-        UiAssets.draw(g, flag, 12, top + 40, 38, 39);
-        UiText.text(g, font, trim(view == null ? "불러오는 중…" : view.name(), pane - 98), 56, top + 46, TEXT);
-        UiAssets.draw(g, "agency/passive_defense", 56, top + 68, 14, 14);
-        UiText.text(g, font, "방첩 활동:", 73, top + 70, TEXT);
+        String flag = view == null ? "menu/intelligence" : Set.of("KOR", "PRC").contains(view.country()) ? "country/" + view.country().toLowerCase(Locale.ROOT) + "/intelligence" : "menu/intelligence";
+        UiAssets.cover(g, "agency/ui/header", 6, top + 24, pane - 12, 55);
+        UiAssets.drawContent(g, flag, 12, top + 32, 38, 39);
+        g.pose().pushMatrix();
+        g.pose().translate(56, top + 30);
+        g.pose().scale(UiText.scale(font) * 1.15f);
+        var agencyName = Component.literal(view == null ? "불러오는 중…" : view.name()).withStyle(net.minecraft.ChatFormatting.BOLD);
+        g.text(font, font.split(agencyName, (int)((pane - 98) / (UiText.scale(font) * 1.15f))).getFirst(), 0, 0, TEXT);
+        g.pose().popMatrix();
+        UiAssets.draw(g, "agency/passive_defense", 56, top + 55, 14, 14);
+        UiText.text(g, font, "방첩 활동:", 73, top + 57, TEXT);
         String defense = view == null ? "—" : view.items().stream().filter(i -> i.id().equals("counter_intelligence"))
                 .map(Item::value).findFirst().orElse("—");
-        UiText.text(g, font, defense, 76 + Math.round(font.width("방첩 활동:") * UiText.scale(font)), top + 70, GOLD);
+        UiText.text(g, font, defense, 76 + Math.round(font.width("방첩 활동:") * UiText.scale(font)), top + 57, GOLD);
         drawOperationsChrome(g);
+        if (view != null && group.equals("cryptology")) {
+            view.items().stream().filter(i -> i.id().equals("cipher_level")).findFirst().ifPresent(i -> {
+                UiAssets.draw(g, "keywords/agency_crypto_defense", 14, top + 232, 10, 12);
+                UiText.text(g, font, i.title() + " " + i.value(), 26, top + 234, TEXT);
+            });
+            view.items().stream().filter(i -> i.id().equals("decryption_power")).findFirst().ifPresent(i -> {
+                UiAssets.draw(g, "keywords/agency_crypto", pane - 26, top + 231, 12, 12);
+                UiText.text(g, font, i.value(), pane - 28 - Math.round(font.width(i.value()) * UiText.scale(font)), top + 234, TEXT);
+            });
+        }
+        if (group.equals("cryptology") && cryptologyLocked())
+            wrappedNotice(g, "복호화는 전자정보가 정보부에\n업그레이드되어 있어야 가능합니다.", 16, top + 274, pane - 32);
         if (view != null) for (int i = 0; i < UPGRADE_GROUPS.length; i++) {
             int category = i;
             var upgrades = view.items().stream().filter(item -> item.group().equals("upgrades") && !item.id().equals("cancel_project") && upgradeCategory(item) == category)
@@ -392,7 +396,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
             int count = upgrades.size(), size = Math.min(10, (pane - 20) / 5 / Math.max(1, count));
             int x = 8 + i * (pane - 16) / 5;
             for (int j = 0; j < count; j++)
-                UiAssets.draw(g, upgradeIndicator(upgrades.get(j)), x + j * size, top + 138, size, size);
+                UiAssets.draw(g, upgradeIndicator(upgrades.get(j)), x + j * size, top + 126, size, size);
         }
         boolean overlay = view != null && group.equals("upgrades");
         if (overlay) {
@@ -402,15 +406,21 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         }
         if (view != null && group.equals("upgrades") && selectedId == null) {
             int ux = upgradeX(), uw = upgradeWidth();
-            UiMenuStyle.panel(g, ux, upgradeY(), uw, height - upgradeY() - 36);
-            UiMenuStyle.heading(g, font, "정보기관 개선", ux + 12, upgradeY() + 10, upgradeWidth() - 44, TEXT);
-            var items = visibleItems(); int columns = Math.max(1, Math.min(5, (uw - 16) / 100));
+            UiMenuStyle.panel(g, ux, upgradeY(), uw, upgradeHeight());
+            UiAssets.cover(g, "agency/ui/upgrade_background", ux, upgradeY(), uw, 43);
+            g.pose().pushMatrix();
+            g.pose().translate(ux + uw / 2f, upgradeY() + 11);
+            g.pose().scale(1.35f);
+            g.centeredText(font, Component.literal("첩보기관 개선").withStyle(net.minecraft.ChatFormatting.BOLD), 0, -font.lineHeight / 2, TEXT);
+            g.pose().popMatrix();
+            UiText.centeredAt(g, font, UiTooltips.styled(Component.literal("기관 개선은 §630§r일 후 완료됩니다."), false), ux + uw / 2, upgradeY() + 27, TEXT);
+            var items = visibleItems(); int columns = upgradeColumns();
             String[] titles = {"정보공동체", "정보 순환", "정보 수집 분야", "휴민트", "신호 정보"};
             for (int i = 0; i < items.size(); i++) if (i == 0 || upgradeCategory(items.get(i - 1)) != upgradeCategory(items.get(i))) {
-                int by = upgradeY() + 39 + upgradeOffset(items, i, columns) - scroll - 16;
-                if (by < upgradeY() + 34 || by + 17 > height - 37) continue;
-                UiMenuStyle.metal(g, ux + 8, by, uw - 16, 17);
-                UiText.text(g, font, titles[upgradeCategory(items.get(i))], ux + 13, by + 4, TEXT);
+                int by = upgradeY() + 44 + upgradeOffset(items, i, columns) - scroll - 14;
+                if (by < upgradeY() + 34 || by + 14 > upgradeY() + upgradeHeight() - 3) continue;
+                UiAssets.cover(g, "agency/ui/branch", ux + 8, by, uw - 16, 69);
+                UiText.text(g, font, titles[upgradeCategory(items.get(i))], ux + 13, by + Math.round((14 - font.lineHeight * UiText.scale(font)) / 2f), TEXT);
             }
         }
         var item = selected();
@@ -441,19 +451,62 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
             for (int i = overlayStart; i < children().size(); i++) if (children().get(i) instanceof net.minecraft.client.gui.components.Renderable widget)
                 widget.extractRenderState(g, mx, my, delta);
         } else super.extractRenderState(g, mx, my, delta);
+        drawHover(g, mx, my);
+    }
+    private void drawHover(GuiGraphicsExtractor g, int mx, int my) {
+        if (view == null || selectedId != null) return;
+        if (group.equals("upgrades")) {
+            for (var child : children()) if (child instanceof ScreenAgencyUpgradeButton button && button.isMouseOver(mx, my)) {
+                UiTooltips.drawExact(g, font, button.item().detail(), mx, my, 175); return;
+            }
+            return;
+        }
+        String sidebar = null;
+        if (group.equals("cryptology") && my >= top + 229 && my < top + 248 && mx >= 8 && mx < pane - 8)
+            sidebar = mx < pane - 55 ? "cipher_level" : "decryption_power";
+        else if (mx >= 56 && mx < pane - 45 && my >= top + 53 && my < top + 72) sidebar = "counter_intelligence";
+        else if (mx >= pane - 39 && mx < pane - 10 && my >= top + 32 && my < top + 61) sidebar = "spy_master";
+        else if (mx >= recruitX() && mx < recruitX() + 112 && my >= top + 181 && my < top + 196) sidebar = "recruit_days";
+        else for (int i = 0; i < 3; i++) if (mx >= counterX(i) && mx < counterX(i) + counterWidth() && my >= top + 159 && my < top + 195)
+            sidebar = i == 0 ? "recruit" : i == 1 ? "captured_count" : "killed_count";
+        if (sidebar != null) {
+            String id = sidebar;
+            view.items().stream().filter(i -> i.id().equals(id) && !i.detail().isBlank()).findFirst()
+                    .ifPresent(i -> UiTooltips.drawExact(g, font, i.detail(), mx, my, 175));
+            return;
+        }
+        for (int category = 0; category < UPGRADE_GROUPS.length; category++) {
+            int current = category;
+            var upgrades = view.items().stream().filter(i -> i.id().startsWith("upgrade:") && upgradeCategory(i) == current)
+                    .sorted(Comparator.comparingInt(ScreenAgency::upgradeOrder)).toList();
+            int size = Math.min(10, (pane - 20) / 5 / Math.max(1, upgrades.size()));
+            int x = 8 + category * (pane - 16) / 5;
+            if (my >= top + 126 && my < top + 126 + size && mx >= x && mx < x + size * upgrades.size()) {
+                UiTooltips.drawExact(g, font, upgrades.get((mx - x) / size).detail(), mx, my, 175); return;
+            }
+        }
+        if (mx >= 8 && mx < pane - 8 && my > top + 240) {
+            if (group.equals("operations") && visibleItems().isEmpty())
+                UiTooltips.drawExact(g, font, "요원을 모집하여 작전을 활성화", mx, my);
+            else if (group.equals("cryptology") && cryptologyLocked())
+                UiTooltips.drawExact(g, font, "암호 해독을 활성화하려면 전자정보 업그레이드를\n완료하세요.", mx, my);
+        }
+    }
+    private boolean cryptologyLocked() {
+        return view != null && view.items().stream().anyMatch(i -> i.id().equals("cryptology_unlocked") && i.value().equals("false"));
     }
     private int counterWidth() { return Math.round((pane - 12) * 52f / 522); }
     private int counterX(int i) { return 6 + Math.round((pane - 12) * (i == 0 ? 59f : i == 1 ? 136f : 203.5f) / 522) - counterWidth() / 2; }
-    private int recruitX() { return Math.round(pane * .54f); }
+    private int recruitX() { return Math.round(pane * 284f / 540); }
     private void drawOperationsChrome(GuiGraphicsExtractor g) {
-        UiAssets.nineSlice(g,"agency/ui/section",6,top+92,pane-12,17,5,.5);
-        UiText.centered(g,font,"첩보기관",12,top+95,(pane-12)*185/530-8,11,TEXT);
-        UiAssets.nineSlice(g,"agency/ui/section",6,top+150,pane-12,17,5,.5);
-        UiText.centered(g,font,"작전",12,top+153,(pane-12)*185/530-8,11,TEXT);
-        UiAssets.nineSlice(g,"agency/ui/operatives",6,top+168,pane-12,46,3,.5);
+        UiAssets.nineSlice(g,"agency/ui/section",6,top+77,pane-12,17,5,.5);
+        UiText.centered(g,font,"정보기관",12,top+80,(pane-12)*185/530-8,11,TEXT);
+        UiAssets.nineSlice(g,"agency/ui/section",6,top+141,pane-12,17,5,.5);
+        UiText.centered(g,font,"작전",12,top+144,(pane-12)*185/530-8,11,TEXT);
+        UiAssets.nineSlice(g,"agency/ui/operatives",6,top+159,pane-12,38,3,.5);
         for (int i = 0; i < 3; i++) {
-            g.enableScissor(counterX(i) - 3, top + 194, counterX(i) + counterWidth() + 4, top + 212);
-            UiAssets.nineSlice(g,"agency/ui/operatives",7,top+168,pane-12,46,3,.5);
+            g.enableScissor(counterX(i) - 3, top + 179, counterX(i) + counterWidth() + 4, top + 195);
+            UiAssets.nineSlice(g,"agency/ui/operatives",7,top+159,pane-12,38,3,.5);
             g.disableScissor();
         }
         if(view == null)return;
@@ -461,31 +514,49 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         for(int i=0;i<ids.length;i++) {
             String id=ids[i];
             String value=view.items().stream().filter(v->v.id().equals(id)).map(Item::value).findFirst().orElse(i==0?"0/0":"0");
-            UiText.centered(g,font,value.replace(" ",""),counterX(i),top+198,counterWidth(),10,TEXT);
+            UiText.centered(g,font,value.replace(" ",""),counterX(i),top+182,counterWidth(),10,TEXT);
         }
-        if(!unestablished() && view.items().stream().noneMatch(v->v.id().equals("cancel_project")))
-            UiText.centered(g,font,pane < 250 ? "개선 없음" : "진행 중인 개선 없음",recruitX(),top+170,pane-recruitX()-10,17,TEXT);
-        if(!unestablished() && group.equals("operations") && visibleItems().isEmpty())
-            wrappedNotice(g,"작전은 정보원이 첩보망을 구축하여야 시행할 수 있습니다.",16,top+282,pane-32);
+        if(!unestablished() && (group.equals("operations") || group.equals("upgrades")) && view.items().stream().noneMatch(i -> i.group().equals("operations")))
+            wrappedNotice(g,"작전은 정보원이 첩보망을 구축하여야\n시행할 수 있습니다.",16,top+274,pane-32);
+    }
+    private UiPanelButton agencyGauge(String accessible, String label, String days, int y, double progress, Runnable action) {
+        return new UiPanelButton(accessible, recruitX(), y, 112, 15, action) {
+            @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                int x = getX();
+                UiAssets.nineSlice(g, "agency/ui/progress_empty", x + 1, y + 1, 109, 11, 2, .5);
+                int filled = (int)Math.round(109 * Math.clamp(progress, 0, 1));
+                if (filled > 0) {
+                    g.enableScissor(x + 1, y + 1, x + 1 + filled, y + 12);
+                    UiAssets.nineSlice(g, "agency/ui/progress_fill", x + 1, y + 1, 109, 11, 2, .5);
+                    g.disableScissor();
+                }
+                UiAssets.draw(g, "agency/ui/progress_frame", x, y, 112, 15);
+                float scale = UiText.scale(font);
+                int daysWidth = Math.round(font.width(days) * scale);
+                String visible = font.plainSubstrByWidth(label, Math.max(1, (int)((104 - daysWidth - (days.isEmpty() ? 0 : 4)) / scale)));
+                UiText.text(g, font, visible, x + 4, y + 2, TEXT);
+                UiText.text(g, font, days, x + 108 - daysWidth, y + 2, GOLD);
+            }
+        };
     }
     private boolean unestablished() { return view != null && view.items().stream().noneMatch(i -> i.id().equals("recruit")); }
     private void drawUnestablished(GuiGraphicsExtractor g) {
         var project=view.items().stream().filter(i->i.id().equals("cancel_project")).findFirst().orElse(null);
         boolean available=project!=null||view.items().stream().anyMatch(i->i.id().equals("create")&&i.enabled());
-        UiAssets.nineSlice(g,"agency/ui/create_disabled",10,top+29,pane-20,59,8,.5);
+        UiAssets.nineSlice(g,available?"agency/ui/create":"agency/ui/create_disabled",10,top+30,pane-20,45,8,.5);
         smallCentered(g,project==null?"기관 창설":"기관 창설 중",pane/2,top+51,TEXT);
         int gaugeLeft=45,gaugeRight=pane-45;
         UiAssets.draw(g,"construction/summary/civilian_factory",gaugeLeft,top+60,13,11);
-        UiText.text(g,font,"5",gaugeLeft+15,top+60,0xFF000000|(available?UiTooltips.GOOD:UiTooltips.BAD));
+        UiText.text(g,font,"5",gaugeLeft+15,top+60,available?0xFFE0E3DD:0xFF000000|UiTooltips.BAD);
         String days=project==null?"30":project.value().substring(project.value().lastIndexOf('·')+1).replace("일 남음", "").trim();
         int daysX=gaugeRight-Math.round(font.width(days+"일")*UiText.scale(font));
         UiText.text(g,font,days,daysX,top+60,GOLD);
         UiText.text(g,font,"일",daysX+Math.round(font.width(days)*UiText.scale(font)),top+60,TEXT);
-        UiMenuStyle.recess(g,gaugeLeft,top+75,gaugeRight-gaugeLeft,5);
-        if(project!=null&&project.progress()>=0)g.fill(gaugeLeft+1,top+76,gaugeLeft+1+(int)((gaugeRight-gaugeLeft-2)*Math.clamp(project.progress(),0,1)),top+79,0xFF97AC6C);
+        UiMenuStyle.recess(g,gaugeLeft,top+68,gaugeRight-gaugeLeft,4);
+        if(project!=null&&project.progress()>=0)g.fill(gaugeLeft+1,top+69,gaugeLeft+1+(int)((gaugeRight-gaugeLeft-2)*Math.clamp(project.progress(),0,1)),top+71,0xFF97AC6C);
         drawOperationsChrome(g);
-        wrappedNotice(g,"기관을 창설하기 전에는 정보원을 모집할 수 없습니다.",recruitX(),top+178,pane-recruitX()-12);
-        wrappedNotice(g,group.equals("cryptology")?"기관을 창설하면 암호 해독을 시작할 수 있습니다.":"작전은 정보원이 첩보망을 구축하여야 시행할 수 있습니다.",16,top+282,pane-32);
+        wrappedNotice(g,"기관을 창설하기 전에는 정보원을 모집할 수 없습니다.",recruitX(),top+169,pane-recruitX()-12);
+        wrappedNotice(g,group.equals("cryptology")?"기관을 창설하면 암호 해독을 시작할 수 있습니다.":"작전은 정보원이 첩보망을 구축하여야\n시행할 수 있습니다.",16,top+274,pane-32);
     }
     private void wrappedNotice(GuiGraphicsExtractor g,String value,int x,int y,int width) {
         var lines=font.split(Component.literal(value),Math.max(1,(int)(width/UiText.scale(font))));

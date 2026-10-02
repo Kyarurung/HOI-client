@@ -16,7 +16,6 @@ class UiFlagStackTest {
         assertEquals(List.of(), stack.update(List.of()));
         assertEquals(List.of("JAP", "KOR"), stack.update(List.of("JAP", "KOR", "JAP")));
     }
-
     @Test void oneFlagAndCrowdedFlagsStayWithinTheAllocatedWidth() {
         assertEquals(10, UiFlagStack.left(0, 1, 10, 40, 20));
         assertEquals(20, UiFlagStack.visibleWidth(0, 1, 10, 40, 20));

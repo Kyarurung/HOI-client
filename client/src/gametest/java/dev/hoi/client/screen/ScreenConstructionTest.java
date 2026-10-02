@@ -191,13 +191,10 @@ public final class ScreenConstructionTest {
         });
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
     }
-
     private static String buildingName(String id) { return switch(id) {case "infrastructure"->"기반시설";case "air_base"->"공군기지";case "anti_air"->"대공포";case "radar"->"레이더";case "military_factory"->"군수공장";case "civilian_factory"->"민간공장";case "dockyard"->"해군 조선소";case "office_park"->"사무단지";case "refinery"->"합성 정제소";case "fuel_silo"->"연료 저장고";case "rocket_site"->"드론 발사장";case "nuclear_reactor"->"원자로";case "power_plant"->"발전소";case "energy_farm"->"에너지 농장";case "conversion"->"전환";case "fort"->"요새";case "coastal_fort"->"해안 요새";case "port"->"해군기지";case "hub"->"보급 중심지";case "railway"->"철도";case "dam","dam_mountain"->"댐";default->id;}; }
-
     private static Button buildingButton(ScreenConstruction screen,String name) {
         return (Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(buildingName(name))).findFirst().orElseThrow();
     }
-
     private static void assertNoDams(ScreenConstruction screen) {
         if(screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().equals("댐")))
             throw new AssertionError("Neither dam type belongs in the construction palette");

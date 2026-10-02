@@ -25,7 +25,6 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
     private int pane,top,scroll,sort,pending,refresh,optionScroll;
     private boolean compliance,templates,showPeaceful=true;
     private String target;
-
     public ScreenOccupation(){this(UUID.randomUUID().toString(),null,r->{if(ClientPlayNetworking.canSend(Request.TYPE))ClientPlayNetworking.send(r);});}
     ScreenOccupation(String token,View view,Consumer<Request> transport){super(Component.literal("점령지"));this.token=token;this.view=view;this.transport=transport;}
     public void open(){send(Action.OPEN,"","");}

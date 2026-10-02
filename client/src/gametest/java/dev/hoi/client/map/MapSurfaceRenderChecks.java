@@ -5,9 +5,35 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 
-
 public final class MapSurfaceRenderChecks {
     private MapSurfaceRenderChecks() {}
+    private static void landPlanOverlay(ClientGameTestContext context,java.util.function.Consumer<String> command) {
+        String fixture=System.getenv("HOI_LAND_PLAN_PREVIEW");if(fixture==null||fixture.isBlank())return;
+        java.util.List<dev.hoi.protocol.ProtocolAtlasScene.Box> boxes;
+        try(var reader=java.nio.file.Files.newBufferedReader(java.nio.file.Path.of(fixture))) {
+            boxes=java.util.List.of(new Gson().fromJson(reader,dev.hoi.protocol.ProtocolAtlasScene.Box[].class));
+        }catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
+        if(boxes.isEmpty())throw new AssertionError("Original plan geometry fixture must not be empty");
+        double maximumX=boxes.stream().mapToDouble(b->b.x()+b.sz()+b.sx()).max().orElseThrow(),maximumZ=boxes.stream().mapToDouble(b->b.z()+b.sz()+b.sx()).max().orElseThrow();
+        int size=(int)Math.ceil(Math.max(maximumX,maximumZ))+4;if(size>128)throw new AssertionError("Plan render fixture must stay local");
+        command.accept("fill 0 64 0 "+size+" 64 "+size+" minecraft:stone strict");
+        command.accept("tp @a "+size/2.0+" "+(65+size*.9)+" "+size/2.0+" 0 90");
+        context.runOnClient(client->{
+            MapSceneRenderer.clear();dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.ProtocolHudPayloads.State.HIDDEN);
+            MapSceneRenderer.receivePlans("",new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,boxes));
+        });
+        context.waitFor(client->MapSceneRenderer.visibleTileCount()>0);context.waitTicks(5);var screenshot=context.takeScreenshot("hoi-land-plan-persistent-front-arrow");
+        try {
+            var picture=javax.imageio.ImageIO.read(screenshot.toFile());int green=0;
+            for(int y=0;y<picture.getHeight();y++)for(int x=0;x<picture.getWidth();x++){int pixel=picture.getRGB(x,y),r=pixel>>16&255,g=pixel>>8&255,b=pixel&255;if(g>70&&g>r*1.3&&g>b*1.15)green++;}
+            if(green<20)throw new AssertionError("Persistent front and objective arrow did not render: "+green);
+        }catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
+        context.runOnClient(client->MapSceneRenderer.receivePlans("PRK",new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,java.util.List.of())));
+        context.waitTicks(2);context.runOnClient(client->{if(MapSceneRenderer.visibleTileCount()==0)throw new AssertionError("Foreign plan update must not clear owned geometry");});
+        context.runOnClient(client->MapSceneRenderer.receivePlans("",new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,java.util.List.of())));
+        context.waitFor(client->MapSceneRenderer.visibleTileCount()==0);context.takeScreenshot("hoi-land-plan-deleted-clears-map");
+        context.runOnClient(client->MapSceneRenderer.clearPlans());command.accept("fill 0 64 0 "+size+" 64 "+size+" minecraft:air strict");
+    }
     public static void run(ClientGameTestContext context) {
         context.runOnClient(client -> {
             for (String model : java.util.List.of("building/air_base", "building/naval_base", "building/radar_station", "map/terrain/city")) {
@@ -34,7 +60,7 @@ public final class MapSurfaceRenderChecks {
             command.accept("time set noon");command.accept("weather clear");command.accept("gamemode spectator @a");
             context.setScreen(()->null);
             context.runOnClient(client->{client.options.fov().set(60);client.options.guiScale().set(2);});
-
+            landPlanOverlay(context,command);
             countryNamesAboveWater(context,command);
             command.accept("tp @a 6 70 -8 0 0");
             String[] shapes={"square","pentagon","circle","star"},tones={"own","enemy","neutral"};
@@ -62,8 +88,6 @@ public final class MapSurfaceRenderChecks {
             });
             command.accept("time set midnight"); context.waitTicks(5); context.takeScreenshot("hoi-dmz-emissive-night");
             context.runOnClient(client -> MapSceneRenderer.clear()); command.accept("time set noon");
-
-
             for(var material:java.util.List.of(dev.hoi.protocol.ProtocolAtlasScene.Material.RESISTANCE,dev.hoi.protocol.ProtocolAtlasScene.Material.COMPLIANCE)) {
                 context.runOnClient(client->{
                     var stripes=new java.util.ArrayList<dev.hoi.protocol.ProtocolAtlasScene.Box>();
@@ -78,7 +102,6 @@ public final class MapSurfaceRenderChecks {
                 context.waitFor(client->MapSceneRenderer.visibleTileCount()==0);
             }
             context.runOnClient(client->MapSceneRenderer.clearOccupation());
-
             JsonObject scene;
             try(var input=MapSurfaceRenderChecks.class.getResourceAsStream("/atlas-client-scene.json")) {
                 if(input==null)throw new AssertionError("Production atlas geometry fixture missing");
@@ -109,7 +132,6 @@ public final class MapSurfaceRenderChecks {
                 command.accept("fill 0 66 0 "+(size-1)+" 68 "+(size-1)+" minecraft:air");
                 command.accept("fill 0 64 0 "+(size-1)+" 64 "+(size-1)+" minecraft:stone");
                 var data=scene.getAsJsonObject("scenes").getAsJsonObject(mode);
-
                 String[] blocks=new String[size*size];
                 for(var entry:data.getAsJsonArray("cells")){var c=entry.getAsJsonArray();blocks[c.get(1).getAsInt()*size+c.get(0).getAsInt()]=c.get(2).getAsString();}
                 for(int z=0;z<size;z++)for(int x=0;x<size;) {
@@ -130,7 +152,6 @@ public final class MapSurfaceRenderChecks {
                     for(int i=0;i<count;i++)MapSceneRenderer.receive(new dev.hoi.protocol.ProtocolAtlasScene.Page(id,"minecraft:overworld",i,count,boxes.subList(i*1024,Math.min((i+1)*1024,boxes.size()))));
                     if(MapSceneRenderer.tileCount()==0)throw new AssertionError("Static scene did not assemble");
                 });
-
                 if(mode.equals("RESOURCES")) {
                     var resources=data.getAsJsonArray("resources");
                     if(resources.isEmpty())throw new AssertionError("Resource mode needs actual state resource markers");
@@ -354,7 +375,6 @@ public final class MapSurfaceRenderChecks {
         var empty=context.takeScreenshot("hoi-radar-empty-ground");
         for (String model : java.util.List.of("radar_station", "air_base", "naval_base", "city")) {
         String path = model.equals("city") ? "map/terrain/city" : "building/"+model;
-
         command.accept("summon minecraft:item_display 80 65 80 {item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"hoi:"+path+"\"}},item_display:\"fixed\",transformation:{translation:[0.4f,0.4f,0.4f],scale:[0.8f,0.8f,0.8f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},width:1.6f,height:1.6f,view_range:8f,brightness:{block:15,sky:15}}");
         context.waitTicks(20);
         var visible=context.takeScreenshot("hoi-"+model+"-grounded");

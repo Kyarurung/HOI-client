@@ -10,6 +10,7 @@ import net.minecraft.world.item.component.CustomData;
 public final class InputMapInfo {
     private InputMapInfo() {}
     public static boolean clickAt(Minecraft client, double x, double y, int width, int height) {
+        if(dev.hoi.client.map.MapCommanderHud.clickAt(x,y))return true;
         if(dev.hoi.client.map.MapUnitHud.selectAt(x,y))return true;
         if(client.player==null||!ClientPlayNetworking.canSend(ProtocolDialogPayloads.MapClick.TYPE)||!client.options.getCameraType().isFirstPerson())return false;
         var matrix=client.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
@@ -18,6 +19,7 @@ public final class InputMapInfo {
     }
     public static boolean click(Minecraft client) {
         if (client.player == null || client.gui.screen() != null) return false;
+        if(dev.hoi.client.map.MapCommanderHud.clickAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
         if(dev.hoi.client.map.MapUnitHud.selectAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
         if(!ClientPlayNetworking.canSend(ProtocolDialogPayloads.MapClick.TYPE))return false;
         var item = client.player.getMainHandItem();

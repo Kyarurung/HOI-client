@@ -62,5 +62,4 @@ class ProtocolViewPresentationTest {
         assertThrows(IllegalArgumentException.class,()->new ProtocolCountryView.Relation("", "../invalid",List.of()));
         assertThrows(IllegalArgumentException.class,()->new ProtocolCountryView.Relation("", "faction",List.of(relation.countries().getFirst(),relation.countries().getFirst())));
     }
-
 }

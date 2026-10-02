@@ -15,14 +15,12 @@ class ProtocolTextBoundsTest {
         assertEquals("", ProtocolTextBounds.ellipsize("국가", 0));
         assertEquals("…", ProtocolTextBounds.ellipsize("국가", 1));
     }
-
     @Test
     void retainsExistingBmpClippingAndEllipsisBudgets() {
         assertEquals("국가", ProtocolTextBounds.clip("국가 정보", 2));
         assertEquals("국…", ProtocolTextBounds.ellipsize("국가 정보", 2));
         assertEquals("x".repeat(239) + "…", ProtocolTextBounds.ellipsize("x".repeat(20000), 240));
     }
-
     @Test
     void neverCutsBetweenTheSurrogatesOfASupplementaryCharacter() {
         String text = "가\uD83D\uDE80나";
@@ -33,7 +31,6 @@ class ProtocolTextBoundsTest {
         assertEquals("", ProtocolTextBounds.clip("\uD83D\uDE80", 1));
         assertEquals("…", ProtocolTextBounds.ellipsize("\uD83D\uDE80x", 2));
     }
-
     @Test
     void rejectsInvalidBudgetsAndNullText() {
         assertThrows(IllegalArgumentException.class, () -> ProtocolTextBounds.clip("", -1));

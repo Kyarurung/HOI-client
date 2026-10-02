@@ -31,7 +31,7 @@ public final class ClientCampaignHud {
             try { accept(packet); }
             catch (IllegalArgumentException error) { accept(ProtocolHudPayloads.State.HIDDEN); }
         });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> accept(ProtocolHudPayloads.State.HIDDEN));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> accept(ProtocolHudPayloads.State.HIDDEN)));
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR, Identifier.fromNamespaceAndPath("hoi", "country_hud"), (g, delta) -> {
             var client = Minecraft.getInstance();
             if (visible() && client.level != null && client.gui.screen() == null)

@@ -3,7 +3,6 @@ package dev.hoi.client.map;
 import dev.hoi.protocol.ProtocolAtlasScene;
 import java.util.*;
 
-
 final class MapSceneAssembler {
     private UUID scene;
     private String dimension;

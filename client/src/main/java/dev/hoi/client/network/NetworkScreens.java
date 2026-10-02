@@ -95,17 +95,22 @@ public final class NetworkScreens {
                 catch (IllegalArgumentException error) { ScreenDialogCoordinator.setContent(null); message("산업 현황을 읽을 수 없습니다."); }
             }
         });
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolDoctrinePayloads.Response.TYPE, (packet, context) -> {
+            if (!(ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenDoctrine screen)) return;
+            try { screen.update(packet.view()); }
+            catch (IllegalArgumentException invalid) { ScreenDialogCoordinator.setContent(null); message("교리 화면을 다시 열어주세요."); }
+        });
         ClientPlayNetworking.registerGlobalReceiver(ProtocolAgencyPayloads.Response.TYPE, (packet, context) -> {
             if (!(ScreenDialogCoordinator.contentScreen() instanceof ScreenAgency agency)) return;
             try { agency.update(packet.view()); }
             catch (IllegalArgumentException error) { message("정보기관 데이터를 읽을 수 없습니다."); }
         });
         ClientPlayNetworking.registerGlobalReceiver(ProtocolResearchPayloads.Response.TYPE, (packet, context) -> receiveResearch(packet));
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             cancelOpen();
             if (client.gui.screen() instanceof dev.hoi.client.screen.ScreenWorldTension) client.gui.setScreen(null);
             if (client.gui.screen() instanceof dev.hoi.client.screen.ScreenFocus || client.gui.screen() instanceof dev.hoi.client.screen.ScreenDecision || client.gui.screen() instanceof ResearchScreen || client.gui.screen() instanceof ScreenMenu || client.gui.screen() instanceof ScreenAgency || client.gui.screen() instanceof ScreenConstruction || client.gui.screen() instanceof ScreenCountry || client.gui.screen() instanceof ScreenIndustry) client.gui.setScreen(null);
-        });
+        }));
     }
     static void receiveResearch(ProtocolResearchPayloads.Response packet) {
             try {
@@ -132,7 +137,6 @@ public final class NetworkScreens {
                 } else if (current instanceof ResearchScreen screen && screen.session().equals(view.session())) {
                     screen.update(view);
                 } else {
-
                     send(new ProtocolResearchPayloads.Request(ProtocolResearchPayloads.Action.CLOSE, view.session(), 0, -1, ""));
                 }
             } catch (IllegalArgumentException e) { cancelOpen(); message("HOI 연구 화면 데이터를 읽을 수 없습니다."); }

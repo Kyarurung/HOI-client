@@ -1,7 +1,6 @@
 package dev.hoi.client.screen;
 
 import dev.hoi.protocol.ProtocolIndustryView;
-import java.util.Locale;
 import dev.hoi.client.ui.UiEquipmentDesigns;
 
 final class ScreenProductionTooltips {

@@ -8,10 +8,9 @@ import net.minecraft.world.scores.DisplaySlot;
 import net.minecraft.world.scores.ScoreHolder;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
-/** Renders the server sidebar's title and rows with the real vanilla scoreboard renderer. */
 final class ClientScoreboardChecks {
     static void run(ClientGameTestContext context) {
-        for (String speed : new String[]{"PAUSED", "X1", "X20"}) {
+        for (String speed : new String[]{"PAUSED", "X1", "X10"}) {
             context.runOnClient(client -> {
                 var board = client.level.getScoreboard();
                 var previous = board.getObjective("hoi_preview");

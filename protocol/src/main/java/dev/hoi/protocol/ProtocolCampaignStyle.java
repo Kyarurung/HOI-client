@@ -3,13 +3,18 @@ package dev.hoi.protocol;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
-
 public final class ProtocolCampaignStyle {
     private ProtocolCampaignStyle() {}
     public static final int SEPARATOR = 0x555555;
+    public static void requireSpeed(String speed) {
+        if (speed == null || !switch (speed) {
+            case "", "PAUSED", "X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8", "X9", "X10" -> true;
+            default -> false;
+        }) throw new IllegalArgumentException("Unsupported campaign speed");
+    }
     public static String speedName(String speed) {
         return switch(speed) {
-            case "X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8", "X9", "X10", "X11", "X12", "X13", "X14", "X15", "X16", "X17", "X18", "X19", "X20" -> speed.substring(1) + "배속";
+            case "X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8", "X9", "X10" -> speed.substring(1) + "배속";
             default -> "일시 정지";
         };
     }
@@ -17,9 +22,7 @@ public final class ProtocolCampaignStyle {
         return switch(speed) {
             case "X1", "X2", "X3", "X4" -> 0x55FF55;
             case "X5", "X6", "X7", "X8" -> 0xFFFF55;
-            case "X9", "X10", "X11", "X12" -> 0xFFAA00;
-            case "X13", "X14", "X15", "X16" -> 0xFF5555;
-            case "X17", "X18", "X19", "X20" -> 0xAA0000;
+            case "X9", "X10" -> 0xFFAA00;
             default -> 0xAAAAAA;
         };
     }

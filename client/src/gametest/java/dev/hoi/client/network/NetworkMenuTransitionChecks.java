@@ -80,7 +80,7 @@ public final class NetworkMenuTransitionChecks {
         context.setScreen(() -> null);
     }
     private static ProtocolResearchPayloads.Response researchResponse(String token,String country) {
-        return ProtocolResearchPayloads.Response.of(new ProtocolResearchView(token,1,country,country,0,"2020년 1월 1일","일시 정지",java.util.List.of(new ProtocolResearchView.Slot(0,"",0)),java.util.List.of(),""));
+        return ProtocolResearchPayloads.Response.of(new ProtocolResearchView(token,1,country,country,0,"2020년 1월 1일","PAUSED",java.util.List.of(new ProtocolResearchView.Slot(0,"",0)),java.util.List.of(),""));
     }
     private static void check(boolean valid, String message) { if (!valid) throw new AssertionError(message); }
 }

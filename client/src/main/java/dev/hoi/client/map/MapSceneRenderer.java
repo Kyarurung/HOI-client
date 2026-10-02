@@ -24,11 +24,12 @@ import net.minecraft.world.item.Items;
 import java.util.*;
 import dev.hoi.client.map.MapSceneMesh.MapTile;
 
-
 public final class MapSceneRenderer {
     private static final RenderStateDataKey<MapRenderFrame> FRAME = RenderStateDataKey.create(() -> "hoi:atlas_scene");
     private static final MapSceneAssembler ASSEMBLER = new MapSceneAssembler();
-    private static MapSceneMesh active, deployment, occupation;
+    private static MapSceneMesh active, deployment, occupation, plans;
+    private static String planCountry="";
+    private static final MapSceneAssembler PLANS=new MapSceneAssembler();
     private static final MapSceneAssembler DEPLOYMENT = new MapSceneAssembler();
     private static final MapSceneAssembler OCCUPATION = new MapSceneAssembler();
     private static ItemStackRenderState city;
@@ -46,7 +47,6 @@ public final class MapSceneRenderer {
             Map.entry(Material.AIR_RIVER, Identifier.parse("minecraft:block/light_gray_concrete")),
             Map.entry(Material.GRAY, Identifier.parse("minecraft:block/gray_concrete")), Map.entry(Material.DEPLOYMENT, Identifier.parse("minecraft:block/lime_concrete")));
     private record MapRenderFrame(List<MapTile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city) {}
-
     public static void register() {
         ProtocolAtlasScene.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(ProtocolAtlasScene.Page.TYPE, (page, context) -> {
@@ -62,12 +62,17 @@ public final class MapSceneRenderer {
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolOccupation.Overlay.TYPE,(packet,context)->{
             receiveOccupation(packet.page());
         });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> clear());
+        dev.hoi.protocol.ProtocolCommanderHud.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolCommanderHud.PlanOverlay.TYPE,(packet,context)->{
+            receivePlans(packet.country(),packet.page());
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(MapSceneRenderer::clear));
         LevelExtractionEvents.END_EXTRACTION.register(context -> {
+            if(!planCountry.equals(dev.hoi.client.ClientCampaignHud.country()))clearPlans();
             var scene = active;
             String dimension = context.level().dimension().identifier().toString();
             if (!(Minecraft.getInstance().gui.screen() instanceof dev.hoi.client.screen.ScreenIndustry screen) || !screen.selectingDeployment()) clearDeployment();
-            if ((scene == null || !dimension.equals(scene.dimension())) && (deployment == null || !dimension.equals(deployment.dimension())) && (occupation == null || !dimension.equals(occupation.dimension()))) {
+            if ((scene == null || !dimension.equals(scene.dimension())) && (deployment == null || !dimension.equals(deployment.dimension())) && (occupation == null || !dimension.equals(occupation.dimension())) && (plans == null || !dimension.equals(plans.dimension()))) {
                 visibleTiles=0;context.levelState().setData(FRAME, null); return;
             }
             var camera = context.levelState().cameraRenderState;
@@ -75,6 +80,7 @@ public final class MapSceneRenderer {
             if (scene != null && dimension.equals(scene.dimension())) examinedTiles+=scene.collect(camera.pos, tiles);
             if (deployment != null && dimension.equals(deployment.dimension())) examinedTiles+=deployment.collect(camera.pos, tiles);
             if (occupation != null && dimension.equals(occupation.dimension())) examinedTiles+=occupation.collect(camera.pos, tiles);
+            if(plans!=null&&dimension.equals(plans.dimension()))examinedTiles+=plans.collect(camera.pos,tiles);
             tiles.removeIf(tile -> !camera.cullFrustum.isVisible(tile.bounds()));
             visibleTiles=tiles.size();
             var client = Minecraft.getInstance();
@@ -93,7 +99,6 @@ public final class MapSceneRenderer {
         });
         LevelRenderEvents.COLLECT_SUBMITS.register(MapSceneRenderer::draw);
     }
-
     static boolean receive(ProtocolAtlasScene.Page page) {
         var complete = ASSEMBLER.accept(page);
         if (complete == null) return false;
@@ -105,12 +110,21 @@ public final class MapSceneRenderer {
         if(boxes!=null)occupation=MapSceneMesh.build(page.dimension(),boxes);
     }
     static void clearOccupation() {occupation=null;OCCUPATION.clear();}
-    static void clear() { clearDeployment(); clearOccupation(); active = null; resourcesReloaded(); visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
+    static void receivePlans(String country,ProtocolAtlasScene.Page page) {
+        var client=Minecraft.getInstance();
+        if(!country.equals(dev.hoi.client.ClientCampaignHud.country())||client.level==null||!page.dimension().equals(client.level.dimension().identifier().toString()))return;
+        if(!planCountry.equals(country))clearPlans();
+        planCountry=country;receivePlans(page);
+    }
+    private static void receivePlans(ProtocolAtlasScene.Page page) {
+        var boxes=PLANS.accept(page);if(boxes!=null)plans=MapSceneMesh.build(page.dimension(),boxes);
+    }
+    static void clearPlans(){plans=null;planCountry="";PLANS.clear();}
+    static void clear() { clearDeployment(); clearOccupation(); clearPlans(); active = null; resourcesReloaded(); visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
     public static void resourcesReloaded() { city = null; sprites = null; }
     static int tileCount() { return active == null ? 0 : active.tiles().size(); }
     static int visibleTileCount() { return visibleTiles; }
     static int examinedTileCount() { return examinedTiles; }
-
     private static void draw(LevelRenderContext context) {
         var frame = context.levelState().getData(FRAME); if (frame == null) return;
         var camera = context.levelState().cameraRenderState.pos;

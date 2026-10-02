@@ -17,13 +17,11 @@ import static dev.hoi.protocol.ProtocolIndustryPayloads.Action.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import java.util.*;
 import java.util.function.Consumer;
-
 
 public final class ScreenIndustry extends Screen implements InputSidebarMovement.InputMovementScreen {
     private static final int TEXT = UiMenuStyle.TEXT, MUTED = UiMenuStyle.MUTED;
@@ -71,7 +69,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private final Set<String> collapsedRecruitment = new HashSet<>();
     private GuiGraphicsExtractor graphics;
     private int mouseX, mouseY;
-
     public ScreenIndustry(ProtocolMenuTab tab) {
         this(tab, UUID.randomUUID().toString(), null, request -> {
             if (ClientPlayNetworking.canSend(ProtocolIndustryPayloads.Request.TYPE)) ClientPlayNetworking.send(request);
@@ -82,7 +79,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         this.tab = tab; this.token = token; this.view = fixture; this.transport = transport;
         indexView();
         if(fixture!=null&&fixture.tankDesigner()!=null)tankName=fixture.tankDesigner().name();
-
     }
     public static boolean supports(ProtocolMenuTab tab) {
         return tab == ProtocolMenuTab.PRODUCTION || tab == ProtocolMenuTab.TRADE || tab == ProtocolMenuTab.LOGISTICS || tab == ProtocolMenuTab.RECRUITMENT;
@@ -137,12 +133,12 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(view==null)return;
         boolean naval=group.equals("navy");
         productionItems=view.equipment().stream().filter(e->e.unlocked()&&(group.equals("all")||e.group().equals(group)))
-                .filter(e->!naval||!"convoy".equals(e.family()))
                 .filter(e->showOutdated||!e.outdated()).filter(e->navalFamily.isEmpty()||Objects.equals(navalFamily,e.family()))
-                .filter(e->e.resources().keySet().stream().noneMatch(hiddenResources::contains)).toList();
+                .filter(e->e.resources().keySet().stream().noneMatch(hiddenResources::contains))
+                .sorted(Comparator.comparingInt(e -> "convoy".equals(e.family()) ? 0 : 1)).toList();
         var models=new LinkedHashMap<String,Equipment>();navalCounts.clear();
         for(var e:view.equipment())if(e.unlocked()&&e.family()!=null) {
-            if(e.naval()&&!"convoy".equals(e.family()))models.putIfAbsent(e.family(),e);
+            if(e.naval()&&!Set.of("convoy", "floating_harbor_equipment").contains(e.family()))models.putIfAbsent(e.family(),e);
             if(showOutdated||!e.outdated())navalCounts.merge(e.family(),1L,Long::sum);
         }
         var order=List.of("carrier","heavy_cruiser","light_cruiser","destroyer","submarine","battleship","battlecruiser");
@@ -254,10 +250,8 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             var line = lines.get(i); var e = equipment(line.equipment()); int y = start + i * h - scroll;
             if (!visible(y, h, compact() ? bodyTop : start)) continue;
             productionLine(line, e, i, y);
-
         }
         if (graphics != null) graphics.disableScissor();
-
     }
     private int productionRowHeight() {
         return Math.max(62, Math.round((pane - 12) * 116f / 511)) + 2;
@@ -459,9 +453,9 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                         ?Math.min(((int)row*5+(int)column+1)*step,limit):-1;
                 int status=productionFactoryState(start,step,normal,damaged,reserved,line.factories(),preview);
                 if(status>=0)UiAssets.drawContent(g,"production/line/"+(e.naval()?"dockyard_":"factory_")+(frame+status),x+1+iconOffset,y+1-(e.naval()?Math.round((Math.min((w-2)/22f,(h-2)/18f)*18-Math.min((w-2)/26f,(h-2)/18f)*18)/2):0),w-2,h-2);
-
             }
         };
+        button.sound("ui.scroll");
         button.active = pending == 0 && start < limit;
         button.setTooltip(UiTooltips.create(Component.literal((e.naval() ? "조선소" : "군수공장") + " " + target + "개 배정\n정상 " + normal + " · 손상 " + damaged + " · 예약 " + reserved + " · ×" + step)));
         addRenderableWidget(button);
@@ -519,7 +513,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         int[] cols = new int[9];
         for (int i = 0; i < cols.length; i++) cols[i] = 6 + (pane - 12) * fractions[i] / 100;
         String[] icons = {"efficiency", "", "production", "", "need", "balance", "stockpile", ""};
-
         int heading = top + 29, start = heading + 22, h = 39;
         rail(6, heading, pane - 12, 20);
         for (int i = 0; i < LOGISTICS_HEADERS.size(); i++) {
@@ -663,7 +656,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             }
         }
     }
-
     private void tradeValue(Component value,int x,int y,int width,int height,int color) {
         if(graphics==null)return;
         float scale=Math.min(UiText.scale(font),(width-2f)/Math.max(1,font.width(value)));
@@ -671,7 +663,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         graphics.pose().translate(x+(width-font.width(value)*scale)/2,y+(height-font.lineHeight*scale)/2);
         graphics.pose().scale(scale);graphics.text(font,value,0,0,color);graphics.pose().popMatrix();
     }
-
     private double minimumTraining() { return view.recruitmentPolicy() == null || view.recruitmentPolicy().minimumTraining() == null ? .2 : view.recruitmentPolicy().minimumTraining(); }
     private void recruitment() {
         int secondX = pane + 3, secondW = rightWidth(), start = top + 28;
@@ -740,7 +731,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 textureButton(t.name() + " 연속 훈련 횟수 감소 · 0은 무한대", "", "recruitment/decrease", minusX, amountY, amountSize, amountSize, first.seriesLimit() > 0, () -> send(SERIES, first.id(), "", first.seriesLimit() - 1));
                 String amount = first.seriesLimit() == 0 ? "∞" : first.seriesLimit().toString();
                 cellText(amount, minusX + amountSize, amountY, plusX - minusX - amountSize, amountSize, first.seriesLimit() == 0 ? GOLD : TEXT, false);
-
                 for (int dot = 0; dot < 3; dot++) {
                     int priority = dot;
                     textureButton(t.name() + " · " + priorityName(dot) + " 우선순위", "", priorityTexture(dot, first.priority() == dot), groupX + (int)((420 + 20 * dot) * gs), y + (int)(17 * gs), (int)(20 * gs), (int)(21 * gs), true, () -> send(GROUP_PRIORITY, first.id(), "", priority));
@@ -829,7 +819,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     private void loadDesigner(String id) {
         selectedSlot = -1; designerScroll = 0; picker = ""; openingDesigner = true;
         send(LOAD_TEMPLATE, id, "", 0);
-
     }
     private int modalWidth() { return Math.min(820, width - 16); }
     private int modalX() { return (width - modalWidth()) / 2; }
@@ -932,7 +921,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                     boolean selected = !id.isEmpty() && id.equals(current);
                     boolean enabled = !selected && (choice != null || supportSlot || t.line().size() > 1);
                     String detail = selected ? "(현재 선택됨)" : choice == null ? "제거 비용 5 ★" : current.isEmpty() ? "추가 비용 5 ★" : "교체 비용 " + (!supportSlot && selectedSlot % 5 == 0 && !battalionGroup(current).equals(battalionGroup(id)) ? 5*t.columnSize(selectedSlot/5) : 5) + " ★";
-
                     unitChoice(label, choice == null ? "production/designer/remove" : choice.texture(), detail, bx, by, cardWidth, enabled, () -> {
                         int slot = selectedSlot; selectedSlot = -1;
                         send(supportSlot ? SUPPORT_SLOT : t.columns() == null ? LINE_SLOT : LINE_COLUMN, id, "", slot);
@@ -940,7 +928,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 }
             }
         }
-
         int statsX = x + left + 12, statsWidth = w - left - 21, colWidth = statsWidth / 3;
         String[] groups = {"BASE", "COMBAT", "EQUIPMENT_COST"}, titles = {"기본 능력치", "전투 능력치", "장비 비용"};
         for (int col = 0; col < 3; col++) {
@@ -1099,7 +1086,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                     UiText.text(g,font,label,groupX+20,getY()+(getHeight()-Math.round(font.lineHeight*UiText.scale(font)))/2,TEXT);
                 }
             };
-            toggle.active=pending==0;addRenderableWidget(toggle);
+            toggle.sound("ui.checkbox");toggle.active=pending==0;addRenderableWidget(toggle);
         }
         recess(x+7,y+5,45,16);
         art("production/picker/manufacturer",x+11,y+7,12,12);
@@ -1124,7 +1111,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                             UiText.text(g,font,Long.toString(count),bx+1,by,TEXT);
                         }
                     };
-                    filter.active=pending==0;filter.setTooltip(UiTooltips.create(Component.literal(familyName(model))));addRenderableWidget(filter);
+                    filter.sound("ui.checkbox");filter.active=pending==0;filter.setTooltip(UiTooltips.create(Component.literal(familyName(model))));addRenderableWidget(filter);
                 }
             }
         } else {
@@ -1549,7 +1536,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 if(tankRolesOpen)g.fill(x,y+h,x+w,y+4*(h+3),0xFF000000);
             }
         };
-        toggle.active=pending==0;addRenderableWidget(toggle);
+        toggle.sound("ui.checkbox");toggle.active=pending==0;addRenderableWidget(toggle);
         if(!tankRolesOpen)return;
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.AbstractWidget widget&&widget!=toggle
                 &&widget.getX()<x+w&&widget.getX()+widget.getWidth()>x&&widget.getY()<y+4*(h+3)&&widget.getY()+widget.getHeight()>y+h)widget.active=false;
@@ -1648,7 +1635,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         if(!navy) {
             art("production/design/controls/silhouette_bg",px.applyAsInt(451),py.applyAsInt(146),size.applyAsInt(69),size.applyAsInt(46));
         }
-
     }
     private void designerAdjustment(String id,String label,int x,int y,java.util.function.IntUnaryOperator px,java.util.function.IntUnaryOperator py,java.util.function.IntUnaryOperator size,boolean enabled,Runnable action) {
         int bx=px.applyAsInt(x),by=py.applyAsInt(y),bw=size.applyAsInt(84),bh=size.applyAsInt(67);
@@ -1708,7 +1694,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         for(int i=0;i<3;i++)lines.add(designerAdjustmentLine(i,values[i],true)+"\n§f"+dev.hoi.client.ui.UiEquipmentDesigns.tooltip("BASE")+" §e"+String.format(java.util.Locale.ROOT,"%.1f%%",(1+values[i])*100));
         return String.join("\n\n",lines);
     }
-
     private void tankExperienceCaption(GuiGraphicsExtractor g,String label,int amount,int centerX,int y) {
         var cost=dev.hoi.client.ui.UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal("§f£"+designBranch()+"_experience §e"+amount),false),false);
         String prefix=label+" ";float scale=UiText.scale(font);
@@ -1814,7 +1799,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         button.active=pending==0;
         button.setTooltip(UiTooltips.createExact(tankModuleTooltip(part)));addRenderableWidget(button);
     }
-
     private void pickerRightText(GuiGraphicsExtractor g,String value,int x,int y,int width) {
         String clipped=font.plainSubstrByWidth(value,Math.max(1,(int)(width/UiText.scale(font))));
         UiText.text(g,font,clipped,x+width-Math.round(font.width(clipped)*UiText.scale(font)),y,TEXT);
@@ -2085,7 +2069,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         for(int i=0;i<count;i++)UiText.text(graphics,font,lines.get(i),x,y+i*(UiText.MIN_HEIGHT+1),TEXT);
         if(count<lines.size())tip(value.getString(),x,y,width,height);
     }
-
     private void send(ProtocolIndustryPayloads.Action action, String item, String other, int amount) {
         if (closed || pending > 0 && action != CLOSE) return;
         boolean passive = action == REFRESH;
@@ -2208,7 +2191,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         UiText.cell(graphics, font, display, x, y, max, UiText.MIN_HEIGHT, color, false);
         if(!display.equals(value))tip(value,x,y-1,max,11);
     }
-
     private void productionTip(String value,int x,int y,int w,int h) {
         if(graphics!=null&&!background&&mouseX>=x&&mouseX<x+w&&mouseY>=y&&mouseY<y+h)
             UiTooltips.drawExact(graphics,font,value,mouseX,mouseY);
@@ -2251,7 +2233,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                 g.pose().popMatrix();
             }
         };
-        if(texture.startsWith("production/actions/")||texture.equals("production/picker/expand")||texture.equals("production/picker/collapse")||texture.contains("checkbox"))button.sound("ui.checkbox");
+        if(texture.startsWith("production/actions/")||texture.equals("production/picker/expand")||texture.equals("production/picker/collapse")||texture.contains("checkbox")||texture.startsWith("production/picker/check_"))button.sound("ui.checkbox");
         button.active = enabled && pending == 0;
         button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(name.contains(" · ×") ? name.substring(name.indexOf(" · ×") + 3) + " · 다시 누르면 ×1" : name)));
         addRenderableWidget(button);
@@ -2276,7 +2258,6 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                 UiMenuStyle.control(g, x, y, w, 36, isHoveredOrFocused(), !active);
                 if (!texture.isEmpty()) UiAssets.draw(g, texture, x + 4, y + 9, 28, 21);
-
                 int tw = Math.max(1, w - 40), center = x + 35 + tw / 2;
                 g.centeredText(font, font.plainSubstrByWidth(name, tw), center, y + 6, TEXT);
                 if (detail.endsWith(" ★")) {

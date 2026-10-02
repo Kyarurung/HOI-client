@@ -14,26 +14,21 @@ class UiTooltipTextTest {
         assertEquals(java.util.List.of("§e직함", "[image:portrait]", "[caption:§f박원순§r]", "정당"),
                 UiTooltipText.colorLines("§e직함\n[image:portrait]\n[caption:§f박원순§r]\n정당"));
     }
-
     @Test void exactTooltipSpacingPreservesZeroAndPrecisionWithoutEmptyMargins() {
         assertEquals("수송선: 0\n\n효율: §c20.00%§r",UiTooltipText.spacing("\n§r\n수송선: 0\n\n \n효율: §c20.00%§r\n\n§r"));
     }
-
     @Test void sourceSeparatorsBecomeBlankLinesWithoutChangingHyphenatedValues() {
         assertEquals("숲\n\n공격: -12.5%",UiTooltipText.spacing("숲\n§f----§r\n공격: -12.5%"));
     }
-
     @Test void populationPreservesZeroGrowthAndParagraphs() {
         String text="§e민간인 인구§f: §e3.00M§f/§e3.00M§f\n\n§e일간 성장§f: 0.00% (모병 가능: 0, 민간인: 0)\n\n기본: §e0.00%§f";
         assertEquals(text,UiTooltipText.format(text,true));
     }
-
     @Test void rgbColorsDoNotBecomeAmountsAndCaptionsKeepTheirText() {
         assertEquals("§e집권 정당: §#3659D9더불어민주당§r",UiTooltipText.format("§e집권 정당: §#3659D9더불어민주당§r"));
         assertEquals("",UiTooltipText.format("공격: §#3659D90§r"));
         assertEquals("[image:map_detail/art/portrait]\n[caption:§f오거돈§r]",UiTooltipText.format("[image:map_detail/art/portrait]\n[caption:§f오거돈§r]"));
     }
-
     @Test void hidesZeroRowsAndCollapsesRepeatedEmptyLines() {
         assertEquals("§e현대화된 농업§r\n\n§c제거 불가능",UiTooltipText.format("§e현대화된 농업§r\n\n  \n§c제거 불가능"));
         assertEquals("사단 방어: §c-5%§r",UiTooltipText.format("사단 훈련 시간: 0\n특수부대 수용량: +0.000%\n사단 방어: §c-5%§r\n육군 고문 비용: §a0§r"));

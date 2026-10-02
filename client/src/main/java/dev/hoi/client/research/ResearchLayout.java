@@ -3,11 +3,8 @@ package dev.hoi.client.research;
 import dev.hoi.protocol.ProtocolResearchView.Tech;
 import java.util.*;
 
-
 public record ResearchLayout(List<ResearchNode> nodes, List<Integer> years, int width, int height) {
     public static final int CARD_WIDTH = 152, CARD_HEIGHT = 58, COLUMN = 188, ROW = 88;
-
-
     private static final Map<String, List<Integer>> TIMELINES = Map.of(
             "INFANTRY", List.of(2000, 2006, 2012, 2018, 2021, 2024, 2027, 2030, 2033, 2036),
             "SUPPORT", List.of(2018, 2020, 2024, 2028, 2032),
@@ -45,7 +42,6 @@ public record ResearchLayout(List<ResearchNode> nodes, List<Integer> years, int 
         var years = List.copyOf(yearSet);
         var columns = new HashMap<Integer, Integer>();
         for (int i = 0; i < years.size(); i++) columns.put(years.get(i), i);
-
         var ids = new HashMap<String, Tech>(); selected.forEach(t -> ids.put(t.id(), t));
         var groups = new HashMap<String, String>(); selected.forEach(t -> groups.put(t.id(), t.id()));
         for (var tech : selected) for (var parent : tech.prerequisites()) if (ids.containsKey(parent)) {
@@ -91,8 +87,6 @@ public record ResearchLayout(List<ResearchNode> nodes, List<Integer> years, int 
         }
         boolean vertical = vertical();
         for(var n:nodes) if(n.tech().source()!=null) guides.merge(n.tech().year(),vertical?n.y():n.x(),Math::min);
-
-
         var byPosition=new TreeMap<Integer,Integer>();
         guides.forEach((year,position)->byPosition.merge(position,year,Math::min));
         guides.clear();byPosition.forEach((position,year)->guides.put(year,position));
@@ -106,7 +100,6 @@ public record ResearchLayout(List<ResearchNode> nodes, List<Integer> years, int 
             var source=tech.source();
             int x=source==null||source.x()<0?90:90+(int)Math.round(source.x()*.8);
             int y=source==null||source.y()<0?height+ROW:30+(int)Math.round(source.y()*.8);
-
             int cardWidth=tech.source()==null?CARD_WIDTH:88,cardHeight=tech.source()==null?CARD_HEIGHT:42;
             boolean collision;
             do {

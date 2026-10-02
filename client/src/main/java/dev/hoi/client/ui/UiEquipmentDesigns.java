@@ -131,7 +131,6 @@ public final class UiEquipmentDesigns {
         var names=object(details(),"roles");
         return names.has(role)?names.get(role).getAsString():"역할 배정을 위해 주무장을 추가하십시오.";
     }
-
     public static String adjusterName(String key) {
         var names=object(details(),"adjusterNames");
         return names.has(key)?names.get(key).getAsString():key;

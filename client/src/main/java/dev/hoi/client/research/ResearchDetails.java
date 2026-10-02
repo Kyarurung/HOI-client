@@ -8,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import java.util.*;
 
-
 public final class ResearchDetails {
     public record ResearchCard(String name, String kind, String texture, boolean representative, List<String> effects, String id) {
         public ResearchCard { effects = List.copyOf(effects); }

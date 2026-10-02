@@ -37,7 +37,7 @@ public final class MapUnitHud {
     public static void register() {
         ClientPlayNetworking.registerGlobalReceiver(Snapshot.TYPE,(packet,context)->accept(packet));
         ClientTickEvents.END_CLIENT_TICK.register(client->tick());
-        ClientPlayConnectionEvents.DISCONNECT.register((handler,client)->reset());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client)->client.execute(MapUnitHud::reset));
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR,Identifier.parse("hoi:unit_hud"),(g,delta)-> {
             if(Minecraft.getInstance().gui.screen()==null) {
                 draw(g,0);tooltip(g,g.guiWidth()/2,g.guiHeight()/2);

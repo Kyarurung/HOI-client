@@ -16,7 +16,6 @@ public abstract class MixinConstructionClick {
     private void hoi$placeConstruction(CallbackInfoReturnable<Boolean> callback) {
         if (InputConstructionMap.place((Minecraft) (Object) this) || dev.hoi.client.input.InputMapInfo.click((Minecraft) (Object) this)) callback.setReturnValue(false);
     }
-
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void hoi$cancelConstruction(CallbackInfo callback) {
         if (InputConstructionMap.cancel((Minecraft) (Object) this)) callback.cancel();

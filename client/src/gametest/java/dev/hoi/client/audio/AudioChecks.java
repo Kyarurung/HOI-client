@@ -10,7 +10,7 @@ public final class AudioChecks {
             ProtocolAudioPayloads.registerPayloadTypes();ProtocolAudioPayloads.registerPayloadTypes();
             var sounds=client.getSoundManager();var required=new HashSet<String>();
             for(var cue:ProtocolAudioPayloads.Cue.values()) if(!cue.sound().isEmpty())required.add(cue.sound());
-            required.addAll(List.of("music.tfr_theme","ui.menu_tab","ui.click","ui.close","ui.research.select"));
+            required.addAll(List.of("music.tfr_theme","ui.menu_tab","ui.click","ui.close","ui.research.select","ui.checkbox","ui.scroll","ui.agency.intel","ui.agency.defense","ui.agency.operations","ui.agency.training","ui.agency.cryptology"));
             for(String c:List.of("infantry","support","artillery","armor","navy","air","engineering","industry"))required.add("ui.research.tab."+c);
             if (!AudioUiSounds.START_SOUNDS.equals(List.of("ui.game_start", "ui.game_start_signal")))
                 throw new AssertionError("Both original start samples must play, not random variants");

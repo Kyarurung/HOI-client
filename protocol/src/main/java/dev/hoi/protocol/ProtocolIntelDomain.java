@@ -2,7 +2,6 @@ package dev.hoi.protocol;
 
 import java.util.List;
 
-
 public enum ProtocolIntelDomain {
     CIVILIAN("민간", "intel/civilian", List.of(
             new Tier(10, "예상 건물·인력·수송선 수, 무역 상대"),
@@ -29,7 +28,6 @@ public enum ProtocolIntelDomain {
             new Tier(50, "기종별 예상 항공기 수, 준비 중간 단계 습격 식별"),
             new Tier(60, "활성 임무 수"), new Tier(70, "항공기·기종·인력·기지별 수, 연구한 공군 기술"),
             new Tier(80, "항공기 설계·기지 상세, 진행 중인 공군 연구, 초기 습격 식별")));
-
     public final String label, icon;
     public final List<Tier> tiers;
     ProtocolIntelDomain(String label, String icon, List<Tier> tiers) { this.label = label; this.icon = icon; this.tiers = tiers; }

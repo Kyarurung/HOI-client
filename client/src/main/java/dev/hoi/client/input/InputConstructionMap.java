@@ -8,10 +8,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 
-
 public final class InputConstructionMap {
     private InputConstructionMap() {}
-
     private static boolean available(Minecraft client) {
         if (client.player == null || client.level == null || client.gui.screen() != null
                 || !ClientPlayNetworking.canSend(ProtocolConstructionPayloads.CancelMap.TYPE)) return false;
@@ -21,13 +19,11 @@ public final class InputConstructionMap {
         return dimension.getNamespace().equals("hoi") && dimension.getPath().startsWith("atlas_construction_")
                 && item.is(Items.CARROT_ON_A_STICK) && slot >= 1 && slot <= 9;
     }
-
     public static boolean place(Minecraft client) {
         if (!available(client) || client.gameMode == null) return false;
         client.gameMode.useItem(client.player, InteractionHand.MAIN_HAND);
         return true;
     }
-
     public static boolean cancel(Minecraft client) {
         if (!available(client)) return false;
         ClientPlayNetworking.send(ProtocolConstructionPayloads.CancelMap.INSTANCE);

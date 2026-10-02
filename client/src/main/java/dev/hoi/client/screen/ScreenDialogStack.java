@@ -15,7 +15,6 @@ final class ScreenDialogStack extends Screen {
     private Screen backdrop;
     private Screen pressedTarget;
     private final java.util.function.BiConsumer<ProtocolDialogView,String> send;
-
     ScreenDialogStack(Screen backdrop) {this(backdrop,ScreenDialogCoordinator::choose);}
     ScreenDialogStack(Screen backdrop,java.util.function.BiConsumer<ProtocolDialogView,String> send) { super(Component.literal("알림")); this.backdrop = backdrop;this.send=send; }
     Screen backdrop() { return backdrop; }

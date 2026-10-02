@@ -5,7 +5,6 @@ import com.google.gson.JsonParseException;
 
 final class ProtocolJsonCodec {
     private ProtocolJsonCodec() {}
-
     static <T> T read(Gson json, String source, Class<T> type) {
         try {
             var value = json.fromJson(source, type);

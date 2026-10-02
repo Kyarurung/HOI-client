@@ -8,29 +8,22 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
-import net.minecraft.client.gui.components.Tooltip;
-
 
 public final class ResearchSlotButton extends Button {
     private final ProtocolResearchView.Slot slot;
     private final ProtocolResearchView.Tech technology;
     private final String country;
-
     ResearchSlotButton(ProtocolResearchView.Slot slot, ProtocolResearchView.Tech technology, String country, int x, int y, int width, int height, Runnable action) {
         super(x, y, width, height, Component.literal("슬롯 " + (slot.index() + 1) + " · " + (technology == null ? "연구 선택" : technology.name())),
                 b -> action.run(), DEFAULT_NARRATION);
         this.slot = slot; this.technology = technology; this.country = country;
-        setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(getMessage().getString()
-                + (technology == null ? "" : " · " + technology.remainingDays(slot.savedDays()) + "일"))));
     }
-
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { if (technology == null) AudioUiSounds.play("ui.research.select"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
         var font = Minecraft.getInstance().font;
         int color = 0xFF94B4C4;
         g.fillGradient(x, y, x + w, y + h, 0xFF3E5A70, 0xFF172731);
-
         UiAssets.draw(g, "panel/research_slot", x, y, w, h);
         g.outline(x, y, w, h, color);
         boolean compactActive = technology != null && h < 40;

@@ -15,7 +15,6 @@ class ScreenLogisticsRowsTest {
         for (long value : new long[]{0, 1000, 9999, 10000, 99949, 999499, 999500, 999999, 1000000, Long.MAX_VALUE})
             org.junit.jupiter.api.Assertions.assertTrue(ScreenLogisticsRows.stockLabel(value).length() <= 4, Long.toString(value));
     }
-
     @Test void productionUsesOneDecimalAndCompactUnits() {
         double[] values = {0, 1, 1.24, 1.26, 999.9, 999.99, 1000, 1100, 10100, 999949, 999950, 1000000};
         String[] labels = {"0", "1", "1.2", "1.3", "999.9", "1K", "1K", "1.1K", "10.1K", "999.9K", "1M", "1M"};

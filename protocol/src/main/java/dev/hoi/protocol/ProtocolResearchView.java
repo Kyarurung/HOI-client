@@ -3,7 +3,6 @@ package dev.hoi.protocol;
 import java.util.List;
 import java.util.Objects;
 
-
 public record ProtocolResearchView(String session, long revision, String country, String countryName,
                            long day, String date, String speed, List<Slot> slots, List<Tech> technologies, String message, ProtocolCountryHud hud, Benefits benefits) {
     public ProtocolResearchView(String session,long revision,String country,String countryName,long day,String date,
@@ -18,7 +17,7 @@ public record ProtocolResearchView(String session, long revision, String country
         if (benefits == null) benefits = Benefits.NONE;
         if (hud == null) hud = ProtocolCountryHud.UNKNOWN;
         Objects.requireNonNull(session); Objects.requireNonNull(country); Objects.requireNonNull(countryName);
-        Objects.requireNonNull(date); Objects.requireNonNull(speed); Objects.requireNonNull(message);
+        Objects.requireNonNull(date); ProtocolCampaignStyle.requireSpeed(speed); Objects.requireNonNull(message);
         slots = List.copyOf(slots); technologies = List.copyOf(technologies);
         if (slots.size() > 16 || technologies.size() > 512) throw new IllegalArgumentException("연구 화면 데이터 한도 초과");
         if (day < 0 || revision < 0 || !country.isEmpty() && slots.isEmpty()) throw new IllegalArgumentException("Invalid research view");
@@ -74,7 +73,6 @@ public record ProtocolResearchView(String session, long revision, String country
                     || !Double.isFinite(dailyRate) || dailyRate <= 0) throw new IllegalArgumentException("Invalid research progress");
         }
         public double fraction() { return status == Status.COMPLETED ? 1 : Math.clamp(progress / baseDays, 0, 1); }
-
         public long remainingDays(int savedDays) {
             return status == Status.COMPLETED ? 0 : Math.max(1, (long)Math.ceil((baseDays - progress) / dailyRate - savedDays));
         }
@@ -82,7 +80,6 @@ public record ProtocolResearchView(String session, long revision, String country
     public Tech technology(String id) {
         return technologies.stream().filter(t -> t.id().equals(id)).findFirst().orElse(null);
     }
-
     public record Source(String id,String folder,int x,int y,boolean vertical,List<String> anyOf,List<String> excludes,
             List<String> conditions,List<String> unlockLabels,String description,List<String> deferredEffects,
             java.util.Map<String,String> localizedNames,String parentTechnology) {

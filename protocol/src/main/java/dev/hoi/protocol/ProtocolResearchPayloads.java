@@ -13,7 +13,6 @@ public final class ProtocolResearchPayloads {
     private ProtocolResearchPayloads() {}
     public static final int MAX_JSON = 400_000;
     public enum Action { OPEN, START, CANCEL, CLOSE }
-
     public record OpenScreen() implements CustomPacketPayload {
         public static final Type<OpenScreen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "research_open_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf, OpenScreen> CODEC = StreamCodec.unit(new OpenScreen());
@@ -42,12 +41,12 @@ public final class ProtocolResearchPayloads {
         public ProtocolResearchView view() { return ProtocolJsonCodec.read(JSON, json, ProtocolResearchView.class); }
         @Override public Type<Response> type() { return TYPE; }
     }
-
     public static synchronized void registerPayloadTypes() {
         if (registered) return;
         ProtocolDecisionPayloads.registerPayloadTypes();
         ProtocolFocusPayloads.registerPayloadTypes();
         ProtocolUnitHud.registerPayloadTypes();
+        ProtocolDoctrinePayloads.registerPayloadTypes();
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE, Response.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(OpenScreen.TYPE, OpenScreen.CODEC);

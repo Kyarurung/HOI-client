@@ -9,7 +9,6 @@ import net.minecraft.util.FormattedCharSequence;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public final class UiHudTooltip {
     private static Font cachedFont;
     private static ProtocolCountryHud cachedHud;
@@ -20,7 +19,6 @@ public final class UiHudTooltip {
     public static void clear() {
         cachedFont = null; cachedHud = null; cachedItem = null; cachedBody = List.of();
     }
-
     public static List<FormattedCharSequence> body(Font font, int width, ProtocolCountryHud hud, UiMenuBar.UiIndicator item) {
         if (font == cachedFont && hud == cachedHud && item.equals(cachedItem) && width == cachedWidth) return cachedBody;
         int wrap = Math.max(60, (int)(Math.min(item.icon().equals("gdp") ? 360 : 310, width - 36) / UiText.scale(font)));
@@ -60,7 +58,6 @@ public final class UiHudTooltip {
         cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;
         cachedBody = List.copyOf(lines); return cachedBody;
     }
-
     private static Component fuelNumbers(String text,int color) {
         var result=Component.empty();
         var matcher=java.util.regex.Pattern.compile("£resources_strip\\|[0-9]+|[0-9]+(?:\\.[0-9]+)?[KM]?(?:일)?|연료|저장고|보급선").matcher(text);
@@ -74,7 +71,6 @@ public final class UiHudTooltip {
         result.append(Component.literal(text.substring(start)).withColor(color));
         return UiKeywordIcons.decorateLines(result);
     }
-
     private static Component convoyNumbers(String text,int color) {
         var result=Component.empty();
         var matcher=java.util.regex.Pattern.compile("[0-9]+").matcher(text);int start=0;
@@ -84,7 +80,6 @@ public final class UiHudTooltip {
         }
         return result.append(Component.literal(text.substring(start)).withColor(color));
     }
-
     static void draw(GuiGraphicsExtractor g, int width, ProtocolCountryHud hud, UiMenuBar.UiIndicator item, int mx, int my) {
         var client = Minecraft.getInstance();
         if (item == null) return;
@@ -97,7 +92,6 @@ public final class UiHudTooltip {
             visible.add(title.getVisualOrderText());
         }
         visible.addAll(content);
-
         g.setTooltipForNextFrame(font, visible, mx, Math.max(16, my));
     }
 }

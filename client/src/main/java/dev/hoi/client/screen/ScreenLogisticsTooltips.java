@@ -7,14 +7,12 @@ import java.util.List;
 final class ScreenLogisticsTooltips {
     private static final List<String> KEYS = List.of("EFFICIENCY", "EQUIPMENT_TYPE", "PRODUCED", "STATUS", "NEEDS", "BALANCE", "IN_STOCK", "RESOURCES");
     private ScreenLogisticsTooltips() {}
-
     static String header(int column) {
         String key = "LOGISTICS_" + KEYS.get(column);
         String title = "§e" + UiEquipmentDesigns.tooltip(key + "_LABEL") + "§f";
         if (column == 1) return title;
         return title + "\n\n" + UiEquipmentDesigns.tooltip(key + (column == 2 ? "_LABEL_DESC" : "_DESC"));
     }
-
     static String row(ScreenLogisticsRows.ScreenLogisticsRow row, int column) {
         var equipment = row.representative();
         String name = equipment.familyName() == null || equipment.familyName().isBlank() ? equipment.name() : equipment.familyName();

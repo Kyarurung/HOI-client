@@ -44,7 +44,6 @@ public final class ProtocolCountryPayloads {
         public ProtocolCountryView view() { return ProtocolJsonCodec.read(JSON, json, ProtocolCountryView.class); }
         @Override public Type<Response> type() { return TYPE; }
     }
-
     public record OpenScreen(String target) implements CustomPacketPayload {
         public OpenScreen { ProtocolCountryView.tag(target); }
         public static final Type<OpenScreen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "country_open_v1"));
