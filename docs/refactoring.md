@@ -64,7 +64,7 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-25.0.2'
 | `0298_hoi-map-detail-3-2560-gui2.png` | (0, 520, 620, 1440) | 0 |
 | `0409_hoi-menu-politics-gui2.png` | (0, 70, 726, 1440) | 0 |
 
-캡처는 `client/build/run/clientGameTest/screenshots`에 생성되며 다음 실행 시 교체되는 로컬 산출물이다. 위 픽셀 비교 결과와 검증 범위는 이 문서에 보존한다. 임시 캡처 사본·JUnit XML·로그·해시 목록은 정리했다. 당시 검증한 `build/libs/hoi-client-0.1.0-SNAPSHOT.jar`는 837,034바이트이며 SHA-256은 `fdd3630b04722f125113fffc9b4576e8ea48193ec92e3e8b30b4d933a63f1bbe`다. Fabric 진입점, 이름을 바꾼 mixin 8개와 중첩 protocol JAR를 확인했다. 이전 타입, benchmark 클래스와 정적 텍스처는 배포 JAR에 없다. protocol main 소스는 HOI와 바이트 단위로 같으며, 기존 `ProtocolMenuViewTest`의 저장소별 추가 검사는 그대로 유지한다.
+캡처는 `client/build/run/clientGameTest-runs/<실행 ID>/screenshots`에 생성되며 실행별로 보존되는 로컬 산출물이다. 위 픽셀 비교 결과와 검증 범위는 이 문서에 보존한다. 임시 캡처 사본·JUnit XML·로그·해시 목록은 정리했다. 당시 검증한 `build/libs/hoi-client-0.1.0-SNAPSHOT.jar`는 837,034바이트이며 SHA-256은 `fdd3630b04722f125113fffc9b4576e8ea48193ec92e3e8b30b4d933a63f1bbe`다. Fabric 진입점, 이름을 바꾼 mixin 8개와 중첩 protocol JAR를 확인했다. 이전 타입, benchmark 클래스와 정적 텍스처는 배포 JAR에 없다. protocol main 소스는 HOI와 바이트 단위로 같으며, 기존 `ProtocolMenuViewTest`의 저장소별 추가 검사는 그대로 유지한다.
 
 CodeGraph는 소스 변경 후 동기화했고 `ScreenTradeAmounts` 관계를 실제 소스와 대조했다. `git diff --check`는 통과했다. RTK 결과의 대량 삭제 표시는 아직 stage하지 않은 파일 이름 변경의 한쪽만 포함하므로 코드 축소량으로 사용하지 않는다.
 

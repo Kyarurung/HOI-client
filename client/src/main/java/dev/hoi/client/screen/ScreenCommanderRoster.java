@@ -19,6 +19,19 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
     private boolean pending,nativeRows,showAssigned=true,descending=true;
     private int left,top,pane,bottom,scroll,listTop,rowHeight,sort;
     private String query="";
+    private final Set<String> longDetails=new HashSet<>();
+    private String detailText="";
+    private int detailRow=-1,detailScroll,detailX,detailY;
+    private UiTooltips.ScrolledTooltip detailTooltip;
+    UiTooltips.ScrolledTooltip detailTooltip(){return detailTooltip;}
+    String detailText(){return detailText;}
+    private void clearDetail(){detailText="";detailRow=-1;detailScroll=0;detailTooltip=null;}
+    private boolean overDetail(double x,double y){
+        if(detailRow<0)return false;
+        int rowY=listTop+detailRow*rowHeight-scroll;
+        return x>=left+5&&x<left+pane-10&&y>=rowY&&y<rowY+rowHeight-2
+                ||detailTooltip!=null&&x>=detailTooltip.x()-4&&x<detailTooltip.x()+detailTooltip.width()+4&&y>=detailTooltip.y()-4&&y<detailTooltip.y()+detailTooltip.height()+4;
+    }
     private EditBox search;
     private final Map<String,AbstractWidget> choiceButtons=new HashMap<>();
     AbstractWidget choiceButton(String id){return choiceButtons.get(id);}
@@ -61,7 +74,7 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
     private void sortBy(int column){if(sort==column)descending=!descending;else{sort=column;descending=column!=1;}scroll=0;rebuildWidgets();}
     private void header(String text,int x,int w,int column){addRenderableWidget(new UiMenuButton(text,left+x,top+20,w,13,()->sortBy(column)));}
     @Override protected void init(){
-        choiceButtons.clear();
+        choiceButtons.clear();longDetails.clear();clearDetail();
         nativeRows=view().tiles().stream().anyMatch(t->t.leader()!=null);rowHeight=nativeRows?49:62;
         if(nativeRows){pane=Math.min(275,width-12);left=Math.clamp(width/2-113,6,Math.max(6,width-pane-6));top=Math.max(UiMenuBar.height(width),height/2-148);bottom=Math.min(height-8,top+304);listTop=top+38;}
         else{left=parent==null?0:UiPanelLayout.width(ProtocolMenuTab.OFFICER_CORPS,width);top=UiMenuBar.height(width);pane=Math.min(290,width-left-6);if(pane<180){pane=Math.min(290,width-12);left=Math.max(0,width-pane-6);}bottom=Math.min(height-8,top+360);listTop=top+52;}
@@ -76,13 +89,14 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
             Comparator<ProtocolDialogView.Tile> order=switch(sort){case 1->Comparator.comparing(ProtocolDialogView.Tile::name);case 6->Comparator.comparingInt(t->t.leader().capacity());case 2,3,4,5->Comparator.comparingInt(t->t.leader().abilities().get(sort-2));default->Comparator.comparingInt(t->t.leader().skill());};
             if(descending)order=order.reversed();String lower=query.toLowerCase(Locale.ROOT);
             rows=view().tiles().stream().filter(t->t.leader()!=null&&(showAssigned||!t.leader().assigned())&&t.name().toLowerCase(Locale.ROOT).contains(lower)).sorted(order.thenComparing(ProtocolDialogView.Tile::name).thenComparing(ProtocolDialogView.Tile::section)).toList();
-            if(view().choices().stream().anyMatch(c->c.id().equals("remove"))){var tile=view().tiles().stream().filter(t->t.section().equals("remove")).findFirst().orElseThrow();var remove=new UiMenuButton("배정 해제",left+pane-116,bottom-17,109,14,()->submit("remove"));remove.active=!pending;remove.setTooltip(UiTooltips.createOfficer(tile.detail()));addRenderableWidget(remove);}
+            if(view().choices().stream().anyMatch(c->c.id().equals("remove"))){var tile=view().tiles().stream().filter(t->t.section().equals("remove")).findFirst().orElseThrow();var remove=new UiMenuButton("배정 해제",left+pane-116,bottom-17,109,14,()->submit("remove"));remove.active=!pending;remove.setTooltip(UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(remove);}
         }
         int end=nativeRows?bottom-20:bottom;scroll=Math.clamp(scroll,0,Math.max(0,rows.size()*rowHeight-(end-listTop)));
         for(int i=0;i<rows.size();i++){
             var tile=rows.get(i);int y=listTop+i*rowHeight-scroll;if(y<listTop||y+rowHeight-2>end)continue;
             boolean choice=view().choices().stream().anyMatch(c->c.id().equals(tile.section()));
-            var button=new UiMenuButton(tile.name(),left+5,y,pane-(nativeRows?20:10),rowHeight-2,()->submit(tile.section())).caption("");button.active=!pending&&choice;button.setTooltip(nativeRows?null:UiTooltips.createOfficer(tile.detail()));addRenderableWidget(button);if(choice)choiceButtons.put(tile.section(),button);
+            if(!nativeRows&&!choice&&UiTooltips.exactLines(font,UiCommandLabels.withoutShortcuts(tile.detail()),204).size()>8)longDetails.add(tile.section());
+            var button=new UiMenuButton(tile.name(),left+5,y,pane-(nativeRows?20:10),rowHeight-2,()->submit(tile.section())).caption("");button.active=!pending&&choice;button.setTooltip(nativeRows||longDetails.contains(tile.section())?null:UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(button);if(choice)choiceButtons.put(tile.section(),button);
         }
         if(view().choices().stream().anyMatch(c->c.id().equals("confirm")))addRenderableWidget(new UiMenuButton("확인",left+pane-70,top+28,63,19,()->submit("confirm")));
         if(pending)children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).forEach(w->w.active=false);
@@ -98,13 +112,14 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
             for(int i=0;i<4;i++)UiAssets.draw(g,"commander/ui/"+List.of("attack","defense",navy?"maneuver":"planning",navy?"coordination":"logistics").get(i),left+161+i*13,top+20,13,13);
         }
         String hovered="";
+        if(!overDetail(mx,my))clearDetail();
         int end=nativeRows?bottom-20:bottom;
         for(int i=0;i<rows.size();i++){
             var tile=rows.get(i);int y=listTop+i*rowHeight-scroll;if(y<listTop||y+rowHeight-2>end)continue;
             if(nativeRows){
                 var leader=tile.leader();
                 if(mx>=left+5&&mx<left+pane-15&&my>=y&&my<y+rowHeight-2) {
-                    hovered=tile.detail();
+                    hovered=UiCommandLabels.withoutShortcuts(tile.detail());
                     if(!leader.abilityTooltips().isEmpty()&&mx>=left+161&&mx<left+213&&my>=y+3&&my<y+25)hovered=leader.abilityTooltips().get((mx-left-161)/13);
                 }
                 String background=leader.role().equals("제독")?"navy":leader.role().equals("원수")?"marshal":"army";
@@ -127,9 +142,12 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
                     if(mx>=traitX&&mx<traitX+12&&my>=y+30&&my<y+46)hovered=trait.tooltip();
                 }
                 UiText.centered(g,font,tile.value(),left+162,y+29,101,14,tile.value().equals("사용 불가")?0xFFE15B5B:0xFFFFAA00);
-            }else{UiAssets.draw(g,rowIcon(tile),left+8,y+3,43,52);UiText.centered(g,font,tile.name(),left+57,y+5,pane-66,23,UiMenuStyle.TEXT);UiText.centered(g,font,tile.value(),left+57,y+30,pane-66,20,tile.value().equals("사용 불가")||tile.value().equals("승진 불가")?0xFFE15B5B:0xFFFFAA00);}
+            }else{
+                if(detailRow<0&&longDetails.contains(tile.section())&&mx>=left+5&&mx<left+pane-10&&my>=y&&my<y+rowHeight-2){detailText=UiCommandLabels.withoutShortcuts(tile.detail());detailRow=i;detailX=width-left-pane>=204?left+pane:left>=204?left-216:mx;detailY=my;}
+                UiAssets.draw(g,rowIcon(tile),left+8,y+3,43,52);UiText.centered(g,font,tile.name(),left+57,y+5,pane-66,23,UiMenuStyle.TEXT);UiText.centered(g,font,tile.value(),left+57,y+30,pane-66,20,tile.value().equals("사용 불가")||tile.value().equals("승진 불가")?0xFFE15B5B:0xFFFFAA00);}
         }
         landGesture.draw(g);
+        if(detailRow>=0){detailTooltip=UiTooltips.drawOfficerScrollable(g,font,detailText,detailX,detailY,width,height,detailScroll,204);detailScroll=detailTooltip.scroll();}
         if(!hovered.isEmpty())UiTooltips.drawExact(g,font,hovered,mx,my,180);
     }
     private boolean mapPicking(){return view().image().startsWith("mission/land-target/")&&!view().token().isEmpty();}
@@ -165,12 +183,15 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
         }
         if(mapPicking()&&event.x()>=left+pane&&event.y()>=top) {
             if(pending)return true;
-            if(dev.hoi.client.map.MapCommanderHud.clickAt(event.x(),event.y()))return true;
+            if(dev.hoi.client.map.MapCommanderHud.clickAt(event.x(),event.y(),event.button(),twice))return true;
             if(mapSender==null&&!ClientPlayNetworking.canSend(ProtocolCommanderHud.PlanMapPick.TYPE))return true;
             if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT){if(landGesture.begin(minecraft,event.x(),event.y(),width,height))sendMapPick(true);return true;}
             if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){landGesture.begin(minecraft,event.x(),event.y(),width,height);return true;}
         }
 if(event.x()<left||event.x()>=left+pane||event.y()<top||event.y()>=bottom){if(parent!=null&&event.x()<unitHudLeft()){onClose();return parent.mouseClicked(event,twice);}return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);}return super.mouseClicked(event,twice);}
-    @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical){if(x<left||x>=left+pane)return false;scroll-=(int)(vertical*rowHeight);rebuildWidgets();return true;}
+    @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical){
+        if(detailTooltip!=null&&overDetail(x,y)){detailScroll=Math.clamp(detailScroll-(int)(vertical*3*(font.lineHeight+1)),0,detailTooltip.maxScroll());return true;}
+        if(x<left||x>=left+pane)return false;scroll-=(int)(vertical*rowHeight);rebuildWidgets();return true;
+    }
     @Override public void onClose(){submit("");dismiss();}
 }

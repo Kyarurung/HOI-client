@@ -34,7 +34,11 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
             if(available&&(owned||!assignable))throw new IllegalArgumentException("Invalid commander trait action");
         }
     }
-    public record Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay,Leader leader,TraitNode traitNode) {
+    public record TacticCard(boolean attacking,boolean unlocked,boolean selected,List<String> effects,String phase) {
+        public TacticCard {effects=List.copyOf(effects);if(effects.size()!=4&&effects.size()!=6)throw new IllegalArgumentException("Invalid tactic effects");effects.forEach(effect->text(effect,80));text(phase,160);}
+    }
+    public record Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay,Leader leader,TraitNode traitNode,TacticCard tactic) {
+        public Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay,Leader leader,TraitNode traitNode) {this(section,name,value,icon,detail,gauge,overlay,leader,traitNode,null);}
         public Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay,Leader leader) {this(section,name,value,icon,detail,gauge,overlay,leader,null);}
         public Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay) {this(section,name,value,icon,detail,gauge,overlay,null);}
         public Tile(String section,String name,String value,String icon,String detail) {this(section,name,value,icon,detail,null,"",null);}

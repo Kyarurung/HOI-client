@@ -45,9 +45,11 @@ jobs:
           name: hoi-client-test-reports
           path: |
             protocol/build/test-results/
+            client/build/run/clientGameTest-runs/*/hoi-run.json
+            client/build/run/clientGameTest-latest.json
             client/build/test-results/
-            client/build/run/clientGameTest/logs/
-            client/build/run/clientGameTest/screenshots/
+            client/build/run/clientGameTest-runs/*/logs/
+            client/build/run/clientGameTest-runs/*/screenshots/
       - uses: actions/upload-artifact@v4
         with:
           name: hoi-client-26.3

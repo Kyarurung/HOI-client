@@ -61,22 +61,23 @@ public final class MapUnitHud {
         var client=Minecraft.getInstance();
         if(client.level==null||!snapshot.dimension().equals(client.level.dimension().identifier().toString()))return;
         snapshot.counters().stream().filter(c->previous.contains(c.key())&&selectable(c,snapshot.dimension())).forEach(c->selected.add(c.key()));
+        previous.stream().filter(key->key.startsWith("unit/")).forEach(selected::add);
         dimension=snapshot.dimension();
         var grouped=new LinkedHashMap<String,List<Counter>>();
         for(var counter:snapshot.counters())grouped.computeIfAbsent(counter.country()+"|"+counter.x()+"|"+counter.y()+"|"+counter.z(),key->new ArrayList<>()).add(counter);
-        groups=grouped.values().stream().map(List::copyOf).toList();
+        groups=grouped.values().stream().map(List::copyOf).toList();MapCommanderPanels.counterSelectionRefreshed();MapCommanderOrders.selectionChanged();
     }
     public static void reset(){groups=List.of();boxes=List.of();dimension="";age=0;selected.clear();}
     public static boolean selectAt(double x,double y) {
         var client=Minecraft.getInstance();
         if(client.level==null||client.gui.hud.isHidden()||!dimension.equals(client.level.dimension().identifier().toString()))return false;
         if(client.gui.screen()!=null&&x<worldLeft())return false;
-        selected.clear();
+        if(!MapCommanderPanels.shift())selected.clear();
         for(int i=boxes.size()-1;i>=0;i--) {
             var box=boxes.get(i);
-            if(box.contains(x,y)&&selectable(box.counter(),dimension)){selected.add(box.counter().key());return true;}
+            if(box.contains(x,y)&&selectable(box.counter(),dimension)){if(!selected.remove(box.counter().key()))selected.add(box.counter().key());dev.hoi.client.audio.AudioUiSounds.play("ui.division.select");MapCommanderPanels.mapSelectionChanged();return true;}
         }
-        return false;
+        MapCommanderPanels.mapSelectionChanged();return false;
     }
     public static void selectArea(double startX,double startY,double endX,double endY) {
         var client=Minecraft.getInstance();
@@ -87,6 +88,8 @@ public final class MapUnitHud {
         double right=Math.max(startX,endX),bottom=Math.max(startY,endY);
         for(var box:boxes)if(selectable(box.counter(),dimension)&&box.x()<right&&box.x()+box.width()>left
                 &&box.y()<bottom&&box.y()+box.height()>top)selected.add(box.counter().key());
+        if(!selected.isEmpty())dev.hoi.client.audio.AudioUiSounds.play("ui.division.select");
+        MapCommanderPanels.mapSelectionChanged();
     }
     static boolean selectable(Counter counter,String dimension) {
         if(dimension.startsWith("hoi:atlas_army_"))return !counter.navy()&&!counter.air();
@@ -94,12 +97,19 @@ public final class MapUnitHud {
         if(dimension.startsWith("hoi:atlas_air_"))return counter.air();
         return !dimension.startsWith("hoi:atlas_");
     }
+    static void clearSelection(){selected.clear();MapCommanderPanels.manualDivisionSelection();}
+    static void replaceDivisions(Collection<String> ids){replaceKeys(ids.stream().map(id->"unit/"+id).toList());}
+    static void replaceKeys(Collection<String> keys){var client=Minecraft.getInstance();if(client.level!=null){dimension=client.level.dimension().identifier().toString();age=0;}selected.clear();selected.addAll(keys);}
+    static void removeDivisions(Set<String> ids){selected.removeIf(key->key.startsWith("unit/")&&ids.contains(key.substring(5)));}
+    static void selectDivisions(Collection<String> ids,boolean toggle){var client=Minecraft.getInstance();if(client.level!=null){dimension=client.level.dimension().identifier().toString();age=0;}if(!toggle)selected.clear();for(String id:ids){String key="unit/"+id;if(!toggle||!selected.remove(key))selected.add(key);}MapCommanderPanels.mapSelectionChanged();}
+    static void retainDivisions(Set<String> ids){selected.removeIf(key->!key.startsWith("unit/")||!ids.contains(key.substring(5)));}
     static String selected(){return selected.stream().findFirst().orElse("");}
     static Set<String> selectedKeys(){return Set.copyOf(selected);}
     static List<MapHudBox> boxes(){return boxes;}
     static void tick() {
         var client=Minecraft.getInstance();
-        if(client.level==null||!dimension.equals(client.level.dimension().identifier().toString())||++age>=40)reset();
+        if(client.level==null||!dimension.equals(client.level.dimension().identifier().toString()))reset();
+        else if(age<40&&++age>=40){groups=List.of();boxes=List.of();}
     }
     private static void draw(GuiGraphicsExtractor g,int left) {
         boxes=List.of();
@@ -154,7 +164,7 @@ public final class MapUnitHud {
         } else UiText.centered(g,font,c.unknown()?"?":count(c.count()),c.air()?21:36,c.air()?8:7,c.air()?50:20,14,0xFFFFFFFF);
         if(c.status()==Status.TRAINING)UiAssets.draw(g,"unit_hud/"+(c.air()?"air_training":"training"),c.air()?-14:c.navy()?63:54,c.air()?7:8,c.air()?14:12,c.air()?14:12);
         if(c.air()&&c.status()==Status.IDLE)UiAssets.draw(g,"unit_hud/no_orders",-10,8,12,14);
-        if(selected.contains(c.key()))UiAssets.draw(g,"unit_hud/"+(c.navy()?"navy":"army")+"_selected",0,0,c.navy()?74:68,c.navy()?36:28);
+        if(MapCommanderPanels.counterSelected(c.key()))UiAssets.draw(g,"unit_hud/"+(c.navy()?"navy":"army")+"_selected",0,0,c.navy()?74:68,c.navy()?36:28);
         g.pose().popMatrix();
     }
     private static int tint(Allegiance allegiance) {

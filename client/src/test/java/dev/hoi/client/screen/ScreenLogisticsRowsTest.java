@@ -74,6 +74,47 @@ class ScreenLogisticsRowsTest {
         assertEquals("image/new",rows.getFirst().representative().texture());
         assertEquals(0,rows.getFirst().stockpile());
     }
+    @Test void combatShipRowsStayHiddenWhileSupplyLandAndAirQuantitiesArePreserved() {
+        var convoy = branchEquipment("convoy", "navy", true, "convoy", 580, 20, 0, 30);
+        var harbor = branchEquipment("harbor", "navy", true, "floating_harbor_equipment", 3, 1, 0, 2);
+        var train = branchEquipment("train", "infantry", false, "train", 200, 0, 0, 0);
+        var truck = branchEquipment("truck", "infantry", false, "truck", 1500, 10, 90, 360);
+        var rifle = branchEquipment("rifle", "infantry", false, "infantry", 100, 5, 25, 80);
+        var plane = branchEquipment("plane", "air", false, "naval_bomber", 50, 0, 100, 20);
+        var input = new ArrayList<>(List.of(convoy, harbor, train, truck, rifle, plane));
+        for (String family : List.of("destroyer", "light_cruiser", "heavy_cruiser", "battlecruiser", "battleship", "carrier", "submarine"))
+            input.add(branchEquipment("custom/" + family, "navy", true, family, 12, 3, 7, 4));
+        var snapshot = List.copyOf(input);
+        var lines = List.of(new ProtocolIndustryView.Line("convoy-line", "convoy", 2, 2, .5, 1.25, 0, 0),
+                new ProtocolIndustryView.Line("ship-line", "custom/destroyer", 3, 3, .7, 5, 0, 0));
+        var rows = ScreenLogisticsRows.create(snapshot, lines, "all");
+        assertEquals(List.of("convoy", "harbor", "train", "truck", "rifle", "plane"), rows.stream().map(r -> r.representative().id()).toList());
+        for (int i = 0; i < rows.size(); i++) {
+            var row = rows.get(i); var item = snapshot.get(i);
+            assertEquals(item.stockpile(), row.stockpile());
+            assertEquals(item.reserved(), row.reserved());
+            assertEquals(item.deployed(), row.deployed());
+            assertEquals(item.demand(), row.demand());
+            assertEquals(item.stockpile() - item.demand(), row.balance().longValue());
+        }
+        assertEquals(1.25, rows.getFirst().daily());
+        assertEquals(List.of("convoy", "harbor"), ScreenLogisticsRows.create(snapshot, lines, "navy").stream().map(r -> r.representative().id()).toList());
+        assertEquals(List.of(plane), ScreenLogisticsRows.create(snapshot, lines, "air").getFirst().models());
+        assertEquals(input, snapshot);
+        assertEquals(12, snapshot.get(6).stockpile());
+        assertEquals(7, snapshot.get(6).deployed());
+        assertEquals(2, lines.size());
+    }
+    @Test void unknownNavalFamiliesAndLegacyMissingFamiliesAreNotGuessedFromNames() {
+        var legacy = branchEquipment("legacy", "navy", true, null, 10, 0, 0, 0);
+        var unknown = branchEquipment("destroyer", "navy", true, "unknown_support", 5, 0, 0, 0);
+        assertEquals(List.of(legacy, unknown), ScreenLogisticsRows.create(List.of(legacy, unknown), List.of(), "all")
+                .stream().map(ScreenLogisticsRows.ScreenLogisticsRow::representative).toList());
+    }
+    private static ProtocolIndustryView.Equipment branchEquipment(String id, String group, boolean naval, String family, long stock, long reserved, long deployed, long demand) {
+        return new ProtocolIndustryView.Equipment(id, id, "image/" + id, group, naval, true, 1, 10,
+                Map.of(), stock, reserved, deployed, 0, "", family, id, demand, true);
+    }
     private static ProtocolIndustryView.Equipment equipment(String id, boolean unlocked, long stock, String replacement, String family) {
         return new ProtocolIndustryView.Equipment(id, id, "image/" + id, "infantry", false, unlocked, 1, 1,
                 Map.of(), stock, 0, 0, 0, replacement, family);

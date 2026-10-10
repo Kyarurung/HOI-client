@@ -18,7 +18,7 @@ public final class AudioSuperEvent {
         var client = Minecraft.getInstance(); var id = Identifier.fromNamespaceAndPath("hoi", path);
         if (client.getSoundManager().getSoundEvent(id) == null) return;
         token = session; AudioKoreanMusic.enable();AudioKoreanMusic.suspend();AudioStoryMusic.reset();client.getMusicManager().stopPlaying();
-        sound = new SimpleSoundInstance(id, SoundSource.MASTER, 1, 1, RandomSource.create(), false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
+        sound = new AudioPlaylistSound(path);
         startup=20;client.getSoundManager().play(sound);
     }
     public static boolean active() { return sound != null; }

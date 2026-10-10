@@ -1,0 +1,102 @@
+package dev.hoi.client.screen;
+
+import dev.hoi.protocol.*;
+import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.KeyEvent;
+import java.util.*;
+
+public final class ScreenDiplomacyActionsTest {
+    private ScreenDiplomacyActionsTest() {}
+    public static void run(ClientGameTestContext context) {
+        context.getInput().resizeWindow(2560, 1440);
+        context.runOnClient(c -> c.options.guiScale().set(2));
+        String session = UUID.randomUUID().toString();
+        var requests = new ArrayList<ProtocolCountryPayloads.Action>();
+        var view = fixture(session, 3);
+        context.setScreen(() -> new ScreenCountry(view, requests::add));
+        context.waitTicks(3);
+        context.takeScreenshot("hoi-diplomacy-actions-gui2");
+        context.runOnClient(c -> {
+            var screen = (ScreenCountry)c.gui.screen();
+            var disabled = button(screen, "독립 보장");
+            if (disabled.active) throw new AssertionError("Authoritative disabled action became enabled");
+            var accept = button(screen, "군사 통행권 수락");
+            int x = accept.getX() + accept.getWidth() / 2, y = accept.getY() + accept.getHeight() / 2;
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(x, y,
+                    new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT, 0)), false);
+            if (screen.children().stream().anyMatch(w -> w instanceof Button b && b.getMessage().getString().equals("확인")))
+                throw new AssertionError("Right click opened a diplomatic action");
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(x, y,
+                    new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
+            if (screen.allowsMovement()) throw new AssertionError("Confirmation failed to capture movement input");
+            if (!requests.isEmpty()) throw new AssertionError("Opening confirmation sent an action");
+        });
+        context.waitTicks(3);
+        context.takeScreenshot("hoi-diplomacy-proposal-confirm-gui2");
+        context.runOnClient(c -> {
+            var screen = (ScreenCountry)c.gui.screen();
+            screen.mouseScrolled(screen.panelWidth() + 20, 100, 0, -20);
+            if (!requests.isEmpty()) throw new AssertionError("Scrolling confirmation sent an action");
+            screen.keyPressed(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE, 0, 0));
+            if (!screen.allowsMovement() || !requests.isEmpty()) throw new AssertionError("Escape cancellation mutated diplomacy");
+            press(button(screen, "군사 통행권 수락"));
+            press(button(screen, "확인"));
+            press(button(screen, "확인"));
+            if (requests.size() != 1 || !requests.getFirst().session().equals(session) || requests.getFirst().revision() != 3
+                    || !requests.getFirst().id().equals("accept:foreign_1")) throw new AssertionError("Request did not retain its authoritative session and proposal");
+            for (int tick = 0; tick < 100; tick++) screen.tick();
+            if (screen.children().stream().anyMatch(w -> w instanceof Button b && b.getMessage().getString().equals("확인")))
+                throw new AssertionError("Lost response left diplomacy permanently pending");
+            if (requests.size() != 1) throw new AssertionError("Timeout retransmitted a mutation");
+            screen.update(ProtocolCountryPayloads.Response.of(screen.token(), fixture(session, 4)));
+            screen.update(ProtocolCountryPayloads.Response.of(screen.token(), view));
+            if (screen.view().actions().revision() != 4) throw new AssertionError("Stale revision replaced current diplomacy");
+        });
+        var point = context.computeOnClient(c -> {
+            var button = button((ScreenCountry)c.gui.screen(), "독립 보장");
+            return new double[]{(button.getX() + button.getWidth() / 2.0) * c.getWindow().getGuiScale(), (button.getY() + button.getHeight() / 2.0) * c.getWindow().getGuiScale()};
+        });
+        context.getInput().setCursorPos(point[0], point[1]);
+        context.waitTicks(15);
+        context.takeScreenshot("hoi-diplomacy-disabled-condition-gui2");
+        context.runOnClient(c -> {
+            var screen = (ScreenCountry)c.gui.screen();
+            screen.mouseScrolled(screen.panelWidth() - 15, screen.height - 70, 0, -50);
+            press(button(screen, "다음 외교 행동"));
+            if (requests.size() != 2 || !requests.getLast().id().equals("page_next")) throw new AssertionError("Paged actions were unreachable");
+            String old = screen.token();
+            screen.select("JAP");
+            screen.update(ProtocolCountryPayloads.Response.of(old, view));
+            if (screen.view() != null) throw new AssertionError("Previous country response crossed target selection");
+            var reopened = new ScreenCountry(view, requests::add);
+            c.gui.setScreen(reopened);
+            reopened.update(ProtocolCountryPayloads.Response.of(old, fixture(session, 7)));
+            if (reopened.view().actions().revision() != 3) throw new AssertionError("Old session response crossed reopen");
+        });
+        context.getInput().resizeWindow(1600, 1000);
+        context.waitTicks(3);
+        context.takeScreenshot("hoi-diplomacy-actions-compact-gui2");
+        context.runOnClient(c -> {
+            var screen = (ScreenCountry)c.gui.screen();
+            for (var child : screen.children()) if (child instanceof Button b && (b.getX() < 0 || b.getY() < 0 || b.getRight() > screen.width || b.getBottom() > screen.height))
+                throw new AssertionError("Diplomacy action escaped compact screen bounds");
+        });
+    }
+    private static ProtocolCountryView fixture(String session, long revision) {
+        var actions = new ArrayList<ProtocolCountryView.Action>();
+        actions.add(new ProtocolCountryView.Action("accept:foreign_1", "군사 통행권 수락", "제안: 군사 통행권\nPRK → KOR\n정치력 비용 없음 · 30일 남음\n상대 국가의 군대가 우리 영토에서 이동할 수 있습니다.", true));
+        actions.add(new ProtocolCountryView.Action("decline:foreign_1", "군사 통행권 거절", "제안을 거절합니다. 정치력 비용 없음.", true));
+        actions.add(new ProtocolCountryView.Action("guarantee", "독립 보장", "정치력 15\n\n§c같은 이념이 필요하며 중복 보장할 수 없습니다.§r", false));
+        for (int i = 0; i < 19; i++) actions.add(new ProtocolCountryView.Action("withdraw:foreign_" + (i + 2), "제안 취소 " + (i + 2), "정치력 비용 없음 · 상대국 응답 대기", true));
+        actions.add(new ProtocolCountryView.Action("page_next", "다음 외교 행동", "", true));
+        var reports = Arrays.stream(ProtocolIntelDomain.values()).map(d -> new ProtocolCountryView.Report(d, 0, List.of())).toList();
+        return new ProtocolCountryView("KOR", ProtocolCountryHud.UNKNOWN, "PRK", "조선민주주의인민공화국", false,
+                List.of(new ProtocolCountryView.Choice("PRK", "조선민주주의인민공화국")), List.of(), List.of(), reports,
+                new ProtocolCountryView.Actions(session, revision, "", actions), List.of());
+    }
+    private static Button button(ScreenCountry screen, String name) {
+        return (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow();
+    }
+    private static void press(Button button) { button.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0)); }
+}

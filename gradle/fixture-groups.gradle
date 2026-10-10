@@ -1,0 +1,93 @@
+ext.hoiRendererFixtureGroups = [
+    decisions: [
+        environment: 'HOI_DECISION_PREVIEW', property: 'hoiDecisionPreview',
+        producers: ['dev.hoi.fabric.FabricDecisionPresentationTest'],
+        fixtures: [
+            'kor-pages', 'kor-metadata', 'jap-pages', 'jap-metadata',
+            'prc-pages', 'prc-metadata', 'prc-active-pages', 'prc-active-metadata',
+            'prc-restored-pages', 'prc-restored-metadata', 'prc-completed-pages', 'prc-completed-metadata',
+            'decision-panels'
+        ],
+        suites: ['all', 'decisions']
+    ],
+    diplomacyLease: [
+        environment: 'HOI_LEASE_PREVIEW', property: 'hoiLeasePreview',
+        producers: ['dev.hoi.fabric.FabricDiplomacyLeaseRenderFixtureTest'],
+        fixtures: ['empty', 'once', 'monthly', 'multiple', 'fixture-source'],
+        suites: ['all', 'diplomacy']
+    ],
+    diplomacyVolunteers: [
+        environment: 'HOI_VOLUNTEER_PREVIEW', property: 'hoiVolunteerPreview',
+        producers: ['dev.hoi.fabric.FabricDiplomacyVolunteerSessionsTest'],
+        fixtures: ['unselected', 'selected', 'multiple-selected', 'air-disabled'],
+        suites: ['all', 'diplomacy']
+    ],
+    captivity: [
+        environment: 'HOI_CAPTIVITY_PREVIEW', property: 'hoiCaptivityPreview',
+        producers: ['dev.hoi.fabric.FabricCommanderCaptivityViewsTest'],
+        fixtures: ['captivity-empty', 'captivity-ours', 'captivity-search', 'captivity-no-results', 'captivity-theirs', 'captivity-failure'],
+        suites: ['all', 'captivity']
+    ],
+    headquarters: [
+        environment: 'HOI_HEADQUARTERS_PREVIEW', property: 'hoiHeadquartersPreview',
+        producers: ['dev.hoi.fabric.FabricArmyHeadquartersDesignsTest'],
+        fixtures: ['headquarters-list', 'headquarters-draft', 'headquarters-saved', 'headquarters-preview', 'headquarters-conflict'],
+        suites: ['all', 'headquarters', 'captivity']
+    ],
+    tactics: [
+        environment: 'HOI_TACTIC_PREVIEW', property: 'hoiTacticPreview',
+        producers: ['dev.hoi.fabric.FabricLeaderTacticOffersTest'],
+        fixtures: [
+            'national-tactic-choices', 'national-tactic-insufficient', 'leader-tactic-choices',
+            'leader-tactic-low-skill', 'leader-tactic-low-skill-trait-tree',
+            'leader-tactic-confirm', 'leader-tactic-selected'
+        ],
+        suites: ['all', 'officers', 'officer-review', 'tactics']
+    ],
+    doctrine: [
+        environment: 'HOI_DOCTRINE_PREVIEW', property: 'hoiDoctrinePreview',
+        producers: [
+            'dev.hoi.fabric.FabricDoctrineSessionsTest', 'dev.hoi.fabric.FabricDoctrineNativeMasteryTest',
+            'dev.hoi.fabric.FabricGrandSwitchMasteryResetTest'
+        ],
+        fixtures: [
+            'doctrine-land-empty', 'doctrine-land-selected', 'doctrine-air-empty',
+            'doctrine-naval-ready', 'doctrine-naval-selected', 'doctrine-air-ready', 'doctrine-air-selected',
+            'doctrine-land-progress', 'doctrine-land-before-grand-switch', 'doctrine-land-after-grand-switch'
+        ],
+        suites: ['all', 'doctrine', 'officer-review']
+    ],
+    armyHud: [
+        environment: 'HOI_COMMANDER_PREVIEW', property: 'hoi.commandFixtureOutput',
+        producers: [
+            'dev.hoi.fabric.FabricCommanderHudDetailsTest', 'dev.hoi.fabric.FabricCommanderDialogSessionsTest',
+            'dev.hoi.fabric.FabricArmyGroupSessionsTest', 'dev.hoi.fabric.FabricAirArmyAttachmentOffersTest',
+            'dev.hoi.fabric.FabricAirAdministrationOffersTest', 'dev.hoi.fabric.FabricAirDeterminateStateTest',
+            'dev.hoi.fabric.FabricArmyCohesionOffersTest', 'dev.hoi.fabric.FabricNavalConvoyTargetOffersTest',
+            'dev.hoi.fabric.FabricAirArmyFollowingTest', 'dev.hoi.fabric.FabricCommanderOrderSessionsTest',
+            'dev.hoi.fabric.FabricArmyAbilityOffersTest'
+        ],
+        fixtures: [
+            'kor-command-panel-army', 'kor-command-panel-navy', 'kor-command-panel-air', 'kor-command-panel-area',
+            'kor-command-panel-army-assigned', 'kor-command-panel-army-group-assigned',
+            'kor-command-panel-air-attached', 'kor-command-panel-air-detached', 'kor-command-panel-army-air-attached',
+            'kor-command-panel-air-groups', 'kor-command-panel-air-diagnostics', 'kor-command-panel-army-immobile',
+            'kor-command-panel-navy-convoy-excluded', 'naval-areas-source-kor-dialog', 'naval-reinforcement-source-kor-dialog',
+            'kor-command-panel-air-following-following', 'kor-command-panel-air-following-blocked',
+            'kor-command-panel-air-following-multiple_bases', 'kor-selected-skill-rejections',
+            'army-ability-force_attack-source-kor-dialog', 'army-ability-last_stand-source-kor-dialog',
+            'army-ability-staff_office_plan-source-kor-dialog', 'army-ability-extra_suplies-source-kor-dialog',
+            'army-ability-siege_artillery-source-kor-dialog', 'army-ability-glider_planes-source-kor-dialog',
+            'army-ability-faster_naval_invasion_planning-source-kor-dialog', 'army-ability-probing_attack-source-kor-dialog',
+            'army-ability-makeshift_bridges-source-kor-dialog', 'army-ability-requisition_winter_gear-source-kor-dialog',
+            'army-ability-tactic_gas_bombardment-source-kor-dialog', 'army-ability-ALL-source-kor-dialog'
+        ],
+        suites: ['missions', 'movement-controls']
+    ],
+    missionOverlay: [
+        environment: 'HOI_MISSION_OVERLAY_FIXTURES', property: 'hoi.missionOverlayFixtureOutput',
+        producers: ['dev.hoi.map.MapMovementOverlayTest', 'dev.hoi.map.MapAirMissionOverlayTest'],
+        fixtures: ['army', 'air', 'navy'],
+        suites: ['movement-controls']
+    ]
+]

@@ -5,6 +5,7 @@ import dev.hoi.protocol.ProtocolIndustryView.Equipment;
 import java.util.*;
 
 final class ScreenLogisticsRows {
+    private static final Set<String> COMBAT_SHIP_FAMILIES = Set.of("destroyer", "light_cruiser", "heavy_cruiser", "battlecruiser", "battleship", "carrier", "submarine");
     record ScreenLogisticsRow(Equipment representative, List<Equipment> models, double daily, Double efficiency, Map<String, Double> resources) {
         long stockpile() { return models.stream().mapToLong(Equipment::stockpile).sum(); }
         long reserved() { return models.stream().mapToLong(Equipment::reserved).sum(); }
@@ -50,6 +51,7 @@ final class ScreenLogisticsRows {
         for (var line : lines) linesByEquipment.computeIfAbsent(line.equipment(), key -> new ArrayList<>()).add(line);
         var families = new LinkedHashMap<String,List<Equipment>>();
         for (var item : equipment) {
+            if (item.naval() && COMBAT_SHIP_FAMILIES.contains(Objects.toString(item.family(), ""))) continue;
             if (!group.equals("all") && !item.group().equals(group)) continue;
             String family = item.family() == null || item.family().isBlank() ? item.id() : item.family();
             families.computeIfAbsent(item.group() + "/" + family, key -> new ArrayList<>()).add(item);

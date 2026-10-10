@@ -17,7 +17,7 @@ public final class UiAssets {
     private static final Map<Identifier, int[]> DIMENSIONS = new HashMap<>();
     private static final Map<Identifier, int[]> CONTENT_BOUNDS = new HashMap<>();
     private UiAssets() {}
-    public static void clear() { DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); UiKeywordIcons.clear(); UiMenuBar.clear(); UiEquipmentDesigns.clear(); UiTooltips.clear(); }
+    public static void clear() { UiCommandLabels.clear(); DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); UiKeywordIcons.clear(); UiMenuBar.clear(); UiEquipmentDesigns.clear(); UiTooltips.clear(); dev.hoi.client.screen.ScreenDecision.resourcesReloaded(); UiDiplomacyAssets.resourcesReloaded(); }
     public static boolean cover(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         if (id == null || w <= 0 || h <= 0) return false;

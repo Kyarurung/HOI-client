@@ -28,6 +28,10 @@ public class ScreenDialog extends Screen {
     }
     private boolean paper() { return view.kind() == ProtocolDialogView.Kind.EVENT || view.kind() == ProtocolDialogView.Kind.GLOBAL_EVENT; }
     float textScale() { return dev.hoi.client.ui.UiText.scale(font); }
+    Component bodyText() {
+        var body=Component.literal(view.body());
+        return view.kind()==ProtocolDialogView.Kind.COMMANDER?dev.hoi.client.ui.UiKeywordIcons.decorateLines(body,false):body;
+    }
     @Override protected void init() {
         boolean event = paper() || view.kind() == ProtocolDialogView.Kind.SUPER_EVENT;
         if (event) {
@@ -89,7 +93,7 @@ public class ScreenDialog extends Screen {
         int y = bodyTop + 5 - scroll;
         if (view.kind() != ProtocolDialogView.Kind.EVENT) y = image(g, y);
         if (view.kind() != ProtocolDialogView.Kind.STATE) {
-            for (var line : font.split(Component.literal(view.body()), (int)((pane - 32) / textScale()))) { text(g, line, left + 15, y, ink); y += paper() ? 12 : 13; }
+            for (var line : font.split(bodyText(), (int)((pane - 32) / textScale()))) { text(g, line, left + 15, y, ink); y += paper() ? 12 : 13; }
             if (!view.body().isEmpty()) y += 10;
         }
         if (view.kind() == ProtocolDialogView.Kind.EVENT) y = image(g, y);

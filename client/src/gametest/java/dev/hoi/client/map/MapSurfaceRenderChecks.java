@@ -30,9 +30,39 @@ public final class MapSurfaceRenderChecks {
         }catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
         context.runOnClient(client->MapSceneRenderer.receivePlans("PRK",new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,java.util.List.of())));
         context.waitTicks(2);context.runOnClient(client->{if(MapSceneRenderer.visibleTileCount()==0)throw new AssertionError("Foreign plan update must not clear owned geometry");});
+        try(var reader=java.nio.file.Files.newBufferedReader(java.nio.file.Path.of(fixture).resolveSibling("land-plan-preview.json"))) {
+            var preview=java.util.List.of(new Gson().fromJson(reader,dev.hoi.protocol.ProtocolAtlasScene.Box[].class));
+            context.runOnClient(client->{if(client.options.guiScale().get()!=2||client.getWindow().getGuiScale()!=2)throw new AssertionError("Plan preview capture requires actual GUI scale 2");MapSceneRenderer.receivePlans("",new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,preview));});
+            context.waitTicks(5);var picture=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-land-plan-edit-draft-gui2").toFile());int blue=0;
+            for(int y=0;y<picture.getHeight();y++)for(int x=0;x<picture.getWidth();x++){int pixel=picture.getRGB(x,y),r=pixel>>16&255,g=pixel>>8&255,b=pixel&255;if(b>80&&b>r*1.4&&b>g*1.2)blue++;}
+            if(blue<20)throw new AssertionError("Uncommitted blue plan preview did not render: "+blue);
+        }catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
         context.runOnClient(client->MapSceneRenderer.receivePlans("",new dev.hoi.protocol.ProtocolAtlasScene.Page(java.util.UUID.randomUUID(),"minecraft:overworld",0,1,java.util.List.of())));
         context.waitFor(client->MapSceneRenderer.visibleTileCount()==0);context.takeScreenshot("hoi-land-plan-deleted-clears-map");
         context.runOnClient(client->MapSceneRenderer.clearPlans());command.accept("fill 0 64 0 "+size+" 64 "+size+" minecraft:air strict");
+    }
+    private static void constructionPalette(ClientGameTestContext context,java.util.function.Consumer<String> command) {
+        String fixture=System.getenv("HOI_CONSTRUCTION_PALETTE_PREVIEW");if(fixture==null||fixture.isBlank())return;
+        try {
+            var samples=JsonParser.parseString(java.nio.file.Files.readString(Path.of(fixture))).getAsJsonArray();
+            command.accept("tp @a 6 73 -5 0 0");
+            int column=0;
+            for(var value:samples) {
+                var sample=value.getAsJsonObject();String phase=sample.get("phase").getAsString();
+                if(!java.util.Set.of("reserved","reserved-full","completed-full").contains(phase))continue;
+                command.accept("summon minecraft:block_display "+(column++*4)+" 72 8 {block_state:"+sample.get("block")+",transformation:{translation:[0f,0f,0f],scale:[3f,3f,1f],left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f]},brightness:{block:15,sky:15}}");
+            }
+            if(column!=3)throw new AssertionError("Construction preview needs actual reserved, reserved-full and paid completed states");
+            context.waitTicks(12);var picture=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-construction-reserved-reserved-full-completed-full-gui2").toFile());
+            int yellow=0,blue=0;
+            for(int y=picture.getHeight()/4;y<picture.getHeight()*3/4;y++)for(int x=0;x<picture.getWidth();x++) {
+                int pixel=picture.getRGB(x,y),r=pixel>>16&255,g=pixel>>8&255,b=pixel&255;
+                if(r>100&&g>80&&r>b*1.5&&g>b*1.5)yellow++;
+                if(b>50&&b>r*2&&b>g*1.5)blue++;
+            }
+            if(yellow<100||blue<100)throw new AssertionError("Actual construction reservation/completion colours did not render: "+yellow+"/"+blue);
+            command.accept("kill @e[type=minecraft:block_display]");
+        }catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
     }
     public static void run(ClientGameTestContext context) {
         context.runOnClient(client -> {
@@ -60,7 +90,9 @@ public final class MapSurfaceRenderChecks {
             command.accept("time set noon");command.accept("weather clear");command.accept("gamemode spectator @a");
             context.setScreen(()->null);
             context.runOnClient(client->{client.options.fov().set(60);client.options.guiScale().set(2);});
+            MapMissionOverlayRenderTest.run(context,command);
             landPlanOverlay(context,command);
+            constructionPalette(context,command);
             countryNamesAboveWater(context,command);
             command.accept("tp @a 6 70 -8 0 0");
             String[] shapes={"square","pentagon","circle","star"},tones={"own","enemy","neutral"};
@@ -248,7 +280,7 @@ public final class MapSurfaceRenderChecks {
         context.runOnClient(client->client.options.renderDistance().set(12));
         context.runOnClient(client->MapSceneRenderer.clear());
         context.getInput().resizeWindow(2560,1440);
-        for(String region:java.util.List.of("186","193","76","79","80","72","93")) {
+        for(String region:java.util.List.of("186","193","76","77","79","80","72","93")) {
             var data=scenes.getAsJsonObject(region);int width=data.get("width").getAsInt(),depth=data.get("depth").getAsInt();
             command.accept("kill @e[type=minecraft:block_display]");command.accept("kill @e[type=minecraft:item_display]");command.accept("kill @e[type=minecraft:text_display]");
             for(int y=65;y<=67;y++)command.accept("fill 0 "+y+" 0 127 "+y+" 127 minecraft:air");

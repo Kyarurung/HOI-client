@@ -47,6 +47,9 @@ public final class ScreenDecisionChecks {
             if(c.gui.screen()!=null)throw new AssertionError("Revoked decisions must close");
         });
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
+        ScreenDecisionInteractionTest.run(context,hud);
+        ScreenDecisionPanelTest.run(context,hud);
+        ScreenDecisionSourceTest.run(context);
     }
     private static Button button(ScreenDecision screen,String name) {
         return (Button)screen.children().stream().filter(c -> c instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow();

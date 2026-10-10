@@ -172,14 +172,16 @@ public final class MapUnitHudChecks {
         context.runOnClient(client->MapUnitHud.accept(fixture(client)));context.waitTicks(3);
         context.runOnClient(client->{if(MapUnitHud.boxes().size()!=6)throw new AssertionError("Compact viewport counters");});
         context.takeScreenshot("hoi-unit-hud-compact");context.waitTicks(3);
-        context.runOnClient(client->{
-            MapUnitHud.accept(fixture(client));for(int i=0;i<40;i++)MapUnitHud.tick();
+        var delayedSelection=context.computeOnClient(client->{
+            var snapshot=fixture(client);MapUnitHud.accept(snapshot);MapUnitHud.replaceKeys(List.of(snapshot.counters().getFirst().key()));
+            var selected=MapUnitHud.selectedKeys();for(int i=0;i<40;i++)MapUnitHud.tick();return selected;
         });
         context.waitTicks(2);
         context.runOnClient(client->{
-            if(!MapUnitHud.boxes().isEmpty()||!MapUnitHud.selected().isEmpty())throw new AssertionError("Expired snapshot remains visible or selected");
-            MapUnitHud.accept(fixture(client));MapUnitHud.accept(new Snapshot("hoi:elsewhere",List.of()));
-            if(!MapUnitHud.boxes().isEmpty())throw new AssertionError("Dimension change preserves private HUD");
+            if(!MapUnitHud.boxes().isEmpty()||!MapUnitHud.selectedKeys().equals(delayedSelection))throw new AssertionError("Delayed snapshot must hide stale counters and preserve the exact selection");
+            MapUnitHud.accept(fixture(client));if(!MapUnitHud.selectedKeys().equals(delayedSelection))throw new AssertionError("A delayed authoritative refresh must retain the surviving selection");
+            MapUnitHud.accept(new Snapshot("hoi:elsewhere",List.of()));
+            if(!MapUnitHud.boxes().isEmpty()||!MapUnitHud.selectedKeys().isEmpty())throw new AssertionError("Dimension change must clear both private HUD and selection");
             MapUnitHud.reset();
         });
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);

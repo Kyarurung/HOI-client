@@ -9,6 +9,8 @@ import java.util.*;
 public final class ScreenCommanderSourceTest {
     private ScreenCommanderSourceTest() {}
     public static void run(ClientGameTestContext context) {
+        ScreenAdmiralSourceTest.run(context);
+        ScreenAirAceSourceTest.run(context);
         ScreenCommanderTraitTreeTest.run(context);
         String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
         try {
@@ -91,14 +93,6 @@ public final class ScreenCommanderSourceTest {
                 screen.mouseClicked(click,false);screen.mouseClicked(click,true);
                 if(promotionSent.size()!=1||!promotionSent.getFirst().equals(new ProtocolDialogPayloads.Action(promotion.token(),7,"promote")))throw new AssertionError("Marshal discount click must send one server-issued promotion");
             });
-            var navy=new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory,"kor-navy-candidates.json")),true).view();
-            context.setScreen(()->new ScreenCommanderRoster(navy,parent,a->{}));context.waitTicks(2);
-            context.runOnClient(client->client.gui.screen().children().stream().filter(c->c instanceof net.minecraft.client.gui.components.EditBox).map(c->(net.minecraft.client.gui.components.EditBox)c).findFirst().orElseThrow().setValue("강동길"));
-            var navyPosition=context.computeOnClient(client->{
-                var button=client.gui.screen().children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->c.getMessage().getString().equals("강동길")).findFirst().orElseThrow();
-                return new int[]{button.getX()+button.getWidth()/2,button.getY()+button.getHeight()/2};
-            });
-            context.getInput().setCursorPos(navyPosition[0]*2,navyPosition[1]*2);context.waitTicks(3);context.takeScreenshot("hoi-commander-navy-source-hover-gui2");
             var selectedView=new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory,"kor-army-selected.json")),true).view();
             if(selectedView.tiles().stream().noneMatch(t->t.value().equals("선택 중"))||selectedView.choices().stream().noneMatch(c->c.id().equals("remove")))throw new AssertionError("Selected server fixture must contain appointment and removal");
             var selectedMenu=new ProtocolMenuPayloads.OpenScreen(Files.readString(Path.of(directory,"kor-selected-menu.json"))).view();

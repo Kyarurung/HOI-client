@@ -9,7 +9,8 @@ public final class AudioUiSounds {
     static final java.util.List<String> START_SOUNDS=java.util.List.of("ui.game_start","ui.game_start_signal");
     private AudioUiSounds() {}
     static Identifier id(String path){return Identifier.fromNamespaceAndPath("hoi",path);}
-    public static SimpleSoundInstance instance(String path) {
+    public static net.minecraft.client.resources.sounds.SoundInstance instance(String path) {
+        if (path.equals("ui.focus.complete")) return new AudioPlaylistSound(path);
         return new SimpleSoundInstance(id(path), net.minecraft.sounds.SoundSource.MASTER, 1, 1,
                 net.minecraft.util.RandomSource.create(), false, 0,
                 net.minecraft.client.resources.sounds.SoundInstance.Attenuation.NONE, 0, 0, 0, true);

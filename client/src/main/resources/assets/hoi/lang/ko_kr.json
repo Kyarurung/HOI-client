@@ -5,5 +5,21 @@
   "hoi.construction.header.location": "§e위치§r\n\n각 건설이 이루어질 위치입니다.",
   "hoi.construction.header.task": "§e작업§r\n\n작업에 대한 설명입니다.",
   "hoi.construction.header.factories": "§e민간공장 수§r\n\n각 특정 건설을 위해 사용되는 민간공장의 수",
-  "hoi.construction.header.priority": "§e우선순위§r\n\n건설 작업은 우선순위 순서로 정렬되어 있습니다. 우선순위가 높은 건설에 먼저 공장이 할당됩니다."
+  "hoi.construction.header.priority": "§e우선순위§r\n\n건설 작업은 우선순위 순서로 정렬되어 있습니다. 우선순위가 높은 건설에 먼저 공장이 할당됩니다.",
+  "key.category.hoi.army": "HOI 육군 명령",
+  "key.hoi.army.front": "전선",
+  "key.hoi.army.offensive": "공세선",
+  "key.hoi.army.spearhead": "돌파",
+  "key.hoi.army.fallback": "후퇴선",
+  "key.hoi.army.area": "지역 방어",
+  "key.hoi.army.delete": "명령 삭제 모드",
+  "key.hoi.army.train": "훈련",
+  "key.hoi.army.train_until": "목표까지 훈련 (Shift 조합)",
+  "key.hoi.army.halt": "정지",
+  "key.hoi.army.unassign": "사단 배정 해제 (Ctrl 조합)",
+  "key.hoi.army.strategic": "전략적 재배치 (Ctrl 조합)",
+  "key.hoi.army.cohesion": "응집도 (Shift 조합)",
+  "key.hoi.army.posture": "공세 태세 (Shift 조합)",
+  "key.hoi.army.assign": "사단 배정 모드 (누르는 동안)",
+  "key.hoi.army.edit": "명령 편집 모드 (누르는 동안)"
 }

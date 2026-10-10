@@ -1,0 +1,89 @@
+import groovy.json.JsonOutput
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+
+gradle.projectsEvaluated {
+    def server = gradle.rootProject
+    def fabric = server.findProject(':fabric')
+    if (fabric == null) throw new GradleException('Authoritative HOI checkout must contain :fabric.')
+    def properties = gradle.startParameter.projectProperties
+    def schema = properties['hoiFixtureSchema']
+    if (schema == null || !new File(schema).isFile()) throw new GradleException('Missing renderer fixture schema.')
+    server.apply from: schema
+    def specification = server.ext.hoiRendererFixtureGroups
+    def groups = properties['hoiFixtureGroups']?.split(',')?.toList()
+    if (!groups || groups.any { !specification.containsKey(it) }) throw new GradleException('Unknown renderer fixture group.')
+    def target = properties['hoiFixtureOutput']
+    if (target == null || !new File(target).isAbsolute()) {
+        throw new GradleException('hoiFixtureOutput must be an absolute generated-fixture directory.')
+    }
+    def destination = new File(target)
+    def sources = server.fileTree(server.projectDir) {
+        include 'core/src/main/**', 'fabric/src/main/**', 'protocol/src/main/**', 'content/**'
+        include 'fabric/src/test/java/dev/hoi/scenario/ScenarioCaptivitySourceTest.java'
+        include 'fabric/src/test/java/dev/hoi/map/MapMissionOverlayFixtureTest.java'
+        include '*.gradle', 'gradle.properties', 'core/*.gradle', 'fabric/*.gradle', 'protocol/*.gradle'
+        include 'gradle/wrapper/gradle-wrapper.properties'
+        groups.each { group -> specification[group].producers.each { producer ->
+            include 'fabric/src/test/java/' + producer.replace('.', '/') + '.java'
+        } }
+    }
+    def digest = { File source -> MessageDigest.getInstance('SHA-256').digest(source.bytes).encodeHex().toString() }
+    fabric.tasks.register('exportClientRendererFixtures', Test) {
+        group = 'verification'
+        description = 'Exports verified authoritative tactic and doctrine renderer fixtures.'
+        dependsOn fabric.tasks.named('testClasses')
+        testClassesDirs = fabric.sourceSets.test.output.classesDirs
+        classpath = fabric.sourceSets.test.runtimeClasspath
+        filter { groups.each { name -> specification[name].producers.each { includeTestsMatching it } } }
+        def staging = new File(temporaryDir, 'fixtures')
+        groups.each { name -> systemProperty specification[name].property, new File(staging, name).absolutePath }
+        inputs.property 'fixtureGroups', groups
+        inputs.files(sources).withPathSensitivity(PathSensitivity.RELATIVE)
+        inputs.files(gradle.startParameter.initScripts + [new File(schema)]).withPathSensitivity(PathSensitivity.NONE)
+        outputs.files(groups.collectMany { name ->
+            (specification[name].fixtures.collect { it + '.json' } + ['provenance.json']).collect {
+                new File(new File(destination, name), it)
+            }
+        })
+        doFirst {
+            groups.each { name ->
+                def folder = new File(staging, name)
+                folder.mkdirs()
+                specification[name].fixtures.each { fixture -> Files.deleteIfExists(new File(folder, fixture + '.json').toPath()) }
+            }
+        }
+        doLast {
+            groups.each { name -> specification[name].fixtures.each { id ->
+                def fixture = new File(new File(staging, name), id + '.json')
+                if (!fixture.isFile() || fixture.length() == 0) {
+                    throw new GradleException("Authoritative ${name} tests did not generate ${fixture.name}.")
+                }
+            } }
+            def sourceHashes = sources.files.sort { server.relativePath(it) }.collectEntries { source ->
+                [(server.relativePath(source).replace('\\', '/')): digest(source)]
+            }
+            groups.each { name ->
+                def folder = new File(destination, name)
+                folder.mkdirs()
+                specification[name].fixtures.each { id ->
+                    Files.copy(new File(new File(staging, name), id + '.json').toPath(),
+                        new File(folder, id + '.json').toPath(), StandardCopyOption.REPLACE_EXISTING)
+                }
+                def fixtureHashes = specification[name].fixtures.collectEntries { id ->
+                    [(id + '.json'): digest(new File(folder, id + '.json'))]
+                }
+                new File(folder, 'provenance.json').setText(JsonOutput.prettyPrint(JsonOutput.toJson([
+                    formatVersion: 1,
+                    group: name,
+                    producers: specification[name].producers,
+                    sourceRoot: server.projectDir.canonicalPath,
+                    sourceHashes: sourceHashes,
+                    fixtureHashes: fixtureHashes
+                ])) + '\n', 'UTF-8')
+                logger.lifecycle("Exported ${fixtureHashes.size()} authoritative ${name} fixtures to ${folder}.")
+            }
+        }
+    }
+}

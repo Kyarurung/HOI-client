@@ -15,6 +15,20 @@ public final class ScreenOfficerSourceTest {
         context.getInput().resizeWindow(2560, 1440);
         context.runOnClient(client -> client.options.guiScale().set(2));
         try {
+            context.runOnClient(client -> {
+                var lines = UiTooltips.sourceLines(client.font,"§H제목§!\n---\n§G+0.01§! £doctrine_mastery\n\n  조건",324);
+                if (lines.size() != 5 || client.font.width(lines.get(1)) != 0 || client.font.width(lines.get(3)) != 0)
+                    throw new AssertionError("Officer source separators must retain one empty line without a visible rule");
+                var colors = new HashSet<Integer>(); var glyph = new boolean[1];
+                for (var line : lines) line.accept((index,style,codepoint) -> {
+                    if (style.getColor() != null) colors.add(style.getColor().getValue());
+                    if (codepoint >= 0xe000 && codepoint <= 0xf8ff) glyph[0] = true;
+                    if (codepoint == 0x200B) throw new AssertionError("Source separators cannot become synthetic rule markers");
+                    return true;
+                });
+                if (!colors.contains(UiTooltips.GOLD) || !colors.contains(UiTooltips.GOOD) || !glyph[0])
+                    throw new AssertionError("Original emphasis, benefit color and explicit mastery icon must survive wrapping");
+            });
             for (String name : List.of("kor-initial", "prk-initial", "prc-initial", "kor-selected")) {
                 var view = new ProtocolMenuPayloads.OpenScreen(Files.readString(Path.of(directory, name + ".json"))).view();
                 context.setScreen(() -> new ScreenMenu(view, ProtocolMenuTab.OFFICER_CORPS, () -> {}));
@@ -32,6 +46,28 @@ public final class ScreenOfficerSourceTest {
                         if (lines.isEmpty() || lines.stream().anyMatch(line -> client.font.width(line) > 300))
                             throw new AssertionError("Unrenderable source tooltip: " + stat.name());
                     }
+                });
+                context.runOnClient(client -> {
+                    var screen = (ScreenMenu)client.gui.screen();
+                    var before = List.copyOf(screen.children());
+                    for (var child : before) if (child instanceof dev.hoi.client.ui.UiHoverRegion region) {
+                        var event = new net.minecraft.client.input.MouseButtonEvent(region.getX() + region.getWidth() / 2.0,
+                                region.getY() + region.getHeight() / 2.0,
+                                new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0));
+                        if (region.mouseClicked(event, false) || region.mouseClicked(event, true))
+                            throw new AssertionError("Statistic hover region consumed a click");
+                        screen.mouseClicked(event, false);
+                        if (!screen.children().equals(before) || client.gui.screen() != screen)
+                            throw new AssertionError("Statistic click opened details or changed widgets");
+                        region.setFocused(true);
+                        if (region.isFocused()) throw new AssertionError("Statistic hover region acquired keyboard focus");
+                    }
+                    if (before.stream().filter(child -> child instanceof dev.hoi.client.ui.UiHoverRegion).count() != 47)
+                        throw new AssertionError("All source statistics must be hover-only");
+                    var removed = Set.of("지휘관", "장교", "제독", "사령부");
+                    if (before.stream().filter(child -> child instanceof AbstractWidget).map(child -> (AbstractWidget)child)
+                            .anyMatch(widget -> removed.contains(widget.getMessage().getString())))
+                        throw new AssertionError("Removed officer-corps entry button remains reachable");
                 });
                 context.takeScreenshot("hoi-officer-" + name + "-gui2");
                 if (name.equals("kor-selected")) {
@@ -70,6 +106,8 @@ public final class ScreenOfficerSourceTest {
                         if(sent.size()!=1 || !sent.getFirst().token().equals(issued.token())
                                 || sent.getFirst().revision()!=3 || !sent.getFirst().choice().equals(candidate.id()))
                             throw new AssertionError("Officer click must issue one bounded authoritative choice: " + sent);
+                        screen.choose(candidate.id());
+                        if(sent.size()!=1)throw new AssertionError("Keyboard choice must retain the pending officer submission guard");
                         screen.update(issued.issued(issued.token(),4));
                         if(screen.children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c)
                                 .filter(c->c.getMessage().getString().equals(candidate.label())).noneMatch(c->c.active))
@@ -96,13 +134,12 @@ public final class ScreenOfficerSourceTest {
                     var tacticQuote=new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory,"kor-tactic-choices.json")),true).view();
                     var tacticActions=new ArrayList<ProtocolDialogPayloads.Action>();var tacticIssued=tacticQuote.issued(UUID.randomUUID().toString(),3);
                     var tacticParent=context.computeOnClient(client -> client.gui.screen());
-                    context.setScreen(() -> new ScreenPoliticsChoice(tacticIssued,tacticParent,tacticActions::add));
+                    context.setScreen(() -> new ScreenPreferredTactics(tacticIssued,tacticParent,tacticActions::add));
                     context.getInput().setCursorPos(2400,1300);context.waitTicks(3);context.takeScreenshot("hoi-officer-preferred-tactic-choices-gui2");
                     context.runOnClient(client -> {
-                        var screen=(ScreenPoliticsChoice)client.gui.screen();
+                        var screen=(ScreenPreferredTactics)client.gui.screen();
                         var candidate=tacticIssued.choices().stream().filter(c -> c.id().equals("tactic_basic_attack")).findFirst().orElseThrow();
-                        var button=screen.children().stream().filter(c -> c instanceof AbstractWidget).map(c -> (AbstractWidget)c)
-                                .filter(c -> c.getMessage().getString().equals(candidate.label())).findFirst().orElseThrow();
+                        var button=screen.choiceButton(candidate.id());
                         var click=new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2.0,button.getY()+button.getHeight()/2.0,
                                 new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));
                         screen.mouseClicked(click,false);screen.mouseClicked(click,true);
@@ -110,7 +147,7 @@ public final class ScreenOfficerSourceTest {
                             throw new AssertionError("Preferred tactic submits exactly one authoritative source choice");
                     });
                     var selectedTactic=new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory,"kor-tactic-selected.json")),true).view();
-                    context.setScreen(() -> new ScreenPoliticsChoice(selectedTactic,tacticParent));
+                    context.setScreen(() -> new ScreenPreferredTactics(selectedTactic,tacticParent));
                     context.getInput().setCursorPos(2400,1300);context.waitTicks(3);context.takeScreenshot("hoi-officer-preferred-tactic-selected-gui2");
                     for(int group=0;group<8;group++) {
                         var groupQuote=new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory,"kor-spirit-choices-"+group+".json")),true).view();
@@ -126,6 +163,11 @@ public final class ScreenOfficerSourceTest {
                                     .map(c->new int[]{c.getX()+c.getWidth()/2,c.getY()+c.getHeight()/2}).orElseThrow());
                             context.getInput().setCursorPos(point[0]*2,point[1]*2);
                             context.waitTicks(6);
+                            context.runOnClient(client->{
+                                var screen=(ScreenPoliticsChoice)client.gui.screen();var bounds=screen.tooltipBounds();
+                                if(bounds==null||bounds.x()-4<0||bounds.y()-4<0||bounds.x()+bounds.width()+4>screen.width||bounds.y()+bounds.height()+4>screen.height)
+                                    throw new AssertionError("Selected and unavailable officer choices must retain visible source tooltips");
+                            });
                             context.takeScreenshot("hoi-officer-spirit-group-"+group+"-candidate-tooltip-gui2");
                         }
                     }

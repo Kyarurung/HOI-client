@@ -13,6 +13,8 @@ final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi.client
     private final Screen parent;
     private final Consumer<ProtocolDialogPayloads.Action> sender;
     private boolean pending;
+    private UiTooltips.ScrolledTooltip tooltipBounds;
+    UiTooltips.ScrolledTooltip tooltipBounds() {return tooltipBounds;}
     private int left,top,scroll,terrainScroll,ownedScroll,ownedMax;
     private UiUnits units;
     private final Map<String,AbstractWidget> choices=new HashMap<>();
@@ -48,13 +50,18 @@ final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi.client
             if(view().choices().stream().anyMatch(c->c.id().equals("confirm")))button("confirm","확인",310,238,60,17);
             button("cancel","취소",380,238,60,17);
         } else {
+            view().choices().stream().filter(c->c.id().equals("advisor-roles")).findFirst().ifPresent(c->button(c.id(),c.label(),305,9,120,13));
             for(var tile:view().tiles()) {
                 var n=tile.traitNode();if(n==null||!visible(n))continue;
                 if(n.available()&&view().choices().stream().anyMatch(c->c.id().equals(tile.section()))) {
                     var button=new UiMenuButton(tile.name(),nodeX(n),nodeY(n),size(83),size(19.5),()->submit(tile.section())).caption("");button.active=!pending;choices.put(tile.section(),button);nodeButtons.add(button);addRenderableWidget(button);
                 }
             }
-            if(view().choices().stream().anyMatch(c->c.id().equals("back")))button("back","돌아가기",12,365,116,17);
+            view().tiles().stream().filter(t->t.section().equals("preferred-tactic-info")).findFirst().ifPresent(tile->{
+                button("preferred-tactic",tile.value(),11.5,350,123.5,30);
+                choices.get("preferred-tactic").active=!pending&&view().choices().stream().anyMatch(c->c.id().equals("preferred-tactic"));
+                choices.get("preferred-tactic").setTooltip(null);
+            });
         }
         if(pending)children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).forEach(w->w.active=false);
     }
@@ -77,7 +84,7 @@ final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi.client
         UiAssets.draw(g,hero.icon(),x(5.5),y(32.5),size(33),size(44));
         text(g,Integer.toString(leader.skill()),38,40,25,18,0xFFFFD34B);text(g,hero.value(),62.5,34.5,75,10,0xFF161616);text(g,hero.name(),62.5,43.5,75,10,0xFF161616);
         for(int i=0;i<4;i++) {String key=List.of("attack","defense",leader.role().equals("제독")?"maneuver":"planning",leader.role().equals("제독")?"coordination":"logistics").get(i);UiAssets.draw(g,"commander/ui/"+key,x(66+i*12.5),y(56),size(12),size(12));text(g,Integer.toString(leader.abilities().get(i)),65.5+i*12.5,68,15,13,0xFF161616);}
-        String hovered="";int ownedY=88-ownedScroll;g.enableScissor(x(8),y(87.5),x(140),y(337.5));
+        tooltipBounds=null;String hovered="";int ownedY=88-ownedScroll;g.enableScissor(x(8),y(87.5),x(140),y(337.5));
         for(boolean personal:List.of(true,false)) {
             text(g,personal?"뒷배경":"특성",8,ownedY,127,12,0xFF161616);ownedY+=15;
             for(var trait:leader.traitDetails()) {
@@ -89,7 +96,12 @@ final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi.client
             }
         }
         g.disableScissor();ownedMax=Math.max(0,ownedY+ownedScroll-337);
-        int bodyY=342;for(String line:view().body().split("\n")) {text(g,line,8,bodyY,125,10,0xFF161616);bodyY+=10;}
+        int bodyY=365;for(String line:view().body().split("\n")) {text(g,line,147,bodyY,235,10,0xFF161616);bodyY+=10;}
+        var preferred=view().tiles().stream().filter(t->t.section().equals("preferred-tactic-info")).findFirst().orElse(null);
+        if(preferred!=null) {
+            text(g,preferred.name(),5,337.5,135,12,UiMenuStyle.TEXT);
+            var button=choices.get("preferred-tactic");if(button!=null&&UiTooltips.contains(button,mx,my))hovered=preferred.detail();
+        }
         boolean navy=leader.role().equals("제독");text(g,"획득 특성",122.5,35,150,13,UiMenuStyle.TEXT);
         text(g,navy?"제독 특성":"장군 특성",navy?228.5:219,35,150,13,UiMenuStyle.TEXT);
         if(!navy)text(g,"원수 특성",325,35,150,13,UiMenuStyle.TEXT);text(g,"지형 특성",navy?515:487.5,35,150,13,UiMenuStyle.TEXT);
@@ -104,7 +116,7 @@ final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi.client
         }
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget&&!nodeButtons.contains(child)){if(child instanceof AbstractWidget button&&choices.containsValue(button))drawButton(g,button,mx,my,delta);else widget.extractRenderState(g,mx,my,delta);}
         if(confirming()) {UiMenuStyle.panel(g,x(230),y(170),size(225),size(93));text(g,view().title(),238,178,209,19,UiMenuStyle.TEXT);text(g,view().body(),238,202,209,24,UiMenuStyle.TEXT);for(String key:List.of("confirm","cancel")){var button=choices.get(key);if(button!=null)drawButton(g,button,mx,my,delta);}}
-        else if(!hovered.isEmpty())UiTooltips.drawOfficerScrollable(g,font,hovered,mx,my,width,height,0,size(240));
+        else if(!hovered.isEmpty())tooltipBounds=UiTooltips.drawOfficerScrollable(g,font,hovered,mx,my,width,height,0,size(240));
     }
     @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical) {
         if(confirming())return false;

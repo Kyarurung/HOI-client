@@ -9,7 +9,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.*;
 
 record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long,List<Integer>> cells, List<Integer> large) {
-    record MapTile(Material material, AABB bounds, float[] vertices, List<Box> cities) {}
+    record MapTile(Material material, AABB bounds, float[] vertices, List<Box> cities,boolean movement) {MapTile(Material material,AABB bounds,float[] vertices,List<Box> cities){this(material,bounds,vertices,cities,false);}}
     private record MapCellKey(int x, int z, Material material) {}
     static MapSceneMesh build(String dimension, List<Box> boxes) {
         var groups = new LinkedHashMap<MapCellKey, List<Box>>();
@@ -26,6 +26,18 @@ record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long
             }
             tiles.add(new MapTile(key.material(), bounds, vertices.toFloatArray(), key.material() == Material.CITY ? List.copyOf(group) : List.of()));
         });
+        return assemble(dimension,tiles);
+    }
+    static MapSceneMesh build(String dimension,List<Box> boxes,List<dev.hoi.protocol.ProtocolCommanderHud.MovementQuad> movement){
+        var tiles=new ArrayList<>(build(dimension,boxes).tiles());var groups=new LinkedHashMap<Long,List<dev.hoi.protocol.ProtocolCommanderHud.MovementQuad>>();for(var quad:movement)groups.computeIfAbsent(cellKey(cell(quad.x()),cell(quad.z())),unused->new ArrayList<>()).add(quad);
+        for(var group:groups.values()){
+            var vertices=new FloatArrayList();AABB bounds=null;
+            for(var q:group){float sin=(float)Math.sin(q.yaw()),cos=(float)Math.cos(q.yaw());double radius=Math.hypot(q.width(),q.length());var extent=new AABB(q.x()-radius,q.y(),q.z()-radius,q.x()+radius,q.y()+.01,q.z()+radius);bounds=bounds==null?extent:bounds.minmax(extent);float[][] points={{0,0},{0,1},{1,1},{1,0}};for(var point:points){float x=point[0]*q.width(),z=point[1]*q.length();vertices.add(q.x()+x*cos+z*sin);vertices.add(q.y());vertices.add(q.z()-x*sin+z*cos);vertices.add(q.u0()+point[1]*(q.u1()-q.u0()));vertices.add(q.v0()+point[0]*(q.v1()-q.v0()));vertices.add(0);vertices.add(1);vertices.add(0);}}
+            tiles.add(new MapTile(Material.DEPLOYMENT,bounds,vertices.toFloatArray(),List.of(),true));
+        }
+        return assemble(dimension,tiles);
+    }
+    private static MapSceneMesh assemble(String dimension,List<MapTile> tiles){
         var cells = new HashMap<Long,List<Integer>>();var large=new ArrayList<Integer>();
         for (int i=0;i<tiles.size();i++) {
             var bounds=tiles.get(i).bounds();

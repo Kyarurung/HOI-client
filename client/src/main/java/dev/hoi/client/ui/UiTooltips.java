@@ -13,6 +13,10 @@ public final class UiTooltips {
     private static final java.util.LinkedHashMap<LayoutKey,List<FormattedCharSequence>> LAYOUTS = new java.util.LinkedHashMap<>(64,.75f,true);
     private static final java.util.regex.Pattern SENTENCES = java.util.regex.Pattern.compile("([.!?。！？](?:§.)*)\\h+(?=\\S)");
     private UiTooltips() {}
+    public static boolean contains(net.minecraft.client.gui.components.AbstractWidget widget,double x,double y) {
+        return widget.visible && x>=widget.getX() && y>=widget.getY()
+                && x<widget.getX()+widget.getWidth() && y<widget.getY()+widget.getHeight();
+    }
     public static void clear() {LAYOUTS.clear();}
     private static net.minecraft.network.chat.Style sourceColor(net.minecraft.network.chat.Style style) {
         var color = style.getColor();
@@ -67,7 +71,20 @@ public final class UiTooltips {
     }
     public static ScrolledTooltip drawOfficerScrollable(GuiGraphicsExtractor graphics, Font font, String text,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth) {
-        var lines = exactLines(font, officerCodes(text), Math.min(viewportWidth, maxWidth));
+        return drawOfficerScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,maxWidth,false);
+    }
+    public static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
+        return drawSourceScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,324);
+    }
+    public static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth) {
+        return drawOfficerScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,maxWidth,true);
+    }
+    private static ScrolledTooltip drawOfficerScrollable(GuiGraphicsExtractor graphics, Font font, String text,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth, boolean sourceLayout) {
+        String content = officerCodes(text);
+        var lines = exactLines(font, sourceLayout ? content : content.replaceAll("(?m)^-{3,}$", "\u200B"), Math.min(viewportWidth, maxWidth));
         int width = Math.min(Math.max(1, viewportWidth - 20), Math.max(80, lines.stream().mapToInt(font::width).max().orElse(80)));
         int lineHeight = font.lineHeight + 1;
         int total = lines.size() * lineHeight;
@@ -83,7 +100,11 @@ public final class UiTooltips {
         for (int i = Math.max(0, scroll / lineHeight); i < lines.size(); i++) {
             int top = y + i * lineHeight - scroll;
             if (top >= y + height) break;
-            graphics.text(font, lines.get(i), x, top, 0xFFE0E0E0);
+            var separator=new boolean[1];
+            lines.get(i).accept((index,style,codepoint)->{if(codepoint==0x200B)separator[0]=true;return true;});
+            if(!sourceLayout && separator[0]) {
+                for(int offset=0;offset<width;offset+=4)graphics.fill(x+offset,top+lineHeight/2,x+Math.min(width,offset+2),top+lineHeight/2+1,0xFF78828F);
+            } else graphics.text(font, lines.get(i), sourceLayout ? x : x + (width - font.width(lines.get(i))) / 2, top, 0xFFE0E0E0);
         }
         graphics.disableScissor();
         if (maxScroll > 0) {
@@ -93,11 +114,12 @@ public final class UiTooltips {
         }
         return new ScrolledTooltip(x, y, width, height, scroll, maxScroll);
     }
+    public static List<FormattedCharSequence> sourceLines(Font font,String text,int viewportWidth){return exactLines(font,officerCodes(text),viewportWidth);}
     public static Component officerText(String text) {
         return styled(Component.literal(officerCodes(text)), false);
     }
     private static String officerCodes(String text) {
-        return text.replace("§G", "§a").replace("§R", "§4")
+        return text.replace("§g", "§#8893A5").replace("§G", "§a").replace("§R", "§4")
                 .replace("§Y", "§e").replace("§H", "§e").replace("§W", "§f")
                 .replace("§B", "§9").replace("§C", "§b").replace("§O", "§6").replace("§!", "§r");
     }

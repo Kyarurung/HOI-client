@@ -26,6 +26,13 @@ import java.util.*;
 
 public final class ScreenMenu extends Screen implements InputSidebarMovement.InputMovementScreen {
     private static final int TEXT = UiMenuStyle.TEXT, GOLD = 0xFFFFAA00, MUTED = UiMenuStyle.MUTED;
+    private final Map<net.minecraft.client.gui.components.AbstractWidget, String> officerTooltips = new IdentityHashMap<>();
+    private String hoveredOfficer = "";
+    private Button capturedButton;
+    private int[] captivityCounts;
+    public void captivityCounts(int missing,int held){captivityCounts=new int[]{missing,held};}
+    private void openCaptivity(boolean ours){var screen=new ScreenCommanderCaptivity(this,ours);ScreenDialogCoordinator.setContent(screen);screen.open();}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(!selectionPreview&&selected==ProtocolMenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
     private ProtocolMenuView view;
     private boolean selectionPreview;
     private final Runnable researchOpen;
@@ -79,7 +86,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (!view.country().equals(next.country())) { selected = ProtocolMenuTab.POLITICS; collapsed.clear(); manufacturerGroup = null; manufacturerDetailId = null; }
         var old = detail;
         boolean sameCountry = view.country().equals(next.country());
-        view = next;
+        view = next;captivityCounts=null;
         if (!sameCountry || next.balance() == null) balanceOpen = false;
         if (old != null) {
             if (!sameCountry) detail = null;
@@ -95,6 +102,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     @Override public int unitHudLeft(){return pane;}
     @Override public boolean allowsMovement() { return !selectionPreview && detail == null && manufacturerGroup == null; }
     @Override protected void init() {
+        officerTooltips.clear();capturedButton=null;
         pane = UiPanelLayout.width(selected, width);
         top = UiMenuBar.height(width);
         if (selectionPreview) {
@@ -241,6 +249,12 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             officerControl(widgets, tactic, "preferred_tactic", 0, pane - 65, y + 4, 48, 28);
         }
         y += 44;
+        double commandScale=Math.min(.5,(pane-22)/418.0);int hqWidth=(int)Math.round(200*commandScale),captureWidth=(int)Math.round(218*commandScale),commandHeight=(int)Math.round(62*commandScale),captureX=pane-11-captureWidth;
+        var captured=sections.stream().filter(v->v.icon().equals("captivity")).flatMap(v->v.entries().stream()).toList();String missing=captivityCounts!=null?Integer.toString(captivityCounts[0]):captured.isEmpty()?"—":captured.getFirst().value(),held=captivityCounts!=null?Integer.toString(captivityCounts[1]):captured.size()<2?"—":captured.get(1).value();
+        String capturedTip="§e포획된 지휘관§r\n§a클릭§r하여 우리의 실종된 지휘관 확인\n§a우클릭§r하여 우리가 포획한 지휘관 확인\n\n우리의 실종된 지휘관: §e"+missing+"§r\n우리에게 포획된 지휘관: §e"+held+"§r";
+        if(g!=null){UiMenuStyle.metal(g,8,y,pane-16,commandHeight+4);UiAssets.draw(g,"officer/hq/hq_button",11,y+3,hqWidth,(int)Math.round(49*commandScale));UiAssets.draw(g,"officer/hq/captured_button",captureX,y+2,captureWidth,commandHeight);dev.hoi.client.ui.UiText.centered(g,font,"육군 사령부 편제",25,y+4,hqWidth-28,commandHeight-5,TEXT);dev.hoi.client.ui.UiText.centered(g,font,"포획된 지휘관",captureX+(int)Math.round(69*commandScale),y+3,captureWidth-(int)Math.round(75*commandScale),commandHeight-7,TEXT);}
+        if(widgets){int rowY=y;var headquarters=new UiMenuButton("육군 사령부 편제",11,rowY+2,hqWidth,commandHeight,()->{var screen=new ScreenArmyHeadquarters(this);ScreenDialogCoordinator.setContent(screen);screen.open();}).caption("").background("none");headquarters.setTooltip(UiTooltips.createOfficer("육군 사령부 편제 목록과 설계 초안을 엽니다. 편제를 저장해도 HQ 부대가 생성되거나 배치되지 않습니다."));addRenderableWidget(headquarters);var button=new UiMenuButton("포획된 지휘관",captureX,rowY+2,captureWidth,commandHeight,()->openCaptivity(true)).caption("").background("none");button.setTooltip(null);capturedButton=button;officerTooltips.put(button,capturedTip);addRenderableWidget(button);}
+        y += commandHeight+9;
         for (String branch : List.of("army", "navy", "air", "special")) {
             var section = sections.stream().filter(v -> v.icon().equals(branch)).findFirst().orElse(null);
             if (section == null) continue;
@@ -252,46 +266,34 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 UiAssets.cover(g, "officer/" + artBranch + "/background", 9, y + 17, pane - 18, h - 18);
                 UiAssets.cover(g, "officer/" + artBranch + "/header", 9, y - 8, pane - 18, h);
                 UiAssets.draw(g, "officer/" + branch + "/banner", 8, y - 4, 49, 35);
-                officerText(g, section.title(), 60, y + 4, pane - 72, TEXT);
+                dev.hoi.client.ui.UiText.centered(g, font, section.title(), 60, y - 1, pane - 72, 17, TEXT);
             }
             if (!special && !entries.isEmpty()) {
                 var chief = entries.getFirst();
                 if (g != null) {
-                    UiAssets.draw(g, chief.icon(), 59, y + 23, 22, 29);
-                    if (!chief.value().equals("미지정")) officerText(g, chief.value(), 89, y + 28, pane / 2 - 83, TEXT);
+                    UiAssets.drawContent(g, chief.icon(), 54, y + 25, 32, 32);
+                    if (!chief.value().equals("미지정")) dev.hoi.client.ui.UiText.centeredSingleLine(g, font, Component.literal(chief.value()), 92, y + 22, pane / 2 - 87, 38, TEXT);
                 }
-                officerControl(widgets, chief, branch, 0, 54, y + 22, Math.max(29, pane / 2 - 48), 39);
+                officerControl(widgets, chief, branch, 0, 48, y + 19, Math.max(44, pane / 2 - 42), 44);
             }
             int doctrineIndex = special ? 0 : 1;
             if (entries.size() > doctrineIndex) {
-                var doctrine = entries.get(doctrineIndex); int dx = special ? pane - 61 : branch.equals("air")?pane*57/100:pane*51/100;
+                var doctrine = entries.get(doctrineIndex); int dx = special ? pane - 61 : pane * 3 / 4 - 22;
                 if (g != null) {
-                    UiAssets.draw(g, "officer/" + branch + "/doctrine_frame", dx, y + 19, 43, 44);
-                    UiAssets.draw(g, doctrine.icon(), dx + 6, y + 24, 31, 31);
-                    if (doctrine.progress() > 0) g.fill(dx + 9, y + 59, dx + 34, y + 61, 0xFFFFAA00);
+                    UiAssets.draw(g, "officer/" + branch + "/doctrine_frame", dx, y + 19, 44, 44);
+                    UiAssets.drawContent(g, doctrine.icon(), dx + 6, y + 25, 32, 32);
                 }
-                officerControl(widgets, doctrine, branch, -1, dx, y + 19, 43, 44);
-            }
-            if(branch.equals("army")||branch.equals("navy")) {
-                int bx=pane-76;
-                for(int index=0;index<2;index++) {
-                    String label=branch.equals("army")?(index==0?"지휘관":"장교"):(index==0?"제독":"사령부");
-                    int by=y+23+index*17;
-                    if(g!=null){UiMenuStyle.control(g,bx,by,65,15,false,false);dev.hoi.client.ui.UiText.centered(g,font,label,bx+2,by,61,15,TEXT);}
-                    if(widgets&&by>=contentTop()&&by+15<=contentBottom()) {
-                        var mode=branch.equals("army")?(index==0?dev.hoi.protocol.ProtocolCommanderHud.Mode.ARMY:dev.hoi.protocol.ProtocolCommanderHud.Mode.FIELD_OFFICERS):(index==0?dev.hoi.protocol.ProtocolCommanderHud.Mode.NAVY:dev.hoi.protocol.ProtocolCommanderHud.Mode.NAVY_HEADQUARTERS);
-                        var button=new ScreenInvisibleButton(label,bx,by,65,15,()->dev.hoi.client.map.MapCommanderHud.open(new dev.hoi.protocol.ProtocolCommanderHud.Open(mode,"")));button.active=detail==null;button.setTooltip(UiTooltips.createOfficer("§e"+label+"§r"));addRenderableWidget(button);
-                    }
-                }
+                officerControl(widgets, doctrine, branch, -1, dx, y + 19, 44, 44);
             }
             int spirits = Math.max(0, entries.size() - 2);
             for (int i = 0; !special && i < spirits; i++) {
                 var entry = entries.get(i + 2); int bw = (pane - 44) / 3;
                 int bx = (pane - (spirits * bw + (spirits - 1) * 10)) / 2 + i * (bw + 10), by = y + 61;
                 if (g != null) {
-                    UiMenuStyle.recess(g, bx, by, bw, 28);
-                    if (entry.progress() > 0) g.fillGradient(bx + 1, by + 1, bx + bw - 1, by + 27, 0xFF6C8035, 0xFF293515);
-                    UiAssets.draw(g, entry.icon(), bx + 2, by - 9, bw - 4, 38);
+                    boolean selectedSpirit=entry.progress()>0;
+                    int backgroundHeight=Math.max(1,(int)Math.round(bw*70.0/168));
+                    UiAssets.draw(g,"officer/spirit/ui/background_"+(selectedSpirit?"enabled":"disabled"),bx,by+(28-backgroundHeight)/2,bw,backgroundHeight);
+                    UiAssets.draw(g, entry.icon(), bx + 2, by - (selectedSpirit?5:9), bw - 4, 38);
                 }
                 officerControl(widgets, entry, branch, i + 1, bx, by, bw, 28);
             }
@@ -305,13 +307,12 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 int sx = 10 + i % columns * cellWidth, sy = statsY + i / columns * 16;
                 if (g != null) {
                     UiAssets.cover(g, "officer/stats/background", sx, sy, cellWidth - 1, 15);
-                    UiAssets.draw(g, statistic.icon(), sx + 2, sy + 2, 10, 10);
-                    officerStatText(g, statistic.value(), sx + 13, sy + 3, cellWidth - 14);
+                    UiAssets.drawContent(g, statistic.icon(), sx + 1, sy + 1, 12, 13);
+                    officerStatText(g, statistic.value(), sx + 13, sy, cellWidth - 14);
                 }
                 if (widgets && sy >= contentTop() && sy + 15 <= contentBottom()) {
-                    var button = new ScreenInvisibleButton(statistic.name(), sx, sy, cellWidth - 1, 15,
-                            () -> showDetail(statistic, branch));
-                    button.setTooltip(UiTooltips.createOfficer(statistic.detail()));
+                    var button = new dev.hoi.client.ui.UiHoverRegion(statistic.name(), sx, sy, cellWidth - 1, 15);
+                    officerTooltips.put(button, statistic.detail());
                     button.active = detail == null;
                     addRenderableWidget(button);
                 }
@@ -333,7 +334,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             } else showDetail(entry, section);
         });
         String title = entry.value().equals("미지정") || entry.value().isBlank() ? entry.name() : entry.value();
-        button.setTooltip(UiTooltips.createOfficer("§e" + title + "§r\n" + entry.detail()));
+        button.setTooltip(null);
+        officerTooltips.put(button, "§e" + title + "§r\n" + entry.detail());
         button.active = detail == null;
         addRenderableWidget(button);
     }
@@ -343,7 +345,9 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private void officerStatText(GuiGraphicsExtractor g, String value, int x, int y, int available) {
         var styled = UiTooltips.styled(Component.literal(value), false);
         float scale = officerStatScale(font, styled, available);
-        g.pose().pushMatrix(); g.pose().translate(x, y); g.pose().scale(scale);
+        g.pose().pushMatrix();
+        g.pose().translate(x, y + (15 - font.lineHeight * scale) / 2f);
+        g.pose().scale(scale);
         g.text(font, styled.getVisualOrderText(), 0, 0, GOLD); g.pose().popMatrix();
     }
     private void officerText(GuiGraphicsExtractor g, String value, int x, int y, int available, int color) {
@@ -599,7 +603,9 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
         UiMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
         UiMenuStyle.panel(g, 0, top, pane, height - top);
-        UiMenuStyle.heading(g, font, trim(selected == ProtocolMenuTab.POLITICS ? "정치" : selected.label(), pane - 44), 10, top + 9, pane - 44, TEXT);
+        String heading=trim(selected == ProtocolMenuTab.POLITICS ? "정치" : selected.label(),pane-44);int headingX=10;
+        if(selected==ProtocolMenuTab.OFFICER_CORPS){float scale=(font.lineHeight+2f)/font.lineHeight;String label=font.plainSubstrByWidth(heading,Math.max(1,(int)((pane-44)/scale)));headingX+=Math.round((pane-44-font.width(label)*scale)/2);}
+        UiMenuStyle.heading(g, font, heading, headingX, top + 9, pane - 44, TEXT);
         if (selected == ProtocolMenuTab.POLITICS) drawPoliticsBanner(g);
         if (selected == ProtocolMenuTab.INTELLIGENCE) {
             UiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);
@@ -623,6 +629,12 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (balanceOpen && selected == ProtocolMenuTab.POLITICS && view.balance() != null) drawBalance(g, mx, my);
         super.extractRenderState(g, mx, my, delta);
         drawPoliticsTooltip(g, mx, my, mx);
+        if (selected == ProtocolMenuTab.OFFICER_CORPS && detail == null) {
+            String text = officerTooltips.entrySet().stream().filter(entry -> entry.getKey().isMouseOver(mx, my))
+                    .map(Map.Entry::getValue).findFirst().orElse("");
+            if (!text.equals(hoveredOfficer)) { hoveredOfficer = text; tooltipScroll = 0; }
+            if (!text.isEmpty()) tooltipScroll = UiTooltips.drawSourceScrollable(g, font, text, mx, my, width, height, tooltipScroll).scroll();
+        }
     }
     private void drawPoliticsTooltip(GuiGraphicsExtractor g, int mx, int my, int screenX) {
         var hovered = politicsHover(mx, my);
@@ -775,6 +787,11 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
+        final double hoverX = x, hoverY = y;
+        if (selected == ProtocolMenuTab.OFFICER_CORPS && officerTooltips.keySet().stream().anyMatch(widget -> widget.isMouseOver(hoverX, hoverY))
+                && com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)) {
+            tooltipScroll -= (int)(vertical * 30); return true;
+        }
         if (selectionPreview) {
             x -= selectionLeft();
             if (politicsLayout().spirits().contains(x, y)) {

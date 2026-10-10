@@ -18,29 +18,63 @@ import java.util.*;
 
 public final class ScreenCountry extends Screen implements InputSidebarMovement.InputMovementScreen {
     private ProtocolCountryView view;
+    private java.util.function.Consumer<ProtocolCountryPayloads.Action> actionTransport = ClientPlayNetworking::send;
+    private java.util.function.BooleanSupplier actionAvailable = () -> ClientPlayNetworking.canSend(ProtocolCountryPayloads.Action.TYPE);
     private ScreenDiplomacyHeader header;
     private String target, token = UUID.randomUUID().toString();
     private ProtocolIntelDomain domain = ProtocolIntelDomain.CIVILIAN;
     private boolean ledger, choosing, pending;
     private ProtocolCountryView.Action confirmation;
+    private String amountText = "1";
     private int pane, top, scroll, actionScroll, total, ticks, hudScroll;
     private ProtocolMenuView.Entry detail;
-    private int detailScroll, leaderTooltipScroll, spiritTooltipScroll;
+    private int detailScroll, confirmationScroll, leaderTooltipScroll, spiritTooltipScroll;
     private ProtocolMenuView.Entry hoveredSpirit;
     public ScreenCountry(String target) { super(Component.literal("외교")); this.target = target; choosing = target.isEmpty(); }
     public ScreenCountry(ProtocolCountryView fixture) { this(fixture.target()); view = fixture; }
+    ScreenCountry(ProtocolCountryView fixture, java.util.function.Consumer<ProtocolCountryPayloads.Action> transport) {
+        this(fixture);
+        actionTransport = Objects.requireNonNull(transport);
+        actionAvailable = () -> true;
+    }
     String token() { return token; }
     ProtocolCountryView view() { return view; }
     int panelWidth() { return pane; }
     void select(String tag) {
-        target = tag; view = null; token = UUID.randomUUID().toString(); scroll = 0; detail = null; confirmation = null; pending = false; choosing = false;
+        target = tag; view = null; token = UUID.randomUUID().toString(); scroll = 0; actionScroll = 0; detail = null; confirmation = null; pending = false; choosing = false;
         ticks = 0; rebuildWidgets();
+    }
+    public void requestRefresh() {
+        token = UUID.randomUUID().toString();
+        ticks = 0;
+        pending = false;
+        confirmation = null;
+    }
+    public void update(ProtocolDiplomacyPayloads.Response packet) {
+        if (packet.status() != ProtocolDiplomacyPayloads.Status.OPEN || !token.equals(packet.token())
+                || !pending || confirmation == null || !confirmation.id().equals("lend_lease") || view == null) return;
+        var editor = packet.view();
+        if (!editor.viewer().equals(view.viewer()) || !editor.target().equals(target)) return;
+        pending = false;
+        confirmation = null;
+        ScreenDialogCoordinator.setContent(new ScreenDiplomacyLease(this, editor));
+    }
+    public void update(ProtocolDiplomacyVolunteerPayloads.Response packet) {
+        if (packet.status() != ProtocolDiplomacyVolunteerPayloads.Status.OPEN || !token.equals(packet.token())
+                || !pending || confirmation == null || !confirmation.id().equals("volunteers") || view == null) return;
+        var editor = packet.view();
+        if (!editor.viewer().equals(view.viewer()) || !editor.target().equals(target)) return;
+        pending = false;
+        confirmation = null;
+        ScreenDialogCoordinator.setContent(new ScreenDiplomacyVolunteers(this, editor));
     }
     public void update(ProtocolCountryPayloads.Response packet) {
         if (!token.equals(packet.token())) return;
-        if (packet.json().isEmpty()) { view = null; detail = null; minecraft.gui.setScreen(null); return; }
+        if (packet.json().isEmpty()) { view = null; detail = null; ScreenDialogCoordinator.setContent(null); return; }
         var next = packet.view();
         if (!target.isEmpty() && !next.target().equals(target)) return;
+        if (view != null && view.actions() != null && next.actions() != null
+                && view.actions().session().equals(next.actions().session()) && next.actions().revision() < view.actions().revision()) return;
         if (next.equals(view)) return;
         pending = false; confirmation = null;
         var oldDetail = detail;
@@ -98,7 +132,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 y += pitch;
                 if (actionY < bodyTop() || actionY + pitch > height - 33) continue;
                 var button = new ScreenActionButton(action.name(), pane / 2 + 3, actionY, pane / 2 - 12, Math.max(15, ScreenDiplomacyHeader.scaled(28, pane)),
-                        () -> { confirmation = action; rebuildWidgets(); });
+                        () -> { confirmation = action; amountText = "1"; confirmationScroll = 0; if (action.id().startsWith("page_") || action.id().equals("lend_lease") || action.id().equals("volunteers")) { actionScroll = 0; sendAction(); } else rebuildWidgets(); });
                 button.active = action.enabled() && !pending && confirmation == null && detail == null;
                 button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(action.name() + "\n" + action.detail())));
                 addRenderableWidget(button);
@@ -109,17 +143,30 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             addRenderableWidget(new UiMenuButton("취소", x + 10, top + 175, (w - 25) / 2, 22,
                     () -> { confirmation = null; rebuildWidgets(); }));
             var confirm = new UiMenuButton("확인", x + 15 + (w - 25) / 2, top + 175, (w - 25) / 2, 22, this::sendAction);
-            confirm.active = !pending;
+            confirm.active = !pending && (confirmation.amountInput() == null || inputAmount() > 0);
             addRenderableWidget(confirm);
+            if (confirmation.amountInput() != null) {
+                var amount = new net.minecraft.client.gui.components.EditBox(font,x+12,top+144,w-24,20,Component.literal("수량"));
+                amount.setMaxLength(19);amount.setValue(amountText);amount.setEditable(!pending);
+                amount.setResponder(value -> {amountText=value;confirm.active=!pending&&inputAmount()>0;});
+                addRenderableWidget(amount);
+                if(!pending)setInitialFocus(amount);
+            }
         }
         if (detail != null) addRenderableWidget(new UiMenuButton("닫기", detailX() + detailWidth() - 43, top + 4, 36, 18, () -> { detail = null; rebuildWidgets(); }));
     }
     private boolean actionsVisible() { return view != null && !ledger && !choosing && view.actions() != null && !view.actions().entries().isEmpty(); }
+    private long inputAmount() {
+        if(!amountText.matches("[0-9]+"))return -1;
+        try {return Long.parseLong(amountText);}catch(NumberFormatException ignored){return -1;}
+    }
     private void sendAction() {
-        if (pending || confirmation == null || view == null || view.actions() == null || !ClientPlayNetworking.canSend(ProtocolCountryPayloads.Action.TYPE)) return;
+        if (pending || confirmation == null || view == null || view.actions() == null || !actionAvailable.getAsBoolean()) return;
+        long amount = confirmation.amountInput() == null ? 0 : inputAmount();
+        if (confirmation.amountInput() != null && amount <= 0) return;
         var action = view.actions();
         pending = true; ticks = 1;
-        ClientPlayNetworking.send(new ProtocolCountryPayloads.Action(token, action.session(), action.revision(), confirmation.id()));
+        actionTransport.accept(new ProtocolCountryPayloads.Action(token, action.session(), action.revision(), confirmation.id(), amount));
         rebuildWidgets();
     }
     private List<ProtocolMenuView.Entry> entries() {
@@ -144,6 +191,12 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
     private int detailX() { return width - pane >= 200 ? pane + 5 : 5; }
     private int detailWidth() { return Math.min(330, width - detailX() - 6); }
     @Override public void tick() {
+        if (pending && ++ticks >= 100) {
+            pending = false;
+            confirmation = null;
+            ticks = 0;
+            rebuildWidgets();
+        }
         if (!pending && confirmation == null && ticks++ % 40 == 0 && ClientPlayNetworking.canSend(ProtocolCountryPayloads.Request.TYPE)) {
             token = UUID.randomUUID().toString(); ClientPlayNetworking.send(new ProtocolCountryPayloads.Request(token, target));
         }
@@ -233,11 +286,17 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 int x = detailX(), w = detailWidth();
                 g.nextStratum(); UiMenuStyle.panel(g, x, top, w, 207);
                 UiMenuStyle.heading(g, font, confirmation.name(), x + 10, top + 9, w - 20, UiMenuStyle.TEXT);
-                int y = top + 38;
-                for (var line : font.split(Component.literal(view.name() + "\n\n" + confirmation.detail()), w - 24)) {
+                var lines = font.split(Component.literal(view.name() + "\n\n" + confirmation.detail()), w - 24);
+                confirmationScroll = Math.clamp(confirmationScroll, 0, Math.max(0, lines.size() * 13 - (confirmation.amountInput() == null ? 127 : 84)));
+                g.enableScissor(x + 7, top + 36, x + w - 7, top + (confirmation.amountInput() == null ? 165 : 122));
+                int y = top + 38 - confirmationScroll;
+                for (var line : lines) {
                     dev.hoi.client.ui.UiText.text(g, font, line, x + 12, y, UiMenuStyle.TEXT); y += 13;
                 }
+                g.disableScissor();
             }
+            if (confirmation != null && confirmation.amountInput() != null)
+                dev.hoi.client.ui.UiText.text(g,font,"수량",detailX()+12,top+130,UiMenuStyle.TEXT);
             if (detail != null) {
                 int x = detailX(), w = detailWidth();
                 g.nextStratum(); UiMenuStyle.panel(g, x, top, w, height - top - 31);
@@ -307,6 +366,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT))) {
             leaderTooltipScroll -= (int)(vertical * 3); return true;
         }
+        if (confirmation != null) { confirmationScroll -= (int)(vertical * 26); return true; }
         if (detail != null) { detailScroll -= (int)(vertical * 26); return true; }
         if (x < pane && y >= bodyTop()) {
             if (actionsVisible() && x >= pane / 2) actionScroll -= (int)(vertical * Math.max(16, ScreenDiplomacyHeader.scaled(29, pane)));
@@ -334,8 +394,8 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
             UiAssets.nineSlice(g, "diplomacy/" + (active ? "action" : "action_disabled"), getX(), getY(), getWidth(), getHeight(), 3, pane / 550.0);
-            dev.hoi.client.ui.UiText.text(g, font, font.plainSubstrByWidth(getMessage().getString(), Math.max(1, (int)((getWidth() - 9) / dev.hoi.client.ui.UiText.scale(font)))),
-                    getX() + 4, getY() + (getHeight() - 10) / 2, active ? UiMenuStyle.TEXT : UiMenuStyle.MUTED);
+            dev.hoi.client.ui.UiText.cell(g, font, getMessage().getString(), getX() + 4, getY(), getWidth() - 8, getHeight(),
+                    active ? UiMenuStyle.TEXT : UiMenuStyle.MUTED, false);
         }
     }
     private final class ScreenCountryRow extends Button {

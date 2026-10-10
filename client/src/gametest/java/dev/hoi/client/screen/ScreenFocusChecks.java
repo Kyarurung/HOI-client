@@ -47,6 +47,7 @@ public final class ScreenFocusChecks {
                 context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
             }
         }
+        ScreenFocusTest.run(context);
         context.setScreen(() -> null);
     }
 }

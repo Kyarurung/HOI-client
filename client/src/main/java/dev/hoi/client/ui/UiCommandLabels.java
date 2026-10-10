@@ -1,0 +1,35 @@
+package dev.hoi.client.ui;
+
+import com.google.gson.JsonParser;
+import java.util.*;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
+
+public final class UiCommandLabels {
+    private static Map<String,String> labels;
+    private UiCommandLabels() {}
+    public static void clear(){labels=null;}
+    public static String text(String key,String fallback) {
+        if(labels==null) {
+            var result=new HashMap<String,String>();var resource=Minecraft.getInstance().getResourceManager().getResource(Identifier.parse("hoi:command/labels.json"));
+            if(resource.isPresent())try(var reader=resource.orElseThrow().openAsReader()){JsonParser.parseReader(reader).getAsJsonObject().entrySet().forEach(e->result.put(e.getKey(),e.getValue().getAsString()));}catch(java.io.IOException|IllegalArgumentException ignored){}
+            labels=Map.copyOf(result);
+        }
+        return withoutShortcuts(labels.getOrDefault(key,fallback).replaceAll("(?m)^-{3,}$",""));
+    }
+    public static String withoutShortcuts(String text) {
+        if(text==null||text.isEmpty())return text;
+        text=text.replace("이 버튼을 눌러서 모드를 전환하거나 §GCtrl§!을 길게 누르십시오.","이 버튼을 눌러서 모드를 전환하십시오.").replace("이 버튼을 눌러서 모드를 전환하거나 §GAlt§!를 길게 누르십시오.","이 버튼을 눌러서 모드를 전환하십시오.");
+        var lines=new ArrayList<String>();boolean removedTail=false;
+        for(String line:text.split("\\n",-1)) {
+            String visible=line.replaceAll("§.","").strip();
+            if(visible.matches("(?i)^(?:단축키|키 설정|shortcut|hotkey)\\s*[:：].*")||visible.startsWith("£ctrl + £b로 ")) {
+                while(!lines.isEmpty()&&lines.getLast().isBlank())lines.removeLast();
+                removedTail=true;continue;
+            }
+            if(removedTail&&line.isBlank())continue;
+            lines.add(line.replaceAll(" 또는 £(?:ctrl\\s*\\+\\s*£)?[a-zA-Z]+\\s*$",""));removedTail=false;
+        }
+        return String.join("\n",lines);
+    }
+}

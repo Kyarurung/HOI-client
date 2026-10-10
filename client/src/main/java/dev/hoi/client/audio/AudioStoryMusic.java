@@ -29,7 +29,7 @@ public final class AudioStoryMusic {
         var id=AudioUiSounds.id(requested);
         if(client.getSoundManager().getSoundEvent(id)==null){if(++retries>200)reset();return;}
         client.getMusicManager().stopPlaying();
-        sound=new SimpleSoundInstance(id,SoundSource.MASTER,1,1,RandomSource.create(),false,0,SoundInstance.Attenuation.NONE,0,0,0,true);
+        sound=new AudioPlaylistSound(requested);
         startup=20;client.getSoundManager().play(sound);
     }
     public static void suspend(){if(sound!=null)Minecraft.getInstance().getSoundManager().stop(sound);sound=null;startup=0;}

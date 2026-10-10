@@ -23,6 +23,7 @@ public final class ScreenCommanderTraitTreeTest {
             context.runOnClient(client->{var screen=(ScreenCommanderTraits)client.gui.screen();int x=screen.width/2,y=screen.height/2;if(!screen.mouseScrolled(x,y,0,-20))throw new AssertionError("Overflowing regular tree must accept independent scroll");});context.waitTicks(3);context.takeScreenshot("hoi-commander-trait-regular-scroll-gui2");
             context.getInput().resizeWindow(854,480);context.setScreen(()->new ScreenCommanderTraits(tree,null,a->{}));context.waitTicks(3);context.takeScreenshot("hoi-commander-trait-tree-small-window");
             context.getInput().resizeWindow(2560,1440);
+            ScreenCommanderAdvisorTest.run(context,directory);
         } catch(java.io.IOException error){throw new AssertionError("Server trait tree fixtures unavailable",error);}
     }
 }

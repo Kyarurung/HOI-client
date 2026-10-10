@@ -75,6 +75,8 @@ public final class AudioKoreanMusicChecks {
                 context.setScreen(() -> new ScreenKoreanMusic(null));
                 context.runOnClient(client -> AudioKoreanMusic.togglePause());
                 context.waitTicks(3);
+                var volumeStream = context.computeOnClient(client -> AudioKoreanMusic.playing());
+                float nativeGain = context.computeOnClient(client -> volumeStream.getVolume() / (float)AudioKoreanMusic.volume());
                 context.runOnClient(client -> {
                     var slider=client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.AbstractSliderButton).map(w -> (net.minecraft.client.gui.components.AbstractSliderButton)w).findFirst().orElseThrow();
                     slider.onClick(new net.minecraft.client.input.MouseButtonEvent(slider.getX()+4,slider.getY()+5,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
@@ -88,7 +90,11 @@ public final class AudioKoreanMusicChecks {
                     if(Math.abs(AudioKoreanMusic.volume()-.25)>.001)throw new AssertionError("Volume drag reaches 25 percent");
                 });
                 context.waitTicks(3);
-                context.runOnClient(client -> {if(Math.abs(AudioKoreanMusic.playing().getVolume()-.25)>.001)throw new AssertionError("Active stream volume updates without restart");});
+                context.runOnClient(client -> {
+                    if(AudioKoreanMusic.playing()!=volumeStream||Math.abs(volumeStream.getVolume()-nativeGain*.25)>.001)
+                        throw new AssertionError("Active stream preserves native sample gain and updates without restart");
+                });
+                AudioPlaylistGainTest.assertGain(context,volumeStream,nativeGain*.25*context.computeOnClient(client -> client.options.getSoundSourceVolume(net.minecraft.sounds.SoundSource.MASTER)));
                 context.takeScreenshot("hoi-korean-music-volume-25-1600");
                 context.runOnClient(client -> AudioKoreanMusic.volume(1));
             }

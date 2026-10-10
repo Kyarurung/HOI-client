@@ -15,19 +15,14 @@ public final class AudioKoreanMusic {
     private static boolean enabled;
     private static boolean manuallyStopped;
     private static boolean stationEnabled = true;
-    private static double volume = 1.0;
+    private static final AudioPlaylistVolume VOLUME = new AudioPlaylistVolume(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("hoi-audio.properties"));
     private static boolean selected;
     public static final AudioPlaylistPlayback PLAYBACK = new AudioPlaylistPlayback(new AudioPlaylistPlayback.AudioOutput() {
         public boolean start(AudioPlaylistPlayback.AudioTrack track) {
             var client = Minecraft.getInstance(); var id = AudioUiSounds.id(track.event());
             if (client.getSoundManager().getSoundEvent(id) == null) return false;
             client.getMusicManager().stopPlaying();
-            sound = new AbstractTickableSoundInstance(net.minecraft.sounds.SoundEvent.createVariableRangeEvent(id), SoundSource.MASTER, RandomSource.create()) {
-                { volume = (float)AudioKoreanMusic.volume; attenuation = SoundInstance.Attenuation.NONE; relative = true; }
-                @Override public void tick(){}
-                @Override public float getVolume(){return (float)AudioKoreanMusic.volume;}
-                @Override public boolean canStartSilent(){return true;}
-            };
+            sound = new AudioPlaylistSound(track.event());
             client.getSoundManager().play(sound); return true;
         }
         public void pause(boolean paused) {
@@ -59,8 +54,15 @@ public final class AudioKoreanMusic {
         enable();
         if (!selected) { selected=true; AudioStoryMusic.play("music.tfr_theme"); }
     }
-    public static double volume(){return volume;}
-    public static void volume(double value){if(Double.isFinite(value))volume=Math.clamp(value,0.0,1.0);}
+    public static void loadVolume(){
+        try { VOLUME.load(); }
+        catch (java.io.IOException | IllegalArgumentException error) { org.slf4j.LoggerFactory.getLogger(AudioKoreanMusic.class).warn("음량 설정을 불러오지 못했습니다", error); }
+    }
+    public static double volume(){return VOLUME.value();}
+    public static void volume(double value){
+        try { VOLUME.set(value); }
+        catch (java.io.IOException error) { org.slf4j.LoggerFactory.getLogger(AudioKoreanMusic.class).warn("음량 설정을 저장하지 못했습니다", error); }
+    }
     public static boolean isPlaying(){return !PLAYBACK.paused()&&sound!=null&&Minecraft.getInstance().getSoundManager().isActive(sound);}
     public static boolean stationEnabled(){return stationEnabled;}
     public static void toggleStation(){

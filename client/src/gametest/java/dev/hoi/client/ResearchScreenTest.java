@@ -57,6 +57,41 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             ProtocolResearchPayloads.registerPayloadTypes(); ProtocolResearchPayloads.registerPayloadTypes();
         });
         loadPack(context);
+        if(System.getProperty("hoi.testSuite","all").equals("movement-controls")){
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.map.MapCommanderHudTest.run(context,fixtureMenu());
+                var server=world.getServer();server.runCommand("gamerule minecraft:send_command_feedback false");server.runCommand("time set noon");server.runCommand("weather clear");server.runCommand("gamemode spectator @a");
+                dev.hoi.client.map.MapMissionOverlayRenderTest.run(context,server::runCommand);
+            }
+            return;
+        }
+        if(Set.of("all","captivity").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenCommanderCaptivityTest.run(context,fixtureMenu());}
+            catch(java.io.IOException error){throw new RuntimeException(error);}
+        }
+        if(Set.of("all","headquarters","captivity").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenArmyHeadquartersTest.run(context,fixtureMenu());}
+            catch(java.io.IOException error){throw new RuntimeException(error);}
+            if(Set.of("headquarters","captivity").contains(System.getProperty("hoi.testSuite","all")))return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("diplomacy-lease")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.screen.ScreenDiplomacyActionsTest.run(context);
+                dev.hoi.client.screen.ScreenDiplomacyLeaseInputTest.run(context);
+                dev.hoi.client.screen.ScreenDiplomacyLeaseTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseTest.runSource(context);
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("diplomacy")) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenDiplomacyActionsTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseInputTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseTest.runSource(context); dev.hoi.client.screen.ScreenDiplomacyVolunteersTest.run(context); }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("decisions")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.screen.ScreenDecisionChecks.run(context, fixtureMenu().hud());
+            }
+            return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("research-slots")) {
             try (var world = context.worldBuilder().create()) {
                 dev.hoi.client.research.ResearchSlotTooltipTest.run(context, fixtureResearch());
@@ -74,7 +109,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try (var world = context.worldBuilder().create()) {
                 dev.hoi.client.screen.ScreenBranchMissionSourceTest.run(context);
                 dev.hoi.client.screen.ScreenLandMissionSourceTest.run(context);
-                dev.hoi.client.map.MapCommanderHudTest.run(context,fixtureMenu().hud());
+                dev.hoi.client.map.MapCommanderHudTest.run(context,fixtureMenu());
             }
             return;
         }
@@ -82,11 +117,16 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenDoctrineSourceTest.run(context); }
             return;
         }
+        if (System.getProperty("hoi.testSuite", "all").equals("tactics")) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenPreferredTacticsTest.run(context); }
+            return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("officers")) {
             try (var world = context.worldBuilder().create()) {
                 dev.hoi.client.screen.ScreenOfficerSourceTest.run(context);
+                dev.hoi.client.screen.ScreenPreferredTacticsTest.run(context);
                 dev.hoi.client.screen.ScreenCommanderSourceTest.run(context);
-                dev.hoi.client.map.MapCommanderHudTest.run(context,fixtureMenu().hud());
+                dev.hoi.client.map.MapCommanderHudTest.run(context,fixtureMenu());
             }
             return;
         }
@@ -124,13 +164,25 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("occupation")) {
-            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenOccupationTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu()); }
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenOccupationTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu()); dev.hoi.client.map.MapOccupationHudTest.run(context); }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("officer-review")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.screen.ScreenOfficerSourceTest.run(context);
+                dev.hoi.client.screen.ScreenPreferredTacticsTest.run(context);
+                dev.hoi.client.screen.ScreenDoctrineSourceTest.run(context);
+                dev.hoi.client.map.MapCommanderHudTest.run(context, fixtureMenu());
+                dev.hoi.client.map.MapOccupationHudTest.run(context);
+                dev.hoi.client.audio.AudioPlaylistGainTest.run(context);
+            }
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("audio")) {
             try (var world = context.worldBuilder().create()) {
                 world.getServer().runCommand("gamemode spectator @a");
                 dev.hoi.client.audio.AudioMusicRoutingChecks.run(context, world.getServer()::runCommand);
+                dev.hoi.client.audio.AudioPlaylistGainTest.run(context);
             }
             return;
         }
@@ -177,6 +229,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             var menu = fixtureMenu();
             dev.hoi.client.audio.AudioKoreanMusicChecks.run(context, menu);
             dev.hoi.client.audio.AudioMusicRoutingChecks.run(context, world.getServer()::runCommand);
+            dev.hoi.client.audio.AudioPlaylistGainTest.run(context);
             dev.hoi.client.audio.AudioUnitVoicesChecks.run(context);
             dev.hoi.client.map.MapUnitHudChecks.run(context);
             dev.hoi.client.screen.ScreenSelectionPreviewChecks.run(context, menu);
@@ -220,19 +273,23 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             ScreenIndustryChecks.run(context,menu.hud());
             ScreenCompletionChecks.run(context);
             ScreenConstructionTest.run(context,menu.hud());
-            dev.hoi.client.screen.ScreenOccupationTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu());
+            dev.hoi.client.screen.ScreenOccupationTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu()); dev.hoi.client.map.MapOccupationHudTest.run(context);
             ScreenCountryChecks.run(context,menu.hud());
+            dev.hoi.client.screen.ScreenDiplomacyActionsTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseInputTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseTest.runSource(context); dev.hoi.client.screen.ScreenDiplomacyVolunteersTest.run(context);
             dev.hoi.client.screen.ScreenDecisionChecks.run(context,menu.hud());
             dev.hoi.client.screen.ScreenFocusChecks.run(context);
             dev.hoi.client.screen.ScreenWorldTensionChecks.run(context,menu.hud());
             ScreenDialogChecks.run(context);
             ScreenRegimentChecks.run(context);
             dev.hoi.client.screen.ScreenOfficerSourceTest.run(context);
+                dev.hoi.client.screen.ScreenPreferredTacticsTest.run(context);
                 dev.hoi.client.screen.ScreenCommanderSourceTest.run(context);
             dev.hoi.client.screen.ScreenDoctrineSourceTest.run(context);
             dev.hoi.client.screen.ScreenBranchMissionSourceTest.run(context);
                 dev.hoi.client.screen.ScreenLandMissionSourceTest.run(context);
-            dev.hoi.client.map.MapCommanderHudTest.run(context,menu.hud());
+            world.getServer().runCommand("gamemode creative @a");context.waitTicks(3);
+            dev.hoi.client.map.MapCommanderHudTest.run(context,menu);
+            world.getServer().runCommand("gamemode spectator @a");context.waitTicks(3);
             context.setScreen(() -> new ScreenMenu(menu)); context.waitTicks(5);
             context.runOnClient(client -> check(((ScreenMenu)client.gui.screen()).panelWidth() == UiPanelLayout.width(ProtocolMenuTab.POLITICS,client.gui.screen().width), "Country panel follows the original 726-pixel container"));
             context.takeScreenshot("hoi-menu-country");

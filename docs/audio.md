@@ -42,3 +42,11 @@ MusicRoutingChecks와 DialogScreenChecks는 실제 Minecraft SoundManager의 중
 
 음악 변경 검증은 `./gradlew test runGameTest remapJar -PhoiTestSuite=audio --console=plain --no-daemon`으로 실행한다. 전체 화면 순회 대신 기존 AudioMusicRoutingChecks를 실행하며 실제 네더·오버월드 왕복에서 선택 곡·채널·수동 일시정지·중점·슈퍼 이벤트 유지와 이전 차원 소리 정리를 검사한다. 운영 서버의 지도 차원·다른 클라이언트 모드 조합에 대한 접속 검증은 별도다.
 첩보 개선 버튼은 원본의 정보·정보 순환·수집 분야·휴민트·암호 분류별 효과음을 사용하며 비활성 개선은 소리를 내지 않습니다. 생산 분류·구형 표시·자원/함종 필터는 원본 체크박스 소리, 공장 할당 칸은 `click_scroll`, 닫기 표시는 닫기 소리를 사용합니다. 음원 원본 경로와 변환 이력은 리소스팩의 기존 sound-imports와 sound-provenance에 보존합니다.
+
+## Playlist volume across music channels
+
+The playlist slider persists in the client `config/hoi-audio.properties` and applies to playlist tracks, national theme/story music, focus completion cues and super-event music. Its default is 100%; invalid or nonfinite persisted values fall back to the default. Every active routed sound reads the live gain, including silent-start and unmute, while Minecraft's Master gain is applied once by the native sound engine. Ordinary interface clicks and research effects keep their existing gains. Reopening menus and reconnecting do not reset this local preference.
+
+`AudioPlaylistVolumeTest`, `AudioPlaylistGainTest` and `ScreenDialogVolumeTest` check persistence and actual OpenAL channel/listener gains at zero, 35% and full volume, live changes, repeated packets, mismatched cancellation, stopped-channel cleanup and focus completion lifecycle. These are local automated playback checks; they do not replace listening on the user's audio device.
+
+육해공 지도 부대의 좌클릭 선택·드래그 선택, 군/함대 카드와 상세 목록 선택은 기존 `ui.division.select`를 입력당 한 번 재생한다. 우클릭 사단 검사에서 보내던 `DIVISION_SELECT`는 제거했다. 이동·위치 보기의 별도 피드백, 지도 전환음과 반복 유닛 음향은 유지한다. 렌더·선택 상세 동기화는 선택음을 재생하지 않는다.

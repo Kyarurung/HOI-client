@@ -64,7 +64,7 @@ public final class MapSceneRenderer {
         });
         dev.hoi.protocol.ProtocolCommanderHud.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolCommanderHud.PlanOverlay.TYPE,(packet,context)->{
-            receivePlans(packet.country(),packet.page());
+            receivePlans(packet.country(),packet.page(),packet.movement());
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(MapSceneRenderer::clear));
         LevelExtractionEvents.END_EXTRACTION.register(context -> {
@@ -110,11 +110,12 @@ public final class MapSceneRenderer {
         if(boxes!=null)occupation=MapSceneMesh.build(page.dimension(),boxes);
     }
     static void clearOccupation() {occupation=null;OCCUPATION.clear();}
-    static void receivePlans(String country,ProtocolAtlasScene.Page page) {
+    static void receivePlans(String country,ProtocolAtlasScene.Page page) {receivePlans(country,page,List.of());}
+    static void receivePlans(String country,ProtocolAtlasScene.Page page,List<dev.hoi.protocol.ProtocolCommanderHud.MovementQuad> movement) {
         var client=Minecraft.getInstance();
         if(!country.equals(dev.hoi.client.ClientCampaignHud.country())||client.level==null||!page.dimension().equals(client.level.dimension().identifier().toString()))return;
         if(!planCountry.equals(country))clearPlans();
-        planCountry=country;receivePlans(page);
+        planCountry=country;var complete=PLANS.accept(page,movement);if(complete!=null)plans=MapSceneMesh.build(page.dimension(),complete.boxes(),complete.movement());
     }
     private static void receivePlans(ProtocolAtlasScene.Page page) {
         var boxes=PLANS.accept(page);if(boxes!=null)plans=MapSceneMesh.build(page.dimension(),boxes);
@@ -139,6 +140,7 @@ public final class MapSceneRenderer {
                 }
                 continue;
             }
+            if(tile.movement()){context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(Identifier.parse("hoi:textures/gui/map/movement_arrow.png")),(matrix,consumer)->emit(tile,null,matrix,consumer));continue;}
             var sprite = frame.sprites().get(tile.material());
             var type = tile.material() == Material.DMZ ? RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")) : tile.material() == Material.FOREST || tile.material() == Material.JUNGLE ? RenderTypes.cutoutMovingBlock() : RenderTypes.solidMovingBlock();
             context.submitNodeCollector().submitCustomGeometry(pose, type, (matrix, consumer) -> emit(tile, sprite, matrix, consumer));
@@ -146,10 +148,10 @@ public final class MapSceneRenderer {
         pose.popPose();
     }
     private static void emit(MapTile tile, TextureAtlasSprite sprite, PoseStack.Pose pose, VertexConsumer consumer) {
-        int color = tile.material() == Material.RESISTANCE ? 0xff9b6363 : tile.material() == Material.COMPLIANCE ? 0xff5b668f : tile.material() == Material.DMZ ? 0xfeff0000 : tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
+        int color = tile.movement()?0xbfffffff:tile.material() == Material.RESISTANCE ? 0xff9b6363 : tile.material() == Material.COMPLIANCE ? 0xff5b668f : tile.material() == Material.DMZ ? 0xfeff0000 : tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
         var v = tile.vertices();
         for (int i=0;i<v.length;i+=8) consumer.addVertex(pose,v[i],v[i+1],v[i+2]).setColor(color)
-                .setUv(sprite.getU(v[i+3]),sprite.getV(v[i+4])).setLight(15728880).setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).setNormal(pose,v[i+5],v[i+6],v[i+7]);
+                .setUv(sprite==null?v[i+3]:sprite.getU(v[i+3]),sprite==null?v[i+4]:sprite.getV(v[i+4])).setLight(15728880).setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).setNormal(pose,v[i+5],v[i+6],v[i+7]);
     }
     private MapSceneRenderer() {}
 }

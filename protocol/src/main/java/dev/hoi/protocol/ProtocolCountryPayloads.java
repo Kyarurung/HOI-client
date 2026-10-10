@@ -20,12 +20,13 @@ public final class ProtocolCountryPayloads {
         registered = true;
     }
     private static void token(String value) { ProtocolCountryView.text(value, 36); java.util.UUID.fromString(value); }
-    public record Action(String token, String session, long revision, String id) implements CustomPacketPayload {
-        public Action { ProtocolCountryPayloads.token(token); ProtocolCountryPayloads.token(session); ProtocolCountryView.text(id, 64); if (revision < 0) throw new IllegalArgumentException("Invalid revision"); }
-        public static final Type<Action> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "country_action_v1"));
+    public record Action(String token, String session, long revision, String id, long amount) implements CustomPacketPayload {
+        public Action(String token,String session,long revision,String id) {this(token,session,revision,id,0);}
+        public Action { ProtocolCountryPayloads.token(token); ProtocolCountryPayloads.token(session); ProtocolCountryView.text(id, 64); if (revision < 0 || amount < 0) throw new IllegalArgumentException("Invalid revision or amount"); }
+        public static final Type<Action> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "country_action_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Action> CODEC = StreamCodec.of(
-                (b,p) -> { b.writeUtf(p.token,36); b.writeUtf(p.session,36); b.writeLong(p.revision); b.writeUtf(p.id,64); },
-                b -> new Action(b.readUtf(36), b.readUtf(36), b.readLong(), b.readUtf(64)));
+                (b,p) -> { b.writeUtf(p.token,36); b.writeUtf(p.session,36); b.writeLong(p.revision); b.writeUtf(p.id,64); b.writeLong(p.amount); },
+                b -> new Action(b.readUtf(36), b.readUtf(36), b.readLong(), b.readUtf(64), b.readLong()));
         @Override public Type<Action> type() { return TYPE; }
     }
     public record Request(String token, String target) implements CustomPacketPayload {

@@ -15,7 +15,11 @@ public record ProtocolCountryView(String viewer, ProtocolCountryHud hud, String 
     public record Actions(String session, long revision, String message, List<Action> entries) {
         public Actions { UUID.fromString(session); if (revision < 0) throw new IllegalArgumentException("Invalid revision"); text(message, 1000); entries = bounded(entries, 24); }
     }
-    public record Action(String id, String name, String detail, boolean enabled) {
+    public record AmountInput(String equipmentName, long stock) {
+        public AmountInput {text(equipmentName,128);if(stock<0)throw new IllegalArgumentException("Invalid equipment stock");}
+    }
+    public record Action(String id, String name, String detail, boolean enabled, AmountInput amountInput) {
+        public Action(String id,String name,String detail,boolean enabled) {this(id,name,detail,enabled,null);}
         public Action { text(id, 64); text(name, 128); text(detail, 1000); }
     }
     public ProtocolCountryView {

@@ -189,7 +189,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         g.text(font, "가능", 44, height - 24, color(ProtocolResearchView.Status.AVAILABLE));
         g.text(font, "진행", 76, height - 24, color(ProtocolResearchView.Status.ACTIVE));
         g.text(font, "잠김", 108, height - 24, color(ProtocolResearchView.Status.LOCKED));
-        if (detail != null) g.text(font, trim(view.message().isEmpty() ? "휠: 세로  ·  가로 휠/우클릭 드래그: 이동  ·  방향키/Enter: 기술 선택" : view.message(), width - 24), 12, height - 12, MUTED);
+        if (detail != null && !view.message().isEmpty()) g.text(font, trim(view.message(), width - 24), 12, height - 12, MUTED);
         if (detail != null) drawDetail(g);
         UiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll);
         super.extractRenderState(g, mouseX, mouseY, delta);

@@ -1,0 +1,51 @@
+import groovy.json.JsonOutput
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
+import java.time.Instant
+import java.util.UUID
+
+def runName = hoiGameTestRunName
+def taskName = hoiGameTestTaskName
+def runId = Instant.now().toString().replace(':', '-') + '-' + UUID.randomUUID()
+def directory = layout.buildDirectory.dir("run/${runName}-runs/${runId}").get().asFile
+ext.hoiGameTestDirectory = directory
+def metadata = new File(directory, 'hoi-run.json')
+def latest = layout.buildDirectory.file("run/${runName}-latest.json").get().asFile
+def details = [runId: runId, runDirectory: directory.absolutePath, task: "${project.path}:${taskName}",
+               gradlePid: ProcessHandle.current().pid(), gradleStarted: ProcessHandle.current().info().startInstant().orElse(Instant.EPOCH).toString()]
+def publish = {
+    def text = JsonOutput.prettyPrint(JsonOutput.toJson(details)) + '\n'
+    Files.writeString(metadata.toPath(), text)
+    def pending = new File(latest.parentFile, "${latest.name}.${runId}.tmp")
+    Files.writeString(pending.toPath(), text, StandardOpenOption.CREATE_NEW)
+    Files.move(pending.toPath(), latest.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+}
+def execution = tasks.named(taskName, JavaExec) {
+    notCompatibleWithConfigurationCache('Each GameTest invocation reserves a new evidence directory.')
+    workingDir directory
+    systemProperty 'hoi.testRunDirectory', directory.absolutePath
+    doFirst {
+        Files.createDirectories(directory.toPath())
+        Files.writeString(metadata.toPath(), '{}', StandardOpenOption.CREATE_NEW)
+        details.status = 'running'
+        details.started = Instant.now().toString()
+        publish()
+        logger.lifecycle("Isolated GameTest directory: ${directory}")
+        logger.lifecycle("GameTest execution metadata: ${metadata}")
+    }
+}
+def finish = tasks.register("finish${taskName.capitalize()}") {
+    notCompatibleWithConfigurationCache('Records the result of the isolated GameTest process.')
+    doLast {
+        if (details.started != null) {
+            def failure = execution.get().state.failure
+            details.status = failure == null ? 'passed' : 'failed'
+            details.finished = Instant.now().toString()
+            if (failure != null) details.failure = failure.message
+            publish()
+            logger.lifecycle("GameTest ${details.status}; evidence retained at ${directory}")
+        }
+    }
+}
+execution.configure { finalizedBy finish }

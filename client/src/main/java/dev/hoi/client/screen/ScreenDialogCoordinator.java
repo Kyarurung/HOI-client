@@ -108,10 +108,11 @@ public final class ScreenDialogCoordinator {
         } else {
             HoiClient.cancelOpen();
             var parent = contentScreen();
+            if (parent instanceof ScreenPreferredTactics tactics) parent=tactics.backdrop();
             if (parent instanceof ScreenPoliticsChoice politics) parent = politics.backdrop();
             if (parent instanceof ScreenCommanderRoster commander) parent = commander.backdrop();
             if (parent instanceof ScreenCommanderTraits traits) parent = traits.backdrop();
-            var screen = view.kind() == ProtocolDialogView.Kind.COMMANDER ? (view.image().startsWith("commander/trait-")?new ScreenCommanderTraits(view,parent):new ScreenCommanderRoster(view,parent)) : view.kind() == ProtocolDialogView.Kind.POLITICS ? new ScreenPoliticsChoice(view, parent) : view.kind() == ProtocolDialogView.Kind.STATE ? (view.image().equals("air_detail/background") ? new ScreenAirDetail(view) : new ScreenMapDetail(view)) : new ScreenDialog(view);
+            var screen = Set.of("commander/tactic-confirm","commander/advisor-confirm").contains(view.image()) ? new ScreenDialog(view) : view.image().endsWith("preferred_tactic_selection") ? new ScreenPreferredTactics(view,parent) : view.kind() == ProtocolDialogView.Kind.COMMANDER ? (view.image().startsWith("commander/trait-")?new ScreenCommanderTraits(view,parent):new ScreenCommanderRoster(view,parent)) : view.kind() == ProtocolDialogView.Kind.POLITICS ? new ScreenPoliticsChoice(view, parent) : view.kind() == ProtocolDialogView.Kind.STATE ? (view.image().equals("air_detail/background") ? new ScreenAirDetail(view) : new ScreenMapDetail(view)) : new ScreenDialog(view);
             if (client.gui.screen() == notifications && notifications != null) {
                 notifications.backdrop(screen); screen.init(notifications.width, notifications.height);
             } else client.gui.setScreen(screen);
@@ -138,11 +139,12 @@ public final class ScreenDialogCoordinator {
             return;
         }
         if (notifications != null && notifications.backdrop() instanceof ScreenDialog screen && screen.view().token().equals(token)) {
-            notifications.backdrop(screen instanceof ScreenPoliticsChoice politics ? politics.backdrop() : screen instanceof ScreenCommanderRoster commander ? commander.backdrop() : screen instanceof ScreenCommanderTraits traits ? traits.backdrop() : null);
+            notifications.backdrop(screen instanceof ScreenPreferredTactics tactics ? tactics.backdrop() : screen instanceof ScreenPoliticsChoice politics ? politics.backdrop() : screen instanceof ScreenCommanderRoster commander ? commander.backdrop() : screen instanceof ScreenCommanderTraits traits ? traits.backdrop() : null);
             return;
         }
         if (client.gui.screen() instanceof ScreenDialog screen && screen.view().token().equals(token)) {
             if (screen instanceof ScreenCompletion completion) completion.dismiss();
+            else if (screen instanceof ScreenPreferredTactics tactics) tactics.dismiss();
             else if (screen instanceof ScreenPoliticsChoice politics) politics.dismiss();
             else if (screen instanceof ScreenCommanderRoster commander) commander.dismiss();
             else if (screen instanceof ScreenCommanderTraits traits) traits.dismiss();

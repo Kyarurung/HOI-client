@@ -1,0 +1,77 @@
+import groovy.json.JsonSlurper
+import java.security.MessageDigest
+
+apply from: rootProject.file('gradle/fixture-groups.gradle')
+def specification = hoiRendererFixtureGroups
+def suite = providers.gradleProperty('hoiTestSuite').orElse('all').get()
+def requiredGroups = specification.findAll { name, group -> group.suites.contains(suite) }.keySet().toList()
+def authoritativeSource = rootProject.file(providers.gradleProperty('hoiServerSource').orElse('../HOI').get())
+def fixtureDirectory = layout.buildDirectory.dir('generated/authoritative-fixtures')
+def prepare = tasks.register('prepareRendererFixtures', GradleBuild) {
+    group = 'verification'
+    description = 'Generates renderer inputs from the current authoritative HOI source tests.'
+    onlyIf { !requiredGroups.isEmpty() }
+    dir = authoritativeSource
+    tasks = [':fabric:exportClientRendererFixtures']
+    startParameter.setInitScripts([rootProject.file('gradle/export-renderer-fixtures.gradle')])
+    startParameter.setProjectProperties([
+        hoiFixtureOutput: fixtureDirectory.get().asFile.absolutePath,
+        hoiFixtureSchema: rootProject.file('gradle/fixture-groups.gradle').absolutePath,
+        hoiFixtureGroups: requiredGroups.join(',')
+    ])
+    startParameter.setMaxWorkerCount(1)
+    doFirst {
+        requiredGroups.each { name -> specification[name].producers.each { producer ->
+            if (!new File(authoritativeSource, 'fabric/src/test/java/' + producer.replace('.', '/') + '.java').isFile()) {
+                throw new GradleException("Authoritative renderer producer ${producer} is missing from ${authoritativeSource}. Check out HOI beside HOI-client or set -PhoiServerSource=<HOI checkout>.")
+            }
+        } }
+    }
+}
+def verify = tasks.register('verifyRendererFixtures') {
+    group = 'verification'
+    description = 'Rejects incomplete, changed or stale authoritative renderer inputs before Minecraft starts.'
+    dependsOn prepare
+    onlyIf { !requiredGroups.isEmpty() }
+    doLast {
+        def digest = { File source -> MessageDigest.getInstance('SHA-256').digest(source.bytes).encodeHex().toString() }
+        requiredGroups.each { name ->
+            def directory = new File(fixtureDirectory.get().asFile, name)
+            def manifest = new File(directory, 'provenance.json')
+            if (!manifest.isFile()) throw new GradleException("Missing generated ${name} provenance: ${manifest}.")
+            def provenance = new JsonSlurper().parse(manifest, 'UTF-8')
+            if (provenance.formatVersion != 1 || provenance.group != name || provenance.producers != specification[name].producers
+                || provenance.sourceRoot != authoritativeSource.canonicalPath
+                || provenance.fixtureHashes.keySet() != specification[name].fixtures.collect { it + '.json' }.toSet()
+                || !provenance.sourceHashes) {
+                throw new GradleException("Invalid authoritative ${name} fixture provenance.")
+            }
+            provenance.sourceHashes.each { path, hash ->
+                def source = new File(authoritativeSource, path)
+                if (!source.isFile() || digest(source) != hash) throw new GradleException("Stale authoritative renderer source: ${path}.")
+            }
+            provenance.fixtureHashes.each { filename, hash ->
+                def fixture = new File(directory, filename)
+                if (!fixture.isFile() || digest(fixture) != hash) throw new GradleException("Changed or missing authoritative ${name} fixture: ${filename}.")
+            }
+            logger.lifecycle("Verified ${provenance.fixtureHashes.size()} current authoritative ${name} fixtures.")
+        }
+        def javaSources = { File root ->
+            rootProject.fileTree(root).matching { include '**/*.java' }.files.collectEntries { source ->
+                [(root.toPath().relativize(source.toPath()).toString()): source.getText('UTF-8').replace('\r\n', '\n')]
+            }
+        }
+        def clientProtocol = javaSources(rootProject.file('protocol/src/main/java'))
+        def serverProtocol = javaSources(new File(authoritativeSource, 'protocol/src/main/java'))
+        if (!clientProtocol || clientProtocol != serverProtocol) {
+            throw new GradleException('Authoritative renderer fixtures require synchronized HOI and HOI-client protocol sources.')
+        }
+        logger.lifecycle("Verified ${clientProtocol.size()} shared protocol sources for renderer fixtures.")
+    }
+}
+tasks.withType(JavaExec).configureEach {
+    if (name == 'runClientGameTest') {
+        dependsOn verify
+        requiredGroups.each { name -> environment specification[name].environment, new File(fixtureDirectory.get().asFile, name).absolutePath }
+    }
+}

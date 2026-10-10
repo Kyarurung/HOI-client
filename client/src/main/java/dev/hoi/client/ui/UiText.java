@@ -52,9 +52,37 @@ public final class UiText {
     public static void centeredAt(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int color) {
         text(g, font, text, x - Math.round(font.width(text) * scale(font) / 2), y, color);
     }
+    public static void leftSingleLine(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
+        float fitted = Math.min(scale(font), Math.min(width / (float)Math.max(1, font.width(text)), height / (float)font.lineHeight));
+        g.pose().pushMatrix();
+        g.pose().translate(x, y + (height - font.lineHeight * fitted) / 2);
+        g.pose().scale(fitted);
+        g.text(font, text, 0, 0, color);
+        g.pose().popMatrix();
+    }
+    public static void left(GuiGraphicsExtractor g, Font font, String text, int x, int y, int width, int height, int color) {
+        left(g, font, Component.literal(text), x, y, width, height, color);
+    }
+    public static void left(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
+        var lines = font.split(text, Math.max(1, (int)(width / scale(font))));
+        int count = Math.min(lines.size(), Math.max(1, height / (MIN_HEIGHT + 1)));
+        int top = y + (height - count * (MIN_HEIGHT + 1) + 1) / 2;
+        for (int i = 0; i < count; i++) text(g, font, lines.get(i), x, top + i * (MIN_HEIGHT + 1), color);
+    }
+    public static void centeredSingleLine(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
+        float fitted = Math.min(scale(font), Math.min(width / (float)Math.max(1, font.width(text)), height / (float)font.lineHeight));
+        g.pose().pushMatrix();
+        g.pose().translate(x + (width - font.width(text) * fitted) / 2, y + (height - font.lineHeight * fitted) / 2);
+        g.pose().scale(fitted);
+        g.text(font, text, 0, 0, color);
+        g.pose().popMatrix();
+    }
     public static void centered(GuiGraphicsExtractor g, Font font, String text, int x, int y, int width, int height, int color) {
+        centered(g,font,Component.literal(text),x,y,width,height,color);
+    }
+    public static void centered(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
         float scale = scale(font);
-        var lines = font.split(Component.literal(text), Math.max(1, (int)(width / scale)));
+        var lines = font.split(text, Math.max(1, (int)(width / scale)));
         int count = Math.min(lines.size(), Math.max(1, height / (MIN_HEIGHT + 1)));
         int top = y + (height - count * (MIN_HEIGHT + 1) + 1) / 2;
         for (int i=0; i<count; i++) text(g, font, lines.get(i),
