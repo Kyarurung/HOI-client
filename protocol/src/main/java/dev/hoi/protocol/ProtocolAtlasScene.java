@@ -10,7 +10,7 @@ import java.util.*;
 public final class ProtocolAtlasScene {
     public static final int PAGE_SIZE = 1024;
     public static final int MAX_PAGES = 256;
-    public enum Material { BLACK, RED, WATER, FOREST, JUNGLE, MARSH, DESERT, CITY, NAVY_RIVER, AIR_RIVER, GRAY, DEPLOYMENT, DMZ, RESISTANCE, COMPLIANCE }
+    public enum Material { BLACK, RED, WATER, FOREST, JUNGLE, MARSH, DESERT, CITY, NAVY_RIVER, AIR_RIVER, GRAY, DEPLOYMENT, DMZ, RESISTANCE, COMPLIANCE, AIR_SELECTED, AIR_ACTIVE }
     public record Box(float x, float y, float z, float sx, float sy, float sz, float yaw, Material material) {
         public Box {
             for (float coordinate : new float[]{x, y, z, yaw})

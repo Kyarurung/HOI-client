@@ -47,9 +47,9 @@ public final class ScreenFocusPixelsTest {
         for(int background:List.of(0xFF000000,0xFFFFFFFF)) {
             String backgroundName=background==0xFF000000?"black":"white";
             for(var state:List.of(new State("0",0,24),new State("50",12,24),new State("100",24,24),
-                    new State("half-texel-1",1,332),new State("half-texel-3",3,332),new State("half-texel-83",83,332),
-                    new State("half-texel-165",165,332),new State("half-texel-331",331,332))) {
-                var screen=new PixelsScreen(state,background,false);
+                    new State("quarter-texel-1",1,664),new State("quarter-texel-3",3,664),new State("quarter-texel-331",331,664),
+                    new State("quarter-texel-661",661,664),new State("quarter-texel-663",663,664))) {
+                var screen=context.computeOnClient(client->new PixelsScreen(state,background,false));
                 context.setScreen(()->screen);
                 context.getInput().setCursorPos(0,0);
                 context.waitTicks(2);
@@ -72,7 +72,7 @@ public final class ScreenFocusPixelsTest {
                 results.add(result);
                 if(difference.exactMismatchPixels()!=0)failures.add(name+": "+difference.firstMismatch());
             }
-            var screen=new PixelsScreen(new State("paper",0,24),background,true);
+            var screen=context.computeOnClient(client->new PixelsScreen(new State("paper",0,24),background,true));
             context.setScreen(()->screen);context.getInput().setCursorPos(0,0);context.waitTicks(2);
             Region region=context.computeOnClient(client->screen.region(client));
             String name="hoi-focus-pixels-paper-"+backgroundName+"-"+pixelWidth+"-gui2";
@@ -99,7 +99,7 @@ public final class ScreenFocusPixelsTest {
         report.put("sourceShader","TFR gfx/FX/progress_startend.shader");report.put("sourceShaderSha256",SHADER_SHA256);
         report.put("sourceConversion","Pinned decoded PNG resources; ImageIO.getRGB exposes straight 8-bit ARGB. Original DDS/source files remain untouched.");
         report.put("sampling","Pixel-center UV; Point, no mip, Wrap. Atlas start/middle/stop are y=0..20/21..41/42..62. CurrentState stays float and is not rounded to filled width.");
-        report.put("oracleScope","Source shader equations at normalized pixel centers; original HOI4 engine vertex UV/half-texel conventions still require native GPU capture. Passing compares Minecraft to this explicit oracle, not to an unobserved HOI4 framebuffer.");
+        report.put("oracleScope","Source shader equations at normalized pixel centers; original HOI4 engine vertex UV/half-texel conventions still require native GPU capture. Exact half-texel states are not compared: at CurrentState*166 ending in .5 the float32 source equation selects different stop texels for individual pixels, so no stable expected image exists; quarter-texel states probe sub-texel progress instead. Passing compares Minecraft to this explicit oracle, not to an unobserved HOI4 framebuffer.");
         report.put("composition","lerp(middle,start,start.a), lerp(result,stop,stop.a), output alpha=middle.a, then SRC_ALPHA/INV_SRC_ALPHA; frame follows. CPU attachment channels round to nearest 8-bit integer.");
         report.put("threshold","RGB delta=0 for passing. One-level differences are counted separately for quantization diagnosis and never accepted automatically.");
         report.put("alphaEvidence","Screenshot RGB does not expose source alpha. Independent black/white background composites test transparency behavior; direct GPU attachment alpha is not claimed.");

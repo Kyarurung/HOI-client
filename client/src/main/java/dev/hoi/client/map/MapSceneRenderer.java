@@ -45,7 +45,8 @@ public final class MapSceneRenderer {
             Map.entry(Material.DESERT, Identifier.parse("minecraft:block/sand")),
             Map.entry(Material.NAVY_RIVER, Identifier.parse("minecraft:block/gray_concrete")),
             Map.entry(Material.AIR_RIVER, Identifier.parse("minecraft:block/light_gray_concrete")),
-            Map.entry(Material.GRAY, Identifier.parse("minecraft:block/gray_concrete")), Map.entry(Material.DEPLOYMENT, Identifier.parse("minecraft:block/lime_concrete")));
+            Map.entry(Material.GRAY, Identifier.parse("minecraft:block/gray_concrete")), Map.entry(Material.DEPLOYMENT, Identifier.parse("minecraft:block/lime_concrete")),
+            Map.entry(Material.AIR_SELECTED, Identifier.parse("minecraft:block/white_concrete")), Map.entry(Material.AIR_ACTIVE, Identifier.parse("minecraft:block/white_concrete")));
     private record MapRenderFrame(List<MapTile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city) {}
     public static void register() {
         ProtocolAtlasScene.registerPayloadTypes();
@@ -142,13 +143,13 @@ public final class MapSceneRenderer {
             }
             if(tile.movement()){context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(Identifier.parse("hoi:textures/gui/map/movement_arrow.png")),(matrix,consumer)->emit(tile,null,matrix,consumer));continue;}
             var sprite = frame.sprites().get(tile.material());
-            var type = tile.material() == Material.DMZ ? RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")) : tile.material() == Material.FOREST || tile.material() == Material.JUNGLE ? RenderTypes.cutoutMovingBlock() : RenderTypes.solidMovingBlock();
+            var type = tile.material() == Material.DMZ || tile.material() == Material.AIR_SELECTED || tile.material() == Material.AIR_ACTIVE ? RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")) : tile.material() == Material.FOREST || tile.material() == Material.JUNGLE ? RenderTypes.cutoutMovingBlock() : RenderTypes.solidMovingBlock();
             context.submitNodeCollector().submitCustomGeometry(pose, type, (matrix, consumer) -> emit(tile, sprite, matrix, consumer));
         }
         pose.popPose();
     }
     private static void emit(MapTile tile, TextureAtlasSprite sprite, PoseStack.Pose pose, VertexConsumer consumer) {
-        int color = tile.movement()?0xbfffffff:tile.material() == Material.RESISTANCE ? 0xff9b6363 : tile.material() == Material.COMPLIANCE ? 0xff5b668f : tile.material() == Material.DMZ ? 0xfeff0000 : tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
+        int color = tile.movement()?0xbfffffff:tile.material() == Material.RESISTANCE ? 0xff9b6363 : tile.material() == Material.COMPLIANCE ? 0xff5b668f : tile.material() == Material.DMZ ? 0xfeff0000 : tile.material() == Material.AIR_SELECTED ? 0xccffff00 : tile.material() == Material.AIR_ACTIVE ? 0x8000ff00 : tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
         var v = tile.vertices();
         for (int i=0;i<v.length;i+=8) consumer.addVertex(pose,v[i],v[i+1],v[i+2]).setColor(color)
                 .setUv(sprite==null?v[i+3]:sprite.getU(v[i+3]),sprite==null?v[i+4]:sprite.getV(v[i+4])).setLight(15728880).setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).setNormal(pose,v[i+5],v[i+6],v[i+7]);
