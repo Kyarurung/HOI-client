@@ -14,7 +14,7 @@ final class MapCommanderGroups {
     }
     boolean expanded(String id){return expanded.getOrDefault(id,false);}
     void reveal(Card card){if(card.role()==Mode.ARMY_GROUP)expanded.putIfAbsent(card.id(),true);else if(card.panel()!=null&&!card.panel().parent().isEmpty())expanded.putIfAbsent(card.panel().parent(),true);}
-    void toggle(Card card){if(card.role()==Mode.ARMY_GROUP)expanded.put(card.id(),!expanded(card.id()));else if(!foldedRows.remove(card.id()))foldedRows.add(card.id());}
+    void toggle(Card card){if(card.role()==Mode.ARMY_GROUP)expanded.put(card.id(),!expanded(card.id()));else if(card.role()==Mode.NAVY_FLEET&&!foldedRows.remove(card.id()))foldedRows.add(card.id());}
     boolean rowsVisible(String id){return !foldedRows.contains(id);}
     String owner(Card card,View view){
         if(card.role()==Mode.ARMY_GROUP)return expanded(card.id())?card.id():"";
@@ -26,7 +26,7 @@ final class MapCommanderGroups {
         capacity=Math.max(2,capacity);var blocks=new ArrayList<List<Card>>();var groups=view.cards().stream().filter(c->c.role()==Mode.ARMY_GROUP).toList();var grouped=new HashSet<String>();
         for(var group:groups){var children=view.cards().stream().filter(c->c.role()==Mode.ASSIGN_ARMY&&c.panel()!=null&&c.panel().parent().equals(group.id())).toList();children.forEach(c->grouped.add(c.id()));
             if(!expanded(group.id())||children.isEmpty()){blocks.add(List.of(group));continue;}
-            for(int first=0;first<children.size();first+=capacity-1){var block=new ArrayList<>(children.subList(first,Math.min(children.size(),first+capacity-1)));block.add(group);blocks.add(List.copyOf(block));}
+            for(int first=0;first<children.size();first+=capacity-1){var block=new ArrayList<Card>();block.add(group);block.addAll(children.subList(first,Math.min(children.size(),first+capacity-1)));blocks.add(List.copyOf(block));}
         }
         view.cards().stream().filter(c->c.role()!=Mode.ARMY_GROUP&&!grouped.contains(c.id())).forEach(c->blocks.add(List.of(c)));
         var result=new ArrayList<List<Card>>();var page=new ArrayList<Card>();

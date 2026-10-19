@@ -3,9 +3,9 @@
   "id": "hoi_client",
   "version": "${version}",
   "name": "HOI Client",
-  "description": "하츠 오브 아이언 IV의 대체 역사 모드인 The Fire Rises와 The Fire Rises Korea Plus를 기반으로 제작한 마인크래프트 모드입니다. by Kiruya_Momochi 자체 코드: AGPL-3.0-only. 제3자 코드·TFR/TFRKP 원본 및 파생 콘텐츠·자산은 제외되며 기존 라이선스와 출처를 따릅니다.",
+  "description": "하츠 오브 아이언 IV의 대체 역사 모드인 The Fire Rises와 The Fire Rises Korea Plus를 기반으로 제작한 마인크래프트 모드입니다. by Kyarurung 자체 코드: AGPL-3.0-only. 제3자 코드·TFR/TFRKP 원본 및 파생 콘텐츠·자산은 제외되며 기존 라이선스와 출처를 따릅니다.",
   "license": "AGPL-3.0-only",
-  "authors": ["Kiruya_Momochi"],
+  "authors": ["Kyarurung"],
   "environment": "client",
   "mixins": [
     "hoi-client.mixins.json"

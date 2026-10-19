@@ -6,6 +6,32 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ScreenDecisionTextTest {
+    @Test void balancedBlockedCostRestoresTheOuterSourceColorAcrossLines() {
+        assertEquals(List.of(new ScreenDecisionText.Run("자주포",0xFFBD00),new ScreenDecisionText.Run(" 250대 필요",0xCD3737)),
+                ScreenDecisionText.sourceRuns("§A§Y자주포§! 250대 필요§!"));
+        var runs=ScreenDecisionText.sourceRuns("§A부족\n§Y장비§! 100.00대§! 기본");
+        assertTrue(runs.contains(new ScreenDecisionText.Run(" 100.00대",0xCD3737)));
+        assertEquals(new ScreenDecisionText.Run(" 기본",null),runs.getLast());
+    }
+    @Test void flagsUseUntintedGlyphsWithoutChangingAdjacentStylesAndMissingTokensRemainVisible() {
+        var text=new ScreenDecisionText();
+        text.flags(com.google.gson.JsonParser.parseString("{\"version\":1,\"flags\":{\"KOR\":\"\\ue000\",\"JAP\":\"\\ue001\",\"PRC\":\"\\ue002\"}}").getAsJsonObject());
+        assertEquals("\ue000 KF-XX: KFXX 전투기 계획",text.component("[KOR.GetFlag]§C KF-XX§!: KFXX 전투기 계획").getString());
+        var rows=text.rows("§YEADI§!: [JAP.GetFlag]§Y일본§! 초대\n\n[ZZX.GetFlag]\n[kor.GetFlag]");
+        assertEquals(List.of("EADI: \ue001일본 초대","","[ZZX.GetFlag]","[kor.GetFlag]"),rows.stream().map(net.minecraft.network.chat.Component::getString).toList());
+        var parts=new ArrayList<String>();
+        rows.getFirst().visit((style,part)->{
+            if(part.equals("\ue001")) {
+                assertEquals(new net.minecraft.network.chat.FontDescription.Resource(net.minecraft.resources.Identifier.parse("hoi:decision_flags")),style.getFont());
+                assertEquals(0xFFFFFF,style.getColor().getValue());assertEquals(0,style.getShadowColor());
+            }
+            if(part.equals("일본"))assertEquals(0xFFBD00,style.getColor().getValue());
+            parts.add(part);return Optional.empty();
+        },net.minecraft.network.chat.Style.EMPTY);
+        assertTrue(parts.contains("일본"));
+        text.flags(new com.google.gson.JsonObject());
+        assertEquals("[KOR.GetFlag]대한민국",text.component("[KOR.GetFlag]대한민국").getString());
+    }
     private static String plain(String source) {
         return ScreenDecisionText.sourceRuns(source).stream().map(ScreenDecisionText.Run::text).collect(Collectors.joining());
     }

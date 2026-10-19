@@ -64,6 +64,9 @@ public final class NetworkScreens {
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolDecisionDetails.Response.TYPE, (packet, context) -> {
             if (ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenDecision screen) screen.update(packet);
         });
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolDecisionPayloads.Highlight.TYPE,(packet,context)->{
+            if(ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenDecision screen)screen.update(packet);
+        });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolWorldTension.Response.TYPE, (packet, context) -> {
             if (ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenWorldTension screen) {
                 try { screen.update(packet); }

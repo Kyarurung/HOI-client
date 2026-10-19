@@ -17,6 +17,7 @@ public final class ProtocolCountryPayloads {
         PayloadTypeRegistry.serverboundPlay().register(Action.TYPE, Action.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE, Response.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(OpenScreen.TYPE, OpenScreen.CODEC);
+        ProtocolCountryDisplay.registerPayloadTypes();
         registered = true;
     }
     private static void token(String value) { ProtocolCountryView.text(value, 36); java.util.UUID.fromString(value); }

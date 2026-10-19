@@ -128,7 +128,7 @@ class ProtocolDecisionDetailsTest {
     @Test void dedicatedChannelsRegisterIdempotentlyWithoutChangingDecisionActions() {
         assertEquals("hoi:decision_detail_request_v1",Request.TYPE.id().toString());
         assertEquals("hoi:decision_detail_response_v1",Response.TYPE.id().toString());
-        assertEquals(List.of("OPEN","REFRESH","TAKE"),Arrays.stream(ProtocolDecisionPayloads.Action.values()).map(Enum::name).toList());
+        assertEquals(List.of("OPEN","REFRESH","TAKE","HIGHLIGHT","GOTO"),Arrays.stream(ProtocolDecisionPayloads.Action.values()).map(Enum::name).toList());
         assertDoesNotThrow(()->{registerPayloadTypes();registerPayloadTypes();});
     }
 }

@@ -7,7 +7,9 @@ import java.util.regex.Pattern;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.Style;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
 
 final class ScreenDecisionText {
@@ -22,13 +24,25 @@ final class ScreenDecisionText {
             Map.entry('3',0x518FDC),Map.entry('4',0x5ABEE7),Map.entry('5',0x3FB5C2),Map.entry('6',0x77CCBA),
             Map.entry('7',0x99D199),Map.entry('8',0xCCA333),Map.entry('9',0xFCA97D),Map.entry('t',0xFF4C4D));
     record Run(String text,Integer color) {}
-    private static final Pattern TOKENS = Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)£?");
+    private static final Pattern TOKENS = Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)£?|\\[([A-Z]{3})\\.GetFlag\\]");
+    private static final FontDescription FLAG_FONT = new FontDescription.Resource(Identifier.parse("hoi:decision_flags"));
+    private Map<String,String> flags=Map.of();
     private final Map<String,List<FormattedCharSequence>> cache = new LinkedHashMap<>();
     private final Map<String,List<Component>> sourceRows = new LinkedHashMap<>();
     private Map<String,Image> images=Map.of();
     private record Image(String path,int width,int height) {}
     private record Block(FormattedCharSequence text,Image image,int width,int height) {}
     void clear() { cache.clear();sourceRows.clear(); }
+    void flags(JsonObject root) {
+        var next=new HashMap<String,String>();
+        if(root.has("version") && root.get("version").getAsInt()==1 && root.get("flags") instanceof JsonObject entries
+                && entries.size()<=1024)for(var entry:entries.entrySet()) {
+            String glyph=entry.getValue().getAsString();
+            if(entry.getKey().matches("[A-Z]{3}") && glyph.length()==1 && glyph.charAt(0)>=0xe000 && glyph.charAt(0)<=0xf8ff)
+                next.put(entry.getKey(),glyph);
+        }
+        flags=Map.copyOf(next);clear();
+    }
     void assets(JsonObject root) {
         var next=new HashMap<String,Image>();
         if(root.has("textImages"))for(var entry:root.getAsJsonObject("textImages").entrySet()) {
@@ -50,8 +64,14 @@ final class ScreenDecisionText {
             while(matcher.find()) {
                 result.append(Component.literal(part.substring(start,matcher.start())).withStyle(style));
                 var original=Component.literal(matcher.group()).withStyle(style);
-                var icon=UiKeywordIcons.decorateLines(original,false);
-                result.append(icon.getString().isEmpty()?original:icon);
+                if(matcher.group(2)!=null) {
+                    String glyph=flags.get(matcher.group(2));
+                    result.append(glyph==null?original:Component.literal(glyph)
+                            .withStyle(Style.EMPTY.withFont(FLAG_FONT).withColor(0xFFFFFF).withShadowColor(0)));
+                } else {
+                    var icon=UiKeywordIcons.decorateLines(original,false);
+                    result.append(icon.getString().isEmpty()?original:icon);
+                }
                 start=matcher.end();
             }
             result.append(Component.literal(part.substring(start)).withStyle(style));
@@ -60,6 +80,17 @@ final class ScreenDecisionText {
     }
     static List<Run> sourceRuns(String text) {
         var runs=new ArrayList<Run>();Integer color=null;
+        var codes=new ArrayList<Character>();
+        for(int index=0;index<text.length();) {
+            int length=codeLength(text,index);
+            if(length==0)index++;else {codes.add(text.charAt(index+1));index+=length;}
+        }
+        var balanced=new BitSet();int resets=0;
+        for(int index=codes.size()-1;index>=0;index--) {
+            if(codes.get(index)=='!')resets++;
+            else if(resets>0) {balanced.set(index);resets--;}
+        }
+        var parents=new ArrayList<Integer>();int codeIndex=0;boolean scoped=false;
         String[] lines=text.split("\\R",-1);
         for(int row=0;row<lines.length;row++) {
             String line=lines[row];boolean separator=separator(line);int start=0,index=0;
@@ -68,7 +99,13 @@ final class ScreenDecisionText {
                 if(length==0){index++;continue;}
                 if(!separator&&start<index)runs.add(new Run(line.substring(start,index),color));
                 char code=line.charAt(index+1);
-                color=code=='!'?null:code=='#'?Integer.valueOf(line.substring(index+2,index+8),16):SOURCE_COLORS.get(code);
+                if(code=='!') {color=parents.isEmpty()?null:parents.removeLast();scoped=!parents.isEmpty();}
+                else {
+                    if(balanced.get(codeIndex))parents.add(scoped?color:null);else parents.clear();
+                    scoped=balanced.get(codeIndex);
+                    color=code=='#'?Integer.valueOf(line.substring(index+2,index+8),16):SOURCE_COLORS.get(code);
+                }
+                codeIndex++;
                 index+=length;start=index;
             }
             if(!separator&&start<line.length())runs.add(new Run(line.substring(start),color));
@@ -154,7 +191,7 @@ final class ScreenDecisionText {
         var result=new ArrayList<Block>();
         for(var row:rows(text)) {
             var matcher=TOKENS.matcher(row.getString().strip());
-            Image image=matcher.matches()?images.get(matcher.group(1)):null;
+            Image image=matcher.matches() && matcher.group(1)!=null?images.get(matcher.group(1)):null;
             if(image!=null) {
                 int imageWidth=Math.min(width,image.width());
                 int imageHeight=Math.max(1,(int)Math.round(image.height()*(double)imageWidth/image.width()));

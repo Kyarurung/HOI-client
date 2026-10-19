@@ -1,8 +1,8 @@
 # License scope
 
-by Kiruya_Momochi.
+by Kyarurung.
 
-Original, user-owned project code and tools authored by Kiruya_Momochi are
+Original, user-owned project code and tools authored by Kyarurung are
 licensed under the GNU Affero General Public License, version 3 only
 (SPDX-License-Identifier: AGPL-3.0-only). See LICENSE for the unmodified
 GNU license text. This notice does not permit choosing a later version.

@@ -15,7 +15,7 @@ final class MapCommanderAvailabilityTest {
     private MapCommanderAvailabilityTest() {}
     private static Assessment result(Check q,Map<String,Decision> values){return new Assessment(q.token(),q.revision(),q.sequence(),q.request(),values);}
     static void run(ClientGameTestContext game,ProtocolMenuView menu,String directory)throws java.io.IOException {
-        var source=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-army.json"))).view();var queries=new ArrayList<Check>();var commands=new ArrayList<Command>();var issued=new Context[1];String denied="배정 해제할 대상이 없습니다.";
+        var source=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-army-assigned.json"))).view();var queries=new ArrayList<Check>();var commands=new ArrayList<Command>();var issued=new Context[1];String denied="배정 해제할 대상이 없습니다.";
         try {
             game.getInput().resizeWindow(1280,720);
             game.runOnClient(client->{
@@ -43,6 +43,10 @@ final class MapCommanderAvailabilityTest {
             Map<String,Decision> rejectedSkills=new com.google.gson.Gson().fromJson(Files.readString(Path.of(directory,"kor-selected-skill-rejections.json")),new com.google.gson.reflect.TypeToken<Map<String,Decision>>(){}.getType());
             for(String skill:List.of("FORCE_ATTACK","LAST_STAND","EXTRA_SUPLIES")){
                 String action="ABILITY/"+skill;var decision=rejectedSkills.get(action);if(decision==null||decision.enabled()||decision.reason().isBlank())throw new AssertionError("Actual server fixture must reject incomplete skill "+action);game.runOnClient(client->MapCommanderAvailability.accept(result(queries.getLast(),rejectedSkills)));game.waitTicks(2);
+                if(!game.computeOnClient(client->MapCommanderPanels.armyAbilityIds().contains(skill.toLowerCase(Locale.ROOT)))){
+                    game.runOnClient(client->{int before=commands.size();if(MapCommanderPanels.hits().stream().anyMatch(h->h.icon().equals("ability_"+skill.toLowerCase(Locale.ROOT)))||!MapCommanderAvailability.reason(action,MapCommanderPanels.commandSelection()).equals(decision.reason())||MapCommanderOrders.send(action,MapCommanderPanels.commandSelection(),List.of())||commands.size()!=before)throw new AssertionError("Unowned skills must stay absent and retain their server rejection gate");});
+                    game.takeScreenshot("hoi-officer-skill-unowned-"+skill.toLowerCase(Locale.ROOT)+"-gui2");continue;
+                }
                 var ability=game.computeOnClient(client->MapCommanderPanels.hits().stream().filter(h->h.icon().equals("ability_"+skill.toLowerCase(Locale.ROOT))).findFirst().orElseThrow());game.runOnClient(client->{if(!ability.tip().contains(decision.reason())||!MapCommanderAvailability.reason(action,MapCommanderPanels.commandSelection()).equals(decision.reason()))throw new AssertionError("Incomplete skill must retain its actual server rejection reason");var screen=client.gui.screen();int before=commands.size();MapCommanderHud.clickAt(ability.x()+ability.w()/2.,ability.y()+ability.h()/2.);if(commands.size()!=before||client.gui.screen()!=screen)throw new AssertionError("Incomplete skill must not issue an execution request or open a success window");});game.getInput().setCursorPos((ability.x()+ability.w()/2.)*2,(ability.y()+ability.h()/2.)*2);game.waitTicks(2);game.takeScreenshot("hoi-officer-skill-unimplemented-"+skill.toLowerCase(Locale.ROOT)+"-gui2");
             }
             game.runOnClient(client->{

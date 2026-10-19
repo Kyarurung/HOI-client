@@ -1,0 +1,618 @@
+{
+  "source": "C:\\Users\\Kiruy\\AppData\\Local\\Temp\\claude-cmp3-server-snapshot-7\\HOI\\content\\hoi\\scenario\\tfr-presentations.json",
+  "source_sha256": "f0be4553edc8265b5152c46bfba5e6a4c32dcfc3be39161e25b28cf00f70ed9d",
+  "scope": "Source catalog renderer examples; not proof that all source options/effects are executable server gameplay.",
+  "cases": [
+    {
+      "name": "national-korea-21",
+      "id": "korea.21",
+      "titleKey": "korea.21.t",
+      "bodyKey": "korea.21.desc",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "동쪽을 바라보다",
+        "subtitle": "",
+        "body": "무신불립. 공자께서는 \"신뢰는 나라의 근본이며, 사람에게 믿음이 없으면 살아갈 수 없다\"고 하였습니다. 즉, 사람이 살아가는 데 가장 중요한 미덕은 신뢰라는 뜻입니다.\n\n해방 이후 한국과 일본 사이의 과거사는 쉽사리 해결될 문제는 아니었습니다. 1965년 박정희 대통령이 한일청구권협정을 체결했지만, 진정한 화해와 사죄는 여전히 요원했습니다. 그렇게 덧칠하듯 봉합된 관계는 수십 년이 흘러도 완전한 회복을 이루지 못했습니다.\n\n그러던 중 문재인 정권이 들어서고 대한민국의 대법원이 강제징용 피해자에게 일본 기업의 배상책임을 인정하면서, 일본과의 관계는 다시 한번 큰 파도를 맞이했습니다.\n\n일본은 청구권 협정으로 모든 문제가 종결되었다고 주장했고, 한국은 개인의 청구권은 여전히 유효하다고 맞섰습니다. 이 문제는 얼마 안 가 경제적 대립으로 번졌고, 작년인 2019년, 일본은 한국을 백색국가 목록에서 제외하며 반도체와 디스플레이 산업에 필수적인 핵심 소재의 수출을 규제했습니다. 그 결과 대한민국의 산업은 큰 타격을 입었고, 과거사 문제는 또다시 대립의 불씨가 되었습니다.\n\n갈등은 국민적 정서로까지 확산했습니다. 대한민국 국민은 NO재팬 운동을 벌이며 일본 제품 불매로 맞섰고, 한일안보공조의 상징인 군사정보보호협정(GSOMIA)마저 종료의 위기에 놓였습니다. 미국의 중재로 협정은 가까스로 유지되었으나, 한일 관계의 정상화는 멀게만 느껴집니다.\n\n'우리는 다시는 일본에 지지 않을 것'이라 천명한 문재인 정부는 이러한 일본에 여전히 강경한 입장을 고수하고 있습니다. 21세기 새로운 10년이 시작되는 지금, 한때 '신세기의 파트너십'을 약속했던 김대중-오부치 공동선언의 정신은 멀어져 가고만 있습니다.",
+        "flag": "",
+        "image": "events/293742cabde2acc7be63",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "korea.21.a",
+            "label": "북쪽을 바라본다."
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-korea-1",
+      "id": "korea.1",
+      "titleKey": "korea.1.t",
+      "bodyKey": "korea.1.desc",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "새로운 10년",
+        "subtitle": "",
+        "body": "서울특별시 종로구 종로 54에 위치한 보신각에서 제야의 종소리가 울려 퍼졌습니다. 서울에 모인 시민들은 저마다 다가오는 2020년이 보다 행복한 한 해가 되길 기원하고 있습니다.\n\n지난 2019년 한 해는 유난히도 힘겨웠던 것 같습니다. 북한과의 비핵화 협상은 성과 없이 멈춰 서며 한반도의 평화는 다시 아득히 멀어져 갔습니다. 일본과의 관계 또한 과거사 문제로 깊은 갈등을 빚었으며, 급기야 일본 정부의 수출 규제 조치로 양국 관계는 얼어붙었습니다. 그러나 역경을 딛고 별에 닿을 수 있듯이, 이 모든 고통이 더 나은 내일로 가기 위한 일시적인 성장통이었길 바랄 뿐입니다. \n\n돌아보니 지난 10년은 감회가 새롭습니다. 세월호의 아픔, 촛불의 뜨거운 열망, 평창의 밝은 희망까지, 우리는 지난 10년 동안 수많은 눈물을 흘렸고, 광장에서는 뜨겁게 울분을 쏟아내며 서로의 손을 잡고 응원했습니다. 지난 10년 기술의 발전은 전례 없는 변화를 일으켜 우리의 삶을 그 어느 때보다 편리하게 만들었지만, 점차 우리는 도파민에 중독된 채 생각을 멈추게 되었고, 자극적인 매체는 우리 사회를 혐오와 갈등의 시대로 몰아가고 있습니다.\n\n그럼에도 불구하고, 지금 이 자리에 있는 우리 모두는 다가오는 2020년과 그 이후의 다가올 새로울 10년이 더 나은 대한민국을 만들어 갈 새로운 출발점이 되기를 간절히 바라고 있습니다.",
+        "flag": "",
+        "image": "events/735be0a053cd4ea7e438",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "korea.1.a",
+            "label": "올해는 좀 좋아지겠지."
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-korea-2",
+      "id": "korea.2",
+      "titleKey": "korea.2.t",
+      "bodyKey": "korea.2.desc",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "국내 첫 코로나 확진",
+        "subtitle": "",
+        "body": "중국 우한시에서 입국한 35세 중국 국적 여성이 인천국제공항 검역 과정에서 코로나19 양성 판정을 받았습니다. 인천공항 검역소에 따르면, 해당 인원은 입국 당시 발열 등 의심 증상을 호소했으며, 검역관이 즉시 유증상자로 분류하여 국가 지정 입원치료병상으로 이송 후 검사를 진행했습니다.\n\n조사 결과, 해당 감염자는 입국 과정에서 상당수의 인원과 접촉한 것으로 보입니다. 이에 질병관리본부는 감염병 위기 경보 수준을 '관심'에서 '주의' 단계로 상향 조정하고 중앙방역대책본부와 지자체 대책반을 가동하여 지역사회 차원에서의 감시와 대응을 강화하기로 했습니다.\n\n한편, 전국 각지에서 고열과 기침 등 호흡기 증상을 보이는 환자가 급증하고 있다는 보고도 잇따르고 있습니다. 우리 사회는 어쩌면 이미 코로나에 오염된 것일지도 모르겠습니다.",
+        "flag": "",
+        "image": "events/99de5e04c13a252a46ce",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "korea.2.a",
+            "label": "대비책을 강구하라."
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-one",
+      "id": "korea.79",
+      "titleKey": "korea.79.t",
+      "bodyKey": "korea.79.desc",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "바른미래당의 최후",
+        "subtitle": "",
+        "body": "계파 갈등으로 인해 지난 1월 바른정당 출신 의원들이 탈당해 새로운보수당과 미래를향한전진당을 세우면서 위기를 맞이한 바른미래당이 결국 파멸을 맞이했습니다. 소속 국회의원들은 '셀프 제명'을 의결하며 당에서 모조리 빠져나가고, 탈당한 전 국민의당 대표 안철수는 어제 다시 한 번 자신만의 국민의당을 창당했습니다. 남은 자들은 대안신당, 민주평화당과의 신설합당을 통해 민생당을 창당하면서, 바른정당과 옛 국민의당의 \"새로운 보수\"를 위한 통합은 2년 만에 파국으로 끝나게 되었습니다.\n\n하지만 기존에 빠져나간 이들이 지난 2월 17일 자유한국당과의 합당을 통해 미래통합당이 되며 소멸한 와중, 바른미래당의 잔재들이 단독으로 얼마나 오래 살아남을지는 미지수입니다.",
+        "flag": "",
+        "image": "events/be779716b3b2d453c310",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "korea.79.a",
+            "label": "미래통합당이 미래에 통합할 또 다른 정당들이 생겼군."
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-korea-23",
+      "id": "korea.23",
+      "titleKey": "korea.23.t",
+      "bodyKey": "korea.23.desc",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "제3차 오일 쇼크",
+        "subtitle": "",
+        "body": "사우디아라비아가 내전으로 붕괴되면서 중동의 정치적 불안정이 극에 도달했고 페트로달러는 휴짓조각이 되었습니다. 전 세계 유가는 걷잡을 수 없이 치솟았으며, 석유 의존도가 높은 중화학 공업 중심의 대한민국 경제는 큰 피해를 입고 있습니다. 이미 경제성장률이 마이너스를 기록하고 물가 상승률은 평균 30%가 상승한 상황입니다. 또 다른 오일쇼크가 도래했습니다.",
+        "flag": "",
+        "image": "events/40304b24190b130febdb",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "korea.23.a",
+            "label": "또야?"
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-korea-54",
+      "id": "korea.54",
+      "titleKey": "korea.54.t",
+      "bodyKey": "korea.54.desc",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "코로나 집단 감염사태",
+        "subtitle": "",
+        "body": "우리의 방역 수칙을 무시한 대구의 모 종교 시설에서 대규모 집단 감염사태가 발생했습니다. 밀집된 종교 행사와 교인 간 지속적인 접촉을 통해 감염이 빠른 속도로 확산되었으며, 다수의 확진자가 한꺼번에 발생하면서 국내 방역 체계는 예상치 못한 위기에 직면했습니다. \n\n방역당국은 전국의 신도와 접촉자를 대상으로 역학조사와 진단검사를 확대하고 시설 폐쇄 및 자가격리 조치를 시행하고 있지만, 신도 명단 확보와 접촉자 추적이 원활하지 않아 대응에 어려움을 겪고 있습니다.\n\n이는 코로나 바이러스의 전국적인 전파 속도를 더욱 증가시킬 것으로 보입니다.",
+        "flag": "",
+        "image": "events/60a20342c2da8b4e1adf",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "korea.54.a",
+            "label": "개새끼들."
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-three",
+      "id": "algeria.7",
+      "titleKey": "algeria.7.t",
+      "bodyKey": "algeria.7.d",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "algeria.7.t",
+        "subtitle": "",
+        "body": "algeria.7.d",
+        "flag": "",
+        "image": "events/b29a07fb9ca6167f5bbf",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "algeria.7.a",
+            "label": "algeria.7.a"
+          },
+          {
+            "id": "algeria.7.b",
+            "label": "algeria.7.b"
+          },
+          {
+            "id": "algeria.7.c",
+            "label": "algeria.7.c"
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-four",
+      "id": "apla.20",
+      "titleKey": "apla.20.t",
+      "bodyKey": "apla.20.desc",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "제1차 전미 노동자 대회",
+        "subtitle": "",
+        "body": "마침내, 몇 주간의 논의 끝에 각 정당의 대표단이 한자리에 모여 전쟁이 끝날 때까지 미인민해방군을 이끌 대표를 결정하기로 하였습니다. 그들은 긴 시간 동안 서로 간 논쟁을 벌이며, 누가 가장 적합한 인물인지, 그리고 누가 사회주의를 가장 충실하고 실용적으로 실현할 수 있을지를 두고 격렬히 토론하였습니다. 그리고 여러 시간의 숙고 끝에, 그들은 마침내...",
+        "flag": "",
+        "image": "events/d09fde7341c7638b25a0",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "apla.20.a",
+            "label": "글로리아 라 리바 선출"
+          },
+          {
+            "id": "apla.20.b",
+            "label": "킴벌리 크렌쇼 선출"
+          },
+          {
+            "id": "apla.20.c",
+            "label": "마크 브레이 선출"
+          },
+          {
+            "id": "apla.20.d",
+            "label": "케일럽 모핀 선출"
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-max",
+      "id": "russia.454",
+      "titleKey": "russia.454.t",
+      "bodyKey": "russia.454.d",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "선거 결과!",
+        "subtitle": "",
+        "body": "모든 정당의 역동적인 선거 운동, 정치적 타협, 그리고 후보 등록이 끝난 후, 중앙선거관리위원회는 모든 표를 성공적으로 집계했습니다. 각 정당의 당원들과 일반 시민들은 이제 숨을 죽이고 TV, 모바일 기기, 컴퓨터를 통해 러시아 선거의 승자가 누구인지 확인하고 있습니다. 많은 이들이 통합 러시아가 국가의 주도권을 유지할 것이라고 예상하지만, 인민의 러시아가 승리할 가능성도 여전히 남아 있으며, 만약 정말 운이 따른다면, 제3 정당인 새로운 러시아가 예상치 못한 승리를 거둘 수도 있습니다.\n\n승자는...",
+        "flag": "",
+        "image": "events/712b19503565c5d90fc4",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "russia.454.a",
+            "label": "드미트리 파트루셰프!"
+          },
+          {
+            "id": "russia.454.a1",
+            "label": "세르게이 소뱌닌!"
+          },
+          {
+            "id": "russia.454.a2",
+            "label": "미하일 미슈스틴!"
+          },
+          {
+            "id": "russia.454.a3",
+            "label": "안드레이 벨로우소프!"
+          },
+          {
+            "id": "russia.454.b",
+            "label": "뱌체슬라프 볼로딘!"
+          },
+          {
+            "id": "russia.454.b1",
+            "label": "세르게이 쇼이구!"
+          },
+          {
+            "id": "russia.454.b2",
+            "label": "세르게이 나리시킨!"
+          },
+          {
+            "id": "russia.454.c",
+            "label": "미하일 델랴긴!"
+          },
+          {
+            "id": "russia.454.c1",
+            "label": "파벨 그루디닌!"
+          },
+          {
+            "id": "russia.454.c2",
+            "label": "발렌틴 코노발로프!"
+          },
+          {
+            "id": "russia.454.f",
+            "label": "자하르 프릴레핀!"
+          },
+          {
+            "id": "russia.454.f1",
+            "label": "알렉산드르 루카셴코!"
+          },
+          {
+            "id": "russia.454.f2",
+            "label": "니콜라이 플라토시킨!"
+          },
+          {
+            "id": "russia.454.g",
+            "label": "블라디슬라프 다반코프!"
+          },
+          {
+            "id": "russia.454.z",
+            "label": "안톤 알리하노프!"
+          },
+          {
+            "id": "russia.454.g1",
+            "label": "미하일 델랴긴!"
+          },
+          {
+            "id": "russia.454.g2",
+            "label": "드미트리 파트루셰프!"
+          },
+          {
+            "id": "russia.454.g3",
+            "label": "자하르 프릴레핀!"
+          },
+          {
+            "id": "russia.454.g4",
+            "label": "뱌체슬라프 볼로딘!"
+          },
+          {
+            "id": "russia.454.h1",
+            "label": "드미트리 파트루셰프!"
+          },
+          {
+            "id": "russia.454.h2",
+            "label": "미하일 델랴긴!"
+          },
+          {
+            "id": "russia.454.h3",
+            "label": "자하르 프릴레핀!"
+          },
+          {
+            "id": "russia.454.h4",
+            "label": "뱌체슬라프 볼로딘!"
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-no-image",
+      "id": "ai_events.100",
+      "titleKey": "",
+      "bodyKey": "",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "ai_events.100",
+        "subtitle": "",
+        "body": "",
+        "flag": "",
+        "image": "",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "",
+            "label": ""
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "national-long-body",
+      "id": "Australia.0",
+      "titleKey": "Australia.0.t",
+      "bodyKey": "Australia.0.d",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "EVENT",
+        "title": "평화 제안?",
+        "subtitle": "",
+        "body": "The war for Australia can be described as going anyway but good for Australia. Casualties were mounting, major military assets were lost, and doubt was beginning to spread within society. Most troublesome were the spreading of doubts and even hopelessness within the Australian government. Where's the US and NATO when you need them?! These were problems that were absolutely terrorizing everyone within the Prime Minister's office, including the Prime minister himself. The last thing that was needed now was internal division to steer Australia's war effort from bad to worse. Unfortunately for all of them, it seemed that such division already came... \nThe Prime Minister was in the main office as usual, sorting through the boatloads of mail that came in for today. Most of it was very routine stuff, but a curious and unusual letter was mailed to the Prime Minister, and it was addressed as from the [AST_get_Penny_Wong_Job_name], Penny Wong. Opening the letter, the Prime Minister expected some more typical bureaucratic requests, but reading the first paragraph of the letter filled the Prime Minister with the sourest feeling. The paragraph, let alone the rest of the letter, was about the war, and it made it absolutely clear on what Mrs. Wong intended to be done regarding its continuation. It read: \n\nIt is now abundantly clear to both me and the rest of this government regarding the direction of the war effort against the Chinese. Even though we have tried our best with everything we had to secure a swift and effective victory, we must recognize the uncomfortable truth at hand. We cannot win this war. Our armed forces have lost too much, the public is up in arms over our failures, and the Chinese still retain the ability to strike with consistent efficacy. That it is all why, regrettably, I am now not just requesting, but demanding, that you sign a treaty with the Chinese to end this terrible conflict. I know that it is a tough decision to make but we must think about the future of this nation which is under threat by continuing this bloody conflict. I am sure that through peace and diplomacy that we can work something out with the Chinese. Why must we continue this aggressive posture with China? I am sure that we can find a common ground as a civilized nation so we may share this sphere of the globe for the sake of... \n\nThe Prime Minister stopped reading and put down the letter, sighed heavily, and picked up a pen on the left side of the desk to write a quick memorandum for the Foreign Ministry. A vacancy was about to open for the position for the [AST_get_Penny_Wong_Job_name].",
+        "flag": "",
+        "image": "events/d22018a6b72985de4957",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "Australia.0.a",
+            "label": "빨갱이들과의 평화? 어림도 없지!"
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "news-coronavirus",
+      "id": "news.113",
+      "titleKey": "news.113.t",
+      "bodyKey": "news.113.d",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "GLOBAL_EVENT",
+        "title": "코로나19 바이러스",
+        "subtitle": "",
+        "body": "세계보건기구는 중국공산당과 협력하여 우한시에서 발생한 신종 바이러스의 확산을 면밀히 모니터링하고 있습니다. 이 바이러스의 갑작스러운 출현으로 보건 전문가와 세계 지도자들 사이에서 상당한 우려가 제기되고 있으며, 특히 수천 명의 중국인이 휴가를 마치고 복귀하면서 바이러스가 해외로 확산될 수 있다는 우려가 커지고 있습니다.\n\n상황이 악화됨에 따라 전문가들은 이 바이러스가 점점 더 치명적으로 보이며 사망률의 증가로 전 세계 공중 보건 당국들을 모두 놀라게 하고 있다고 언급했습니다. 보고서에 따르면 이 바이러스는 전염성이 높을 뿐만 아니라 독성을 강화할 수 있는 돌연변이의 징후도 보이고 있습니다. 이러한 우려스러운 추세로 인해 바이러스의 특성과 세계 보건에 미치는 잠재적 영향을 이해하기 위한 조사와 연구 노력이 강화되고 있습니다.\n\n어제 WHO가 팬데믹이 더 이상 \"만약\"의 문제가 아니라 \"언제\"의 문제라고 공식적으로 선언하면서 많은 사람들이 품고 있던 두려움이 확인되었습니다. 이 선언은 팬데믹에 대한 세계 대응의 중요한 전환점이 될 것이며, 전 세계 국가들이 임박한 위기를 완화하기 위해 긴급한 조치를 취하도록 촉구하고 있습니다. 각국은 이미 감염자 수를 집계하고 있으며, 의료 체계는 확진자가 계속 증가함에 따라 환자 유입에 대비하고 있습니다.",
+        "flag": "",
+        "image": "events/0d1c4a83832c0d370ac6",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "news.113.o1",
+            "label": "전례 없는 시대다."
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "news-taliban",
+      "id": "news.131",
+      "titleKey": "news.131.t",
+      "bodyKey": "news.131.d",
+      "choiceScope": "Steam screenshot non-USA visible option news.131.a; TFR_events_ZZZ_news.txt trigger NOT tag=USA",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "GLOBAL_EVENT",
+        "title": "미국-탈레반 평화협정",
+        "subtitle": "",
+        "body": "미국 특사 잘메이 할릴자드와 이슬람 무장 단체의 지도자 물라 압둘 가니 바라다르는 18개월간의 긴 협상 끝에 카타르 도하에서 역사적인 협정에 서명했습니다. 양측은 이곳에서 몇 달 동안 협정의 세부 사항을 논의했습니다.\n합의된 조건에 따라 미국은 모든 군사 병력과 민간 지원 인력, 그리고 동맹국의 병력을 7개월 이내에 철수하기로 했습니다. 철수 과정은 처음 100일 동안 미군 병력을 5,000명으로 줄이고, 5개의 기지에서 철수하는 것으로 시작되며, 나머지 병력은 이후 몇 개월에 걸쳐 철수할 예정입니다. 아프가니스탄 정부는 또한 5,000명의 탈레반 수감자를 석방하기로 했으며, 이는 탈레반이 억류하고 있는 1,000명의 아프간 보안군과 교환하는 선의의 제스처로 간주됩니다. 탈레반은 알카에다와 ISIS와 같은 단체에 대한 지원을 중단하기로 동의했습니다. 그러나 역사적으로 이러한 단체와의 관계가 있었던 만큼 탈레반이 이 약속을 이행할 수 있을지에 대해 의문을 제기하는 사람들도 많습니다.\n미국은 거의 18년간의 전투 동안 2,400명 이상의 사상자를 냈으며, 전쟁 비용은 거의 1조 달러에 이른 것으로 추산됩니다. 최근 몇 년 동안 병력이 증가했음에도 불구하고 탈레반은 미군과 아프간 군을 상대로 전략적 교착 상태를 유지해 왔습니다.\n\n아프간 정부는 탈레반과의 협상을 시작해 미래의 아프가니스탄에서 탈레반이 어떤 역할을 할지에 대한 정치적 합의를 도출할 예정입니다. 이러한 협상은 다음 달에 시작될 것으로 예상되며, 첫 번째 과제 중 하나는 아프가니스탄에서의 지속적인 휴전을 달성하는 것입니다.",
+        "flag": "",
+        "image": "events/ed7a1997a78d559594ab",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "news.131.a",
+            "label": "그들에겐 좋은 소식이군."
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "news-one",
+      "id": "afghanistan.8",
+      "titleKey": "afghanistan.8.t",
+      "bodyKey": "afghanistan.8.d",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "GLOBAL_EVENT",
+        "title": "탈레반의 파키스탄 침공",
+        "subtitle": "",
+        "body": "인샬라.",
+        "flag": "",
+        "image": "events/ed7a1997a78d559594ab",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "afghanistan.8.a",
+            "label": "뭐"
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "news-four",
+      "id": "kor_news.50",
+      "titleKey": "kor_news.50.t",
+      "bodyKey": "kor_news.50.desc",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "GLOBAL_EVENT",
+        "title": "대만 해협의 유령",
+        "subtitle": "",
+        "body": "PDTO군과 중국 인민해방군이 대만해협에 대치 중인 가운데, 중국 국적의 민간수송선과 군수송선이 대만해협과 남중국해에서 의문의 사고로 격침되고 있다는 소식이 보도되고 있습니다. 전문가들은 이들이 대만으로 향하는 해상 보급로를 차단하기 위한 통상파괴 작전의 일부로 보고 있습니다.\n\n그러나 오늘 PDTO 대변인은 \"아군 작전범위는 어디까지나 타이완섬에 한정되어 있고, 제네바 협약을 준수하고 있다\"며 민간을 향한 통상파괴 작전의 배후를 극구 부인했습니다. 이후 이에 관련하여 대한민국이 지목되었으나, 대한민국 국방부는 진해 해군기지에서 정박 중인 잠수함 함대의 사진을 공개하며 현 사안과 무관함을 알렸습니다.\n\n그러나 일각에선 대한민국 해군이 공개한 사진의 시기가 계절적으로 맞지 않는다는 점을 들어서, 대한민국의 주장에 의문을 갖고 있습니다. 중국 정부는 모든 민간 선박에게 항해 추가적인 격침을 우려하여 연안으로 항해할 것을 당부했습니다.",
+        "flag": "",
+        "image": "events/6bc4bd9232e88a4ea6a1",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "kor_news.50.o1",
+            "label": "림팩 훈련 짬밥이 어디 안 갔군."
+          },
+          {
+            "id": "kor_news.50.o2",
+            "label": "누가 이런 짓을 한 거야?"
+          },
+          {
+            "id": "kor_news.50.o3",
+            "label": "자국민을 지켜야 한다."
+          },
+          {
+            "id": "kor_news.50.o4",
+            "label": "전쟁은 군과 민간을 가리지 않는군."
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "news-long-body",
+      "id": "gma_news.5",
+      "titleKey": "gma_news.5.t",
+      "bodyKey": "gma_news.5.d",
+      "choiceScope": "Full source catalog options",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "GLOBAL_EVENT",
+        "title": "Anarchists Take Richmond",
+        "subtitle": "",
+        "body": "The city of Richmond has long since been wrought with unrest, even before the outbreak of civil war. Armed protests were common throughout the historic city, ranging from disputes over the election results to legislature regarding the second amendment. Being a rather pro-Trump state in and of itself, the Biden administration found it increasingly difficult to maintain law and order within the city.\n\nAs of today, however, that order has been replaced with anarchy. After heavy clashes within the city, the right-wing militias have buckled under the weight of the American Free Territory as anarchist forces have largely secured the city, outside of some stubborn holdouts. Post-battle celebration is currently being held as Richmond appears to be a prime target for symbolic destruction, with still-standing monuments of Confederate leaders that were not forcibly removed before the war have faced destruction, vandalism, and makeshift removals of their own. The anarchist militias involved have appeared to take great pride and interest in defacing monuments that could even possibly imply sympathy towards the old Confederacy, much to the chagrin of those mainly right-wingers who consider it to be \"erasing history\".",
+        "flag": "",
+        "image": "events/f54aa1f6e1015e555350",
+        "sound": "",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "gma_news.1.a",
+            "label": "흥미로운 전개군."
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "super-tfr",
+      "id": "SAU_civil_war_super_event",
+      "titleKey": "SAU_civil_war_super",
+      "bodyKey": "SAU_civil_war_text",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "SUPER_EVENT",
+        "title": "사우디아라비아 내전",
+        "subtitle": "",
+        "body": "\"가볍게든 또는 무겁게 무장하여 나아가 너희가 재산과 너희의 생명들로 하나님을 위해 성전하라 너희가 알고 있다면 그것이 너희에게 복이 되리라\" - 쿠란, 9:41",
+        "flag": "",
+        "image": "events/super/sau_civil_war_super_event",
+        "sound": "super_event/sau_civil_war_super_event",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "ack",
+            "label": "군주제의 붕괴"
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "super-tfrkp",
+      "id": "tfr_se_kor_martial_law_yoon",
+      "titleKey": "TFR_SE_KOR_MARTIAL_LAW_YOON",
+      "bodyKey": "TFR_SE_KOR_MARTIAL_LAW_YOON_D",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "SUPER_EVENT",
+        "title": "계엄령",
+        "subtitle": "",
+        "body": "\"내 일생 조국과 민족을 위하여\" \n- 박정희",
+        "flag": "",
+        "image": "events/super/tfr_se_kor_martial_law_yoon",
+        "sound": "super_event/tfr_se_kor_martial_law_yoon",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "ack",
+            "label": "역사는 반복된다"
+          }
+        ],
+        "presentation": ""
+      }
+    },
+    {
+      "name": "super-long-quote",
+      "id": "PRC_eadi_victory_super_event",
+      "titleKey": "PRC_eadi_victory_super",
+      "bodyKey": "PRC_eadi_victory_super_text",
+      "view": {
+        "token": "",
+        "revision": 0,
+        "kind": "SUPER_EVENT",
+        "title": "EADI의 승리",
+        "subtitle": "",
+        "body": "\"사람들이 하나로 뭉치면, 사소한 차이를 뒤로 하고 더 큰 공동의 목표를 위해 싸운다. 그들에게 계획이 합리적으로 보일 때, 그들은 이를 지지한다. 지도자가 자신들을 진심으로 위하는 것을 알게 되면, 그들은 지도자와 그 이상을 위해 기꺼이 싸울 것이다.\"\n- 오기",
+        "flag": "",
+        "image": "events/super/prc_eadi_victory_super_event",
+        "sound": "super_event/prc_eadi_victory_super_event",
+        "tiles": [],
+        "choices": [
+          {
+            "id": "ack",
+            "label": "동방은 붉도다"
+          }
+        ],
+        "presentation": ""
+      }
+    }
+  ]
+}

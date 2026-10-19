@@ -10,7 +10,9 @@ import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
 final class ClientScoreboardChecks {
     static void run(ClientGameTestContext context) {
-        for (String speed : new String[]{"PAUSED", "X1", "X10"}) {
+        for (String preview : new String[]{"PAUSED", "X1", "X3", "X5", "X7", "X10", "LONG-DATE"}) {
+            String speed = preview.equals("LONG-DATE") ? "X10" : preview;
+            String date = preview.equals("LONG-DATE") ? "2022년 12월 31일 23시" : "2020년 1월 1일 00시";
             context.runOnClient(client -> {
                 var board = client.level.getScoreboard();
                 var previous = board.getObjective("hoi_preview");
@@ -25,7 +27,8 @@ final class ClientScoreboardChecks {
                     title.append(Component.literal(name.substring(i, i + 1)).withColor(color).withStyle(net.minecraft.ChatFormatting.BOLD));
                 }
                 var objective = board.addObjective("hoi_preview", ObjectiveCriteria.DUMMY, title, ObjectiveCriteria.RenderType.INTEGER, false, BlankFormat.INSTANCE);
-                var rows = new Component[]{Component.literal("게임 속도: ").append(ProtocolCampaignStyle.speed(speed)),
+                var rows = new Component[]{Component.literal("날짜: " + date),
+                        Component.literal("게임 속도: ").append(ProtocolCampaignStyle.speed(speed)),
                         Component.literal("Kiruy, ").append(Component.literal("대한민국").withColor(0x4d64af))};
                 for (int i = 0; i < rows.length; i++) {
                     var score = board.getOrCreatePlayerScore(ScoreHolder.forNameOnly("hoi_row_" + i), objective);
@@ -34,7 +37,7 @@ final class ClientScoreboardChecks {
                 board.setDisplayObjective(DisplaySlot.SIDEBAR, objective);
             });
             context.setScreen(() -> null); context.waitTicks(3);
-            ResearchScreenTest.gui2Screenshot(context, "hoi-scoreboard-" + speed.toLowerCase(java.util.Locale.ROOT));
+            ResearchScreenTest.gui2Screenshot(context, "hoi-scoreboard-" + preview.toLowerCase(java.util.Locale.ROOT));
         }
         context.runOnClient(client -> {
             var board = client.level.getScoreboard();

@@ -54,8 +54,7 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
         for(var entry:entries){
             int y=rowY(entry);if(!visible(entry,y))continue;var row=entry.row();
             if(entry.country()){
-                var toggle=add((expanded.contains(row.country())?"▾ ":"▸ ")+row.countryName(),null,null,"",s(12),y,s(282),s(45),false,()->{if(!expanded.add(row.country()))expanded.remove(row.country());rebuildWidgets();});
-                toggle.setTooltip(UiTooltips.createExact(coreTooltip(entry)));
+                add((expanded.contains(row.country())?"▾ ":"▸ ")+row.countryName(),null,null,"",s(12),y,s(282),s(45),false,()->{if(!expanded.add(row.country()))expanded.remove(row.country());rebuildWidgets();}).setTooltip(null);
                 add((expanded.contains(row.country())?"점령지 접기 · ":"점령지 펼치기 · ")+row.countryName(),"occupation/"+(expanded.contains(row.country())?"collapse":"expand"),null,"",s(9),y+s(38),s(19),s(19),false,()->{if(!expanded.add(row.country()))expanded.remove(row.country());rebuildWidgets();});
                 if(row.hasResistance())add("주둔 사단 편제","occupation/template_button",templateIcon(row.template()),"",s(18),y+s(84),s(76),s(31),false,()->select(row.state(),true)).setTooltip(UiTooltips.createExact(templateTooltip(entry)));
                 var admin=row.administration();boolean returning=admin!=null&&admin.returnTerritory();String caption=returning?"영토 반환":"국가 해방";
@@ -234,7 +233,6 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
     private String label(String key){return view.labels().getOrDefault(key,"");}
     private String format(String key,Map<String,String> values){return java.util.regex.Pattern.compile("\\$([A-Z_]+)(?:\\|([^$]*))?\\$").matcher(label(key)).replaceAll(m->java.util.regex.Matcher.quoteReplacement(m.group(2)!=null&&m.group(2).contains("H")?"§e"+values.getOrDefault(m.group(1),"—")+"§r":values.getOrDefault(m.group(1),"—")));}
     private static String decimal(double n,int places){return String.format(Locale.ROOT,"%."+places+"f",n);}
-    private String coreTooltip(Entry entry){return format("OCCUPIED_COUNTRY_CORE_COUNT_TOOLTIP",Map.of("NUM_CORES",entry.row().details()==null?"—":Integer.toString(entry.row().details().totalStates()),"NUM_CONTROLLED_CORES",Integer.toString(entry.count())));}
     private String templateTooltip(Entry entry){return format("OCCUPATION_CHANGE_GARRISON_"+(entry==null?"DEFAULT":entry.country()?"COUNTRY":"STATE")+"_TEMPLATE_TOOLTIP",Map.of("SELECTED_TEMPLATE",templateName(entry==null?view.defaultTemplate():entry.row().template()),"OCCUPIED_COUNTRY",entry==null?"":entry.row().countryName(),"OCCUPIED_STATE",entry==null?"":entry.row().name()));}
     private String lawTooltip(Entry entry,String id){
         var text=new StringBuilder(view.laws().stream().filter(o->o.id().equals(id)).map(Option::tooltip).findFirst().orElse(""));

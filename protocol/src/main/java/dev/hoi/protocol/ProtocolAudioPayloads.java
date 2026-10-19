@@ -13,8 +13,10 @@ public final class ProtocolAudioPayloads {
     public static synchronized void registerPayloadTypes() {
         if (registered) return;
         ProtocolUnitAudio.registerPayloadTypes();
+        ProtocolMapFocus.registerPayloadTypes();
         PayloadTypeRegistry.clientboundPlay().register(Signal.TYPE, Signal.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Music.TYPE, Music.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(Sound.TYPE, Sound.CODEC);
         registered = true;
     }
     public enum Cue {
@@ -44,5 +46,13 @@ public final class ProtocolAudioPayloads {
         public static final Type<Music> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","story_music_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Music> CODEC=StreamCodec.of((b,p) -> b.writeUtf(p.event(),128),b -> new Music(b.readUtf(128)));
         @Override public Type<Music> type(){return TYPE;}
+    }
+    public record Sound(String event) implements CustomPacketPayload {
+        public Sound {
+            if(event==null || event.length()>128 || !event.matches("sound\\.story\\.[a-z0-9_.]+"))throw new IllegalArgumentException("Invalid sound event");
+        }
+        public static final Type<Sound> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","story_sound_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf,Sound> CODEC=StreamCodec.of((b,p) -> b.writeUtf(p.event(),128),b -> new Sound(b.readUtf(128)));
+        @Override public Type<Sound> type(){return TYPE;}
     }
 }

@@ -62,14 +62,64 @@ public final class ScreenOfficerSourceTest {
                         region.setFocused(true);
                         if (region.isFocused()) throw new AssertionError("Statistic hover region acquired keyboard focus");
                     }
-                    if (before.stream().filter(child -> child instanceof dev.hoi.client.ui.UiHoverRegion).count() != 47)
-                        throw new AssertionError("All source statistics must be hover-only");
+                    long counters = view.page(ProtocolMenuTab.OFFICER_CORPS).sections().stream().filter(section -> section.icon().equals("army_hq")).count();
+                    if (counters > 1 || before.stream().filter(child -> child instanceof dev.hoi.client.ui.UiHoverRegion).count() != 47 + counters)
+                        throw new AssertionError("All source statistics and the army headquarters counter must be hover-only");
                     var removed = Set.of("지휘관", "장교", "제독", "사령부");
                     if (before.stream().filter(child -> child instanceof AbstractWidget).map(child -> (AbstractWidget)child)
                             .anyMatch(widget -> removed.contains(widget.getMessage().getString())))
                         throw new AssertionError("Removed officer-corps entry button remains reachable");
                 });
                 context.takeScreenshot("hoi-officer-" + name + "-gui2");
+                if (name.equals("kor-initial")) {
+                    var sections = view.page(ProtocolMenuTab.OFFICER_CORPS).sections();
+                    var armyEntries = sections.stream().filter(s -> s.icon().equals("army")).findFirst().orElseThrow().entries();
+                    var command = sections.stream().filter(s -> s.icon().equals("high_command")).findFirst().orElseThrow().entries().getFirst();
+                    var counter = sections.stream().filter(s -> s.icon().equals("army_hq")).findFirst().orElseThrow().entries().getFirst();
+                    var expected = new LinkedHashMap<String, String>();
+                    expected.put(armyEntries.get(1).name() + " · " + armyEntries.get(1).value(), armyEntries.get(1).detail());
+                    expected.put(armyEntries.getFirst().name() + " · " + armyEntries.getFirst().value(), armyEntries.getFirst().detail());
+                    expected.put(command.name() + " · " + command.value(), command.detail());
+                    expected.put(counter.name(), counter.detail());
+                    if (!armyEntries.get(1).detail().startsWith("§H육군 교리§!\n\n대교리: §H") || !armyEntries.get(1).detail().endsWith("\n\n§G클릭§!하여 교리 화면 열기")
+                            || !armyEntries.getFirst().value().equals("미지정") || !armyEntries.getFirst().detail().equals("§G클릭하여 §H육군참모총장§G 추가§!")
+                            || !command.detail().equals("§G클릭하여 §H최고사령부§G 추가§!") || !counter.detail().startsWith("배치된 §Y육군 사령부§!: §Y"))
+                        throw new AssertionError("Officer source fixture must carry the native doctrine, staff and headquarters tooltips");
+                    int shot = 0;
+                    for (var entry : expected.entrySet()) {
+                        var position = context.computeOnClient(client -> client.gui.screen().children().stream()
+                                .filter(c -> c instanceof AbstractWidget).map(c -> (AbstractWidget)c)
+                                .filter(c -> c.getMessage().getString().equals(entry.getKey())).findFirst()
+                                .map(c -> new int[]{c.getX() + c.getWidth()/2, c.getY() + c.getHeight()/2}).orElseThrow());
+                        context.getInput().setCursorPos(position[0] * 2, position[1] * 2);
+                        context.waitTicks(3);
+                        context.runOnClient(client -> {
+                            String shown = ((ScreenMenu)client.gui.screen()).hoveredOfficerTooltip();
+                            if (!shown.equals(entry.getValue())) throw new AssertionError("Officer tooltip must show the server text without an added title: " + entry.getKey() + " -> " + shown);
+                            var lines = UiTooltips.sourceLines(client.font, shown, 324);
+                            for (int index = 1; index < lines.size(); index++)
+                                if (client.font.width(lines.get(index)) == 0 && client.font.width(lines.get(index - 1)) == 0)
+                                    throw new AssertionError("Officer tooltip must not stack blank lines: " + entry.getKey());
+                        });
+                        context.takeScreenshot("hoi-officer-native-tooltip-" + shot++ + "-gui2");
+                    }
+                    for (String label : List.of("포획된 지휘관", "육군 사령부 편제")) {
+                        var position = context.computeOnClient(client -> client.gui.screen().children().stream()
+                                .filter(c -> c instanceof AbstractWidget).map(c -> (AbstractWidget)c)
+                                .filter(c -> c.getMessage().getString().equals(label)).findFirst()
+                                .map(c -> new int[]{c.getX() + c.getWidth()/2, c.getY() + c.getHeight()/2}).orElseThrow());
+                        context.getInput().setCursorPos(position[0] * 2, position[1] * 2);
+                        context.waitTicks(3);
+                        context.runOnClient(client -> {
+                            String shown = ((ScreenMenu)client.gui.screen()).hoveredOfficerTooltip();
+                            boolean captured = label.equals("포획된 지휘관");
+                            if (captured ? !shown.startsWith("§e포획된 지휘관§r\n") || !shown.contains("\n\n전투 중에 지휘관이 포로로 잡힐 수 있습니다.")
+                                    : !shown.contains("육군 사령부 편제") || !shown.contains("목록을 전환합니다."))
+                                throw new AssertionError("Officer command tooltip must use the native wording: " + label + " -> " + shown);
+                        });
+                        context.takeScreenshot("hoi-officer-native-tooltip-" + shot++ + "-gui2");
+                    }
+                }
                 if (name.equals("kor-selected")) {
                     for (String key : stats.stream().map(s->s.icon().substring("officer/stats/".length())).toList()) {
                         var stat = stats.stream().filter(s -> s.icon().equals("officer/stats/" + key)).findFirst().orElseThrow();

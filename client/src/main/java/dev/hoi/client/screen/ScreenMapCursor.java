@@ -25,6 +25,7 @@ public final class ScreenMapCursor extends Screen implements InputSidebarMovemen
     private boolean dragged() {return Math.hypot(endX-startX,endY-startY)>=new dev.hoi.client.ui.UiUnits(width,height).size(3);}
     public ScreenMapCursor() { super(Component.literal("지도")); }
     @Override protected void init() {
+        dev.hoi.client.map.MapCommanderHud.cancelDrag();
         selecting=false;commandGesture.clear();commandContext="";
         country = ClientCampaignHud.country();
         UiMenuBar.buttons(width, country, null, HoiClient::openMenu).forEach(this::addRenderableWidget);
@@ -46,7 +47,7 @@ public final class ScreenMapCursor extends Screen implements InputSidebarMovemen
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
         if (super.mouseClicked(event, twice)) return true;
         if(event.y()<UiMenuBar.height(width)||minecraft.level==null)return false;
-        if(dev.hoi.client.map.MapCommanderHud.clickAt(event.x(),event.y(),event.button(),twice))return true;
+        if(dev.hoi.client.map.MapCommanderHud.pressAt(event.x(),event.y(),event.button(),twice))return true;
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT||event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&(dev.hoi.client.map.MapCommanderOrders.pointMode()||dev.hoi.client.map.MapCommanderOrders.clicksBorder()||dev.hoi.client.map.MapCommanderOrders.editsPoint())){
             if(!dev.hoi.client.map.MapCommanderOrders.ready())return false;
             commandButton=event.button();commandContext=dev.hoi.client.map.MapCommanderOrders.gestureContext();commandLine=dev.hoi.client.map.MapCommanderOrders.drawsPlanLine();
@@ -59,12 +60,14 @@ public final class ScreenMapCursor extends Screen implements InputSidebarMovemen
         return true;
     }
     @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {
+        if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&dev.hoi.client.map.MapCommanderHud.dragAt(event.x(),event.y()))return true;
         if(commandGesture.active()&&event.button()==commandButton){if(commandLine)commandGesture.sample(minecraft,Math.clamp(event.x(),0,width),Math.clamp(event.y(),UiMenuBar.height(width),height),width,height,false);return true;}
         if(!selecting||event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return super.mouseDragged(event,dx,dy);
         endX=Math.clamp(event.x(),0,width);endY=Math.clamp(event.y(),UiMenuBar.height(width),height);
         return true;
     }
     @Override public boolean mouseReleased(MouseButtonEvent event) {
+        if(dev.hoi.client.map.MapCommanderHud.releaseAt(event.x(),event.button()))return true;
         if(commandGesture.active()&&event.button()==commandButton){
             if(!commandContext.equals(dev.hoi.client.map.MapCommanderOrders.gestureContext())){commandGesture.clear();return true;}
             commandGesture.sample(minecraft,Math.clamp(event.x(),0,width),Math.clamp(event.y(),UiMenuBar.height(width),height),width,height,true);dev.hoi.client.map.MapCommanderOrders.map(commandGesture.finish(minecraft),commandButton==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);return true;
@@ -85,7 +88,7 @@ public final class ScreenMapCursor extends Screen implements InputSidebarMovemen
         return super.mouseScrolled(x, y, horizontal, vertical);
     }
     @Override public void tick() {
-        if(windowActive&&!minecraft.isWindowActive()){selecting=false;commandGesture.clear();dev.hoi.client.map.MapCommanderOrders.cancelTarget();}windowActive=minecraft.isWindowActive();
+        if(windowActive&&!minecraft.isWindowActive()){selecting=false;commandGesture.clear();dev.hoi.client.map.MapCommanderHud.cancelDrag();dev.hoi.client.map.MapCommanderOrders.cancelTarget();}windowActive=minecraft.isWindowActive();
         if(commandGesture.active()&&!commandContext.equals(dev.hoi.client.map.MapCommanderOrders.gestureContext()))commandGesture.clear();
         if(selecting&&(minecraft.level==null||!dragDimension.equals(minecraft.level.dimension().identifier().toString())))selecting=false;
         if (!ClientCampaignHud.visible()) onClose();
@@ -94,7 +97,7 @@ public final class ScreenMapCursor extends Screen implements InputSidebarMovemen
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean allowsMovement() { return true; }
     @Override public int unitHudLeft() { return 0; }
-    @Override public boolean keyPressed(KeyEvent event) { if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_RETURN&&dev.hoi.client.map.MapCommanderOrders.confirmDraft())return true;if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE){commandGesture.clear();if(dev.hoi.client.map.MapCommanderOrders.cancelTarget()||dev.hoi.client.map.MapCommanderHud.closeSelection())return true;}return InputSidebarMovement.consumes(minecraft, event) || super.keyPressed(event); }
+    @Override public boolean keyPressed(KeyEvent event) { if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_RETURN&&dev.hoi.client.map.MapCommanderOrders.confirmDraft())return true;if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE){dev.hoi.client.map.MapCommanderHud.cancelDrag();commandGesture.clear();if(dev.hoi.client.map.MapCommanderOrders.cancelTarget()||dev.hoi.client.map.MapCommanderHud.closeSelection())return true;}return InputSidebarMovement.consumes(minecraft, event) || super.keyPressed(event); }
     @Override public boolean keyReleased(KeyEvent event) { return InputSidebarMovement.consumes(minecraft, event) || super.keyReleased(event); }
-    @Override public void removed() { dev.hoi.client.map.MapCommanderOrders.cancelTarget();selecting=false;commandGesture.clear();InputSidebarMovement.release(minecraft); }
+    @Override public void removed() { dev.hoi.client.map.MapCommanderHud.cancelDrag(); dev.hoi.client.map.MapCommanderOrders.cancelTarget();selecting=false;commandGesture.clear();InputSidebarMovement.release(minecraft); }
 }

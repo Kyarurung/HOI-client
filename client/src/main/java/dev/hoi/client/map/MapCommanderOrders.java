@@ -40,7 +40,7 @@ public final class MapCommanderOrders {
         ProtocolCommanderOrders.registerPayloadTypes();MapCommanderAvailability.register();
         ClientPlayNetworking.registerGlobalReceiver(Context.TYPE,(packet,receiver)->accept(packet));
         ClientPlayNetworking.registerGlobalReceiver(Details.TYPE,(packet,receiver)->{try{acceptDetails(packet.page());}catch(IllegalArgumentException ignored){}});
-        ClientTickEvents.END_CLIENT_TICK.register(client->{if(hintTicks>0)hintTicks--;if(context!=null&&!valid())reset();else selectionChanged();});
+        ClientTickEvents.END_CLIENT_TICK.register(client->{MapCommanderCardDrag.tick();if(hintTicks>0)hintTicks--;if(context!=null&&!valid())reset();else selectionChanged();});
         ClientPlayConnectionEvents.DISCONNECT.register((handler,client)->client.execute(()->{reset();retired.clear();}));
     }
     static Context currentContext(){return context;}
@@ -51,7 +51,7 @@ public final class MapCommanderOrders {
         if(fresh){if(context!=null)retired.add(context.token());sequence=0;detailGeneration=-1;detailPages.clear();published=null;waitingRevision=-1;cancelQueued=false;hint="";hintTicks=0;generation++;}
         context=next;if(fresh){heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;latched=null;resume=null;}if(waitingRevision>=0&&next.revision()>waitingRevision)waitingRevision=-1;
         long availabilityRequest=MapCommanderAvailability.request();selectionChanged();if(cancelQueued&&waitingRevision<0){cancelQueued=false;if(!next.pending().isEmpty())send("CANCEL",List.of(),List.of());}
-        continueHeld();MapCommanderAvailability.update(context,sequence-1,published,availabilityRequest==MapCommanderAvailability.request());
+        continueHeld();MapCommanderHud.reconcileCardOrder();MapCommanderAvailability.update(context,sequence-1,published,availabilityRequest==MapCommanderAvailability.request());
     }
     static void acceptDetails(DetailPage page){
         if(!valid()||!page.token().equals(context.token())||page.sequence()!=sequence-1||published==null||!published.equals(MapCommanderPanels.commandSelection())||page.generation()<detailGeneration)return;
@@ -63,7 +63,7 @@ public final class MapCommanderOrders {
     }
     static boolean valid(){var client=Minecraft.getInstance();return context!=null&&client.level!=null&&context.country().equals(ClientCampaignHud.country())&&context.dimension().equals(client.level.dimension().identifier().toString());}
     static void scopeChanged(View previous,View next){generation++;if(context!=null&&(!context.country().equals(next.country())||!context.dimension().equals(next.dimension())||previous.dimension().equals(next.dimension())&&previous.branch()!=next.branch()))reset();}
-    static void reset(){MapCommanderAvailability.reset();heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;latched=null;resume=null;if(context!=null)retired.add(context.token());context=null;sequence=0;detailGeneration=-1;detailPages.clear();published=null;waitingRevision=-1;cancelQueued=false;hint="";hintTicks=0;hintBounds=null;generation++;}
+    static void reset(){MapCommanderCardDrag.reset();MapCommanderAvailability.reset();heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;latched=null;resume=null;if(context!=null)retired.add(context.token());context=null;sequence=0;detailGeneration=-1;detailPages.clear();published=null;waitingRevision=-1;cancelQueued=false;hint="";hintTicks=0;hintBounds=null;generation++;}
     public static boolean ready(){return valid()&&waitingRevision<0;}
     public static String pending(){if(!valid())return "";if(heldAction.isEmpty())return context.pending();return heldOwned&&(context.pending().startsWith(heldAction+"/")||heldAction.equals("LAND/EDIT_PLAN")&&context.pending().equals("LAND/AREA_STATES"))?context.pending():heldAction;}
     static void held(String type){
@@ -84,7 +84,7 @@ public final class MapCommanderOrders {
     public static boolean pointMode(){return Set.of("LAND/DELETE_PLAN","LAND/ASSIGN_UNITS","LAND/EDIT_PLAN","LAND/AREA_STATES","NAVAL_AREAS/REMOVE").contains(pending());}
     public static boolean clicksBorder(){return pending().equals("LAND/FRONT");}
     public static boolean editsPoint(){return pending().startsWith("LAND/EDIT_PLAN/");}
-    public static boolean confirmDraft(){return pending().equals("LAND/AREA_STATES")&&send("CONFIRM",List.of(),List.of());}
+    public static boolean confirmDraft(){return MapCommanderPanels.armyCommandVisible()&&pending().equals("LAND/AREA_STATES")&&send("CONFIRM",List.of(),List.of());}
     public static boolean drawsPlanLine(){return pending().startsWith("LAND/")&&!pointMode();}
     public static String gestureContext(){return valid()?context.token()+"/"+context.revision()+"/"+generation+"/"+context.pending():"";}
     static void message(String text){hint=text;hintTicks=60;}
@@ -132,7 +132,6 @@ public final class MapCommanderOrders {
     }
     static void land(String type,List<String> armies){if(pending().equals("LAND/"+type)){cancelTarget();return;}if(!MapCommanderAvailability.allow("LAND/"+type,armies))return;resume=null;latched=new ModeRequest("LAND/"+type,armies);if(!armies.isEmpty())send("LAND/"+type,armies,List.of());}
     static void assignSelected(){var ids=MapCommanderPanels.commandSelection();if(ids.isEmpty()){message("배정할 사단을 선택하세요.");return;}land("ASSIGN_UNITS",ids);}
-    static void groupColor(String group,int color){send("GROUP_COLOR",List.of(group,"rgb/"+color),List.of());}
     static void formation(String action,String target,List<String> selection){
         if(selection.isEmpty()){message(action.endsWith("ARMIES")||action.equals("CREATE_GROUP")?"편성할 군 카드를 선택하세요.":"편성할 사단을 선택하세요.");return;}
         var values=new ArrayList<String>();if(!target.isEmpty())values.add("target/"+target);values.addAll(selection);
@@ -143,6 +142,7 @@ public final class MapCommanderOrders {
         send("NAVAL_SETTING/"+(previous?"REPAIR_PREVIOUS":"REPAIR_NEXT"),List.of(force,"policy/"+policy),List.of());
     }
     static boolean route(Open request){
+        if(request.mode()==Mode.ARMY_ABILITIES){if(Set.of("force_attack","last_stand","staff_office_plan","extra_suplies").contains(request.target()))MapCommanderPanels.armyAbility(request.target());else message("사용할 스킬 버튼을 선택하세요.");return true;}
         if(Set.of(Mode.NAVAL_TASK_FORCES,Mode.NAVAL_MISSION,Mode.AIR_MISSION).contains(request.mode())&&MapCommanderPanels.openMission(request))return true;
         if(MapCommanderPanels.armyInput()&&(request.mode()==Mode.CREATE_ARMY||request.mode()==Mode.MOVE_DIVISIONS)){formation(request.mode().name(),request.target(),request.selection());return true;}
         if(MapCommanderPanels.armyInput()&&request.mode()==Mode.ARMY_GROUPS&&request.target().isEmpty()){formation("CREATE_GROUP","",MapCommanderPanels.formationArmies());return true;}

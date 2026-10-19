@@ -22,6 +22,7 @@ gradle.projectsEvaluated {
     def sources = server.fileTree(server.projectDir) {
         include 'core/src/main/**', 'fabric/src/main/**', 'protocol/src/main/**', 'content/**'
         include 'fabric/src/test/java/dev/hoi/scenario/ScenarioCaptivitySourceTest.java'
+        include 'fabric/src/test/java/dev/hoi/scenario/ScenarioLeaderEventSourceTest.java'
         include 'fabric/src/test/java/dev/hoi/map/MapMissionOverlayFixtureTest.java'
         include '*.gradle', 'gradle.properties', 'core/*.gradle', 'fabric/*.gradle', 'protocol/*.gradle'
         include 'gradle/wrapper/gradle-wrapper.properties'

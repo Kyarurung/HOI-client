@@ -40,6 +40,21 @@ class ProtocolViewPresentationTest {
         legacy.addProperty("presentation", "invented");
         assertThrows(RuntimeException.class, () -> new ProtocolDialogPayloads.Show(legacy.toString(), true).view());
     }
+    @Test void dialogChoicesCarryAnOptionalBoundedTooltip() {
+        var gson = new Gson();
+        var plain = new ProtocolDialogView.Choice("korea.21.a", "북쪽을 바라본다.");
+        assertEquals("", plain.tooltip());
+        assertEquals(plain, new ProtocolDialogView.Choice("korea.21.a", "북쪽을 바라본다.", null));
+        var described = new ProtocolDialogView.Choice("korea.21.a", "북쪽을 바라본다.", "'§Y북쪽을 바라보다§!' 사건 발생\n£pol_power 정치력 획득: §G+60§!.");
+        var view = new ProtocolDialogView("", 0, ProtocolDialogView.Kind.EVENT, "동쪽을 바라보다", "대한민국", "본문", "", "", "", List.of(), List.of(described))
+                .issued(UUID.randomUUID().toString(), 1);
+        assertEquals(view, ProtocolDialogPayloads.Show.of(view, true).view());
+        assertEquals(described, ProtocolDialogPayloads.Show.of(view, true).view().choices().getFirst());
+        var legacy = gson.toJsonTree(described).getAsJsonObject(); legacy.remove("tooltip");
+        assertEquals(plain, gson.fromJson(legacy, ProtocolDialogView.Choice.class));
+        assertEquals(3000, new ProtocolDialogView.Choice("a", "b", "x".repeat(3000)).tooltip().length());
+        assertThrows(IllegalArgumentException.class, () -> new ProtocolDialogView.Choice("a", "b", "x".repeat(3001)));
+    }
     @Test void buildingDamageIsOptionalBoundedAndSurvivesTransport() {
         var gson=new Gson();
         var tile=new ProtocolDialogView.Tile("shared","민간공장","3/25","construction/civilian_factory","",new ProtocolDialogView.Gauge(.35,"레벨 내구도: §e65.00%§r"),"map_detail/repairing");

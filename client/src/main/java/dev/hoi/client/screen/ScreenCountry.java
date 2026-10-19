@@ -116,7 +116,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             int y = bodyTop() + i * 39 - scroll;
             if (y < bodyTop() || y + 36 > height - 33) continue;
             final int index = i;
-            String label = choosing ? view.countries().get(i).name() : entries().get(i).name() + " · " + entries().get(i).value();
+            String label = choosing ? dev.hoi.client.ui.UiCountryDisplay.name(view.countries().get(i).tag(), view.countries().get(i).name()) : entries().get(i).name() + " · " + entries().get(i).value();
             var button = new ScreenCountryRow(label, 9, y, rowsWidth, 36, () -> {
                 if (choosing) select(view.countries().get(index).tag());
                 else { detail = entries().get(index); detailScroll = 0; rebuildWidgets(); }
@@ -217,7 +217,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 dev.hoi.client.ui.UiText.iconText(g, font, i == 0 ? "hud/stability" : "hud/war_support",
                         value.equals("정보 없음") ? "?" : value, x, top + 4, statWidth, 18, 11, UiMenuStyle.TEXT);
                 if (mx >= x && mx < x + statWidth && my >= top + 4 && my < top + 22)
-                    dev.hoi.client.ui.UiTooltips.drawExact(g, font, view.name() + " · " + stat.name() + ": " + (stat.value().endsWith("%") ? ProtocolNumberBounds.percent(stat.progress(), 2) : stat.value()), mx, my);
+                    dev.hoi.client.ui.UiTooltips.drawExact(g, font, dev.hoi.client.ui.UiCountryDisplay.name(view.target(), view.name()) + " · " + stat.name() + ": " + (stat.value().endsWith("%") ? ProtocolNumberBounds.percent(stat.progress(), 2) : stat.value()), mx, my);
             }
             int headerX = ScreenDiplomacyHeader.scaled(139, pane), headerW = pane - headerX - 7;
             UiAssets.nineSlice(g, "diplomacy/header", headerX, top + 30, headerW, 38, 5, pane / 550.0);
@@ -229,7 +229,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             var ideology = ScreenDiplomacyHeader.entry(view, "이념");
             UiAssets.draw(g, ideology.icon().isEmpty() ? "politics/empty/ideology" : ideology.icon(), ideologyX, top + 33, Math.max(1, ideologyCell - headerEdge), 32);
             String faction = view.diplomacy().stream().filter(e -> e.name().equals("세력")).map(ProtocolMenuView.Entry::value).findFirst().orElse("세력 없음");
-            String[] info = {view.name(), faction, ScreenDiplomacyHeader.entry(view, "지도자").value()};
+            String[] info = {dev.hoi.client.ui.UiCountryDisplay.name(view.target(), view.name()), faction, ScreenDiplomacyHeader.entry(view, "지도자").value()};
             for (int i = 0; i < info.length; i++)
                 dev.hoi.client.ui.UiText.text(g, font, trim(info[i], pane - textX - 47), textX, top + 34 + i * 10, UiMenuStyle.TEXT);
             var factionEntry = ScreenDiplomacyHeader.entry(view, "세력");
@@ -271,7 +271,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 }
                 String icon = choosing ? "country/" + view.countries().get(i).tag().toLowerCase(Locale.ROOT) + "/flag" : ledger ? domain.icon : "country/" + view.target().toLowerCase(Locale.ROOT) + "/flag";
                 UiAssets.draw(g, icon, 12, y + 5, 27, 25);
-                String name = choosing ? view.countries().get(i).name() : entries().get(i).name();
+                String name = choosing ? dev.hoi.client.ui.UiCountryDisplay.name(view.countries().get(i).tag(), view.countries().get(i).name()) : entries().get(i).name();
                 String value = choosing ? view.countries().get(i).tag() : entries().get(i).value();
                 dev.hoi.client.ui.UiText.text(g, font, trim(name, rowsWidth - 42), 46, y + 6, UiMenuStyle.TEXT);
                 dev.hoi.client.ui.UiText.text(g, font, trim(value, rowsWidth - 42), 46, y + 21, UiMenuStyle.MUTED);
@@ -286,7 +286,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 int x = detailX(), w = detailWidth();
                 g.nextStratum(); UiMenuStyle.panel(g, x, top, w, 207);
                 UiMenuStyle.heading(g, font, confirmation.name(), x + 10, top + 9, w - 20, UiMenuStyle.TEXT);
-                var lines = font.split(Component.literal(view.name() + "\n\n" + confirmation.detail()), w - 24);
+                var lines = font.split(Component.literal(dev.hoi.client.ui.UiCountryDisplay.name(view.target(), view.name()) + "\n\n" + confirmation.detail()), w - 24);
                 confirmationScroll = Math.clamp(confirmationScroll, 0, Math.max(0, lines.size() * 13 - (confirmation.amountInput() == null ? 127 : 84)));
                 g.enableScissor(x + 7, top + 36, x + w - 7, top + (confirmation.amountInput() == null ? 165 : 122));
                 int y = top + 38 - confirmationScroll;
@@ -318,7 +318,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             if(party!=null) dev.hoi.client.ui.UiTooltips.drawExact(g,font,party.detail(),mx,my);
             if (header.leaderAt(mx, my, pane, top))
                 leaderTooltipScroll = dev.hoi.client.ui.UiPoliticalTooltip.drawLeader(g, font, ScreenDiplomacyHeader.entry(view, "지도자"),
-                        view.target(), view.name(), mx, my, width, height, leaderTooltipScroll);
+                        view.target(), dev.hoi.client.ui.UiCountryDisplay.name(view.target(), view.name()), mx, my, width, height, leaderTooltipScroll);
             else leaderTooltipScroll = 0;
             if (!java.util.Objects.equals(spirit, hoveredSpirit)) spiritTooltipScroll = 0;
             hoveredSpirit = spirit;

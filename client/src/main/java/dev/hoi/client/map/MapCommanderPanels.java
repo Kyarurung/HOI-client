@@ -12,22 +12,32 @@ final class MapCommanderPanels {
     private static final LinkedHashSet<String> selected=new LinkedHashSet<>();
     private static final LinkedHashSet<String> selectedForces=new LinkedHashSet<>();
     private static final LinkedHashSet<String> selectedWings=new LinkedHashSet<>();
+    private static final Set<String> armyListGroups=new HashSet<>();
     private static List<Hit> hits=List.of();
     private static View current;
+    private static String templateCard="";
     private static List<Member> divisionDetails=List.of();
     private static final Set<String> fullArmyCards=new HashSet<>(),manualArmyKeys=new HashSet<>();
     private static int scroll,forcePage;
-    private static boolean wingList,postureMenu,navalTargetMenu,specificForces;
-    static record Hit(int x,int y,int w,int h,String tip,Runnable action,java.util.function.BiConsumer<Integer,Boolean> gesture,String sound,String icon){Hit(int x,int y,int w,int h,String tip,Runnable action,java.util.function.BiConsumer<Integer,Boolean> gesture,String sound){this(x,y,w,h,tip,action,gesture,sound,"");}Hit {tip=UiCommandLabels.withoutShortcuts(tip);}Hit(int x,int y,int w,int h,String tip,Runnable action){this(x,y,w,h,tip,action,null,"ui.click");}Hit(int x,int y,int w,int h,String tip,Runnable action,java.util.function.BiConsumer<Integer,Boolean> gesture){this(x,y,w,h,tip,action,gesture,"");}boolean contains(double px,double py){return px>=x&&px<x+w&&py>=y&&py<y+h;}}
+    private static Scrollbar scrollbar;
+    private static double scrollGrab=-1;
+    private record Scrollbar(int x,int y,int width,int height,int thumb,int maximum) {}
+    private static boolean wingList,postureMenu,navalTargetMenu,specificForces,dragArmySelection;
+    static record Hit(int x,int y,int w,int h,String tip,Runnable action,java.util.function.BiConsumer<Integer,Boolean> gesture,String sound,String icon,float pixelShift){Hit(int x,int y,int w,int h,String tip,Runnable action,java.util.function.BiConsumer<Integer,Boolean> gesture,String sound,String icon){this(x,y,w,h,tip,action,gesture,sound,icon,0);}Hit(int x,int y,int w,int h,String tip,Runnable action,java.util.function.BiConsumer<Integer,Boolean> gesture,String sound){this(x,y,w,h,tip,action,gesture,sound,"");}Hit {if(!preservesSourceTooltip(icon))tip=UiCommandLabels.withoutShortcuts(tip);}Hit(int x,int y,int w,int h,String tip,Runnable action){this(x,y,w,h,tip,action,null,"ui.click");}Hit(int x,int y,int w,int h,String tip,Runnable action,java.util.function.BiConsumer<Integer,Boolean> gesture){this(x,y,w,h,tip,action,gesture,"");}boolean contains(double px,double py){return px>=x-pixelShift&&px<x+w-pixelShift&&py>=y+pixelShift&&py<y+h+pixelShift;}}
+    static boolean preservesSourceTooltip(String icon){return Set.of("change_template_button","template_summary","army_order_warning","army_portrait","army_trait","army_group_disband","deploy_hq_button","select_all_armylist_short_btn","motorization_level_toggle_btn","army_group_toggle_armies_divisions_btn","railway_gun_toggle_btn","army_select_wings_btn").contains(icon)||icon.startsWith("theater_")||icon.startsWith("ability_");}
     static List<Hit> hits(){return hits;}
     static String tooltipAt(double x,double y){for(var hit:hits)if(hit.contains(x,y))return hit.tip();return "";}
-    static boolean scrollAt(double x,double y,double amount){if(amount==0||hits.stream().noneMatch(h->h.contains(x,y)))return false;scroll=Math.max(0,scroll-(int)Math.signum(amount)*3);return true;}
+    static boolean scrollAt(double x,double y,double amount){if(MapCommanderTheaters.scrollAt(x,y,amount))return true;if(amount==0||hits.stream().noneMatch(h->h.contains(x,y)))return false;scroll=Math.max(0,scroll-(int)Math.signum(amount)*3);return true;}
+    static boolean pressScroll(double x,double y){var bar=scrollbar;if(bar==null||x<bar.x()||x>=bar.x()+bar.width()||y<bar.y()||y>=bar.y()+bar.height())return false;int top=bar.y()+(int)Math.round((bar.height()-bar.thumb())*scroll/(double)bar.maximum());scrollGrab=y>=top&&y<top+bar.thumb()?y-top:bar.thumb()/2.;return dragScroll(y);}
+    static boolean dragScroll(double y){var bar=scrollbar;if(scrollGrab<0||bar==null)return false;scroll=(int)Math.round(Math.clamp((y-bar.y()-scrollGrab)/Math.max(1,bar.height()-bar.thumb()),0,1)*bar.maximum());return true;}
+    static boolean releaseScroll(){boolean active=scrollGrab>=0;scrollGrab=-1;return active;}
     private MapCommanderPanels() {}
     static void accept(View view) {
         if(current==null||!current.country().equals(view.country())||!current.dimension().equals(view.dimension())||current.branch()!=view.branch()){if(current!=null){MapUnitHud.clearSelection();MapCommanderOrders.scopeChanged(current,view);}reset();}
-        var previousMembers=knownArmyMembers(current);current=view;selectedForces.removeIf(id->view.cards().stream().filter(c->c.panel()!=null).flatMap(c->c.panel().members().stream()).noneMatch(m->m.id().equals(id)));selected.removeIf(id->view.cards().stream().noneMatch(c->c.id().equals(id)));if(view.branch()==Mode.NAVY_HQ&&specificForces&&selectedForces.isEmpty())selected.clear();selectedWings.removeIf(id->view.wings().stream().noneMatch(w->w.id().equals(id)));hits=List.of();fullArmyCards.retainAll(selected);if(view.branch()==Mode.ARMY&&view.cards().stream().filter(c->c.role()==Mode.ASSIGN_ARMY||c.role()==Mode.ARMY_GROUP).allMatch(c->c.panel()!=null&&c.panel().divisionIds()!=null)){previousMembers.removeAll(knownArmyMembers(view));manualArmyKeys.removeIf(key->key.startsWith("unit/")&&previousMembers.contains(key.substring(5)));}if(view.branch()==Mode.ARMY)syncArmySelection();MapCommanderOrders.selectionChanged();
+        if(view.cards().stream().noneMatch(c->c.id().equals(templateCard)))templateCard="";
+        var previousMembers=knownArmyMembers(current);current=view;armyListGroups.retainAll(view.cards().stream().map(Card::id).toList());selectedForces.removeIf(id->view.cards().stream().filter(c->c.panel()!=null).flatMap(c->c.panel().members().stream()).noneMatch(m->m.id().equals(id)));selected.removeIf(id->view.cards().stream().noneMatch(c->c.id().equals(id)));if(view.branch()==Mode.NAVY_HQ&&specificForces&&selectedForces.isEmpty())selected.clear();selectedWings.removeIf(id->view.wings().stream().noneMatch(w->w.id().equals(id)));hits=List.of();fullArmyCards.retainAll(selected);if(view.branch()==Mode.ARMY&&view.cards().stream().filter(c->c.role()==Mode.ASSIGN_ARMY||c.role()==Mode.ARMY_GROUP).allMatch(c->c.panel()!=null&&c.panel().divisionIds()!=null)){previousMembers.removeAll(knownArmyMembers(view));manualArmyKeys.removeIf(key->key.startsWith("unit/")&&previousMembers.contains(key.substring(5)));}if(view.branch()==Mode.ARMY)syncArmySelection();MapCommanderOrders.selectionChanged();
     }
-    static void reset(){if(current!=null)MapUnitHud.clearSelection();fullArmyCards.clear();manualArmyKeys.clear();current=null;divisionDetails=List.of();selected.clear();selectedForces.clear();specificForces=false;selectedWings.clear();hits=List.of();scroll=0;forcePage=0;wingList=false;postureMenu=false;navalTargetMenu=false;}
+    static void reset(){dragArmySelection=false;templateCard="";armyListGroups.clear();if(current!=null)MapUnitHud.clearSelection();fullArmyCards.clear();manualArmyKeys.clear();current=null;divisionDetails=List.of();selected.clear();selectedForces.clear();specificForces=false;selectedWings.clear();hits=List.of();scrollbar=null;scrollGrab=-1;scroll=0;forcePage=0;wingList=false;postureMenu=false;navalTargetMenu=false;}
     static boolean selected(String id){return selected.contains(id);}
     static Set<String> selectedCards(){return Set.copyOf(selected);}
     static Set<String> selectedWingIds(){return Set.copyOf(selectedWings);}
@@ -48,16 +58,17 @@ final class MapCommanderPanels {
     }
     static void openMissionPanel(){if(current==null)return;if(current.branch()==Mode.NAVY_HQ){if(selected.isEmpty())MapCommanderOrders.message("임무를 지정할 함대를 먼저 선택하세요.");else {wingList=false;hits=List.of();}}else {var wings=attachmentWings();if(wings.isEmpty())MapCommanderOrders.message("임무를 지정할 비행단을 먼저 선택하세요.");else showWings(wings);}}
     static void showWings(Collection<String> ids){MapUnitHud.clearSelection();selectWings(ids);wingList=true;}
-    static void selectWings(Collection<String> ids){fullArmyCards.clear();manualArmyKeys.clear();selectedWings.clear();if(current!=null)current.wings().stream().filter(w->ids.contains(w.id())).map(Member::id).forEach(selectedWings::add);scroll=0;hits=List.of();postureMenu=false;MapCommanderOrders.selectionChanged();}
+    static void selectWings(Collection<String> ids){templateCard="";fullArmyCards.clear();manualArmyKeys.clear();selectedWings.clear();if(current!=null)current.wings().stream().filter(w->ids.contains(w.id())).map(Member::id).forEach(selectedWings::add);scroll=0;hits=List.of();postureMenu=false;MapCommanderOrders.selectionChanged();}
     static void select(String id){select(id,shift());}
     static void select(String id,boolean additive){
         if(current==null||current.cards().stream().noneMatch(c->c.id().equals(id)))return;
+        dragArmySelection=false;templateCard="";armyListGroups.remove(id);
         current.cards().stream().filter(c->c.id().equals(id)).findFirst().ifPresent(MapCommanderHud.groups::reveal);var previous=Set.copyOf(selected);selectedForces.clear();specificForces=false;if(current.branch()==Mode.ARMY)selectedWings.clear();if(!additive){selected.clear();selected.add(id);}else if(!selected.remove(id))selected.add(id);
         if(current.branch()==Mode.ARMY){if(!additive){fullArmyCards.clear();manualArmyKeys.clear();fullArmyCards.add(id);}else if(selected.contains(id))fullArmyCards.add(id);else {fullArmyCards.remove(id);retainManualArmySelection();}syncArmySelection();}else MapUnitHud.clearSelection();scroll=0;hits=List.of();MapCommanderOrders.selectionChanged();if(!previous.equals(selected))MapCommanderOrders.selectionScopeChanged();
     }
     static void acceptDivisionDetails(List<Member> members){
         if(current==null||current.branch()!=Mode.ARMY)return;divisionDetails=List.copyOf(members);
-        if(fullArmyCards.isEmpty()){MapUnitHud.replaceDivisions(members.stream().map(Member::id).toList());manualArmyKeys.clear();manualArmyKeys.addAll(MapUnitHud.selectedKeys());alignArmyCards();}
+        if(fullArmyCards.isEmpty()){MapUnitHud.replaceDivisions(members.stream().map(Member::id).toList());manualArmyKeys.clear();manualArmyKeys.addAll(MapUnitHud.selectedKeys());if(current!=null&&current.branch()==Mode.ARMY)selected.clear();alignArmyCards();}
         hits=List.of();
     }
     private static void alignArmyCards(){
@@ -71,9 +82,29 @@ final class MapCommanderPanels {
         return rows.values().stream().filter(m->MapUnitHud.selectedKeys().contains("unit/"+m.id())).sorted(Comparator.comparing(Member::id)).toList();
     }
     private static List<Member> armyRows(Card card){
-        var panel=card.panel();if(panel==null)return List.of();var ids=panel.divisionIds();return selectedDivisionRows().stream().filter(m->ids!=null?ids.contains(m.id()):panel.members().stream().anyMatch(row->row.id().equals(m.id()))).toList();
+        return armyRows(card,current.cards(),selectedDivisionRows());
     }
-    static void manualDivisionSelection(){fullArmyCards.clear();manualArmyKeys.clear();}
+    static List<Member> armyRows(Card card,List<Card> cards,List<Member> selectedRows){
+        var panel=card.panel();if(panel==null)return List.of();var ids=panel.divisionIds();var rows=selectedRows.stream().filter(m->ids!=null?ids.contains(m.id()):panel.members().stream().anyMatch(row->row.id().equals(m.id()))).toList();
+        if(card.role()!=Mode.ARMY_GROUP)return rows;
+        var order=new HashMap<String,Integer>();
+        for(int index=0;index<cards.size();index++){
+            var child=cards.get(index);var childPanel=child.panel();
+            if(child.role()!=Mode.ASSIGN_ARMY||childPanel==null||!childPanel.parent().equals(card.id()))continue;
+            var childIds=childPanel.divisionIds()!=null?childPanel.divisionIds():childPanel.members().stream().map(Member::id).toList();
+            for(var id:childIds)order.putIfAbsent(id,index);
+        }
+        return rows.stream().sorted(Comparator.comparingInt(m->order.getOrDefault(m.id(),Integer.MAX_VALUE))).toList();
+    }
+    static void manualDivisionSelection(){dragArmySelection=false;fullArmyCards.clear();manualArmyKeys.clear();}
+    static List<Card> dragPanels(List<Card> cards,Set<String> keys){
+        var armies=cards.stream().filter(c->c.role()==Mode.ASSIGN_ARMY&&c.panel()!=null&&c.panel().divisionIds()!=null&&c.panel().divisionIds().stream().anyMatch(id->keys.contains("unit/"+id))).toList();
+        if(armies.size()<2)return armies;
+        String parent=armies.getFirst().panel().parent();var result=new ArrayList<Card>();
+        if(!parent.isEmpty()&&armies.stream().allMatch(c->c.panel().parent().equals(parent)))cards.stream().filter(c->c.role()==Mode.ARMY_GROUP&&c.id().equals(parent)).findFirst().ifPresent(result::add);
+        result.addAll(armies);return List.copyOf(result);
+    }
+    static void mapSelectionChanged(boolean dragged){mapSelectionChanged();dragArmySelection=dragged;}
     private static Set<String> knownArmyMembers(View view){var result=new HashSet<String>();if(view!=null&&view.branch()==Mode.ARMY)for(var card:view.cards())if(card.panel()!=null&&card.panel().divisionIds()!=null)result.addAll(card.panel().divisionIds());return result;}
     private static void retainManualArmySelection(){var allowed=new HashSet<String>();for(var card:current.cards())if(selected.contains(card.id())&&card.panel()!=null&&card.panel().divisionIds()!=null)card.panel().divisionIds().forEach(id->allowed.add("unit/"+id));manualArmyKeys.removeIf(key->key.startsWith("unit/")&&!allowed.contains(key));}
     static void counterSelectionRefreshed(){var keys=MapUnitHud.selectedKeys();manualArmyKeys.removeIf(key->!key.startsWith("unit/")&&!keys.contains(key));}
@@ -88,7 +119,7 @@ final class MapCommanderPanels {
         if(current!=null&&current.branch()==Mode.AIR)return attachmentWings().stream().map(id->"air/"+id).sorted().toList();
         if(!map.isEmpty())return map.stream().sorted().toList();return current==null?List.of():attachmentWings().stream().map(id->"air/"+id).sorted().toList();
     }
-    static void mapSelectionChanged(){fullArmyCards.clear();manualArmyKeys.clear();manualArmyKeys.addAll(MapUnitHud.selectedKeys());alignArmyCards();selectedWings.clear();selectedForces.clear();specificForces=false;if(current!=null&&current.branch()==Mode.NAVY_HQ){selected.clear();for(var card:current.cards())if(card.panel()!=null)for(var member:card.panel().members())if(MapUnitHud.selectedKeys().stream().anyMatch(key->key.startsWith(member.id()+"|navy_"))){selected.add(card.id());selectedForces.add(member.id());specificForces=true;}}if(current!=null&&current.branch()==Mode.AIR)current.wings().stream().filter(w->!w.selectionKey().isEmpty()&&MapUnitHud.selectedKeys().contains(w.selectionKey())).map(Member::id).forEach(selectedWings::add);MapCommanderOrders.selectionChanged();}
+    static void mapSelectionChanged(){dragArmySelection=false;if(current!=null&&current.branch()==Mode.ARMY)hits=List.of();templateCard="";fullArmyCards.clear();manualArmyKeys.clear();manualArmyKeys.addAll(MapUnitHud.selectedKeys());if(current!=null&&current.branch()==Mode.ARMY)selected.clear();alignArmyCards();selectedWings.clear();selectedForces.clear();specificForces=false;if(current!=null&&current.branch()==Mode.NAVY_HQ){selected.clear();for(var card:current.cards())if(card.panel()!=null)for(var member:card.panel().members())if(MapUnitHud.selectedKeys().stream().anyMatch(key->key.startsWith(member.id()+"|navy_"))){selected.add(card.id());selectedForces.add(member.id());specificForces=true;}}if(current!=null&&current.branch()==Mode.AIR)current.wings().stream().filter(w->!w.selectionKey().isEmpty()&&MapUnitHud.selectedKeys().contains(w.selectionKey())).map(Member::id).forEach(selectedWings::add);MapCommanderOrders.selectionChanged();}
     static boolean counterSelected(String key){
         if(current!=null&&current.branch()==Mode.AIR)return current.wings().stream().anyMatch(w->selectedWings.contains(w.id())&&w.selectionKey().equals(key));
         if(current!=null&&current.branch()==Mode.NAVY_HQ)return navalSelection().stream().anyMatch(id->key.startsWith(id+"|navy_"));
@@ -106,8 +137,31 @@ final class MapCommanderPanels {
     private static void navalAreas(boolean clear){var ids=navalSelection();if(!ids.isEmpty())MapCommanderOrders.send(clear?"NAVAL_AREAS/CLEAR":"NAVAL_AREAS/REMOVE",ids,List.of());}
     private static boolean marshalSkills(){return current!=null&&current.cards().stream().anyMatch(c->c.role()==Mode.ARMY_GROUP&&selected.contains(c.id()));}
     private static String abilityAction(String ability){return "ABILITY/"+(marshalSkills()?"MARSHAL/":"")+ability.toUpperCase(Locale.ROOT);}
-    private static void armyAbility(String ability){MapCommanderOrders.send(abilityAction(ability),selectedDivisions(),List.of());}
-    private static void armyAbilities(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y,int w){int left=x+(w-u.size(99))/2,top=y-u.size(24);UiAssets.draw(g,source("ability_list_begin"),left,top,u.size(49.5),u.size(22.5));UiAssets.draw(g,source("ability_list_end"),left+u.size(49.5),top,u.size(49.5),u.size(22.5));String[] ids=marshalSkills()?new String[]{"staff_office_plan","extra_suplies"}:new String[]{"force_attack","last_stand","staff_office_plan","extra_suplies"};double start=(99-((ids.length-1)*18+17))/2.0;for(int n=0;n<ids.length;n++){String id=ids[n],key="ABILITY_"+id.toUpperCase(Locale.ROOT);int width=id.equals("force_attack")||id.equals("extra_suplies")?34:33,height=id.equals("staff_office_plan")?32:33;String original=UiCommandLabels.text(key,id)+"\n\n"+UiCommandLabels.text(key+"_DESC","");button(g,out,"","ability_"+id,left+u.size(start+n*18),top+u.size(4),u.size(width/2.0),u.size(height/2.0),MapCommanderAvailability.tooltip(abilityAction(id),original),()->armyAbility(id));if(!MapCommanderAvailability.reason(abilityAction(id)).isEmpty()){var hit=out.getLast();g.fill(hit.x(),hit.y(),hit.x()+hit.w(),hit.y()+hit.h(),0x55000000);}}}
+    static boolean armyCommandVisible(){return armyInput()&&!fullArmyCards.isEmpty();}
+    static void armyAbility(String ability){var divisions=selectedDivisions();if(!armyCommandVisible()||divisions.isEmpty()){MapCommanderOrders.message("스킬을 사용할 군이나 사단을 선택하세요.");return;}MapCommanderOrders.send(abilityAction(ability),divisions,List.of());}
+    static List<String> armyAbilityIds(){
+        if(!armyCommandVisible())return List.of();var cards=current.cards().stream().filter(c->selected.contains(c.id())&&c.panel()!=null&&(marshalSkills()?c.role()==Mode.ARMY_GROUP:c.role()==Mode.ASSIGN_ARMY)).toList();
+        return armyAbilityIds(cards);
+    }
+    static List<String> armyAbilityIds(List<Card> cards){
+        if(cards.isEmpty()||cards.stream().anyMatch(c->c.panel().commander().isEmpty()||c.panel().abilities()==null))return List.of();
+        return cards.getFirst().panel().abilities().stream().limit(4).filter(id->cards.stream().allMatch(c->c.panel().abilities().stream().limit(4).anyMatch(id::equals))).toList();
+    }
+    private static void armyAbilities(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y,int w){
+        var ids=armyAbilityIds();if(ids.isEmpty())return;int span=u.size(99+Math.max(0,ids.size()-4)*18),left=x+(w-u.size(99))/2,top=y-u.size(21),end=u.size(49.5);
+        UiAssets.draw(g,source("ability_list_begin"),left,top,end,u.size(22.5));
+        if(span>2*end)UiAssets.draw(g,source("ability_list_mid"),left+end,top,span-2*end,u.size(22.5));
+        UiAssets.draw(g,source("ability_list_end"),left+span-end,top,end,u.size(22.5));
+        for(int n=0;n<ids.size();n++){
+            String id=ids.get(n),key="ABILITY_"+id.toUpperCase(Locale.ROOT),icon="ability_"+id;var size=UiAssets.imageSize(source(icon));if(size[0]<=0||size[1]<=0){icon="ability_icon_default";size=UiAssets.imageSize(source(icon));}int width=size[0],height=size[1];
+            var details=selectedAbilityDetails(id);String original=details.stream().map(AbilityDetail::tooltip).filter(t->!t.isEmpty()).findFirst().orElseGet(()->MapCommanderAvailability.tooltip(abilityAction(id),UiCommandLabels.text(key,id)+"\n\n"+UiCommandLabels.text(key+"_DESC","")));
+            String reason=MapCommanderAvailability.reason(abilityAction(id));if(!reason.isEmpty()&&!original.contains(reason))original=MapCommanderAvailability.explain(original,reason);
+            nativeButton(g,out,icon,left+u.size(14.5+n*18),top+u.size(4),u.size(width/2.0),u.size(height/2.0),original,()->armyAbility(id),details.stream().anyMatch(MapCommanderPanels::abilityGrayscale));
+            if(!reason.isEmpty()){var hit=out.getLast();g.fill(hit.x(),hit.y(),hit.x()+hit.w(),hit.y()+hit.h(),0x55000000);}
+        }
+    }
+    private static List<AbilityDetail> selectedAbilityDetails(String id){return current.cards().stream().filter(c->selected.contains(c.id())&&c.panel()!=null&&(marshalSkills()?c.role()==Mode.ARMY_GROUP:c.role()==Mode.ASSIGN_ARMY)).flatMap(c->c.panel().abilityDetails().stream()).filter(a->a.id().equals(id)).toList();}
+    static boolean abilityGrayscale(AbilityDetail ability){return Boolean.FALSE.equals(ability.affordable())||!ability.enabled()&&ability.affordable()==null;}
     private static List<String> navalSelection(){return current==null?List.of():current.cards().stream().filter(c->selected.contains(c.id())&&c.panel()!=null).flatMap(c->c.panel().members().stream()).map(Member::id).filter(id->!specificForces||selectedForces.contains(id)).distinct().toList();}
     private static void navalOrganization(String action,boolean half){var ids=navalSelection();if(ids.isEmpty())return;var values=new ArrayList<String>();ids.forEach(id->values.add("force/"+id));if(half)values.add("half");MapCommanderHud.open(new Open(Mode.NAVAL_ORGANIZE,action,values));}
     private static void navalTools(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y,int w){
@@ -134,68 +188,157 @@ final class MapCommanderPanels {
     private static void openArmyControl(String type){String reason=armyControlReason(type);if(!reason.isEmpty()){MapCommanderOrders.message(reason);return;}var armies=selectedArmies();MapCommanderOrders.land(type,armies.stream().map(Card::id).toList());}
     private static String source(String id){return "commander/commands/"+id+"/frame_0";}
     private static void label(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color){UiText.centeredSingleLine(g,Minecraft.getInstance().font,UiTooltips.officerText(text),x,y,w,h,color);}
-    private static void background(GuiGraphicsExtractor g,String id,int x,int y,int w,int h){if(id.equals("air_priorities_tiled_bg")){UiAssets.nineSlice(g,source(id),x,y,w,h,32,new UiUnits(g.guiWidth(),g.guiHeight()).scale()*.5);return;}if(!UiAssets.draw(g,source(id),x,y,w,h))UiMenuStyle.control(g,x,y,w,h,false,false);}
-    private static void button(GuiGraphicsExtractor g,List<Hit> out,String text,String icon,int x,int y,int w,int h,String tip,Runnable action){UiAssets.nineSlice(g,source("nv_btn_select"),x,y,w,h,4,new UiUnits(g.guiWidth(),g.guiHeight()).scale()*.5);if(icon.isEmpty())label(g,text,x,y,w,h,UiMenuStyle.TEXT);else UiAssets.draw(g,source(icon),x,y,w,h);out.add(new Hit(x,y,w,h,tip,action,null,icon.equals("nv_btn_close")?"ui.close":icon.equals("nv_btn_delete")?"ui.disband":icon.startsWith("bpt_order_")||icon.equals("exercise_icon")?"ui.battleplan":"ui.click",icon));}
+    private static void leftLabel(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color){var font=Minecraft.getInstance().font;float scale=UiText.scale(font);var value=UiTooltips.officerText(text);if(font.width(value)*scale>w)value=Component.literal(UiText.ellipsize(font,value.getString(),Math.max(0,(int)(w/scale))));g.pose().pushMatrix();g.pose().translate(x,y+(h-font.lineHeight*scale)/2);g.pose().scale(scale);g.text(font,value,0,0,color);g.pose().popMatrix();}
+    private static void wrappedLabel(GuiGraphicsExtractor g,UiUnits u,String text,int x,int y,int w,int h,boolean centered){var font=Minecraft.getInstance().font;float scale=UiText.scale(font),lineHeight=font.lineHeight*scale;var lines=font.split(UiTooltips.officerText(text),Math.max(1,(int)(w/scale)));float top=y+(h-lines.size()*lineHeight)/2;for(var line:lines){g.pose().pushMatrix();g.pose().translate(centered?x+(w-font.width(line)*scale)/2:x,top);g.pose().scale(scale);g.text(font,line,0,0,UiMenuStyle.TEXT);g.pose().popMatrix();top+=lineHeight;}}
+    private static void background(GuiGraphicsExtractor g,String id,int x,int y,int w,int h){if(id.equals("air_priorities_tiled_bg")){UiAssets.nineSlice(g,source(id),x,y,w,h,32,MapCommanderLayout.units(g.guiWidth(),g.guiHeight()).scale()*.5);return;}if(!UiAssets.draw(g,source(id),x,y,w,h))UiMenuStyle.control(g,x,y,w,h,false,false);}
+    private static void button(GuiGraphicsExtractor g,List<Hit> out,String text,String icon,int x,int y,int w,int h,String tip,Runnable action){button(g,out,text,icon,x,y,w,h,tip,action,false);}
+    private static void button(GuiGraphicsExtractor g,List<Hit> out,String text,String icon,int x,int y,int w,int h,String tip,Runnable action,boolean grayscale){UiAssets.nineSlice(g,source("nv_btn_select"),x,y,w,h,4,MapCommanderLayout.units(g.guiWidth(),g.guiHeight()).scale()*.5);if(icon.isEmpty())label(g,text,x,y,w,h,UiMenuStyle.TEXT);else if(grayscale)UiAssets.drawGrayscale(g,source(icon),x,y,w,h);else UiAssets.draw(g,source(icon),x,y,w,h);out.add(new Hit(x,y,w,h,tip,action,null,icon.equals("nv_btn_close")?"ui.close":icon.equals("nv_btn_delete")?"ui.disband":icon.startsWith("bpt_order_")||icon.equals("exercise_icon")?"ui.battleplan":"ui.click",icon));}
+    private static void nativeButton(GuiGraphicsExtractor g,List<Hit> out,String icon,int x,int y,int w,int h,String tip,Runnable action){nativeButton(g,out,icon,x,y,w,h,tip,action,false);}
+    private static void nativeButton(GuiGraphicsExtractor g,List<Hit> out,String icon,int x,int y,int w,int h,String tip,Runnable action,boolean grayscale){if(grayscale)UiAssets.drawGrayscale(g,source(icon),x,y,w,h);else UiAssets.draw(g,source(icon),x,y,w,h);out.add(new Hit(x,y,w,h,tip,action,null,"ui.click",icon));}
     private static String commanderName(Card card){return card.panel()!=null&&card.panel().commander().isEmpty()?UiCommandLabels.text("UNIT_LEADER_NO_LEADER","§R지휘관 없음§!"):card.leader();}
     private static Open units(Card card){return new Open(card.role()==Mode.ARMY_GROUP?Mode.ARMY_GROUP:current.branch()==Mode.NAVY_HQ?Mode.NAVAL_TASK_FORCES:Mode.ARMY_UNITS,card.id());}
-    static boolean closeSelection(){if(selected.isEmpty()&&selectedWings.isEmpty()&&!wingList&&MapUnitHud.selectedKeys().isEmpty())return false;close();return true;}
-    private static void close(){selected.clear();selectedForces.clear();specificForces=false;selectedWings.clear();MapUnitHud.clearSelection();wingList=false;postureMenu=false;navalTargetMenu=false;scroll=0;hits=List.of();MapCommanderOrders.selectionChanged();}
+    static boolean closeSelection(){if(templateCard.isEmpty()&&selected.isEmpty()&&selectedWings.isEmpty()&&!wingList&&MapUnitHud.selectedKeys().isEmpty())return false;close();return true;}
+    private static void close(){templateCard="";selected.clear();selectedForces.clear();specificForces=false;selectedWings.clear();MapUnitHud.clearSelection();wingList=false;postureMenu=false;navalTargetMenu=false;scroll=0;hits=List.of();MapCommanderOrders.selectionChanged();}
     static int actionbarTop(UiUnits units,boolean navy){return MapCommanderLayout.commandTop(units,navy);}
     static void draw(GuiGraphicsExtractor g,int sidebar,int mouseX,int mouseY,int portraitsTop) {
-        hits=List.of();if(current==null)return;var u=new UiUnits(g.guiWidth(),g.guiHeight());var out=new ArrayList<Hit>();
-        var chosen=current.cards().stream().filter(c->selected.contains(c.id())).toList();
+        hits=List.of();scrollbar=null;if(current==null)return;var u=MapCommanderLayout.units(g.guiWidth(),g.guiHeight());var out=new ArrayList<Hit>();
+        var chosen=current.cards().stream().filter(c->selected.contains(c.id())||c.id().equals(templateCard)).toList();
         int bottom=MapCommanderLayout.popupBottom(u,current.branch()==Mode.NAVY_HQ);
-        if(current.branch()==Mode.ARMY||!chosen.isEmpty())actionbar(g,u,out,chosen,actionbarTop(u,current.branch()==Mode.NAVY_HQ),bottom);
+        var selectedRows=selectedDivisionRows();boolean unassignedOnly=current.branch()==Mode.ARMY&&chosen.isEmpty()&&!selectedRows.isEmpty()&&selectedRows.stream().allMatch(m->m.data()!=null&&m.data().attachedArmy().isEmpty());
+        int panelBottom=MapCommanderHud.running()&&!unassignedOnly&&(current.branch()!=Mode.ARMY||armyCommandVisible())?actionbarTop(u,current.branch()==Mode.NAVY_HQ)-u.size(armyAbilityIds().isEmpty()?2:26):portraitsTop-u.size(4);
+        if(current.branch()==Mode.ARMY&&!wingList&&attachmentWings().isEmpty()){int panelRight=u.size(221.5)+chosen.stream().mapToInt(c->summaryExtra(c,u)).max().orElse(0);if(panelRight<MapCommanderLayout.commandLeft(u,false))panelBottom=Math.min(portraitsTop-u.size(4),g.guiHeight()-u.size(85));}
+        if(current.branch()==Mode.ARMY?armyCommandVisible():!chosen.isEmpty())actionbar(g,u,out,chosen,actionbarTop(u,current.branch()==Mode.NAVY_HQ),bottom);
         if(sidebar==0&&!(Minecraft.getInstance().gui.screen() instanceof dev.hoi.client.screen.ScreenDialog)) {
-            if(current.branch()==Mode.ARMY&&fullArmyCards.isEmpty()&&!selectedDivisionRows().isEmpty())armySelection(g,u,out,bottom);
+            if(current.branch()==Mode.ARMY&&dragArmySelection&&!dragPanels(current.cards(),MapUnitHud.selectedKeys()).isEmpty()){var panels=dragPanels(current.cards(),MapUnitHud.selectedKeys());if(panels.size()>1)dragStack(g,u,out,panels,panelBottom);else command(g,u,out,panels,panelBottom);}
+            else if(current.branch()==Mode.ARMY&&templateCard.isEmpty()&&fullArmyCards.isEmpty()&&!selectedDivisionRows().isEmpty())armySelection(g,u,out,panelBottom);
             else if(current.branch()==Mode.AIR||wingList) {
                 var keys=MapUnitHud.selectedKeys();
                 var wings=current.wings().stream().filter(MapCommanderPanels::wingSelected).sorted(Comparator.comparing(MapCommanderAirBases::identity).thenComparing(Member::id)).toList();
-                if(!wings.isEmpty())air(g,u,out,wings);
-                else if(!chosen.isEmpty())command(g,u,out,chosen,bottom);
-            } else if(!chosen.isEmpty())command(g,u,out,chosen,bottom);
-            else if(current.branch()==Mode.ARMY&&!selectedDivisionRows().isEmpty())armySelection(g,u,out,bottom);
+                if(!wings.isEmpty())air(g,u,out,wings,panelBottom);
+                else if(!chosen.isEmpty())command(g,u,out,chosen,panelBottom);
+            } else if(!chosen.isEmpty())command(g,u,out,chosen,panelBottom);
+            else if(current.branch()==Mode.ARMY&&!selectedDivisionRows().isEmpty())armySelection(g,u,out,panelBottom);
         }
-
+        MapCommanderTheaters.draw(g,u,current,out,portraitsTop);
         hits=List.copyOf(out);
     }
     private static void command(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Card> chosen,int bottom) {
-        boolean navy=current.branch()==Mode.NAVY_HQ;if(!navy&&chosen.size()>1){armyStack(g,u,out,chosen,bottom);return;}if(navy&&chosen.size()>1){navyStack(g,u,out,chosen,bottom);return;}int x=u.size(3),top=UiMenuBar.height(g.guiWidth())+u.size(2),w=u.size(navy?246.5:218.5),header=u.size(navy?83:55);
+        if(current.branch()==Mode.ARMY&&chosen.size()==1&&chosen.getFirst().role()==Mode.ARMY_GROUP&&armyListGroups.contains(chosen.getFirst().id())){armyOverview(g,u,out,chosen.getFirst(),bottom);return;}
+        boolean navy=current.branch()==Mode.NAVY_HQ;if(!navy&&chosen.size()>1){armyStack(g,u,out,chosen,bottom);return;}if(navy&&chosen.size()>1){navyStack(g,u,out,chosen,bottom);return;}int x=u.size(3),top=UiMenuBar.height(g.guiWidth())+u.size(2),w=u.size(navy?246.5:218.5)+(navy?0:summaryExtra(chosen.getFirst(),u)),header=u.size(navy?83:55);
         int visible=Math.max(1,(Math.max(top+header,bottom)-top)/header),start=chosen.size()>1?Math.clamp(scroll,0,Math.max(0,chosen.size()-visible)):0;
         int y=top;
         for(var card:chosen.subList(start,Math.min(chosen.size(),start+visible))) {
             if(navy){navyHeader(g,u,out,card,x,y,w,header);y+=header;continue;}
-            background(g,navy?"fleet_bg":card.role()==Mode.ARMY_GROUP?"army_group_bg":"army_bg",x,y,w,header);
-            label(g,card.name(),x+u.size(20),y+u.size(2),w-u.size(62),u.size(12),UiMenuStyle.TEXT);
-            button(g,out,"×","nv_btn_close",x+w-u.size(15),y+u.size(2),u.size(13),u.size(13),"닫기",()->closeCard(card));
-            int py=y+u.size(16);String portrait=card.portrait().equals("politics/empty/leader")?"commander/hud/army_unknown/frame_0":card.portrait();
-            UiAssets.drawContent(g,portrait,x+u.size(3),py,u.size(31),u.size(36));
-            var appointment=new Open(card.role()==Mode.ARMY_GROUP?Mode.ASSIGN_GROUP_MARSHAL:navy?Mode.NAVY_FLEET:Mode.ASSIGN_ARMY,card.id());
-            out.add(new Hit(x+u.size(3),py,u.size(31),u.size(36),card.detail(),()->MapCommanderHud.open(appointment)));
-            var p=card.panel();String role=p!=null&&p.leader()!=null?p.leader().role():navy?"제독":card.role()==Mode.ARMY_GROUP?"원수":"장군";
-            label(g,role,x+u.size(36),py,u.size(64),u.size(9),UiMenuStyle.TEXT);label(g,commanderName(card),x+u.size(36),py+u.size(9),u.size(64),u.size(11),UiMenuStyle.TEXT);
-            if(p!=null&&p.leader()!=null) {
-                label(g,Integer.toString(p.leader().skill()),x+u.size(101),py,u.size(13),u.size(18),UiMenuStyle.TEXT);
-                for(int i=0;i<4;i++) {int bx=x+u.size(115+i*13);String icon="commander/ui/"+List.of("attack","defense",navy?"maneuver":"planning",navy?"coordination":"logistics").get(i);UiAssets.drawContent(g,icon,bx,py,u.size(12),u.size(10));label(g,Integer.toString(p.leader().abilities().get(i)),bx,py+u.size(10),u.size(12),u.size(12),UiMenuStyle.TEXT);String tip=p.leader().abilityTooltips().size()>i?p.leader().abilityTooltips().get(i):card.detail();out.add(new Hit(bx,py,u.size(12),u.size(22),tip,()->{},null,""));}
-                int tx=x+u.size(166);for(var trait:p.leader().traitDetails().stream().limit(5).toList()){UiAssets.drawContent(g,trait.icon(),tx,py,u.size(9),u.size(14));out.add(new Hit(tx,py,u.size(9),u.size(14),trait.tooltip(),()->{},null,""));tx+=u.size(9);}
-                if(!p.commander().isEmpty())out.add(new Hit(x+u.size(102),py+u.size(23),w-u.size(110),u.size(12),"특성",()->MapCommanderHud.open(new Open(Mode.COMMANDER_TRAITS,(navy?"navy/":"army/")+p.commander()))));
-            }
-            label(g,MapCommanderHud.countLabel(card),x+u.size(37),y+header-u.size(14),u.size(66),u.size(12),0xFFFFFFFF);
-            y+=header;
+            armyHeader(g,u,out,card,x,y,w,header);
+            y+=header-u.size(3);
+            if(card.role()!=Mode.ARMY_GROUP){armyHeadquarters(g,u,out,card,x,y,w);y+=u.size(21.5);}
         }
         if(chosen.size()>1){pager(g,u,out,x,y,w,scroll>0,start+visible<chosen.size(),1);out.add(new Hit(x,top,w,y-top,"",()->{},null,""));return;}
         var card=chosen.getFirst();var panel=card.panel();if(panel==null)return;
-        int tools=u.size(navy?22:21);if(navy)navalTools(g,u,out,x,y,w);else {background(g,"air_priorities_tiled_bg",x,y,w,tools);
-        button(g,out,navy?"태스크 포스":"소속 사단","",x+u.size(3),y+u.size(2),u.size(28),u.size(17),navy?"태스크 포스 임무 선택":"소속 사단",()->MapCommanderHud.open(units(card)));
-        button(g,out,navy?"편입":"전투 계획","",x+u.size(34),y+u.size(2),u.size(42),u.size(17),navy?"태스크 포스 편입":"전투 계획",()->MapCommanderHud.open(new Open(navy?Mode.NAVY_FLEET_MEMBERS:card.role()==Mode.ARMY_GROUP?Mode.ARMY_GROUP_MEMBERS:Mode.ARMY_PLANS,card.id())));
+        int toolbarExtra=w-u.size(218.5),tools=u.size(navy?22:21);if(navy)navalTools(g,u,out,x,y,w);else {int visibleRows=Math.min(MapCommanderHud.groups.rowsVisible(card.id())?armyRows(card).size():0,Math.max(1,(bottom-y-tools-u.size(13.5))/u.size(16.5)));armyListBackground(g,u,x-u.size(2),y-u.size(1.5),w-u.size(1),tools+u.size(18)+visibleRows*u.size(16.5));selectionBackground(g,u,x,y,w);
+        g.enableScissor(x+u.size(36.5),y,x+toolbarExtra+u.size(103),y+tools);UiText.text(g,Minecraft.getInstance().font,UiTooltips.officerText(UiCommandLabels.text("UNITS_VIEW_SELECTED_DIVISIONS_COUNT","$DIV|G$개 사단 선택됨").replace("$DIV|G$","§G"+selectedDivisions().size()+"§!")),x+u.size(36.5),y+(tools-Minecraft.getInstance().font.lineHeight)/2+u.size(2),UiMenuStyle.TEXT);g.disableScissor();
+        templateButton(g,u,out,x-u.size(4),y);
+        var selectedRows=selectedDivisionRows();boolean weightKnown=selectedRows.size()==selectedDivisions().size()&&!selectedRows.isEmpty()&&selectedRows.stream().allMatch(m->m.data()!=null&&m.data().transportWeight()!=null);String weight=weightKnown?Long.toString(Math.round(selectedRows.stream().mapToDouble(m->m.data().transportWeight()).sum())):"0";
+        UiAssets.draw(g,source("generic_mini_bg"),x+toolbarExtra+u.size(134.5),y+u.size(5.5),u.size(34),u.size(13));UiAssets.drawContent(g,source("topbar_convoys"),x+toolbarExtra+u.size(135.5),y+u.size(7),u.size(9),u.size(9));leftLabel(g,weight,x+toolbarExtra+u.size(145),y+u.size(6),u.size(18.5),u.size(11.5),UiMenuStyle.TEXT);out.add(new Hit(x+toolbarExtra+u.size(134.5),y+u.size(5.5),u.size(34),u.size(13),UiCommandLabels.text("TRANSPORT_WEIGHT_DESC","")+": "+weight+"\n인력: "+(panel.manpower()==null?"?":Long.toString(panel.manpower())),()->{},null,""));
+        button(g,out,"","uv_btn_unassign",x+toolbarExtra+u.size(197),y+u.size(3.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("UNITS_VIEW_BTN_UNITS_UNASSIGN",""),()->landSettings("UNASSIGN_UNITS"));
         }
-        if(!navy&&card.role()!=Mode.ARMY_GROUP)button(g,out,UiCommandLabels.text("UNITS_VIEW_BTN_DISBAND_GROUP","제거"),"",x+w-u.size(43),y+u.size(2),u.size(40),u.size(17),UiCommandLabels.text("UNITS_VIEW_BTN_DISBAND_GROUP_TOOLTIP","")+"\n\n사단은 미배속으로 보존합니다. 계획·지휘관·부속 비행단 처리와 비용을 확인합니다.",()->MapCommanderHud.open(new Open(Mode.ARMY_TOOLBAR,"DISSOLVE_ARMY",List.of(card.id()))));
-        if(!navy)divisionActions(g,u,out,x,y);
-        List<Member> rows=MapCommanderHud.groups.rowsVisible(card.id())?(navy?panel.members():armyRows(card)):List.of();y+=tools;int row=u.size(navy?62.5:16.5);int end=Math.max(y+row,Math.min(g.guiHeight()-u.size(82),bottom));int count=Math.max(1,(end-y-u.size(18))/row);scroll=Math.clamp(scroll,0,Math.max(0,rows.size()-count));
-        for(var member:rows.subList(scroll,Math.min(rows.size(),scroll+count))) {member(g,u,out,member,x,y,navy?w:u.size(195),row,navy?"task_force_bg":"uv_unit_entry_bg");y+=row;}
-        pager(g,u,out,x,y,w,scroll>0,scroll+count<rows.size(),count);
+        if(!navy)disbandButton(g,u,out,x-u.size(4),y);
+        if(!navy)divisionActions(g,u,out,x+w-u.size(218.5),y);
+        List<Member> rows=MapCommanderHud.groups.rowsVisible(card.id())?(navy?panel.members():armyRows(card)):List.of();y+=tools;if(!navy){armyColumns(g,u,x,y,w);y+=u.size(10.5);}int row=u.size(navy?62.5:16.5);int end=Math.max(y+row,Math.min(g.guiHeight(),bottom));int count=Math.max(1,(end-y-u.size(navy?18:3))/row);scroll=Math.clamp(scroll,0,Math.max(0,rows.size()-count));
+        for(var member:rows.subList(scroll,Math.min(rows.size(),scroll+count))) {member(g,u,out,member,x,y,navy?w:w-u.size(15),row,navy?"task_force_bg":"uv_unit_entry_bg");y+=row;}
+        if(navy)pager(g,u,out,x,y,w,scroll>0,scroll+count<rows.size(),count);else armyScrollbar(g,u,out,x+w-u.size(13.5),y-Math.min(count,rows.size()-scroll)*row,u.size(8.5),count*row,rows.size(),count);
         if((navy||fullArmyCards.contains(card.id()))&&MapCommanderHud.groups.rowsVisible(card.id())&&panel.total()>panel.members().size())button(g,out,"전체 목록","",x,y+u.size(18),w,u.size(17),"소속 부대 전체 목록",()->MapCommanderHud.open(units(card)));out.add(new Hit(x,top,w,y-top,"",()->{},null,""));
     }
+    private static void armyHeader(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,Card card,int x,int y,int w,int h){
+        Integer color=card.role()==Mode.ARMY_GROUP?Integer.valueOf(0x806000):card.panel()==null?null:card.panel().armyColor();if(color!=null)UiAssets.drawTinted(g,source("group_marker3"),x+w-u.size(16),y+u.size(7),u.size(22),u.size(44),0xff000000|color);
+        boolean group=card.role()==Mode.ARMY_GROUP;var panel=card.panel();int extra=summaryExtra(card,u);var headerTexture=net.minecraft.resources.Identifier.parse("hoi:textures/gui/commander/commands/"+(group?"army_group_bg":"army_bg")+"/frame_0.png");int sourceWidth=(group?436:437),sourceHeight=(group?110:109);g.blit(headerTexture,x-u.size(2.5),y,x+u.size(148.5),y+h,0,297f/sourceWidth,0,1);g.blit(headerTexture,x+u.size(148.5),y,x+w-u.size(group?3:2),y+h,297f/sourceWidth,(sourceWidth-4f)/sourceWidth,0,1);g.blit(headerTexture,x+w-u.size(group?3:2),y,x+w-u.size(group?1:0),y+h,(sourceWidth-4f)/sourceWidth,1,0,1);g.blit(headerTexture,x+u.size(99),y+u.size(18.5),x+u.size(153),y+u.size(37),220f/sourceWidth,297f/sourceWidth,37f/sourceHeight,74f/sourceHeight);
+        UiAssets.drawTinted(g,source(group?"theatre_army_group_shield":"theatre_army_shield").replace("frame_0","frame_"+(group||panel==null||panel.insignia()==null?0:panel.insignia())),x+u.size(7.5),y,u.size(16.5),u.size(16),group?0xffb29854:panel==null||panel.armyColor()==null?0xffffffff:0xff000000|panel.armyColor());label(g,Integer.toString(card.count()),x+u.size(12.5),y+u.size(4.5),u.size(14),u.size(11.5),UiMenuStyle.TEXT);
+        if(!group&&panel!=null&&!panel.palette().isEmpty())out.add(new Hit(x+u.size(7.5),y,u.size(19),u.size(16),UiCommandLabels.text("SELECT_COLOR","지도 색상 선택"),()->MapCommanderHud.togglePalette(card.id()),null,"ui.click","army_color_button"));
+        leftLabel(g,card.name(),x+u.size(33),y+u.size(5),u.size(67.5),u.size(11.5),UiMenuStyle.TEXT);
+        UiAssets.drawContent(g,source("supply_strip"),x+u.size(98),y+u.size(3.5),u.size(11),u.size(11));UiAssets.drawContent(g,source("fuel_strip"),x+u.size(110),y+u.size(5),u.size(10),u.size(11));
+        if(group){int gx=x+extra+u.size(139),gy=y+u.size(1.5),gs=u.size(15.5);var dissolve=panel==null?null:panel.controls().stream().filter(c->c.id().equals("GROUP_DISSOLVE")).findFirst().orElse(null);boolean enabled=dissolve!=null&&dissolve.enabled();if(enabled)UiAssets.draw(g,source("uv_btn_unassign"),gx,gy,gs,gs);else UiAssets.drawGrayscale(g,source("uv_btn_unassign"),gx,gy,gs,gs);out.add(new Hit(gx,gy,gs,gs,dissolve==null?UiCommandLabels.text("UNASSIGN_ARMY_GROUP",""):dissolve.tooltip(),()->{if(enabled)MapCommanderOrders.formation(shift()?"DISSOLVE_GROUP_ALL":"DISSOLVE_GROUP","",List.of(card.id()));},null,enabled?"ui.click":"","army_group_disband"));}
+        else if(panel!=null&&!panel.parent().isEmpty()){
+            var parent=current.cards().stream().filter(c->c.role()==Mode.ARMY_GROUP&&c.id().equals(panel.parent())).findFirst().orElse(null);
+            UiAssets.drawTinted(g,source("theatre_army_group_shield"),x+extra+u.size(122.5),y+u.size(3),u.size(14.85),u.size(14.4),0xffb29854);
+            if(parent!=null){String number=parent.name().split("\\s",2)[0];if(number.matches("[0-9]+"))label(g,number,x+extra+u.size(126.5),y+u.size(6.5),u.size(14),u.size(11.5),UiMenuStyle.TEXT);}
+            button(g,out,"","uv_btn_unassign",x+extra+u.size(139),y+u.size(1.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("UNASSIGN","배정 해제"),()->MapCommanderOrders.formation("DETACH_ARMIES","",List.of(card.id())));
+        }
+        int countX=x+extra+u.size(group?154.5:155.5),countY=y+u.size(group?1.5:3);g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source(group?"group_div_count_bg":"div_count_bg")+".png"),countX,countY,countX+u.size(group?47:45),countY+u.size(13),0,1,0,1);label(g,MapCommanderHud.countLabel(card),x+extra+u.size(156),y+u.size(group?3:4),u.size(45),u.size(11.5),MapCommanderHud.countColor(card));
+        float pixelShift=1f/(float)Minecraft.getInstance().getWindow().getGuiScale();g.pose().pushMatrix();g.pose().translate(-pixelShift,pixelShift);
+        button(g,out,"×","nv_btn_close",x+extra+u.size(200.5),y+u.size(1.5),u.size(13),u.size(13),"닫기",()->closeCard(card));
+        g.pose().popMatrix();var close=out.removeLast();out.add(new Hit(close.x(),close.y(),close.w(),close.h(),close.tip(),close.action(),close.gesture(),close.sound(),close.icon(),pixelShift));
+        int px=x+u.size(4.5),py=y+u.size(16),pw=u.size(28),ph=u.size(36);String portrait=card.portrait().equals("politics/empty/leader")?"commander/hud/army_unknown/frame_0":card.portrait();UiAssets.drawContent(g,portrait,px,py,pw,ph);UiAssets.draw(g,source(group?"group_leader_portrait_frame_badge":"unit_leader_portrait_frame_badge"),x+u.size(2.5),y+u.size(13.5),u.size(33),u.size(40));
+        String assign=UiCommandLabels.text("CLICK_TO_ASSIGN","");out.add(new Hit(px,py,pw,ph,panel==null||panel.commander().isEmpty()?assign:leaderTooltip(card),()->MapCommanderHud.open(new Open(group?Mode.ASSIGN_GROUP_MARSHAL:Mode.ASSIGN_ARMY,card.id())),null,"ui.click","army_portrait"));
+        if(panel!=null&&panel.leader()!=null){var leader=panel.leader();leftLabel(g,leader.role(),x+u.size(35),y+u.size(19),u.size(66.5),u.size(9),UiMenuStyle.TEXT);leftLabel(g,card.leader(),x+u.size(35),y+u.size(27),u.size(66.5),u.size(9),UiMenuStyle.TEXT);
+            UiAssets.draw(g,source("land_battle_leader_skill_bg"),x+u.size(99),y+u.size(18.75),u.size(12.25),u.size(17.5));label(g,Integer.toString(leader.skill()),x+u.size(98),y+u.size(20.5),u.size(15),u.size(11.5),UiMenuStyle.TEXT);
+            for(int n=0;n<4;n++){int sx=x+u.size(109.5+n*9);UiAssets.draw(g,source("trait_"+List.of("attack","defense","planning","logistics").get(n)),sx,y+u.size(19.5),u.size(13.5),u.size(12.5));label(g,Integer.toString(leader.abilities().get(n)),sx-u.size(1),y+u.size(28.5),u.size(15),u.size(11.5),UiMenuStyle.TEXT);out.add(new Hit(sx,y+u.size(19),u.size(9),u.size(20),leader.abilityTooltips().size()>n?leader.abilityTooltips().get(n):card.detail(),()->{},null,""));}
+            int traitsX=x+u.size(157.5),traitsWidth=x+w-u.size(group?10:12)-traitsX,traitWidth=u.size(10.5);for(int n=0;n<leader.traitDetails().size();n++){var trait=leader.traitDetails().get(n);int tx=dev.hoi.client.ui.UiFlagStack.left(n,leader.traitDetails().size(),traitsX,traitsWidth,traitWidth),visible=dev.hoi.client.ui.UiFlagStack.visibleWidth(n,leader.traitDetails().size(),traitsX,traitsWidth,traitWidth);UiAssets.drawTinted(g,trait.icon(),tx,y+u.size(21),traitWidth,u.size(16),Boolean.FALSE.equals(trait.active())?0xffbf5050:0xffffffff);out.add(new Hit(tx,y+u.size(21),visible,u.size(16),trait.tooltip(),()->MapCommanderHud.open(new Open(Mode.COMMANDER_TRAITS,"army/"+panel.commander())),null,"ui.click","army_trait"));}
+        }else {leftLabel(g,commanderName(card),x+u.size(35),y+u.size(19),u.size(66.5),u.size(19),0xffe15b5b);if(!assign.isEmpty())wrappedLabel(g,u,assign,x+u.size(2.5),y+u.size(13.5),u.size(33),u.size(40),true);}
+        UiAssets.draw(g,source("leader_exp_bg"),px,py+ph-u.size(2),pw,u.size(2));
+        progress(g,"leader_exp_fg_mid",px,py+ph-u.size(2),pw,u.size(2),panel==null?null:panel.experience(),0xffffffff,0xffffffff);
+        nativeButton(g,out,"leader_details_icon",x+u.size(2),y+u.size(40.5),u.size(12),u.size(12.5),UiCommandLabels.text("OPEN_LEADER_DETAILS",""),()->{if(panel!=null&&!panel.commander().isEmpty())MapCommanderHud.open(new Open(Mode.COMMANDER_TRAITS,"army/"+panel.commander()));});
+        nativeButton(g,out,"give_role_leader_strip",x+u.size(19),y+u.size(40.5),u.size(14),u.size(14),UiCommandLabels.text("TOGGLE_ARMY_GROUP_VIEW_ARMIES_DIVISIONS",""),()->{if(panel!=null&&!panel.commander().isEmpty())MapCommanderHud.open(new Open(Mode.COMMANDER_ADVISOR_ROLES,"army/"+panel.commander()));});
+        UiAssets.nineSlice(g,source("tiled_header_1"),x+u.size(31),y+u.size(35),u.size(10.5),u.size(18),2,u.scale()*.5);
+        verticalProgress(g,"army_badge_bar_org",x+u.size(33),y+u.size(37.5),u.size(3),u.size(13),panel==null?null:panel.organization());
+        verticalProgress(g,"army_badge_bar_str",x+u.size(36.5),y+u.size(37.5),u.size(3),u.size(13),panel==null?null:panel.strength());
+        if(panel!=null){double cx=x+u.size(39.5);var font=Minecraft.getInstance().font;int index=0;for(var entry:summaryTypes(card)){double cell=summaryCell(entry.getValue(),u);UiAssets.draw(g,armyUnitIcon(entry.getKey()),(int)Math.round(cx+(cell-u.size(13.5))/2.),y+u.size(37.5),u.size(13.5),u.size(7.5));UiText.centeredAt(g,font,entry.getValue().toString(),(int)Math.round(cx+cell/2),y+u.size(45),UiMenuStyle.TEXT);if(!panel.templateSummaries().isEmpty()){var summary=panel.templateSummaries().get(index);out.add(new Hit((int)Math.round(cx),y+u.size(37.5),(int)Math.ceil(cell),u.size(16),summary.tooltip(),()->{String context=templateCard.isEmpty()?(selected.size()==1?selected.iterator().next():card.id()):templateCard;MapUnitHud.selectDivisions(summary.divisionIds(),shift());templateCard=context;},null,"ui.division.select","template_summary"));}index++;cx+=cell;}}
+        int buttonsStart=out.size();
+        nativeButton(g,out,"select_all_armylist_short_btn",x+extra+u.size(group?152.5:132),y+u.size(38.5),u.size(26),u.size(11.5),UiCommandLabels.text("SELECT_ALL",""),()->select(card.id(),false));
+        nativeButton(g,out,"motorization_level_toggle_btn",x+extra+u.size(group?175:154.5),y+u.size(38.5),u.size(22),u.size(11.5),UiCommandLabels.text("ARMY_MOTORIZATION_PRIORITY","")+(panel==null||panel.motorizationPriority()==null?"\n\n차량 수송 우선순위 자료가 없습니다.":""),()->{if(!group&&panel!=null&&panel.motorizationPriority()!=null)MapCommanderOrders.send("ARMY_MOTORIZATION",List.of(card.id()),List.of());});
+        UiAssets.draw(g,source("motorization_level_toggle_strip").replace("frame_0","frame_"+(panel==null||panel.motorizationPriority()==null?0:panel.motorizationPriority())),x+extra+u.size(group?178.5:158),y+u.size(38.5),u.size(15),u.size(11.5));
+        nativeButton(g,out,group?"army_group_toggle_armies_divisions_btn":"railway_gun_toggle_btn",x+extra+u.size(group?193.5:174),y+u.size(38.5),u.size(group?20.5:22),u.size(11.5),group?UiCommandLabels.text("TOGGLE_ARMY_GROUP_VIEW_ARMIES_DIVISIONS",""):UiCommandLabels.text("ARMY_RAILWAY_GUNS_BUTTON",""),()->{if(group){if(!armyListGroups.remove(card.id()))armyListGroups.add(card.id());scroll=0;hits=List.of();}else MapCommanderOrders.message("철도포 배속은 아직 지원하지 않습니다.");});
+        if(!group)nativeButton(g,out,"army_select_wings_btn",x+extra+u.size(193.5),y+u.size(38.5),u.size(20.5),u.size(11.5),UiCommandLabels.text("SELECT_ATTACHED_AIRWINGS","부속된 비행단 선택"),()->showWings(current.wings().stream().filter(wing->wing.data()!=null&&wing.data().attachedArmy().equals(card.id())).map(Member::id).toList()));
+        for(int n=buttonsStart;n<out.size()-1;n++){var hit=out.get(n);out.set(n,new Hit(hit.x(),hit.y(),Math.min(hit.w(),out.get(n+1).x()-hit.x()),hit.h(),hit.tip(),hit.action(),hit.gesture(),hit.sound(),hit.icon()));}
+    }
+    private static List<Map.Entry<String,Integer>> summaryTypes(Card card){return card.panel()==null?List.of():!card.panel().templateSummaries().isEmpty()?card.panel().templateSummaries().stream().limit(11).map(t->Map.entry(t.icon(),t.count())).toList():card.panel().divisionTypes().entrySet().stream().sorted(Map.Entry.<String,Integer>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey())).limit(11).toList();}
+    private static void dragStack(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Card> cards,int bottom){
+        int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),top=y,h=u.size(55),step=u.size(52),count=Math.max(1,(bottom-y-u.size(3))/step);scroll=Math.clamp(scroll,0,Math.max(0,cards.size()-count));
+        for(var card:cards.subList(scroll,Math.min(cards.size(),scroll+count))){int width=u.size(218.5)+summaryExtra(card,u);armyHeader(g,u,out,card,x,y,width,h);y+=step;}
+        armyScrollbar(g,u,out,x+u.size(219)+cards.stream().mapToInt(c->summaryExtra(c,u)).max().orElse(0),top,u.size(8),count*step,cards.size(),count);out.add(new Hit(x,top,u.size(218.5),y-top,"",()->{},null,""));
+    }
+    private static void armyOverview(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,Card group,int bottom){
+        var armies=new ArrayList<Card>();armies.add(group);current.cards().stream().filter(c->c.role()==Mode.ASSIGN_ARMY&&c.panel()!=null&&c.panel().parent().equals(group.id())).forEach(armies::add);
+        int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),top=y,h=u.size(55),count=Math.max(1,(bottom-y)/h);scroll=Math.clamp(scroll,0,Math.max(0,armies.size()-count));
+        for(var army:armies.subList(scroll,Math.min(armies.size(),scroll+count))){armyHeader(g,u,out,army,x,y,u.size(218.5)+summaryExtra(army,u),h);y+=h;}
+        armyScrollbar(g,u,out,x+u.size(219),top,u.size(9),count*h,armies.size(),count);
+    }
+    private static String leaderTooltip(Card card){
+        var panel=card.panel();if(panel==null||panel.leaderEnRouteDays()==null||panel.leaderEnRouteDays()==0)return card.detail();
+        return UiCommandLabels.text(panel.leaderEnRouteDays()==1?"UNITLEADER_IS_EN_ROUTE_SINGULAR":"UNITLEADER_IS_EN_ROUTE","").replace("$NAME|H$","§H"+card.leader()+"§!").replace("$DAYS|H$","§H"+panel.leaderEnRouteDays()+"§!")+"\n\n"+card.detail();
+    }
+    private static void armyHeadquarters(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,Card card,int x,int y,int w){
+        UiAssets.nineSlice(g,source("army_hq_bg"),x-u.size(.5),y,w-u.size(2),u.size(22.5),4,u.scale()*.5);
+        var hq=card.panel()==null?null:card.panel().headquarters();boolean absent=hq==null?card.panel()!=null&&card.panel().commander().isEmpty():hq.state().equals("NO_COMMANDER");
+        int bx=x+u.size(26.5),by=y+u.size(1),frameY=by+u.size(2),bh=u.size(21);var font=Minecraft.getInstance().font;
+        String label=hq==null?UiCommandLabels.text("DEPLOY_HQ_BUTTON_LABEL",""):hq.label(),text=hq==null?(absent?UiCommandLabels.text("DEPLOY_HQ_BUTTON_NO_COMMANDER",""):""):hq.text();
+        int textWidth=(int)Math.ceil(font.width(UiTooltips.officerText(text).copy().withStyle(net.minecraft.ChatFormatting.BOLD))*UiText.scale(font));
+        int bw=Math.max(u.size(155),u.size(absent?60:123)+textWidth);
+        if(absent)UiAssets.drawGrayscale(g,source("deploy_hq_button").replace("frame_0","frame_1"),bx,frameY,bw,bh);
+        else{var texture=net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source("deploy_hq_button").replace("frame_0","frame_1")+".png");int left=u.size(55),right=u.size(4);g.blit(texture,bx,frameY,bx+left,frameY+bh,0,110f/310,0,1);g.blit(texture,bx+left,frameY,bx+bw-right,frameY+bh,110f/310,302f/310,0,1);g.blit(texture,bx+bw-right,frameY,bx+bw,frameY+bh,302f/310,1,0,1);}
+        UiText.centeredSingleLine(g,font,UiTooltips.officerText(label).copy().withStyle(net.minecraft.ChatFormatting.BOLD),bx,by,u.size(55),bh,UiMenuStyle.TEXT);
+        if(absent)UiText.centeredSingleLine(g,font,UiTooltips.officerText(text).copy().withStyle(net.minecraft.ChatFormatting.BOLD),bx+u.size(55),by,bw-u.size(55),bh,0xffdf4545);
+        else if(hq!=null){
+            UiAssets.draw(g,armyUnitIcon("unit_hud/infantry"),bx+u.size(50.5),by,u.size(38),bh);
+            leftLabel(g,text,bx+u.size(84),by,textWidth,bh,UiMenuStyle.TEXT);
+            if(hq.cost()!=null){int cx=bx+u.size(87)+textWidth;UiAssets.drawTinted(g,"hud/command_power",cx,by+u.size(5),u.size(11),u.size(11),Boolean.FALSE.equals(hq.affordable())?0xffdf4545:0xffffffff);leftLabel(g,java.math.BigDecimal.valueOf(hq.cost()).stripTrailingZeros().toPlainString(),cx+u.size(11),by,u.size(20),bh,Boolean.FALSE.equals(hq.affordable())?0xffdf4545:UiMenuStyle.TEXT);}
+        }
+        out.add(new Hit(bx,frameY,bw,bh,hq==null?(absent?text:"육군 사령부 배치 정보를 기다리고 있습니다."):hq.tooltip(),()->{},null,"","deploy_hq_button"));
+    }
+    private static void templateButton(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y){
+        int bx=x+u.size(18.5),by=y+u.size(3.5),size=u.size(15.5);var selection=selectedDivisions();String tip=UiCommandLabels.text("CHANGE_TEMPLATE_UNIT","");
+        String block=selectedDivisionRows().stream().filter(m->m.data()!=null).map(m->m.data().templateBlock()).filter(s->!s.isEmpty()).findFirst().orElse("");
+        if(selection.isEmpty()||!block.isEmpty()){UiAssets.drawGrayscale(g,source("change_template_button"),bx,by,size,size);out.add(new Hit(bx,by,size,size,block.isEmpty()?tip:block,()->{},null,"","change_template_button"));return;}
+        nativeButton(g,out,"change_template_button",bx,by,size,size,tip,()->MapCommanderHud.open(new Open(Mode.ARMY_TOOLBAR,"DIVISIONS_TEMPLATE",selection)));
+    }
+    private static void disbandButton(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y){
+        int bx=x+u.size(4.5),by=y+u.size(3.5),size=u.size(15.5);var selection=selectedDivisions();String tip=UiCommandLabels.text("DISBAND_ALL_UNIT","");
+        if(selection.isEmpty()){UiAssets.drawGrayscale(g,source("nv_btn_delete"),bx,by,size,size);out.add(new Hit(bx,by,size,size,tip,()->{},null,"","nv_btn_delete"));return;}
+        UiAssets.draw(g,source("nv_btn_delete"),bx,by,size,size);out.add(new Hit(bx,by,size,size,tip,()->MapCommanderHud.open(new Open(Mode.ARMY_TOOLBAR,"DIVISIONS_DISBAND",selection)),null,"ui.disband","nv_btn_delete"));
+    }
+    private static double summaryCell(int count,UiUnits u){var font=Minecraft.getInstance().font;return Math.max(u.size(13.5),font.width(Integer.toString(count))*UiText.scale(font)+4);}
+    private static int summaryExtra(Card card,UiUnits u){return current==null?0:current.cards().stream().filter(c->c.role()==Mode.ASSIGN_ARMY||c.role()==Mode.ARMY_GROUP).mapToInt(c->Math.max(0,(int)Math.ceil(summaryTypes(c).stream().mapToDouble(e->summaryCell(e.getValue(),u)).sum())-u.size(c.role()==Mode.ARMY_GROUP?110:90))).max().orElse(0);}
+    private static void selectionBackground(GuiGraphicsExtractor g,UiUnits u,int x,int y,int w){UiAssets.nineSlice(g,source("unit_list_header"),x-u.size(.5),y+u.size(3.5),w-u.size(2.5),u.size(17.5),4,u.scale()*.5);}
+    private static void armyColumns(GuiGraphicsExtractor g,UiUnits u,int x,int y,int w){int extra=w-u.size(209.5);int[] edges={0,19,38,95,121,141,171,333,357,388};for(int n=0;n<edges.length-1;n++){int bx=x+u.size(.5+edges[n]/2.0)+(n>=7?extra:0),ex=x+u.size(.5+edges[n+1]/2.0)+(n>=6?extra:0),iw=u.size(9.5);UiAssets.nineSlice(g,source("tiling_sort_button_thin"),bx,y,ex-bx,u.size(10.5),2,u.scale()*.5);UiAssets.draw(g,source("division_list_column_button").replace("frame_0","frame_"+(n==0?2:0)),bx+(ex-bx-iw)/2,y,iw,u.size(10.5));}}
     private record ArmyEntry(Card card,Member member) {}
     private static void armyStack(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Card> chosen,int bottom){
         var entries=new ArrayList<ArmyEntry>();var shown=new HashSet<String>();for(var card:chosen){entries.add(new ArmyEntry(card,null));if(MapCommanderHud.groups.rowsVisible(card.id()))armyRows(card).stream().filter(m->shown.add(m.id())).forEach(m->entries.add(new ArmyEntry(card,m)));}
@@ -204,18 +347,36 @@ final class MapCommanderPanels {
         pager(g,u,out,x,y,w,scroll>0,scroll+count<entries.size(),count);out.add(new Hit(x,top,w,y-top,"",()->{},null,""));
     }
     private static void divisionActions(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y){
-        if(!selectedDivisions().isEmpty()){
+        int consolidateX=x+u.size(118.5),consolidateY=y+u.size(3.5),consolidateSize=u.size(15.5);UiAssets.drawGrayscale(g,source("consolidate"),consolidateX,consolidateY,consolidateSize,consolidateSize);out.add(new Hit(consolidateX,consolidateY,consolidateSize,consolidateSize,UiCommandLabels.text("CONSOLIDATE","")+"\n\n"+UiCommandLabels.text("CONSOLIDATE_TOOLTIP","")+"\n\n통폐합은 아직 사용할 수 없습니다.",()->{},null,""));
+        {
             var unitIds=new HashSet<>(selectedDivisions());var rows=current.cards().stream().filter(c->c.panel()!=null).flatMap(c->c.panel().members().stream()).filter(m->unitIds.contains("unit/"+m.id())).toList();var states=rows.stream().filter(m->m.data()!=null&&m.data().strategic()!=null).map(m->m.data().strategic()).distinct().toList();boolean known=rows.stream().map(Member::id).distinct().count()==unitIds.size()&&rows.stream().allMatch(m->m.data()!=null&&m.data().strategic()!=null);Boolean state=known&&states.size()==1?states.getFirst():null;
             String title=state==null?"전략적 재배치 모드 선택":UiCommandLabels.text(state?"SWITCH_STRATEGIC_REDEPLOYMENT_MODE_OFF":"SWITCH_STRATEGIC_REDEPLOYMENT_MODE_ON","");String tip=title+"\n\n"+UiCommandLabels.text("SWITCH_STRATEGIC_REDEPLOYMENT_MODE_DETAILED","")+"\n"+UiCommandLabels.text("SWITCH_STRATEGIC_REDEPLOYMENT_MODE_DETAILED_2","");
-            int sx=x+u.size(80),sy=y+u.size(3.5);UiAssets.draw(g,source("redeployment_type_icon").replace("frame_0",Boolean.TRUE.equals(state)?"frame_1":"frame_0"),sx,sy,u.size(15.5),u.size(15.5));if(state==null)label(g,"—",sx,sy,u.size(15.5),u.size(15.5),UiMenuStyle.TEXT);out.add(new Hit(sx,sy,u.size(15.5),u.size(15.5),tip,()->landSettings("STRATEGIC_UNITS")));
+            int sx=x+u.size(103),sy=y+u.size(3.5);UiAssets.draw(g,source("redeployment_type_icon").replace("frame_0",Boolean.TRUE.equals(state)?"frame_1":"frame_0"),sx,sy,u.size(15.5),u.size(15.5));out.add(new Hit(sx,sy,u.size(15.5),u.size(15.5),tip,()->landSettings("STRATEGIC_UNITS")));
         }
-        if(!selectedDivisions().isEmpty())button(g,out,"","hold",x+u.size(165),y+u.size(3.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("HALT_UNIT","선택한 모든 부대 정지"),MapCommanderPanels::haltSelected);
+        button(g,out,"","select_half",x+u.size(164.5),y+u.size(3.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("SELECT_HALF_DIVISIONS","절반 선택"),()->{var ids=selectedDivisions();if(ids.size()>1)MapUnitHud.selectDivisions(ids.subList(0,(ids.size()+1)/2).stream().map(id->id.substring(5)).toList(),false);});
+        button(g,out,"","hold",x+u.size(180),y+u.size(3.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("HALT_UNIT","선택한 모든 부대 정지"),MapCommanderPanels::haltSelected);
     }
     private static void armySelection(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int bottom){
         var rows=selectedDivisionRows();int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),top=y,w=u.size(218.5),row=u.size(16.5);
-        background(g,"army_bg",x,y,w,row);label(g,rows.size()+"개 사단 선택됨",x,y,w-u.size(18),row,UiMenuStyle.TEXT);button(g,out,"×","nv_btn_close",x+w-u.size(15),y,u.size(13),row,"선택 해제",MapCommanderPanels::close);y+=row;
-        background(g,"air_priorities_tiled_bg",x,y,w,u.size(21));divisionActions(g,u,out,x,y);y+=u.size(21);
-        int count=Math.max(1,(bottom-y-u.size(18))/row);scroll=Math.clamp(scroll,0,Math.max(0,rows.size()-count));for(var member:rows.subList(scroll,Math.min(rows.size(),scroll+count))){member(g,u,out,member,x,y,w,row,"uv_unit_entry_bg");y+=row;}pager(g,u,out,x,y,w,scroll>0,scroll+count<rows.size(),count);out.add(new Hit(x,top,w,y-top,"",()->{},null,""));
+        boolean unassigned=!rows.isEmpty()&&rows.stream().allMatch(m->m.data()!=null&&m.data().attachedArmy().isEmpty());
+        if(!unassigned){background(g,"army_bg",x,y,w,row);label(g,rows.size()+"개 사단 선택됨",x,y,w-u.size(18),row,UiMenuStyle.TEXT);button(g,out,"×","nv_btn_close",x+w-u.size(15),y,u.size(13),row,"선택 해제",MapCommanderPanels::close);y+=row;}
+        String description=unassigned?UiCommandLabels.text("UNASSIGNED_UNIT_DESCRIPTION",""):"";int footer=description.isEmpty()?0:Minecraft.getInstance().font.split(UiTooltips.officerText(description),u.size(185)).size()*Minecraft.getInstance().font.lineHeight+u.size(12);
+        int count=Math.min(rows.stream().anyMatch(m->m.data()!=null&&m.data().attachedArmy().isEmpty())?11:Integer.MAX_VALUE,Math.max(1,(bottom-y-u.size(34.5)-footer)/row));
+        background(g,"air_priorities_tiled_bg",x,y,w,u.size(31.5)+Math.min(count,rows.size())*row+footer+u.size(4));
+        if(unassigned){
+            selectionBackground(g,u,x,y,w);
+            leftLabel(g,UiCommandLabels.text("UNITS_VIEW_DIVISIONS_COUNT","").replace("$DIV|G$","§G"+rows.size()+"§!"),x+u.size(37.5),y,u.size(65),u.size(21),UiMenuStyle.TEXT);
+            disbandButton(g,u,out,x-u.size(4),y);
+            templateButton(g,u,out,x-u.size(4),y);
+            String weight=rows.stream().allMatch(m->m.data()!=null&&m.data().transportWeight()!=null)?Long.toString(Math.round(rows.stream().mapToDouble(m->m.data().transportWeight()).sum())):"0";
+            UiAssets.draw(g,source("generic_mini_bg"),x+u.size(134.5),y+u.size(5.5),u.size(34),u.size(13));UiAssets.drawContent(g,source("topbar_convoys"),x+u.size(135.5),y+u.size(7),u.size(9),u.size(9));leftLabel(g,weight,x+u.size(145),y+u.size(6),u.size(18.5),u.size(11.5),UiMenuStyle.TEXT);
+            nativeButton(g,out,"nv_btn_close",x+w-u.size(18),y+u.size(3.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("CLOSE","닫기"),MapCommanderPanels::close);
+        }
+        divisionActions(g,u,out,x+w-u.size(218.5),y);y+=u.size(21);armyColumns(g,u,x,y,w);y+=u.size(10.5);
+        int listTop=y;scroll=Math.clamp(scroll,0,Math.max(0,rows.size()-count));for(var member:rows.subList(scroll,Math.min(rows.size(),scroll+count))){member(g,u,out,member,x,y,w-u.size(15),row,"uv_unit_entry_bg");y+=row;}armyScrollbar(g,u,out,x+w-u.size(14),listTop,u.size(9),count*row,rows.size(),count);
+        g.pose().pushMatrix();g.pose().translate(0,-u.length(.5));g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source("tiled_window_1b_thin_border")+".png"),x+u.size(1),y,x+w-u.size(2),y+u.size(3),95/190f,96/190f,179/190f,185/190f);g.pose().popMatrix();y+=u.size(3);
+        if(!description.isEmpty()){UiAssets.nineSlice(g,source("unitlist_unassigned_bg"),x+u.size(2.5),y,w-u.size(7.5),footer,4,u.scale()*.5);wrappedLabel(g,u,description,x+u.size(9),y+u.size(2),u.size(185),footer-u.size(4),true);y+=footer;}
+        out.add(new Hit(x,top,w,y-top,"",()->{},null,""));
     }
     private record FleetEntry(Card card,Member member) {}
     private static void navyStack(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Card> chosen,int bottom) {
@@ -228,7 +389,7 @@ final class MapCommanderPanels {
         }
         pager(g,u,out,x,y,w,scroll>0,index<entries.size(),Math.max(1,index-scroll));out.add(new Hit(x,top,w,Math.max(1,y-top),"",()->{},null,""));
     }
-    static void closeCard(Card card){if(!selected.remove(card.id()))return;if(card.panel()!=null)card.panel().members().forEach(member->selectedForces.remove(member.id()));if(current!=null&&current.branch()==Mode.ARMY){fullArmyCards.remove(card.id());retainManualArmySelection();syncArmySelection();}scroll=0;hits=List.of();MapCommanderOrders.selectionChanged();MapCommanderOrders.selectionScopeChanged();}
+    static void closeCard(Card card){if(dragArmySelection&&current!=null&&current.branch()==Mode.ARMY){var ids=new HashSet<String>();for(var army:current.cards())if(army.role()==Mode.ASSIGN_ARMY&&army.panel()!=null&&(army.id().equals(card.id())||card.role()==Mode.ARMY_GROUP&&army.panel().parent().equals(card.id()))&&army.panel().divisionIds()!=null)ids.addAll(army.panel().divisionIds());MapUnitHud.removeDivisions(ids);mapSelectionChanged(true);scroll=0;MapCommanderOrders.selectionScopeChanged();return;}if(templateCard.equals(card.id())){templateCard="";hits=List.of();}if(!selected.remove(card.id()))return;if(card.panel()!=null)card.panel().members().forEach(member->selectedForces.remove(member.id()));if(current!=null&&current.branch()==Mode.ARMY){fullArmyCards.remove(card.id());retainManualArmySelection();syncArmySelection();}scroll=0;hits=List.of();MapCommanderOrders.selectionChanged();MapCommanderOrders.selectionScopeChanged();}
     private static void navyHeader(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,Card card,int x,int y,int w,int h){
         background(g,"fleet_bg",x,y,w,h);label(g,card.name(),x+u.size(35),y+u.size(6),u.size(106),u.size(11.5),UiMenuStyle.TEXT);label(g,Integer.toString(card.count()),x+u.size(159),y+u.size(5),u.size(45),u.size(11.5),UiMenuStyle.TEXT);
         button(g,out,"×","nv_btn_close",x+u.size(227),y+u.size(2.5),u.size(13.5),u.size(13.5),UiCommandLabels.text("CLOSE","닫기"),()->closeCard(card));
@@ -256,13 +417,14 @@ final class MapCommanderPanels {
     }
     private static void member(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,Member member,int x,int y,int w,int h,String asset) {
         if(member.request().mode()==Mode.AIR_MISSION&&member.data()!=null&&member.data().air()!=null&&member.data().air().wing()!=null){airMember(g,u,out,member,x,y,w,h);return;}
-        background(g,asset,x,y,w,h);if(member.request().mode()==Mode.NAVAL_MISSION&&selectedForces.contains(member.id()))UiAssets.draw(g,source("task_force_bg_hl"),x,y,w,h);if(member.request().mode()==Mode.ARMY_UNITS&&MapUnitHud.selectedKeys().contains("unit/"+member.id()))UiAssets.draw(g,source(asset).replace("frame_0","frame_1"),x,y,w,h);if(member.request().mode()==Mode.AIR_MISSION&&selectedWings.contains(member.id()))UiAssets.draw(g,source(asset).replace("frame_0","frame_1"),x,y,w,h);UiAssets.drawContent(g,member.icon(),x+u.size(6),y+u.size(2),u.size(24),Math.min(h-u.size(4),u.size(24)));
+        if(member.request().mode()==Mode.ARMY_UNITS){armyMember(g,u,out,member,x,y,w,h,asset);return;}
+        background(g,asset,x,y,w,h);if(member.request().mode()==Mode.NAVAL_MISSION&&selectedForces.contains(member.id()))UiAssets.draw(g,source("task_force_bg_hl"),x,y,w,h);if(member.request().mode()==Mode.AIR_MISSION&&selectedWings.contains(member.id()))UiAssets.draw(g,source(asset).replace("frame_0","frame_1"),x,y,w,h);UiAssets.drawContent(g,member.icon(),x+u.size(6),y+u.size(2),u.size(24),Math.min(h-u.size(4),u.size(24)));
         if(member.strength()>=0)nativeBar(g,"repair_hp",x+u.size(2),y+u.size(2),u.size(3),h-u.size(4),member.strength(),true);
         boolean air=member.request().mode()==Mode.AIR_MISSION;
         label(g,member.name(),x+u.size(33),y+u.size(1),w-u.size(member.request().mode()==Mode.NAVAL_MISSION?125:48),Math.min(h,u.size(air?9:14)),UiMenuStyle.TEXT);
         if(h>u.size(20))label(g,member.status(),x+u.size(33),y+u.size(air?13:19),w-u.size(48),u.size(air?9:14),0xFFD5CA7D);
-        if(member.organization()!=null&&(member.request().mode()==Mode.ARMY_UNITS||member.request().mode()==Mode.NAVAL_MISSION))nativeBar(g,"repair_org",x+u.size(5),y+u.size(2),u.size(3),h-u.size(4),member.organization(),true);
-        if(member.organization()!=null&&member.request().mode()!=Mode.ARMY_UNITS&&member.request().mode()!=Mode.NAVAL_MISSION)nativeBar(g,"repair_org",x+u.size(30),y+h-u.size(5),u.size(75),u.size(3),member.organization(),false);
+        if(member.organization()!=null&&member.request().mode()==Mode.NAVAL_MISSION)nativeBar(g,"repair_org",x+u.size(5),y+u.size(2),u.size(3),h-u.size(4),member.organization(),true);
+        if(member.organization()!=null&&member.request().mode()!=Mode.NAVAL_MISSION)nativeBar(g,"repair_org",x+u.size(30),y+h-u.size(5),u.size(75),u.size(3),member.organization(),false);
         if(!member.composition().isEmpty()) {int cx=x+u.size(6);for(var entry:new TreeMap<>(member.composition()).entrySet()){UiAssets.draw(g,entry.getKey(),cx,y+h-u.size(21),u.size(18),u.size(9));label(g,entry.getValue().toString(),cx,y+h-u.size(12),u.size(18),u.size(9),UiMenuStyle.TEXT);out.add(new Hit(cx,y+h-u.size(21),u.size(18),u.size(18),hullTooltip(entry.getKey(),entry.getValue()),()->selectForce(member.id()),null,"ui.division.select"));cx+=u.size(23);}}
         if(air&&member.data()!=null&&!member.data().attachedArmy().isEmpty()){
             int ax=x+w-u.size(17),ay=y+u.size(3);UiAssets.draw(g,source("theatre_army_shield"),ax,ay,u.size(13.2),u.size(12.8));out.add(new Hit(ax,ay,u.size(15.5),u.size(15.5),UiCommandLabels.text("ATTACHED_AIR_WING_DELAYED_DESC","부속된 군 선택 · 부속 취소"),()->{},(button,twice)->{if(button==InputConstants.MOUSE_BUTTON_LEFT){selectedWings.clear();wingList=false;MapUnitHud.clearSelection();select(member.data().attachedArmy(),false);}else if(button==InputConstants.MOUSE_BUTTON_RIGHT)MapCommanderHud.open(new Open(Mode.AIR_ATTACH,member.id(),List.of("action/detach")));},"ui.click"));
@@ -272,9 +434,6 @@ final class MapCommanderPanels {
             for(int n=0;n<icons.length;n++){String tab=tabs[n];int frame=state==null?0:n==0&&state.repairPolicy()!=null?state.repairPolicy():n==2?List.of("NEVER","LOW","MEDIUM","HIGH","ALWAYS").indexOf(state.engagement()):0;String icon=n==0&&(state==null||state.repairPolicy()==null)?source("nv_btn_repair_symbol"):source(icons[n]).replace("frame_0","frame_"+frame);int bx=x+w-u.size(17+n*17);UiAssets.draw(g,icon,bx,y+u.size(2),u.size(15.5),u.size(15.5));String tip=UiCommandLabels.text(keys[n],List.of("수리 우선순위","자동 분리 수리","교전 규칙","태스크 포스 편성","자동 증원").get(n));if(state!=null){if(n==0)tip=state.repairPolicy()==null?"수리 우선순위 미설정\n\n"+tip:UiCommandLabels.text("NAVY_REPAIR_POLICY_"+state.repairPolicy(),tip);if(n==2)tip=UiCommandLabels.text("SHIP_ENGAGEMENT_BUTTON_AGGRESSIVENESS_"+(frame+1),state.engagement())+"\n\n"+UiCommandLabels.text("SHIP_ENGAGEMENT_BUTTON_AGGRESSIVENESS_"+(frame+1)+"_DESC","")+"\n\n"+tip;if(n==1||n==4){Boolean enabled=n==1?state.autoSplit():state.reinforce();tip+=(enabled==null?"\n\n미설정":enabled?"\n\n활성화":"\n\n비활성화");}}if(n==0){Integer policy=state==null?null:state.repairPolicy();if(policy!=null){String next=UiCommandLabels.text("NAVY_REPAIR_POLICY_"+((policy+1)%4),"").split("\n",2)[0],previous=UiCommandLabels.text("NAVY_REPAIR_POLICY_"+((policy+3)%4),"").split("\n",2)[0];tip+="\n"+UiCommandLabels.text("NAVY_REPAIR_POLICY_CLICK_TO_CHANGE_TO","").replace("$LEVEL|$",next)+"\n"+UiCommandLabels.text("NAVY_REPAIR_POLICY_RIGHT_CLICK_TO_CHANGE_TO","").replace("$LEVEL|$",previous);}else tip+="\n\n수리 우선순위를 먼저 선택하세요.";out.add(new Hit(bx,y+u.size(2),u.size(15.5),u.size(15.5),tip,()->MapCommanderOrders.repairPolicy(member.id(),policy,false),(button,twice)->{if(button==InputConstants.MOUSE_BUTTON_LEFT||button==InputConstants.MOUSE_BUTTON_RIGHT)MapCommanderOrders.repairPolicy(member.id(),policy,button==InputConstants.MOUSE_BUTTON_RIGHT);},"ui.click"));}else if(n==1||n==2||n==4){int setting=n;if(state==null)tip+="\n\n태스크 포스 설정을 불러오는 중입니다.";if(n==2)tip+="\n\n클릭: 다음 교전 규칙\n우클릭: 이전 교전 규칙";out.add(new Hit(bx,y+u.size(2),u.size(15.5),u.size(15.5),tip,()->navalSetting(member,setting,false),(button,twice)->{if(button==InputConstants.MOUSE_BUTTON_LEFT||setting==2&&button==InputConstants.MOUSE_BUTTON_RIGHT)navalSetting(member,setting,button==InputConstants.MOUSE_BUTTON_RIGHT);},"ui.click"));}else out.add(new Hit(bx,y+u.size(2),u.size(15.5),u.size(15.5),tip,()->MapCommanderHud.open(new Open(Mode.NAVAL_SETTINGS,member.id(),tab.isEmpty()?List.of():List.of(tab)))));}
             out.add(new Hit(x+u.size(6),y+u.size(2),u.size(24),u.size(24),"태스크 포스 표식 변경",()->MapCommanderHud.open(new Open(Mode.NAVAL_SETTINGS,member.id(),List.of("insignia")))));
         }
-        if(member.request().mode()==Mode.ARMY_UNITS){
-            out.add(new Hit(x,y,w,h,member.name()+"\n"+member.status()+"\n\n"+member.detail()+"\n\n§G클릭§!하여 선택\n§GCtrl+클릭§!하여 선택 전환\n§G더블클릭§!하여 같은 편제 선택\n§G우클릭§!하여 사단 위치로 이동",()->{},(button,twice)->{if(button==InputConstants.MOUSE_BUTTON_RIGHT){dev.hoi.client.audio.AudioUiSounds.play("ui.click");MapCommanderHud.open(new Open(Mode.ARMY_TOOLBAR,"FOCUS_UNIT",List.of("unit/"+member.id())));return;}if(button!=InputConstants.MOUSE_BUTTON_LEFT)return;dev.hoi.client.audio.AudioUiSounds.play("ui.division.select");var matching=twice&&member.data()!=null?current.cards().stream().filter(c->c.panel()!=null&&selected.contains(c.id())).flatMap(c->c.panel().members().stream()).filter(m->m.data()!=null&&m.request().mode()==Mode.ARMY_UNITS&&m.data().template().equals(member.data().template())).map(Member::id).distinct().toList():List.of(member.id());MapUnitHud.selectDivisions(matching,control());}));return;
-        }
         String airDetail=air&&member.data()!=null&&member.data().air()!=null?"\n\n"+member.data().air().airGroupName()+"\n"+airPolicyTooltip(member.data().air().reinforcementPolicy()):"";
         out.add(new Hit(x,y,w,h,member.name()+"\n"+member.status()+"\n\n"+member.detail()+airDetail,()->{
             if(member.request().mode()==Mode.NAVAL_MISSION)selectForce(member.id());
@@ -282,24 +441,83 @@ final class MapCommanderPanels {
             else MapCommanderHud.open(member.request());
         },null,"ui.division.select"));
     }
+    static String armyUnitIcon(String icon){
+        String type=icon.substring(icon.lastIndexOf('/')+1);
+        String sprite=switch(type){case "motorized_infantry"->"motorized";case "mechanized_infantry"->"mechanized";case "airborne"->"paratrooper";case "mountaineer"->"mountaineers";case "tank"->"modern_armor";case "light_tank"->"light_armor";case "artillery"->"artillery_brigade";case "self_propelled_artillery"->"modern_sp_artillery_brigade";case "anti_tank"->"anti_tank_brigade";case "recce"->"recce";case "headquarters"->"bus";case "motorized_rocket_artillery"->"motorized_rocket_brigade";case "motorized_militia"->"mot_militia";case "exoskeleton_infantry"->"exoskeleton_unit";default->type;};
+        String asset=source("unit_"+sprite+"_icon_medium");return UiAssets.imageHeight(asset,76)>0?asset:icon;
+    }
+    private static void armyMember(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,Member member,int x,int y,int w,int h,String asset){
+        int extra=w-u.size(194.5);UiAssets.nineSlice(g,source(asset),x,y,w,h,4,u.scale()*.5);if(MapUnitHud.selectedKeys().contains("unit/"+member.id()))UiAssets.nineSlice(g,source(asset).replace("frame_0","frame_1"),x,y,w,h,4,u.scale()*.5);
+        verticalProgress(g,"navieslist_bar_org",x+u.size(1.5),y+u.size(2),u.size(3),h-u.size(4),member.organization());
+        verticalProgress(g,"navieslist_bar_str",x+u.size(5.5),y+u.size(2),u.size(3),h-u.size(4),member.strength()<0?null:member.strength());
+        UiAssets.draw(g,source("unitlist_unitinfo_button"),x+u.size(10),y+u.size(.5),u.size(38),u.size(15.5));
+        g.enableScissor(x,y,x+w,y+h);UiAssets.draw(g,armyUnitIcon(member.icon()),x+u.size(9.5),y-u.size(3),u.size(38),u.size(21));g.disableScissor();
+        if(member.data()!=null&&!member.data().orderWarning().isEmpty()){String warning=member.data().orderWarning().equals("INVALID_ORDERS")?"mapicon_unit_invalid_orders":"mapicon_unit_no_orders";UiAssets.draw(g,source(warning),x+u.size(12),y+u.size(2),u.size(6),u.size(7));out.add(new Hit(x+u.size(12),y+u.size(2),u.size(6),u.size(7),member.data().orderTooltip(),()->{},null,"","army_order_warning"));}
+        float experienceX=x+(u.size(48)+u.size(61)-u.scale()*16.5f)/2f,planX=x+(u.size(61)+u.size(71)-u.size(2.5))/2f;
+        if(member.data()!=null&&member.data().experienceLevel()!=null){g.pose().pushMatrix();g.pose().translate(experienceX,y+u.scale()*2.5f);g.pose().scale(u.scale()*.5f);UiAssets.draw(g,source("unit_level").replace("frame_0","frame_"+member.data().experienceLevel()),0,0,27,27);g.pose().popMatrix();}
+        verticalProgress(g,"unit_xp_bar",experienceX+u.scale()*13.5f,y+u.size(1.5),u.size(3),u.size(14),member.data()==null?null:member.data().experienceProgress());
+        int activityX=x+(u.size(71)+u.size(86)-u.size(11)-u.size(2.5))/2;
+        verticalProgress(g,"unitlist_bar_prepare",planX,y+u.size(2),u.size(2.5),u.size(12),member.data()==null?null:member.data().planPower());
+        String activity=member.data()==null?"":member.data().activity();String status=switch(activity){case "MOVING","TRANSIT"->"unitlist_movement_icon";case "RETREATING"->"unitlist_movement_icon/frame_1";case "TRAINING"->"exercise_icon";case "FIGHTING"->"land_unit_combat_icon";default->"unitlist_dig_in_icon";};
+        UiAssets.draw(g,status.contains("/")?"commander/commands/"+status:source(status),activityX,y+u.size(2),u.size(11),u.size(13));
+        int climate=acclimatizationFrame(member.data());if(climate>=0)UiAssets.draw(g,source("unitlist_acclimatization").replace("frame_0","frame_"+climate),x+u.size(70),y+u.size(8),u.size(6),u.size(6));
+        verticalProgress(g,"unitlist_bar_prepare",activityX+u.size(11),y+u.size(2),u.size(2.5),u.size(12),member.data()==null?null:member.data().entrenchmentProgress());
+        leftLabel(g,member.name(),x+u.size(87),y+u.size(1),u.size(79)+extra,h-u.size(2),UiMenuStyle.TEXT);
+        UiAssets.draw(g,source("fuel_strip"),x+extra+u.size(168),y+u.size(3),u.size(9),u.size(11));
+        out.add(new Hit(x+extra+u.size(168),y+u.size(3),u.size(9),u.size(11),member.detail()+"\n\n연료: "+(member.data()==null||member.data().fuel()==null?"?":String.format(Locale.ROOT,"%.1f%%",member.data().fuel()*100)),()->{},null,""));
+        boolean unassigned=member.data()!=null&&member.data().attachedArmy().isEmpty();
+        if(unassigned)nativeButton(g,out,"nv_btn_close",x+extra+u.size(178.5),y+u.size(.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("DESELECT_UNIT","선택 해제"),()->MapUnitHud.selectDivisions(selectedDivisionRows().stream().map(Member::id).filter(id->!id.equals(member.id())).toList(),false));
+        else UiAssets.drawTinted(g,source("theatre_army_shield").replace("frame_0","frame_"+(member.data()==null||member.data().insignia()==null?0:member.data().insignia())),x+extra+u.size(178),y+u.size(.5),u.size(16.5),u.size(16),member.data()==null||member.data().armyColor()==null?0xffffffff:0xff000000|member.data().armyColor());
+        var army=current.cards().stream().filter(c->c.role()==Mode.ASSIGN_ARMY&&c.panel()!=null&&member.data()!=null&&c.id().equals(member.data().attachedArmy())).findFirst().orElse(null);var insignia=army==null?null:army.panel().controls().stream().filter(c->c.id().equals("ARMY_INSIGNIA")).findFirst().orElse(null);
+        if(!unassigned)out.add(new Hit(x+extra+u.size(178),y+u.size(.5),u.size(16.5),u.size(16),insignia==null?UiCommandLabels.text("CHOOSE_INSIGNIA","")+"\n\n소속 군의 휘장 선택 자료가 없습니다.":insignia.tooltip(),()->{if(insignia!=null&&insignia.enabled())MapCommanderHud.open(insignia.request());}));
+            out.add(new Hit(x,y,w,h,member.name()+"\n"+member.status()+"\n\n"+member.detail()+"\n\n§G클릭§!하여 선택\n§GCtrl+클릭§!하여 선택 전환\n§G더블클릭§!하여 같은 편제 선택\n§G우클릭§!하여 사단 위치로 이동",()->{},(button,twice)->{if(button==InputConstants.MOUSE_BUTTON_RIGHT){dev.hoi.client.audio.AudioUiSounds.play("ui.click");MapCommanderHud.open(new Open(Mode.ARMY_TOOLBAR,"FOCUS_UNIT",List.of("unit/"+member.id())));return;}if(button!=InputConstants.MOUSE_BUTTON_LEFT)return;dev.hoi.client.audio.AudioUiSounds.play("ui.division.select");var matching=twice&&member.data()!=null?current.cards().stream().filter(c->c.panel()!=null&&selected.contains(c.id())).flatMap(c->c.panel().members().stream()).filter(m->m.data()!=null&&m.request().mode()==Mode.ARMY_UNITS&&m.data().template().equals(member.data().template())).map(Member::id).distinct().toList():List.of(member.id());MapUnitHud.selectDivisions(matching,control());}));return;
+    }
+    static int acclimatizationFrame(MemberData data){if(data==null)return -1;double cold=data.coldAcclimatization()==null?0:data.coldAcclimatization(),hot=data.hotAcclimatization()==null?0:data.hotAcclimatization();if(cold<=0&&hot<=0)return -1;return (hot>cold?2:0)+(Math.max(cold,hot)>=1?1:0);}
+    private static void verticalProgress(GuiGraphicsExtractor g,String asset,float x,int y,int w,int h,Double ratio){
+        for(boolean fill:List.of(false,true)){if(fill){if(ratio==null)return;int extent=(int)Math.round(h*Math.clamp(ratio,0,1));if(extent<=0)return;g.enableScissor((int)Math.floor(x),y+h-extent,(int)Math.ceil(x+w),y+h);}g.pose().pushMatrix();g.pose().translate(x,y+h);g.pose().rotate(-(float)Math.PI/2);g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/commander/commands/"+asset+"/"+(fill?"fill":"background")+"/frame_0.png"),0,0,h,w,0,1,0,1);g.pose().popMatrix();if(fill)g.disableScissor();}
+    }
     private static void nativeBar(GuiGraphicsExtractor g,String asset,int x,int y,int w,int h,double ratio,boolean vertical){
         nativeBarImage(g,"repair_stat_bg",x,y,w,h,vertical);int fill=(int)Math.round((vertical?h:w)*Math.clamp(ratio,0,1));if(fill<=0)return;
         g.enableScissor(x,vertical?y+h-fill:y,vertical?x+w:x+fill,y+h);nativeBarImage(g,asset,x,y,w,h,vertical);g.disableScissor();
     }
+    static void progress(GuiGraphicsExtractor g,String asset,int x,int y,int w,int h,Double ratio,int fillColor,int backgroundColor){
+        String base="commander/commands/"+asset;if(asset.equals("plan_unit_power"))g.fill(x,y,x+w,y+h,backgroundColor);else UiAssets.drawTinted(g,base+"/background/frame_0",x,y,w,h,backgroundColor);if(ratio==null)return;int fill=(int)Math.round(w*Math.clamp(ratio,0,1));if(fill<=0)return;g.enableScissor(x,y,x+fill,y+h);UiAssets.drawTinted(g,base+"/fill/frame_0",x,y,w,h,fillColor);g.disableScissor();
+    }
     private static void nativeBarImage(GuiGraphicsExtractor g,String asset,int x,int y,int w,int h,boolean vertical){
         g.pose().pushMatrix();g.pose().translate(x,vertical?y+h:y);if(vertical)g.pose().rotate(-(float)Math.PI/2);g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/picker/"+asset+".png"),0,0,vertical?h:w,vertical?w:h,0,1,0,1);g.pose().popMatrix();
     }
-    private static void pager(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y,int w,boolean previous,boolean next,int step){if(!previous&&!next)return;if(previous)button(g,out,"‹","",x,y,u.size(20),u.size(17),"이전",()->scroll=Math.max(0,scroll-step));if(next)button(g,out,"›","",x+w-u.size(20),y,u.size(20),u.size(17),"다음",()->scroll+=step);}
-    private static void commandIcon(GuiGraphicsExtractor g,UiUnits u,String icon,int x,int y,int w,int h){int inset=Math.max(1,u.size(1));UiAssets.drawContent(g,icon,x+inset,y+inset,Math.max(1,w-2*inset),Math.max(1,h-2*inset));}
+    private static void armyListBackground(GuiGraphicsExtractor g,UiUnits u,int x,int y,int w,int h){
+        int bottom=y+h-u.size(4);g.enableScissor(x,y,x+w,bottom);
+        UiAssets.tiledNineSlice(g,source("tiled_window_1b_thin_border"),x,y,w,h,64,u.scale()*.5);g.disableScissor();
+        var texture=net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source("tiled_window_1b_thin_border")+".png");int width=Math.round(w/(u.scale()*.5f));
+        g.pose().pushMatrix();g.pose().translate(x,bottom);g.pose().scale(u.scale()*.5f);
+        g.blit(texture,0,0,64,3,0,64/190f,182/190f,185/190f);g.blit(texture,64,0,width-64,3,64/190f,126/190f,182/190f,185/190f);g.blit(texture,width-64,0,width,3,126/190f,1,182/190f,185/190f);g.pose().popMatrix();
+    }
+    private static void armyScrollbar(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y,int w,int h,int total,int visible){
+        if(total<=visible||h<=u.size(18))return;
+        int arrow=u.size(8),track=h-2*arrow,thumb=u.size(8),maximum=total-visible;
+        x+=(w-arrow)/2;w=arrow;
+        var background=net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source("scrollbar_vertical_bg")+".png");int edge=Math.min(h/2,u.size(26)),bx=x-u.size(.5),bw=u.size(9);
+        g.blit(background,bx,y,bx+bw,y+edge,0,1,0,1/3f);g.blit(background,bx,y+edge,bx+bw,y+h-edge,0,1,1/3f,2/3f);g.blit(background,bx,y+h-edge,bx+bw,y+h,0,1,2/3f,1);
+        UiAssets.nineSlice(g,source("scroll_track"),x+u.size(1),y+arrow,u.size(6),track,4,u.scale()*.5);
+        nativeButton(g,out,"scroll_up",x,y,w,arrow,"이전 사단",()->scroll=Math.max(0,scroll-1));
+        nativeButton(g,out,"scroll_down",x,y+h-arrow,w,arrow,"다음 사단",()->scroll=Math.min(maximum,scroll+1));
+        int thumbY=y+arrow+(int)Math.round((track-thumb)*scroll/(double)maximum);
+        UiAssets.draw(g,source("scroll_drager"),x,thumbY,w,thumb);
+        scrollbar=new Scrollbar(x,y+arrow,w,track,thumb,maximum);
+        out.add(new Hit(x,y+arrow,w,track,"",()->{},null,"","army_scrollbar"));
+    }
+    private static void pager(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y,int w,boolean previous,boolean next,int step){if(!previous&&!next)return;int bottom=MapCommanderHud.boxes().stream().mapToInt(MapCommanderHud.Box::y).min().orElse(u.height()),height=Math.min(u.size(17),bottom-y);if(height<Minecraft.getInstance().font.lineHeight)return;if(previous)button(g,out,"‹","",x,y,u.size(20),height,"이전",()->scroll=Math.max(0,scroll-step));if(next)button(g,out,"›","",x+w-u.size(20),y,u.size(20),height,"다음",()->scroll+=step);}
+    private static void commandIcon(GuiGraphicsExtractor g,UiUnits u,String icon,int x,int y,int w,int h){int inset=Math.max(1,u.size(1));if(icon.equals(source("bpt_order_draw_naval_inv_with_harbor_btn"))){int width=Math.max(1,w-2*inset),height=Math.min(Math.max(1,h-2*inset),Math.max(1,(int)Math.round(width*32/35.5)));g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/commander/commands/bpt_order_draw_naval_inv_with_harbor_btn/atlas.png"),x+inset,y+(h-height)/2,x+inset+width,y+(h-height)/2+height,0,.5f,0,1);return;}UiAssets.drawContent(g,icon,x+inset,y+inset,Math.max(1,w-2*inset),Math.max(1,h-2*inset));}
     private static void armyButton(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,String icon,int x,int y,int slot,String tip,Runnable action){
         String command=switch(icon){case "bpt_order_unassign_units_btn"->"ARMY/UNASSIGN_UNITS";case "bpt_order_assign_units_btn"->"LAND/ASSIGN_UNITS";case "bpt_order_reshape_btn"->"LAND/EDIT_PLAN";case "exercise_icon"->"ARMY/"+(selectedArmies().stream().flatMap(c->c.panel().controls().stream()).anyMatch(c->c.id().equals("STOP_EXERCISE"))?"STOP_EXERCISE":shift()?"EXERCISE_UNTIL_TRAINED":"EXERCISE");default->"";};
-        var cell=MapCommanderLayout.armyCell(u,x,y,slot);commandIcon(g,u,source(icon),cell.x(),cell.y(),cell.width(),cell.height());if(!MapCommanderAvailability.reason(command).isEmpty())g.fill(cell.x(),cell.y(),cell.x()+cell.width(),cell.y()+cell.height(),0x88000000);
-        out.add(new Hit(cell.x(),cell.y(),cell.width(),cell.height(),MapCommanderAvailability.tooltip(command,tip),()->{if(MapCommanderAvailability.allow(command))action.run();},null,"ui.battleplan"));
+        var cell=MapCommanderLayout.armyCell(u,x,y,slot);commandIcon(g,u,source(icon).replace("frame_0",icon.startsWith("bpt_execute_")||icon.startsWith("bpt_cohesion_")?"frame_1":"frame_0"),cell.x(),cell.y(),cell.width(),cell.height());
+        out.add(new Hit(cell.x(),cell.y(),cell.width(),cell.height(),MapCommanderAvailability.tooltip(command,tip),()->{if(MapCommanderAvailability.allow(command))action.run();},null,"ui.battleplan",icon));
     }
     private static void actionbar(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Card> cards,int y,int popupBottom) {
-        boolean navy=current.branch()==Mode.NAVY_HQ;int w=u.size(navy?266:320.5),h=u.size(navy?50:39.5),x=(g.guiWidth()-w)/2;
+        boolean navy=current.branch()==Mode.NAVY_HQ;int w=u.size(navy?266:320.5),h=u.size(navy?50:39.5),x=MapCommanderLayout.commandLeft(u,navy);
         background(g,navy?"air_priorities_tiled_bg":"bpt_bg",x,y,w,h);
-        label(g,cards.isEmpty()?"군을 선택하세요":navy?navalCaption(cards):cards.size()==1?cards.getFirst().name():cards.size()+" 선택됨",x+u.size(7),y+u.size(3),w-u.size(30),u.size(11),UiMenuStyle.TEXT);
+        leftLabel(g,navy?navalCaption(cards):cards.stream().filter(c->c.panel()!=null).map(c->c.panel().commandCaption()).filter(c->!c.isEmpty()).distinct().reduce((a,b)->a+" · "+b).orElse(""),x+u.size(7),y+u.size(3),w-u.size(navy?30:14),u.size(11),UiMenuStyle.TEXT);
         if(navy) {
             var ids=cards.stream().filter(c->c.panel()!=null).flatMap(c->c.panel().members().stream()).map(Member::id).filter(id->!specificForces||selectedForces.contains(id)).distinct().toList();
             branchButtons(g,u,out,true,ids,x,y);int rx=x+u.size(248),ry=y+u.size(27);UiAssets.draw(g,source("nv_btn_remove_regions"),rx,ry,u.size(13.5),u.size(13.5));out.add(new Hit(rx,ry,u.size(13.5),u.size(13.5),UiCommandLabels.text("NAVAL_BTN_REMOVE_REGIONS", "배정 해역 제거"),()->{},(button,twice)->{if(button==InputConstants.MOUSE_BUTTON_LEFT||button==InputConstants.MOUSE_BUTTON_RIGHT){dev.hoi.client.audio.AudioUiSounds.play("ui.click");navalAreas(button==InputConstants.MOUSE_BUTTON_RIGHT);}}));forceBand(g,u,out,cards,x,y+h+u.size(4),w);navalTargets(g,u,out,x,y,popupBottom);
@@ -310,30 +528,34 @@ final class MapCommanderPanels {
                 if(matching.isEmpty()){
                     String icon=Map.of("INVASION","bpt_order_draw_naval_inv_btn","FRONT","bpt_order_draw_defence_btn","OFFENSIVE","bpt_order_draw_offence_btn","SPEARHEAD","bpt_order_draw_blitz_btn","FALLBACK","bpt_order_draw_fallback_btn","AREA_DEFENSE","bpt_order_area_defense_btn").get(type);
                     String key=Map.of("INVASION","UNITS_VIEW_BTN_DRAW_NAVAL_INV","FRONT","UNITS_VIEW_BTN_DRAW_DEFENCE","OFFENSIVE","UNITS_VIEW_BTN_DRAW_OFFENCE","SPEARHEAD","UNITS_VIEW_BTN_DRAW_BLITZ","FALLBACK","UNITS_VIEW_BTN_DRAW_FALLBACK","AREA_DEFENSE","UNITS_VIEW_BTN_AREA_DEFENSE").get(type);
-                    var cell=MapCommanderLayout.armyCell(u,x,y,Map.of("INVASION",4,"FRONT",6,"OFFENSIVE",7,"SPEARHEAD",8,"FALLBACK",9,"AREA_DEFENSE",10).get(type));commandIcon(g,u,source(icon),cell.x(),cell.y(),cell.width(),cell.height());g.fill(cell.x(),cell.y(),cell.x()+cell.width(),cell.y()+cell.height(),0x66000000);out.add(new Hit(cell.x(),cell.y(),cell.width(),cell.height(),UiCommandLabels.text(key,type)+"\n\n명령을 지정할 군을 선택하세요.",()->{}));continue;
+                    var cell=MapCommanderLayout.armyCell(u,x,y,Map.of("INVASION",5,"FRONT",7,"OFFENSIVE",8,"SPEARHEAD",9,"FALLBACK",10,"AREA_DEFENSE",11).get(type));commandIcon(g,u,source(icon),cell.x(),cell.y(),cell.width(),cell.height());out.add(new Hit(cell.x(),cell.y(),cell.width(),cell.height(),UiCommandLabels.text(key,type)+"\n\n명령을 지정할 군을 선택하세요.",()->{}));continue;
                 }
                 var first=matching.getFirst();
-                var cell=MapCommanderLayout.armyCell(u,x,y,Map.of("INVASION",4,"FRONT",6,"OFFENSIVE",7,"SPEARHEAD",8,"FALLBACK",9,"AREA_DEFENSE",10).get(type));commandIcon(g,u,first.icon(),cell.x(),cell.y(),cell.width(),cell.height());
-                String reason=armyControlReason(type);if(!reason.isEmpty())g.fill(cell.x(),cell.y(),cell.x()+cell.width(),cell.y()+cell.height(),0x88000000);
+                var cell=MapCommanderLayout.armyCell(u,x,y,Map.of("INVASION",5,"FRONT",7,"OFFENSIVE",8,"SPEARHEAD",9,"FALLBACK",10,"AREA_DEFENSE",11).get(type));commandIcon(g,u,first.icon(),cell.x(),cell.y(),cell.width(),cell.height());
+                String reason=armyControlReason(type);
                 out.add(new Hit(cell.x(),cell.y(),cell.width(),cell.height(),MapCommanderAvailability.explain(UiCommandLabels.withoutShortcuts(type.equals("FRONT")&&cards.stream().anyMatch(c->c.role()==Mode.ARMY_GROUP)?UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_DEFENCE_ARMY_GROUP",first.tooltip()):first.tooltip()),reason),()->{openArmyControl(type);},null,"ui.battleplan"));bx+=u.size(21);
             }
-            armyButton(g,u,out,"bpt_order_unassign_units_btn",x,y,12,UiCommandLabels.text("UNITS_VIEW_BTN_UNITS_UNASSIGN",""),()->landSettings("UNASSIGN_UNITS"));
-            armyButton(g,u,out,"bpt_order_assign_units_btn",x,y,11,UiCommandLabels.text("UNITS_VIEW_BTN_UNITS_ASSIGN", "사단 배정 모드"),MapCommanderOrders::assignSelected);
+            var airborne=MapCommanderLayout.armyCell(u,x,y,4);commandIcon(g,u,source("bpt_order_draw_paradrop_btn"),airborne.x(),airborne.y(),airborne.width(),airborne.height());out.add(new Hit(airborne.x(),airborne.y(),airborne.width(),airborne.height(),UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_PARADROP","")+"\n\n공수 작전 실행은 아직 지원하지 않습니다.",()->{}));
+            var harbor=MapCommanderLayout.armyCell(u,x,y,6);commandIcon(g,u,source("bpt_order_draw_naval_inv_with_harbor_btn"),harbor.x(),harbor.y(),harbor.width(),harbor.height());out.add(new Hit(harbor.x(),harbor.y(),harbor.width(),harbor.height(),UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_NAVAL_INV_WITH_HARBOR","")+"\n\n부유항을 이용한 해상 침공은 아직 지원하지 않습니다.",()->{}));
+            armyButton(g,u,out,"bpt_order_unassign_units_btn",x,y,13,UiCommandLabels.text("UNITS_VIEW_BTN_UNITS_UNASSIGN",""),()->landSettings("UNASSIGN_UNITS"));
+            armyButton(g,u,out,"bpt_order_assign_units_btn",x,y,12,UiCommandLabels.text("UNITS_VIEW_BTN_UNITS_ASSIGN", "사단 배정 모드"),MapCommanderOrders::assignSelected);
             var armies=current.cards().stream().filter(c->c.panel()!=null&&c.role()!=Mode.ARMY_GROUP&&cards.stream().anyMatch(chosen->chosen.id().equals(c.id())||chosen.id().equals(c.panel().parent()))).map(Card::id).distinct().toList();
             boolean training=controls.stream().anyMatch(c->c.id().equals("STOP_EXERCISE"));
             armyButton(g,u,out,"exercise_icon",x,y,0,training?UiCommandLabels.text("UNITS_VIEW_BTN_STOP_TRAINING_TOOLTIP","훈련 중지"):controls.stream().filter(c->c.id().equals("EXERCISE")).map(Control::tooltip).findFirst().orElse(UiCommandLabels.text("UNITS_VIEW_BTN_START_TRAINING","훈련")),()->{if(!armies.isEmpty())MapCommanderHud.open(new Open(Mode.ARMY_TOOLBAR,training?"STOP_EXERCISE":shift()?"EXERCISE_UNTIL_TRAINED":"EXERCISE",armies));});
-            var cohesion=controls.stream().filter(c->c.id().equals("COHESION_IMMOBILE")||c.id().equals("COHESION_CURRENT")).toList();if(!cohesion.isEmpty())armyButton(g,u,out,"bpt_cohesion_immobile",x,y,2,UiCommandLabels.text("PLAN_COHESION_MODE","")+"\n\n"+cohesion.getFirst().tooltip(),MapCommanderPanels::openCohesion);
-            armyButton(g,u,out,"bpt_execute_mid",x,y,1,UiCommandLabels.text("PLAN_EXECUTE_MODE","전투 계획 실행 모드"),()->postureMenu=!postureMenu);
+            var cohesion=controls.stream().filter(c->c.id().equals("COHESION_IMMOBILE")||c.id().equals("COHESION_CURRENT")).toList();armyButton(g,u,out,cohesion.stream().anyMatch(c->c.id().equals("COHESION_IMMOBILE"))?"bpt_cohesion_immobile":"bpt_cohesion_balanced",x,y,2,UiCommandLabels.text("PLAN_COHESION_MODE","")+"\n\n"+(cohesion.isEmpty()?"군을 선택하세요.":cohesion.getFirst().tooltip()),()->{if(!cohesion.isEmpty())openCohesion();});
+            var modes=cards.stream().filter(c->c.panel()!=null).map(c->c.panel().executionMode()).distinct().toList();String mode=modes.size()==1?modes.getFirst():"";String executeIcon=switch(mode){case "CAREFUL"->"bpt_execute_slow";case "AGGRESSIVE"->"bpt_execute_fast";default->"bpt_execute_mid";};
+            armyButton(g,u,out,executeIcon,x,y,1,UiCommandLabels.text("PLAN_EXECUTE_MODE","전투 계획 실행 모드")+(mode.isEmpty()?"\n\n표시 자료가 없거나 선택한 계획의 자세가 다릅니다.":""),()->postureMenu=!postureMenu);
+            var offensive=MapCommanderLayout.armyCell(u,x,y,8);UiAssets.draw(g,source("bpt_execute_strip").replace("frame_0","frame_"+switch(mode){case "CAREFUL"->0;case "AGGRESSIVE"->2;default->1;}),offensive.x(),offensive.y()+u.size(7),u.size(13.5),u.size(13.5));
             if(postureMenu){String[] actions={"CAREFUL","BALANCED","AGGRESSIVE"},icons={"slow","mid","fast"},keys={"CAREFUL","BALANCED","RUSH"};for(int n=0;n<3;n++){String action=actions[n];String key="PLAN_EXECUTE_"+keys[n];button(g,out,"","bpt_execute_"+icons[n],x+u.size(3.5+n*20),popupBottom-u.size(20),u.size(17.5),u.size(17),MapCommanderAvailability.tooltip("ARMY/"+action,UiCommandLabels.text(key+"_TITLE",action)+"\n\n"+UiCommandLabels.text(key+"_DESC","")),()->{if(!MapCommanderAvailability.allow("ARMY/"+action))return;postureMenu=false;if(!armies.isEmpty())MapCommanderHud.open(new Open(Mode.ARMY_TOOLBAR,action,armies));});}}
-            armyButton(g,u,out,"bpt_order_reshape_btn",x,y,13,UiCommandLabels.text("UNITS_VIEW_BTN_RESHAPE", "편집 모드"),()->MapCommanderOrders.land("EDIT_PLAN",armies));
-            String deleteReason=MapCommanderAvailability.reason("LAND/DELETE_PLAN"),removeReason=MapCommanderAvailability.reason("ARMY/REMOVE");String deleteTip=UiCommandLabels.text("UNITS_VIEW_BTN_DELETE_ORDER","명령 삭제");if(!deleteReason.isEmpty())deleteTip=MapCommanderAvailability.explain(deleteTip,"클릭: "+deleteReason);if(!removeReason.isEmpty())deleteTip=MapCommanderAvailability.explain(deleteTip,"우클릭: "+removeReason);var deleteCell=MapCommanderLayout.armyCell(u,x,y,14);commandIcon(g,u,source("bpt_order_delete_btn"),deleteCell.x(),deleteCell.y(),deleteCell.width(),deleteCell.height());out.add(new Hit(deleteCell.x(),deleteCell.y(),deleteCell.width(),deleteCell.height(),deleteTip,()->{},(button,twice)->{if(armies.isEmpty())return;if(button==InputConstants.MOUSE_BUTTON_RIGHT){if(!MapCommanderAvailability.allow("ARMY/REMOVE",armies))return;dev.hoi.client.audio.AudioUiSounds.play("ui.battleplan");MapCommanderHud.open(new Open(Mode.ARMY_TOOLBAR,"REMOVE",armies));}else if(button==InputConstants.MOUSE_BUTTON_LEFT){dev.hoi.client.audio.AudioUiSounds.play("ui.battleplan");deletePlan();}}));
+            armyButton(g,u,out,"bpt_order_reshape_btn",x,y,14,UiCommandLabels.text("UNITS_VIEW_BTN_RESHAPE", "편집 모드"),()->MapCommanderOrders.land("EDIT_PLAN",armies));
+            String deleteReason=MapCommanderAvailability.reason("LAND/DELETE_PLAN"),removeReason=MapCommanderAvailability.reason("ARMY/REMOVE");String deleteTip=UiCommandLabels.text("UNITS_VIEW_BTN_DELETE_ORDER","명령 삭제");if(!deleteReason.isEmpty())deleteTip=MapCommanderAvailability.explain(deleteTip,"클릭: "+deleteReason);if(!removeReason.isEmpty())deleteTip=MapCommanderAvailability.explain(deleteTip,"우클릭: "+removeReason);var deleteCell=MapCommanderLayout.armyCell(u,x,y,15);commandIcon(g,u,source("bpt_order_delete_btn"),deleteCell.x(),deleteCell.y(),deleteCell.width(),deleteCell.height());out.add(new Hit(deleteCell.x(),deleteCell.y(),deleteCell.width(),deleteCell.height(),deleteTip,()->{},(button,twice)->{if(armies.isEmpty())return;if(button==InputConstants.MOUSE_BUTTON_RIGHT){if(!MapCommanderAvailability.allow("ARMY/REMOVE",armies))return;dev.hoi.client.audio.AudioUiSounds.play("ui.battleplan");MapCommanderHud.open(new Open(Mode.ARMY_TOOLBAR,"REMOVE",armies));}else if(button==InputConstants.MOUSE_BUTTON_LEFT){dev.hoi.client.audio.AudioUiSounds.play("ui.battleplan");deletePlan();}}));
         }
         String branchReason=navy?"":MapCommanderAvailability.branchReason("ARMY/");
         if(!branchReason.isEmpty()||cards.isEmpty()&&selectedDivisions().isEmpty()){
             String reason=branchReason.isEmpty()?"군을 선택하세요.":branchReason;
-            for(int i=0;i<out.size();i++){var hit=out.get(i);g.fill(hit.x(),hit.y(),hit.x()+hit.w(),hit.y()+hit.h(),0x44000000);out.set(i,new Hit(hit.x(),hit.y(),hit.w(),hit.h(),branchReason.isEmpty()?hit.tip()+"\n\n군을 선택하세요.":hit.tip().contains(reason)?hit.tip():MapCommanderAvailability.explain(hit.tip(),reason),()->{},null,"",hit.icon()));}
+            for(int i=0;i<out.size();i++){var hit=out.get(i);if(navy)g.fill(hit.x(),hit.y(),hit.x()+hit.w(),hit.y()+hit.h(),0x44000000);out.set(i,new Hit(hit.x(),hit.y(),hit.w(),hit.h(),branchReason.isEmpty()?hit.tip()+"\n\n군을 선택하세요.":hit.tip().contains(reason)?hit.tip():MapCommanderAvailability.explain(hit.tip(),reason),()->{},null,"",hit.icon()));}
         }
-        if(!cards.isEmpty()||!selectedDivisions().isEmpty())button(g,out,"×","nv_btn_close",x+w-u.size(19),y+u.size(2),u.size(15),u.size(14),UiCommandLabels.text("CLOSE","닫기"),MapCommanderPanels::close);
+        if(navy&&!cards.isEmpty())button(g,out,"×","nv_btn_close",x+w-u.size(19),y+u.size(2),u.size(15),u.size(14),UiCommandLabels.text("CLOSE","닫기"),MapCommanderPanels::close);
     }
     private static void areaDefense(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y,int w,int popupBottom){
         var armies=selectedArmies();if(armies.size()!=1)return;var controls=armies.getFirst().panel().controls();var area=controls.stream().filter(c->c.id().equals("AREA_STATES")).findFirst();if(area.isEmpty())return;
@@ -411,7 +633,7 @@ final class MapCommanderPanels {
         button(g,out,"×","nv_btn_close",x+u.size(259.5),y+u.size(4),u.size(14.5),u.size(14.5),"선택 해제 · "+wing.group(),()->{String id=MapCommanderAirBases.identity(wing);showWings(current.wings().stream().filter(MapCommanderPanels::wingSelected).filter(member->!MapCommanderAirBases.identity(member).equals(id)).map(Member::id).toList());});
         out.add(new Hit(x,y,w,h,tip,()->{},null,""));
     }
-    private static void air(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Member> wings) {
+    private static void air(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Member> wings,int bottom) {
         int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),w=u.size(274),h=u.size(24);
         branchButtons(g,u,out,false,wings.stream().map(Member::id).toList(),x,y);y+=u.size(22);
         int toolbar=u.size(314);background(g,"air_priorities_tiled_bg",x,y,toolbar,h);label(g,UiCommandLabels.text("UNITS_VIEW_WINGS_COUNT","$WINGS|G$개 비행단 선택됨").replace("$WINGS|G$","§G"+wings.size()+"§!"),x+u.size(23.5),y+u.size(6.5),u.size(54),u.size(11.5),UiMenuStyle.TEXT);
@@ -427,8 +649,8 @@ final class MapCommanderPanels {
         button(g,out,"","select_half",x+u.size(252.5),y+u.size(4),u.size(14.5),u.size(14.5),UiCommandLabels.text(wings.size()>1?"SELECT_HALF_WINGS":"SELECT_HALF_WINGS_BLOCKED","절반 선택"),()->{if(wings.size()>1){MapUnitHud.clearSelection();selectWings(ids.subList(0,(ids.size()+1)/2));wingList=true;}});
         button(g,out,"","hold",x+u.size(267.5),y+u.size(4),u.size(14.5),u.size(14.5),UiCommandLabels.text("HOLD_WINGS",""),()->{var values=new ArrayList<String>();values.add("mission/HOLD");values.addAll(ids);MapCommanderHud.open(new Open(Mode.AIR_TOOLBAR,"",values));});
         button(g,out,"×","nv_btn_close",x+u.size(297.5),y+u.size(4),u.size(14.5),u.size(14.5),"선택 해제",MapCommanderPanels::close);
-        y+=h;int count=Math.max(1,(MapCommanderLayout.popupBottom(u,false)-y-u.size(15))/h);scroll=Math.clamp(scroll,0,Math.max(0,wings.size()-1));
-        int shown=0;String group="";for(var wing:wings.subList(scroll,Math.min(wings.size(),scroll+count))){String base=MapCommanderAirBases.identity(wing);boolean header=!group.equals(base);if(y+h*(header?2:1)>MapCommanderLayout.popupBottom(u,false))break;if(header){group=base;airBaseHeader(g,u,out,wing,x,y,w,h);y+=h;}member(g,u,out,wing,x,y,w,h,"av_wing_entry_bg");y+=h;shown++;}
+        y+=h;int count=Math.max(1,(bottom-y-u.size(15))/h);scroll=Math.clamp(scroll,0,Math.max(0,wings.size()-1));
+        int shown=0;String group="";for(var wing:wings.subList(scroll,Math.min(wings.size(),scroll+count))){String base=MapCommanderAirBases.identity(wing);boolean header=!group.equals(base);if(y+h*(header?2:1)>bottom)break;if(header){group=base;airBaseHeader(g,u,out,wing,x,y,w,h);y+=h;}member(g,u,out,wing,x,y,w,h,"av_wing_entry_bg");y+=h;shown++;}
         pager(g,u,out,x,y,w,scroll>0,scroll+shown<wings.size(),Math.max(1,shown));
     }
 }

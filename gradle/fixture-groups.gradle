@@ -1,4 +1,20 @@
 ext.hoiRendererFixtureGroups = [
+    leaderEvent: [
+        environment: 'HOI_LEADER_EVENT_PREVIEW', property: 'hoiLeaderEventPreview',
+        producers: ['dev.hoi.fabric.FabricPresentationViewsTest'],
+        fixtures: ['china-705', 'china-182', 'event-korea-21', 'event-korea-504', 'event-china-98'],
+        suites: ['all', 'leader-event', 'event-tooltips']
+    ],
+    politicsChoice: [
+        environment: 'HOI_POLITICS_CHOICE_PREVIEW', property: 'hoiPoliticsChoicePreview',
+        producers: ['dev.hoi.fabric.FabricPoliticsChoiceFixturesTest'],
+        fixtures: ['prc-menu', 'army_chief-ready', 'army_chief-poor', 'navy_chief-ready', 'navy_chief-poor',
+                   'air_chief-ready', 'air_chief-poor', 'high_command-ready', 'high_command-poor',
+                   'law-ready', 'law-poor', 'minister-ready', 'minister-poor', 'foreign-ready', 'foreign-poor',
+                   'finance-ready', 'finance-poor', 'interior-ready', 'interior-poor',
+                   'intelligence-ready', 'intelligence-poor', 'defense-ready', 'defense-poor'],
+        suites: ['all', 'politics-choice', 'politics-choice-missing']
+    ],
     decisions: [
         environment: 'HOI_DECISION_PREVIEW', property: 'hoiDecisionPreview',
         producers: ['dev.hoi.fabric.FabricDecisionPresentationTest'],
@@ -6,7 +22,10 @@ ext.hoiRendererFixtureGroups = [
             'kor-pages', 'kor-metadata', 'jap-pages', 'jap-metadata',
             'prc-pages', 'prc-metadata', 'prc-active-pages', 'prc-active-metadata',
             'prc-restored-pages', 'prc-restored-metadata', 'prc-completed-pages', 'prc-completed-metadata',
-            'decision-panels'
+            'kor-kfxx-pages', 'kor-kfxx-metadata', 'prc-eadi-pages', 'prc-eadi-metadata',
+            'decision-panels', 'kor-scene-pages', 'kor-scene-metadata', 'kor-scene-active-pages', 'kor-scene-active-metadata',
+            'kor-scene-ownership-lost-pages', 'kor-scene-ownership-lost-metadata', 'kor-scene-mission-timeout-pages',
+            'kor-scene-mission-timeout-metadata', 'kor-scene-target-active-pages', 'kor-scene-target-active-metadata'
         ],
         suites: ['all', 'decisions']
     ],
@@ -70,6 +89,8 @@ ext.hoiRendererFixtureGroups = [
         fixtures: [
             'kor-command-panel-army', 'kor-command-panel-navy', 'kor-command-panel-air', 'kor-command-panel-area',
             'kor-command-panel-army-assigned', 'kor-command-panel-army-group-assigned',
+            'kor-command-panel-army-trait-skills', 'kor-command-panel-army-probing-active',
+            'kor-appointment-army-mixed', 'kor-appointment-army-group-mixed',
             'kor-command-panel-air-attached', 'kor-command-panel-air-detached', 'kor-command-panel-army-air-attached',
             'kor-command-panel-air-groups', 'kor-command-panel-air-diagnostics', 'kor-command-panel-army-immobile',
             'kor-command-panel-navy-convoy-excluded', 'naval-areas-source-kor-dialog', 'naval-reinforcement-source-kor-dialog',
@@ -82,7 +103,7 @@ ext.hoiRendererFixtureGroups = [
             'army-ability-makeshift_bridges-source-kor-dialog', 'army-ability-requisition_winter_gear-source-kor-dialog',
             'army-ability-tactic_gas_bombardment-source-kor-dialog', 'army-ability-ALL-source-kor-dialog'
         ],
-        suites: ['missions', 'movement-controls']
+        suites: ['missions', 'movement-controls', 'army-layout']
     ],
     missionOverlay: [
         environment: 'HOI_MISSION_OVERLAY_FIXTURES', property: 'hoi.missionOverlayFixtureOutput',

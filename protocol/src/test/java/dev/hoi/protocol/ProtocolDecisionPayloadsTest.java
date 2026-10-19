@@ -33,6 +33,50 @@ class ProtocolDecisionPayloadsTest {
         var legacy = new ProtocolDecisionPayloads.Row("id","category","국회","","결정","","",0,0,"",true);
         assertNull(legacy.totalHours()); assertEquals("",legacy.phase());
     }
+    @Test void targetedRowsCarryTheirTargetInTheRowIdAndRoundTrip() {
+        var country = new ProtocolDecisionPayloads.Target("country","PRK","북한","PRK_communism");
+        var state = new ProtocolDecisionPayloads.Target("state","530","경기",null);
+        var toCountry = new ProtocolDecisionPayloads.Row("demand@c:PRK","category","국회","","요구","","",(Double)25.0,0,"",true,"25","","READY",null,country,List.of(530,531));
+        var toState = new ProtocolDecisionPayloads.Row("build@s:530","category","국회","","건설","","",(Double)null,0,"",false,"","","",null,state,null);
+        var view = new ProtocolDecisionPayloads.View("KOR",SESSION,3,"",0,3,ProtocolCountryHud.UNKNOWN,List.of(toCountry,toState,row()));
+        var read = ProtocolDecisionPayloads.Response.of(TOKEN,view).view();
+        assertEquals(view,read);
+        assertEquals(List.of(),read.rows().get(1).highlightStates());
+        assertEquals("",read.rows().get(1).target().flag());
+        assertNull(read.rows().get(2).target());
+        assertEquals(List.of(),read.rows().get(2).highlightStates());
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Row("demand@c:CHI","category","","","","","",(Double)0.0,0,"",true,"","","",null,country,List.of()));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Row("demand@c:PRK","category","","","","","",(Double)0.0,0,"",true,"","","",null,country,List.of(0)));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Row("demand@c:PRK","category","","","","","",(Double)0.0,0,"",true,"","","",null,country,List.of(5,5)));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Target("state","0","",""));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Target("state","530","","KOR"));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Target("province","530","",""));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Target("country","kor","",""));
+    }
+    @Test void costProgressHighlightAndMapRequestsAreBounded() {
+        var blocked = new ProtocolDecisionPayloads.Row("export","category","","","수출","","",(Double)20.0,0,"",false,"§A§Y자주포§! 250대 필요§!","","READY",0L,null,List.of(1410),false,"",2);
+        var mission = new ProtocolDecisionPayloads.Row("mission","category","","","임무","","",(Double)0.0,144,"",false,"","","ACTIVE",240L,null,List.of(),null,"BAD",null);
+        var view = new ProtocolDecisionPayloads.View("KOR",SESSION,1,"",0,2,ProtocolCountryHud.UNKNOWN,List.of(blocked,mission));
+        var read = ProtocolDecisionPayloads.Response.of(TOKEN,view).view();
+        assertEquals(view,read); assertEquals(Boolean.FALSE,read.rows().getFirst().costMet()); assertEquals(2,read.rows().getFirst().highlightColor());
+        assertNull(read.rows().get(1).costMet()); assertEquals("BAD",read.rows().get(1).progress());
+        var json = JsonParser.parseString(ProtocolDecisionPayloads.Response.of(TOKEN,new ProtocolDecisionPayloads.View("KOR",SESSION,0,"",0,1,ProtocolCountryHud.UNKNOWN,List.of(row()))).json()).getAsJsonObject();
+        var legacy = json.getAsJsonArray("rows").get(0).getAsJsonObject();
+        legacy.remove("costMet"); legacy.remove("progress"); legacy.remove("highlightColor");
+        var restored = new ProtocolDecisionPayloads.Response(TOKEN,json.toString()).view().rows().getFirst();
+        assertNull(restored.costMet()); assertEquals("",restored.progress()); assertNull(restored.highlightColor());
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Row("x","c","","","","","",(Double)0.0,0,"",false,"","","READY",0L,null,List.of(),null,"GOOD",null));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Row("x","c","","","","","",(Double)0.0,0,"",false,"","","ACTIVE",0L,null,List.of(),null,"FAST",null));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Row("x","c","","","","","",(Double)0.0,0,"",false,"","","",0L,null,List.of(),null,"",64));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Request(ProtocolDecisionPayloads.Action.GOTO,TOKEN,"",0,"x",0));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Request(ProtocolDecisionPayloads.Action.HIGHLIGHT,TOKEN,SESSION,0,"",0));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Request(ProtocolDecisionPayloads.Action.HIGHLIGHT,TOKEN,SESSION,0,"x",1));
+        var page = new ProtocolAtlasScene.Page(UUID.randomUUID(),"hoi:atlas_army",0,1,List.of(new ProtocolAtlasScene.Box(1,2,3,1,.015f,1,0,ProtocolAtlasScene.Material.DEPLOYMENT)));
+        var highlight = new ProtocolDecisionPayloads.Highlight(TOKEN,SESSION,1,"KOR_arms_factory_ulsan",page);
+        assertEquals("KOR_arms_factory_ulsan",highlight.row());
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Highlight(TOKEN,SESSION,1,"",page));
+        assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.Highlight(TOKEN,SESSION,-1,"x",page));
+    }
     @Test void malformedFieldsDuplicateIdsAndBoundsFailClosed() {
         var category = new ProtocolDecisionPayloads.Category("category","","","","","",true);
         assertThrows(IllegalArgumentException.class,() -> new ProtocolDecisionPayloads.View("KOR",SESSION,0,"",0,2,ProtocolCountryHud.UNKNOWN,List.of(row(),row())));

@@ -9,6 +9,7 @@ import java.util.*;
 
 public final class MapCommanderHudTest {
     private MapCommanderHudTest() {}
+    public static void runArmyLayout(ClientGameTestContext context,ProtocolMenuView menu){MapCommanderPanelsTest.runArmyLayout(context,menu);MapCommanderGroupsRenderTest.run(context,menu);}
     public static void run(ClientGameTestContext context,ProtocolMenuView menu) {
         MapCommanderPanelsTest.run(context,menu);
         MapCommanderGroupsRenderTest.run(context,menu);
@@ -60,9 +61,9 @@ public final class MapCommanderHudTest {
             context.setScreen(ScreenMapCursor::new);context.waitTicks(3);
             var resized=context.computeOnClient(client->List.copyOf(MapCommanderHud.boxes()));
             context.runOnClient(client->{
-                var units=new dev.hoi.client.ui.UiUnits(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight());
+                var units=new dev.hoi.client.ui.UiUnits(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight(),1);
                 int bottom=MapCommanderHud.boxes().stream().mapToInt(b->b.y()+b.height()).max().orElseThrow();
-                if(bottom!=MapCommanderLayout.cardsBottom(units))throw new AssertionError("Commander portrait strip must reserve vanilla action keys and hotbar after resizing");
+                if(bottom!=units.height()-units.size(82))throw new AssertionError("Paused commander strip must reserve the unshrunk vanilla action-key and hotbar area: actual="+bottom+", expected="+(units.height()-units.size(82)));
             });
             context.setScreen(()->new dev.hoi.client.screen.ScreenMenu(menu,ProtocolMenuTab.OFFICER_CORPS,()->{}));context.waitTicks(2);
             context.runOnClient(client->{

@@ -88,6 +88,10 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
             var toggle=new UiMenuButton(showAssigned?"☑":"☐",left+pane-37,top+3,15,14,()->{showAssigned=!showAssigned;scroll=0;rebuildWidgets();});toggle.setTooltip(UiTooltips.createOfficer("임명된 지휘관 보기"));addRenderableWidget(toggle);
             Comparator<ProtocolDialogView.Tile> order=switch(sort){case 1->Comparator.comparing(ProtocolDialogView.Tile::name);case 6->Comparator.comparingInt(t->t.leader().capacity());case 2,3,4,5->Comparator.comparingInt(t->t.leader().abilities().get(sort-2));default->Comparator.comparingInt(t->t.leader().skill());};
             if(descending)order=order.reversed();String lower=query.toLowerCase(Locale.ROOT);
+            if(view().image().equals("commander/group")||view().image().equals("commander/view")) {
+                String preferred=view().image().equals("commander/group")?"원수":"장군";
+                order=Comparator.<ProtocolDialogView.Tile>comparingInt(t->t.leader().role().equals(preferred)?0:1).thenComparing(order);
+            }
             rows=view().tiles().stream().filter(t->t.leader()!=null&&(showAssigned||!t.leader().assigned())&&t.name().toLowerCase(Locale.ROOT).contains(lower)).sorted(order.thenComparing(ProtocolDialogView.Tile::name).thenComparing(ProtocolDialogView.Tile::section)).toList();
             if(view().choices().stream().anyMatch(c->c.id().equals("remove"))){var tile=view().tiles().stream().filter(t->t.section().equals("remove")).findFirst().orElseThrow();var remove=new UiMenuButton("배정 해제",left+pane-116,bottom-17,109,14,()->submit("remove"));remove.active=!pending;remove.setTooltip(UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(remove);}
         }
@@ -158,14 +162,16 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
         if(mapSender==null)ClientPlayNetworking.send(request);else mapSender.accept(request);
     }
     @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy) {
+        if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&dev.hoi.client.map.MapCommanderHud.dragAt(event.x()))return true;
         if(landGesture.active()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){landGesture.sample(minecraft,Math.clamp(event.x(),left+pane,width),Math.clamp(event.y(),top,height),width,height,false);return true;}
         return super.mouseDragged(event,dx,dy);
     }
     @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
+        if(dev.hoi.client.map.MapCommanderHud.releaseAt(event.x(),event.button()))return true;
         if(landGesture.active()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){landGesture.sample(minecraft,Math.clamp(event.x(),left+pane,width),Math.clamp(event.y(),top,height),width,height,true);sendMapPick(false);return true;}
         return super.mouseReleased(event);
     }
-    @Override public void removed(){landGesture.clear();super.removed();}
+    @Override public void removed(){dev.hoi.client.map.MapCommanderHud.cancelDrag();landGesture.clear();super.removed();}
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){
         if(nativeRows&&!pending&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             for(int i=0;i<rows.size();i++) {
@@ -183,7 +189,7 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
         }
         if(mapPicking()&&event.x()>=left+pane&&event.y()>=top) {
             if(pending)return true;
-            if(dev.hoi.client.map.MapCommanderHud.clickAt(event.x(),event.y(),event.button(),twice))return true;
+            if(dev.hoi.client.map.MapCommanderHud.pressAt(event.x(),event.y(),event.button(),twice))return true;
             if(mapSender==null&&!ClientPlayNetworking.canSend(ProtocolCommanderHud.PlanMapPick.TYPE))return true;
             if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT){if(landGesture.begin(minecraft,event.x(),event.y(),width,height))sendMapPick(true);return true;}
             if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){landGesture.begin(minecraft,event.x(),event.y(),width,height);return true;}

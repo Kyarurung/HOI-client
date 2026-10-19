@@ -17,13 +17,16 @@ public final class UiText {
         return width<suffix?"":font.plainSubstrByWidth(value,width-suffix)+marker;
     }
     public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right) {
+        cell(g, font, value, x, y, width, height, color, right, true);
+    }
+    public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right, boolean shadow) {
         float scale = scale(font);
         String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)(width / scale)));
         float remaining = width - font.width(clipped) * scale;
         g.pose().pushMatrix();
         g.pose().translate(x + (right ? remaining : remaining / 2), y + (height - font.lineHeight * scale) / 2);
         g.pose().scale(scale);
-        g.text(font, clipped, 0, 0, color);
+        g.text(font, clipped, 0, 0, color, shadow);
         g.pose().popMatrix();
     }
     public static void iconText(GuiGraphicsExtractor g, Font font, String icon, String value, int x, int y, int width, int height, int iconSize, int color) {
@@ -40,8 +43,11 @@ public final class UiText {
         text(g, font, Component.literal(text).getVisualOrderText(), x, y, color);
     }
     public static void text(GuiGraphicsExtractor g, Font font, FormattedCharSequence text, int x, int y, int color) {
+        text(g, font, text, x, y, color, true);
+    }
+    public static void text(GuiGraphicsExtractor g, Font font, FormattedCharSequence text, int x, int y, int color, boolean shadow) {
         g.pose().pushMatrix(); g.pose().translate(x, y); g.pose().scale(scale(font));
-        g.text(font, text, 0, 0, color); g.pose().popMatrix();
+        g.text(font, text, 0, 0, color, shadow); g.pose().popMatrix();
     }
     public static void text(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int color) {
         text(g, font, text.getVisualOrderText(), x, y, color);
@@ -80,12 +86,18 @@ public final class UiText {
     public static void centered(GuiGraphicsExtractor g, Font font, String text, int x, int y, int width, int height, int color) {
         centered(g,font,Component.literal(text),x,y,width,height,color);
     }
+    public static void centered(GuiGraphicsExtractor g, Font font, String text, int x, int y, int width, int height, int color, boolean shadow) {
+        centered(g, font, Component.literal(text), x, y, width, height, color, shadow);
+    }
     public static void centered(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
+        centered(g, font, text, x, y, width, height, color, true);
+    }
+    public static void centered(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color, boolean shadow) {
         float scale = scale(font);
         var lines = font.split(text, Math.max(1, (int)(width / scale)));
         int count = Math.min(lines.size(), Math.max(1, height / (MIN_HEIGHT + 1)));
         int top = y + (height - count * (MIN_HEIGHT + 1) + 1) / 2;
         for (int i=0; i<count; i++) text(g, font, lines.get(i),
-                x + Math.round((width - font.width(lines.get(i)) * scale) / 2), top + i * (MIN_HEIGHT + 1), color);
+                x + Math.round((width - font.width(lines.get(i)) * scale) / 2), top + i * (MIN_HEIGHT + 1), color, shadow);
     }
 }

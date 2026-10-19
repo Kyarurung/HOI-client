@@ -23,9 +23,19 @@ final class ScreenDecisionPanel {
     private record FontMetrics(double size,double lineHeight) {}
     private final Map<String,int[]> dimensions=new HashMap<>();
     private final Map<String,FontMetrics> fonts=new HashMap<>();
+    private record Progress(String foreground,String background,int width,int height,boolean horizontal,double scale) {}
+    private final Map<String,Progress> progress=new HashMap<>();
     private final ScreenDecisionRadial radial=new ScreenDecisionRadial();
     void assets(com.google.gson.JsonObject root) {
-        radial.configure(root);dimensions.clear();fonts.clear();
+        radial.configure(root);dimensions.clear();fonts.clear();progress.clear();
+        if(root.get("progressBars") instanceof com.google.gson.JsonObject bars)for(var entry:bars.entrySet()) {
+            var value=entry.getValue().getAsJsonObject();var textures=value.getAsJsonArray("textures");
+            String foreground=textures.get(0).getAsJsonObject().get("path").getAsString(),background=textures.get(1).getAsJsonObject().get("path").getAsString();
+            int width=value.get("width").getAsInt(),height=value.get("height").getAsInt();
+            double scale=value.get("scale").getAsDouble();
+            if(foreground.matches("[a-z0-9_/]+") && background.matches("[a-z0-9_/]+") && width>0 && height>0 && width<=4096 && height<=4096 && Double.isFinite(scale) && scale>0)
+                progress.put(entry.getKey(),new Progress(foreground,background,width,height,value.get("horizontal").getAsBoolean(),scale));
+        }
         if(root.get("fonts") instanceof com.google.gson.JsonObject entries)for(var entry:entries.entrySet()) {
             var value=entry.getValue().getAsJsonObject();
             double size=value.get("size").getAsDouble(),lineHeight=value.get("lineHeight").getAsDouble();
@@ -34,7 +44,7 @@ final class ScreenDecisionPanel {
         }
     }
     void clear() { dimensions.clear(); }
-    void close() { radial.close();dimensions.clear();fonts.clear(); }
+    void close() { radial.close();dimensions.clear();fonts.clear();progress.clear(); }
     Result render(GuiGraphicsExtractor graphics,Font font,ProtocolDecisionPanel panel,Map<String,String> assets,
             ScreenDecisionText text,int x,int y,int width) {
         if(panel==null || panel.elements().isEmpty())return new Result(0,List.of());
@@ -42,11 +52,27 @@ final class ScreenDecisionPanel {
         double sourceWidth=measure(root.layout().width(),width,0),sourceHeight=measure(root.layout().height(),width,0);
         var bounds=new Rect(0,0,sourceWidth,sourceHeight);
         var draws=new ArrayList<Draw>();
-        layout(root,bounds,new Rect(-1048576,-1048576,2097152,2097152),true,assets,font,text,draws);
+        boolean coronavirus=panel.scriptedGui().equals("TFR_KOR_coronavirus");
+        layout(root,bounds,new Rect(-1048576,-1048576,2097152,2097152),true,assets,font,text,draws,coronavirus);
         double left=0,top=0,right=sourceWidth,bottom=sourceHeight;
         for(var draw:draws) {
             if(!painted(draw.element()))continue;
-            var visible=draw.bounds().intersect(draw.clip());
+            var paintedBounds=draw.bounds();
+            if(draw.element().kind().equals("radial")) {
+                double transparent=paintedBounds.height()*.482;
+                paintedBounds=new Rect(paintedBounds.x(),paintedBounds.y()+transparent,paintedBounds.width(),paintedBounds.height()-transparent);
+            }
+            if(coronavirus && draw.element().kind().equals("text") && draw.element().text()!=null) {
+                var lines=text.lines(font,draw.element().text().value(),Math.max(1,(int)(paintedBounds.width()/draw.fontScale())));
+                double ink=lines.stream().mapToInt(font::width).max().orElse(0)*draw.fontScale();
+                double offset=switch(Objects.requireNonNullElse(draw.element().layout().alignment(),"left")) {
+                    case "center" -> (paintedBounds.width()-ink)/2;
+                    case "right" -> paintedBounds.width()-ink;
+                    default -> 0;
+                };
+                paintedBounds=new Rect(paintedBounds.x()+offset,paintedBounds.y(),ink,lines.size()*draw.lineHeight());
+            }
+            var visible=paintedBounds.intersect(draw.clip());
             if(visible.width()<=0 || visible.height()<=0)continue;
             left=Math.min(left,visible.x());top=Math.min(top,visible.y());
             right=Math.max(right,visible.x()+visible.width());bottom=Math.max(bottom,visible.y()+visible.height());
@@ -89,8 +115,28 @@ final class ScreenDecisionPanel {
                     };
                     graphics.text(font,line,(int)Math.round(textLeft),(int)Math.round(row*draw.lineHeight()/draw.fontScale()),UiMenuStyle.TEXT);
                 }
+            } else if(progress.containsKey(element.sprite())) {
+                var bar=progress.get(element.sprite());
+                int w=Math.max(1,(int)Math.round(rectangle.width())),h=Math.max(1,(int)Math.round(rectangle.height()));
+                graphics.pose().pushMatrix();
+                if(!bar.horizontal()) {
+                    graphics.pose().translate(0,h);
+                    graphics.pose().rotate((float)(-Math.PI/2));
+                    int previous=w;w=h;h=previous;
+                }
+                if(bar.horizontal())UiAssets.draw(graphics,bar.background(),0,0,w,h);
+                else graphics.blit(Identifier.parse("hoi:textures/gui/"+bar.background()+".png"),0,0,w,h,0,1,1,0);
+                if(element.frame()!=null) {
+                    float fraction=(float)Math.clamp(element.frame()/bar.scale(),0,1);
+                    int fill=(int)Math.round(w*fraction);
+                    if(fill>0)graphics.blit(Identifier.parse("hoi:textures/gui/"+bar.foreground()+".png"),0,0,fill,h,0,(float)fill/w,bar.horizontal()?0:1,bar.horizontal()?1:0);
+                }
+                graphics.pose().popMatrix();
+                if(element.frame()==null)graphics.text(font,"?",((int)Math.round(rectangle.width())-font.width("?"))/2,((int)Math.round(rectangle.height())-font.lineHeight)/2,UiMenuStyle.MUTED);
             } else if(element.kind().equals("radial") && radial.draw(graphics,element.sprite(),element.frame(),0,0,
                     Math.max(1,(int)Math.round(rectangle.width())),Math.max(1,(int)Math.round(rectangle.height())))) {
+            } else if(element.kind().equals("background") && "GFX_tiled_window_transparent".equals(element.sprite())) {
+                UiAssets.nineSlice(graphics,draw.path(),0,0,Math.max(1,(int)Math.round(rectangle.width())),Math.max(1,(int)Math.round(rectangle.height())),32,3.0/95);
             } else if(!draw.path().isEmpty()) {
                 UiAssets.draw(graphics,draw.path(),0,0,Math.max(1,(int)Math.round(rectangle.width())),Math.max(1,(int)Math.round(rectangle.height())));
             } else if(element.kind().equals("radial") || element.frameVariable()!=null && element.frame()==null) {
@@ -105,11 +151,12 @@ final class ScreenDecisionPanel {
         return element.kind().equals("text") || element.kind().equals("radial") || element.sprite()!=null;
     }
     private void layout(ProtocolDecisionPanel.Element element,Rect parent,Rect inheritedClip,boolean root,Map<String,String> assets,
-            Font font,ScreenDecisionText text,List<Draw> draws) {
+            Font font,ScreenDecisionText text,List<Draw> draws,boolean coronavirus) {
         if(!Boolean.TRUE.equals(element.visible()))return;
         var layout=element.layout();
         String path=path(element,assets);
-        int[] size=element.kind().equals("radial")?radial.dimensions(element.sprite()):dimensions.computeIfAbsent(
+        var bar=progress.get(element.sprite());
+        int[] size=bar!=null?new int[]{bar.width(),bar.height()}:element.kind().equals("radial")?radial.dimensions(element.sprite()):dimensions.computeIfAbsent(
                 path.isEmpty() && element.sprite()!=null?assets.getOrDefault(element.sprite(),""):path,ScreenDecisionPanel::dimensions);
         double ownScale=Objects.requireNonNullElse(layout.scale(),1.0);
         var metrics=fonts.getOrDefault(layout.font(),new FontMetrics(font.lineHeight,font.lineHeight+1));
@@ -119,6 +166,7 @@ final class ScreenDecisionPanel {
         double defaultHeight=element.kind().equals("text") && element.text()!=null
                 ?text.lines(font,element.text().value(),Math.max(1,(int)(width/fontScale))).size()*metrics.lineHeight():size[1];
         double height=measure(layout.height(),parent.height(),defaultHeight)*ownScale;
+        if(coronavirus && element.kind().equals("text") && !Boolean.TRUE.equals(layout.fixedSize()))height=Math.max(height,defaultHeight*ownScale);
         double left=parent.x(),top=parent.y();
         if(root) {width=parent.width();height=parent.height();}
         else {
@@ -132,9 +180,9 @@ final class ScreenDecisionPanel {
         }
         var rectangle=new Rect(left,top,width,height);
         Rect clip=Boolean.TRUE.equals(layout.clipping())?inheritedClip.intersect(rectangle):inheritedClip;
-        if(element.kind().equals("text") && (Boolean.TRUE.equals(layout.fixedSize()) || layout.height()!=null))clip=clip.intersect(rectangle);
+        if(element.kind().equals("text") && (Boolean.TRUE.equals(layout.fixedSize()) || !coronavirus && layout.height()!=null))clip=clip.intersect(rectangle);
         draws.add(new Draw(element,rectangle,clip,path,fontScale,metrics.lineHeight()));
-        for(var child:element.children())layout(child,rectangle,clip,false,assets,font,text,draws);
+        for(var child:element.children())layout(child,rectangle,clip,false,assets,font,text,draws,coronavirus);
     }
     private static String path(ProtocolDecisionPanel.Element element,Map<String,String> assets) {
         if(element.sprite()==null || element.kind().equals("radial"))return "";

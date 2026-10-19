@@ -91,13 +91,72 @@ public final class ScreenDialogChecks {
         }
         context.setScreen(() -> null);
     }
+    private static void choiceLayouts(ClientGameTestContext context) {
+        ScreenPoliticsChoiceTest.run(context);
+        String detail="§H육군 경험치 획득량§!: §G+0.15§! 매일\n사단 조직력: §G+8.0%§!\n\n비용 (£pol_power ): §Y110§!";
+        var staff=List.of(
+                new ProtocolDialogView.Tile("hoi:test/current","한웨이궈","적용 중\n육군 편성\n(전문가)","politics/vacant",detail+"\n\n§G클릭으로 §H한웨이궈§G 제거§!"),
+                new ProtocolDialogView.Tile("hoi:test/open","리차오밍","§e110§r\n육군 공격\n(전문가)","politics/vacant",detail),
+                new ProtocolDialogView.Tile("hoi:test/poor","류전리","§c9110§r\n육군 계획\n(전문가)","politics/vacant",detail),
+                new ProtocolDialogView.Tile("hoi:test/blocked","리쭤청","§e165§r\n육군 공격\n(천재)","politics/vacant",detail),
+                new ProtocolDialogView.Tile("hoi:test/plain","장유샤","§e110§r\n포병 만능론자","politics/vacant",detail));
+        var staffChoices=List.of(new ProtocolDialogView.Choice(ScreenPoliticsChoice.VACANT,"공석"),new ProtocolDialogView.Choice("hoi:test/open","리차오밍"),
+                new ProtocolDialogView.Choice("hoi:test/plain","장유샤"));
+        for(String slot:List.of("army_chief","navy_chief","air_chief","high_command")) {
+            String title=switch(slot){case "navy_chief" -> "해군참모총장";case "air_chief" -> "공군참모총장";case "high_command" -> "최고사령부";default -> "육군참모총장";};
+            var view=new ProtocolDialogView(UUID.randomUUID().toString(),1,ProtocolDialogView.Kind.POLITICS,title,"§Y"+title+"§! 선택","","","advisor/"+slot,"",staff,staffChoices);
+            var sent=new ArrayList<ProtocolDialogPayloads.Action>();
+            context.setScreen(() -> new ScreenPoliticsChoice(view,null,sent::add));
+            context.getInput().setCursorPos(2400,1300);context.waitTicks(3);
+            context.takeScreenshot("hoi-politics-choice-"+slot+"-gui2");
+            context.runOnClient(client -> {
+                var screen=(ScreenPoliticsChoice)client.gui.screen();
+                var buttons=screen.children().stream().filter(c -> c instanceof Button).map(c -> (Button)c)
+                        .filter(b -> staff.stream().anyMatch(tile -> tile.name().equals(b.getMessage().getString()))).toList();
+                if(buttons.size()!=staff.size())throw new AssertionError("Every staff candidate needs one tile: "+buttons.size());
+                if(buttons.stream().map(Button::getX).distinct().count()!=2)throw new AssertionError("Staff candidates use the source two-column grid");
+                if(buttons.stream().anyMatch(b -> b.getWidth()!=115 || b.getHeight()!=37))throw new AssertionError("Staff candidate tiles keep the source 231x74 slot at GUI 2");
+                for(var tile:staff) {
+                    var button=buttons.stream().filter(b -> b.getMessage().getString().equals(tile.name())).findFirst().orElseThrow();
+                    boolean expected=tile.section().equals("hoi:test/current") || staffChoices.stream().anyMatch(choice -> choice.id().equals(tile.section()));
+                    if(button.active!=expected)throw new AssertionError("Unexpected staff candidate state: "+tile.name());
+                }
+                if(!ScreenPoliticsChoice.cost(staff.get(1)).equals("§e110§r") || !ScreenPoliticsChoice.traits(staff.get(1)).equals(List.of("육군 공격","(전문가)"))
+                        || !ScreenPoliticsChoice.traits(staff.get(4)).equals(List.of("포병 만능론자")))throw new AssertionError("Staff tile cost and trait lines must stay separate");
+                var current=buttons.stream().filter(b -> b.getMessage().getString().equals("한웨이궈")).findFirst().orElseThrow();
+                screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(current.getX()+current.getWidth()/2.0,current.getY()+current.getHeight()/2.0,
+                        new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
+                if(sent.size()!=1 || !sent.getFirst().choice().equals(ScreenPoliticsChoice.VACANT))throw new AssertionError("Clicking the appointed staff tile removes the appointment: "+sent);
+            });
+        }
+        var laws=List.of(
+                new ProtocolDialogView.Tile("hoi:test/law_blocked","안보 없음","§c500§r","politics/vacant","효과 없음"),
+                new ProtocolDialogView.Tile("hoi:test/law_poor","부족한 안보","§c400§r","politics/vacant","효과 없음"),
+                new ProtocolDialogView.Tile("hoi:test/law_open","온건한 안보","§e200§r","politics/vacant","효과 없음"),
+                new ProtocolDialogView.Tile("hoi:test/law_current","집중 감시","적용 중","politics/vacant","효과 없음"),
+                new ProtocolDialogView.Tile("hoi:test/law_locked","감시국가","§e100§r","politics/vacant","효과 없음"));
+        var lawView=new ProtocolDialogView(UUID.randomUUID().toString(),1,ProtocolDialogView.Kind.POLITICS,"안보법","§Y집중 감시§!(을)를 교체하시겠습니까?","","","","",laws,
+                List.of(new ProtocolDialogView.Choice("hoi:test/law_open","온건한 안보")));
+        context.setScreen(() -> new ScreenPoliticsChoice(lawView,null));
+        context.getInput().setCursorPos(2400,1300);context.waitTicks(3);
+        context.takeScreenshot("hoi-politics-choice-law-list-gui2");
+        context.runOnClient(client -> {
+            var buttons=client.gui.screen().children().stream().filter(c -> c instanceof Button).map(c -> (Button)c)
+                    .filter(b -> laws.stream().anyMatch(tile -> tile.name().equals(b.getMessage().getString()))).toList();
+            if(buttons.size()!=laws.size() || buttons.stream().map(Button::getX).distinct().count()!=1)throw new AssertionError("Law candidates use the source single-column list");
+            if(buttons.stream().anyMatch(b -> b.getWidth()!=231 || b.getHeight()!=37))throw new AssertionError("Law rows keep the source 462x75 slot at GUI 2");
+        });
+        context.setScreen(() -> null);
+    }
     record ScreenDialogFixtures(List<ProtocolDialogView> views, List<String> sounds) {}
     public static void run(ClientGameTestContext context) {
+        ScreenEventFrameTest.run(context);
         disconnectThread(context);
         ScreenMapDetailChecks.run(context);
         ScreenAirDetailChecks.run(context);
         detailFlags(context);
         tooltipNumbers(context);
+        choiceLayouts(context);
         ScreenDialogFixtures fixture;
         try (var input = ScreenDialogChecks.class.getResourceAsStream("/dialog-fixtures.json")) {
             fixture = new Gson().fromJson(new InputStreamReader(Objects.requireNonNull(input), StandardCharsets.UTF_8), ScreenDialogFixtures.class);
@@ -136,7 +195,7 @@ public final class ScreenDialogChecks {
                         throw new AssertionError("Reference captures require effective GUI scale 2");
                     float expectedScale=dev.hoi.client.ui.UiText.scale(client.font);
                     if (screen.textScale()!=expectedScale) throw new AssertionError("Every event uses the minimum 10 GUI font height");
-                    if (Math.abs(screen.panelLeft() * 2 + screen.panelWidth() - screen.width) > 1) throw new AssertionError("Dialog is not centered");
+                    if (screen.panelLeft() < 0 || screen.panelTop() < 0 || screen.panelLeft() + screen.panelWidth() > screen.width || screen.panelTop() + screen.panelHeight() > screen.height) throw new AssertionError("Source event frame outside viewport");
                     if (size[0] == 2560 && view.kind() == ProtocolDialogView.Kind.SUPER_EVENT && screen.panelWidth() <= screen.panelHeight())
                         throw new AssertionError("Super event keeps the wide reference proportions");
                     if (size[0] == 2560 && (view.kind() == ProtocolDialogView.Kind.EVENT || view.kind() == ProtocolDialogView.Kind.GLOBAL_EVENT) && screen.panelWidth() >= screen.panelHeight())
@@ -144,7 +203,8 @@ public final class ScreenDialogChecks {
                     if (screen.bodyViewportHeight() <= 0) throw new AssertionError("Choices must leave a visible body viewport");
                     for (var child : screen.children()) if (child instanceof Button b && (b.getX() < 0 || b.getY() < 0 || b.getRight() > screen.width || b.getBottom() > screen.height))
                         throw new AssertionError("Dialog control outside compact screen");
-                    screen.mouseScrolled(screen.width / 2.0, screen.height / 2.0, 0, -100);
+                    int[] body = screen.eventBodyBounds();
+                    screen.mouseScrolled(body[0] + 1, body[1] + 1, 0, -100);
                     if (view == multiChoice) {
                         if (screen.scrollOffset() <= 0) throw new AssertionError("Long event body must scroll with many choices");
                         var reached = new HashSet<String>();
@@ -182,9 +242,13 @@ public final class ScreenDialogChecks {
                         List.of(new ProtocolDialogView.Choice("a", "첫 선택"), new ProtocolDialogView.Choice("b", "둘째 선택")));
                 screen.update(multiple); screen.setFocused(null);
                 screen.keyPressed(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
-                if (!sent.getLast().equals(view.token() + "/8/") || client.gui.screen() != null)
-                    throw new AssertionError("Enter without a selected option dismisses without choosing gameplay effects");
+                if (client.gui.screen() != null || (kind == ProtocolDialogView.Kind.SUPER_EVENT ? !sent.getLast().equals(view.token() + "/8/") : sent.size() != 2))
+                    throw new AssertionError("Enter without a selected option minimizes answerable events without a gameplay request");
                 client.gui.setScreen(screen);
+                if (kind == ProtocolDialogView.Kind.SUPER_EVENT) {
+                    var next = (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("다음 선택지")).findFirst().orElseThrow();
+                    next.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+                }
                 var second = (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("둘째 선택")).findFirst().orElseThrow();
                 screen.setFocused(second);
                 screen.keyPressed(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));

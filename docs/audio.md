@@ -47,6 +47,29 @@ MusicRoutingChecks와 DialogScreenChecks는 실제 Minecraft SoundManager의 중
 
 The playlist slider persists in the client `config/hoi-audio.properties` and applies to playlist tracks, national theme/story music, focus completion cues and super-event music. Its default is 100%; invalid or nonfinite persisted values fall back to the default. Every active routed sound reads the live gain, including silent-start and unmute, while Minecraft's Master gain is applied once by the native sound engine. Ordinary interface clicks and research effects keep their existing gains. Reopening menus and reconnecting do not reset this local preference.
 
-`AudioPlaylistVolumeTest`, `AudioPlaylistGainTest` and `ScreenDialogVolumeTest` check persistence and actual OpenAL channel/listener gains at zero, 35% and full volume, live changes, repeated packets, mismatched cancellation, stopped-channel cleanup and focus completion lifecycle. These are local automated playback checks; they do not replace listening on the user's audio device.
+`AudioPlaylistVolumeTest`, `AudioPlaylistGainTest` and `ScreenDialogVolumeTest` check playlist volume persistence, unrelated UI effect gains and the actual OpenAL channel/listener gains of the focus completion cue at zero, 35% and full volume, including live changes and repeated packets. The Korean playlist screen check (`AudioKoreanMusicChecks`) and the super-event and story-music gain loop of `AudioPlaylistGainTest` were removed on 2026-10-11 at the owner's request as already verified; track loading, album art, playlist controls, mismatched cancellation and stopped-channel cleanup are no longer covered by the client GameTest. These are local automated playback checks; they do not replace listening on the user's audio device.
 
 육해공 지도 부대의 좌클릭 선택·드래그 선택, 군/함대 카드와 상세 목록 선택은 기존 `ui.division.select`를 입력당 한 번 재생한다. 우클릭 사단 검사에서 보내던 `DIVISION_SELECT`는 제거했다. 이동·위치 보기의 별도 피드백, 지도 전환음과 반복 유닛 음향은 유지한다. 렌더·선택 상세 동기화는 선택음을 재생하지 않는다.
+
+## 원본 이야기 SFX 키 목록
+
+리소스팩의 `audit_story_audio.py --music-addon <3350892196-directory> --configure-effects`는 93개 원본 `sound_effect`/`scoped_sound_effect` 리터럴을 감사하되 국가별 파일/트리로 34개국과 연결되는 항목만 등록한다. TFR 문맥은 TFRKP 정의를 제외하고, KOR/PRK 문맥은 TFR 뒤 지정 TFRKP 정의를 적용한다. 서로 다른 파일명에 같은 효과 ID가 있어도 이 계층 순서가 파일명 정렬보다 우선한다. 공유 파일의 정적 소속은 동적 도달성 증거가 아니다.
+
+실파일을 확인해 추가한 항목은 `TFR_se_chinese_empire`, `TFR_se_invasion_of_taiwan`, `TFR_se_xi_imper_won`, `siren_sound_effect`, `time_travel_sound`의 5개다. 팩 `ui/story_audio.json`의 `effects.tfr`가 raw ID를 `hoi:ui.story.tfr.*`에 연결한다. 기존 음악 16곡 추가를 포함한 203이벤트/246음원 provenance 행을 보존하며, 결과는 208이벤트/251행이다. 기존 한국 재생 목록과 이미 쓰던 효과음 매핑은 바꾸지 않았다. 이 목록을 소비하는 서버 원본 ID 전달·클라이언트 재생 연결은 다음 UI 작업이다.
+
+`TFR_se_christian_patriot`와 `TFR_se_patriot_rock`는 정의가 있지만 각각 `sound/Super_Events/TFR_se_christian_patriot.wav`, `sound/Super_Events/TFR_se_patriot_rock.wav` 실파일이 없어 등록하지 않는다. 추가로 TFR 전용 문맥의 `HOI4_ui_award_tier_02`, `HOI4_ui_award_tier_03`, `tno_page_flip`은 TFRKP 쪽에서만 정의가 확인되며 일반 국가용 정의로 대체하지 않는다. `enemy_declare_war`와 `join_faction`의 유효 정의는 두 문맥 모두 TFR `sound/gui/gui_sound_effects.asset`이며 각각 `sound/menu/enemy_declare_war_01.wav`, `sound/menu/diplo_action_faction_01.wav`로 확인했다. 공유 파일이라는 이유만으로 이번 34개국용 raw SFX 등록에 추가하지 않는다.
+
+음악 감사는 기존과 같이 104리터럴 중 103정의/실파일과 `meta_effect` 템플릿 `TFRKP_[SUPER]` 1개를 구분한다. 전체 음악 카탈로그나 SFX 감사량은 구현 국가·실행 완료량이 아니다. 입력·정의·실파일·출력 해시는 `story-audio-import-report.json`과 `sound-provenance.json`에서 확인한다.
+
+선택 가져오기는 `import_audio.py --event <ui.story.tfr.event>`를 사용한다. Windows libsndfile에서 Vorbis 인코딩 중 스택 오버플로가 발생하면 기존 `--ffmpeg <ffmpeg.exe>` 경로를 지정한다. 이번 WAV 5개는 설치된 FFmpeg 7.1을 사용했고 샘플레이트·채널·프레임 수·출처 해시를 검사했다. 실제 장치 청취·GUI2·운영 멀티플레이는 미수행이며 Python/팩 빌드 성공으로 대신하지 않는다.
+## 무음 원본과 Minecraft 등록 음량
+
+TFR 원본 `one_minute_of_silence`는 음량 0.0과 전부 0인 60초 PCM을 가진다. Minecraft가 sounds.json의 0 음량 때문에 전체 목록을 거절하므로 팩 importer는 검증된 무음 PCM에 한해서 등록 음량 1.0을 사용한다. 음원 바이트와 재생 기간, 실제 무음은 유지하며 원본/등록 음량의 차이는 팩 sound-provenance에 남긴다. 결정 대상 집중 렌더 검사는 이 목록의 실제 로드와 `ui.decision.take` 재생·중복 잠금을 함께 확인한다. 원본 source ID의 서버 수신 범위와 재접속 재생 억제는 서버 producer가 관리한다. 아래 클라이언트 소비 검증과 실제 멀티플레이를 구분한다.
+
+## 서버 스토리 신호 소비
+
+`hoi:story_sound_v1`의 `sound.story.<원본 ID 소문자>`는 외부 팩 `ui/story_audio.json`의 원본 키를 소문자·하이픈→밑줄로 대조한다. KOR/PRK는 korea 항목을 먼저 찾고 없는 항목은 tfr을 유지하며, 일반 국가는 tfr만 사용한다. 등록된 실제 이벤트를 Master 채널로 패킷당 한 번 재생한다. 같은 ID의 다음 패킷은 새 신호이므로 클라이언트가 임의로 지우지 않는다. 순서·범위·재접속 재생 억제는 서버 책임이며 패킷에 sequence나 scope 필드는 없다. 알 수 없는 원본·없는 파일은 조용히 넘어가고 다른 소리로 대체하지 않는다. 목록은 리소스 재로드와 disconnect에서 다시 읽는다.
+
+`hoi:story_music_v1`은 기존 story 재생 경로를 사용한다. 미등록 곡은 현재 재생이나 대기를 바꾸지 않는다. 등록 곡은 슈퍼 이벤트 뒤에서 기다리고 종료 후 재생하며, STOP/월드 이탈/disconnect의 기존 정리 규칙을 유지한다. `AudioStorySignalsTest`는 실제 Minecraft SoundManager에서 원본 SFX 한 번, 미등록 신호 무음, 60초 원본 무음곡 로드, Master 채널, 슈퍼 우선·대기 복귀와 STOP을 검사한다. 실제 장치의 주관적 청취·다중 접속의 scoped/global 전달·원본 캠페인 효과 실행은 별도 미수행이다.
+
+팩을 먼저 빌드한 뒤 Java 25에서 `.\gradlew.bat test runGameTest remapJar -PhoiTestSuite=story-signals --console=plain --no-daemon`으로 집중 재현한다. 전체 검사도 같은 검사를 포함한다. 서버 전체 검증과 클라이언트 전체 검증은 담당 이슈에서 슬롯을 합의한 뒤 순차 실행한다.

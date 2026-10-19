@@ -89,7 +89,7 @@ public final class MapUnitHud {
         for(var box:boxes)if(selectable(box.counter(),dimension)&&box.x()<right&&box.x()+box.width()>left
                 &&box.y()<bottom&&box.y()+box.height()>top)selected.add(box.counter().key());
         if(!selected.isEmpty())dev.hoi.client.audio.AudioUiSounds.play("ui.division.select");
-        MapCommanderPanels.mapSelectionChanged();
+        MapCommanderPanels.mapSelectionChanged(true);
     }
     static boolean selectable(Counter counter,String dimension) {
         if(dimension.startsWith("hoi:atlas_army_"))return !counter.navy()&&!counter.air();
@@ -155,8 +155,10 @@ public final class MapUnitHud {
         int barX=c.navy()||c.air()?14:15;
         if(!c.air())bar(g,"organization",barX,flagY,c.organization());
         bar(g,"strength",barX,flagY+4,c.strength());
-        if(!UiAssets.draw(g,"unit_hud/flags/"+c.country().toLowerCase(Locale.ROOT),c.navy()||c.air()?4:5,flagY,10,7))
-            UiAssets.draw(g,UiMenuBar.flagTexture(c.country()),c.navy()||c.air()?4:5,flagY,10,7);
+        String flag=UiMenuBar.flagTexture(c.country());
+        if(!flag.equals("country/"+c.country().toLowerCase(Locale.ROOT)+"/flag")
+                || !UiAssets.draw(g,"unit_hud/flags/"+c.country().toLowerCase(Locale.ROOT),c.navy()||c.air()?4:5,flagY,10,7))
+            UiAssets.draw(g,flag,c.navy()||c.air()?4:5,flagY,10,7);
         if(c.navy()) {
             UiText.centered(g,font,Integer.toString(c.capitals()),32,5,34,14,0xFFFFFFFF);
             UiText.centered(g,font,count(c.count()-c.capitals()),32,20,34,14,0xFFFFFFFF);

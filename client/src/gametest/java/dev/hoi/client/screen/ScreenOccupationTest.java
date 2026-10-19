@@ -23,6 +23,12 @@ public final class ScreenOccupationTest {
         var view=new View(token,1,"JAP",rows,templates,laws,"infantry","CIVILIAN_OVERSIGHT","",labels);
         context.setScreen(()->new ScreenOccupation(token,view,requests::add));context.waitTicks(2);
         context.getInput().setCursorPos(1500,900); ResearchScreenTest.gui2Screenshot(context,"hoi-occupation");
+        for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})){
+            context.getInput().resizeWindow(size[0],size[1]);context.waitTicks(3);
+            var country=context.computeOnClient(client->{var button=(Button)client.gui.screen().children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("▸ 대한민국")).findFirst().orElseThrow();double scale=client.getWindow().getGuiScale();return new double[]{(button.getX()+button.getWidth()/2.0)*scale,(button.getY()+button.getHeight()/2.0)*scale};});
+            context.getInput().setCursorPos(country[0],country[1]);context.waitTicks(12);context.takeScreenshot("hoi-occupation-country-no-tooltip-"+size[0]+"x"+size[1]+"-gui2");
+        }
+        context.getInput().resizeWindow(1600,900);context.waitTicks(3);
         context.runOnClient(client->{
             var screen=(ScreenOccupation)client.gui.screen();
             if(screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("국가 해방")).map(w->(Button)w).anyMatch(b->b.active))throw new AssertionError("Country release must remain disabled");

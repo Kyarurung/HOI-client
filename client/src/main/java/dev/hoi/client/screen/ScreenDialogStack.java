@@ -12,6 +12,8 @@ import java.util.*;
 final class ScreenDialogStack extends Screen {
     static boolean contentPass;
     private final List<ScreenDialog> windows = new ArrayList<>();
+    private final Set<String> minimized = new HashSet<>();
+    private String foreground = "";
     private Screen backdrop;
     private Screen pressedTarget;
     private final java.util.function.BiConsumer<ProtocolDialogView,String> send;
@@ -21,17 +23,35 @@ final class ScreenDialogStack extends Screen {
     void backdrop(Screen screen) { backdrop = screen; }
     Screen detachBackdrop() { var parent = backdrop; backdrop = null; return parent; }
     List<ProtocolDialogView> views() { return windows.stream().map(ScreenDialog::view).toList(); }
+    List<ProtocolDialogView> events() { return windows.stream().filter(ScreenDialog::minimizable).map(ScreenDialog::view).toList(); }
+    boolean hasVisibleWindows() { return windows.stream().anyMatch(w -> !minimized.contains(w.view().token())); }
+    void minimize(String token) {
+        var window = find(token);
+        if (window == null || !window.minimizable()) return;
+        minimized.add(token);
+        if (foreground.equals(token)) foreground = "";
+        ScreenDialogCoordinator.minimized(this);
+    }
+    void reopen(String token) {
+        var window = find(token);
+        if (window == null || !window.minimizable()) return;
+        minimized.remove(token); windows.remove(window); windows.add(window); foreground = token;
+        ScreenDialogCoordinator.reopened(this);
+    }
     ScreenDialog find(String token) { return windows.stream().filter(w -> w.view().token().equals(token)).findFirst().orElse(null); }
     void add(ProtocolDialogView view) {
         var old = find(view.token());
         if (old != null) { old.update(view); return; }
         if (windows.size() >= 64) return;
-        var window = view.completion() ? new ScreenCompletion(view,send) : new ScreenDialog(view);
+        var window = view.completion() ? new ScreenCompletion(view,send) : view.leaderEvent() ? new ScreenLeaderEvent(view,send) : new ScreenDialog(view,send);
         window.stacked = true;
+        window.minimize = () -> minimize(view.token());
         windows.add(window);
         if (width > 0) init();
     }
     void close(String token) {
+        minimized.remove(token);
+        if (foreground.equals(token)) foreground = "";
         if (windows.removeIf(w -> w.view().token().equals(token)) && width > 0) init();
     }
     @Override protected void init() {
@@ -50,6 +70,7 @@ final class ScreenDialogStack extends Screen {
     List<Screen> layers() {
         ScreenDialog event = null, superEvent = null, completion = null;
         for (var window : windows) {
+            if (minimized.contains(window.view().token())) continue;
             if (window.view().completion()) completion = window;
             else if (window.view().kind() == ProtocolDialogView.Kind.SUPER_EVENT) superEvent = window;
             else event = window;
@@ -58,6 +79,7 @@ final class ScreenDialogStack extends Screen {
         if (event != null) layers.add(event);
         if (superEvent != null) layers.add(superEvent);
         if (backdrop != null) layers.add(backdrop);
+        if (event != null && event.view().token().equals(foreground)) { layers.remove(event); layers.add(event); }
         if (completion != null) layers.add(completion);
         return layers;
     }
@@ -72,7 +94,12 @@ final class ScreenDialogStack extends Screen {
         }
         return backdrop != null && y < dev.hoi.client.ui.UiMenuBar.height(width) ? backdrop : null;
     }
-    private Screen keyboardTarget() { var layers = layers(); return layers.isEmpty() ? null : layers.getLast(); }
+    private Screen keyboardTarget() {
+        var layers = layers();
+        if (!layers.isEmpty() && layers.getLast() instanceof ScreenDecision)
+            for (var window : windows.reversed()) if (window.minimizable() && !minimized.contains(window.view().token())) return window;
+        return layers.isEmpty() ? null : layers.getLast();
+    }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         var target = inputAt(mx, my);
         dev.hoi.client.ClientCampaignHud.draw(g);

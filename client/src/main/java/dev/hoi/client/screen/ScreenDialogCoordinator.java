@@ -13,6 +13,15 @@ public final class ScreenDialogCoordinator {
     private static final LinkedHashMap<String, ProtocolDialogView> pending = new LinkedHashMap<>();
     private static ScreenDialogStack notifications;
     private static boolean suspending;
+    static ScreenDialogStack eventStack() { return notifications; }
+    static void minimized(ScreenDialogStack stack) {
+        var client = Minecraft.getInstance();
+        if (stack == notifications && !stack.hasVisibleWindows() && client.gui.screen() == stack) {
+            suspending = true;
+            try { client.gui.setScreen(stack.detachBackdrop()); } finally { suspending = false; }
+        }
+    }
+    static void reopened(ScreenDialogStack stack) { if (stack == notifications) showNotifications(); }
     public static boolean renderingContent() { return ScreenDialogStack.contentPass; }
     public static boolean suspending() { return suspending; }
     public static void setContent(Screen screen) {
@@ -101,6 +110,7 @@ public final class ScreenDialogCoordinator {
         if (notification(view)) {
             if (notifications == null) notifications = new ScreenDialogStack(null);
             notifications.add(view);
+            if(!ScreenDecisionPreferences.current().opens(view))notifications.minimize(view.token());
             showNotifications();
             if (view.kind() == ProtocolDialogView.Kind.SUPER_EVENT) AudioSuperEvent.play(view.token(), view.sound());
             else if (view.completion()) dev.hoi.client.audio.AudioUiSounds.play(
@@ -120,7 +130,7 @@ public final class ScreenDialogCoordinator {
     }
     private static void showNotifications() {
         var client = Minecraft.getInstance();
-        if (notifications == null || client.gui.screen() == notifications) return;
+        if (notifications == null || !notifications.hasVisibleWindows() || client.gui.screen() == notifications) return;
         var parent = client.gui.screen();
         notifications.backdrop(menuScreen(parent) || parent instanceof ScreenDialog ? parent : null);
         suspending = true;

@@ -19,7 +19,7 @@ final class ScreenProductionTooltips {
         var cap=view.modifiers().stream().filter(m->m.id().equals("cap")).findFirst();
         if(line.efficiencyGain()!=null&&cap.map(value->line.efficiency()+1e-12<value.value()).orElse(true))
             text.append(" (매일 §e").append(percent(line.efficiencyGain(),2)).append("§r)");
-        cap.ifPresent(value->text.append("\n").append(value.name()).append(": §e").append(percent(value.value(),2)).append("§r\n--------------\n").append(contributions(value)));
+        cap.ifPresent(value->text.append("\n").append(value.name()).append(": §e").append(percent(value.value(),2)).append("§r\n\n").append(contributions(value)));
         text.append("\n\n§e효율 획득 속도 변동치:§r");
         if(line.efficiencyBaseGain()!=null)text.append("\n매일 기본 획득량: §e").append(percent(line.efficiencyBaseGain(),2)).append("§r");
         view.modifiers().stream().filter(m->m.id().equals("growth")).findFirst().ifPresent(growth->{

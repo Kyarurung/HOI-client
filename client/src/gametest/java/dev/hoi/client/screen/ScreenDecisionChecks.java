@@ -49,6 +49,8 @@ public final class ScreenDecisionChecks {
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
         ScreenDecisionInteractionTest.run(context,hud);
         ScreenDecisionPanelTest.run(context,hud);
+        ScreenDecisionTargetTest.run(context,hud);
+        ScreenDecisionStateTest.run(context,hud);
         ScreenDecisionSourceTest.run(context);
     }
     private static Button button(ScreenDecision screen,String name) {

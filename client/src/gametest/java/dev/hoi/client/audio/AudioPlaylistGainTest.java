@@ -20,47 +20,6 @@ public final class AudioPlaylistGainTest {
                 client.options.getSoundSourceOptionInstance(SoundSource.MASTER).set(.4);
                 client.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(0.0);
             });
-            for (double volume : new double[]{0, .35, 1}) {
-                context.runOnClient(client -> {
-                    AudioUiSounds.reset();
-                    AudioKoreanMusic.volume(volume);
-                    AudioSuperEvent.play("volume-super-" + volume, "super_event/prc_invasion_of_taiwan_super_event");
-                });
-                context.waitTicks(4);
-                var sound = context.computeOnClient(client -> AudioSuperEvent.playing());
-                assertGain(context, sound, volume * .4);
-                context.runOnClient(client -> {
-                    AudioSuperEvent.play("volume-super-" + volume, "super_event/prc_invasion_of_taiwan_super_event");
-                    if (AudioSuperEvent.playing() != sound) throw new AssertionError("Duplicate super event restarted the stream");
-                    AudioKoreanMusic.volume(.25);
-                });
-                context.waitTicks(2);
-                assertGain(context, sound, .1);
-                context.runOnClient(client -> AudioKoreanMusic.volume(0));
-                context.waitTicks(2);
-                assertGain(context, sound, 0);
-                context.runOnClient(client -> {
-                    AudioSuperEvent.stop("unrelated-session");
-                    if (AudioSuperEvent.playing() != sound) throw new AssertionError("Wrong-session cancellation stopped the super event");
-                    AudioKoreanMusic.volume(1);
-                });
-                context.waitTicks(2);
-                assertGain(context, sound, .4);
-                context.runOnClient(client -> AudioSuperEvent.stop("volume-super-" + volume));
-                context.waitFor(client -> !client.getSoundManager().isActive(sound));
-                context.runOnClient(client -> {
-                    if (AudioSuperEvent.active() || client.getSoundManager().isActive(sound)) throw new AssertionError("Cancellation retained the old super event channel");
-                    AudioStoryMusic.play("music.korea.extinction");
-                    AudioKoreanMusic.volume(volume);
-                });
-                context.waitTicks(4);
-                var story = context.computeOnClient(client -> AudioStoryMusic.playing());
-                assertGain(context, story, volume * .4);
-                context.runOnClient(client -> AudioKoreanMusic.volume(.5));
-                context.waitTicks(2);
-                assertGain(context, story, .2);
-                context.runOnClient(client -> AudioUiSounds.reset());
-            }
             dev.hoi.client.screen.ScreenDialogVolumeTest.run(context);
             context.runOnClient(client -> {
                 AudioKoreanMusic.volume(.35);

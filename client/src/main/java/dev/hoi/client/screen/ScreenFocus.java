@@ -6,6 +6,7 @@ import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -22,7 +23,7 @@ public final class ScreenFocus extends Screen {
     private ProtocolFocusPayloads.View view;
     private ProtocolFocusPayloads.Detail detail;
     private EditBox search;
-    private UiMenuButton detailClose,detailStart;
+    private Button detailClose,detailStart;
     private String query="",selected="",completionTarget="";
     private float zoom=1,panX,panY;
     private boolean centered,panning,draggingDetail,detailDirty,extended;
@@ -108,9 +109,8 @@ public final class ScreenFocus extends Screen {
         if(!selected.isEmpty()) {
             var n=selectedNode();
             detailPanel.layout(width,height,top);
-            var close=detailPanel.close();var startArea=detailPanel.start();
-            detailClose=addRenderableWidget(new UiMenuButton("×",close.x(),close.y(),close.width(),close.height(),() -> {clearSelection();rebuildWidgets();}).background("menu/close"));
-            detailStart=new UiMenuButton("중점 시작",startArea.x(),startArea.y(),startArea.width(),startArea.height(),() -> {request(ProtocolFocusPayloads.Action.START,n.id());rebuildWidgets();}).caption("시작").background("completion/button");
+            detailClose=addRenderableWidget(detailPanel.button(true,() -> {clearSelection();rebuildWidgets();}));
+            detailStart=detailPanel.button(false,() -> {request(ProtocolFocusPayloads.Action.START,n.id());rebuildWidgets();});
             detailStart.active=n.enabled() && pending==null && (!extended || detail!=null && detail.executable());
             if(detail!=null && !detail.limitation().isEmpty())detailStart.setTooltip(UiTooltips.createOfficer(detail.limitation()));
             addRenderableWidget(detailStart);
@@ -204,9 +204,10 @@ public final class ScreenFocus extends Screen {
         float next=(float)Math.clamp(zoom*factor,.35,1.8);float ratio=next/zoom;panX=(float)(mx-(mx-panX)*ratio);panY=(float)(my-(my-panY)*ratio);zoom=next;
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
-        panning=false;draggingDetail=false;
+        panning=false;draggingDetail=false;detailPanel.release();
         if(!selected.isEmpty() && detailPanel.bounds().contains(event.x(),event.y())) {
             for(var button:List.of(detailClose,detailStart))if(UiTooltips.contains(button,event.x(),event.y())){if(button.mouseClicked(event,twice) && children().contains(button))setFocused(button);return true;}
+            if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && detailPanel.press(event.x(),event.y()))return true;
             draggingDetail=event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && detailPanel.header(event.x(),event.y());return true;
         }
         if(super.mouseClicked(event,twice))return true;
@@ -218,9 +219,10 @@ public final class ScreenFocus extends Screen {
         return super.mouseClicked(event,twice);
     }
     private boolean widgetAt(double x,double y){for(var child:children())if(child instanceof net.minecraft.client.gui.components.AbstractWidget widget && UiTooltips.contains(widget,x,y))return true;return false;}
-    @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {if(draggingDetail){detailPanel.move(dx,dy,width,height,top);rebuildWidgets();return true;}if(panning){panX+=(float)dx;panY+=(float)dy;return true;}return super.mouseDragged(event,dx,dy);}
-    @Override public boolean mouseReleased(MouseButtonEvent event){panning=false;draggingDetail=false;return super.mouseReleased(event);}
+    @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {if(!selected.isEmpty() && detailPanel.drag(event.y()))return true;if(draggingDetail){detailPanel.move(dx,dy,width,height,top);rebuildWidgets();return true;}if(panning){panX+=(float)dx;panY+=(float)dy;return true;}return super.mouseDragged(event,dx,dy);}
+    @Override public boolean mouseReleased(MouseButtonEvent event){panning=false;draggingDetail=false;detailPanel.release();return super.mouseReleased(event);}
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical){if(!selected.isEmpty() && detailPanel.scroll(x,y,vertical))return true;if(y>=top){zoom(Math.pow(1.1,vertical),x,y);return true;}return super.mouseScrolled(x,y,horizontal,vertical);}
     @Override public boolean keyPressed(KeyEvent event){if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && !selected.isEmpty()){clearSelection();rebuildWidgets();return true;}if(!selected.isEmpty() && getFocused()!=search && (event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER)){if(detailStart.active)detailStart.onPress(event);return true;}return super.keyPressed(event);}
     @Override public boolean isPauseScreen(){return false;}
+    @Override public void removed(){detailPanel.release();detailPanel.closeResources();super.removed();}
 }

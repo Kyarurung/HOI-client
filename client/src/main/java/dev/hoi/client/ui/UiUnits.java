@@ -1,13 +1,16 @@
 package dev.hoi.client.ui;
 
-public record UiUnits(int width, int height) {
+public record UiUnits(int width, int height, float minimumScale) {
     public static final int REFERENCE_WIDTH = 1280;
     public static final int REFERENCE_HEIGHT = 720;
+    public UiUnits(int width, int height) {
+        this(width, height, 0);
+    }
     public UiUnits {
         if (width <= 0 || height <= 0) throw new IllegalArgumentException("Viewport dimensions must be positive");
     }
     public float scale() {
-        return Math.min(width / (float) REFERENCE_WIDTH, height / (float) REFERENCE_HEIGHT);
+        return Math.max(minimumScale, Math.min(width / (float) REFERENCE_WIDTH, height / (float) REFERENCE_HEIGHT));
     }
     public float length(double gui2) {
         return (float) (gui2 * scale());

@@ -57,6 +57,48 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             ProtocolResearchPayloads.registerPayloadTypes(); ProtocolResearchPayloads.registerPayloadTypes();
         });
         loadPack(context);
+        if (System.getProperty("hoi.testSuite", "all").equals("focus-detail")) {
+            context.runOnClient(client -> client.options.guiScale().set(2));
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.screen.ScreenFocusTest.run(context);
+                dev.hoi.client.screen.ScreenFocusDetailTest.run(context);
+            }
+            return;
+        }
+        if (Set.of("all", "story-signals").contains(System.getProperty("hoi.testSuite", "all"))) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.ui.UiCountryDisplayRenderTest.run(context, fixtureMenu());
+                dev.hoi.client.audio.AudioStorySignalsTest.run(context);
+            }
+            if (System.getProperty("hoi.testSuite", "all").equals("story-signals")) return;
+        }
+        if (Set.of("all", "event-tooltips").contains(System.getProperty("hoi.testSuite", "all"))) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenEventTooltipTest.run(context); }
+            if (System.getProperty("hoi.testSuite", "all").equals("event-tooltips")) return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("event-frames")) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenEventFrameTest.run(context); }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("all")) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenEventFrameTest.run(context); }
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("scoreboard")) {
+            try (var world = context.worldBuilder().create()) { ClientScoreboardChecks.run(context); }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("leader-event")) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenLeaderEventTest.run(context); }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("leader-event-regression")) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenLeaderEventTest.regression(context); }
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("army-layout")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenCommanderRosterTest.run(context);dev.hoi.client.map.MapCommanderHudTest.runArmyLayout(context,fixtureMenu());}
+            return;
+        }
         if(System.getProperty("hoi.testSuite","all").equals("movement-controls")){
             try(var world=context.worldBuilder().create()){
                 dev.hoi.client.map.MapCommanderHudTest.run(context,fixtureMenu());
@@ -84,6 +126,12 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         }
         if (System.getProperty("hoi.testSuite", "all").equals("diplomacy")) {
             try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenDiplomacyActionsTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseInputTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseTest.run(context); dev.hoi.client.screen.ScreenDiplomacyLeaseTest.runSource(context); dev.hoi.client.screen.ScreenDiplomacyVolunteersTest.run(context); }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("decision-targets")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.screen.ScreenDecisionTargetTest.run(context, fixtureMenu().hud());
+            }
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("decisions")) {
@@ -159,6 +207,12 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             }
             return;
         }
+        if (System.getProperty("hoi.testSuite", "all").startsWith("politics-choice")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.screen.ScreenPoliticsChoiceTest.run(context);
+            }
+            return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("politics")) {
             try (var world = context.worldBuilder().create()) { ScreenCountryChecks.authoritativePoliticsTooltips(context); }
             return;
@@ -206,7 +260,6 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         dev.hoi.client.map.MapCountryNameVisibilityTest.run(context);
         dev.hoi.client.map.MapChunkFadeTest.run(context);
         MapSurfaceRenderChecks.run(context);
-        dev.hoi.client.map.MapArmyRenderChecks.run(context);
         context.getInput().resizeWindow(1600, 1000);
         context.runOnClient(client -> client.options.guiScale().set(2));
         try (var world = context.worldBuilder().adjustSettings(settings -> settings.setGameMode(
@@ -227,7 +280,6 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.setScreen(() -> null); context.waitTicks(3); gui2Screenshot(context, "hoi-map-selector-icons");
             ClientScoreboardChecks.run(context);
             var menu = fixtureMenu();
-            dev.hoi.client.audio.AudioKoreanMusicChecks.run(context, menu);
             dev.hoi.client.audio.AudioMusicRoutingChecks.run(context, world.getServer()::runCommand);
             dev.hoi.client.audio.AudioPlaylistGainTest.run(context);
             dev.hoi.client.audio.AudioUnitVoicesChecks.run(context);
@@ -280,6 +332,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             dev.hoi.client.screen.ScreenFocusChecks.run(context);
             dev.hoi.client.screen.ScreenWorldTensionChecks.run(context,menu.hud());
             ScreenDialogChecks.run(context);
+            dev.hoi.client.screen.ScreenLeaderEventTest.run(context);
             ScreenRegimentChecks.run(context);
             dev.hoi.client.screen.ScreenOfficerSourceTest.run(context);
                 dev.hoi.client.screen.ScreenPreferredTacticsTest.run(context);

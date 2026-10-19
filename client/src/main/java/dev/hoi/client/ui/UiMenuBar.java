@@ -212,7 +212,7 @@ public final class UiMenuBar {
         return List.copyOf(buttons);
     }
     public static String flagTexture(String country) {
-        return country == null || country.isBlank() ? "" : "country/" + country.toLowerCase(Locale.ROOT) + "/flag";
+        return UiCountryDisplay.flag(country);
     }
     public static final class UiTabButton extends Button {
         @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play("ui.menu_tab"); }

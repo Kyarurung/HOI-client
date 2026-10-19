@@ -11,7 +11,10 @@ public final class AudioStoryMusic {
     static SoundInstance playing(){return sound;}
     private static int retries, startup;
     private AudioStoryMusic() {}
-    public static void play(String event) {reset();AudioKoreanMusic.enable();AudioKoreanMusic.suspend();requested=event;}
+    public static void play(String event) {
+        if (Minecraft.getInstance().getSoundManager().getSoundEvent(AudioUiSounds.id(event)) == null) return;
+        reset();AudioKoreanMusic.enable();AudioKoreanMusic.suspend();requested=event;
+    }
     public static boolean active() {return !requested.isEmpty();}
     public static void tick() {
         if(requested.isEmpty())return;

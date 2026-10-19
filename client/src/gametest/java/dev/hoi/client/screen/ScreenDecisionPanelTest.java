@@ -56,6 +56,7 @@ public final class ScreenDecisionPanelTest {
                 context.getInput().resizeWindow(size[0], size[1]);
                 context.runOnClient(client -> client.options.guiScale().set(2));
                 context.waitTicks(3);
+                progressPixels(context, size);
                 for (var fixture : fixtures) {
                     String session = UUID.randomUUID().toString();
                     var requests = new ArrayList<ProtocolDecisionPayloads.Request>();
@@ -139,6 +140,65 @@ public final class ScreenDecisionPanelTest {
             throw new UncheckedIOException(error);
         }
     }
+    private static void progressPixels(ClientGameTestContext context,int[] size) throws IOException {
+        var assets=context.computeOnClient(ScreenDecisionPanelTest::assets);
+        var resources=context.computeOnClient(Minecraft::getResourceManager);
+        var bars=assets.root().getAsJsonObject("progressBars");
+        String[] names={"vaccine","dissatisfaction","infection"};
+        for(int frame:new int[]{0,50,100}) {
+            var children=new ArrayList<ProtocolDecisionPanel.Element>();
+            for(int index=0;index<names.length;index++) {
+                String sprite="GFX_KOR_coronavirus_"+names[index]+"_progbar";
+                children.add(new ProtocolDecisionPanel.Element(names[index],"icon","korea/interface/TFR_Korea_GUI.gui",1,
+                        new ProtocolDecisionPanel.Layout(index*140.0,0.0,null,null,null,null,null,null,null,null,null,null),
+                        sprite,(double)frame,null,null,null,true,null,List.of()));
+            }
+            var root=new ProtocolDecisionPanel.Element("synthetic_progress","container","korea/interface/TFR_Korea_GUI.gui",1,
+                    new ProtocolDecisionPanel.Layout(null,null,new ProtocolDecisionPanel.Measure(404.0,false),new ProtocolDecisionPanel.Measure(124.0,false),null,null,null,null,null,null,null,null),
+                    null,null,null,null,null,true,null,children);
+            var panel=new ProtocolDecisionPanel("synthetic_progress","synthetic_progress","korea/interface/TFR_Korea_GUI.gui",1,List.of(root),List.of());
+            var renderer=new ScreenDecisionPanel();renderer.assets(assets.root());
+            try {
+                context.setScreen(()->new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("Synthetic progress pixel regression")) {
+                    @Override public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor graphics,int mouseX,int mouseY,float delta) {
+                        graphics.fill(0,0,width,height,0xFF101010);
+                        renderer.render(graphics,font,panel,assets.sprites(),new ScreenDecisionText(),20,80,404);
+                    }
+                });
+                context.waitTicks(3);
+                var capture=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-decision-progress-synthetic-"+frame+"-"+size[0]+"-gui2").toFile());
+                for(int index=0;index<names.length;index++) {
+                    var bar=bars.getAsJsonObject("GFX_KOR_coronavirus_"+names[index]+"_progbar");
+                    var images=new ArrayList<java.awt.image.BufferedImage>();
+                    for(var texture:bar.getAsJsonArray("textures")) {
+                        String path=texture.getAsJsonObject().get("path").getAsString();
+                        var resource=resources.getResource(Identifier.parse("hoi:textures/gui/"+path+".png")).orElseThrow();
+                        try(var input=resource.open()) {images.add(javax.imageio.ImageIO.read(input));}
+                    }
+                    int w=bar.get("width").getAsInt(),h=bar.get("height").getAsInt(),checked=0,wrong=0;
+                    require(images.getFirst().getWidth()==h && images.getFirst().getHeight()==w,"Vertical source textures must retain their original transposed dimensions");
+                    for(int y=0;y<h;y++)for(int x=0;x<w;x++) {
+                        int sourceX=h-1-y,sourceY=w-1-x;
+                        int background=images.get(1).getRGB(sourceX,sourceY);
+                        int foreground=sourceX<(int)Math.round(h*frame/100.0)?images.getFirst().getRGB(sourceX,sourceY):0;
+                        if((background>>>24)<16 && (foreground>>>24)<16)continue;
+                        int actual=capture.getRGB((20+index*140+x)*2+1,(80+y)*2+1);checked++;
+                        boolean mismatch=false;
+                        for(int shift:new int[]{16,8,0}) {
+                            double expected=16;
+                            for(int pixel:new int[]{background,foreground}) {
+                                double alpha=(pixel>>>24)/255.0;
+                                expected=(pixel>>shift&255)*alpha+expected*(1-alpha);
+                            }
+                            if(Math.abs((actual>>shift&255)-Math.round(expected))>3)mismatch=true;
+                        }
+                        if(mismatch)wrong++;
+                    }
+                    require(checked>300 && wrong<=checked/100,"Vertical progress orientation/fill pixels differ: "+names[index]+" frame="+frame+" wrong="+wrong+" checked="+checked);
+                }
+            } finally {context.setScreen(()->null);context.runOnClient(client->renderer.close());}
+        }
+    }
     private static ProtocolDecisionPayloads.View view(Fixture fixture, ProtocolDecisionPanel panel, String session, long revision, ProtocolCountryHud hud) {
         var category = new ProtocolDecisionPayloads.Category(fixture.id(), fixture.id(), "", "", "", panel.scriptedGui(), true, panel);
         return new ProtocolDecisionPayloads.View(fixture.country(), session, revision, "", 0, 0, hud, List.of(), List.of(category), 1);
@@ -159,7 +219,7 @@ public final class ScreenDecisionPanelTest {
         var screen = (ScreenDecision)client.gui.screen();
         var button = screen.children().stream().filter(child -> child instanceof Button value && value.getMessage().getString().equals(fixture.id()))
                 .map(child -> (Button)child).findFirst().orElseThrow();
-        int top = button.getBottom() + 3, width = button.getWidth() - 10;
+        int top = button.getBottom() + 3, width = screen.unitHudLeft() - 32;
         var renderer = new ScreenDecisionPanel();
         var text = new ScreenDecisionText();
         renderer.assets(assets.root());
@@ -196,9 +256,9 @@ public final class ScreenDecisionPanelTest {
             }
             case "national_assembly" -> {
                 require(fixture.panel().elements().getFirst().layout().width().value() == 0, "Assembly fixture must retain its zero root width");
-                require(probe.result().height() == (int)Math.ceil(570.0 * probe.width() / 490), "Zero-width assembly root must include its source quad extents");
-                assertHit(hit(probe, "NatAsm_overlay"), probe, 490, 6, 139, 484, 257);
-                assertHit(hit(probe, "NatAsm_logo"), probe, 490, 201, 298, 91, 91);
+                require(probe.result().height() == (int)Math.ceil(431.0 * probe.width() / 490), "Assembly canvas must exclude the transparent upper radial half");
+                assertHit(hit(probe, "NatAsm_overlay"), probe, 490, 6, 0, 484, 257);
+                assertHit(hit(probe, "NatAsm_logo"), probe, 490, 201, 159, 91, 91);
                 require(elements(fixture.panel()).filter(value -> value.kind().equals("radial") && value.frame() != null).count() == 5, "Known source frame fixture must exercise all five original shaders");
             }
             default -> throw new AssertionError("Unknown panel fixture " + fixture.id());

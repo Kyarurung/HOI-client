@@ -17,6 +17,9 @@ public final class ScreenIndustryChecks {
             try { return new ProtocolIndustryPayloads.Response(java.nio.file.Files.readString(java.nio.file.Path.of(directory, file))).view(); }
             catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
         }
+        return bundledFixture(file);
+    }
+    static ProtocolIndustryView bundledFixture(String file) {
         try(var in=ScreenIndustryChecks.class.getResourceAsStream("/"+file)) {
             return new ProtocolIndustryPayloads.Response(new String(Objects.requireNonNull(in).readAllBytes(),StandardCharsets.UTF_8)).view();
         } catch(java.io.IOException e) {throw new java.io.UncheckedIOException(e);}

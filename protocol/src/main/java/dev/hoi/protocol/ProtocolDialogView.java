@@ -9,7 +9,8 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
         this(token,revision,kind,title,subtitle,body,flag,image,sound,tiles,choices,"");
     }
     public enum Kind { STATE, DIPLOMACY, EVENT, GLOBAL_EVENT, SUPER_EVENT, POLITICS, COMMANDER }
-    public record LeaderTrait(String icon,String name,String tooltip) {
+    public record LeaderTrait(String icon,String name,String tooltip,Boolean active) {
+        public LeaderTrait(String icon,String name,String tooltip) {this(icon,name,tooltip,null);}
         public LeaderTrait {asset(icon);text(name,160);text(tooltip,3000);}
     }
     public record Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails) {
@@ -51,12 +52,13 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
             text(tooltip,240);
         }
     }
-    public record Choice(String id,String label) {
-        public Choice {text(id,160);text(label,240);}
+    public record Choice(String id,String label,String tooltip) {
+        public Choice(String id,String label) {this(id,label,"");}
+        public Choice {tooltip=tooltip==null?"":tooltip;text(id,160);text(label,240);text(tooltip,3000);}
     }
     public ProtocolDialogView {
         presentation=presentation==null?"":presentation;
-        if(!Set.of("","research_complete","focus_complete").contains(presentation))throw new IllegalArgumentException("Invalid dialog presentation");
+        if(!Set.of("","research_complete","focus_complete","leader_event","minor_flavor").contains(presentation)||Set.of("leader_event","minor_flavor").contains(presentation)&&kind!=Kind.EVENT)throw new IllegalArgumentException("Invalid dialog presentation");
         if(!token.isEmpty())UUID.fromString(token);
         if(revision<0)throw new IllegalArgumentException("Invalid dialog revision");
         Objects.requireNonNull(kind);text(title,240);text(subtitle,600);text(body,24000);asset(flag);asset(image);asset(sound);
@@ -65,7 +67,9 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
         if(choices.stream().map(Choice::id).distinct().count()!=choices.size())throw new IllegalArgumentException("Duplicate dialog choice");
     }
     public ProtocolDialogView issued(String id,long version) {return new ProtocolDialogView(id,version,kind,title,subtitle,body,flag,image,sound,tiles,choices,presentation);}
-    public boolean completion() {return !presentation.isEmpty();}
+    public boolean completion() {return presentation.equals("research_complete")||presentation.equals("focus_complete");}
+    public boolean leaderEvent() {return presentation.equals("leader_event");}
+    public boolean minorFlavor() {return presentation.equals("minor_flavor");}
     private static void asset(String value) {text(value,180);if(!value.isEmpty()&&!value.matches("[a-z0-9_/-]+"))throw new IllegalArgumentException("Invalid dialog image");}
     private static void text(String value,int limit) {if(value==null||value.length()>limit)throw new IllegalArgumentException("Dialog text limit exceeded");}
 }

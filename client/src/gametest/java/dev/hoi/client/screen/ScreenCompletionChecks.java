@@ -260,7 +260,7 @@ public final class ScreenCompletionChecks {
             ScreenDialogCoordinator.receive(ProtocolDialogPayloads.Show.of(global, true));
             var stack = (ScreenDialogStack)c.gui.screen();
             check(stack.layers().equals(List.of(stack.find(global.token()), stack.find(superEvent.token()), parent, stack.find(done.token()))), "Fixed draw order overrides arrival order");
-            check(stack.find(event.token()).panelLeft() == stack.find(global.token()).panelLeft() && stack.find(event.token()).panelTop() == stack.find(global.token()).panelTop(), "Global and country events share one position");
+            check(stack.find(event.token()).panelLeft() != stack.find(global.token()).panelLeft(), "Country and news frames retain their different native CENTER offsets");
             check(stack.inputAt(20, 80) == parent, "Sidebar input remains above events");
             check(requests.stream().noneMatch(r -> r.action() == ProtocolResearchPayloads.Action.CLOSE), "Background event cannot close the research session");
         });

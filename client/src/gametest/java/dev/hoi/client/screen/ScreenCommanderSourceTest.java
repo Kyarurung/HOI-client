@@ -9,6 +9,7 @@ import java.util.*;
 public final class ScreenCommanderSourceTest {
     private ScreenCommanderSourceTest() {}
     public static void run(ClientGameTestContext context) {
+        ScreenCommanderRosterTest.run(context);
         ScreenAdmiralSourceTest.run(context);
         ScreenAirAceSourceTest.run(context);
         ScreenCommanderTraitTreeTest.run(context);

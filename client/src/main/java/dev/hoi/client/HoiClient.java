@@ -23,26 +23,30 @@ public final class HoiClient implements ClientModInitializer {
         ProtocolResearchPayloads.registerPayloadTypes();
         ClientCampaignHud.register();
         dev.hoi.client.map.MapUnitHud.register();
+        dev.hoi.client.map.MapSelectorHud.register();
         dev.hoi.client.map.MapCommanderHud.register();
         dev.hoi.client.map.MapOccupationHud.register();
         ScreenDialogCoordinator.register();
         dev.hoi.protocol.ProtocolAudioPayloads.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolAudioPayloads.Signal.TYPE, (packet, context) -> AudioUiSounds.receive(packet.cue()));
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolAudioPayloads.Music.TYPE, (packet, context) -> dev.hoi.client.audio.AudioStoryMusic.play(packet.event()));
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolAudioPayloads.Sound.TYPE, (packet, context) -> dev.hoi.client.audio.AudioStorySounds.play(packet.event()));
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolUnitAudio.Snapshot.TYPE, (packet, context) -> dev.hoi.client.audio.AudioUnitVoices.receive(packet));
         MapSceneRenderer.register();
         dev.hoi.protocol.ProtocolConstructionPayloads.registerPayloadTypes();
         dev.hoi.protocol.ProtocolCountryPayloads.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolCountryDisplay.Table.TYPE, (packet, context) -> dev.hoi.client.ui.UiCountryDisplay.accept(packet));
         dev.hoi.protocol.ProtocolWorldTension.registerPayloadTypes();
         net.fabricmc.fabric.api.resource.v1.ResourceLoader.get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
                 .registerReloadListener(Identifier.fromNamespaceAndPath("hoi", "ui_image_dimensions"),
-                        (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> { UiAssets.clear(); net.minecraft.client.Minecraft.getInstance().execute(dev.hoi.client.audio.AudioUnitVoices::reset); MapSceneRenderer.resourcesReloaded(); dev.hoi.client.audio.AudioKoreanMusic.reload(manager); });
+                        (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> { UiAssets.clear(); dev.hoi.client.audio.AudioStorySounds.clear(); net.minecraft.client.Minecraft.getInstance().execute(dev.hoi.client.audio.AudioUnitVoices::reset); MapSceneRenderer.resourcesReloaded(); dev.hoi.client.audio.AudioKoreanMusic.reload(manager); });
         ClientTickEvents.START_CLIENT_TICK.register(InputSidebarMovement::tick);
         NetworkScreens.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> registerCommands(dispatcher));
         ClientTickEvents.END_CLIENT_TICK.register(client -> { dev.hoi.client.audio.AudioUnitVoices.tick(); dev.hoi.client.audio.AudioStoryMusic.tick(); dev.hoi.client.audio.AudioKoreanMusic.tick(); });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             dev.hoi.client.screen.ScreenIndustry.clearPreferences();
+            dev.hoi.client.ui.UiCountryDisplay.clear(); dev.hoi.client.audio.AudioStorySounds.clear();
             dev.hoi.client.input.InputMenuShortcut.reset(); AudioUiSounds.reset(); dev.hoi.client.audio.AudioUnitVoices.reset(); dev.hoi.client.audio.AudioStoryMusic.reset(); dev.hoi.client.audio.AudioKoreanMusic.PLAYBACK.stop(); InputSidebarMovement.release(client); dev.hoi.client.ui.UiMenuBar.clear();
         }));
     }

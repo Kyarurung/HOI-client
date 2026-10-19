@@ -18,7 +18,7 @@ Current and future Korean UI text/tooltips follow TFR Korean translation patch w
 
 ## Read only the relevant detailed constraints
 
-[Client implementation constraints](docs/ui.md#client-implementation-constraints) retain the exact dimensions, indicator order, input behavior, research slot limits and HUD values. Read the relevant section **before changing its area**; these rules remain binding. Use [README.md](README.md) for build/verification status and [audio](docs/audio.md) for playback. Tool, skill and documentation rules are in [RTK.md](RTK.md#repository-workflow).
+[Client implementation constraints](docs/ui.md#client-implementation-constraints) retain the exact dimensions, indicator order, input behavior, research slot limits and HUD values. Read the relevant section **before changing its area**; these rules remain binding. Use [README.md](README.md) for build commands and [audio](docs/audio.md) for playback. Tool, skill and documentation rules are in [RTK.md](RTK.md#repository-workflow).
 
 ## Validation and workflow
 
@@ -34,7 +34,7 @@ Use existing code/stdlib first while completing requested scope and validation. 
 
 Apply the user's common development instructions alongside this repository's role-specific rules. Complete the requested implementation and validation; do not add code comments, start/restart an operational server, or treat a one-time cleanup/deployment approval as standing permission. Commit only when the user requests it; deployment and push are separate instructions. Preserve unrelated work and saved data.
 
-Original user-owned code/tools retain `AGPL-3.0-only` and `by Kiruya_Momochi`; preserve third-party licenses, required notices and asset provenance under [LICENSE-SCOPE.md](LICENSE-SCOPE.md). Never apply the project license to excluded source-derived assets. Keep README focused on essentials, accurate commands and links to this and the sibling repositories.
+Original user-owned code/tools retain `AGPL-3.0-only` and `by Kyarurung`; preserve third-party licenses, required notices and asset provenance under [LICENSE-SCOPE.md](LICENSE-SCOPE.md). Never apply the project license to excluded source-derived assets. Keep README focused on essentials, accurate commands and links to this and the sibling repositories, without verification status or results.
 
 Name production classes by the last package segment, upper category and specific responsibility. Project-owned tests use the responsibility name plus `Test`, not a separate `GameTest` suffix; preserve GameTest annotations, interfaces, source sets, registration, tasks and coverage. For a requested full rename, update filenames, constructors, references, registrations, configuration and maintained docs together. In HOI Java code, follow the requested removal of class-body comments and code-only blank lines, while preserving string/text-block/tooltip content, blank lines and required legal notices. Keep one blank line between package/imports and imports/body. This format does not apply to SemionTD.
 

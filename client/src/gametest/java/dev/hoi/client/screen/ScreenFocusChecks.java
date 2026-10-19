@@ -48,6 +48,7 @@ public final class ScreenFocusChecks {
             }
         }
         ScreenFocusTest.run(context);
+        ScreenFocusDetailTest.run(context);
         context.setScreen(() -> null);
     }
 }

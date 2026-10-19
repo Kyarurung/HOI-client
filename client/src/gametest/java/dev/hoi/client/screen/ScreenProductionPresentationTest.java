@@ -9,7 +9,7 @@ final class ScreenProductionPresentationTest {
     static void run(ClientGameTestContext context) {
         context.getInput().resizeWindow(2560,1440);
         context.runOnClient(client->client.options.guiScale().set(2));
-        var fixture=ScreenIndustryChecks.tankFixture("production-source-fixture.json");
+        var fixture=ScreenIndustryChecks.bundledFixture("production-source-fixture.json");
         researchedSuccessors(context);
         stockColors(context,fixture);
         priorityTooltips(context,fixture);
@@ -39,7 +39,7 @@ final class ScreenProductionPresentationTest {
             });
         } catch(java.io.IOException error) {throw new java.io.UncheckedIOException(error);}
         for(String file:List.of("production-source-fixture.json","production-china-fixture.json")) {
-            var source=ScreenIndustryChecks.tankFixture(file);
+            var source=ScreenIndustryChecks.bundledFixture(file);
             context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,source.session(),source,request->{}));
             context.waitTicks(3);
             var point=context.computeOnClient(client->{
