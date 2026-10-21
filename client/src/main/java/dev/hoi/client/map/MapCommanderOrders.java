@@ -138,7 +138,7 @@ public final class MapCommanderOrders {
         if(send("FORMATION/"+action,values,List.of())&&(action.equals("CREATE_ARMY")||action.equals("MOVE_DIVISIONS")))MapCommanderPanels.mapSelectionChanged();
     }
     static void repairPolicy(String force,Integer policy,boolean previous){
-        if(policy==null){MapCommanderHud.open(new Open(Mode.NAVAL_SETTINGS,force,List.of("repair")));return;}
+        if(policy==null)return;
         send("NAVAL_SETTING/"+(previous?"REPAIR_PREVIOUS":"REPAIR_NEXT"),List.of(force,"policy/"+policy),List.of());
     }
     static boolean route(Open request){

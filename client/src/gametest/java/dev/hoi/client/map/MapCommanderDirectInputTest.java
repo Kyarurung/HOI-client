@@ -13,6 +13,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 final class MapCommanderDirectInputTest {
     private MapCommanderDirectInputTest() {}
     static void run(ClientGameTestContext context,ProtocolMenuView menu,String directory)throws java.io.IOException {
+        var actions=new ProtocolCommanderOrders.Availability(Files.readString(Path.of(directory,"kor-navy-assessment.json"))).assessment().actions();
         for(String kind:List.of("navy","air-attached","army-air-attached")){
             var source=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-"+kind+".json"))).view();boolean navy=source.branch()==Mode.NAVY_HQ;
             context.getInput().resizeWindow(1280,720);
@@ -31,10 +32,11 @@ final class MapCommanderDirectInputTest {
             if(source.branch()==Mode.ARMY)blockedArmy(context,source);
             if(navy){
                 var card=source.cards().stream().filter(value->value.id().equals(target[0])).findFirst().orElseThrow();var force=card.panel().members().getFirst();var state=force.data().navy();
-                context.runOnClient(client->{var screen=client.gui.screen();if(!MapCommanderOrders.route(new Open(Mode.NAVAL_MISSION,force.id()))||client.gui.screen()!=screen||!MapCommanderPanels.commandSelection().equals(List.of("navy/"+force.id())))throw new AssertionError("Task-force detail must select exactly one force in the native panel");});context.waitTicks(2);
+                context.runOnClient(client->{var screen=client.gui.screen();if(!MapCommanderOrders.route(new Open(Mode.NAVAL_MISSION,force.id()))||client.gui.screen()!=screen||!MapCommanderPanels.commandSelection().equals(List.of("navy/"+force.id())))throw new AssertionError("Task-force detail must select exactly one force in the native panel");MapCommanderOrders.selectionObserver=selection->{};MapCommanderAvailability.queryObserver=query->MapCommanderAvailability.accept(new ProtocolCommanderOrders.Assessment(query.token(),query.revision(),query.sequence(),query.request(),actions));MapCommanderOrders.accept(new ProtocolCommanderOrders.Context(UUID.randomUUID().toString(),0,source.country(),client.level.dimension().identifier().toString(),""));});context.waitTicks(2);
                 context.runOnClient(client->{
                     var split=find("NAVY_REPAIR_POLICY_SPLIT_DESC");MapCommanderPanelsTest.directClick(split,"NAVAL_SETTING/AUTO_SPLIT",List.of(force.id(),"state/"+(state.autoSplit()==null?"unset":state.autoSplit())),source.country());
-                    var reinforce=find("TASK_FORCE_AUTO_REINFORCEMENT_DESC");MapCommanderPanelsTest.directClick(reinforce,"NAVAL_SETTING/REINFORCE",List.of(force.id(),"state/"+(state.reinforce()==null?"unset":state.reinforce())),source.country());
+                    if(MapCommanderPanels.hits().stream().anyMatch(hit->!hit.icon().equals("naval_tool_REINFORCE")&&hit.tip().startsWith(UiCommandLabels.text("TASK_FORCE_AUTO_REINFORCEMENT_DESC","missing"))))throw new AssertionError("Task-force rows must not expose the removed individual reinforcement control");
+                    var reinforce=MapCommanderPanels.hits().stream().filter(hit->hit.icon().equals("naval_tool_REINFORCE")).findFirst().orElseThrow();var decision=actions.get("NAVAL_TB/REINFORCE");if(!decision.enabled()||!reinforce.tip().equals(decision.details()))throw new AssertionError("Reinforcement toolbar must retain the enabled authoritative tooltip");MapCommanderPanelsTest.directClick(reinforce,"NAVAL_SETTING/BATCH/REINFORCE",List.of(force.id(),"0/state/"+(state.reinforce()==null?"unset":state.reinforce())),source.country());
                     var engagement=MapCommanderPanels.hits().stream().filter(hit->hit.tip().contains("클릭: 다음 교전 규칙")).findFirst().orElseThrow();MapCommanderPanelsTest.directClick(engagement,"NAVAL_SETTING/ENGAGEMENT_NEXT",List.of(force.id(),"engagement/"+state.engagement()),source.country());
                     MapCommanderPanelsTest.directClick(engagement,"NAVAL_SETTING/ENGAGEMENT_PREVIOUS",List.of(force.id(),"engagement/"+state.engagement()),source.country(),com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT);
                     MapCommanderHud.open(new Open(Mode.NAVAL_TASK_FORCES,card.id()));if(!MapCommanderPanels.commandSelection().equals(List.of("navy/"+force.id())))throw new AssertionError("Reopening a selected fleet must retain the chosen task-force subset");
@@ -46,7 +48,7 @@ final class MapCommanderDirectInputTest {
                 context.runOnClient(client->{var sortie=MapCommanderPanels.hits().stream().filter(hit->hit.icon().equals("strategicair_day_night")).findFirst().orElseThrow();MapCommanderPanelsTest.directClick(sortie,"AIR_SETTING/SORTIE_NEXT",List.of(wing.id(),"sortie/"+wing.data().air().wing().sortieTime()),source.country());});
             }
             context.waitTicks(2);context.takeScreenshot("hoi-direct-mission-settings-"+kind+"-gui2");
-            if(navy)missingNavalState(context,source);else airTarget(context,source,target[0]);
+            if(navy){try{missingNavalState(context,source);}finally{context.runOnClient(client->{MapCommanderAvailability.queryObserver=null;MapCommanderOrders.reset();MapCommanderOrders.selectionObserver=null;});}}else airTarget(context,source,target[0]);
             if(source.branch()==Mode.ARMY){context.waitTicks(2);returnToArmy(context,source,target[0],armySelection,armySkills);}
             context.runOnClient(client->{MapCommanderHud.reset();MapUnitHud.reset();});
         }
@@ -111,8 +113,9 @@ final class MapCommanderDirectInputTest {
                 var requests=new ArrayList<ProtocolCommanderOrders.Command>();var dialogs=new ArrayList<Open>();var previous=MapCommanderHud.requestObserver;MapCommanderHud.requestObserver=dialogs::add;MapCommanderOrders.commandObserver=requests::add;MapCommanderOrders.selectionObserver=selection->{};
                 try{
                     MapCommanderOrders.accept(new ProtocolCommanderOrders.Context(UUID.randomUUID().toString(),0,source.country(),client.level.dimension().identifier().toString(),""));var screen=client.gui.screen();
-                    var controls=MapCommanderPanels.hits().stream().filter(hit->hit.tip().contains("태스크 포스 설정을 불러오는 중입니다.")).toList();if(controls.size()!=12)throw new AssertionError("Missing naval state must explain all three settings and nine target classes");
+                    var controls=MapCommanderPanels.hits().stream().filter(hit->hit.tip().contains("태스크 포스 설정을 불러오는 중입니다.")).toList();if(controls.size()!=11)throw new AssertionError("Missing naval state must explain auto-split and engagement settings and nine target classes");
                     for(var hit:controls){MapCommanderHud.clickAt(hit.x()+hit.w()/2.,hit.y()+hit.h()/2.);MapCommanderHud.clickAt(hit.x()+hit.w()/2.,hit.y()+hit.h()/2.,com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT,false);}
+                    var reinforce=MapCommanderPanels.hits().stream().filter(hit->hit.icon().equals("naval_tool_REINFORCE")).findFirst().orElseThrow();if(!MapCommanderAvailability.reason("NAVAL_TB/REINFORCE").isEmpty())throw new AssertionError("Missing-state reinforcement check must reach the empty batch guard with an enabled server assessment");for(int button:List.of(InputConstants.MOUSE_BUTTON_LEFT,InputConstants.MOUSE_BUTTON_RIGHT))MapCommanderHud.clickAt(reinforce.x()+reinforce.w()/2.,reinforce.y()+reinforce.h()/2.,button,false);
                     if(!requests.isEmpty()||!dialogs.isEmpty()||client.gui.screen()!=screen||!MapCommanderPanels.commandSelection().equals(List.of("navy/"+force.id())))throw new AssertionError("Missing naval state must not send guessed settings, open fallback dialogs or broaden selection");
                 }finally{MapCommanderOrders.reset();MapCommanderOrders.commandObserver=null;MapCommanderOrders.selectionObserver=null;MapCommanderHud.requestObserver=previous;}
             });

@@ -11,6 +11,6 @@ final class MapCommanderLayout {
     static UiUnits units(int width,int height){return new UiUnits(width,height,1);}
     static int cardsBottom(UiUnits units){return units.height()-(MapCommanderHud.running()?0:units.size(82));}
     static int commandLeft(UiUnits units,boolean navy){int width=units.size(navy?266:320.5),center=(units.width()-width)/2;return MapCommanderHud.running()?center:Math.max(center,Math.min(units.size(navy?252:MapCommanderPanels.attachmentWings().isEmpty()?224:318),units.width()-width));}
-    static int commandTop(UiUnits units,boolean navy){return cardsBottom(units)-units.size(100)-units.size(navy?50:39.5);}
+    static int commandTop(UiUnits units,boolean navy){return cardsBottom(units)-units.size(navy?122.5:139.5);}
     static int popupBottom(UiUnits units,boolean navy){return commandTop(units,navy)-units.size(navy?4:28);}
 }

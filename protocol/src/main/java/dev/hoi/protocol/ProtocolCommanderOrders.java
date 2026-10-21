@@ -46,20 +46,21 @@ public final class ProtocolCommanderOrders {
         public static final StreamCodec<RegistryFriendlyByteBuf,Check> CODEC=StreamCodec.of((b,p)->{b.writeUtf(p.token,36);b.writeVarLong(p.revision);b.writeVarLong(p.sequence);b.writeVarLong(p.request);writeKeys(b,p.armies);},b->new Check(b.readUtf(36),b.readVarLong(),b.readVarLong(),b.readVarLong(),readKeys(b)));
         @Override public Type<Check> type(){return TYPE;}
     }
-    public record Decision(boolean enabled,boolean target,String reason,String details) {
+    public record Decision(boolean enabled,boolean target,String reason,String details,Boolean warning) {
         public Decision(boolean enabled,boolean target,String reason){this(enabled,target,reason,"");}
-        public Decision {details=details==null?"":details;if(details.length()>800)throw new IllegalArgumentException("Command detail too long");Objects.requireNonNull(reason);if(reason.length()>400||enabled!=reason.isEmpty()||!enabled&&target)throw new IllegalArgumentException("Invalid command availability");}
+        public Decision(boolean enabled,boolean target,String reason,String details){this(enabled,target,reason,details,null);}
+        public Decision {details=details==null?"":details;if(details.length()>3000)throw new IllegalArgumentException("Command detail too long");Objects.requireNonNull(reason);if(reason.length()>400||enabled!=reason.isEmpty()||!enabled&&target)throw new IllegalArgumentException("Invalid command availability");}
     }
     public record Assessment(String token,long revision,long sequence,long request,Map<String,Decision> actions) {
         public Assessment {UUID.fromString(token);actions=Map.copyOf(actions);if(revision<0||sequence<0||request<0||actions.size()>64||actions.keySet().stream().anyMatch(a->!a.matches("[A-Z_/]{1,80}")))throw new IllegalArgumentException("Invalid command assessment");}
     }
     public record Availability(String json) implements CustomPacketPayload {
         private static final com.google.gson.Gson JSON=new com.google.gson.Gson();
-        public Availability {if(json==null||json.length()>65536||json.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>65536)throw new IllegalArgumentException("Command assessment exceeds byte budget");}
+        public Availability {if(json==null||json.length()>262144||json.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>262144)throw new IllegalArgumentException("Command assessment exceeds byte budget");}
         public static Availability of(Assessment value){return new Availability(JSON.toJson(value));}
         public Assessment assessment(){return ProtocolJsonCodec.read(JSON,json,Assessment.class);}
         public static final Type<Availability> TYPE=new Type<>(Identifier.parse("hoi:commander_availability_v1"));
-        public static final StreamCodec<RegistryFriendlyByteBuf,Availability> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,65536),b->new Availability(b.readUtf(65536)));
+        public static final StreamCodec<RegistryFriendlyByteBuf,Availability> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,262144),b->new Availability(b.readUtf(262144)));
         @Override public Type<Availability> type(){return TYPE;}
     }
     private static List<String> keys(List<String> keys){var copy=List.copyOf(keys);if(copy.size()>2048||new HashSet<>(copy).size()!=copy.size()||copy.stream().anyMatch(k->!k.matches("[A-Za-z0-9_:/|.-]{1,160}")))throw new IllegalArgumentException("Invalid command selection");return copy;}

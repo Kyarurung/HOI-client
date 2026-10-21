@@ -29,4 +29,10 @@ class MapCommanderCardDragTest {
         var f1=card("F1",Mode.NAVY_FLEET,"");var f2=card("F2",Mode.NAVY_FLEET,"");var other=card("reserve",Mode.NAVY_HQ,"");var view=new View("KOR","hoi:atlas_navy",Mode.NAVY_HQ,List.of(f1,f2,other));
         assertFalse(MapCommanderCardDrag.movable(other));assertEquals(List.of("F2","F1"),MapCommanderCardDrag.drop(view,List.of(new MapCommanderCardDrag.Slot(f1,0,42),new MapCommanderCardDrag.Slot(f2,42,42)),"F1",84).order());
     }
+    @Test void legacyFleetRolesMixWithExplicitFleetsButNeverTheReserveCard(){
+        var legacy=card("old",null,"");var modern=card("new",Mode.NAVY_FLEET,"");var reserve=card("reserve",Mode.NAVY_HQ,"");
+        var view=new View("KOR","hoi:atlas_navy",Mode.NAVY_HQ,List.of(legacy,modern,reserve));
+        assertEquals(List.of("new","old"),MapCommanderCardDrag.drop(view,List.of(new MapCommanderCardDrag.Slot(legacy,0,42),new MapCommanderCardDrag.Slot(modern,42,42)),"old",84).order());
+        assertEquals(List.of(legacy,modern),MapCommanderCardDrag.siblings(view,modern,""));
+    }
 }

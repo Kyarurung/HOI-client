@@ -58,6 +58,9 @@ public final class UiAssets {
     public static boolean drawGrayscale(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         return draw(g, path, x, y, w, h, 0, 0, 0xFFFFFFFF, true);
     }
+    public static boolean drawGrayscale(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,int trimLeft,int trimRight) {
+        return draw(g,path,x,y,w,h,trimLeft,trimRight,0xFFFFFFFF,true);
+    }
     public static boolean drawTinted(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,int tint) {
         return draw(g,path,x,y,w,h,0,0,tint);
     }

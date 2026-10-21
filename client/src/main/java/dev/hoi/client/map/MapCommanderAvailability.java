@@ -31,9 +31,9 @@ final class MapCommanderAvailability {
     static String branchReason(String action){return !MapCommanderPanels.attachmentWings().isEmpty()&&(action.startsWith("ARMY/")||action.startsWith("LAND/")||action.startsWith("ABILITY/"))?"비행단을 선택한 상태입니다. 군이나 사단을 선택하세요.":"";}
     static String reason(String action) {
         String branch=branchReason(action);if(!branch.isEmpty())return branch;
-        if(action.isEmpty()||!Set.of("AIR","NAVY","LAND","ARMY","ABILITY").contains(action.split("/",2)[0])||!supported())return "";
+        if(action.isEmpty()||!Set.of("AIR","NAVY","NAVAL_TB","LAND","ARMY","ABILITY").contains(action.split("/",2)[0])||!supported())return action.startsWith("NAVAL_TB/")?"사용 가능 여부를 확인하고 있습니다.":"";
         if(!current()||assessment==null)return "사용 가능 여부를 확인하고 있습니다.";
-        var status=assessment.actions().get(action);return status==null?"":status.reason();
+        var status=assessment.actions().get(action);return status==null?(action.startsWith("NAVAL_TB/")?"사용 가능 여부를 확인하고 있습니다.":""):!status.enabled()&&status.reason().isEmpty()?"현재 사용할 수 없습니다.":status.reason();
     }
     static String reason(String action,List<String> targets) {
         String branch=branchReason(action);if(!branch.isEmpty())return branch;
@@ -46,7 +46,8 @@ final class MapCommanderAvailability {
     }
     static boolean waiting(String action,List<String> targets){return (!current()||assessment==null)&&!reason(action,targets).isEmpty();}
     static boolean allow(String action,List<String> targets){String reason=reason(action,targets);if(reason.isEmpty())return true;MapCommanderOrders.message(reason);return false;}
-    static String tooltip(String action,String original){String reason=reason(action);if(!reason.isEmpty())return explain(original,reason);var status=current()&&assessment!=null?assessment.actions().get(action):null;if(status!=null&&!status.details().isEmpty())original+="\n\n"+status.details();return original;}
+    static boolean warning(String action){var status=current()&&assessment!=null?assessment.actions().get(action):null;return status!=null&&Boolean.TRUE.equals(status.warning());}
+    static String tooltip(String action,String original){var status=current()&&assessment!=null?assessment.actions().get(action):null;if(status!=null&&!status.details().isEmpty())original=action.startsWith("NAVY/")||action.startsWith("NAVAL_TB/")?status.details():original+"\n\n"+status.details();String reason=reason(action);return reason.isEmpty()||original.contains(reason)?original:explain(original,reason);}
     static String explain(String original,String reason){return reason.isEmpty()?original:original+"\n\n§R"+reason+"§!";}
     static boolean allow(String action){String reason=reason(action);if(reason.isEmpty())return true;MapCommanderOrders.message(reason);return false;}
 }

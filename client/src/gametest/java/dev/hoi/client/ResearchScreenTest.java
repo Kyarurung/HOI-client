@@ -95,6 +95,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenLeaderEventTest.regression(context); }
             return;
         }
+        if(System.getProperty("hoi.testSuite","all").equals("navy-layout")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapNavyLayoutTest.run(context,fixtureMenu());}
+            return;
+        }
         if(System.getProperty("hoi.testSuite","all").equals("army-layout")){
             try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenCommanderRosterTest.run(context);dev.hoi.client.map.MapCommanderHudTest.runArmyLayout(context,fixtureMenu());}
             return;
@@ -342,6 +346,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 dev.hoi.client.screen.ScreenLandMissionSourceTest.run(context);
             world.getServer().runCommand("gamemode creative @a");context.waitTicks(3);
             dev.hoi.client.map.MapCommanderHudTest.run(context,menu);
+            dev.hoi.client.map.MapNavyLayoutTest.run(context,menu);
             world.getServer().runCommand("gamemode spectator @a");context.waitTicks(3);
             context.setScreen(() -> new ScreenMenu(menu)); context.waitTicks(5);
             context.runOnClient(client -> check(((ScreenMenu)client.gui.screen()).panelWidth() == UiPanelLayout.width(ProtocolMenuTab.POLITICS,client.gui.screen().width), "Country panel follows the original 726-pixel container"));

@@ -16,10 +16,12 @@ final class MapCommanderPanelsTest {
         run(context,menu,List.of("army","army-assigned","army-group-assigned","navy","air","air-attached","air-detached","air-groups","air-diagnostics","army-immobile","navy-convoy-excluded"));
     }
     static void runArmyLayout(ClientGameTestContext context,ProtocolMenuView menu){run(context,menu,List.of("army","army-assigned","army-group-assigned","army-immobile","navy","air"));}
+    static void runNavyLayout(ClientGameTestContext context,ProtocolMenuView menu){run(context,menu,List.of("navy","navy-convoy-excluded"));}
     private static void run(ClientGameTestContext context,ProtocolMenuView menu,List<String> kinds) {
         String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
         try {
-            MapCommanderSourceStateTest.run(context,menu,Path.of(directory));
+            boolean navyOnly=kinds.stream().allMatch(kind->kind.startsWith("navy"));
+            if(!navyOnly)MapCommanderSourceStateTest.run(context,menu,Path.of(directory));
             for(String kind:kinds) {
                 var source=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-"+kind+".json"))).view();
                 var initialWings=previewWings(source,kind);
@@ -112,13 +114,34 @@ final class MapCommanderPanelsTest {
                     if(source.branch()==Mode.NAVY_HQ)context.runOnClient(client->{var hit=MapCommanderPanels.hits().stream().filter(h->h.tip().startsWith(UiCommandLabels.text("NAVAL_BTN_REMOVE_REGIONS","missing"))).findFirst().orElseThrow();var ids=MapCommanderPanels.commandSelection().stream().map(id->id.substring(5)).toList();sent.clear();directClick(hit,"NAVAL_AREAS/REMOVE",ids,source.country());directClick(hit,"NAVAL_AREAS/CLEAR",ids,source.country(),InputConstants.MOUSE_BUTTON_RIGHT);if(!sent.isEmpty())throw new AssertionError("Region removal must use direct map mode or clear without an intermediate dialog");});
                     if(source.branch()==Mode.NAVY_HQ)context.runOnClient(client->{String[] missions={"PATROL","STRIKE_FORCE","CONVOY_RAIDING","CONVOY_ESCORT","MINELAYING","MINESWEEPING"},labels={"PATROL","STRIKE_FORCE","CONVOY_RAIDING","CONVOY_ESCORT","MINES_PLANTING","MINES_SWEEPING"};for(int n=0;n<missions.length;n++){sent.clear();clickLabel("NAVAL_MISSION_NAME_"+labels[n]);if(sent.size()!=1||sent.getFirst().mode()!=Mode.NAVAL_TOOLBAR||!sent.getFirst().selection().getFirst().equals("mission/"+missions[n])||sent.getFirst().selection().size()<2)throw new AssertionError("Navy mission button must reach its actual selected-force mission: "+missions[n]);String title=UiCommandLabels.text("NAVAL_MISSION_NAME_"+labels[n],"missing");directClick(MapCommanderPanels.hits().stream().filter(h->h.tip().startsWith(title)).findFirst().orElseThrow(),"NAVY/"+missions[n],sent.getFirst().selection().subList(1,sent.getFirst().selection().size()),source.country());}sent.clear();});
                     if(source.branch()==Mode.NAVY_HQ)context.runOnClient(client->{sent.clear();clickLabel("NAVAL_MISSION_NAME_NAVAL_INVASION_SUPPORT");if(sent.size()!=1||sent.getFirst().mode()!=Mode.NAVAL_TOOLBAR||!sent.getFirst().selection().getFirst().equals("mission/NAVAL_INVASION_SUPPORT"))throw new AssertionError("Invasion support button must request actual invasion-support standby adapter");if(MapCommanderPanels.hits().stream().noneMatch(hit->hit.tip().startsWith(UiCommandLabels.text("NAVAL_MISSION_NAME_NAVAL_INVASION_SUPPORT","missing"))&&hit.tip().equals(UiCommandLabels.text("NAVAL_MISSION_NAME_NAVAL_INVASION_SUPPORT","missing")+"\n\n"+UiCommandLabels.text("NAVAL_MISSION_NAME_NAVAL_INVASION_SUPPORT_DESC",""))))throw new AssertionError("Invasion support must preserve the source tooltip without injected implementation prose");sent.clear();});
-                    if(source.branch()==Mode.NAVY_HQ)context.runOnClient(client->{String[] actions={"SPLIT","SHIPS","MERGE"},labels={"NAVY_SPLIT_IN_HALF","NAVY_SELECT_HALF","NAVAL_GUI_BTN_MERGE"};for(int n=0;n<actions.length;n++){sent.clear();clickLabel(labels[n]);if(sent.size()!=1||sent.getFirst().mode()!=Mode.NAVAL_ORGANIZE||!sent.getFirst().target().equals(actions[n])||sent.getFirst().selection().stream().noneMatch(id->id.startsWith("force/"))||sent.getFirst().selection().contains("half")!=(n==1))throw new AssertionError("Navy organization button must preserve force scope and selection-only half semantics: "+actions[n]);}for(String label:List.of("CREATE_NEW_TASK_FORCE_FROM_SELECTION","NAVY_SPLIT_IN_HALF","NAVY_SELECT_HALF","NAVAL_GUI_BTN_MERGE"))if(MapCommanderPanels.hits().stream().noneMatch(hit->hit.tip().startsWith(UiCommandLabels.text(label,"missing/"+label))))throw new AssertionError("Native navy organization button and original label must render: "+label);sent.clear();});
+                    if(source.branch()==Mode.NAVY_HQ){
+                        var actions=new ProtocolCommanderOrders.Availability(Files.readString(Path.of(directory,"kor-navy-assessment.json"))).assessment().actions();
+                        context.runOnClient(client->{
+                            MapCommanderOrders.selectionObserver=selection->{};
+                            MapCommanderAvailability.queryObserver=query->MapCommanderAvailability.accept(new ProtocolCommanderOrders.Assessment(query.token(),query.revision(),query.sequence(),query.request(),actions));
+                            MapCommanderOrders.accept(new ProtocolCommanderOrders.Context(UUID.randomUUID().toString(),0,source.country(),client.level.dimension().identifier().toString(),""));
+                        });context.waitTicks(2);
+                        try{
+                            context.runOnClient(client->{
+                                for(String action:List.of("CREATE","SELECT_HALF","UPGRADE"))if(MapCommanderPanels.hits().stream().anyMatch(hit->hit.icon().equals("naval_tool_"+action)))throw new AssertionError("Hidden navy tool must have no input target: "+action);
+                                for(String action:List.of("SPLIT","MERGE")){
+                                    var hit=MapCommanderPanels.hits().stream().filter(h->h.icon().equals("naval_tool_"+action)).findFirst().orElseThrow();
+                                    var decision=actions.get("NAVAL_TB/"+action);
+                                    if(!decision.enabled()||!hit.tip().equals(decision.details()))throw new AssertionError("Navy tool must retain the enabled authoritative tooltip: "+action);
+                                    sent.clear();click(hit);
+                                    if(sent.size()!=1||sent.getFirst().mode()!=Mode.NAVAL_ORGANIZE||!sent.getFirst().target().equals(action)||sent.getFirst().selection().stream().noneMatch(id->id.startsWith("force/"))||sent.getFirst().selection().contains("half"))throw new AssertionError("Navy organization button must send one force-scoped request: "+action);
+                                }
+                            });
+                        }finally{context.runOnClient(client->{MapCommanderAvailability.queryObserver=null;MapCommanderOrders.reset();MapCommanderOrders.selectionObserver=null;sent.clear();});}
+                        context.waitTicks(2);
+                    }
                     if(source.branch()==Mode.AIR||source.branch()==Mode.NAVY_HQ)context.runOnClient(client->{sent.clear();clickLabel(source.branch()==Mode.NAVY_HQ?"NAVAL_MISSION_NAME_HOLD":"HOLD_WINGS");if(sent.size()!=1||!sent.getFirst().selection().getFirst().equals("mission/HOLD"))throw new AssertionError("Hold button must target actual selected units: "+sent);});
                     if(kind.equals("air-attached"))context.runOnClient(client->{var wing=source.wings().stream().filter(w->w.data()!=null&&!w.data().attachedArmy().isEmpty()).findFirst().orElseThrow();var portrait=MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_ARMY&&b.request().target().equals(wing.data().attachedArmy())).findFirst().orElseThrow();var wings=MapCommanderPanels.attachmentWings();sent.clear();if(!MapCommanderHud.clickAt(portrait.x()+portrait.width()/2.,portrait.y()+portrait.height()/2.,InputConstants.MOUSE_BUTTON_RIGHT,false)||sent.size()!=1||sent.getFirst().mode()!=Mode.AIR_ATTACH||!sent.getFirst().selection().getFirst().equals("army/"+wing.data().attachedArmy())||!sent.getFirst().selection().subList(1,sent.getFirst().selection().size()).equals(wings))throw new AssertionError("Army portrait right-click must attach exactly the selected wings to that authoritative Army");});
                     if(source.branch()==Mode.AIR&&source.wings().size()>1){context.runOnClient(client->{var half=MapCommanderPanels.hits().stream().filter(hit->hit.tip().equals(UiCommandLabels.text("SELECT_HALF_WINGS","절반 선택"))).findFirst().orElseThrow();MapCommanderHud.clickAt(half.x()+half.w()/2.,half.y()+half.h()/2.);if(MapCommanderPanels.selectedWingIds().size()!=1)throw new AssertionError("Half selection must reduce the two actual selected wings to one");});}
                     context.runOnClient(client->{if(!MapCommanderHud.closeSelection())throw new AssertionError("Closing selection must succeed");if(!MapCommanderPanels.selectedCards().isEmpty())throw new AssertionError("Close must clear selected commanders");MapCommanderHud.requestObserver=null;});
                 }
             }
+            if(navyOnly){context.runOnClient(client->{MapCommanderHud.reset();MapUnitHud.reset();});return;}
             var navy=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-navy.json"))).view();
             context.getInput().resizeWindow(2560,1440);context.runOnClient(client->{ClientCampaignHud.accept(ProtocolHudPayloads.State.of("KOR",menu.hud()));MapCommanderHud.accept(new View(navy.country(),client.level.dimension().identifier().toString(),navy.branch(),navy.cards(),navy.wings()));});context.setScreen(ScreenMapCursor::new);context.waitTicks(2);
             if(navy.cards().size()>1) {
@@ -177,11 +200,11 @@ final class MapCommanderPanelsTest {
     private static String label(String key){return UiCommandLabels.withoutShortcuts(UiCommandLabels.text(key,"missing/"+key));}
     private static void clickLabel(String key){click(MapCommanderPanels.hits().stream().filter(hit->hit.tip().startsWith(label(key))).findFirst().orElseThrow(()->new AssertionError("Missing mouse control: "+key)));}
     private static void click(MapCommanderPanels.Hit hit){var screen=net.minecraft.client.Minecraft.getInstance().gui.screen();if(!screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(hit.x()+hit.w()/2.,hit.y()+hit.h()/2.,new net.minecraft.client.input.MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0)),false))throw new AssertionError("Visible control must consume mouse input");}
-    private static void assertCardLayout(View source,int width,int height) {
+    static void assertCardLayout(View source,int width,int height) {
         assertCommandCells(source,width,height);
         var units=MapCommanderLayout.units(width,height);boolean navy=source.branch()==Mode.NAVY_HQ;int actionTop=MapCommanderPanels.actionbarTop(units,navy);
         int cardsTop=MapCommanderHud.boxes().stream().mapToInt(MapCommanderHud.Box::y).min().orElse(height);
-        if(actionTop+units.size(navy?75.5:39.5)>cardsTop)throw new AssertionError("Commands and their auxiliary band must stay above every commander card and attachment");
+        if(actionTop+units.size(navy?67.5:39.5)>cardsTop)throw new AssertionError("Commands and their auxiliary band must stay above every commander card and attachment");
         for(var hit:MapCommanderPanels.hits())if(hit.icon().startsWith("ability_")&&hit.y()+hit.h()>actionTop)throw new AssertionError("Skills must stay above the command strip");
         if(MapCommanderLayout.cardsBottom(units)!=height-(Boolean.TRUE.equals(source.running())?0:units.size(82)))throw new AssertionError("Running cards must touch the bottom edge; paused and legacy cards must reserve the vanilla HUD");
         for(var box:MapCommanderHud.boxes()){

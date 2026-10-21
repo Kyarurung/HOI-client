@@ -21,9 +21,10 @@ final class MapCommanderCardDrag {
     private MapCommanderCardDrag() {}
     static String parent(Card card){return card.panel()==null?"":card.panel().parent();}
     static boolean movable(Card card){return card.role()==Mode.ARMY_GROUP||card.role()==Mode.ASSIGN_ARMY||card.role()==Mode.NAVY_FLEET;}
-    static List<Card> siblings(View view,Card card,String parent){return view.cards().stream().filter(c->c.role()==card.role()&&(card.role()!=Mode.ASSIGN_ARMY||parent(c).equals(parent))).toList();}
+    private static boolean movable(View view,Card card){return movable(card)||view.branch()==Mode.NAVY_HQ&&card.role()==null;}
+    static List<Card> siblings(View view,Card card,String parent){return view.cards().stream().filter(c->view.branch()==Mode.NAVY_HQ?(c.role()==Mode.NAVY_FLEET||c.role()==null):c.role()==card.role()&&(card.role()!=Mode.ASSIGN_ARMY||parent(c).equals(parent))).toList();}
     static Drop drop(View view,List<Slot> slots,String id,double x){
-        var card=view.cards().stream().filter(c->c.id().equals(id)&&movable(c)).findFirst().orElseThrow();
+        var card=view.cards().stream().filter(c->c.id().equals(id)&&movable(view,c)).findFirst().orElseThrow();
         var target=slots.stream().min(Comparator.comparingDouble(s->Math.abs(x-s.x()-s.width()/2.))).orElseThrow();
         String parent=parent(card);
         if(card.role()==Mode.ASSIGN_ARMY){
@@ -43,8 +44,8 @@ final class MapCommanderCardDrag {
         if(!MapCommanderOrders.ready()||queued!=null||!MapCommanderOrders.pending().isEmpty())return false;
         var box=boxes.stream().filter(b->b.contains(x,y)).findFirst().orElse(null);
         if(box==null||box.request()==null||!Set.of(Mode.ASSIGN_ARMY,Mode.ASSIGN_GROUP_MARSHAL,Mode.NAVY_FLEET).contains(box.request().mode()))return false;
-        var card=view.cards().stream().filter(c->c.id().equals(box.request().target())&&movable(c)).findFirst().orElse(null);if(card==null)return false;
-        var visible=new ArrayList<Slot>();for(var b:boxes)if(b.request()!=null&&Set.of(Mode.ASSIGN_ARMY,Mode.ASSIGN_GROUP_MARSHAL,Mode.NAVY_FLEET).contains(b.request().mode()))view.cards().stream().filter(c->c.id().equals(b.request().target())&&movable(c)).findFirst().ifPresent(c->visible.add(new Slot(c,b.x(),b.width())));
+        var card=view.cards().stream().filter(c->c.id().equals(box.request().target())&&movable(view,c)).findFirst().orElse(null);if(card==null)return false;
+        var visible=new ArrayList<Slot>();for(var b:boxes)if(b.request()!=null&&Set.of(Mode.ASSIGN_ARMY,Mode.ASSIGN_GROUP_MARSHAL,Mode.NAVY_FLEET).contains(b.request().mode()))view.cards().stream().filter(c->c.id().equals(b.request().target())&&movable(view,c)).findFirst().ifPresent(c->visible.add(new Slot(c,b.x(),b.width())));
         visible.sort(Comparator.comparingInt(Slot::x));source=view;slots=List.copyOf(visible);id=card.id();start=position=destination=x;dragging=false;gesture=MapCommanderOrders.gestureContext();return true;
     }
     static boolean move(double x){
@@ -57,7 +58,7 @@ final class MapCommanderCardDrag {
     static List<Card> preview(List<Card> visible){
         if(!dragging||id.isEmpty())return visible;var drop=drop(source,slots,id,destination);
         var block=visible.stream().filter(MapCommanderCardDrag::moves).toList();var result=new ArrayList<>(visible);result.removeAll(block);
-        var moving=block.getFirst();int index=result.size();var order=drop.order();int own=order.indexOf(id);
+        var moving=block.getFirst();int index=result.size();if(source.branch()==Mode.NAVY_HQ)for(int n=0;n<result.size();n++)if(result.get(n).role()==Mode.NAVY_HQ){index=n;break;}var order=drop.order();int own=order.indexOf(id);
         for(int i=own+1;i<order.size();i++){String next=order.get(i);int found=-1;for(int n=0;n<result.size();n++)if(result.get(n).id().equals(next)){found=n;break;}if(found>=0){index=found;break;}}
         if(moving.role()==Mode.ASSIGN_ARMY&&!drop.parent().isEmpty()&&own==order.size()-1){for(int n=0;n<result.size();n++)if(result.get(n).id().equals(drop.parent())||parent(result.get(n)).equals(drop.parent()))index=n+1;}
         result.addAll(index,block);return result;
