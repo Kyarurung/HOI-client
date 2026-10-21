@@ -928,3 +928,57 @@ GUI2 두 해상도에서 회색 배치 행, 색 띠 없는 집단군 카드·펼
 색 띠 보정 후 같은 함대 집중 명령은1분에 통과했다. 최종 실행은 GUI2 두 해상도22장을 생성했으며 외부 세로 색 띠와 초계 두 설명 문단을 직접 열람했다. 입력 생산자56개의 실패/오류/건너뜀은0이고 입력38개·공유 protocol48개 검증을 유지했다. 클라이언트 전용 staged JAR에는 게임 그림/음원 자산을 넣지 않았다.
 
 계약4판 집중 검증은 같은 `navy-layout` 명령에 고정 서버 `C:/Users/Kiruy/AppData/Local/claude-hoi/cmp40-server/HOI`와 고정 팩 `C:/Users/Kiruy/AppData/Local/codex-hoi/cmp41-r4/pack/resources.zip`을 지정해 5분38초에 통과했다. 클라이언트137·protocol124·입력 생산자57개에서 실패/오류/건너뜀0이며 변경 없는 protocol 결과는 재사용했다. 입력39개·공유 protocol48개를 검증하고 실제 GUI2 두 해상도26장을 생성했다. 단위 검사는 태세 다수값·동률 순서·항모 없는 기동부대의 `stance/none` 보존을 확인한다. 렌더 검사는 1st Fleet의 수리 취소·항모 선택의 태세 전환·서버 원문 툴팁, 좌우 클릭·revision 전 반복 무전송을 확인한다. 개별 수리 검사는 실제 서버 fixture의 기본 `policy/0`에서 시작한다. 직접 열람한 두 해상도 함대/항모 장면에는 함종별 막대·수리 취소·균형 저울·비활성 회색조·수리0 프레임이 표시된다. 긴 항모 함대/기동부대 이름은 기존 칸 안에서 말줄임된다. staged JAR는 client 진입점이며 내장 protocol을 포함해 게임 그림/음원은 없다. 이 결과는 서버 응답 주입과 요청 관찰자를 이용한 검증이며 실제 항모 전투 효과·수리 취소 상태 변화·저장/재접속·운영 소켓·멀티플레이·직접 음향 청취와 필터 없는 전체 검증을 대신하지 않는다.
+
+### 지도 모드의 카드별 부대 선택
+
+해군의 임무 막대·기동부대 띠와 해당 입력 영역만 기존 위치에서 1GUI 위로 이동한다. 함대 카드 본체·클릭 영역은 이동 전 위치를 유지해 카드와 위 띠 사이를 넓힌다. 이미 원본 중심에 맞춘 카드 숫자의 세로 위치는 별도로 유지한다. 지도 지휘 UI의 최소 배율1 때문에 GUI2의2560×1440·1280×720 모두 위 두 칸의 이동량은2px다. 함대 카드를 누르면 해당 함대의 기동부대만 목록·띠·임무 대상에 포함되고 미선택 때는 숨긴다. Shift를 이용한 명시적인 여러 카드 선택은 유지한다.
+
+공군 지도에서 군·집단군 카드의 본문과 하단 숫자 칸은 같은 카드 선택 요청을 사용하고, 역할 없는 비행단 카드의 하단은 `AIR_MISSION` 요청을 유지한다. 하단의 기존 “비행단 임무 선택” 툴팁 문구는 이번 수정 범위에서 유지한다.
+
+공군 지도 모드의 아래 군·집단군 카드는 육군 카드다. 군은 `Member.data().attachedArmy()`가 군 id와 같은 비행단, 집단군은 소속 군 id에 배속된 비행단을 선택한다. 군이 없는 비행단이나 다른 군의 비행단을 섞지 않는다. 카드 아래 숫자 영역도 같은 선택 경로를 사용하며 공군 모드에서는 육군 명령 막대·육군 부대 패널을 대신 열지 않는다. 카드 선택 중 서버 스냅샷이 갱신되면 현재 배속을 다시 반영한다. 선택하지 않았거나 배속된 비행단이 없으면 비행단 목록·공군 임무 막대를 숨긴다. 지도 표식·비행장·부속 비행단 버튼으로 직접 비행단을 고르는 기존 경로는 별도로 유지한다. 육군의 기존 선택 동작은 유지한다.
+
+`navy-layout` 집중 묶음의 `MapCommanderCardScopeTest`는 서버가 생성한 `kor-command-panel-air-diagnostics`, `air-attached`, `air-detached` 입력으로 군 카드 좌클릭·반복 선택·임무 우클릭 무전송·임무 대상 범위·선택 해제·서버 배속 해제 갱신을 실제 렌더러에서 확인한다. `MapCommanderPanelOrderTest`는 여러 군과 집단군 소속 변경·중복 없는 비행단 필터를 검사한다. 해당 검사는 서버 스냅샷 주입과 요청 관찰자 검증이며 운영 접속·저장/재접속·멀티플레이 검증을 대신하지 않는다.
+
+고정 서버 `C:/Users/Kiruy/AppData/Local/claude-hoi/cmp40-server/HOI`를 사용한 집중 검증은 클라이언트138개·protocol124개·입력 생성57개의 실패/오류/건너뜀0, 공유 protocol48개·fixture39개 검증과 GUI2 실제 렌더42장으로 통과했다. 당시 카드까지 함께 이동한 검사는 최신 지시의 적용 범위와 달랐으며 현재는 위 두 칸만 이동한다. 해당 검사에서 함대 교체 후 다른 함대의 기동부대가 제외됨을 확인했다. 공군의 군 카드 본문/하단 숫자 클릭·선택 해제·서버 배속 해제를 확인했다. 집단군의 복수 군 배속은 단위 검사이며 해당 서버 렌더 fixture는 아직 제공되지 않았다. 필터 없는 전체 실행·운영 접속·멀티플레이·직접 음향 청취는 수행하지 않았다. 첫 공군 렌더 검사는 존재하지 않는 버튼을 찾는 테스트 오류로 중단되었고, 실제 제공권 버튼으로 수정한 재실행이 통과했다.
+
+### 함대·비행단 전구 원본 배치와 계약 경계
+
+함대 카드의 하단 숫자는 해군에서만 원본 숫자의 세로 중심에 맞춘다. 제독이 있는 작전 함대는 서버 `Card.count/Card.capacity`, 제독이 없는 작전 함대와 예비 함대는 `Card.count`만 표시한다. 상한 이하 해군 카드 숫자는 `UiMenuStyle.TEXT`이며 상한 초과 빨강은 유지한다. 육군·공군 카드 숫자와 Minecraft 기본 글꼴·크기는 유지한다. 원본 `20261004213252_1.jpg`의 숫자 픽셀 y1423~1430에 대해 큰 Minecraft 글자의 세로 중심을 맞추는 보정이다.
+
+해군 전구 요약·함대 줄의 닻은 `theatre_army_shield`를 서버 함대 색으로 칠하고, 선택한 함대만 원본(-1,-2)px 위치의 `theatre_army_shield_selected`를 덧그린다. 선택한 해군 함대 줄은 `theatre_dropdown_bottom/frame_2` 파란 바탕이며 미선택은 frame0이다. 육군 집단군·공군 그룹의 frame1과 아래 기동부대 띠의 선택 닻은 유지한다. 원본 비교는 `20261004213228_1.jpg`(미선택), `20261004213256_1.jpg`(선택), `20261004213252_1.jpg`(카드 숫자)를 사용한다. 둘째 함대 줄의 올리브색 상태와 태스크 포스 역할별 기본 휘장은 근거/서버 계약 범위 밖이다.
+
+전구의 해군 함대·태스크 포스 수는 TFR `theatreselector.gui/navy_theater_fleet_item/ship_count_box`의 (6,10), 36×23 중앙 정렬을 기준으로 그림 중심보다 오른쪽에 표시한다. 해군·공군 전구 숫자는 기존보다 1GUI 위에 두고, 해군 전구 전체 척수는 3GUI 위로 옮겨 오른쪽 정렬한다. 숫자만 보정하며 배경·아이콘은 유지한다. 원본보다 큰 글자의 위끝이 아니라 세로 중심을 비교한다.
+
+작전 함대 전구 줄은 원본 `fleet_row_item_box/navy_box`의 x6·폭270 범위에 닻과 모든 태스크 포스를 한 줄로 배치한다. 보통 간격은 (23+8)/2=15.5GUI이며, 닻과 태스크 포스 그림이270px를 넘칠 때만 간격을 줄인다. 실제33px 방패 폭까지 상자에 들어오도록 10개 태스크 포스의 간격은(135−16.5)/10=11.85GUI다. 오른쪽으로 치우친 숫자 칸은 겹침 계산의 그림 폭에 더하지 않는다. 앞 배지를 마지막에 그리는 `first_on_top`과 같은 순서로 클릭·호버를 판정한다. 예비 줄은 x41·폭223 범위에 예비 태스크 포스별 서버 휘장과 함선 수를 같은 방식으로 배치한다. 함종 집계·함종 글자를 대신 표시하지 않는다. 서버가 보내지 않는 역할별 기본 휘장은 이 변경에서 추정하지 않는다.
+
+`MapNavyLayoutTest`는 서버 생산자의 `kor-command-panel-navy-ten-forces.json`을 사용해 제독 있는 10개 함대의 `10/10`, 한 줄 전구 배지·기동부대 띠, 모든 겹친 배지의 좌클릭 대상·우클릭 무명령, 왼쪽 패널의 10개 행 접근을 GUI2 2560×1440·1280×720에서 검사한다. 작은 화면의 패널은 기존 페이지 이동을 유지한다. `navy-layout` 집중 실행과 필터 없는 전체 검증은 구분하며, 응답 주입·명령 관찰자는 운영 접속·저장/재접속·다중 사용자·직접 음향 청취를 대신하지 않는다.
+
+GUI2 실제 렌더에서 해군 카드 `10/10`의 본문색 픽셀은 2560×1440의 y1420~1433, 1280×720의 y700~713이다. 2560의 세로 중심 1426.5px는 원본 y1423~1430의 중심과 같다. 해군·공군 전구 요약 숫자는 y167~180(중심173.5px)으로 원본 y169~177의 중심173px에 맞춘다. 해군 합계는 y159~172(중심165.5px), 오른쪽 끝 x2525이며 원본 y162~169의 중심과 같고 오른쪽 끝 x2524와 1px 차이다. 기존 측정은 그림자 제외 본문색 `#e3e1d8`, 당시 가득 찬 함대 카드의 `#83c64f` 픽셀 기준이었다. 현재 해군 카드 숫자는 상한 이하에서 `#e3e1d8`이다. 집중 검증은 10개 배지 모두의 개별 선택·우클릭 무명령 및 양 해상도 패널 마지막 행 접근을 통과했다. 필터 없는 전체 검증·운영 소켓·다중 사용자·직접 음향 청취는 이 집중 검증에서 수행하지 않았다.
+
+해군·공군 전구는 서버 `View.theaters()`의 전용 `fleets`·`reserves`·`wings`·`priority`·`ships` 계약으로 표시한다. 육군의 군/집단군 필드를 해군·공군 값으로 해석하지 않는다. 원본 근거는 HOI4 `interface/theatreselector.gui`와 `theatreselector.gfx`, Steam screenshot `20261004213252_1.jpg`·`20261004213310_1.jpg`(해군), `20261004213615_1.jpg`·`20261009024928_1.jpg`(공군)이다. 원본 폴더는 `C:/Program Files (x86)/Steam/userdata/1398211522/760/remote/394360/screenshots/`이며 읽기 전용으로 사용한다.
+
+| 원본 정의 | 원본 배치 | 필요한 서버 자료 |
+| --- | --- | --- |
+| `navy_theater_group_item` |300×80, 이름(38,13), 전체 척수(256,46), 함대 줄(0,80), `GFX_theater_group_bg` frame3 |전구id/이름·함대 순서·전체 척수·함대 경고 우선순위·원문 tooltip |
+| `fleet_row_item_box`·`reserve_fleet_row_item_box` |행 높이33, 일반 배지(6,-6), 예비 그림(10,-7)·배지(41,-6), 분리 수리 수(260,4) |함대/태스크포스별 식별자·함종별 집계·예비 및 분리 수리 상태 |
+| `air_theatre_free_wings_item`·`air_theatre_item` |300×80, 배경 frame5, 우선순위 점(225/247/269,13), 기종 줄(10,43) |미배정/전구별 wingIds·groupIds·기종별 수와 단위·우선순위·원문 tooltip |
+| `new_theater_group_item` |300×40, 단추(0,0), 글자(10,8) |생성 허용 판정과 명령 |
+
+GUI의 frame은1부터 시작하고 팩의 `frame_` 인덱스는0부터 시작한다. 위 원본 좌표는 기존 육군 전구와 같은2:1 변환으로 GUI2에 배치한다. `commander/commands/theater_group_bg`(305×77,5프레임), `fleet_theatre_priority_strip`(36×37,2프레임), `deploy_priority`(20×21,4프레임), `wing_types_map`(30×12,38프레임), `nv_icon_reserve_fleet`(31×31)은 이미 외부 팩에 있다. 원본/TFR 경로와 SHA-256은 [팩 가져오기 기록](../../HOI-resourcepack/commander-command-import-report.json)에 보존되어 있으므로 새 그림을 만들지 않는다. `UNASSIGNED_AIR_WINGS`, `NEW_THEATER_GROUP`, `RESERVE_FLEETS_FOR_THIS_THEATER` 및 `_DESC`는 서버 `tfr-command-labels.json` 원본 키를 사용하는 기존 팩 문구를 재사용한다. 예비 함대 줄은 별도 이름을 지어내지 않고 원본 예비 그림과 위 두 툴팁 키를 사용한다.
+
+전구 배정 줄의 왼쪽 클릭은 소속 전체 선택, 우클릭은 선택한 일반 함대/비행단 배정이다. 해군 예비 함대는 한 줄로 합쳐 원본 예비 그림과 서버 함종 수 합계를 표시하며 배정·생성 대상에서 제외한다. 전체 척수는 `Theater.ships`이고, 개별 함대/기동부대 수는 기존 서버 카드/구성 값을 사용한다. 공군은 `Member.data().air().airGroup()`으로 그룹을 묶고 `Member.icon`별 비행단 수를 표시한다. 이 단위는 서버 담당자가 정한 계약이며 원작 엔진의 숫자 단위를 확정한 결과가 아니다. 전구 소속과 `attachedArmy`는 독립적이다. 미지정 `air/free`는 서버가 보낼 때만 표시하고 해체 단추를 제공하지 않는다. 원본 사진의 국가별 수량을 런타임 기본값으로 쓰지 않는다.
+
+
+배정·생성·해체·우선순위는 현재 지도 명령 세션의 `NAVAL_THEATER/ASSIGN|CREATE|DISBAND`·`AIR_THEATER/ASSIGN|CREATE|DISBAND|PRIORITY/LOW|NORMAL|HIGH`로 보낸다. 배정에는 `target/<전구 id>`를 앞에 넣고 rays는 비운다. 기존 국가/차원/세션/revision 검사와 응답 전 반복 요청 차단을 사용하며, 응답 전에 소속이나 우선순위를 바꾸지 않는다. 공군 점은 원본 `deploy_priority`의 기본/낮음/중간/높음 프레임과 서버 controls의 원문 툴팁·활성 상태를 쓴다. 해군·공군 배정 배경은 유효 TFR `assign_group_button.dds` 897×35 atlas와 `noOfFrames=4`를 따라 해군 frame3·공군 frame4를 224.25×35 원본 픽셀 폭으로 표시한다. GUI2에서는 112.125×17.5GUI를 정수 경계로 반올림하며, 세 칸으로 나누거나 전구 폭까지 늘리지 않는다. 전구 전체 선택·배정 입력은 계약상의 전체 요약 줄에 유지한다. 전구 설정 창에서 해체할 수 있다. 제목 클릭 접기는 원본 근거가 없어 제공하지 않는다. 전구 목록 휠 스크롤은 로컬 화면 상태이며 branch/국가/차원이 바뀌면 초기화한다. 분리 함선/전략 지역 고정 줄은 서버 기능과 값이 없어 표시하지 않는다.
+
+해군 오른쪽 `priority_button`은 함대 경고 우선순위다. 서버 `Theater.priority`의 `NORMAL`은 `fleet_theatre_priority_strip/frame_0` 회색 −, `HIGH`는 frame1 주황 갈매기 셋으로 표시한다. `NAVAL_THEATER_ALERT/<현재 값>` control의 활성 상태와 툴팁을 그대로 사용하고 왼쪽 클릭은 반대 값의 `NAVAL_THEATER/ALERT/HIGH` 또는 `/NORMAL`, selection `[naval/N]`, 빈 rays를 보낸다. 우클릭은 무동작이다. 원문 키는 `alerts_l_korean.yml`의 `ALERT_PRIORITY`, `ALERT_PRIORITY_NORMAL`, `ALERT_PRIORITY_HIGH`, `ALERT_PRIORITY_DETAILS`이며 `click_default`는 기존 `ui.click`에 대응한다. 서버는 우선순위를 저장하지만 상단 전체 해전·발견 경고 줄은 아직 구현하지 않았다. 값 표시·전환을 경고 전달 효과의 완료로 보지 않는다.
+
+집중 재현은 팩 빌드 후 Java25에서 `test runGameTest remapJar -PhoiTestSuite=navy-layout -PhoiServerSource=C:/Users/Kiruy/AppData/Local/claude-hoi/cmp50-server/HOI -PhoiProtocolSource=C:/Users/Kiruy/AppData/Local/claude-hoi/cmp50-server/HOI/protocol/src/main/java --console=plain --no-daemon`이다. `armyHud` 생산자에 `FabricNavalAirTheatersTest`를 포함해 전구 입력 두 개를 기존 지휘 패널 입력과 함께 생성하고 소스/입력 해시를 검사한다. `MapCommanderBranchTheatersTest`는 GUI2 두 해상도에서 전체 선택·우클릭 배정·생성·해체·우선순위·반복 입력·예비 함대 제외·제목 접기 입력 부재·비활성 controls·세션 회수 및 두 군에 배속된 집단군의 비행단 선택을 검사한다. 해군 경고 우선순위는 서버 fixture의 NORMAL/HIGH 각각에 대해 반대 값 명령·우클릭 무동작·원문 툴팁·응답 전 값 유지를 검사한다. 비활성 상태는 서버 fixture의 controls만 false로 바꾼 합성 경계 입력이며 실제 마지막 전구 삭제 거절 상태와 구분한다. 서버 응답 주입/명령 관찰자 검증은 운영 소켓·저장/재접속·다중 사용자·직접 음향 청취를 대신하지 않는다. 작은 화면에서 목록 아래로 밀린 생성 단추는 전구 영역의 휠 스크롤로 접근하며, 집중 검사는 실제 화면의 `mouseScrolled`를 거쳐 위·아래 이동과 생성 요청을 확인한다. 배정·함대 경고 NORMAL/HIGH·공군 교체 우선순위의 실제 호버를 두 해상도로 캡처한다. 경고 우선순위 계약 이전의 `fixtures-theaters/` 입력은 사용하지 않는다.
+
+갱신된 cmp50 고정 서버로 팩 빌드 후 Java25 `test runGameTest remapJar -PhoiTestSuite=navy-layout`가 최종 1분8초에 통과했다. 동시 팩 변경을 피하기 위해 위 명령에 `-PhoiResourcePack=C:/Users/Kiruy/AppData/Local/codex-hoi/cmp41-r5/pack/resources.zip`을 함께 사용했다. 클라이언트138·protocol124·입력 생성60개 모두 실패/오류/건너뜀0이며, 변경 없는 protocol·생산자 성공 결과는 재사용했다. 공유 protocol48개는 개행 차이를 정규화해 일치하고 현재 armyHud fixture41개의 출처·해시를 확인했다. 실제 PNG74장 중 전구32장이며 두 해상도의 배정·경고·교체 우선순위 툴팁, NORMAL/HIGH 프레임, 공군 LOW/NORMAL/HIGH 점, 스크롤과 두 군에 배속된 집단군 선택을 확인했다. 첫 실행은1280에서 스크롤하지 않고 화면 밖 생성 단추를 찾은 검사 오류로 실패했으며 실제 휠 입력을 추가한 뒤 통과했다. 원본 배정 배경의 프레임과 원래 폭도 실제 캡처 대조 후 수정·재검증했다. staged JAR는 client 전용이며 허용된 mod-list icon만 내장한다. 전체 해전·발견 경고 줄, 분리 함선·전략 지역 고정 기능은 이 화면 구현에 포함되지 않는다. 필터 없는 전체 검증·운영 소켓·저장/재접속·멀티플레이·직접 음향 청취는 수행하지 않았다.
+
+현재 해군 색·선택 줄·겹침 폭과 상단 두 칸의 위치 보정은 cmp50 고정 서버·protocol과 `C:/Users/Kiruy/AppData/Local/codex-hoi/cmp41-r5/pack/resources.zip`으로 `navy-layout` 집중 검증을 통과했다. GUI2 두 해상도80장의 실제 렌더에서 `10/10`은 `#e3e1d8`, y1420~1433 / y700~713을 유지하고, 10개 줄의 마지막 방패 색 픽셀 끝은 x2506 / x1226이다. 미선택 닻의 함대 색·선택한 함대만 선택 그림·파란 frame2 줄을 원본과 나란히 확인했다. 최초 23px 논리 칸 기준 계산은 끝이 x2516으로 벗어나 전체 검증을 시작하지 않고 실제33px 그림 폭으로 고친 후 집중 검증을 다시 통과했다.
+
+공군 카드 회귀 검사는 본문·하단의 같은 x·폭·target을 카드 하나로 센다. 집단군 하단은 해당 target의 `ARMY_GROUP` 또는 `ASSIGN_GROUP_MARSHAL` 요청 중 아래 끝이 가장 큰 영역이며, 공군에서 클릭한 뒤 실제 집단군 선택 상태를 확인한다. 비행단 카드 하단은 기존 `AIR_MISSION` 요청을 검사한다. 이전 전체 실행의 `MapCommanderHudTest.java:25` 실패는 같은 카드의 두 요청 영역을 두 카드로 센 검사 가정 때문이었으며, 당시 1,984개 PNG 중 마지막 `hoi-army-group-bottom-army-gui2`는 AIR 실패 화면이 아닌 ARMY 통과 화면이다.
+
+위 cmp50 고정 서버·protocol·팩과 README의 네 수동 입력을 사용해 `test runGameTest remapJar -PhoiTestSuite=movement-controls` 집중 검증은7분36초·PNG328장, 필터 없는 같은 명령은26분24초·PNG2,176장으로 통과했다. 전체 실행은 후속 수정 뒤 첫 회에 통과해 두 번째 실행을 하지 않았다. 클라이언트138·protocol124·전체 입력 생산자46개는 실패/오류/건너뜀0이며, 변경 없는 JUnit 결과는 전체 실행에서 재사용하고 전체 입력 생산자는 재실행했다. 권위 입력92개·공유 protocol48개를 확인했고 검증 중 소스·빌드 파일461개 해시는 변하지 않았다. 전체 실행에서 공군 집단군 하단 선택·비행단 임무 진입과 해군 검사에 도달했으며, 해군 마지막 방패 끝 x2506/x1226·숫자 y1420~1433/y700~713을 다시 확인했다. staged JAR는 client 전용이며 내장 그림은 허용된 mod-list icon뿐이다. 운영 접속·저장/재접속·멀티플레이·직접 음향 청취는 수행하지 않았다.

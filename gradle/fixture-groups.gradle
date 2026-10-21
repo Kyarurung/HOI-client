@@ -84,10 +84,12 @@ ext.hoiRendererFixtureGroups = [
             'dev.hoi.fabric.FabricAirAdministrationOffersTest', 'dev.hoi.fabric.FabricAirDeterminateStateTest',
             'dev.hoi.fabric.FabricArmyCohesionOffersTest', 'dev.hoi.fabric.FabricNavalConvoyTargetOffersTest',
             'dev.hoi.fabric.FabricAirArmyFollowingTest', 'dev.hoi.fabric.FabricCommanderOrderSessionsTest',
-            'dev.hoi.fabric.FabricArmyAbilityOffersTest', 'dev.hoi.fabric.FabricNavalHudTest'
+            'dev.hoi.fabric.FabricArmyAbilityOffersTest', 'dev.hoi.fabric.FabricNavalHudTest',
+            'dev.hoi.fabric.FabricNavalAirTheatersTest'
         ],
         fixtures: [
             'kor-command-panel-army', 'kor-command-panel-navy', 'kor-command-panel-navy-patrol-reserve', 'kor-navy-assessment', 'kor-navy-assessment-carrier', 'kor-sea-tooltips', 'kor-command-panel-air', 'kor-command-panel-area',
+            'kor-command-panel-navy-theaters', 'kor-command-panel-air-theaters', 'kor-command-panel-navy-ten-forces',
             'kor-command-panel-army-assigned', 'kor-command-panel-army-group-assigned',
             'kor-command-panel-army-trait-skills', 'kor-command-panel-army-probing-active',
             'kor-appointment-army-mixed', 'kor-appointment-army-group-mixed',

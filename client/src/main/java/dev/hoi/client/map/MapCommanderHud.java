@@ -123,7 +123,7 @@ public final class MapCommanderHud {
     private static boolean hasCommander(Card card){return card.panel()!=null?!card.panel().commander().isEmpty():!card.portrait().equals("politics/empty/leader");}
     static String divisionCountLabel(Card card){if(card.role()!=Mode.ARMY_GROUP)return Integer.toString(card.count());var panel=card.panel();if(panel==null)return "?";if(!panel.divisionTypes().isEmpty())return Integer.toString(panel.divisionTypes().values().stream().mapToInt(Integer::intValue).sum());return panel.divisionIds()==null?"?":Integer.toString(panel.divisionIds().size());}
     private static boolean armyCount(Card card){return card.role()==Mode.ASSIGN_ARMY||card.role()==Mode.ARMY_GROUP;}
-    static int countColor(Card card){return (card.role()==Mode.ARMY_GROUP||hasCommander(card))&&card.count()>card.capacity()?0xFFE15B5B:armyCount(card)||!hasCommander(card)?UiMenuStyle.TEXT:0xFF83C64F;}
+    static int countColor(Card card){return (card.role()==Mode.ARMY_GROUP||hasCommander(card))&&card.count()>card.capacity()?0xFFE15B5B:armyCount(card)||card.role()==Mode.NAVY_FLEET||card.role()==Mode.NAVY_HQ||!hasCommander(card)?UiMenuStyle.TEXT:0xFF83C64F;}
     private static boolean formationAt(double x,double y){
         if(view.branch()!=Mode.ARMY||!MapCommanderPanels.attachmentWings().isEmpty())return false;
         for(var box:boxes)if(box.contains(x,y)&&box.request()!=null){
@@ -188,7 +188,7 @@ public final class MapCommanderHud {
                 UiText.centeredSingleLine(g,client.font,net.minecraft.network.chat.Component.literal(Integer.toString(attached.stream().mapToInt(wingMember->wingMember.data().quantity()).sum())),bx+units.size(18),ay,cw-units.size(19),ah,UiMenuStyle.TEXT);
                 list.add(new Box(bx,ay,cw,ah,null,0,UiCommandLabels.text("SELECT_ATTACHED_AIRWINGS","부속된 비행단 선택"),()->MapCommanderPanels.showWings(attached.stream().map(Member::id).toList())));
             }
-            UiText.cell(g,client.font,countLabel(card),bx+units.size(group?7:4),by+ch-units.size(16),cw-units.size(group?14:8),Math.max(client.font.lineHeight,units.size(10)),countColor(card),false);
+            UiText.cell(g,client.font,countLabel(card),bx+units.size(group?7:4),by+ch-units.size(naval?14:16),cw-units.size(group?14:8),Math.max(client.font.lineHeight,units.size(10)),countColor(card),false);
             if(!naval&&!wing&&card.panel()!=null)MapCommanderPanels.progress(g,"plan_unit_power",bx+units.size(group?8:5),by+ch-units.size(6.5),units.size(29.5),units.size(3),card.panel().planPower()!=null&&card.panel().planPower()>0?card.panel().planPower():null,0xff008000,0xff020305);
             if(!naval&&!wing)UiAssets.draw(g,"commander/commands/plan_frame/frame_0",bx+units.size(group?6.5:3.5),by+ch-units.size(6.5),units.size(32.5),units.size(4.5));
             if(!naval&&!wing&&card.panel()!=null){
@@ -210,7 +210,7 @@ public final class MapCommanderHud {
             }
             var mode=card.role()==Mode.ARMY_GROUP?Mode.ASSIGN_GROUP_MARSHAL:(view.branch()==Mode.ARMY||card.role()==Mode.ASSIGN_ARMY)?Mode.ASSIGN_ARMY:view.branch()==Mode.NAVY_HQ?Mode.NAVY_FLEET:view.branch();
             list.add(new Box(bx,by,cw,ch-footHeight,new Open(mode,card.id()),0,(view.branch()==Mode.ARMY?cardTooltip(card):(card.panel()!=null&&card.panel().fleet()!=null&&card.panel().fleet().reserve()?card.panel().fleet().reserveTooltip():card.name()+"\n"+card.leader()+"\n"+card.detail()))+(mode==Mode.ASSIGN_ARMY&&!MapCommanderPanels.attachmentWings().isEmpty()?"\n\n"+UiCommandLabels.text("ATTACH_AIRWING_TO_GROUP_TOOLTIP","우클릭하여 비행단을 군에 배치"):""),null,units.size(group?2:.5)));
-            var membership=card.role()==Mode.ARMY_GROUP?new Open(Mode.ARMY_GROUP,card.id()):(view.branch()==Mode.ARMY||card.role()==Mode.ASSIGN_ARMY)&&!selected.isEmpty()?new Open(Mode.MOVE_DIVISIONS,card.id(),selected)
+            var membership=view.branch()==Mode.AIR&&!wing?new Open(mode,card.id()):card.role()==Mode.ARMY_GROUP?new Open(Mode.ARMY_GROUP,card.id()):(view.branch()==Mode.ARMY||card.role()==Mode.ASSIGN_ARMY)&&!selected.isEmpty()?new Open(Mode.MOVE_DIVISIONS,card.id(),selected)
                     :view.branch()==Mode.NAVY_HQ?new Open(Mode.NAVAL_TASK_FORCES,card.id())
                     :view.branch()==Mode.AIR&&card.role()!=Mode.ASSIGN_ARMY?new Open(Mode.AIR_MISSION,card.id()):new Open(Mode.ARMY_PLANS,card.id());
             list.add(new Box(bx,by+ch-footHeight,cw,footHeight,membership,0,view.branch()==Mode.ARMY?cardTooltip(card):membership.mode()==Mode.MOVE_DIVISIONS?"선택한 자국 사단을 이 군으로 이동":view.branch()==Mode.NAVY_HQ?"태스크 포스 임무 선택":view.branch()==Mode.AIR?"비행단 임무 선택":"전투 계획 · "+card.name()+"\n"+card.leader()+"\n"+card.detail(),null,units.size(group?2:.5)));

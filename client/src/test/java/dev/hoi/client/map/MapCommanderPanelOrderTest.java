@@ -14,6 +14,17 @@ class MapCommanderPanelOrderTest {
     private static final Card THIRD=card("C",Mode.ASSIGN_ARMY,"G","04","03");
     private static final List<Member> ROWS=GROUP.panel().members().stream().sorted(Comparator.comparing(Member::id)).toList();
     private static List<String> ids(List<Member> rows){return rows.stream().map(Member::id).toList();}
+    @Test void airCardsSelectOnlyWingsAttachedToTheirArmyOrChildArmies(){
+        var wings=new ArrayList<Member>();
+        for(String army:List.of("A","B","C","OTHER",""))wings.add(new Member("wing"+wings.size(),"wing","","","",1,new Open(Mode.AIR_MISSION,""),"",null,Map.of(),"","",new MemberData("",army,1,null)));
+        var view=new View("KOR","minecraft:overworld",Mode.AIR,List.of(GROUP,FIRST,SECOND,THIRD),wings,true);
+        assertEquals(List.of(),MapCommanderPanels.attachedWings(view,Set.of()));
+        assertEquals(List.of("wing0"),MapCommanderPanels.attachedWings(view,Set.of("A")));
+        assertEquals(List.of("wing1"),MapCommanderPanels.attachedWings(view,Set.of("B")));
+        assertEquals(List.of("wing0","wing1","wing2"),MapCommanderPanels.attachedWings(view,Set.of("G","A")));
+        var moved=new View("KOR","minecraft:overworld",Mode.AIR,List.of(GROUP,FIRST,card("B",Mode.ASSIGN_ARMY,"OTHER"),THIRD),wings,true);
+        assertEquals(List.of("wing0","wing2"),MapCommanderPanels.attachedWings(moved,Set.of("G")));
+    }
     @Test void groupConcatenatesChildArmiesAndKeepsUnmatchedRowsLast(){
         var cards=List.of(GROUP,FIRST,SECOND,THIRD);var expected=new ArrayList<String>();
         for(var army:List.of(FIRST,SECOND,THIRD))expected.addAll(ids(MapCommanderPanels.armyRows(army,cards,ROWS)));

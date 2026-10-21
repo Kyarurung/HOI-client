@@ -22,9 +22,9 @@ public final class MapCommanderHudTest {
             context.runOnClient(client->{ClientCampaignHud.accept(ProtocolHudPayloads.State.of("KOR",hud));MapCommanderHud.accept(new View("KOR",client.level.dimension().identifier().toString(),branch,hierarchy));});
             context.setScreen(ScreenMapCursor::new);context.waitTicks(2);
             context.runOnClient(client->{
-                if(MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_GROUP_MARSHAL).count()!=1)throw new AssertionError("One independent marshal card per army group is required");
+                if(MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_GROUP_MARSHAL).map(b->List.of(b.x(),b.width(),b.request().target())).distinct().count()!=1)throw new AssertionError("One independent marshal card per army group is required");
                 if(MapCommanderHud.boxes().stream().noneMatch(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_ARMY&&b.request().target().equals("army")))throw new AssertionError("Army and air maps retain actual army commanders");
-                var group=MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ARMY_GROUP).findFirst().orElseThrow();
+                var group=MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().target().equals("group")&&(b.request().mode()==Mode.ARMY_GROUP||b.request().mode()==Mode.ASSIGN_GROUP_MARSHAL)).max(Comparator.comparingInt(b->b.y()+b.height())).orElseThrow();
                 var army=MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_ARMY).findFirst().orElseThrow();
                 if(group.y()+group.height()!=army.y()+army.height()+new dev.hoi.client.ui.UiUnits(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight()).size(14))throw new AssertionError("Marshal and army cards must share one bottom-aligned strip");
                 {
@@ -33,6 +33,7 @@ public final class MapCommanderHudTest {
                     if(MapCommanderHud.boxes().stream().noneMatch(b->b.request()!=null&&b.request().mode()==Mode.CREATE_ARMY))throw new AssertionError("Army and air maps must retain native army creation controls for actual army cards");
                 }
                 if(!MapCommanderHud.clickAt(group.x()+2,group.y()+2))throw new AssertionError("Group management must consume actual HUD input");
+                if(branch==Mode.AIR&&!MapCommanderPanels.selected("group"))throw new AssertionError("Air map group footer must select its army group");
             });context.takeScreenshot("hoi-army-group-bottom-"+branch.name().toLowerCase(Locale.ROOT)+"-gui2");
         }
         var anchored = context.computeOnClient(client -> List.copyOf(MapCommanderHud.boxes()));

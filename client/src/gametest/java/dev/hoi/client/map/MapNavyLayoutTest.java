@@ -34,8 +34,13 @@ public final class MapNavyLayoutTest {
                     var bands=MapCommanderPanels.hits().stream().filter(h->h.icon().equals("naval_force_band")).toList();if(bands.size()!=fleet.panel().members().size())throw new AssertionError("All source task forces must fit in one band for this fixture");
                     for(var h:bands)if(h.x()<0||h.x()+h.w()>client.getWindow().getGuiScaledWidth())throw new AssertionError("Navy band escaped the viewport");
                     var a=portrait(fleets.get(0).id());var b=portrait(fleets.get(1).id());if(b.x()>a.x()+a.width())throw new AssertionError("Fleet cards must touch");
+                    var u=MapCommanderLayout.units(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight());
+                    if(a.y()!=MapCommanderLayout.cardsBottom(u)-u.size(58.5)+u.size(3.5)||MapCommanderLayout.commandTop(u,true)!=MapCommanderLayout.cardsBottom(u)-u.size(122.5)-1)throw new AssertionError("Only the navy mission strip and task-force band must move up one GUI; fleet cards retain their original position");
                 });
                 game.takeScreenshot("hoi-navy-layout-"+size[0]+"x"+size[1]+"-gui2");
+                game.runOnClient(client->{var box=portrait(fleets.get(1).id());var e=mouse(box.x()+box.width()/2.,box.y()+box.height()/2.,InputConstants.MOUSE_BUTTON_LEFT);client.gui.screen().mouseClicked(e,false);client.gui.screen().mouseReleased(e);});game.waitTicks(2);
+                game.runOnClient(client->{var expected=fleets.get(1).panel().members().stream().map(m->"navy/"+m.id()).sorted().toList();if(!MapCommanderPanels.commandSelection().equals(expected)||MapCommanderPanels.hits().stream().anyMatch(h->h.tip().equals("선택 · "+force.name())))throw new AssertionError("Switching fleet cards leaked another fleet's task forces");MapCommanderPanels.closeSelection();});game.waitTicks(2);
+                game.runOnClient(client->{if(!MapCommanderPanels.hits().isEmpty()||!MapCommanderPanels.commandSelection().isEmpty())throw new AssertionError("Unselected navy view must hide missions and force lists");MapCommanderPanels.select(fleet.id(),false);});game.waitTicks(2);
                 click(game,game.computeOnClient(client->hit("선택 · "+force.name())),InputConstants.MOUSE_BUTTON_RIGHT);
                 game.runOnClient(client->{if(!opens.isEmpty()||!commands.isEmpty()||MapCommanderPanels.commandSelection().size()!=fleet.panel().members().size())throw new AssertionError("Right-click on select must not change or send orders");});
                 click(game,game.computeOnClient(client->hit("선택 · "+force.name())),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
@@ -61,6 +66,41 @@ public final class MapNavyLayoutTest {
             MapNavalRepairInputTest.run(game,menu,directory);
             MapNavalContractTest.run(game,menu,directory);
             MapCommanderPanelsTest.runNavyLayout(game,menu);
+            MapCommanderCardScopeTest.run(game,menu,directory);
+            MapCommanderBranchTheatersTest.run(game,menu);
+            tenForces(game,menu,directory);
         }catch(java.io.IOException e){throw new AssertionError("Cannot read authoritative navy fixture",e);}
+    }
+    private static void tenForces(ClientGameTestContext game,ProtocolMenuView menu,String directory)throws java.io.IOException {
+        var source=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-navy-ten-forces.json"))).view();
+        var fleet=source.cards().stream().filter(c->c.role()==Mode.NAVY_FLEET&&c.count()==10&&c.panel()!=null&&!c.panel().commander().isEmpty()).findFirst().orElseThrow(()->new AssertionError("Producer must supply an admiral with ten task forces"));
+        var forces=fleet.panel().members();if(forces.size()!=10||fleet.capacity()!=10||!MapCommanderHud.countLabel(fleet).equals("10/10")||MapCommanderHud.countColor(fleet)!=dev.hoi.client.ui.UiMenuStyle.TEXT)throw new AssertionError("Ten-force card must retain the server count/capacity");
+        for(var card:source.cards())if(card.role()==Mode.NAVY_HQ||card.role()==Mode.NAVY_FLEET&&card.panel()!=null&&card.panel().commander().isEmpty())if(!MapCommanderHud.countLabel(card).equals(Integer.toString(card.count())))throw new AssertionError("Unassigned and reserve cards must show only their count");
+        for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})){
+            var commands=new ArrayList<ProtocolCommanderOrders.Command>();game.getInput().resizeWindow(size[0],size[1]);
+            game.runOnClient(client->{client.options.guiScale().set(2);ClientCampaignHud.accept(ProtocolHudPayloads.State.of("KOR",menu.hud()));MapCommanderHud.reset();MapUnitHud.reset();MapCommanderHud.accept(new View(source.country(),client.level.dimension().identifier().toString(),source.branch(),source.cards(),source.wings(),true,source.theaters()));MapCommanderOrders.selectionObserver=ignored->{};MapCommanderOrders.commandObserver=commands::add;MapCommanderOrders.accept(new ProtocolCommanderOrders.Context(UUID.randomUUID().toString(),1,source.country(),client.level.dimension().identifier().toString(),""));MapCommanderPanels.select(fleet.id(),false);});
+            game.setScreen(ScreenMapCursor::new);game.getInput().setCursorPos(20,60);game.waitTicks(3);
+            game.runOnClient(client->{
+                var ids=forces.stream().map(m->"theater_force/"+m.id()).toList();var badges=MapCommanderPanels.hits().stream().filter(h->ids.contains(h.icon())).toList();var band=MapCommanderPanels.hits().stream().filter(h->h.icon().equals("naval_force_band")).toList();
+                if(badges.size()!=10||band.size()!=10||badges.stream().map(MapCommanderPanels.Hit::y).distinct().count()!=1)throw new AssertionError("Ten task forces must fit a single theater row and command band");
+                var last=badges.stream().max(Comparator.comparingInt(MapCommanderPanels.Hit::x)).orElseThrow();if(last.x()!=client.getWindow().getGuiScaledWidth()-42)throw new AssertionError("Ten-force row must fit its full 33px shield into the 270px overlap box");
+                int edge=client.getWindow().getGuiScaledWidth()-14;for(var badge:badges)if(badge.x()+badge.w()>edge)throw new AssertionError("Task-force number escaped the original navy box");
+                for(var h:MapCommanderPanels.hits())if(h.x()<0||h.y()<0||h.x()+h.w()>client.getWindow().getGuiScaledWidth()||h.y()+h.h()>client.getWindow().getGuiScaledHeight())throw new AssertionError("Ten-force panel escaped the viewport");
+            });
+            game.takeScreenshot("hoi-navy-ten-forces-"+size[0]+"x"+size[1]+"-gui2");
+            var seen=new HashSet<String>();for(int page=0;page<12;page++){
+                var next=game.computeOnClient(client->{for(var force:forces)if(MapCommanderPanels.hits().stream().anyMatch(h->h.tip().equals("선택 · "+force.name())))seen.add(force.id());return MapCommanderPanels.hits().stream().filter(h->h.tip().equals("다음")).findFirst().orElse(null);});
+                if(next==null)break;click(game,next,InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
+            }
+            if(seen.size()!=10)throw new AssertionError("Every task force must remain reachable in the left panel: "+seen.size());
+            game.takeScreenshot("hoi-navy-ten-forces-last-page-"+size[0]+"x"+size[1]+"-gui2");
+            for(var force:forces){
+                var badge=game.computeOnClient(client->MapCommanderPanels.hits().stream().filter(h->h.icon().equals("theater_force/"+force.id())).findFirst().orElseThrow());
+                click(game,badge,InputConstants.MOUSE_BUTTON_RIGHT);game.runOnClient(client->{if(!commands.isEmpty())throw new AssertionError("Theater badge right click sent an order");});
+                game.runOnClient(client->{var e=mouse(badge.x()+badge.w()-1,badge.y()+badge.h()/2.,InputConstants.MOUSE_BUTTON_LEFT);client.gui.screen().mouseClicked(e,false);client.gui.screen().mouseReleased(e);});game.waitTicks(2);
+                game.runOnClient(client->{if(!MapCommanderPanels.commandSelection().equals(List.of("navy/"+force.id())))throw new AssertionError("Overlapping badge selected the wrong force: "+force.id());});
+            }
+            game.runOnClient(client->{MapCommanderOrders.commandObserver=null;MapCommanderOrders.selectionObserver=null;MapCommanderHud.reset();MapUnitHud.reset();});
+        }
     }
 }
