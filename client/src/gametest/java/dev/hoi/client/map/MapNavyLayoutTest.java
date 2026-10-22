@@ -69,6 +69,7 @@ public final class MapNavyLayoutTest {
             MapCommanderPanelsTest.runNavyLayout(game,menu);
             MapCommanderCardScopeTest.run(game,menu,directory);
             MapCommanderBranchTheatersTest.run(game,menu);
+            MapCommanderTheaterCardsTest.run(game,menu,directory);
             tenForces(game,menu,directory);
             admiralTraits(game,menu,directory);
         }catch(java.io.IOException e){throw new AssertionError("Cannot read authoritative navy fixture",e);}

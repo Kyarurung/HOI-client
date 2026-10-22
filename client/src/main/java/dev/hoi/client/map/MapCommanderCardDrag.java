@@ -38,7 +38,12 @@ final class MapCommanderCardDrag {
         if(card.role()==Mode.ARMY_GROUP){
             for(var slot:slots){String group=slot.card().role()==Mode.ARMY_GROUP?slot.card().id():parent(slot.card());if(order.contains(group)&&x>slot.x()+slot.width()/2.)index=order.indexOf(group)+1;}
         }
-        order.add(index,id);return new Drop(parent,order);
+        order.add(index,id);
+        if(parent.equals(parent(card))){
+            var visible=new HashSet<String>();for(var slot:slots){visible.add(slot.card().id());if(card.role()==Mode.ARMY_GROUP)visible.add(parent(slot.card()));}
+            var reordered=order.stream().filter(visible::contains).iterator();var complete=new ArrayList<String>();for(var sibling:siblings)complete.add(visible.contains(sibling.id())?reordered.next():sibling.id());order=complete;
+        }
+        return new Drop(parent,order);
     }
     static boolean begin(View view,List<MapCommanderHud.Box> boxes,double x,double y){
         if(!MapCommanderOrders.ready()||queued!=null||!MapCommanderOrders.pending().isEmpty())return false;

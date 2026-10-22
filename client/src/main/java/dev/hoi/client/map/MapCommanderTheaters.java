@@ -15,6 +15,7 @@ final class MapCommanderTheaters {
     static void reset(){settings="";scroll=maximum=left=top=right=bottom=0;}
     static boolean closeSettings(){if(settings.isEmpty())return false;settings="";return true;}
     static boolean scrollAt(double x,double y,double amount){if(amount==0||x<left||x>=right||y<top||y>=bottom)return false;scroll=Math.clamp(scroll-(int)Math.signum(amount)*20,0,maximum);return true;}
+    private static void choose(View view,String id){if(MapCommanderHud.theaters.choose(view,id))MapCommanderHud.theaterChanged();}
     private static String art(String name){return "commander/commands/"+name+"/frame_0";}
     private static Control control(Theater theater,String id){return theater.controls().stream().filter(c->c.id().equals(id)||c.id().startsWith(id+"/")).findFirst().orElse(null);}
     private static List<String> selection(View view){return view.cards().stream().filter(c->MapCommanderPanels.selected(c.id())&&(c.role()==Mode.ASSIGN_ARMY||c.role()==Mode.ARMY_GROUP)).map(Card::id).toList();}
@@ -29,13 +30,14 @@ final class MapCommanderTheaters {
             int header=y;UiAssets.draw(g,art("theater_group_bg").replace("frame_0","frame_1"),left,y,u.size(152.5),u.size(38.5));
             if(theater.id().equals(settings)){settingsY=y;settingsTheater=theater;}
             label(g,theater.name(),left+u.size(19),y+u.size(3.5),u.size(84),u.size(16),false);
+            if(view.branch()!=Mode.AIR)out.add(new MapCommanderPanels.Hit(left+u.size(19),y+u.size(3.5),u.size(84),u.size(16),theater.name(),()->choose(view,theater.id()),null,"ui.division.select","theater_title/"+theater.id()));
             icon(g,u,out,theater,"THEATER_SETTINGS","theater_group_settings_btn",0,left+u.size(4.5),y+u.size(5.5),11.5,11.5);
             icon(g,u,out,theater,"THEATER_LOG","theatre_combat_log_icon",0,left+u.size(104.5),y+u.size(2.5),13.05,17.1);
             battle(g,u,out,theater,"THEATER_OFFENSIVE",0,left+u.size(116),y+u.size(6.5));
             battle(g,u,out,theater,"THEATER_DEFENSIVE",1,left+u.size(134.5),y+u.size(6.5));
             var assign=control(theater,"THEATER_ASSIGN");
             g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/commander/commands/assign_group_button/atlas.png"),left+u.size(1.5),y+u.size(19),left+u.size(151),y+u.size(36.5),0,1f/3,0,1);
-            if(assign!=null)out.add(new MapCommanderPanels.Hit(left+u.size(1.5),y+u.size(19),u.size(148),u.size(18),assign.tooltip(),()->{},(button,twice)->{if(!assign.enabled())return;if(button==InputConstants.MOUSE_BUTTON_RIGHT)MapCommanderOrders.formation("THEATER_ASSIGN",theater.id(),selection(view));else if(button==InputConstants.MOUSE_BUTTON_LEFT){boolean first=true;var covered=new HashSet<String>();for(String id:theater.groups()){if(!cards.containsKey(id))continue;MapCommanderPanels.select(id,!first);first=false;covered.add(id);}for(String id:theater.armies()){var card=cards.get(id);if(card==null||card.panel()!=null&&covered.contains(card.panel().parent()))continue;MapCommanderPanels.select(id,!first);first=false;}}},"ui.division.select","theater_assign"));
+            if(assign!=null)out.add(new MapCommanderPanels.Hit(left+u.size(1.5),y+u.size(19),u.size(148),u.size(18),assign.tooltip(),()->{},(button,twice)->{if(!assign.enabled())return;if(button==InputConstants.MOUSE_BUTTON_RIGHT)MapCommanderOrders.formation("THEATER_ASSIGN",theater.id(),selection(view));else if(button==InputConstants.MOUSE_BUTTON_LEFT){choose(view,theater.id());boolean first=true;var covered=new HashSet<String>();for(String id:theater.groups()){if(!cards.containsKey(id))continue;MapCommanderPanels.select(id,!first);first=false;covered.add(id);}for(String id:theater.armies()){var card=cards.get(id);if(card==null||card.panel()!=null&&covered.contains(card.panel().parent()))continue;MapCommanderPanels.select(id,!first);first=false;}}},"ui.division.select","theater_assign"));
             int x=left+u.size(5);for(String id:theater.groups()){var card=cards.get(id);if(card!=null&&x+u.size(19)<right-u.size(24)){badge(g,u,out,card,theater,x,y+u.size(21.5));x+=u.size(19);}}
             for(String id:theater.armies()){var card=cards.get(id);if(card!=null&&(card.panel()==null||card.panel().parent().isEmpty())&&x+u.size(19)<right-u.size(24)){badge(g,u,out,card,theater,x,y+u.size(21.5));x+=u.size(19);}}
             label(g,Integer.toString(theater.divisions()),left+u.size(128),y+u.size(24),u.size(20),u.size(16),true);y+=u.size(36.5);
@@ -44,7 +46,7 @@ final class MapCommanderTheaters {
                 var group=cards.get(groupId);if(group!=null)members.addFirst(group);
                 for(int start=0;start<members.size();start+=7){UiAssets.nineSlice(g,art("theatre_dropdown_bottom").replace("frame_0","frame_"+(MapCommanderPanels.selected(groupId)?1:0)),left,y,u.size(150.5),u.size(16.5),2,u.scale()*.5);for(int n=start;n<Math.min(start+7,members.size());n++)badge(g,u,out,members.get(n),theater,left+u.size(5+(n-start)*19),y);y+=u.size(16.5);}
             }
-            if(selection(view).stream().anyMatch(id->theater.armies().contains(id)||theater.groups().contains(id)))UiAssets.draw(g,art("selected_theatre_frame"),left,header+u.size(1),u.size(151.5),u.size(37));
+            if(MapCommanderHud.theaters.selected(view).equals(theater.id()))UiAssets.draw(g,art("selected_theatre_frame"),left,header+u.size(1),u.size(151.5),u.size(37));
             y+=u.size(6);
         }
         var create=view.theaters().stream().map(t->control(t,"THEATER_CREATE")).filter(Objects::nonNull).findFirst().orElse(null);
@@ -69,6 +71,7 @@ final class MapCommanderTheaters {
             int header=y;var assign=control(theater,prefix+"_ASSIGN");var fleets=theater.fleets().stream().map(cards::get).filter(Objects::nonNull).toList();var wings=view.wings().stream().filter(w->theater.wings().contains(w.id())).toList();
             UiAssets.draw(g,art("theater_group_bg").replace("frame_0",navy?"frame_2":"frame_4"),left,y,u.size(152.5),u.size(38.5));
             label(g,theater.name(),left+u.size(19),y+u.size(3.5),u.size(84),u.size(16),false);
+            if(view.branch()!=Mode.AIR)out.add(new MapCommanderPanels.Hit(left+u.size(19),y+u.size(3.5),u.size(84),u.size(16),theater.name(),()->choose(view,theater.id()),null,"ui.division.select","theater_title/"+theater.id()));
             int titleY=y;
             var disband=control(theater,prefix+"_DISBAND");if(disband!=null){UiAssets.draw(g,art("theater_group_settings_btn"),left+u.size(4.5),y+u.size(5.5),u.size(11.5),u.size(11.5));out.add(new MapCommanderPanels.Hit(left+u.size(4.5),y+u.size(5.5),u.size(11.5),u.size(11.5),theater.name(),()->settings=settings.equals(theater.id())?"":theater.id(),null,"ui.click","theater_settings/"+theater.id()));}
             if(navy){
@@ -81,9 +84,9 @@ final class MapCommanderTheaters {
             }
             g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/commander/commands/assign_group_button/atlas.png"),left+u.size(1.5),y+u.size(19),left+u.size(113.625),y+u.size(36.5),navy?.5f:.75f,navy?.75f:1,0,1);
             if(navy){int count=fleets.size();double step=count<2?19:Math.min(19,108.0/(count-1));for(int n=count-1;n>=0;n--)fleetBadge(g,u,out,fleets.get(n),left+u.size(5+n*step),y+u.size(20.5));UiText.cell(g,Minecraft.getInstance().font,theater.ships()==null?"?":theater.ships().toString(),left+u.size(128),y+u.size(20),u.size(20),u.size(16),UiMenuStyle.TEXT,true);}else airSummary(g,u,out,wings,left+u.size(5),y+u.size(21.5),u.size(125));
-            boolean selected=navy?java.util.stream.Stream.concat(theater.fleets().stream(),theater.reserves().stream()).anyMatch(MapCommanderPanels::selected):theater.wings().stream().anyMatch(MapCommanderPanels.selectedWingIds()::contains);
+            boolean selected=navy?MapCommanderHud.theaters.selected(view).equals(theater.id()):theater.wings().stream().anyMatch(MapCommanderPanels.selectedWingIds()::contains);
             if(selected)UiAssets.draw(g,art("selected_theatre_frame"),left,header+u.size(1),u.size(151.5),u.size(37));
-            if(assign!=null)out.add(new MapCommanderPanels.Hit(left+u.size(1.5),y+u.size(19),u.size(149.5),u.size(18),assign.tooltip(),()->{},(button,twice)->{if(!assign.enabled())return;if(button==InputConstants.MOUSE_BUTTON_RIGHT)branchCommand(view,theater,"ASSIGN");else if(button==InputConstants.MOUSE_BUTTON_LEFT){if(navy)selectFleets(java.util.stream.Stream.concat(theater.fleets().stream(),theater.reserves().stream()).toList());else MapCommanderPanels.showWings(theater.wings());}},assign.enabled()?"ui.division.select":"","theater_assign/"+theater.id()));
+            if(assign!=null)out.add(new MapCommanderPanels.Hit(left+u.size(1.5),y+u.size(19),u.size(149.5),u.size(18),assign.tooltip(),()->{},(button,twice)->{if(!assign.enabled())return;if(button==InputConstants.MOUSE_BUTTON_RIGHT)branchCommand(view,theater,"ASSIGN");else if(button==InputConstants.MOUSE_BUTTON_LEFT){if(navy){choose(view,theater.id());selectFleets(java.util.stream.Stream.concat(theater.fleets().stream(),theater.reserves().stream()).toList());}else MapCommanderPanels.showWings(theater.wings());}},assign.enabled()?"ui.division.select":"","theater_assign/"+theater.id()));
             y+=u.size(40);
             if(navy){
                 for(var fleet:fleets){var forces=fleet.panel()==null?List.<Member>of():fleet.panel().members();var row=navalBadges(u,forces.size()+1,u.size(150.5),forces.isEmpty()?"0":Integer.toString(MapCommanderPanels.shipCount(forces.getLast())),3);

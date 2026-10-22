@@ -35,4 +35,11 @@ class MapCommanderCardDragTest {
         assertEquals(List.of("new","old"),MapCommanderCardDrag.drop(view,List.of(new MapCommanderCardDrag.Slot(legacy,0,42),new MapCommanderCardDrag.Slot(modern,42,42)),"old",84).order());
         assertEquals(List.of(legacy,modern),MapCommanderCardDrag.siblings(view,modern,""));
     }
+    @Test void reorderingVisibleCardsPreservesHiddenSiblingSlots(){
+        for(var role:List.of(Mode.NAVY_FLEET,Mode.ASSIGN_ARMY,Mode.ARMY_GROUP)){
+            var first=card("first",role,"");var hidden=card("hidden",role,"");var last=card("last",role,"");
+            var view=new View("KOR","hoi:atlas_navy",role==Mode.NAVY_FLEET?Mode.NAVY_HQ:Mode.ARMY,List.of(first,hidden,last));
+            assertEquals(List.of("last","hidden","first"),MapCommanderCardDrag.drop(view,List.of(new MapCommanderCardDrag.Slot(first,0,42),new MapCommanderCardDrag.Slot(last,42,42)),"first",84).order());
+        }
+    }
 }
