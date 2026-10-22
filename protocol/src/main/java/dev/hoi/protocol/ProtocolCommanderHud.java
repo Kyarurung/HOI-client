@@ -86,8 +86,9 @@ public final class ProtocolCommanderHud {
         public AirBase(String id,int ownPlanes,int totalPlanes,double capacity){this(id,ownPlanes,totalPlanes,capacity,"");}
         public AirBase {controller=controller==null?"":controller;ProtocolCommanderHud.id(controller,32);ProtocolCommanderHud.id(id,160);if(id.isEmpty()||ownPlanes<0||totalPlanes<ownPlanes||totalPlanes>1000000000||!Double.isFinite(capacity)||capacity<0||capacity>1000000000)throw new IllegalArgumentException("Invalid air base state");}
     }
-    public record AirWingDetails(int target,String sortieTime,String equipmentIcon,boolean carrier,String missionName) {
-        public AirWingDetails {if(target<1||target>1000000||sortieTime==null||!Set.of("DAY","NIGHT","BOTH").contains(sortieTime))throw new IllegalArgumentException("Invalid air wing details");asset(equipmentIcon);text(missionName,200);}
+    public record AirWingDetails(int target,String sortieTime,String equipmentIcon,boolean carrier,String missionName,String missionState,String missionStateTooltip,Double efficiency) {
+        public AirWingDetails(int target,String sortieTime,String equipmentIcon,boolean carrier,String missionName){this(target,sortieTime,equipmentIcon,carrier,missionName,"","",null);}
+        public AirWingDetails {missionState=missionState==null?"":missionState;missionStateTooltip=missionStateTooltip==null?"":missionStateTooltip;if(target<1||target>1000000||sortieTime==null||!Set.of("DAY","NIGHT","BOTH").contains(sortieTime)||efficiency!=null&&(!Double.isFinite(efficiency)||efficiency<0||efficiency>1000))throw new IllegalArgumentException("Invalid air wing details");asset(equipmentIcon);text(missionName,200);text(missionState,200);text(missionStateTooltip,1000);}
     }
     public record AirData(String airGroup,String airGroupName,String reinforcementPolicy,AirBase base,AirWingDetails wing) {
         public AirData(String airGroup,String airGroupName,String reinforcementPolicy,AirBase base){this(airGroup,airGroupName,reinforcementPolicy,base,null);}

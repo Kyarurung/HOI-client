@@ -116,8 +116,8 @@ public final class MapCommanderHud {
         if(delta!=0&&boxes.stream().anyMatch(box->box.pageDelta()==delta)){page+=delta;boxes=List.of();}
         return true;
     }
-    public static boolean clickAt(double x,double y,int button,boolean twice){if(view==null||!view.country().equals(ClientCampaignHud.country())||Minecraft.getInstance().gui.hud.isHidden())return false;if(MapCommanderPanels.click(x,y,button,twice))return true;if(button==InputConstants.MOUSE_BUTTON_RIGHT){if(boxes.stream().anyMatch(box->box.action()!=null&&box.contains(x,y)))return true;if(formationAt(x,y))return true;var wings=MapCommanderPanels.attachmentWings();if(!wings.isEmpty())for(var box:boxes)if(box.contains(x,y)&&box.request()!=null&&box.request().mode()==Mode.ASSIGN_ARMY&&view.cards().stream().anyMatch(c->c.id().equals(box.request().target())&&c.role()==Mode.ASSIGN_ARMY)){var values=new ArrayList<String>();values.add("army/"+box.request().target());values.addAll(wings);dev.hoi.client.audio.AudioUiSounds.play("ui.click");open(new Open(Mode.AIR_ATTACH,"",values));return true;}}return button==InputConstants.MOUSE_BUTTON_LEFT?clickAt(x,y):boxes.stream().anyMatch(box->box.contains(x,y));}
-    public static boolean clickAt(double x,double y){if(view==null||!view.country().equals(ClientCampaignHud.country())||Minecraft.getInstance().gui.hud.isHidden())return false;if(MapCommanderPanels.click(x,y))return true;for(var box:boxes)if(box.contains(x,y)){dev.hoi.client.audio.AudioUiSounds.play(box.request()!=null&&(box.request().mode()==Mode.ASSIGN_ARMY||box.request().mode()==Mode.ASSIGN_GROUP_MARSHAL||box.request().mode()==Mode.NAVY_FLEET)?"ui.division.select":box.request()!=null&&box.request().mode()==Mode.ARMY_TOOLBAR?"ui.battleplan":"ui.click");if(box.action()!=null){box.action().run();}else if(box.pageDelta()!=0){page+=box.pageDelta();boxes=List.of();}else {selectedCard=box.request().target();if(view.cards().stream().anyMatch(c->c.id().equals(selectedCard))&&(box.request().mode()==Mode.ASSIGN_ARMY||box.request().mode()==Mode.ASSIGN_GROUP_MARSHAL||box.request().mode()==Mode.NAVY_FLEET))MapCommanderPanels.select(selectedCard);else open(box.request());}return true;}return false;}
+    public static boolean clickAt(double x,double y,int button,boolean twice){if(view==null||!view.country().equals(ClientCampaignHud.country())||Minecraft.getInstance().gui.hud.isHidden())return false;if(MapCommanderPanels.click(x,y,button,twice))return true;if(button==InputConstants.MOUSE_BUTTON_RIGHT){for(var box:boxes)if(box.contains(x,y)&&box.request()!=null&&box.request().mode()==Mode.AIR_ATTACH&&box.request().selection().contains("action/detach")){dev.hoi.client.audio.AudioUiSounds.play("ui.checkbox");open(box.request());return true;}if(boxes.stream().anyMatch(box->box.action()!=null&&box.contains(x,y)))return true;if(formationAt(x,y))return true;var wings=MapCommanderPanels.attachmentWings();if(!wings.isEmpty())for(var box:boxes)if(box.contains(x,y)&&box.request()!=null&&box.request().mode()==Mode.ASSIGN_ARMY&&view.cards().stream().anyMatch(c->c.id().equals(box.request().target())&&c.role()==Mode.ASSIGN_ARMY)){var values=new ArrayList<String>();values.add("army/"+box.request().target());values.addAll(wings);dev.hoi.client.audio.AudioUiSounds.play("ui.click");open(new Open(Mode.AIR_ATTACH,"",values));return true;}}return button==InputConstants.MOUSE_BUTTON_LEFT?clickAt(x,y):boxes.stream().anyMatch(box->box.contains(x,y));}
+    public static boolean clickAt(double x,double y){if(view==null||!view.country().equals(ClientCampaignHud.country())||Minecraft.getInstance().gui.hud.isHidden())return false;if(MapCommanderPanels.click(x,y))return true;for(var box:boxes)if(box.contains(x,y)){dev.hoi.client.audio.AudioUiSounds.play(box.request()!=null&&box.request().mode()==Mode.AIR_ATTACH||box.tip().equals(UiCommandLabels.text("ATTACH_AIR_WING_DESC",""))||box.tip().equals(UiCommandLabels.text("ATTACH_AIR_WING_SELECT_SOME",""))?"ui.checkbox":box.request()!=null&&(box.request().mode()==Mode.ASSIGN_ARMY||box.request().mode()==Mode.ASSIGN_GROUP_MARSHAL||box.request().mode()==Mode.NAVY_FLEET)?"ui.division.select":box.request()!=null&&box.request().mode()==Mode.ARMY_TOOLBAR?"ui.battleplan":"ui.click");if(box.action()!=null){box.action().run();}else if(box.pageDelta()!=0){page+=box.pageDelta();boxes=List.of();}else {selectedCard=box.request().target();if(view.cards().stream().anyMatch(c->c.id().equals(selectedCard))&&(box.request().mode()==Mode.ASSIGN_ARMY||box.request().mode()==Mode.ASSIGN_GROUP_MARSHAL||box.request().mode()==Mode.NAVY_FLEET))MapCommanderPanels.select(selectedCard);else open(box.request());}return true;}return false;}
     static String countLabel(Card card){if(card.role()==Mode.NAVY_HQ)return Integer.toString(card.count());return card.role()==Mode.ARMY_GROUP||hasCommander(card)?card.count()+"/"+card.capacity():Integer.toString(card.count());}
     static String navalTooltipText(String text){return java.util.regex.Pattern.compile("(?m)(^단축키: )§Y((?:Shift\\+|Ctrl\\+)?[A-Z])§!$").matcher(text).replaceAll(match->match.group(1)+String.join(" + ",Arrays.stream(match.group(2).toLowerCase(Locale.ROOT).split("\\+")).map(key->"£"+key+"£").toList()));}
     private static boolean hasCommander(Card card){return card.panel()!=null?!card.panel().commander().isEmpty():!card.portrait().equals("politics/empty/leader");}
@@ -142,11 +142,11 @@ public final class MapCommanderHud {
         var units=MapCommanderLayout.units(g.guiWidth(),g.guiHeight());
         boolean navalBranch=view.branch()==Mode.NAVY_HQ;
         int cardWidth=units.size(42),cardHeight=units.size(58.5),footHeight=units.size(14),pitch=units.size(45);
-        int creationSlots=navalBranch?1:2,airSpace=view.branch()==Mode.AIR?units.size(23):0;
-        int columns=Math.max(2,(g.guiWidth()-units.size(12)-airSpace)/pitch-creationSlots);
+        int creationSlots=navalBranch?1:2;
+        int columns=Math.max(2,(g.guiWidth()-units.size(12))/pitch-creationSlots);
         boolean paged=groups.pages(view,columns).size()>1;
-        if(paged)columns=Math.max(2,(g.guiWidth()-units.size(72)-airSpace)/pitch-creationSlots);
-        int capacity=columns,contentWidth=g.guiWidth()-(paged?units.size(60):0)-airSpace;
+        if(paged)columns=Math.max(2,(g.guiWidth()-units.size(72))/pitch-creationSlots);
+        int capacity=columns,contentWidth=g.guiWidth()-(paged?units.size(60):0);
         var pages=groups.pages(view,capacity);int lastPage=pages.size()-1;page=Math.clamp(page,0,lastPage);var visible=MapCommanderCardDrag.preview(pages.get(page));
         var selected=MapUnitHud.selectedKeys().stream().sorted().toList();
         int shown=visible.size();
@@ -177,18 +177,20 @@ public final class MapCommanderHud {
             int innerX=bx+units.size(group?4.5:4),innerY=by+units.size(3),innerWidth=units.size(group?35:30.5),innerHeight=units.size(group?48:41.5);
             if(!wing)UiAssets.draw(g,art+(hover?"_hover/frame_0":"_background/frame_0"),innerX,innerY,innerWidth,innerHeight);
             String portrait=naval&&card.role()==Mode.NAVY_HQ?"commander/commands/reserve_portrait/frame_0":card.portrait().equals("politics/empty/leader")?(wing?"unit_hud/air_fighter":art+"_unknown/frame_0"):card.portrait();
-            UiAssets.drawContent(g,portrait,innerX,innerY,innerWidth,innerHeight);
+            if(naval&&card.role()==Mode.NAVY_HQ){g.pose().pushMatrix();g.pose().translate(bx+units.length(4.5),by+units.length(3.5));g.pose().scale(units.scale()*.5f);UiAssets.draw(g,portrait,0,0,68,91);g.pose().popMatrix();}else UiAssets.drawContent(g,portrait,innerX,innerY,innerWidth,innerHeight);
             if(!wing)UiAssets.draw(g,naval?(card.role()==Mode.NAVY_HQ?"commander/commands/reserve_frame/frame_":"commander/hud/navy_frame/frame_")+(MapCommanderPanels.selected(card.id())||hover?1:0):MapCommanderPanels.selected(card.id())?"commander/commands/leader_"+(group?"army_group":"group")+"_frame_selected/frame_1":art+"_frame/frame_0",bx,by,cw,ch);
             if(!naval&&!wing&&!group&&card.panel()!=null){Integer color=card.panel().armyColor();if(color!=null)UiAssets.drawTinted(g,"commander/commands/group_marker2/frame_0",bx+units.size(1.5),by+units.size(18),units.size(36.5),units.size(11.5),0xff000000|color);}
             if(!naval&&!wing)UiAssets.draw(g,"commander/commands/execute_stop_small_bg/frame_0",bx+units.size(group?4.5:2.5),by-units.size(group?11:9),units.size(38),units.size(13));
             if(!naval&&!wing&&card.panel()!=null)cardOrders(g,units,list,card,bx,by,group);
             var attached=view.wings().stream().filter(wingMember->wingMember.data()!=null&&wingMember.data().attachedArmy().equals(card.id())).toList();
-            if(!attached.isEmpty()){
+            if(view.branch()==Mode.AIR&&!group&&!wing)airAttachments(g,units,list,card,attached,bx,by);
+            else if(!attached.isEmpty()){
                 int ay=by-units.size(32),ah=units.size(14);UiAssets.draw(g,"commander/commands/army_select_wings_btn/frame_0",bx,ay,cw,ah);UiAssets.drawContent(g,"unit_hud/air_fighter",bx+units.size(2),ay+units.size(2),units.size(16),units.size(10));
                 UiText.centeredSingleLine(g,client.font,net.minecraft.network.chat.Component.literal(Integer.toString(attached.stream().mapToInt(wingMember->wingMember.data().quantity()).sum())),bx+units.size(18),ay,cw-units.size(19),ah,UiMenuStyle.TEXT);
                 list.add(new Box(bx,ay,cw,ah,null,0,UiCommandLabels.text("SELECT_ATTACHED_AIRWINGS","부속된 비행단 선택"),()->MapCommanderPanels.showWings(attached.stream().map(Member::id).toList())));
             }
-            UiText.cell(g,client.font,countLabel(card),bx+units.size(group?7:4),by+ch-units.size(naval?14:16),cw-units.size(group?14:8),Math.max(client.font.lineHeight,units.size(10)),countColor(card),false);
+            UiText.cell(g,client.font,countLabel(card),bx+units.size(naval?3.5:group?7:4),naval?by+units.size(44.5):by+ch-units.size(16),naval?units.size(33):cw-units.size(group?14:8),Math.max(client.font.lineHeight,units.size(naval?10.5:10)),countColor(card),false);
+            if(naval&&card.panel()!=null)for(var control:card.panel().controls())if(Set.of("LEADER_TRAITS","LEADER_ADVISOR").contains(control.id())){boolean traits=control.id().equals("LEADER_TRAITS");int cx=bx+units.size(traits?5:22.5),cy=by+units.size(31.5),width=units.size(traits?(control.icon().contains("available_trait")?11:12):14),height=units.size(traits?12.5:14);UiAssets.draw(g,control.icon(),cx,cy,width,height);list.add(new Box(cx,cy,width,height,null,0,control.tooltip(),()->{if(control.enabled())open(control.request());}));}
             if(!naval&&!wing&&card.panel()!=null)MapCommanderPanels.progress(g,"plan_unit_power",bx+units.size(group?8:5),by+ch-units.size(6.5),units.size(29.5),units.size(3),card.panel().planPower()!=null&&card.panel().planPower()>0?card.panel().planPower():null,0xff008000,0xff020305);
             if(!naval&&!wing)UiAssets.draw(g,"commander/commands/plan_frame/frame_0",bx+units.size(group?6.5:3.5),by+ch-units.size(6.5),units.size(32.5),units.size(4.5));
             if(!naval&&!wing&&card.panel()!=null){
@@ -198,7 +200,7 @@ public final class MapCommanderHud {
             }
             if(!wing&&!group&&card.role()!=Mode.NAVY_HQ){
                 int controlX=bx+units.size(31.5),closeY=by+units.size(2.5),controlWidth=units.size(naval?9:8),controlHeight=units.size(naval?9:8);
-                float pixelShift=1f/(float)client.getWindow().getGuiScale();g.pose().pushMatrix();g.pose().translate(-pixelShift,pixelShift);UiAssets.draw(g,"commander/commands/lg_disband_group_btn/frame_0",controlX,closeY,controlWidth,controlHeight);g.pose().popMatrix();
+                float pixelShift=1f/(float)client.getWindow().getGuiScale();g.pose().pushMatrix();g.pose().translate(-pixelShift,pixelShift);UiAssets.draw(g,"commander/commands/lg_disband_group_btn/frame_0",controlX,closeY,units.size(8),units.size(8));g.pose().popMatrix();
                 String closeTip=naval?"선택 해제 · "+card.name():UiCommandLabels.text("UNITS_VIEW_BTN_DISBAND_GROUP","")+"\n"+UiCommandLabels.text("UNITS_VIEW_BTN_DISBAND_GROUP_TOOLTIP","");
                 list.add(new Box(controlX,closeY,controlWidth,controlHeight,null,0,closeTip,()->{if(naval)MapCommanderPanels.closeCard(card);else open(new Open(Mode.ARMY_TOOLBAR,"DISSOLVE_ARMY",List.of(card.id())));},0,pixelShift));
             }
@@ -213,7 +215,7 @@ public final class MapCommanderHud {
             var membership=view.branch()==Mode.AIR&&!wing?new Open(mode,card.id()):card.role()==Mode.ARMY_GROUP?new Open(Mode.ARMY_GROUP,card.id()):(view.branch()==Mode.ARMY||card.role()==Mode.ASSIGN_ARMY)&&!selected.isEmpty()?new Open(Mode.MOVE_DIVISIONS,card.id(),selected)
                     :view.branch()==Mode.NAVY_HQ?new Open(Mode.NAVAL_TASK_FORCES,card.id())
                     :view.branch()==Mode.AIR&&card.role()!=Mode.ASSIGN_ARMY?new Open(Mode.AIR_MISSION,card.id()):new Open(Mode.ARMY_PLANS,card.id());
-            list.add(new Box(bx,by+ch-footHeight,cw,footHeight,membership,0,view.branch()==Mode.ARMY?cardTooltip(card):membership.mode()==Mode.MOVE_DIVISIONS?"선택한 자국 사단을 이 군으로 이동":view.branch()==Mode.NAVY_HQ?"태스크 포스 임무 선택":view.branch()==Mode.AIR?"비행단 임무 선택":"전투 계획 · "+card.name()+"\n"+card.leader()+"\n"+card.detail(),null,units.size(group?2:.5)));
+            list.add(new Box(bx,by+ch-footHeight,cw,footHeight,membership,0,view.branch()==Mode.ARMY?cardTooltip(card):membership.mode()==Mode.MOVE_DIVISIONS?"선택한 자국 사단을 이 군으로 이동":view.branch()==Mode.NAVY_HQ?"태스크 포스 임무 선택":view.branch()==Mode.AIR?cardTooltip(card):"전투 계획 · "+card.name()+"\n"+card.leader()+"\n"+card.detail(),null,units.size(group?2:.5)));
         }
         int addX=ordinaryX+offsets[shown];
         if(!navalBranch) {
@@ -226,11 +228,9 @@ public final class MapCommanderHud {
             list.add(new Box(addX,y,cardWidth,cardHeight,new Open(Mode.CREATE_ARMY,"",selected),creationTooltip(false)));
         } else {
             addX=stripX;
-            UiAssets.draw(g,"commander/hud/army_background/frame_0",addX+units.size(4),y+units.size(3),units.size(30.5),units.size(41.5));
-            UiAssets.draw(g,"commander/hud/army_border/frame_0",addX,y,units.size(39.5),units.size(55.5));
+            g.pose().pushMatrix();g.pose().translate(addX,y);g.pose().scale(units.scale()*.5f);UiAssets.draw(g,"commander/hud/army_background/frame_0",9,7,61,83);UiAssets.draw(g,"commander/hud/army_border/frame_0",0,0,79,111);g.pose().popMatrix();
             list.add(new Box(addX,y,cardWidth,cardHeight,new Open(Mode.NAVY_HQ,""),"함대 생성·태스크 포스 편입"));
         }
-        if(view.branch()==Mode.AIR){int cx=addX+pitch,cy=bottom-units.size(19);UiAssets.draw(g,"commander/commands/air_base_create_new_btn/frame_0",cx,cy,units.size(19),units.size(19));list.add(new Box(cx,cy,units.size(19),units.size(19),new Open(Mode.AIR_ORGANIZE,"",List.of("action/CREATE")),UiCommandLabels.text("AIRWING_NEW","신규 비행단 창설")));}
         if(lastPage>0) {
             int px=g.guiWidth()-units.size(56),py=y+cardHeight-units.size(20);
             UiText.centeredSingleLine(g,client.font,net.minecraft.network.chat.Component.literal((page+1)+" / "+(lastPage+1)),px,py-units.size(16),units.size(50),units.size(14),UiMenuStyle.TEXT);
@@ -257,9 +257,18 @@ public final class MapCommanderHud {
         if(tooltip.isEmpty())tooltip=MapNavalSeaHover.text();
         if(!tooltip.isEmpty()){
             var lines=UiTooltips.sourceLines(client.font,navalBranch?navalTooltipText(tooltip):tooltip,Math.min(g.guiWidth(),tooltipWidth+24));int textWidth=lines.stream().mapToInt(client.font::width).max().orElse(0),lineHeight=client.font.lineHeight+1,textHeight=lines.size()*lineHeight;var position=tooltipPosition(g.guiWidth(),g.guiHeight(),mx,my,textWidth,textHeight);
-            g.nextStratum();UiTooltips.background(g,position.x()-7,position.y()-7,textWidth+14,textHeight+14);for(int n=0;n<lines.size();n++)g.text(client.font,lines.get(n),position.x(),position.y()+n*lineHeight,0xFFE0E0E0);renderedTooltip=tooltip;
+            g.nextStratum();UiTooltips.background(g,position.x()-7,position.y()-7,textWidth+14,textHeight+14);var attachment=boxes.stream().filter(box->box.contains(mx,my)&&box.request()!=null&&box.request().mode()==Mode.AIR_ATTACH&&box.request().selection().contains("action/detach")).findFirst().orElse(null);var tooltipWings=attachment==null?List.<Member>of():view.wings().stream().filter(wing->attachment.request().selection().contains(wing.id())).toList();int plane=0;for(int n=0;n<lines.size();n++){g.text(client.font,lines.get(n),position.x(),position.y()+n*lineHeight,0xFFE0E0E0);if(plane<tooltipWings.size()){var plain=new StringBuilder();lines.get(n).accept((index,style,codepoint)->{plain.appendCodePoint(codepoint);return true;});if(plain.toString().startsWith("    "))UiAssets.drawContent(g,tooltipWings.get(plane++).icon(),position.x(),position.y()+n*lineHeight,14,lineHeight);}}renderedTooltip=tooltip;
         }
         String hover=MapCommanderPanels.hoverKey(mx,my);if(hover.isEmpty())for(var box:boxes)if(box.contains(mx,my)){hover="hud/"+box.x()+"/"+box.y()+"/"+box.width()+"/"+box.height();break;}if(updateHover(hover))dev.hoi.client.audio.AudioUiSounds.play("ui.menu_over");
     }
+    private static void airAttachments(GuiGraphicsExtractor g,UiUnits u,List<Box> boxes,Card card,List<Member> attached,int x,int y){
+        int left=x+u.size(1.5),top=y-u.size(25);var selected=MapCommanderPanels.attachmentWings();
+        if(!attached.isEmpty()){
+            airAttachmentImage(g,u,left,top,0);String tip=UiCommandLabels.text("AIRWING_ATTACHED","")+"\n\n"+attached.stream().map(wing->{String amount="?";if(wing.data()!=null&&wing.data().air()!=null&&wing.data().air().wing()!=null){int count=wing.data().quantity(),target=wing.data().air().wing().target();amount=UiCommandLabels.text("AIRWING_G_STR","").replace("$COUNT|G0$","§G"+count+"§!").replace("$LIMIT|0$",Integer.toString(target)).replace("$VALUE|%0G$","§G"+Math.round(count*100.0/target)+"%§!");}return wing.name()+"\n    "+amount;}).collect(java.util.stream.Collectors.joining("\n\n"))+"\n\n"+UiCommandLabels.text("ATTACH_AIR_WING_SELECT_DESC","");
+            UiText.centeredSingleLine(g,Minecraft.getInstance().font,net.minecraft.network.chat.Component.literal(Integer.toString(attached.stream().mapToInt(wing->wing.data().quantity()).sum())),left,top+u.size(11.5),u.size(13),u.size(7),UiMenuStyle.TEXT);var values=new ArrayList<String>();values.add("action/detach");attached.stream().map(Member::id).forEach(values::add);boxes.add(new Box(left,top,u.size(13.5),u.size(18),new Open(Mode.AIR_ATTACH,"",values),0,tip,()->MapCommanderPanels.showWings(attached.stream().map(Member::id).toList())));left+=u.size(13.5);
+        }
+        airAttachmentImage(g,u,left,top,3);var values=new ArrayList<String>();values.add("army/"+card.id());values.addAll(selected);boxes.add(new Box(left,top,u.size(16),u.size(18),null,0,UiCommandLabels.text(selected.isEmpty()?"ATTACH_AIR_WING_SELECT_SOME":"ATTACH_AIR_WING_DESC",""),()->{if(!selected.isEmpty())open(new Open(Mode.AIR_ATTACH,"",values));}));
+    }
+    private static void airAttachmentImage(GuiGraphicsExtractor g,UiUnits u,int x,int y,int frame){g.pose().pushMatrix();g.pose().translate(x,y);g.pose().scale(u.scale()*.4f);UiAssets.draw(g,"commander/commands/attached_air_bg/frame_0",0,0,39,45);g.blit(Identifier.parse("hoi:textures/gui/commander/commands/attached_air_types/atlas.png"),3,2,32,27,frame/5f,(frame+1)/5f,0,1);g.pose().popMatrix();}
     private static String creationTooltip(boolean group){String prefix=group?"CREATE_ARMY_GROUP":"CREATE_GROUP";boolean empty=group?MapCommanderPanels.formationArmies().isEmpty():MapCommanderPanels.commandSelection().isEmpty();return UiCommandLabels.text(prefix+(empty?"_WITH_NO_UNIT_SELECTED_TOOLTIP":"_WITH_UNITS_SELECTED_TOOLTIP"),"")+"\n\n§Y"+UiCommandLabels.text(group?"OPERATION_NEW_ARMY_GROUP":"OPERATION_NEW_GROUP","")+"§!\n"+UiCommandLabels.text(group?"COMMAND_ARMY_GROUP_DESC":"COMMAND_GROUP_DESC","");}
 }

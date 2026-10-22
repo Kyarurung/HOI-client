@@ -33,7 +33,7 @@ final class MapCommanderAvailability {
         String branch=branchReason(action);if(!branch.isEmpty())return branch;
         if(action.isEmpty()||!Set.of("AIR","NAVY","NAVAL_TB","LAND","ARMY","ABILITY").contains(action.split("/",2)[0])||!supported())return action.startsWith("NAVAL_TB/")?"사용 가능 여부를 확인하고 있습니다.":"";
         if(!current()||assessment==null)return "사용 가능 여부를 확인하고 있습니다.";
-        var status=assessment.actions().get(action);return status==null?(action.startsWith("NAVAL_TB/")?"사용 가능 여부를 확인하고 있습니다.":""):!status.enabled()&&status.reason().isEmpty()?"현재 사용할 수 없습니다.":status.reason();
+        var status=assessment.actions().get(action);return status==null?(action.startsWith("NAVAL_TB/")||action.startsWith("AIR/")?"사용 가능 여부를 확인하고 있습니다.":""):action.startsWith("AIR/")&&status.enabled()?"":!status.enabled()&&status.reason().isEmpty()?"현재 사용할 수 없습니다.":status.reason();
     }
     static String reason(String action,List<String> targets) {
         String branch=branchReason(action);if(!branch.isEmpty())return branch;
