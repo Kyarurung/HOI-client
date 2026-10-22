@@ -28,7 +28,7 @@ final class MapSelectorHudTest {
             game.takeScreenshot("hoi-army-outside-map-hud-hidden-"+size[0]+"x"+size[1]+"-gui2");
             for(Boolean running:new Boolean[]{false,null,true}){
                 game.runOnClient(client->MapCommanderHud.accept(new ProtocolCommanderHud.View(source.country(),client.level.dimension().identifier().toString(),source.branch(),source.cards(),source.wings(),running)));game.waitTicks(2);
-                game.runOnClient(client->{var u=MapCommanderLayout.units(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight());if(MapCommanderHud.hidesVanillaHud()!=Boolean.TRUE.equals(running)||MapCommanderLayout.cardsBottom(u)!=u.height()-(Boolean.TRUE.equals(running)?0:u.size(82)))throw new AssertionError("Running/paused/legacy HUD visibility and card position must change together");});
+                game.runOnClient(client->{var u=MapCommanderLayout.units(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight());if(!MapCommanderHud.hidesVanillaHud()||MapCommanderLayout.cardsBottom(u)!=u.height())throw new AssertionError("Running/paused/legacy HUD visibility and card position must change together");});
                 game.takeScreenshot("hoi-army-outside-map-"+(running==null?"legacy":running?"resumed":"paused")+"-"+size[0]+"x"+size[1]+"-gui2");
             }
             game.runOnClient(client->MapCommanderHud.reset());game.waitTicks(2);
@@ -55,9 +55,10 @@ final class MapSelectorHudTest {
             game.takeScreenshot("hoi-army-map-legend-"+size[0]+"x"+size[1]+"-gui2");
             for(Boolean running:new Boolean[]{false,null,true}){
                 game.runOnClient(client->MapCommanderHud.accept(new ProtocolCommanderHud.View(source.country(),client.level.dimension().identifier().toString(),source.branch(),source.cards(),source.wings(),running)));game.waitTicks(2);
-                game.runOnClient(client->{if(MapCommanderHud.hidesVanillaHud()!=Boolean.TRUE.equals(running))throw new AssertionError("Map dimension alone must not hide the vanilla HUD while paused or before start");var board=client.level.getScoreboard();var objective=board.getObjective("hoi_map_preview");board.getOrCreatePlayerScore(net.minecraft.world.scores.ScoreHolder.forNameOnly("map_row_1"),objective).display(Component.literal("게임 속도: ").append(dev.hoi.protocol.ProtocolCampaignStyle.speed(Boolean.TRUE.equals(running)?"X10":"PAUSED")));});
+                game.runOnClient(client->{if(!MapCommanderHud.hidesVanillaHud())throw new AssertionError("Campaign HUD must stay hidden while paused or before start");var board=client.level.getScoreboard();var objective=board.getObjective("hoi_map_preview");board.getOrCreatePlayerScore(net.minecraft.world.scores.ScoreHolder.forNameOnly("map_row_1"),objective).display(Component.literal("게임 속도: ").append(dev.hoi.protocol.ProtocolCampaignStyle.speed(Boolean.TRUE.equals(running)?"X10":"PAUSED")));});
                 game.takeScreenshot("hoi-army-map-"+(running==null?"legacy":running?"resumed":"paused")+"-"+size[0]+"x"+size[1]+"-gui2");
             }
+            dev.hoi.client.screen.ScreenEventFrameTest.showHudFixture(game);game.waitTicks(2);game.runOnClient(client->{if(!MapCommanderHud.hidesVanillaHud())throw new AssertionError("Event windows must keep the campaign vanilla HUD hidden");});game.takeScreenshot("hoi-map-event-vanilla-hud-hidden-"+size[0]+"x"+size[1]+"-gui2");
             game.setScreen(()->null);game.waitTicks(2);game.takeScreenshot("hoi-map-vanilla-hud-hidden-"+size[0]+"x"+size[1]+"-gui2");
         }finally{
             game.runOnClient(client->{var board=client.level.getScoreboard();var objective=board.getObjective("hoi_map_preview");if(objective!=null)board.removeObjective(objective);});

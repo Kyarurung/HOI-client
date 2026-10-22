@@ -22,6 +22,12 @@ import java.util.*;
 public final class ScreenEventFrameTest {
     record Example(String name, String id, ProtocolDialogView view) {}
     record Fixtures(List<Example> cases) {}
+    public static void showHudFixture(ClientGameTestContext context) {
+        var input=Objects.requireNonNull(ScreenEventFrameTest.class.getResourceAsStream("/event-frame-fixtures.json"));
+        var examples=new Gson().fromJson(new InputStreamReader(input,StandardCharsets.UTF_8),Fixtures.class).cases();
+        var view=examples.stream().map(Example::view).filter(v->v.kind()==ProtocolDialogView.Kind.EVENT).findFirst().orElseThrow();
+        context.setScreen(()->new ScreenDialog(view,(v,choice)->{}));
+    }
     public static void run(ClientGameTestContext context) {
         var input = Objects.requireNonNull(ScreenEventFrameTest.class.getResourceAsStream("/event-frame-fixtures.json"));
         var examples = new Gson().fromJson(new InputStreamReader(input, StandardCharsets.UTF_8), Fixtures.class).cases();

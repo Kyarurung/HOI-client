@@ -30,6 +30,7 @@ final class ScreenDecisionText {
     private final Map<String,List<FormattedCharSequence>> cache = new LinkedHashMap<>();
     private final Map<String,List<Component>> sourceRows = new LinkedHashMap<>();
     private Map<String,Image> images=Map.of();
+    private Set<String> sprites=Set.of();
     private record Image(String path,int width,int height) {}
     private record Block(FormattedCharSequence text,Image image,int width,int height) {}
     void clear() { cache.clear();sourceRows.clear(); }
@@ -52,7 +53,9 @@ final class ScreenDecisionText {
             if(entry.getKey().matches("[A-Za-z0-9_]+") && path.matches("[a-z0-9_/.-]+") && !path.contains("..")
                     && width>0 && height>0 && width<=4096 && height<=4096)next.put(entry.getKey(),new Image(path,width,height));
         }
-        images=Map.copyOf(next);clear();
+        images=Map.copyOf(next);
+        sprites=root.get("sprites") instanceof JsonObject entries?Set.copyOf(entries.keySet()):Set.of();
+        clear();
     }
     Component component(String text) {
         var result=Component.empty();
@@ -70,7 +73,8 @@ final class ScreenDecisionText {
                             .withStyle(Style.EMPTY.withFont(FLAG_FONT).withColor(0xFFFFFF).withShadowColor(0)));
                 } else {
                     var icon=UiKeywordIcons.decorateLines(original,false);
-                    result.append(icon.getString().isEmpty()?original:icon);
+                    result.append(icon.getString().isEmpty() && (images.containsKey(matcher.group(1))
+                            || sprites.contains(matcher.group(1)) || sprites.contains("GFX_"+matcher.group(1))) ? original : icon);
                 }
                 start=matcher.end();
             }

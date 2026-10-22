@@ -39,7 +39,7 @@ public final class ScreenDecisionInteractionTest {
                 lines.get(1).visit((style,part)->{if(!part.isEmpty())colors.add(style.getColor()==null?-1:style.getColor().getValue());return Optional.empty();},Style.EMPTY);
                 if(colors.isEmpty() || colors.stream().anyMatch(color->color!=UiTooltips.GOLD))throw new AssertionError("Source color must survive a newline");
                 if(!lines.get(2).getString().isEmpty() || !lines.get(3).getString().equals("수량: 0.00")
-                        || !lines.get(4).getString().equals("£unregistered_decision_fixture"))throw new AssertionError("Source separators, precision and unknown icons must survive");
+                        || !lines.get(4).getString().isEmpty())throw new AssertionError("Source separators and precision must survive while unknown icons stay hidden");
                 screen.update(ProtocolDecisionPayloads.Response.of(screen.token(),new ProtocolDecisionPayloads.View("KOR",session,2,"",0,2,hud,List.of(),categories,2)));
                 if(screen.rowCount()!=2 || button(screen,"실행 가능한 결정").active || sent.size()!=1 || sent.getFirst().page()!=1)
                     throw new AssertionError("A partial snapshot must retain old rows and lock actions");

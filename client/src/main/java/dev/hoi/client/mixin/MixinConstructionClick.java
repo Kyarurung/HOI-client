@@ -18,6 +18,6 @@ public abstract class MixinConstructionClick {
     }
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void hoi$cancelConstruction(CallbackInfo callback) {
-        if (InputConstructionMap.cancel((Minecraft) (Object) this)) callback.cancel();
+        if (InputConstructionMap.cancel((Minecraft) (Object) this) || dev.hoi.client.map.MapCommanderOrders.useMap((Minecraft) (Object) this)) callback.cancel();
     }
 }

@@ -2,7 +2,7 @@ ext.hoiRendererFixtureGroups = [
     leaderEvent: [
         environment: 'HOI_LEADER_EVENT_PREVIEW', property: 'hoiLeaderEventPreview',
         producers: ['dev.hoi.fabric.FabricPresentationViewsTest'],
-        fixtures: ['china-705', 'china-182', 'event-korea-21', 'event-korea-504', 'event-china-98'],
+        fixtures: ['china-705', 'china-182', 'event-korea-21', 'event-korea-504', 'event-china-98', 'event-korea-356', 'news-turkey-2'],
         suites: ['all', 'leader-event', 'event-tooltips']
     ],
     politicsChoice: [
@@ -80,7 +80,7 @@ ext.hoiRendererFixtureGroups = [
         environment: 'HOI_COMMANDER_PREVIEW', property: 'hoi.commandFixtureOutput',
         producers: [
             'dev.hoi.fabric.FabricCommanderHudDetailsTest', 'dev.hoi.fabric.FabricCommanderDialogSessionsTest',
-            'dev.hoi.fabric.FabricArmyGroupSessionsTest', 'dev.hoi.fabric.FabricAirArmyAttachmentOffersTest',
+            'dev.hoi.fabric.FabricArmyGroupSessionsTest',
             'dev.hoi.fabric.FabricAirAdministrationOffersTest', 'dev.hoi.fabric.FabricAirDeterminateStateTest',
             'dev.hoi.fabric.FabricArmyCohesionOffersTest', 'dev.hoi.fabric.FabricNavalConvoyTargetOffersTest',
             'dev.hoi.fabric.FabricAirArmyFollowingTest', 'dev.hoi.fabric.FabricCommanderOrderSessionsTest',
@@ -108,10 +108,16 @@ ext.hoiRendererFixtureGroups = [
         ],
         suites: ['missions', 'movement-controls', 'army-layout', 'navy-layout']
     ],
+    mapOrders: [
+        environment: 'HOI_COMMANDER_PREVIEW', property: 'hoi.commandFixtureOutput',
+        producers: ['dev.hoi.fabric.FabricCommanderHudDetailsTest'],
+        fixtures: ['kor-command-panel-army', 'kor-command-panel-navy', 'kor-command-panel-air'],
+        suites: ['map-orders', 'air-range']
+    ],
     missionOverlay: [
         environment: 'HOI_MISSION_OVERLAY_FIXTURES', property: 'hoi.missionOverlayFixtureOutput',
         producers: ['dev.hoi.map.MapMovementOverlayTest', 'dev.hoi.map.MapAirMissionOverlayTest'],
-        fixtures: ['army', 'air', 'navy'],
-        suites: ['movement-controls']
+        fixtures: ['army', 'air', 'navy', 'army-strategic', 'navy-mission', 'air-transfer'],
+        suites: ['movement-controls', 'mission-overlays']
     ]
 ]

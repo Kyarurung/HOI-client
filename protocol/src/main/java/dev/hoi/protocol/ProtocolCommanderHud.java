@@ -29,15 +29,16 @@ public final class ProtocolCommanderHud {
         public static final StreamCodec<RegistryFriendlyByteBuf,PlanMapPick> CODEC=StreamCodec.of((b,p)->{b.writeUtf(p.token,36);b.writeVarLong(p.revision);b.writeBoolean(p.toggle);b.writeVarInt(p.rays.size());for(var ray:p.rays){b.writeDouble(ray.x);b.writeDouble(ray.y);b.writeDouble(ray.z);}},b->{String token=b.readUtf(36);long revision=b.readVarLong();boolean toggle=b.readBoolean();int n=b.readVarInt();if(n<1||n>64)throw new IllegalArgumentException("Invalid land ray count");var rays=new ArrayList<Ray>();for(int i=0;i<n;i++)rays.add(new Ray(b.readDouble(),b.readDouble(),b.readDouble()));return new PlanMapPick(token,revision,toggle,rays);});
         @Override public Type<PlanMapPick> type(){return TYPE;}
     }
-    public record MovementQuad(float x,float y,float z,float width,float length,float yaw,float u0,float v0,float u1,float v1) {
+    public record MovementQuad(float x,float y,float z,float width,float length,float yaw,float u0,float v0,float u1,float v1,boolean mission) {
+        public MovementQuad(float x,float y,float z,float width,float length,float yaw,float u0,float v0,float u1,float v1){this(x,y,z,width,length,yaw,u0,v0,u1,v1,false);}
         public MovementQuad {
             for(float coordinate:new float[]{x,y,z,yaw})if(!Float.isFinite(coordinate)||Math.abs(coordinate)>65536)throw new IllegalArgumentException("Invalid movement coordinate");
             for(float size:new float[]{width,length})if(!Float.isFinite(size)||size<=0||size>8192)throw new IllegalArgumentException("Invalid movement size");
             for(float uv:new float[]{u0,v0,u1,v1})if(!Float.isFinite(uv)||uv<0||uv>1)throw new IllegalArgumentException("Invalid movement UV");
             if(u0>=u1||v0>=v1)throw new IllegalArgumentException("Empty movement UV");
         }
-        private void write(RegistryFriendlyByteBuf b){for(float value:new float[]{x,y,z,width,length,yaw,u0,v0,u1,v1})b.writeFloat(value);}
-        private static MovementQuad read(RegistryFriendlyByteBuf b){return new MovementQuad(b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat());}
+        private void write(RegistryFriendlyByteBuf b){for(float value:new float[]{x,y,z,width,length,yaw,u0,v0,u1,v1})b.writeFloat(value);b.writeBoolean(mission);}
+        private static MovementQuad read(RegistryFriendlyByteBuf b){return new MovementQuad(b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readFloat(),b.readBoolean());}
     }
     public record PlanPoint(float x,float y,float z) {
         public PlanPoint {for(float coordinate:new float[]{x,y,z})if(!Float.isFinite(coordinate)||Math.abs(coordinate)>65536)throw new IllegalArgumentException("Invalid plan point");}
@@ -53,7 +54,7 @@ public final class ProtocolCommanderHud {
         public PlanOverlay(String country,ProtocolAtlasScene.Page page,List<MovementQuad> movement){this(country,page,movement,List.of());}
         public PlanOverlay(String country,ProtocolAtlasScene.Page page){this(country,page,List.of());}
         public PlanOverlay {if(country==null||!country.isEmpty()&&!country.matches("[A-Z0-9]{3}"))throw new IllegalArgumentException("Invalid plan country");Objects.requireNonNull(page);movement=List.copyOf(movement);plans=plans==null?List.of():List.copyOf(plans);if(movement.size()>ProtocolAtlasScene.PAGE_SIZE)throw new IllegalArgumentException("Oversized movement page");if(plans.size()>128||plans.stream().map(PlanPresentation::id).distinct().count()!=plans.size())throw new IllegalArgumentException("Oversized plan page");}
-        public static final Type<PlanOverlay> TYPE=new Type<>(Identifier.parse("hoi:land_plan_overlay_v3"));
+        public static final Type<PlanOverlay> TYPE=new Type<>(Identifier.parse("hoi:land_plan_overlay_v4"));
         public static final StreamCodec<RegistryFriendlyByteBuf,PlanOverlay> CODEC=StreamCodec.of((b,p)->{b.writeUtf(p.country,3);ProtocolAtlasScene.Page.CODEC.encode(b,p.page);b.writeVarInt(p.movement.size());p.movement.forEach(q->q.write(b));b.writeVarInt(p.plans.size());p.plans.forEach(plan->plan.write(b));},b->{String country=b.readUtf(3);var page=ProtocolAtlasScene.Page.CODEC.decode(b);int count=b.readVarInt();if(count<0||count>ProtocolAtlasScene.PAGE_SIZE)throw new IllegalArgumentException("Invalid movement page size");var quads=new ArrayList<MovementQuad>(count);for(int i=0;i<count;i++)quads.add(MovementQuad.read(b));int planCount=b.readVarInt();if(planCount<0||planCount>128)throw new IllegalArgumentException("Invalid plan page size");var plans=new ArrayList<PlanPresentation>(planCount);for(int i=0;i<planCount;i++)plans.add(PlanPresentation.read(b));return new PlanOverlay(country,page,quads,plans);});
         @Override public Type<PlanOverlay> type(){return TYPE;}
     }
@@ -86,7 +87,11 @@ public final class ProtocolCommanderHud {
         public AirBase(String id,int ownPlanes,int totalPlanes,double capacity){this(id,ownPlanes,totalPlanes,capacity,"");}
         public AirBase {controller=controller==null?"":controller;ProtocolCommanderHud.id(controller,32);ProtocolCommanderHud.id(id,160);if(id.isEmpty()||ownPlanes<0||totalPlanes<ownPlanes||totalPlanes>1000000000||!Double.isFinite(capacity)||capacity<0||capacity>1000000000)throw new IllegalArgumentException("Invalid air base state");}
     }
-    public record AirWingDetails(int target,String sortieTime,String equipmentIcon,boolean carrier,String missionName,String missionState,String missionStateTooltip,Double efficiency,String role) {
+    public record AirRange(double km,float x,float z,float radius) {
+        public AirRange {if(!Double.isFinite(km)||km<=0||km>100000||!Float.isFinite(x)||!Float.isFinite(z)||Math.abs(x)>65536||Math.abs(z)>65536||!Float.isFinite(radius)||radius<=0||radius>8192)throw new IllegalArgumentException("Invalid air range");}
+    }
+    public record AirWingDetails(int target,String sortieTime,String equipmentIcon,boolean carrier,String missionName,String missionState,String missionStateTooltip,Double efficiency,String role,AirRange range) {
+        public AirWingDetails(int target,String sortieTime,String equipmentIcon,boolean carrier,String missionName,String missionState,String missionStateTooltip,Double efficiency,String role){this(target,sortieTime,equipmentIcon,carrier,missionName,missionState,missionStateTooltip,efficiency,role,null);}
         public AirWingDetails(int target,String sortieTime,String equipmentIcon,boolean carrier,String missionName,String missionState,String missionStateTooltip,Double efficiency){this(target,sortieTime,equipmentIcon,carrier,missionName,missionState,missionStateTooltip,efficiency,null);}
         public AirWingDetails(int target,String sortieTime,String equipmentIcon,boolean carrier,String missionName){this(target,sortieTime,equipmentIcon,carrier,missionName,"","",null);}
         public AirWingDetails {if(role!=null&&!role.matches("[A-Z][A-Z_]{0,31}"))throw new IllegalArgumentException("Invalid air wing role");missionState=missionState==null?"":missionState;missionStateTooltip=missionStateTooltip==null?"":missionStateTooltip;if(target<1||target>1000000||sortieTime==null||!Set.of("DAY","NIGHT","BOTH").contains(sortieTime)||efficiency!=null&&(!Double.isFinite(efficiency)||efficiency<0||efficiency>1000))throw new IllegalArgumentException("Invalid air wing details");asset(equipmentIcon);text(missionName,200);text(missionState,200);text(missionStateTooltip,1000);}

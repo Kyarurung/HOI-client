@@ -123,6 +123,14 @@ public final class MapCommanderOrders {
         hint="";hintTicks=0;if(commandObserver!=null)commandObserver.accept(packet);else ClientPlayNetworking.send(packet);return true;
     }
     public static boolean map(List<Ray> rays){return map(rays,false);}
+    public static boolean useMap(Minecraft client){
+        if(client.player==null||client.gui.screen()!=null||!client.options.getCameraType().isFirstPerson()||!MapCommanderHud.cardsVisible()||!valid()||MapCommanderPanels.commandSelection().isEmpty())return false;
+        if(!ready())return true;
+        var matrix=client.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
+        var vector=matrix.transformProject(new org.joml.Vector3f(0,0,1)).normalize();
+        try{map(List.of(new Ray(vector.x,vector.y,vector.z)));}catch(IllegalArgumentException sky){}
+        return true;
+    }
     public static boolean map(List<Ray> rays,boolean pointEdit){
         if(rays.isEmpty())return false;var selected=MapCommanderPanels.commandSelection();if(selected.isEmpty()&&pending().isEmpty())return false;
         var points=drawsPlanLine()?rays:List.of(rays.getLast());
@@ -142,6 +150,16 @@ public final class MapCommanderOrders {
         send("NAVAL_SETTING/"+(previous?"REPAIR_PREVIOUS":"REPAIR_NEXT"),List.of(force,"policy/"+policy),List.of());
     }
     static boolean route(Open request){
+        if(request.mode()==Mode.AIR_ATTACH){
+            if(request.selection().contains("action/detach")){
+                var wings=request.target().isEmpty()?request.selection().stream().filter(id->!id.equals("action/detach")).toList():List.of(request.target());
+                if(!wings.isEmpty())send("AIR_DETACH",wings.stream().map(id->"air/"+id).toList(),List.of());
+            }else if(!request.selection().isEmpty()&&request.selection().getFirst().startsWith("army/")){
+                var selected=MapCommanderPanels.commandSelection();if(selected.isEmpty()||selected.stream().anyMatch(id->!id.startsWith("air/")))return true;
+                var values=new ArrayList<String>();values.add(request.selection().getFirst().substring(5));values.addAll(selected);send("AIR_ATTACH",values,List.of());
+            }
+            return true;
+        }
         if(request.mode()==Mode.ARMY_ABILITIES){if(Set.of("force_attack","last_stand","staff_office_plan","extra_suplies").contains(request.target()))MapCommanderPanels.armyAbility(request.target());else message("사용할 스킬 버튼을 선택하세요.");return true;}
         if(Set.of(Mode.NAVAL_TASK_FORCES,Mode.NAVAL_MISSION,Mode.AIR_MISSION).contains(request.mode())&&MapCommanderPanels.openMission(request))return true;
         if(MapCommanderPanels.armyInput()&&(request.mode()==Mode.CREATE_ARMY||request.mode()==Mode.MOVE_DIVISIONS)){formation(request.mode().name(),request.target(),request.selection());return true;}

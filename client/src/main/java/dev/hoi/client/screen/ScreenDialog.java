@@ -110,6 +110,7 @@ public class ScreenDialog extends Screen {
         g.pose().popMatrix();
     }
     Component bodyText() {
+        if (sourceEvent()) return tooltipText.component(view.body());
         var body=Component.literal(view.body());
         return view.kind()==ProtocolDialogView.Kind.COMMANDER?dev.hoi.client.ui.UiKeywordIcons.decorateLines(body,false):body;
     }

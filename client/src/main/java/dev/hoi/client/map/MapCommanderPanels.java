@@ -43,6 +43,7 @@ final class MapCommanderPanels {
     static Set<String> selectedWingIds(){return Set.copyOf(selectedWings);}
     private static boolean wingSelected(Member wing){return selectedWings.contains(wing.id())||current!=null&&current.branch()!=Mode.AIR&&!wing.selectionKey().isEmpty()&&MapUnitHud.selectedKeys().contains(wing.selectionKey());}
     static List<String> attachmentWings(){return current==null?List.of():current.wings().stream().filter(MapCommanderPanels::wingSelected).map(Member::id).toList();}
+    static List<AirRange> airRanges(){return current==null||current.branch()!=Mode.AIR||!MapCommanderHud.cardsVisible()?List.of():current.wings().stream().filter(MapCommanderPanels::wingSelected).filter(w->w.data()!=null&&w.data().air()!=null&&w.data().air().wing()!=null).map(w->w.data().air().wing().range()).filter(Objects::nonNull).toList();}
     static boolean attachmentAllowed(){return current!=null&&current.wings().stream().filter(MapCommanderPanels::wingSelected).allMatch(wing->Set.of("FIGHTER","HEAVY_FIGHTER","CAS","TACTICAL_BOMBER","NAVAL_BOMBER").contains(Objects.toString(airRole(wing),"")));}
     static String airRole(Member wing){return wing.data()==null||wing.data().air()==null||wing.data().air().wing()==null?null:wing.data().air().wing().role();}
     static boolean openMission(Open request){
@@ -263,7 +264,7 @@ final class MapCommanderPanels {
         var chosen=current.cards().stream().filter(c->selected.contains(c.id())||c.id().equals(templateCard)).toList();
         int bottom=MapCommanderLayout.popupBottom(u,current.branch()==Mode.NAVY_HQ);
         var selectedRows=selectedDivisionRows();boolean unassignedOnly=current.branch()==Mode.ARMY&&chosen.isEmpty()&&!selectedRows.isEmpty()&&selectedRows.stream().allMatch(m->m.data()!=null&&m.data().attachedArmy().isEmpty());
-        int panelBottom=MapCommanderHud.running()&&!unassignedOnly&&(current.branch()!=Mode.ARMY||armyCommandVisible())?actionbarTop(u,current.branch()==Mode.NAVY_HQ)-u.size(armyAbilityIds().isEmpty()?2:26):portraitsTop-u.size(4);
+        int panelBottom=!unassignedOnly&&(current.branch()!=Mode.ARMY||armyCommandVisible())?actionbarTop(u,current.branch()==Mode.NAVY_HQ)-u.size(armyAbilityIds().isEmpty()?2:26):portraitsTop-u.size(4);
         if(current.branch()==Mode.NAVY_HQ&&u.size(250)<MapCommanderLayout.commandLeft(u,true))panelBottom=portraitsTop-u.size(4);
         if(current.branch()==Mode.ARMY&&!wingList&&attachmentWings().isEmpty()){int panelRight=u.size(221.5)+chosen.stream().mapToInt(c->summaryExtra(c,u)).max().orElse(0);if(panelRight<MapCommanderLayout.commandLeft(u,false))panelBottom=Math.min(portraitsTop-u.size(4),g.guiHeight()-u.size(85));}
         if(current.branch()==Mode.ARMY?armyCommandVisible():current.branch()==Mode.NAVY_HQ&&!chosen.isEmpty())actionbar(g,u,out,chosen,actionbarTop(u,current.branch()==Mode.NAVY_HQ),bottom);
@@ -345,7 +346,7 @@ final class MapCommanderPanels {
         nativeButton(g,out,"motorization_level_toggle_btn",x+extra+u.size(group?175:154.5),y+u.size(38.5),u.size(22),u.size(11.5),UiCommandLabels.text("ARMY_MOTORIZATION_PRIORITY","")+(panel==null||panel.motorizationPriority()==null?"\n\n차량 수송 우선순위 자료가 없습니다.":""),()->{if(!group&&panel!=null&&panel.motorizationPriority()!=null)MapCommanderOrders.send("ARMY_MOTORIZATION",List.of(card.id()),List.of());});
         UiAssets.draw(g,source("motorization_level_toggle_strip").replace("frame_0","frame_"+(panel==null||panel.motorizationPriority()==null?0:panel.motorizationPriority())),x+extra+u.size(group?178.5:158),y+u.size(38.5),u.size(15),u.size(11.5));
         nativeButton(g,out,group?"army_group_toggle_armies_divisions_btn":"railway_gun_toggle_btn",x+extra+u.size(group?193.5:174),y+u.size(38.5),u.size(group?20.5:22),u.size(11.5),group?UiCommandLabels.text("TOGGLE_ARMY_GROUP_VIEW_ARMIES_DIVISIONS",""):UiCommandLabels.text("ARMY_RAILWAY_GUNS_BUTTON",""),()->{if(group){if(!armyListGroups.remove(card.id()))armyListGroups.add(card.id());scroll=0;hits=List.of();}else MapCommanderOrders.message("철도포 배속은 아직 지원하지 않습니다.");});
-        if(!group)nativeButton(g,out,"army_select_wings_btn",x+extra+u.size(193.5),y+u.size(38.5),u.size(20.5),u.size(11.5),UiCommandLabels.text("SELECT_ATTACHED_AIRWINGS","부속된 비행단 선택"),()->showWings(current.wings().stream().filter(wing->wing.data()!=null&&wing.data().attachedArmy().equals(card.id())).map(Member::id).toList()));
+        if(!group&&current.branch()==Mode.AIR)nativeButton(g,out,"army_select_wings_btn",x+extra+u.size(193.5),y+u.size(38.5),u.size(20.5),u.size(11.5),UiCommandLabels.text("SELECT_ATTACHED_AIRWINGS","부속된 비행단 선택"),()->showWings(current.wings().stream().filter(wing->wing.data()!=null&&wing.data().attachedArmy().equals(card.id())).map(Member::id).toList()));
         for(int n=buttonsStart;n<out.size()-1;n++){var hit=out.get(n);out.set(n,new Hit(hit.x(),hit.y(),Math.min(hit.w(),out.get(n+1).x()-hit.x()),hit.h(),hit.tip(),hit.action(),hit.gesture(),hit.sound(),hit.icon()));}
     }
     private static List<Map.Entry<String,Integer>> summaryTypes(Card card){return card.panel()==null?List.of():!card.panel().templateSummaries().isEmpty()?card.panel().templateSummaries().stream().limit(11).map(t->Map.entry(t.icon(),t.count())).toList():card.panel().divisionTypes().entrySet().stream().sorted(Map.Entry.<String,Integer>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey())).limit(11).toList();}
@@ -537,8 +538,8 @@ final class MapCommanderPanels {
         verticalProgress(g,"unit_xp_bar",experienceX+u.scale()*13.5f,y+u.size(1.5),u.size(3),u.size(14),member.data()==null?null:member.data().experienceProgress());
         int activityX=x+(u.size(71)+u.size(86)-u.size(11)-u.size(2.5))/2;
         verticalProgress(g,"unitlist_bar_prepare",planX,y+u.size(2),u.size(2.5),u.size(12),member.data()==null?null:member.data().planPower());
-        String activity=member.data()==null?"":member.data().activity();String status=switch(activity){case "MOVING","TRANSIT"->"unitlist_movement_icon";case "RETREATING"->"unitlist_movement_icon/frame_1";case "TRAINING"->"exercise_icon";case "FIGHTING"->"land_unit_combat_icon";default->"unitlist_dig_in_icon";};
-        UiAssets.draw(g,status.contains("/")?"commander/commands/"+status:source(status),activityX,y+u.size(2),u.size(11),u.size(13));
+        String activity=member.data()==null?"":member.data().activity();String status=switch(activity){case "MOVING","TRANSIT"->"unitlist_movement_icon";case "RETREATING"->"unitlist_movement_icon/frame_1";case "TRAINING"->"";case "FIGHTING"->"land_unit_combat_icon";default->"unitlist_dig_in_icon";};
+        if(!status.isEmpty())UiAssets.draw(g,status.contains("/")?"commander/commands/"+status:source(status),activityX,y+u.size(2),u.size(11),u.size(13));
         int climate=acclimatizationFrame(member.data());if(climate>=0)UiAssets.draw(g,source("unitlist_acclimatization").replace("frame_0","frame_"+climate),x+u.size(70),y+u.size(8),u.size(6),u.size(6));
         verticalProgress(g,"unitlist_bar_prepare",activityX+u.size(11),y+u.size(2),u.size(2.5),u.size(12),member.data()==null?null:member.data().entrenchmentProgress());
         leftLabel(g,member.name(),x+u.size(87),y+u.size(1),u.size(79)+extra,h-u.size(2),UiMenuStyle.TEXT);

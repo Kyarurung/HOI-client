@@ -9,7 +9,8 @@ import net.minecraft.world.phys.Vec3;
 import java.util.*;
 
 record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long,List<Integer>> cells, List<Integer> large) {
-    record MapTile(Material material, AABB bounds, float[] vertices, List<Box> cities,boolean movement) {MapTile(Material material,AABB bounds,float[] vertices,List<Box> cities){this(material,bounds,vertices,cities,false);}}
+    record MapTile(Material material, AABB bounds, float[] vertices, List<Box> cities,boolean movement,boolean mission) {MapTile(Material material,AABB bounds,float[] vertices,List<Box> cities){this(material,bounds,vertices,cities,false,false);}}
+    private record MovementCellKey(long cell,boolean mission) {}
     private record MapCellKey(int x, int z, Material material) {}
     static MapSceneMesh build(String dimension, List<Box> boxes) {
         var groups = new LinkedHashMap<MapCellKey, List<Box>>();
@@ -29,11 +30,11 @@ record MapSceneMesh(String dimension, List<MapSceneMesh.MapTile> tiles, Map<Long
         return assemble(dimension,tiles);
     }
     static MapSceneMesh build(String dimension,List<Box> boxes,List<dev.hoi.protocol.ProtocolCommanderHud.MovementQuad> movement){
-        var tiles=new ArrayList<>(build(dimension,boxes).tiles());var groups=new LinkedHashMap<Long,List<dev.hoi.protocol.ProtocolCommanderHud.MovementQuad>>();for(var quad:movement)groups.computeIfAbsent(cellKey(cell(quad.x()),cell(quad.z())),unused->new ArrayList<>()).add(quad);
+        var tiles=new ArrayList<>(build(dimension,boxes).tiles());var groups=new LinkedHashMap<MovementCellKey,List<dev.hoi.protocol.ProtocolCommanderHud.MovementQuad>>();for(var quad:movement)groups.computeIfAbsent(new MovementCellKey(cellKey(cell(quad.x()),cell(quad.z())),quad.mission()),unused->new ArrayList<>()).add(quad);
         for(var group:groups.values()){
             var vertices=new FloatArrayList();AABB bounds=null;
             for(var q:group){float sin=(float)Math.sin(q.yaw()),cos=(float)Math.cos(q.yaw());double radius=Math.hypot(q.width(),q.length());var extent=new AABB(q.x()-radius,q.y(),q.z()-radius,q.x()+radius,q.y()+.01,q.z()+radius);bounds=bounds==null?extent:bounds.minmax(extent);float[][] points={{0,0},{0,1},{1,1},{1,0}};for(var point:points){float x=point[0]*q.width(),z=point[1]*q.length();vertices.add(q.x()+x*cos+z*sin);vertices.add(q.y());vertices.add(q.z()-x*sin+z*cos);vertices.add(q.u0()+point[1]*(q.u1()-q.u0()));vertices.add(q.v0()+point[0]*(q.v1()-q.v0()));vertices.add(0);vertices.add(1);vertices.add(0);}}
-            tiles.add(new MapTile(Material.DEPLOYMENT,bounds,vertices.toFloatArray(),List.of(),true));
+            tiles.add(new MapTile(Material.DEPLOYMENT,bounds,vertices.toFloatArray(),List.of(),true,group.getFirst().mission()));
         }
         return assemble(dimension,tiles);
     }

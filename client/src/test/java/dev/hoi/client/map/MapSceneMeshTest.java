@@ -8,6 +8,14 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MapSceneMeshTest {
+    @Test void colocatedOrdinaryAndMissionMovementKeepSeparateTexturesAndIdenticalUvs() {
+        var ordinary=new dev.hoi.protocol.ProtocolCommanderHud.MovementQuad(1,64,1,2,4,0,.125f,.5f,1,1);
+        var mission=new dev.hoi.protocol.ProtocolCommanderHud.MovementQuad(1,64,1,2,4,0,.125f,.5f,1,1,true);
+        var tiles=MapSceneMesh.build("hoi:army",List.of(),List.of(ordinary,mission)).tiles();
+        assertEquals(2,tiles.size());assertTrue(tiles.stream().allMatch(MapSceneMesh.MapTile::movement));
+        assertFalse(tiles.getFirst().mission());assertTrue(tiles.getLast().mission());
+        assertArrayEquals(tiles.getFirst().vertices(),tiles.getLast().vertices());
+    }
     @Test void cubeFacesKeepTheirWindingUvAndNormals() {
         var mesh = MapSceneMesh.build("hoi:army", List.of(new Box(2, 3, 5, 7, 11, 13, 0, Material.BLACK)));
         var vertices = mesh.tiles().getFirst().vertices();

@@ -26,7 +26,7 @@ final class MapArmySourceReviewTest {
                 game.runOnClient(client->{if(!MapCommanderPanels.armyUnitIcon("unit_hud/headquarters").equals("commander/commands/unit_bus_icon_medium/frame_0"))throw new AssertionError("Regional command must use the original bus silhouette");});
                 cardHover(game,size,"army-card-tooltip",army);
                 hover(game,size,"army-theater-tooltip",game.computeOnClient(client->MapCommanderPanels.hits().stream().filter(h->h.icon().equals("theater_card")&&h.tip().equals(MapCommanderHud.cardTooltip(army))).findFirst().orElseThrow()));
-                for(String icon:List.of("select_all_armylist_short_btn","railway_gun_toggle_btn","army_select_wings_btn","deploy_hq_button","army_portrait"))hover(game,size,name+"-"+icon,hit(icon));
+                for(String icon:List.of("select_all_armylist_short_btn","railway_gun_toggle_btn","deploy_hq_button","army_portrait"))hover(game,size,name+"-"+icon,hit(icon));
                 var traits=game.computeOnClient(client->MapCommanderPanels.hits().stream().filter(h->h.icon().equals("army_trait")).toList());
                 if(!traits.stream().map(MapCommanderPanels.Hit::tip).toList().equals(army.panel().leader().traitDetails().stream().map(dev.hoi.protocol.ProtocolDialogView.LeaderTrait::tooltip).toList()))throw new AssertionError("General panel must render exactly the server trait list");
                 for(int n=0;n<traits.size();n++)hover(game,size,"general-trait-"+n,traits.get(n));
@@ -54,7 +54,7 @@ final class MapArmySourceReviewTest {
         }catch(java.io.IOException error){throw new AssertionError(error);}
     }
     private static void assertHeaderButtons(boolean group){
-        var icons=group?List.of("select_all_armylist_short_btn","motorization_level_toggle_btn","army_group_toggle_armies_divisions_btn"):List.of("select_all_armylist_short_btn","motorization_level_toggle_btn","railway_gun_toggle_btn","army_select_wings_btn");
+        var icons=group?List.of("select_all_armylist_short_btn","motorization_level_toggle_btn","army_group_toggle_armies_divisions_btn"):List.of("select_all_armylist_short_btn","motorization_level_toggle_btn","railway_gun_toggle_btn");
         for(int n=0;n<icons.size();n++){var button=hit(icons.get(n));if(n+1<icons.size()&&button.x()+button.w()!=hit(icons.get(n+1)).x())throw new AssertionError("Commander controls must share a boundary without overlapping hit targets");if(!MapCommanderPanels.tooltipAt(button.x(),button.y()+button.h()/2.).equals(button.tip()))throw new AssertionError("Left edge must belong to its visible commander button");}
     }
     private static void groupDivisionOrder(ClientGameTestContext game,int[] size,View view,Card group){

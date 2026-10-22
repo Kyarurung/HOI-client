@@ -64,7 +64,7 @@ public final class MapCommanderHudTest {
             context.runOnClient(client->{
                 var units=new dev.hoi.client.ui.UiUnits(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight(),1);
                 int bottom=MapCommanderHud.boxes().stream().mapToInt(b->b.y()+b.height()).max().orElseThrow();
-                if(bottom!=units.height()-units.size(82))throw new AssertionError("Paused commander strip must reserve the unshrunk vanilla action-key and hotbar area: actual="+bottom+", expected="+(units.height()-units.size(82)));
+                if(bottom!=units.height())throw new AssertionError("Paused commander strip must touch the bottom edge: actual="+bottom+", expected="+(units.height()));
             });
             context.setScreen(()->new dev.hoi.client.screen.ScreenMenu(menu,ProtocolMenuTab.OFFICER_CORPS,()->{}));context.waitTicks(2);
             context.runOnClient(client->{

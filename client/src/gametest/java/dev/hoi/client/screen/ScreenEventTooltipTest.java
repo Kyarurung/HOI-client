@@ -2,6 +2,11 @@ package dev.hoi.client.screen;
 
 import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.hoi.client.ClientCampaignHud;
+import dev.hoi.client.map.MapCommanderHud;
+import dev.hoi.protocol.ProtocolCommanderHud;
+import dev.hoi.protocol.ProtocolCountryHud;
+import dev.hoi.protocol.ProtocolHudPayloads;
 import dev.hoi.protocol.ProtocolDialogPayloads;
 import dev.hoi.protocol.ProtocolDialogView;
 import dev.hoi.client.ui.UiMenuButton;
@@ -23,8 +28,12 @@ public final class ScreenEventTooltipTest {
             var directory = Path.of(Objects.requireNonNull(System.getenv("HOI_LEADER_EVENT_PREVIEW")));
             for (int[] size : new int[][]{{2560, 1440}, {1280, 720}}) {
                 context.getInput().resizeWindow(size[0], size[1]);
-                context.runOnClient(c -> { c.options.guiScale().set(2); ScreenDialogCoordinator.reset(); });
-                for (String name : List.of("event-korea-21", "event-korea-504", "event-china-98", "china-705", "china-182")) {
+                context.runOnClient(c -> {
+                    c.options.guiScale().set(2); ScreenDialogCoordinator.reset(); sourceText();
+                    ClientCampaignHud.accept(ProtocolHudPayloads.State.of("KOR", ProtocolCountryHud.UNKNOWN));
+                    MapCommanderHud.accept(new ProtocolCommanderHud.View("KOR", c.level.dimension().identifier().toString(), ProtocolCommanderHud.Mode.ARMY, List.of(), List.of(), false));
+                });
+                for (String name : List.of("event-korea-21", "event-korea-504", "event-china-98", "china-705", "china-182", "event-korea-356", "news-turkey-2")) {
                     var view = new ProtocolDialogPayloads.Show(Files.readString(directory.resolve(name + ".json")), true).view();
                     var sent = new ArrayList<ProtocolDialogPayloads.Action>();
                     context.setScreen(() -> { var stack = new ScreenDialogStack(null, (v, id) -> sent.add(new ProtocolDialogPayloads.Action(v.token(), v.revision(), id))); stack.add(view); return stack; });
@@ -47,7 +56,7 @@ public final class ScreenEventTooltipTest {
                                 var matcher = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+)").matcher(optionView.tooltip());
                                 while (matcher.find()) {
                                     String token = matcher.group();
-                                    if (new ScreenDecisionText().component(token).getString().contains("£")) missingIcons.add(token);
+                                    if (dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal(token), false).getString().isEmpty()) missingIcons.add(token);
                                 }
                                 measurements.put(key, Map.of("tooltipGui", new int[]{tooltip.x() - 4, tooltip.y() - 4, tooltip.width() + 8, tooltip.height() + 8}, "text", optionView.tooltip(), "choiceGui", box(choice(screen, optionView))));
                             }
@@ -56,21 +65,35 @@ public final class ScreenEventTooltipTest {
                         context.takeScreenshot("hoi-event-tooltip-" + key + "-gui2");
                     }
                 }
-                var source = new ProtocolDialogPayloads.Show(Files.readString(directory.resolve("event-korea-21.json")), true).view();
+                var source = new ProtocolDialogPayloads.Show(Files.readString(directory.resolve("event-korea-356.json")), true).view();
                 var second = new ProtocolDialogPayloads.Show(Files.readString(directory.resolve("event-korea-504.json")), true).view();
+                var sourceTooltip = source.choices().getFirst().tooltip();
+                if (!sourceTooltip.startsWith("£GFX_KOR_PPP_texticon §A보수정당§!§W의§! £GFX_KOR_NationalAssembly_texticon") || !sourceTooltip.contains("£GFX_KOR_Independent_texticon §g무소속§!§W이 의석을§!") || sourceTooltip.contains("[KOR_NatAsm")) throw new AssertionError("Actual korea.356 fixture must contain resolved source text and icons");
                 lifecycle(context, source, second, size[0], false);
-                var catalog = new com.google.gson.Gson().fromJson(new java.io.InputStreamReader(Objects.requireNonNull(ScreenEventFrameTest.class.getResourceAsStream("/event-frame-fixtures.json")), java.nio.charset.StandardCharsets.UTF_8), ScreenEventFrameTest.Fixtures.class);
-                var news = catalog.cases().stream().filter(example -> example.name().equals("news-coronavirus")).findFirst().orElseThrow().view().issued(UUID.randomUUID().toString(), 1);
+                var news = new ProtocolDialogPayloads.Show(Files.readString(directory.resolve("news-turkey-2.json")), true).view();
+                if (news.kind() != ProtocolDialogView.Kind.GLOBAL_EVENT || !news.choices().equals(List.of(new ProtocolDialogView.Choice("ack", "에르도안 저 자식, 진심이야?", "")))) throw new AssertionError("Actual turkey.2 fixture must supply the authoritative acknowledgement");
                 lifecycle(context, news, source, size[0], true);
                 boundaries(context, source, size[0]);
                 coordinator(context, source);
             }
             Files.writeString(Path.of("event-tooltip-measurements.json"), new GsonBuilder().setPrettyPrinting().create().toJson(Map.of("renders", measurements, "missingIcons", missingIcons)));
         } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
-        finally { context.runOnClient(c -> ScreenDialogCoordinator.reset()); context.setScreen(() -> null); context.getInput().resizeWindow(1600, 1000); context.waitTicks(3); }
+        finally { context.runOnClient(c -> { ScreenDialogCoordinator.reset(); MapCommanderHud.reset(); ClientCampaignHud.accept(ProtocolHudPayloads.State.HIDDEN); }); context.setScreen(() -> null); context.getInput().resizeWindow(1600, 1000); context.waitTicks(3); }
     }
     private static Button choice(ScreenDialog screen, ProtocolDialogView.Choice choice) {
         return screen.children().stream().filter(Button.class::isInstance).map(Button.class::cast).filter(b -> b.getMessage().getString().equals(choice.label())).findFirst().orElseThrow();
+    }
+    private static void sourceText() {
+        var text = new ScreenDecisionText();
+        for (String token : List.of("KOR_PPP_texticon", "KOR_NationalAssembly_texticon", "KOR_Independent_texticon", "KOR_DemocraticParty_texticon")) {
+            var icon = text.component("£GFX_" + token).getString();
+            if (icon.length() != 1 || icon.charAt(0) < 0xe000 || !icon.equals(text.component("£" + token).getString())) throw new AssertionError("Missing source icon or GFX alias: " + token);
+        }
+        if (!text.component("앞 £GFX_missing_event_test 뒤").getString().equals("앞  뒤")) throw new AssertionError("Unknown icon tokens must be hidden");
+        var colors = ScreenDecisionText.sourceRuns("§A보수§!§g무소속§!§8의석§!§3파랑§!");
+        if (!colors.equals(List.of(new ScreenDecisionText.Run("보수", 0xCD3737), new ScreenDecisionText.Run("무소속", 0xB0B0B0), new ScreenDecisionText.Run("의석", 0xCCA333), new ScreenDecisionText.Run("파랑", 0x518FDC)))) throw new AssertionError("TFR event colors changed");
+        text.assets(com.google.gson.JsonParser.parseString("{\"textImages\":{\"GFX_test_banner\":{\"path\":\"decision/test_banner\",\"width\":80,\"height\":20}}}").getAsJsonObject());
+        if (!text.rows("£GFX_test_banner").getFirst().getString().equals("£GFX_test_banner")) throw new AssertionError("Registered image blocks must survive token decoration");
     }
     private static int[] box(Button button) { return new int[]{button.getX(), button.getY(), button.getWidth(), button.getHeight()}; }
     private static MouseButtonEvent mouse(Button button, int key) { return new MouseButtonEvent(button.getX() + button.getWidth() / 2.0, button.getY() + button.getHeight() / 2.0, new MouseButtonInfo(key, 0)); }
@@ -82,7 +105,7 @@ public final class ScreenEventTooltipTest {
             panel.eventStack(stack); stack.add(view); return stack;
         });
         context.getInput().setCursorPos(20, 20); context.waitTicks(3);
-        String prefix = "hoi-event-minimize-" + (news ? "news-synthetic" : "national") + "-" + width;
+        String prefix = "hoi-event-minimize-" + (news ? "news-turkey-2" : "national-korea-356") + "-" + width;
         context.takeScreenshot(prefix + "-before-gui2");
         context.runOnClient(c -> {
             var stack = (ScreenDialogStack)c.gui.screen();
@@ -128,6 +151,37 @@ public final class ScreenEventTooltipTest {
             if (sent.size() != 1 || !sent.getFirst().equals(new ProtocolDialogPayloads.Action(view.token(), view.revision(), view.choices().getFirst().id()))) throw new AssertionError("Choice must send exactly one issued request");
             screen.update(view);
             if (choice(screen, view.choices().getFirst()).active) throw new AssertionError("Same revision unlocked pending choice");
+            screen.update(view.issued(view.token(), view.revision() - 1));
+            if (choice(screen, view.choices().getFirst()).active) throw new AssertionError("Stale revision unlocked pending choice");
+        });
+        context.waitTicks(3); context.takeScreenshot(prefix + "-pending-gui2");
+        context.runOnClient(c -> {
+            var stack = (ScreenDialogStack)c.gui.screen();
+            var screen = stack.find(view.token());
+            var retry = view.issued(view.token(), view.revision() + 1);
+            if (!news) c.gui.hud.setOverlayMessage(net.minecraft.network.chat.Component.literal("Script array index outside bounds"), false);
+            screen.update(retry);
+            var button = choice(screen, retry.choices().getFirst());
+            if (!button.active) throw new AssertionError("Authoritative retry revision must unlock the choice");
+        });
+        int[] retryCursor = context.computeOnClient(c -> { var button = choice(((ScreenDialogStack)c.gui.screen()).find(view.token()), view.choices().getFirst()); return new int[]{button.getX() * 2 + button.getWidth(), button.getY() * 2 + button.getHeight()}; });
+        context.getInput().setCursorPos(retryCursor[0], retryCursor[1]);
+        context.waitTicks(3); context.takeScreenshot(prefix + "-retry-ready-gui2");
+        context.runOnClient(c -> {
+            var stack = (ScreenDialogStack)c.gui.screen();
+            var retry = stack.find(view.token()).view();
+            var button = choice(stack.find(view.token()), retry.choices().getFirst());
+            stack.mouseClicked(mouse(button, InputConstants.MOUSE_BUTTON_LEFT), false);
+            stack.mouseClicked(mouse(button, InputConstants.MOUSE_BUTTON_LEFT), true);
+            if (sent.size() != 2 || !sent.getLast().equals(new ProtocolDialogPayloads.Action(retry.token(), retry.revision(), retry.choices().getFirst().id()))) throw new AssertionError("Retry must send exactly one new revision request");
+            stack.close(view.token());
+            c.gui.hud.setOverlayMessage(net.minecraft.network.chat.Component.empty(), false);
+            if (stack.events().size() != 1 || stack.find(view.token()) != null) throw new AssertionError("Acknowledgement must remove only the chosen event");
+        });
+        context.waitTicks(3); context.takeScreenshot(prefix + "-chosen-removed-gui2");
+        context.runOnClient(c -> {
+            var stack = (ScreenDialogStack)c.gui.screen();
+            if (((ScreenDecision)stack.backdrop()).eventCount() != 1) throw new AssertionError("Chosen event remained in the decisions tab");
             for (var pending : stack.events()) stack.close(pending.token());
             stack.reopen(view.token());
             if (!stack.events().isEmpty() || stack.hasVisibleWindows()) throw new AssertionError("Closed sessions cannot reopen");
@@ -154,6 +208,12 @@ public final class ScreenEventTooltipTest {
             var view = source.issued(UUID.randomUUID().toString(), 1);
             ScreenDialogCoordinator.receive(ProtocolDialogPayloads.Show.of(view, true));
             var stack = ScreenDialogCoordinator.eventStack();
+            var button = choice(stack.find(view.token()), view.choices().getFirst());
+            stack.mouseClicked(mouse(button, InputConstants.MOUSE_BUTTON_LEFT), false);
+            ScreenDialogCoordinator.receive(ProtocolDialogPayloads.Show.of(view, false));
+            if (choice(stack.find(view.token()), view.choices().getFirst()).active) throw new AssertionError("Duplicate Show must keep the pending lock");
+            ScreenDialogCoordinator.receive(ProtocolDialogPayloads.Show.of(view.issued(view.token(), 2), false));
+            if (!choice(stack.find(view.token()), view.choices().getFirst()).active) throw new AssertionError("Retry Show must unlock the pending choice through the receiver");
             stack.reopen(view.token()); stack.find(view.token()).onClose();
             if (c.gui.screen() instanceof ScreenDialogStack || stack.events().size() != 1) throw new AssertionError("All hidden windows must release the overlay while retaining sessions");
             ScreenDialogCoordinator.receive(ProtocolDialogPayloads.Show.of(view.issued(view.token(), 2), false));

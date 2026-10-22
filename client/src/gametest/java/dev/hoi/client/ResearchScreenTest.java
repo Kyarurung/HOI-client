@@ -103,6 +103,21 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenCommanderRosterTest.run(context);dev.hoi.client.map.MapCommanderHudTest.runArmyLayout(context,fixtureMenu());}
             return;
         }
+        if(System.getProperty("hoi.testSuite","all").equals("map-orders")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapRightClickTest.run(context,world.getServer()::runCommand);}
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("air-range")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapAirRangeRenderTest.run(context,world.getServer()::runCommand);}
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("mission-overlays")){
+            try(var world=context.worldBuilder().create()){
+                var server=world.getServer();server.runCommand("gamerule minecraft:send_command_feedback false");server.runCommand("time set noon");server.runCommand("weather clear");server.runCommand("gamemode spectator @a");
+                dev.hoi.client.map.MapMissionOverlayRenderTest.run(context,server::runCommand);
+            }
+            return;
+        }
         if(System.getProperty("hoi.testSuite","all").equals("movement-controls")){
             try(var world=context.worldBuilder().create()){
                 dev.hoi.client.map.MapCommanderHudTest.run(context,fixtureMenu());
@@ -110,6 +125,12 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 dev.hoi.client.map.MapMissionOverlayRenderTest.run(context,server::runCommand);
             }
             return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("all")){
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.map.MapRightClickTest.run(context,world.getServer()::runCommand);
+                dev.hoi.client.map.MapAirRangeRenderTest.run(context,world.getServer()::runCommand);
+            }
         }
         if(Set.of("all","captivity").contains(System.getProperty("hoi.testSuite","all"))){
             try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenCommanderCaptivityTest.run(context,fixtureMenu());}
