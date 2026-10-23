@@ -38,7 +38,7 @@ public final class ScreenDecisionSourceTest {
             var resource=client.getResourceManager().getResource(Identifier.parse("hoi:ui/decision_assets.json")).orElseThrow();
             try(var input=resource.open()) {
                 var sprites=JsonParser.parseString(new String(input.readAllBytes(),StandardCharsets.UTF_8)).getAsJsonObject().getAsJsonObject("sprites");
-                for(String symbol:List.of("GFX_kor_diffusion","GFX_decision_icon_KOR_K9")) {
+                for(String symbol:List.of("GFX_kor_diffusion","GFX_decision_icon_KOR_K9","GFX_decision_icon_KOR_K2","GFX_decision_icon_KOR_arms_factory_icon","GFX_decision_icon_KOR_coronavirus_death","GFX_decision_icon_KOR_mega_city_icon","GFX_decision_icon_KOR_raillway_icon","GFX_FRA_Military_Aid","GFX_SOV_decision_increase_moscow_budget","GFX_decision_generic_exploit_land","GFX_decision_generic_investment")) {
                     if(!sprites.has(symbol) || dev.hoi.client.ui.UiAssets.imageHeight(sprites.get(symbol).getAsString(),100)<=0)
                         throw new AssertionError("Missing original reference decision art: "+symbol);
                 }
@@ -61,6 +61,10 @@ public final class ScreenDecisionSourceTest {
             var assets = context.computeOnClient(ScreenDecisionSourceTest::assets);
             context.runOnClient(client -> {
                 var text=sourceText();
+                String padded="앞\n\n§r\n---\n[KOR.GetFlag]\n\n\n\n뒤";
+                if(text.sourceRows(padded).size()!=9 || text.rows(padded).size()!=5
+                        || !text.sourceRows(padded).get(2).getString().isEmpty())
+                    throw new AssertionError("Source layout padding must remain available before paragraph spacing is collapsed");
                 for(String tag:List.of("KOR","PRC","JAP","NEP","BHU","SRL")) {
                     var flag=text.component("["+tag+".GetFlag]");
                     if(flag.getString().length()!=1 || client.font.width(flag)!=11)
@@ -122,8 +126,11 @@ public final class ScreenDecisionSourceTest {
                             if(white>150)banner=true;
                         }
                         if(!banner)throw new AssertionError("Original banner must follow its category header without double-counted text-icon padding");
+                        context.runOnClient(client->{var screen=(ScreenDecision)client.gui.screen();screen.mouseScrolled(3,UiMenuBar.height(screen.width)+53,0,-10000);});
+                        margin(context);screenshots.put("arms-icons",screenshot(context,"hoi-decisions-source-arms-icons-"+suffix,size));
                         context.runOnClient(client -> {
                             var screen=(ScreenDecision)client.gui.screen();
+                            resetScroll(screen);
                             var button=(Button)screen.children().stream().filter(child->child instanceof Button control
                                     && control.getMessage().getString().equals(sourceText().component(preview.categories().getFirst().name()).getString())).findFirst().orElseThrow();
                             button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
@@ -211,6 +218,8 @@ public final class ScreenDecisionSourceTest {
                         });
                         margin(context);
                         screenshots.put(categoryId,screenshot(context,"hoi-decisions-scene-"+categoryId.toLowerCase(Locale.ROOT)+"-"+suffix,size));
+                        context.runOnClient(client->{var screen=(ScreenDecision)client.gui.screen();screen.mouseScrolled(3,UiMenuBar.height(screen.width)+53,0,-10000);});
+                        margin(context);screenshots.put(categoryId+"-icons",screenshot(context,"hoi-decisions-scene-icons-"+categoryId.toLowerCase(Locale.ROOT)+"-"+suffix,size));
                     }
                     var missing = context.computeOnClient(client -> missingAssets(client, preview, assets));
                     int paneWidth=context.computeOnClient(client -> ((ScreenDecision)client.gui.screen()).unitHudLeft());

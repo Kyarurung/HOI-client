@@ -39,7 +39,7 @@ final class ScreenLeaderEvent extends ScreenDialog {
         double screenScale = Math.min(width / 1280.0, height / 720.0);
         pane = Math.min(width - 16, Math.max(240, (int)Math.round(605 * .5 * screenScale)));
         scale = pane / 605.0;
-        total = font.split(bodyText(), Math.max(1, (int)(units(350) / textScale()))).size() * 12;
+        total = dev.hoi.client.ui.UiTooltips.split(font,bodyText(), Math.max(1, (int)(units(350) / textScale()))).size() * 12;
         int buttonHeight = Math.max(units(48), view().choices().stream().mapToInt(c -> UiMenuButton.labelHeight(font, c.label(), units(352), textScale())).max().orElse(0));
         boolean wrapped = buttonHeight > units(48);
         int slotHeight = wrapped ? buttonHeight + 2 : units(47);
@@ -103,7 +103,7 @@ final class ScreenLeaderEvent extends ScreenDialog {
         eventTitle(g, left + units(14), top + units(70), units(551), Math.max(units(32), (int)Math.ceil(font.lineHeight * eventTitleScale(units(551)))), 0xff000000, false);
         g.enableScissor(left + units(198), bodyTop, left + units(548), bodyBottom);
         int y = bodyTop - scroll;
-        for (var line : font.split(bodyText(), Math.max(1, (int)(units(350) / textScale())))) {
+        for (var line : dev.hoi.client.ui.UiTooltips.split(font,bodyText(), Math.max(1, (int)(units(350) / textScale())))) {
             UiText.text(g, font, line, left + units(198), y, 0xff000000, false);
             y += 12;
         }

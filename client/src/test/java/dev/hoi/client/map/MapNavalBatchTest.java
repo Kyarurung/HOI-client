@@ -31,8 +31,10 @@ class MapNavalBatchTest {
         assertEquals(5,MapCommanderPanels.hullTarget(member,"unit_hud/navy_destroyer",3));
         assertEquals(2,MapCommanderPanels.hullTarget(member,"unit_hud/navy_submarine",2));
     }
-    @Test void shortcutPresentationUsesNativeKeysWithoutChangingOtherSourceLines(){
-        assertEquals("§Y초계§!\n\n단축키: £z£",MapCommanderHud.navalTooltipText("§Y초계§!\n\n단축키: §YZ§!"));
-        assertEquals("단축키: £shift£ + £b£",MapCommanderHud.navalTooltipText("단축키: §YShift+B§!"));
+    @Test void shortcutPresentationRemovesKeysWithoutChangingOtherSourceLines(){
+        assertEquals("§Y초계§!",dev.hoi.client.ui.UiCommandLabels.withoutShortcuts("§Y초계§!\n\n단축키: §YZ§!"));
+        assertEquals("",dev.hoi.client.ui.UiCommandLabels.withoutShortcuts("단축키: §YShift+B§!"));
+        for(String label:List.of("단축키","키 설정","Shortcut","Hotkey"))assertEquals("§e초계§r\n  효과: 0.00%",dev.hoi.client.ui.UiCommandLabels.withoutShortcuts("§e초계§r\n\n§#A2B9CF"+label+": Z§r\n\n\n  효과: 0.00%"));
+        assertEquals("이동\n설명",dev.hoi.client.ui.UiCommandLabels.withoutShortcuts("이동 또는 £ctrl + £b\r\n설명\r\nHotkey: B"));
     }
 }

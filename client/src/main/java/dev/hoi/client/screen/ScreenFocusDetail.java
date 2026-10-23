@@ -192,7 +192,7 @@ final class ScreenFocusDetail {
     private static List<Row> detailRows(Font font,List<ProtocolFocusPayloads.DetailLine> source,int width) {
         var rows=new ArrayList<Row>();
         for(var line:source)rows.addAll(textRows(font,line.text(),width,Math.min(width/2,line.depth()*7)));
-        return List.copyOf(rows);
+        return UiTooltipText.collapseBlankLines(rows,row->UiTooltips.blank(row.text()));
     }
     private static List<Row> textRows(Font font,String text,int width,int indent) {
         var rows=new ArrayList<Row>();
@@ -204,7 +204,7 @@ final class ScreenFocusDetail {
             for(int i=0;i<parts.length;i++){if(i>0)lines.add(net.minecraft.network.chat.Component.empty());lines.getLast().append(net.minecraft.network.chat.Component.literal(parts[i]).withStyle(style));}
             return java.util.Optional.empty();
         },net.minecraft.network.chat.Style.EMPTY);
-        for(var line:lines)for(var wrapped:line.getString().isEmpty()?List.of(FormattedCharSequence.EMPTY):font.split(line,textWidth))rows.add(new Row(wrapped,indent));
+        for(var line:lines)for(var wrapped:line.getString().isEmpty()?List.of(FormattedCharSequence.EMPTY):UiTooltips.split(font,line,textWidth))rows.add(new Row(wrapped,indent));
         if(rows.isEmpty())rows.add(new Row(FormattedCharSequence.EMPTY,indent));
         return List.copyOf(rows);
     }
@@ -231,7 +231,7 @@ final class ScreenFocusDetail {
     }
     private static void drawCentered(GuiGraphicsExtractor g,Font font,String text,Bounds area,float scale) {
         var value=UiTooltips.officerText(text);
-        var lines=font.split(value,Math.max(1,(int)(area.width()/scale)));
+        var lines=UiTooltips.split(font,value,Math.max(1,(int)(area.width()/scale)));
         g.enableScissor(area.x(),area.y(),area.x()+area.width(),area.y()+area.height());
         float y=area.y()+Math.max(0,(area.height()-lines.size()*font.lineHeight*scale)/2);
         for(var line:lines) {

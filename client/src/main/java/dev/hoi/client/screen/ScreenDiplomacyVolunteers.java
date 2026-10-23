@@ -48,7 +48,7 @@ public final class ScreenDiplomacyVolunteers extends Screen implements InputSide
     private double scale, dragX, dragY;
     private UiTooltips.ScrolledTooltip tooltip;
     private String tooltipText = "";
-    private int tooltipScroll, tooltipX, tooltipY;
+    private int tooltipScroll;
     private VolunteerButton pressed;
     public ScreenDiplomacyVolunteers(Screen parent, ProtocolDiplomacyVolunteerView initial) {
         this(parent, initial, request -> {
@@ -339,8 +339,8 @@ public final class ScreenDiplomacyVolunteers extends Screen implements InputSide
         else if (hovered.isEmpty()) for (var entry : tips.entrySet()) if (UiTooltips.contains(entry.getKey(), mx, my)) { hovered = entry.getValue(); break; }
         if (hovered.isEmpty()) { tooltip = null; tooltipText = ""; tooltipScroll = 0; }
         else {
-            if (!hovered.equals(tooltipText)) { tooltipText = hovered; tooltipScroll = 0; tooltipX = mx; tooltipY = my; }
-            tooltip = UiTooltips.drawSourceScrollable(g, font, tooltipText.replace("§T", "§W"), tooltipX, tooltipY, width, height, tooltipScroll);
+            if (!hovered.equals(tooltipText)) { tooltipText = hovered; tooltipScroll = 0; }
+            tooltip = UiTooltips.drawSourceScrollable(g, font, tooltipText.replace("§T", "§W"), mx, my, width, height, tooltipScroll);
             tooltipScroll = tooltip.scroll();
         }
     }

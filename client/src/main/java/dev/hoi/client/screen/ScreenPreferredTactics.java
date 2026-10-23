@@ -81,10 +81,10 @@ final class ScreenPreferredTactics extends ScreenDialog {
         }
         var body=UiKeywordIcons.decorateLines(UiTooltips.officerText(view().body()),false);
         int bodyWidth=size(170),bodyHeight=size(26);float bodyScale=UiText.scale(font)*units.scale();
-        var bodyLines=font.split(body,Math.max(1,(int)(bodyWidth/bodyScale)));
+        var bodyLines=UiTooltips.split(font,body,Math.max(1,(int)(bodyWidth/bodyScale)));
         for(int attempt=0;attempt<16&&bodyLines.size()*(font.lineHeight+1)*bodyScale>bodyHeight;attempt++) {
             bodyScale*=.95f;
-            bodyLines=font.split(body,Math.max(1,(int)(bodyWidth/bodyScale)));
+            bodyLines=UiTooltips.split(font,body,Math.max(1,(int)(bodyWidth/bodyScale)));
         }
         bodyLineCount=bodyLines.size();bodyTextScale=bodyScale;
         g.pose().pushMatrix();g.pose().translate(x(10),y(32)+(bodyHeight-bodyLineCount*(font.lineHeight+1)*bodyScale)/2f);g.pose().scale(bodyScale);

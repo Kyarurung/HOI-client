@@ -429,11 +429,19 @@ public final class ScreenFocusTest {
             }
             @Override public void tooltip(net.minecraft.client.gui.Font font, List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components, int x, int y, net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner positioner, net.minecraft.resources.Identifier style, boolean focused) {
                 check(scissorDepth[0] == 0, "The deferred progress tooltip must render outside all detail scissors");
-                super.tooltip(font, components, x, y, (screenWidth, screenHeight, cursorX, cursorY, width, height) -> {
-                    var position = positioner.positionTooltip(screenWidth, screenHeight, cursorX, cursorY, width, height);
-                    tooltipBounds.add(new int[]{position.x() - 7, position.y() - 7, width + 14, height + 14});
-                    return position;
-                }, style, focused);
+                var observed = new ArrayList<>(components);
+                var original = observed.getFirst();
+                observed.set(0, new net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent() {
+                    public int getWidth(net.minecraft.client.gui.Font f) { return original.getWidth(f); }
+                    public int getHeight(net.minecraft.client.gui.Font f) { return original.getHeight(f); }
+                    public void extractText(net.minecraft.client.gui.GuiGraphicsExtractor g, net.minecraft.client.gui.Font f, int px, int py) {
+                        int width = components.stream().mapToInt(c -> c.getWidth(f)).max().orElse(0);
+                        int height = components.stream().mapToInt(c -> c.getHeight(f)).sum() - (!focused || components.size() == 1 ? 2 : 0);
+                        tooltipBounds.add(new int[]{px - 7, py - 7, width + 14, height + 14});
+                        original.extractText(g, f, px, py);
+                    }
+                });
+                super.tooltip(font, observed, x, y, positioner, style, focused);
             }
         };
         screen.extractRenderState(graphics, mouseX, mouseY, 0);

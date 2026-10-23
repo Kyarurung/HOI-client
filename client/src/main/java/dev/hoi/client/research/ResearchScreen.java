@@ -296,8 +296,8 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             var t = hovered.tech();
             var child=subTechnologyAt(mx,my);
             if(child!=null)t=child;
-            var lines = tooltipLines(t).stream().map(dev.hoi.client.ui.UiTooltips::format).filter(line -> !line.getString().isBlank()).flatMap(line -> font.split(dev.hoi.client.ui.UiTooltips.sentences(ResearchText.decorateEffect(line)), Math.min(310, width - 24)).stream()).toList();
-            g.setTooltipForNextFrame(font, lines, mx, my);
+            var lines = tooltipLines(t).stream().map(dev.hoi.client.ui.UiTooltips::format).filter(line -> !line.getString().isBlank()).flatMap(line -> dev.hoi.client.ui.UiTooltips.split(font,dev.hoi.client.ui.UiTooltips.sentences(ResearchText.decorateEffect(line)), Math.min(310, width - 24)).stream()).toList();
+            g.setTooltipForNextFrame(font, dev.hoi.client.ui.UiTooltips.collapseBlankLines(lines), mx, my);
         }
     }
     public Tech subTechnology(Tech parent) {
@@ -327,7 +327,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             if (group.caption().isEmpty()) continue;
             int x = (int)(10 + group.x() + group.width() + 5 - scrollX);
             int center = (int)(treeTop + group.y() + group.height() / 2 - scrollY);
-            var lines = font.split(Component.literal(group.caption()), 90);
+            var lines = dev.hoi.client.ui.UiTooltips.split(font,Component.literal(group.caption()), 90);
             int y = center - lines.size() * font.lineHeight / 2;
             int width = lines.stream().mapToInt(font::width).max().orElse(0);
             g.fill(x - 2, y - 2, x + width + 2, y + lines.size() * font.lineHeight + 2, 0xFF101A21);
@@ -411,8 +411,8 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         return y;
     }
     private int detailText(GuiGraphicsExtractor g, List<? extends Component> lines, int x, int y, int w, int color) {
-        for (var line : lines) {
-            var wrapped = font.split(dev.hoi.client.ui.UiTooltips.sentences(ResearchText.decorateEffect(line)), w);
+        for (var line : dev.hoi.client.ui.UiTooltipText.collapseBlankLines(lines,row->dev.hoi.client.ui.UiTooltipText.blank(row.getString()))) {
+            var wrapped = dev.hoi.client.ui.UiTooltips.split(font,dev.hoi.client.ui.UiTooltips.sentences(ResearchText.decorateEffect(line)), w);
             if (wrapped.isEmpty()) { y += 13; continue; }
             for (var text : wrapped) { if (g != null) g.text(font, text, x, y, color); y += 13; }
         }

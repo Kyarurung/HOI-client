@@ -57,6 +57,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             ProtocolResearchPayloads.registerPayloadTypes(); ProtocolResearchPayloads.registerPayloadTypes();
         });
         loadPack(context);
+        if(System.getProperty("hoi.testSuite","all").equals("country-assets")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.ui.UiCountryDisplayRenderTest.run(context,fixtureMenu());}
+            return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("focus-detail")) {
             context.runOnClient(client -> client.options.guiScale().set(2));
             try (var world = context.worldBuilder().create()) {
@@ -93,6 +97,42 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         }
         if (System.getProperty("hoi.testSuite", "all").equals("leader-event-regression")) {
             try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenLeaderEventTest.regression(context); }
+            return;
+        }
+        if(Set.of("all","tooltip-spacing","review-tooltips").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapTooltipSpacingTest.run(context,fixtureMenu());dev.hoi.client.screen.ScreenTooltipSpacingTest.run(context);}
+            if(System.getProperty("hoi.testSuite","all").equals("tooltip-spacing"))return;
+        }
+        if(Set.of("all","trait-experience","review-tooltips").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenTooltipSpacingTest.experience(context);}
+            if(!System.getProperty("hoi.testSuite","all").equals("all"))return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("commander-roster")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.ui.UiTooltipCursorTest.run(context);dev.hoi.client.screen.ScreenCommanderRosterTest.run(context);dev.hoi.client.screen.ScreenDiplomacyActionsTest.run(context);}
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("commander-traits")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenCommanderTraitTreeTest.run(context);dev.hoi.client.map.MapCommanderHudTest.runTraitOverlay(context,fixtureMenu());}
+            return;
+        }
+        if(Set.of("all","cursor-tooltips").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.ui.UiTooltipCursorTest.run(context);dev.hoi.client.map.MapCursorTooltipTest.run(context,fixtureMenu());dev.hoi.client.screen.ScreenCommanderTraitTreeTest.run(context);}
+            if(System.getProperty("hoi.testSuite","all").equals("cursor-tooltips"))return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("diplomacy-actions")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenDiplomacyActionsTest.run(context);}
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("commander-layout")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenCommanderRosterTest.run(context);dev.hoi.client.screen.ScreenCommanderTraitTreeTest.run(context);dev.hoi.client.screen.ScreenAdmiralSourceTest.run(context);dev.hoi.client.map.MapLeaderControlsTest.run(context,fixtureMenu());dev.hoi.client.screen.ScreenDiplomacyActionsTest.run(context);dev.hoi.client.map.MapCommanderHudTest.runTraitOverlay(context,fixtureMenu());}
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("commander-controls")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapCommanderHudTest.runArmyLayout(context,fixtureMenu());}
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("headquarters-layout")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapCommanderHudTest.runHeadquartersLayout(context,fixtureMenu());}
             return;
         }
         if(System.getProperty("hoi.testSuite","all").equals("navy-layout")){

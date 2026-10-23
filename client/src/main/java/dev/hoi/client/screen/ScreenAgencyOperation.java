@@ -76,7 +76,7 @@ final class ScreenAgencyOperation extends Screen {
             UiAssets.cover(g,"agency/"+art[i],right+i*pitch,y+34,pitch-5,63);
             UiText.centered(g,font,names[i],right+i*pitch,y+99,pitch-5,14,UiMenuStyle.TEXT);
         }
-        var lines=font.split(Component.literal(item.detail()),Math.max(1,(int)(area/UiText.scale(font))));
+        var lines=UiTooltips.split(font,Component.literal(item.detail()),Math.max(1,(int)(area/UiText.scale(font))));
         int visible=Math.max(1,(h-155)/13);scroll=Math.clamp(scroll,0,Math.max(0,lines.size()-visible));
         for(int i=scroll;i<Math.min(lines.size(),scroll+visible);i++) UiText.text(g,font,lines.get(i),right,y+121+(i-scroll)*13,UiMenuStyle.TEXT);
         super.extractRenderState(g,mx,my,delta);

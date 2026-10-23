@@ -47,7 +47,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         float textScale=(float)(Math.max(10,size*scale)/font.lineHeight);
         var text=UiTooltips.sentences(Component.literal(value));
         if(!wrap)textScale=Math.min(textScale,n(w)/(float)Math.max(1,font.width(text)));
-        var lines=font.split(text,Math.max(1,(int)(n(w)/textScale)));
+        var lines=UiTooltips.split(font,text,Math.max(1,(int)(n(w)/textScale)));
         if(lines.isEmpty())return;
         var line=wrap?lines.getFirst():text.getVisualOrderText();
         float offset=centered?(n(w)-font.width(line)*textScale)/2:0;

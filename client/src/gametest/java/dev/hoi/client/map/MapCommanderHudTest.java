@@ -10,6 +10,18 @@ import java.util.*;
 public final class MapCommanderHudTest {
     private MapCommanderHudTest() {}
     public static void runArmyLayout(ClientGameTestContext context,ProtocolMenuView menu){MapCommanderPanelsTest.runArmyLayout(context,menu);MapCommanderGroupsRenderTest.run(context,menu);}
+    public static void runHeadquartersLayout(ClientGameTestContext context,ProtocolMenuView menu){MapCommanderGroupsRenderTest.run(context,menu);}
+    public static void runTraitOverlay(ClientGameTestContext game,ProtocolMenuView menu){
+        String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
+        try{for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720},new int[]{2560,1369}))for(boolean navy:List.of(false,true)){
+            game.getInput().resizeWindow(size[0],size[1]);game.runOnClient(client->{client.options.guiScale().set(2);ClientCampaignHud.accept(ProtocolHudPayloads.State.of("KOR",menu.hud()));});
+            var source=new Snapshot(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"kor-command-panel-"+(navy?"navy":"army-assigned")+".json"))).view();
+            game.runOnClient(client->{MapCommanderHud.reset();MapCommanderHud.accept(new View(source.country(),client.level.dimension().identifier().toString(),source.branch(),source.cards(),source.wings(),source.running(),source.theaters(),source.armyTheaters()));MapCommanderPanels.select(source.cards().stream().filter(c->c.panel()!=null).findFirst().orElseThrow().id(),false);});
+            game.setScreen(ScreenMapCursor::new);game.waitTicks(2);dev.hoi.client.screen.ScreenCommanderTraitTreeTest.overlay(game,navy?"kor-navy-trait-tree":"kor-marshal-trait-tree");
+            game.getInput().setCursorPos(size[0]-5,size[1]-5);game.waitTicks(2);game.takeScreenshot("hoi-traits-over-command-hud-"+(navy?"navy":"army")+"-"+size[0]+"x"+size[1]+"-gui2");
+            game.runOnClient(client->{var screen=client.gui.screen();var units=new dev.hoi.client.ui.UiUnits(screen.width,screen.height);double x=screen.width/2.+units.length(300),y=screen.height/2.+units.length(190);var commands=new ArrayList<ProtocolCommanderOrders.Command>();MapCommanderOrders.commandObserver=commands::add;try{if(!screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(x,y,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false)||!commands.isEmpty())throw new AssertionError("Trait background must consume overlapping HUD clicks");}finally{MapCommanderOrders.commandObserver=null;}});
+        }}catch(java.io.IOException error){throw new AssertionError(error);}finally{game.runOnClient(client->{MapCommanderHud.reset();MapUnitHud.reset();});game.setScreen(()->null);}
+    }
     public static void run(ClientGameTestContext context,ProtocolMenuView menu) {
         MapCommanderPanelsTest.run(context,menu);
         MapCommanderGroupsRenderTest.run(context,menu);

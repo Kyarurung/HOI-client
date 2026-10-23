@@ -90,7 +90,7 @@ public final class MapCommanderOrders {
     static void message(String text){hint=text;hintTicks=60;}
     static void drawMessage(net.minecraft.client.gui.GuiGraphicsExtractor graphics){
         hintBounds=null;String text=hintTicks>0?hint:"";if(text.isEmpty())return;
-        var font=Minecraft.getInstance().font;var lines=font.split(Component.literal(text),Math.max(1,graphics.guiWidth()-24));
+        var font=Minecraft.getInstance().font;var lines=dev.hoi.client.ui.UiTooltips.split(font,Component.literal(text),Math.max(1,graphics.guiWidth()-24));
         int width=lines.stream().mapToInt(font::width).max().orElse(0)+12,height=lines.size()*(font.lineHeight+2)+8,x=(graphics.guiWidth()-width)/2,y=graphics.guiHeight()-height-8;
         y=Math.min(y,MapCommanderHud.boxes().stream().mapToInt(MapCommanderHud.Box::y).min().orElse(graphics.guiHeight())-new dev.hoi.client.ui.UiUnits(graphics.guiWidth(),graphics.guiHeight()).size(32)-height-6);
         var occupied=new ArrayList<HintBounds>();for(var box:MapCommanderHud.boxes())occupied.add(new HintBounds(box.x(),box.y(),box.width(),box.height()));for(var hit:MapCommanderPanels.hits())occupied.add(new HintBounds(hit.x(),hit.y(),hit.w(),hit.h()));
@@ -143,7 +143,7 @@ public final class MapCommanderOrders {
     static void formation(String action,String target,List<String> selection){
         if(selection.isEmpty()){message(action.endsWith("ARMIES")||action.equals("CREATE_GROUP")?"편성할 군 카드를 선택하세요.":"편성할 사단을 선택하세요.");return;}
         var values=new ArrayList<String>();if(!target.isEmpty())values.add("target/"+target);values.addAll(selection);
-        if(send("FORMATION/"+action,values,List.of())&&(action.equals("CREATE_ARMY")||action.equals("MOVE_DIVISIONS")))MapCommanderPanels.mapSelectionChanged();
+        if(send("FORMATION/"+action,values,List.of())&&(action.equals("CREATE_ARMY")||action.equals("MOVE_DIVISIONS"))){MapCommanderPanels.mapSelectionChanged();if(action.equals("CREATE_ARMY"))MapCommanderPanels.awaitCreatedArmy(selection);}
     }
     static void repairPolicy(String force,Integer policy,boolean previous){
         if(policy==null)return;

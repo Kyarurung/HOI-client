@@ -9,6 +9,7 @@ import java.util.*;
 public final class ScreenDiplomacyActionsTest {
     private ScreenDiplomacyActionsTest() {}
     public static void run(ClientGameTestContext context) {
+        source(context);
         context.getInput().resizeWindow(2560, 1440);
         context.runOnClient(c -> c.options.guiScale().set(2));
         String session = UUID.randomUUID().toString();
@@ -63,8 +64,9 @@ public final class ScreenDiplomacyActionsTest {
         context.runOnClient(c -> {
             var screen = (ScreenCountry)c.gui.screen();
             screen.mouseScrolled(screen.panelWidth() - 15, screen.height - 70, 0, -50);
-            press(button(screen, "다음 외교 행동"));
-            if (requests.size() != 2 || !requests.getLast().id().equals("page_next")) throw new AssertionError("Paged actions were unreachable");
+            press(button(screen, "시장 접근권 협상"));
+            press(button(screen, "확인"));
+            if (requests.size() != 2 || !requests.getLast().id().equals("market_access")) throw new AssertionError("Final diplomacy action was unreachable");
             String old = screen.token();
             screen.select("JAP");
             screen.update(ProtocolCountryPayloads.Response.of(old, view));
@@ -89,11 +91,27 @@ public final class ScreenDiplomacyActionsTest {
         actions.add(new ProtocolCountryView.Action("decline:foreign_1", "군사 통행권 거절", "제안을 거절합니다. 정치력 비용 없음.", true));
         actions.add(new ProtocolCountryView.Action("guarantee", "독립 보장", "정치력 15\n\n§c같은 이념이 필요하며 중복 보장할 수 없습니다.§r", false));
         for (int i = 0; i < 19; i++) actions.add(new ProtocolCountryView.Action("withdraw:foreign_" + (i + 2), "제안 취소 " + (i + 2), "정치력 비용 없음 · 상대국 응답 대기", true));
-        actions.add(new ProtocolCountryView.Action("page_next", "다음 외교 행동", "", true));
+        actions.add(new ProtocolCountryView.Action("market_access", "시장 접근권 협상", "", true));
+        actions.add(new ProtocolCountryView.Action("naval_blockade", "해상 봉쇄 실시", "", false));
         var reports = Arrays.stream(ProtocolIntelDomain.values()).map(d -> new ProtocolCountryView.Report(d, 0, List.of())).toList();
         return new ProtocolCountryView("KOR", ProtocolCountryHud.UNKNOWN, "PRK", "조선민주주의인민공화국", false,
                 List.of(new ProtocolCountryView.Choice("PRK", "조선민주주의인민공화국")), List.of(), List.of(), reports,
                 new ProtocolCountryView.Actions(session, revision, "", actions), List.of());
+    }
+    private static void source(ClientGameTestContext context) {
+        String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
+        try {
+            var view=new ProtocolCountryPayloads.Response(UUID.randomUUID().toString(),java.nio.file.Files.readString(java.nio.file.Path.of(directory,"kor-diplomacy-PRK.json"))).view();
+            if(!view.viewer().equals("KOR")||!view.target().equals("PRK")||view.actions().entries().size()!=23||!view.actions().entries().getLast().id().equals("market_access"))throw new AssertionError("Actual KOR to PRK response must end with market access in one list");
+            var spirit=view.diplomacy().stream().filter(e->e.name().equals("자립경제")).findFirst().orElseThrow();
+            for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
+                context.getInput().resizeWindow(size[0],size[1]);context.runOnClient(c->{c.options.guiScale().set(2);dev.hoi.client.ClientCampaignHud.accept(ProtocolHudPayloads.State.of(view.viewer(),view.hud()));if(dev.hoi.client.ui.UiAssets.imageHeight(spirit.icon(),30)<=0)throw new AssertionError("Actual self-reliance spirit must resolve to its original image");});
+                context.setScreen(()->new ScreenCountry(view,a->{}));context.getInput().setCursorPos(size[0]-5,80);context.waitTicks(3);context.takeScreenshot("hoi-diplomacy-source-PRK-"+size[0]+"x"+size[1]+"-gui2");
+                context.runOnClient(c->{var screen=(ScreenCountry)c.gui.screen();if(screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().contains("다음 외교 행동")))throw new AssertionError("Source list must not insert an extra page action");screen.mouseScrolled(screen.panelWidth()-15,screen.height-70,0,-50);});context.waitTicks(3);
+                context.runOnClient(c->{var screen=(ScreenCountry)c.gui.screen();var market=view.actions().entries().getLast();var control=button(screen,market.name());if(control.getY()<0||control.getBottom()>screen.height||control.active!=market.enabled())throw new AssertionError("Market access must remain reachable with authoritative availability");});
+                context.takeScreenshot("hoi-diplomacy-source-market-"+size[0]+"x"+size[1]+"-gui2");
+            }
+        }catch(java.io.IOException error){throw new AssertionError("Actual KOR to PRK fixture unavailable",error);}
     }
     private static Button button(ScreenCountry screen, String name) {
         return (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow();

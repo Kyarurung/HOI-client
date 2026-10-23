@@ -369,7 +369,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         g.pose().translate(56, top + 30);
         g.pose().scale(UiText.scale(font) * 1.15f);
         var agencyName = Component.literal(view == null ? "불러오는 중…" : view.name()).withStyle(net.minecraft.ChatFormatting.BOLD);
-        g.text(font, font.split(agencyName, (int)((pane - 98) / (UiText.scale(font) * 1.15f))).getFirst(), 0, 0, TEXT);
+        g.text(font, UiTooltips.split(font,agencyName, (int)((pane - 98) / (UiText.scale(font) * 1.15f))).getFirst(), 0, 0, TEXT);
         g.pose().popMatrix();
         UiAssets.draw(g, "agency/passive_defense", 56, top + 55, 14, 14);
         UiText.text(g, font, "방첩 활동:", 73, top + 57, TEXT);
@@ -437,7 +437,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
                     for (int i = 0; i < phases.length; i++) UiAssets.draw(g, "agency/" + phases[i], dx + 98 + i * (artWidth + 5), 104, artWidth, 37);
                 }
                 int bottom = height - 82 - item.parameters().size() * 25;
-                var lines = font.split(Component.literal(item.detail()), dw - 26);
+                var lines = UiTooltips.split(font,Component.literal(item.detail()), dw - 26);
                 detailScroll = Math.clamp(detailScroll, 0, Math.max(0, lines.size() * 13 - Math.max(0, bottom - 148)));
                 g.enableScissor(dx + 10, 146, dx + dw - 10, Math.max(146, bottom));
                 int y = 148 - detailScroll;
@@ -559,7 +559,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         wrappedNotice(g,group.equals("cryptology")?"기관을 창설하면 암호 해독을 시작할 수 있습니다.":"작전은 정보원이 첩보망을 구축하여야\n시행할 수 있습니다.",16,top+274,pane-32);
     }
     private void wrappedNotice(GuiGraphicsExtractor g,String value,int x,int y,int width) {
-        var lines=font.split(Component.literal(value),Math.max(1,(int)(width/UiText.scale(font))));
+        var lines=UiTooltips.split(font,Component.literal(value),Math.max(1,(int)(width/UiText.scale(font))));
         for(int i=0;i<lines.size();i++) UiText.text(g, font,lines.get(i),x+Math.round((width-font.width(lines.get(i))*UiText.scale(font))/2),y+i*(font.lineHeight+2),TEXT);
     }
     private void smallCentered(GuiGraphicsExtractor g,String value,int x,int y,int color) {

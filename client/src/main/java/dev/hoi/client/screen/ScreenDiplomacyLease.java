@@ -55,7 +55,7 @@ public final class ScreenDiplomacyLease extends Screen implements InputSidebarMo
     private LeaseButton execute;
     private UiTooltips.ScrolledTooltip tooltip;
     private String tooltipText = "", pressedControl = "";
-    private int tooltipScroll, tooltipX, tooltipY;
+    private int tooltipScroll;
     public ScreenDiplomacyLease(Screen parent, ProtocolDiplomacyView initial) {
         this(parent, initial, request -> {
             if (ClientPlayNetworking.canSend(ProtocolDiplomacyPayloads.Request.TYPE)) ClientPlayNetworking.send(request);
@@ -458,8 +458,8 @@ public final class ScreenDiplomacyLease extends Screen implements InputSidebarMo
         else for (var entry : tips.entrySet()) if (UiTooltips.contains(entry.getKey(), mx, my)) { hovered = entry.getValue(); break; }
         if (hovered.isEmpty()) { tooltip = null; tooltipText = ""; tooltipScroll = 0; }
         else {
-            if (!hovered.equals(tooltipText)) { tooltipText = hovered; tooltipScroll = 0; tooltipX = mx; tooltipY = my; }
-            tooltip = UiTooltips.drawSourceScrollable(g, font, tooltipText.replace("§T", "§W"), tooltipX, tooltipY, width, height, tooltipScroll);
+            if (!hovered.equals(tooltipText)) { tooltipText = hovered; tooltipScroll = 0; }
+            tooltip = UiTooltips.drawSourceScrollable(g, font, tooltipText.replace("§T", "§W"), mx, my, width, height, tooltipScroll);
             tooltipScroll = tooltip.scroll();
         }
     }

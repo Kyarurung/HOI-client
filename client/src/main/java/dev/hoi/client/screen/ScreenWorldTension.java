@@ -144,7 +144,7 @@ public final class ScreenWorldTension extends Screen {
                 UiAssets.draw(g,"tension/clock",213,py+8,20,25);
                 text(g,percent(e.initial()),244,py+4,49,e.initial()!=null&&e.initial()>0?0xFFCF4545:0xFF6DAD64,false);
                 text(g,percent(e.current()),244,py+22,49,0xFFC5C7BF,false);
-                var lines=font.split(Component.literal(e.reason()),145);
+                var lines=UiTooltips.split(font,Component.literal(e.reason()),145);
                 for(int j=0;j<Math.min(2,lines.size());j++) { g.pose().pushMatrix();g.pose().translate(295,py+4+j*17);g.pose().scale(Math.max(1.25f, 10f / (font.lineHeight * scale)));g.text(font,lines.get(j),0,0,0xFFE0E0DA);g.pose().popMatrix(); }
             }
         }

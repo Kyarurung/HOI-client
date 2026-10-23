@@ -26,7 +26,7 @@ public final class ScreenArmyHeadquarters extends Screen implements InputSidebar
     private final Map<net.minecraft.client.gui.components.AbstractWidget,String> scrollingTips=new LinkedHashMap<>();
     private UiTooltips.ScrolledTooltip tooltip;
     private String tooltipText="";
-    private int tooltipScroll,tooltipX,tooltipY;
+    private int tooltipScroll;
     UiTooltips.ScrolledTooltip detailTooltip(){return tooltip;}
     private boolean overTooltip(double x,double y){return tooltip!=null&&x>=tooltip.x()-4&&x<tooltip.x()+tooltip.width()+4&&y>=tooltip.y()-4&&y<tooltip.y()+tooltip.height()+4;}
     private void clearTooltip(){tooltip=null;tooltipText="";tooltipScroll=0;}
@@ -144,7 +144,7 @@ public final class ScreenArmyHeadquarters extends Screen implements InputSidebar
         if(confirmDiscard){g.nextStratum();int w=Math.min(300,designerWidth-16),cx=left+(designerWidth-w)/2,cy=designerTop+designerHeight/2;UiMenuStyle.panel(g,cx,cy-25,w,62);UiText.centered(g,font,"저장하지 않은 초안을 버리시겠습니까?",cx+7,cy-22,w-14,26,UiMenuStyle.TEXT);}
         boolean over=overTooltip(mx,my);for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget)widget.extractRenderState(g,over?-1:mx,over?-1:my,delta);
         String hovered=over?tooltipText:scrollingTips.entrySet().stream().filter(entry->UiTooltips.contains(entry.getKey(),mx,my)).map(Map.Entry::getValue).findFirst().orElse("");
-        if(hovered.isEmpty())clearTooltip();else{if(!hovered.equals(tooltipText)){tooltipText=hovered;tooltipScroll=0;tooltipX=mx;tooltipY=my;}tooltip=UiTooltips.drawOfficerScrollable(g,font,tooltipText,tooltipX,tooltipY,width,height,tooltipScroll);tooltipScroll=tooltip.scroll();}
+        if(hovered.isEmpty())clearTooltip();else{if(!hovered.equals(tooltipText)){tooltipText=hovered;tooltipScroll=0;}tooltip=UiTooltips.drawOfficerScrollable(g,font,tooltipText,mx,my,width,height,tooltipScroll);tooltipScroll=tooltip.scroll();}
     }
     private void drawDesigner(GuiGraphicsExtractor g){
         UiAssets.draw(g,"officer/hq/designer",left,designerTop,designerWidth,designerHeight);UiAssets.draw(g,"officer/hq/header",x(12),y(45),s(637),s(110));UiAssets.draw(g,"officer/hq/composition",x(12),y(255),s(386),s(354));UiAssets.draw(g,"officer/hq/modifiers",x(396),y(255),s(252),s(354));
@@ -156,7 +156,7 @@ public final class ScreenArmyHeadquarters extends Screen implements InputSidebar
         drawAdjustments(g);
         paragraph(g,hq().saveReason().isEmpty()?"원본 편제 복제·이름 변경 경험치: 0":hq().saveReason(),x(156),y(626),s(870),s(40),UiMenuStyle.TEXT);
     }
-    private void paragraph(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color){for(var line:font.split(Component.literal(text),Math.max(1,w))){if(h<font.lineHeight)break;g.text(font,line,x,y,color,false);y+=font.lineHeight+2;h-=font.lineHeight+2;}}
+    private void paragraph(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color){for(var line:UiTooltips.split(font,Component.literal(text),Math.max(1,w))){if(h<font.lineHeight)break;g.text(font,line,x,y,color,false);y+=font.lineHeight+2;h-=font.lineHeight+2;}}
     private static String icon(ProtocolArmyHeadquarters.Template template){return template.battalions().isEmpty()?"":unitIcon(template.battalions().getFirst());}
     private static String unitIcon(String id){return "officer/hq/units/"+id+"/frame_0";}
     private String unitDetail(String id){return hq().details()==null?label(id):hq().details().units().getOrDefault(id,label(id));}

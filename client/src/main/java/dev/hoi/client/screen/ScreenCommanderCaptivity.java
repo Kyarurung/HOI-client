@@ -21,7 +21,7 @@ public final class ScreenCommanderCaptivity extends Screen implements InputSideb
     private EditBox search;
     private UiTooltips.ScrolledTooltip tooltip;
     private String tooltipText="";
-    private int tooltipScroll,tooltipX,tooltipY;
+    private int tooltipScroll;
     UiTooltips.ScrolledTooltip detailTooltip(){return tooltip;}
     private boolean overTooltip(double x,double y){return tooltip!=null&&x>=tooltip.x()-4&&x<tooltip.x()+tooltip.width()+4&&y>=tooltip.y()-4&&y<tooltip.y()+tooltip.height()+4;}
     private void clearTooltip(){tooltip=null;tooltipText="";tooltipScroll=0;}
@@ -95,8 +95,8 @@ public final class ScreenCommanderCaptivity extends Screen implements InputSideb
         if(my<top+55||my>=bottom-22)hovered="";
         if(overTooltip(mx,my))hovered=tooltipText;
         if(hovered.isEmpty())clearTooltip();else{
-            if(!hovered.equals(tooltipText)){tooltipText=hovered;tooltipScroll=0;tooltipX=mx;tooltipY=my;}
-            tooltip=UiTooltips.drawOfficerScrollable(g,font,tooltipText,tooltipX,tooltipY,width,height,tooltipScroll,324);tooltipScroll=tooltip.scroll();
+            if(!hovered.equals(tooltipText)){tooltipText=hovered;tooltipScroll=0;}
+            tooltip=UiTooltips.drawOfficerScrollable(g,font,tooltipText,mx,my,width,height,tooltipScroll,324);tooltipScroll=tooltip.scroll();
         }
     }
 }

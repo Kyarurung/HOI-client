@@ -358,7 +358,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private void officerText(GuiGraphicsExtractor g, String value, int x, int y, int available, int color) {
         float scale = dev.hoi.client.ui.UiText.scale(font);
         var styled = UiTooltips.styled(Component.literal(value), false);
-        var lines = font.split(styled, Math.max(1, (int)(available / scale)));
+        var lines = UiTooltips.split(font,styled, Math.max(1, (int)(available / scale)));
         if (lines.isEmpty()) return;
         g.pose().pushMatrix(); g.pose().translate(x, y); g.pose().scale(scale);
         g.text(font, lines.getFirst(), 0, 0, color); g.pose().popMatrix();
@@ -660,6 +660,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             lines.add(Component.literal(title).withColor(UiTooltips.GOLD).getVisualOrderText());
             if (party) lines.add(Component.literal(hovered.value()).getVisualOrderText());
             if (!hovered.detail().isBlank()) lines.addAll(UiTooltips.lines(font, hovered.detail(), width));
+            lines=new ArrayList<>(UiTooltips.collapseBlankLines(lines));
             int count = Math.max(1, (height - 48) / (font.lineHeight + 1));
             tooltipScroll = Math.clamp(tooltipScroll, 0, Math.max(0, lines.size() - count));
             g.setTooltipForNextFrame(font, lines.subList(tooltipScroll, Math.min(lines.size(), tooltipScroll + count)), screenX, my);
@@ -741,7 +742,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         UiAssets.draw(g, detail.icon().isEmpty() ? texture(detailIcon) : detail.icon(), x + 12, top + 36, 34, 26);
         dev.hoi.client.ui.UiText.text(g, font, trim(detail.value(), w - 64), x + 55, top + 44, TEXT);
         g.horizontalLine(x + 10, x + w - 10, top + 74, 0xFF4E4F52);
-        var lines = font.split(Component.literal(detail.detail().isBlank() ? "추가 정보 없음" : detail.detail()), w - 28);
+        var lines = UiTooltips.split(font,Component.literal(detail.detail().isBlank() ? "추가 정보 없음" : detail.detail()), w - 28);
         int visible = Math.max(1, height - top - 128);
         detailScroll = Math.clamp(detailScroll, 0, Math.max(0, lines.size() * 13 - visible));
         g.enableScissor(x + 10, top + 84, x + w - 10, height - 44);

@@ -23,6 +23,10 @@ public abstract class MixinMenuTooltip {
     private int hoiEffectColor(int value) {
         return hoiText() ? dev.hoi.client.ui.UiEffectColors.color(value) : value;
     }
+    @Redirect(method = "tooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;positionTooltip(IIIIII)Lorg/joml/Vector2ic;"))
+    private org.joml.Vector2ic menuTooltipPosition(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner positioner,int width,int height,int mouseX,int mouseY,int textWidth,int textHeight) {
+        return hoiText()?dev.hoi.client.ui.UiTooltips.position(width,height,mouseX,mouseY,textWidth,textHeight):positioner.positionTooltip(width,height,mouseX,mouseY,textWidth,textHeight);
+    }
     @Redirect(method = "tooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/tooltip/TooltipRenderUtil;extractTooltipBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIIILnet/minecraft/resources/Identifier;)V"))
     private void menuTooltipBackground(GuiGraphicsExtractor graphics, int x, int y, int width, int height, Identifier style) {
         if (hoiText()) {

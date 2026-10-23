@@ -18,6 +18,10 @@ public final class UiTooltips {
                 && x<widget.getX()+widget.getWidth() && y<widget.getY()+widget.getHeight();
     }
     public static void clear() {LAYOUTS.clear();}
+    public static org.joml.Vector2ic position(int width,int height,int mouseX,int mouseY,int textWidth,int textHeight) {
+        var position=net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE.positionTooltip(width,height,mouseX,mouseY,textWidth,textHeight);
+        return new org.joml.Vector2i(Math.clamp(position.x(),7,Math.max(7,width-textWidth-7)),Math.clamp(position.y(),7,Math.max(7,height-textHeight-7)));
+    }
     private static net.minecraft.network.chat.Style sourceColor(net.minecraft.network.chat.Style style) {
         var color = style.getColor();
         if (color == null) return style;
@@ -56,10 +60,10 @@ public final class UiTooltips {
         return result;
     }
     public static net.minecraft.client.gui.components.Tooltip create(Component text) {
-        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(format(text),false)));
+        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(format(sourceSpacing(text)),false)));
     }
     public static net.minecraft.client.gui.components.Tooltip createExact(String text) {
-        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(Component.literal(UiTooltipText.sourceSpacing(text)),false),false));
+        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(sourceSpacing(Component.literal(text)),false),false));
     }
     public static net.minecraft.client.gui.components.Tooltip createOfficer(String text) {
         return createExact(officerCodes(text));
@@ -69,22 +73,18 @@ public final class UiTooltips {
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         return drawOfficerScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,324);
     }
-    public static ScrolledTooltip drawOfficerScrollable(GuiGraphicsExtractor graphics, Font font, String text,
-            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth) {
-        return drawOfficerScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,maxWidth,false);
-    }
     public static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll) {
         return drawSourceScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,324);
     }
     public static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth) {
-        return drawOfficerScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,maxWidth,true);
+        return drawOfficerScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,maxWidth);
     }
-    private static ScrolledTooltip drawOfficerScrollable(GuiGraphicsExtractor graphics, Font font, String text,
-            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth, boolean sourceLayout) {
+    public static ScrolledTooltip drawOfficerScrollable(GuiGraphicsExtractor graphics, Font font, String text,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth) {
         String content = officerCodes(text);
-        var lines = exactLines(font, sourceLayout ? content : content.replaceAll("(?m)^-{3,}$", "\u200B"), Math.min(viewportWidth, maxWidth));
+        var lines = exactLines(font, content, Math.min(viewportWidth, maxWidth));
         int width = Math.min(Math.max(1, viewportWidth - 20), Math.max(80, lines.stream().mapToInt(font::width).max().orElse(80)));
         int lineHeight = font.lineHeight + 1;
         int total = lines.size() * lineHeight;
@@ -100,11 +100,7 @@ public final class UiTooltips {
         for (int i = Math.max(0, scroll / lineHeight); i < lines.size(); i++) {
             int top = y + i * lineHeight - scroll;
             if (top >= y + height) break;
-            var separator=new boolean[1];
-            lines.get(i).accept((index,style,codepoint)->{if(codepoint==0x200B)separator[0]=true;return true;});
-            if(!sourceLayout && separator[0]) {
-                for(int offset=0;offset<width;offset+=4)graphics.fill(x+offset,top+lineHeight/2,x+Math.min(width,offset+2),top+lineHeight/2+1,0xFF78828F);
-            } else graphics.text(font, lines.get(i), sourceLayout ? x : x + (width - font.width(lines.get(i))) / 2, top, 0xFFE0E0E0);
+            graphics.text(font, lines.get(i), x, top, 0xFFE0E0E0);
         }
         graphics.disableScissor();
         if (maxScroll > 0) {
@@ -118,6 +114,11 @@ public final class UiTooltips {
     public static Component officerText(String text) {
         return styled(Component.literal(officerCodes(text)), false);
     }
+    public static Component officerText(String text,boolean bold) {
+        var result=Component.empty();
+        officerText(text).visit((style,part)->{result.append(Component.literal(part).withStyle(style.withBold(bold)));return java.util.Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
+        return result;
+    }
     private static String officerCodes(String text) {
         return text.replace("§g", "§#8893A5").replace("§G", "§a").replace("§R", "§4")
                 .replace("§Y", "§e").replace("§H", "§e").replace("§W", "§f")
@@ -125,6 +126,64 @@ public final class UiTooltips {
     }
     public static Component productionText(Component text) {
         return UiKeywordIcons.decorateLines(sentences(text));
+    }
+    public static Component sourceSpacing(net.minecraft.network.chat.FormattedText text) {
+        var rows=new ArrayList<net.minecraft.network.chat.MutableComponent>();
+        rows.add(Component.empty());
+        text.visit((style,part)->{
+            String[] parts=part.split("\\R",-1);
+            for(int i=0;i<parts.length;i++) {
+                if(i>0)rows.add(Component.empty());
+                rows.getLast().append(Component.literal(parts[i]).withStyle(style));
+            }
+            return java.util.Optional.empty();
+        },net.minecraft.network.chat.Style.EMPTY);
+        var result=Component.empty();
+        boolean first=true;
+        var cleaned=new ArrayList<Component>();boolean removed=false;
+        for(var row:rows) {
+            var value=withoutShortcuts(row);
+            if(value==null){while(!cleaned.isEmpty()&&UiTooltipText.blank(cleaned.getLast().getString()))cleaned.removeLast();removed=true;continue;}
+            if(removed&&UiTooltipText.blank(value.getString()))continue;
+            cleaned.add(value);removed=false;
+        }
+        for(var row:UiTooltipText.collapseBlankLines(cleaned,line->UiTooltipText.blank(line.getString()))) {
+            if(!first)result.append("\n");
+            if(!UiTooltipText.blank(row.getString()))result.append(row);
+            first=false;
+        }
+        return result;
+    }
+    private static Component withoutShortcuts(Component row) {
+        if(UiTooltipText.blank(row.getString()))return row;
+        String original=row.getString(),cleaned=UiCommandLabels.withoutShortcuts(original);
+        if(original.equals(cleaned))return row;
+        if(cleaned.isEmpty())return null;
+        int prefix=0,suffix=0;
+        while(prefix<cleaned.length()&&prefix<original.length()&&cleaned.charAt(prefix)==original.charAt(prefix))prefix++;
+        while(suffix<cleaned.length()-prefix&&suffix<original.length()-prefix&&cleaned.charAt(cleaned.length()-suffix-1)==original.charAt(original.length()-suffix-1))suffix++;
+        int start=prefix,end=original.length()-suffix;
+        String replacement=cleaned.substring(prefix,cleaned.length()-suffix);
+        var result=Component.empty();int[] offset={0};
+        row.visit((style,part)->{
+            int from=offset[0],to=from+part.length();
+            if(from<start)result.append(Component.literal(part.substring(0,Math.min(part.length(),start-from))).withStyle(style));
+            if(from<=start&&start<to&&!replacement.isEmpty())result.append(Component.literal(replacement).withStyle(style));
+            if(to>end)result.append(Component.literal(part.substring(Math.max(0,end-from))).withStyle(style));
+            offset[0]=to;return java.util.Optional.empty();
+        },net.minecraft.network.chat.Style.EMPTY);
+        return result;
+    }
+    public static List<FormattedCharSequence> split(Font font,net.minecraft.network.chat.FormattedText text,int width) {
+        return collapseBlankLines(font.split(sourceSpacing(text),width));
+    }
+    public static boolean blank(FormattedCharSequence line) {
+        var text=new StringBuilder();
+        line.accept((index,style,code)->{text.appendCodePoint(code);return true;});
+        return UiTooltipText.blank(text.toString());
+    }
+    public static List<FormattedCharSequence> collapseBlankLines(List<FormattedCharSequence> lines) {
+        return UiTooltipText.collapseBlankLines(lines,UiTooltips::blank);
     }
     public static void background(GuiGraphicsExtractor graphics,int x,int y,int width,int height) {
         UiAssets.nineSlice(graphics,"production/tooltip",x,y,width,height,6,.5);
@@ -170,19 +229,20 @@ public final class UiTooltips {
         return formattedLines(font,text,viewportWidth,icons,true);
     }
     private static List<FormattedCharSequence> formattedLines(Font font,String text,int viewportWidth,boolean icons,boolean inferIcons) {
+        text=UiCommandLabels.withoutShortcuts(text);
         int width = Math.max(80, Math.min(300, viewportWidth - 24));
         var key = new LayoutKey(font,text,width,icons,inferIcons);
         var cached = LAYOUTS.get(key);
         if(cached!=null)return cached;
         var lines = new ArrayList<FormattedCharSequence>();
-        for (String line : UiTooltipText.colorLines(UiTooltipText.sourceSpacing(text))) {
-            if (line.isEmpty()) lines.add(Component.empty().getVisualOrderText());
+        for (String line : UiTooltipText.colorLines(text)) {
+            if (UiTooltipText.blank(line)) lines.add(Component.empty().getVisualOrderText());
             else {
                 var value = styled(Component.literal(line),false);
                 lines.addAll(font.split(icons ? UiKeywordIcons.decorateLines(value,inferIcons) : value, width));
             }
         }
-        var result = List.copyOf(lines);
+        var result = collapseBlankLines(lines);
         if(text.length()<=16384) {
             if(LAYOUTS.size()>=64)LAYOUTS.pollFirstEntry();
             LAYOUTS.put(key,result);

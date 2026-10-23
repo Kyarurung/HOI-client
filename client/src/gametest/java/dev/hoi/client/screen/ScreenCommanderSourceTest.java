@@ -77,7 +77,8 @@ public final class ScreenCommanderSourceTest {
             var promotionSent=new ArrayList<ProtocolDialogPayloads.Action>();
             context.setScreen(()->new ScreenCommanderRoster(promotion,parent,promotionSent::add));context.waitTicks(2);
             var promotionPosition=context.computeOnClient(client->{
-                var button=client.gui.screen().children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->c.getMessage().getString().equals(promotion.tiles().getFirst().name())).findFirst().orElseThrow();
+                var button=((ScreenCommanderRoster)client.gui.screen()).choiceButton("promote");
+                if(button==null||!button.active)throw new AssertionError("Discount promotion must expose the server-issued confirmation button");
                 return new int[]{button.getX()+button.getWidth()/2,button.getY()+button.getHeight()/2};
             });
             context.getInput().setCursorPos(promotionPosition[0]*2,promotionPosition[1]*2);context.waitTicks(3);context.takeScreenshot("hoi-commander-marshal-discount-quote-gui2");
@@ -85,7 +86,8 @@ public final class ScreenCommanderSourceTest {
                 var tile=promotion.tiles().getFirst();var button=client.gui.screen().children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->c.getMessage().getString().equals(tile.name())).findFirst().orElseThrow();
                 int index=java.util.stream.IntStream.range(0,tile.leader().traitDetails().size()).filter(i->tile.leader().traitDetails().get(i).name().equals("직업장교")).findFirst().orElseThrow();
                 for(var trait:tile.leader().traitDetails())if(!trait.icon().isEmpty()&&client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+trait.icon()+".png")).isEmpty())throw new AssertionError("Missing declared source trait texture "+trait.icon());
-                return new int[]{button.getX()+58+index*12+6,button.getY()+38};
+                int x=dev.hoi.client.ui.UiFlagStack.left(index,tile.leader().traitDetails().size(),button.getX()+65,94,12),visibleWidth=dev.hoi.client.ui.UiFlagStack.visibleWidth(index,tile.leader().traitDetails().size(),button.getX()+65,94,12);
+                return new int[]{x+visibleWidth/2,button.getY()+36};
             });
             context.getInput().setCursorPos(careerTraitPosition[0]*2,careerTraitPosition[1]*2);context.waitTicks(3);context.takeScreenshot("hoi-commander-career-trait-source-tooltip-gui2");
             context.runOnClient(client->{

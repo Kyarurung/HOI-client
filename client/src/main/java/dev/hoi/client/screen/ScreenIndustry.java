@@ -1180,7 +1180,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                     pickerRightText(g,familyName(equipment),labelX,y+Math.round(22*scale),right-labelX);
                 } else {
                     UiText.text(g,font,UiText.ellipsize(font,equipment.name(),Math.max(0,(int)((right-labelX)/UiText.scale(font)))),labelX,y+Math.round(6*scale),TEXT);
-                    var lines=font.split(Component.literal(familyName(equipment)),Math.max(1,(int)((right-labelX)/UiText.scale(font))));
+                    var lines=UiTooltips.split(font,Component.literal(familyName(equipment)),Math.max(1,(int)((right-labelX)/UiText.scale(font))));
                     for(int i=0;i<Math.min(equipment.group().equals("air")?2:3,lines.size());i++) {
                         UiText.text(g,font,lines.get(i),labelX,y+Math.round(22*scale)+i*UiText.MIN_HEIGHT,TEXT);
                     }
@@ -1573,7 +1573,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
                     @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                         UiMenuStyle.recess(g,rx,ry,rw,rh);
                         UiAssets.draw(g,"production/design/roles/"+role,rx+size.applyAsInt(5),ry+size.applyAsInt(4),size.applyAsInt(32),rh-size.applyAsInt(8));
-                        var lines=font.split(Component.literal(label),Math.max(1,(int)((rw-size.applyAsInt(46))/UiText.scale(font))));
+                        var lines=UiTooltips.split(font,Component.literal(label),Math.max(1,(int)((rw-size.applyAsInt(46))/UiText.scale(font))));
                         int lineHeight=UiText.MIN_HEIGHT;
                         for(int i=0;i<Math.min(2,lines.size());i++)UiText.text(g,font,lines.get(i),rx+size.applyAsInt(43),ry+(rh-Math.min(2,lines.size())*lineHeight)/2+i*lineHeight,TEXT);
                     }
@@ -1768,7 +1768,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         UiAssets.nineSlice(g,"production/design/controls/module_card",x,y,w,h,12,w/244.0);
         int iconWidth=w*72/244,iconHeight=h*44/66,textX=x+w*85/244,textWidth=w*153/244;
         UiAssets.drawContent(g,texture,x+w*6/244,y+(h-iconHeight)/2,iconWidth,iconHeight);
-        var lines=font.split(Component.literal(label),Math.max(1,(int)(textWidth/UiText.scale(font))));
+        var lines=UiTooltips.split(font,Component.literal(label),Math.max(1,(int)(textWidth/UiText.scale(font))));
         int count=Math.min(2,lines.size()),areaHeight=cost?h*38/66:h;
         for(int i=0;i<count;i++)UiText.text(g,font,lines.get(i),textX,y+(areaHeight-count*UiText.MIN_HEIGHT)/2+i*UiText.MIN_HEIGHT,TEXT);
     }
@@ -2064,7 +2064,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     }
     private void paragraph(Component value,int x,int y,int width,int height) {
         if(graphics==null)return;
-        var lines=font.split(value,Math.max(1,(int)(width/UiText.scale(font))));
+        var lines=UiTooltips.split(font,value,Math.max(1,(int)(width/UiText.scale(font))));
         int count=Math.min(lines.size(),height/(UiText.MIN_HEIGHT+1));
         for(int i=0;i<count;i++)UiText.text(graphics,font,lines.get(i),x,y+i*(UiText.MIN_HEIGHT+1),TEXT);
         if(count<lines.size())tip(value.getString(),x,y,width,height);

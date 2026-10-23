@@ -55,6 +55,12 @@ public final class UiAssets {
     public static boolean draw(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         return draw(g, path, x, y, w, h, 0, 0);
     }
+    public static void drawLeaderControl(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,boolean enabled) {
+        if(path.startsWith("commander/commands/idea_traits_strip/")) {
+            draw(g,"commander/commands/empty_paper/frame_0",x,y,w,h);int insetX=Math.round(w*10.5f/49),insetY=Math.round(h*10.5f/49);x+=insetX;y+=insetY;w-=insetX*2;h-=insetY*2;
+        }
+        if(enabled)draw(g,path,x,y,w,h);else drawGrayscale(g,path,x,y,w,h);
+    }
     public static boolean drawGrayscale(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         return draw(g, path, x, y, w, h, 0, 0, 0xFFFFFFFF, true);
     }

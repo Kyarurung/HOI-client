@@ -14,8 +14,21 @@ public final class UiTooltipText {
         return java.util.Arrays.stream(paragraphs).filter(value->value!=null&&!value.isBlank()).collect(java.util.stream.Collectors.joining("\n\n"));
     }
     public static String sourceSpacing(String text) {
-        return java.util.Arrays.stream(text.split("\\R",-1))
-                .map(line->blank(line)?"":line).collect(java.util.stream.Collectors.joining("\n"));
+        var lines=java.util.Arrays.stream(text.split("\\R",-1)).map(line->blank(line)?"":line).toList();
+        return String.join("\n",collapseBlankLines(lines,String::isEmpty));
+    }
+    public static <T> java.util.List<T> collapseBlankLines(java.util.List<T> lines,java.util.function.Predicate<T> blank) {
+        int first=0,last=lines.size()-1;
+        while(first<=last&&blank.test(lines.get(first)))first++;
+        while(last>=first&&blank.test(lines.get(last)))last--;
+        var result=new java.util.ArrayList<T>();
+        boolean previous=false;
+        for(int i=0;i<lines.size();i++) {
+            boolean empty=blank.test(lines.get(i));
+            if(!empty||!previous||i<=first||i>=last)result.add(lines.get(i));
+            previous=empty;
+        }
+        return java.util.List.copyOf(result);
     }
     public static java.util.List<String> colorLines(String text) {
         var lines=new java.util.ArrayList<String>();

@@ -13,7 +13,7 @@ public record ProtocolCountryView(String viewer, ProtocolCountryHud hud, String 
         this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, null);
     }
     public record Actions(String session, long revision, String message, List<Action> entries) {
-        public Actions { UUID.fromString(session); if (revision < 0) throw new IllegalArgumentException("Invalid revision"); text(message, 1000); entries = bounded(entries, 24); }
+        public Actions { UUID.fromString(session); if (revision < 0) throw new IllegalArgumentException("Invalid revision"); text(message, 1000); entries = bounded(entries, 64); }
     }
     public record AmountInput(String equipmentName, long stock) {
         public AmountInput {text(equipmentName,128);if(stock<0)throw new IllegalArgumentException("Invalid equipment stock");}

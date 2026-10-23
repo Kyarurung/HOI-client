@@ -16,12 +16,18 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
     private final Consumer<ProtocolDialogPayloads.Action> sender;
     private final Consumer<ProtocolCommanderHud.PlanMapPick> mapSender;
     private final ScreenLandPlanGesture landGesture=new ScreenLandPlanGesture();
-    private boolean pending,nativeRows,showAssigned=true,descending=true;
+    private boolean pending,nativeRows,descending=true;
+    private boolean promoting(){return view().tiles().size()==1&&view().tiles().getFirst().section().equals("promote")&&view().choices().stream().anyMatch(c->c.id().equals("cancel"));}
+    private String leaderChoice(String prefix,ProtocolDialogView.Tile tile){return prefix+(tile.section().startsWith("admiral/")?tile.section().substring(8):tile.section());}
     private int left,top,pane,bottom,scroll,listTop,rowHeight,sort;
-    private String query="";
+    private boolean dragging;
+    private int maximumScroll(){return Math.max(0,rows.size()*rowHeight-Math.max(1,(bottom-20-listTop)/rowHeight)*rowHeight);}
+    private void dragScroll(double mouseY){int h=bottom-20-listTop,thumb=Math.max(12,h*h/(h+maximumScroll()));scroll=(int)Math.round(Math.clamp((mouseY-listTop-thumb/2.)/Math.max(1,h-thumb),0,1)*maximumScroll()/rowHeight)*rowHeight;rebuildWidgets();}
+    private String query="",renderedTooltip="";
+    String renderedTooltip(){return renderedTooltip;}
     private final Set<String> longDetails=new HashSet<>();
     private String detailText="";
-    private int detailRow=-1,detailScroll,detailX,detailY;
+    private int detailRow=-1,detailScroll;
     private UiTooltips.ScrolledTooltip detailTooltip;
     UiTooltips.ScrolledTooltip detailTooltip(){return detailTooltip;}
     String detailText(){return detailText;}
@@ -71,7 +77,15 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
         String icon=UiEquipmentDesigns.productionMissionIcon(source);
         return icon.isEmpty()?"map_selector/air":icon;
     }
+    private void rowButton(String id,String label,String tooltip,int x,int y,int w){
+        var button=new UiMenuButton(label,x,y,w,14,()->submit(id)).caption("").background("none").textShadow(false);
+        button.active=!pending&&view().choices().stream().anyMatch(c->c.id().equals(id));
+        button.setTooltip(UiTooltips.createOfficer(tooltip));choiceButtons.put(id,button);addRenderableWidget(button);
+    }
     private void sortBy(int column){if(sort==column)descending=!descending;else{sort=column;descending=column!=1;}scroll=0;rebuildWidgets();}
+    private void rowButtonText(GuiGraphicsExtractor g,AbstractWidget button){UiAssets.drawTinted(g,"commander/ui/button",button.getX(),button.getY(),button.getWidth(),button.getHeight(),button.getMessage().getString().equals("진급")&&!view().image().equals("commander/group")?0xFF242424:0xFF996666);float scale=Math.max(UiText.scale(font),1+1f/font.lineHeight);g.pose().pushMatrix();g.pose().translate(button.getX()+(button.getWidth()-font.width(button.getMessage())*scale)/2,button.getY()+(button.getHeight()-font.lineHeight*scale)/2);g.pose().scale(scale);g.text(font,button.getMessage(),0,0,0xFFFFFFFF,false);g.pose().popMatrix();}
+    private void skill(GuiGraphicsExtractor g,int value,int x,int y){var text=Component.literal(Integer.toString(value)).withStyle(net.minecraft.ChatFormatting.BOLD);float scale=2;g.pose().pushMatrix();g.pose().translate(x+(20-font.width(text)*scale)/2,y);g.pose().scale(scale);g.text(font,text,0,0,0xFFFFFFFF,false);g.pose().popMatrix();}
+    private void label(GuiGraphicsExtractor g,Component text,int x,int y,int w,int h,int color){var shown=font.width(text)>w?net.minecraft.network.chat.FormattedText.composite(font.substrByWidth(text,Math.max(0,w-font.width("…"))),net.minecraft.network.chat.FormattedText.of("…")):text;g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(shown),x,y+Math.max(0,(h-font.lineHeight)/2),color,false);}
     private void header(String text,int x,int w,int column){addRenderableWidget(new UiMenuButton(text,left+x,top+20,w,13,()->sortBy(column)));}
     @Override protected void init(){
         choiceButtons.clear();longDetails.clear();clearDetail();
@@ -80,37 +94,54 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
         else{left=parent==null?0:UiPanelLayout.width(ProtocolMenuTab.OFFICER_CORPS,width);top=UiMenuBar.height(width);pane=Math.min(290,width-left-6);if(pane<180){pane=Math.min(290,width-12);left=Math.max(0,width-pane-6);}bottom=Math.min(height-8,top+360);listTop=top+52;}
         addRenderableWidget(new UiMenuButton("×",left+pane-18,top+3,14,14,this::onClose));
         rows=view().tiles().stream().filter(t->!t.section().startsWith("configuration/")||!t.detail().isBlank()).toList();
-        if(nativeRows){
+        if(nativeRows&&!promoting()){
             header("능력",5,24,0);header("이름",46,46,1);header("수용량",220,43,6);
             for(int i=0;i<4;i++)header(List.of("공","방","계","군").get(i),161+i*13,12,2+i);
             search=new EditBox(font,left+100,top+22,58,11,Component.literal("검색"));search.setMaxLength(128);search.setBordered(false);search.setHint(Component.literal("검색"));search.setValue(query);
             search.setResponder(v->{query=v;scroll=0;rebuildWidgets();setFocused(search);});addRenderableWidget(search);
-            var toggle=new UiMenuButton(showAssigned?"☑":"☐",left+pane-37,top+3,15,14,()->{showAssigned=!showAssigned;scroll=0;rebuildWidgets();});toggle.setTooltip(UiTooltips.createOfficer("임명된 지휘관 보기"));addRenderableWidget(toggle);
             Comparator<ProtocolDialogView.Tile> order=switch(sort){case 1->Comparator.comparing(ProtocolDialogView.Tile::name);case 6->Comparator.comparingInt(t->t.leader().capacity());case 2,3,4,5->Comparator.comparingInt(t->t.leader().abilities().get(sort-2));default->Comparator.comparingInt(t->t.leader().skill());};
             if(descending)order=order.reversed();String lower=query.toLowerCase(Locale.ROOT);
             if(view().image().equals("commander/group")||view().image().equals("commander/view")) {
                 String preferred=view().image().equals("commander/group")?"원수":"장군";
-                order=Comparator.<ProtocolDialogView.Tile>comparingInt(t->t.leader().role().equals(preferred)?0:1).thenComparing(order);
+                var rank=Comparator.<ProtocolDialogView.Tile>comparingInt(t->t.leader().role().equals(preferred)?0:1);
+                order=view().image().equals("commander/group")?order.thenComparing(rank):rank.thenComparing(order);
             }
-            rows=view().tiles().stream().filter(t->t.leader()!=null&&(showAssigned||!t.leader().assigned())&&t.name().toLowerCase(Locale.ROOT).contains(lower)).sorted(order.thenComparing(ProtocolDialogView.Tile::name).thenComparing(ProtocolDialogView.Tile::section)).toList();
+            rows=view().tiles().stream().filter(t->t.leader()!=null&&t.name().toLowerCase(Locale.ROOT).contains(lower)).sorted(order).toList();
             if(view().choices().stream().anyMatch(c->c.id().equals("remove"))){var tile=view().tiles().stream().filter(t->t.section().equals("remove")).findFirst().orElseThrow();var remove=new UiMenuButton("배정 해제",left+pane-116,bottom-17,109,14,()->submit("remove"));remove.active=!pending;remove.setTooltip(UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(remove);}
         }
-        int end=nativeRows?bottom-20:bottom;scroll=Math.clamp(scroll,0,Math.max(0,rows.size()*rowHeight-(end-listTop)));
+        if(promoting()){
+            top=Math.max(UiMenuBar.height(width),height/2-85);bottom=top+170;listTop=top+25;
+            clearWidgets();addRenderableWidget(new UiMenuButton("×",left+pane-18,top+3,14,14,this::onClose));
+            rowButton("promote","진급",view().body(),left+pane/2-65,bottom-23,60);
+            rowButton("cancel","취소","",left+pane/2+5,bottom-23,60);
+        }
+        int end=nativeRows?bottom-20:bottom;scroll=Math.clamp(scroll,0,nativeRows?maximumScroll():Math.max(0,rows.size()*rowHeight-(end-listTop)));
         for(int i=0;i<rows.size();i++){
             var tile=rows.get(i);int y=listTop+i*rowHeight-scroll;if(y<listTop||y+rowHeight-2>end)continue;
             boolean choice=view().choices().stream().anyMatch(c->c.id().equals(tile.section()));
             if(!nativeRows&&!choice&&UiTooltips.exactLines(font,UiCommandLabels.withoutShortcuts(tile.detail()),204).size()>8)longDetails.add(tile.section());
-            var button=new UiMenuButton(tile.name(),left+5,y,pane-(nativeRows?20:10),rowHeight-2,()->submit(tile.section())).caption("");button.active=!pending&&choice;button.setTooltip(nativeRows||longDetails.contains(tile.section())?null:UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(button);if(choice)choiceButtons.put(tile.section(),button);
+            var button=new UiMenuButton(tile.name(),left+5,y,pane-(nativeRows?20:10),rowHeight-2,()->submit(tile.section())).caption("");button.active=!pending&&choice&&!promoting();button.setTooltip(nativeRows||longDetails.contains(tile.section())?null:UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(button);if(choice&&!promoting())choiceButtons.put(tile.section(),button);
+            if(nativeRows&&!promoting()){
+                String details=leaderChoice("traits/",tile);
+                rowButton(details,"세부 사항",view().choices().stream().filter(c->c.id().equals(details)).map(ProtocolDialogView.Choice::tooltip).findFirst().orElse("지휘관 세부 사항을 봅니다."),left+165,y+28,48);
+                if(!tile.leader().promotion().isEmpty())rowButton(leaderChoice("promote/",tile),"진급",tile.leader().promotion(),left+213,y+28,48);
+                if(!tile.leader().advisor().isEmpty()){
+                    String advisor=leaderChoice("advisor/",tile);
+                    boolean appointed=!tile.leader().advisorIcon().isEmpty();
+                    var control=new UiMenuButton("장교단 역할",left+(appointed?8:13),y+(appointed?23:33),appointed?24:14,appointed?24:14,()->submit(advisor)).caption("").background("none");
+                    control.active=!pending&&view().choices().stream().anyMatch(c->c.id().equals(advisor));control.setTooltip(UiTooltips.createOfficer(tile.leader().advisor()));choiceButtons.put(advisor,control);addRenderableWidget(control);
+                }
+            }
         }
         if(view().choices().stream().anyMatch(c->c.id().equals("confirm")))addRenderableWidget(new UiMenuButton("확인",left+pane-70,top+28,63,19,()->submit("confirm")));
         if(pending)children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).forEach(w->w.active=false);
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
-        if(nativeRows)UiAssets.draw(g,"commander/ui/panel",left,top,pane,(int)Math.round(pane*607.0/550));else UiMenuStyle.panel(g,left,top,pane,bottom-top+3);UiText.centered(g,font,view().title(),left+5,top+3,pane-44,nativeRows?14:19,UiMenuStyle.TEXT);
+        if(nativeRows&&!promoting())UiAssets.draw(g,"commander/ui/panel",left,top,pane,(int)Math.round(pane*607.0/550));else UiMenuStyle.panel(g,left,top,pane,bottom-top+3);UiText.leftSingleLine(g,font,UiTooltips.officerText(view().title()),left+7,top+3,pane-30,nativeRows?14:19,0xFFFFFFFF);
         if(!nativeRows)UiText.centered(g,font,view().body(),left+6,top+27,pane-12,19,UiMenuStyle.MUTED);
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget)widget.extractRenderState(g,mx,my,delta);
-        if(nativeRows){
+        if(nativeRows&&!promoting()){
             UiAssets.draw(g,"commander/ui/sort_skill",left+8,top+20,15,14);
             var example=rows.stream().filter(t->t.leader()!=null).findFirst();boolean navy=example.isPresent()&&example.get().leader().role().equals("제독");
             for(int i=0;i<4;i++)UiAssets.draw(g,"commander/ui/"+List.of("attack","defense",navy?"maneuver":"planning",navy?"coordination":"logistics").get(i),left+161+i*13,top+20,13,13);
@@ -130,28 +161,40 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
                 if(leader.assigned())background+="_assigned";else if(background.equals("army")&&tile.value().equals("사용 불가"))background="army_unavailable";
                 UiAssets.draw(g,"commander/ui/"+background,left+6,y,255,49);
                 if(tile.value().equals("선택 중"))g.fill(left+6,y+1,left+261,y+47,0x303F6D1D);
-                UiText.centered(g,font,Integer.toString(leader.skill()),left+7,y+7,18,20,leader.role().equals("원수")?0xFFFFD34B:UiMenuStyle.TEXT);
-                UiAssets.draw(g,tile.icon(),left+27,y+2,33,44);
-                UiText.centered(g,font,leader.role(),left+62,y+2,93,10,UiMenuStyle.TEXT);UiText.centered(g,font,tile.name(),left+62,y+12,93,12,UiMenuStyle.TEXT);
+                skill(g,leader.skill(),left+9,y+9);
+                UiAssets.draw(g,tile.icon(),left+34,y+3,33,44);
+                label(g,UiTooltips.officerText(leader.role(),true),left+70,y+6,85,9,0xFFFFFFFF);label(g,UiTooltips.officerText(tile.name(),true),left+70,y+15,85,9,0xFFFFFFFF);
                 for(int a=0;a<4;a++){
-                    UiAssets.draw(g,"commander/ui/"+List.of("attack","defense",leader.role().equals("제독")?"maneuver":"planning",leader.role().equals("제독")?"coordination":"logistics").get(a),left+161+a*13,y+3,12,12);
-                    UiText.centered(g,font,Integer.toString(leader.abilities().get(a)),left+161+a*13,y+15,12,10,UiMenuStyle.TEXT);
+                    UiAssets.draw(g,"commander/ui/"+List.of("attack","defense",leader.role().equals("제독")?"maneuver":"planning",leader.role().equals("제독")?"coordination":"logistics").get(a),left+161+a*13,y+5,14,13);
+                    UiText.centered(g,font,Integer.toString(leader.abilities().get(a)),left+160+a*13,y+15,15,9,0xFFFFFFFF,false);
                 }
-                UiText.centered(g,font,Integer.toString(leader.capacity()),left+220,y+5,43,13,UiMenuStyle.TEXT);
-                if(leader.traitDetails().isEmpty())UiText.centered(g,font,String.join(" · ",leader.traits()),left+62,y+28,93,15,UiMenuStyle.MUTED);
+                String capacity=Integer.toString(leader.capacity());
+                if(leader.role().equals("제독"))UiText.centered(g,font,capacity,left+224,y+5,34,19,0xFFFFFFFF,false);
+                else {g.text(font,capacity,left+245-font.width(capacity),y+10,0xFFFFFFFF,false);g.pose().pushMatrix();g.pose().translate(left+246,y+7);g.pose().scale(.375f);UiAssets.draw(g,"commander/commands/medal_collection/frame_0",0,0,16,28);g.pose().popMatrix();}
+                if(leader.traitDetails().isEmpty())UiText.centered(g,font,String.join(" · ",leader.traits()),left+70,y+28,95,16,UiMenuStyle.MUTED);
                 else for(int traitIndex=0;traitIndex<leader.traitDetails().size();traitIndex++) {
-                    var trait=leader.traitDetails().get(traitIndex);int traitX=left+63+traitIndex*12;if(traitX+12>left+159)break;
-                    if(!trait.icon().isEmpty())UiAssets.draw(g,trait.icon(),traitX,y+30,12,16);
-                    else UiText.centered(g,font,trait.name(),traitX,y+30,12,16,UiMenuStyle.MUTED);
-                    if(mx>=traitX&&mx<traitX+12&&my>=y+30&&my<y+46)hovered=trait.tooltip();
+                    var trait=leader.traitDetails().get(traitIndex);int traitX=UiFlagStack.left(traitIndex,leader.traitDetails().size(),left+70,94,12),visibleWidth=UiFlagStack.visibleWidth(traitIndex,leader.traitDetails().size(),left+70,94,12);
+                    if(!trait.icon().isEmpty())UiAssets.draw(g,trait.icon(),traitX,y+28,12,16);
+                    else UiText.centered(g,font,trait.name(),traitX,y+28,12,16,UiMenuStyle.MUTED);
+                    if(mx>=traitX&&mx<traitX+visibleWidth&&my>=y+28&&my<y+44)hovered=trait.tooltip();
                 }
-                UiText.centered(g,font,tile.value(),left+162,y+29,101,14,tile.value().equals("사용 불가")?0xFFE15B5B:0xFFFFAA00);
+                if(!promoting())for(String prefix:List.of("traits/","promote/","advisor/")){
+                    var control=choiceButtons.get(leaderChoice(prefix,tile));
+                    if(control!=null){control.extractRenderState(g,mx,my,delta);if(prefix.equals("advisor/"))UiAssets.drawLeaderControl(g,leader.advisorIcon().isEmpty()?"commander/commands/give_role_leader_strip/frame_0":leader.advisorIcon(),control.getX(),control.getY(),control.getWidth(),control.getHeight(),true);else rowButtonText(g,control);if(UiTooltips.contains(control,mx,my))hovered=prefix.equals("advisor/")?leader.advisor():prefix.equals("promote/")?leader.promotion():"지휘관 세부 사항을 봅니다.";}
+                }
             }else{
-                if(detailRow<0&&longDetails.contains(tile.section())&&mx>=left+5&&mx<left+pane-10&&my>=y&&my<y+rowHeight-2){detailText=UiCommandLabels.withoutShortcuts(tile.detail());detailRow=i;detailX=width-left-pane>=204?left+pane:left>=204?left-216:mx;detailY=my;}
+                if(detailRow<0&&longDetails.contains(tile.section())&&mx>=left+5&&mx<left+pane-10&&my>=y&&my<y+rowHeight-2){detailText=UiCommandLabels.withoutShortcuts(tile.detail());detailRow=i;}
                 UiAssets.draw(g,rowIcon(tile),left+8,y+3,43,52);UiText.centered(g,font,tile.name(),left+57,y+5,pane-66,23,UiMenuStyle.TEXT);UiText.centered(g,font,tile.value(),left+57,y+30,pane-66,20,tile.value().equals("사용 불가")||tile.value().equals("승진 불가")?0xFFE15B5B:0xFFFFAA00);}
         }
+        if(promoting()){
+            for(String id:List.of("promote","cancel"))rowButtonText(g,choiceButtons.get(id));
+            var lines=font.split(UiKeywordIcons.decorateLines(UiTooltips.officerText(view().body()),false),pane-22);int lineY=listTop+rowHeight+8;
+            for(var line:lines){g.text(font,line,left+11,lineY,UiMenuStyle.TEXT,false);lineY+=11;}
+        }
+        if(nativeRows&&!promoting()&&maximumScroll()>0){int h=bottom-20-listTop,thumb=Math.max(12,h*h/(h+maximumScroll()));UiAssets.nineSlice(g,"commander/commands/scroll_track/frame_0",left+pane-9,listTop,6,h,3,.5);UiAssets.nineSlice(g,"commander/commands/scroll_drager/frame_0",left+pane-9,listTop+(h-thumb)*scroll/maximumScroll(),6,thumb,3,.5);}
         landGesture.draw(g);
-        if(detailRow>=0){detailTooltip=UiTooltips.drawOfficerScrollable(g,font,detailText,detailX,detailY,width,height,detailScroll,204);detailScroll=detailTooltip.scroll();}
+        if(detailRow>=0){detailTooltip=UiTooltips.drawOfficerScrollable(g,font,detailText,mx,my,width,height,detailScroll,204);detailScroll=detailTooltip.scroll();}
+        renderedTooltip=hovered;
         if(!hovered.isEmpty())UiTooltips.drawExact(g,font,hovered,mx,my,180);
     }
     private boolean mapPicking(){return view().image().startsWith("mission/land-target/")&&!view().token().isEmpty();}
@@ -162,23 +205,27 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
         if(mapSender==null)ClientPlayNetworking.send(request);else mapSender.accept(request);
     }
     @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy) {
+        if(dragging){dragScroll(event.y());return true;}
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&dev.hoi.client.map.MapCommanderHud.dragAt(event.x()))return true;
         if(landGesture.active()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){landGesture.sample(minecraft,Math.clamp(event.x(),left+pane,width),Math.clamp(event.y(),top,height),width,height,false);return true;}
         return super.mouseDragged(event,dx,dy);
     }
     @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
+        if(dragging){dragging=false;return true;}
         if(dev.hoi.client.map.MapCommanderHud.releaseAt(event.x(),event.button()))return true;
         if(landGesture.active()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){landGesture.sample(minecraft,Math.clamp(event.x(),left+pane,width),Math.clamp(event.y(),top,height),width,height,true);sendMapPick(false);return true;}
         return super.mouseReleased(event);
     }
     @Override public void removed(){dev.hoi.client.map.MapCommanderHud.cancelDrag();landGesture.clear();super.removed();}
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){
+        if(nativeRows&&!promoting()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&event.x()>=left+pane-10&&event.x()<left+pane-2&&event.y()>=listTop&&event.y()<bottom-20){dragging=true;dragScroll(event.y());return true;}
+        if(nativeRows&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)for(var entry:choiceButtons.entrySet())if((entry.getKey().startsWith("traits/")||entry.getKey().startsWith("promote/")||entry.getKey().startsWith("advisor/"))&&UiTooltips.contains(entry.getValue(),event.x(),event.y())){if(entry.getValue().active){entry.getValue().playDownSound(minecraft.getSoundManager());submit(entry.getKey());}return true;}
         if(nativeRows&&!pending&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             for(int i=0;i<rows.size();i++) {
                 var tile=rows.get(i);int rowY=listTop+i*rowHeight-scroll;
-                String choice="traits/"+tile.section();
+                String choice=leaderChoice("traits/",tile);
                 if(rowY<listTop||rowY+rowHeight-2>bottom-20)continue;
-                if(event.x()>=left+62&&event.x()<left+159&&event.y()>=rowY+28&&event.y()<rowY+47&&view().choices().stream().anyMatch(c->c.id().equals(choice))) {submit(choice);return true;}
+                if(event.x()>=left+70&&event.x()<left+165&&event.y()>=rowY+28&&event.y()<rowY+47&&view().choices().stream().anyMatch(c->c.id().equals(choice))) {submit(choice);return true;}
             }
         }
         if((event.modifiers()&com.mojang.blaze3d.platform.InputConstants.MOD_SHIFT)!=0

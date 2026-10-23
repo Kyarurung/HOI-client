@@ -58,6 +58,9 @@ final class ScreenDecisionText {
         clear();
     }
     Component component(String text) {
+        return UiTooltips.sourceSpacing(sourceComponent(text));
+    }
+    private Component sourceComponent(String text) {
         var result=Component.empty();
         for(var run:sourceRuns(text)) {
             var style=run.color()==null?Style.EMPTY:Style.EMPTY.withColor(run.color());
@@ -132,11 +135,14 @@ final class ScreenDecisionText {
         return code=='#'&&index+8<=text.length()&&text.substring(index+2,index+8).matches("[0-9a-fA-F]{6}")?8:0;
     }
     List<Component> rows(String text) {
+        return UiTooltipText.collapseBlankLines(sourceRows(text),row->UiTooltipText.blank(row.getString()));
+    }
+    List<Component> sourceRows(String text) {
         var cached=sourceRows.get(text);
         if(cached!=null)return cached;
         var rows=new ArrayList<net.minecraft.network.chat.MutableComponent>();
         rows.add(Component.empty());
-        component(text).visit((style,part)->{
+        sourceComponent(text).visit((style,part)->{
             String[] lines=part.split("\\R",-1);
             for(int i=0;i<lines.length;i++) {
                 if(i>0)rows.add(Component.empty());
@@ -144,7 +150,7 @@ final class ScreenDecisionText {
             }
             return Optional.empty();
         },Style.EMPTY);
-        List<Component> result=List.copyOf(rows);
+        List<Component> result=rows.stream().<Component>map(row->UiTooltipText.blank(row.getString())?Component.empty():row).toList();
         if(sourceRows.size()>=256)sourceRows.clear();
         sourceRows.put(text,result);
         return result;

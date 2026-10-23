@@ -26,6 +26,7 @@ public final class UiCountryDisplayRenderTest {
                 if (UiMenuBar.flagTexture("KOR").equals("country/kor/flag")) throw new AssertionError("Cosmetic sample must exist in the external pack");
                 if (UiAssets.imageHeight("GFX_KOR_hog_ha_tae_kyung", 20) <= 0) throw new AssertionError("Raw portrait must resolve to its original external texture");
                 if (UiAssets.imageHeight("politics/art/gfx_idea_prc_plan_dynamic", 20) <= 0) throw new AssertionError("Server normalized dynamic modifier icon must resolve");
+                for(String key:List.of("gfx_idea_prk_economic_sovereignty","gfx_idea_prk_military_preparedness","gfx_idea_prc_made_in_china_idea"))if(UiAssets.imageHeight("politics/art/"+key,20)<=0)throw new AssertionError("Starting national spirit must resolve its original image: "+key);
                 client.gui.setScreen(new ScreenMenu(assetMenu(menu), ProtocolMenuTab.POLITICS, () -> {}));
             });
             context.waitTicks(4);
@@ -65,7 +66,10 @@ public final class UiCountryDisplayRenderTest {
                 new ProtocolMenuView.Page(page.tab(), page.sections().stream().map(section ->
                         new ProtocolMenuView.Section(section.title(), section.icon(), section.title().equals("국가 정신") ?
                                 List.of(new ProtocolMenuView.Entry("합성 원본 아이콘", "", "합성 렌더 입력: 실제 수정치 효과 검증이 아님.", -1,
-                                        "politics/art/gfx_idea_prc_plan_dynamic")) : section.entries().stream().map(entry ->
+                                        "politics/art/gfx_idea_prc_plan_dynamic"),
+                                        new ProtocolMenuView.Entry("자립경제","","원본 그림 바인딩 검증용 합성 입력",-1,"politics/art/gfx_idea_prk_economic_sovereignty"),
+                                        new ProtocolMenuView.Entry("선군정치","","원본 그림 바인딩 검증용 합성 입력",-1,"politics/art/gfx_idea_prk_military_preparedness"),
+                                        new ProtocolMenuView.Entry("중국 특색 사회주의","","원본 그림 바인딩 검증용 합성 입력",-1,"politics/art/gfx_idea_prc_made_in_china_idea")) : section.entries().stream().map(entry ->
                                         entry.name().equals("지도자") ? new ProtocolMenuView.Entry(entry.name(), "합성 원본 초상",
                                                 "합성 렌더 입력: 실제 인물 역할 검증이 아님.", -1, UiStoryAssets.asset("GFX_KOR_hog_ha_tae_kyung")) : entry).toList())).toList())).toList();
         return new ProtocolMenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), pages, menu.hud(), menu.manufacturers(), menu.balance());

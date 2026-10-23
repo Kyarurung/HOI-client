@@ -70,7 +70,7 @@ public final class UiText {
         left(g, font, Component.literal(text), x, y, width, height, color);
     }
     public static void left(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
-        var lines = font.split(text, Math.max(1, (int)(width / scale(font))));
+        var lines = UiTooltips.split(font,text, Math.max(1, (int)(width / scale(font))));
         int count = Math.min(lines.size(), Math.max(1, height / (MIN_HEIGHT + 1)));
         int top = y + (height - count * (MIN_HEIGHT + 1) + 1) / 2;
         for (int i = 0; i < count; i++) text(g, font, lines.get(i), x, top + i * (MIN_HEIGHT + 1), color);
@@ -94,7 +94,7 @@ public final class UiText {
     }
     public static void centered(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color, boolean shadow) {
         float scale = scale(font);
-        var lines = font.split(text, Math.max(1, (int)(width / scale)));
+        var lines = UiTooltips.split(font,text, Math.max(1, (int)(width / scale)));
         int count = Math.min(lines.size(), Math.max(1, height / (MIN_HEIGHT + 1)));
         int top = y + (height - count * (MIN_HEIGHT + 1) + 1) / 2;
         for (int i=0; i<count; i++) text(g, font, lines.get(i),

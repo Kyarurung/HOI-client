@@ -186,7 +186,7 @@ public final class ScreenFocus extends Screen {
         boolean match=query.isBlank() || n.name().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
         double guiScale=minecraft.getWindow().getGuiScale();
         float textScale=(float)(Math.max(1,Math.round(zoom*guiScale))/guiScale);
-        var lines=font.split(UiTooltips.officerText(n.name()),Math.max(1,(int)((NODE_W-8)*zoom/textScale)));
+        var lines=UiTooltips.split(font,UiTooltips.officerText(n.name()),Math.max(1,(int)((NODE_W-8)*zoom/textScale)));
         int count=Math.min(2,lines.size());
         int baseline=(int)Math.round((upper+66.5f*zoom-count*font.lineHeight*textScale/2)*guiScale);
         for(int i=0;i<count;i++) {

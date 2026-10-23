@@ -369,7 +369,7 @@ public final class ScreenDecision extends Screen implements InputSidebarMovement
         }
         if(!category.description().isEmpty()) {
             int lineHeight=font.lineHeight+2;
-            var rows=text.rows(category.description());
+            var rows=text.sourceRows(category.description());
             for(int index=0;index<rows.size();index++) {
                 var line=rows.get(index);
                 if(line.getString().isBlank() && (index==0 || !rows.get(index-1).getString().isBlank())) {
@@ -386,6 +386,11 @@ public final class ScreenDecision extends Screen implements InputSidebarMovement
                         if(g!=null)UiAssets.draw(g,path,11+(bodyWidth-imageWidth)/2,y,imageWidth,imageHeight);
                         y+=imageHeight+padding;
                         index=after-1;
+                        continue;
+                    }
+                    if(index>0 && image<rows.size()) {
+                        y+=lineHeight;
+                        index=image-1;
                         continue;
                     }
                 }

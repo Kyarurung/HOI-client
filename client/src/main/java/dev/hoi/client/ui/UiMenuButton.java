@@ -20,7 +20,7 @@ public final class UiMenuButton extends Button {
     public UiMenuButton wrapLabel() { wrapLabel = true; return this; }
     public static int labelHeight(Font font, String label, int width, float scale) {
         float renderedScale = Math.max(UiText.scale(font), scale + 1f / font.lineHeight);
-        int lines = font.split(Component.literal(label), Math.max(1, (int)((width - 6) / renderedScale))).size();
+        int lines = UiTooltips.split(font,Component.literal(label), Math.max(1, (int)((width - 6) / renderedScale))).size();
         return (int)Math.ceil((lines * (font.lineHeight + 1) - 1) * renderedScale) + (lines > 1 ? 6 : 2);
     }
     public UiMenuButton textShadow(boolean value) { textShadow = value; return this; }
@@ -52,7 +52,7 @@ public final class UiMenuButton extends Button {
         } else {
             float scale = Math.max(UiText.scale(font), textScale + 1f / font.lineHeight);
             if (wrapLabel && font.width(displayed) * scale > w - 6) {
-                var lines = font.split(Component.literal(displayed), Math.max(1, (int)((w - 6) / scale)));
+                var lines = UiTooltips.split(font,Component.literal(displayed), Math.max(1, (int)((w - 6) / scale)));
                 float height = (lines.size() * (font.lineHeight + 1) - 1) * scale;
                 g.pose().pushMatrix(); g.pose().translate(x + w / 2f, y + (h - height) / 2); g.pose().scale(scale);
                 for (int i = 0; i < lines.size(); i++) g.text(font, lines.get(i), -font.width(lines.get(i)) / 2, i * (font.lineHeight + 1), active ? UiMenuStyle.TEXT : UiMenuStyle.MUTED, textShadow);

@@ -13,7 +13,10 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
         public LeaderTrait(String icon,String name,String tooltip) {this(icon,name,tooltip,null);}
         public LeaderTrait {asset(icon);text(name,160);text(tooltip,3000);}
     }
-    public record Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails) {
+    public record Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails,String promotion,String advisor,String advisorIcon) {
+        public Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails,String promotion,String advisor) {this(role,skill,abilities,capacity,assigned,traits,abilityTooltips,traitDetails,promotion,advisor,"");}
+        public Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails,String promotion) {this(role,skill,abilities,capacity,assigned,traits,abilityTooltips,traitDetails,promotion,"");}
+        public Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails) {this(role,skill,abilities,capacity,assigned,traits,abilityTooltips,traitDetails,"");}
         public Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips) {this(role,skill,abilities,capacity,assigned,traits,abilityTooltips,List.of());}
         public Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits) {this(role,skill,abilities,capacity,assigned,traits,List.of());}
         public Leader {
@@ -23,6 +26,7 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
             if(!abilityTooltips.isEmpty()&&abilityTooltips.size()!=4)throw new IllegalArgumentException("Invalid commander ability tooltips");
             abilityTooltips.forEach(v->text(v,500));traitDetails=traitDetails==null?List.of():List.copyOf(traitDetails);
             if(traitDetails.size()>128)throw new IllegalArgumentException("Invalid commander trait details");
+            promotion=promotion==null?"":promotion;text(promotion,600);advisor=advisor==null?"":advisor;text(advisor,600);advisorIcon=advisorIcon==null?"":advisorIcon;asset(advisorIcon);
         }
     }
     public record TraitNode(int row,int column,boolean terrain,List<String> parents,List<String> exclusive,boolean owned,boolean assignable,boolean available,String kind) {
@@ -63,7 +67,7 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
         if(revision<0)throw new IllegalArgumentException("Invalid dialog revision");
         Objects.requireNonNull(kind);text(title,240);text(subtitle,600);text(body,24000);asset(flag);asset(image);asset(sound);
         tiles=List.copyOf(tiles);choices=List.copyOf(choices);
-        if(tiles.size()>160||choices.size()>(kind==Kind.POLITICS||kind==Kind.COMMANDER?160:24))throw new IllegalArgumentException("Dialog limit exceeded");
+        if(tiles.size()>160||choices.size()>(kind==Kind.COMMANDER?480:kind==Kind.POLITICS?160:24))throw new IllegalArgumentException("Dialog limit exceeded");
         if(choices.stream().map(Choice::id).distinct().count()!=choices.size())throw new IllegalArgumentException("Duplicate dialog choice");
     }
     public ProtocolDialogView issued(String id,long version) {return new ProtocolDialogView(id,version,kind,title,subtitle,body,flag,image,sound,tiles,choices,presentation);}

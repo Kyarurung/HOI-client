@@ -46,20 +46,18 @@ public class ScreenDialog extends Screen {
     }
     void renderChoiceTooltip(GuiGraphicsExtractor g, int mx, int my) {
         String id = "", text = "";
-        int anchorY = my;
         for (var entry : choiceTooltips.entrySet()) {
             var button = entry.getKey();
             if (!dev.hoi.client.ui.UiTooltips.contains(button, mx, my)) continue;
             var choice = entry.getValue();
             id = choice.id(); text = choice.tooltip();
-            anchorY = button.getBottom() + 19;
             float scale = Math.max(dev.hoi.client.ui.UiText.scale(font), textScale() + 1f / font.lineHeight);
             if (text.isEmpty() && font.width(choice.label()) * scale > button.getWidth() - 6
                     && dev.hoi.client.ui.UiMenuButton.labelHeight(font, choice.label(), button.getWidth(), textScale()) > button.getHeight()) text = choice.label();
             break;
         }
         if (!id.equals(hoveredChoice)) { hoveredChoice = id; tooltipScroll = 0; }
-        tooltipBounds = text.isEmpty() ? null : tooltipText.tooltip(g, font, text, mx, anchorY, width, height, tooltipScroll);
+        tooltipBounds = text.isEmpty() ? null : tooltipText.tooltip(g, font, text, mx, my, width, height, tooltipScroll);
     }
     boolean scrollChoiceTooltip(double x, double y, double vertical) {
         if (tooltipBounds == null || tooltipBounds.maxScroll() == 0) return false;
@@ -111,7 +109,7 @@ public class ScreenDialog extends Screen {
     }
     Component bodyText() {
         if (sourceEvent()) return tooltipText.component(view.body());
-        var body=Component.literal(view.body());
+        var body=dev.hoi.client.ui.UiTooltips.sourceSpacing(Component.literal(view.body()));
         return view.kind()==ProtocolDialogView.Kind.COMMANDER?dev.hoi.client.ui.UiKeywordIcons.decorateLines(body,false):body;
     }
     @Override protected void init() {
@@ -173,7 +171,7 @@ public class ScreenDialog extends Screen {
         int y = bodyTop + 5 - scroll;
         if (view.kind() != ProtocolDialogView.Kind.EVENT) y = image(g, y);
         if (view.kind() != ProtocolDialogView.Kind.STATE) {
-            for (var line : font.split(bodyText(), (int)((pane - 32) / textScale()))) { text(g, line, left + 15, y, ink); y += paper() ? 12 : 13; }
+            for (var line : dev.hoi.client.ui.UiTooltips.split(font,bodyText(), (int)((pane - 32) / textScale()))) { text(g, line, left + 15, y, ink); y += paper() ? 12 : 13; }
             if (!view.body().isEmpty()) y += 10;
         }
         if (view.kind() == ProtocolDialogView.Kind.EVENT) y = image(g, y);
@@ -188,10 +186,10 @@ public class ScreenDialog extends Screen {
             }
             y += ((view.tiles().size() + 2) / 3) * 59;
             y += 8;
-            for (var line : font.split(Component.literal(view.body()), pane - 32)) { g.text(font, line, left + 15, y, ink); y += 13; }
+            for (var line : dev.hoi.client.ui.UiTooltips.split(font,Component.literal(view.body()), pane - 32)) { g.text(font, line, left + 15, y, ink); y += 13; }
         } else for (var tile : view.tiles()) {
             text(g, Component.literal(trim(tile.name() + (tile.value().isEmpty() ? "" : " · " + tile.value()), (int)((pane - 32) / textScale()))).getVisualOrderText(), left + 15, y, ink); y += paper() ? 15 : 17;
-            for (var line : font.split(Component.literal(tile.detail()), (int)((pane - 40) / textScale()))) { text(g, line, left + 19, y, ink); y += paper() ? 12 : 13; }
+            for (var line : dev.hoi.client.ui.UiTooltips.split(font,Component.literal(tile.detail()), (int)((pane - 40) / textScale()))) { text(g, line, left + 19, y, ink); y += paper() ? 12 : 13; }
             y += 15;
         }
         total = y + scroll - bodyTop;
@@ -231,7 +229,7 @@ public class ScreenDialog extends Screen {
                 Math.min((wide ? 1001.0 : news ? 400.0 : 526.0) / original[0], (wide ? 609.0 : news ? 150.0 : 300.0) / original[1])) : 0;
         int imageWidth = units(original[0] * imageScale), imageHeight = units(original[1] * imageScale);
         bodyWidth = units(wide ? 500 : news ? 560 : 526);
-        total = font.split(bodyText(), Math.max(1, (int)(bodyWidth / textScale()))).size() * 12;
+        total = dev.hoi.client.ui.UiTooltips.split(font,bodyText(), Math.max(1, (int)(bodyWidth / textScale()))).size() * 12;
         int optionTop;
         int imageTop;
         if (wide) {
@@ -311,7 +309,7 @@ public class ScreenDialog extends Screen {
         eventTitle(g, eventHeading[0], eventHeading[1], eventHeading[2], eventHeading[3], wide ? UiMenuStyle.TEXT : 0xff000000, false);
         g.enableScissor(bodyLeft, bodyTop, bodyLeft + bodyWidth, bodyBottom);
         int y = bodyTop - scroll;
-        for (var line : font.split(bodyText(), Math.max(1, (int)(bodyWidth / textScale())))) {
+        for (var line : dev.hoi.client.ui.UiTooltips.split(font,bodyText(), Math.max(1, (int)(bodyWidth / textScale())))) {
             dev.hoi.client.ui.UiText.text(g, font, line, wide ? bodyLeft + (bodyWidth - (int)(font.width(line) * textScale())) / 2 : bodyLeft,
                     y, wide ? UiMenuStyle.TEXT : 0xff000000, false);
             y += 12;

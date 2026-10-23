@@ -25,17 +25,17 @@ public final class UiHudTooltip {
         var lines = new ArrayList<FormattedCharSequence>();
         var original = hud.details().get(item.icon());
         if (original != null && original.sourceText() != null) {
-            for (String line : UiTooltipText.colorLines(original.sourceText())) {
+            for (String line : UiTooltipText.colorLines(UiCommandLabels.withoutShortcuts(original.sourceText()))) {
                 if (UiTooltipText.blank(line)) lines.add(FormattedCharSequence.EMPTY);
-                else lines.addAll(font.split(UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal(line).withColor(0xFFFFFF), false), false), item.icon().equals("gdp") ? wrap : Math.min(175, wrap)));
+                else lines.addAll(UiTooltips.split(font,UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal(line).withColor(0xFFFFFF), false), false), item.icon().equals("gdp") ? wrap : Math.min(175, wrap)));
             }
             cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;
-            cachedBody = List.copyOf(lines); return cachedBody;
+            cachedBody = UiTooltips.collapseBlankLines(lines); return cachedBody;
         }
         if (item.icon().equals("fuel")) lines.add(FormattedCharSequence.EMPTY);
         String current = (item.icon().equals("party_support") || item.icon().equals("supplies")) ? item.value() : item.raw() == null ? "0" : item.format() == UiMenuBar.UiFormat.PERCENT
                 ? UiMenuBar.rawNumber(item.raw().doubleValue() * 100) + "%" : UiMenuBar.rawNumber(item.raw());
-        if (!item.icon().equals("fuel") && !item.icon().equals("world_tension") && !item.icon().equals("convoys") && !item.icon().equals("supplies") && UiTooltipText.visible(current)) lines.addAll(font.split(Component.literal("현재: " + current).withColor(UiMenuBar.indicatorColor(item)), wrap));
+        if (!item.icon().equals("fuel") && !item.icon().equals("world_tension") && !item.icon().equals("convoys") && !item.icon().equals("supplies") && UiTooltipText.visible(current)) lines.addAll(UiTooltips.split(font,Component.literal("현재: " + current).withColor(UiMenuBar.indicatorColor(item)), wrap));
         var detail = hud.details().get(item.icon());
         if (detail != null) for (var row : detail.rows()) {
             if (UiTooltipText.blank(row.label()) && row.value().isEmpty()) {
@@ -49,14 +49,14 @@ public final class UiHudTooltip {
             String value = row.value();
             var text = Component.literal(row.label() + (value.isEmpty() ? "" : ": " + value))
                     .withStyle(style -> style.withColor(color));
-            lines.addAll(font.split(item.icon().equals("fuel") ? fuelNumbers(text.getString(), color) : item.icon().equals("convoys") ? convoyNumbers(text.getString(), color) : UiTooltips.styled(text, false), wrap));
+            lines.addAll(UiTooltips.split(font,item.icon().equals("fuel") ? fuelNumbers(text.getString(), color) : item.icon().equals("convoys") ? convoyNumbers(text.getString(), color) : UiTooltips.styled(text, false), wrap));
         } else {
-            if (item.barLabel() != null && item.ratio() != null && item.ratio() != 0) lines.addAll(font.split(Component.literal(item.barLabel() + ": "
+            if (item.barLabel() != null && item.ratio() != null && item.ratio() != 0) lines.addAll(UiTooltips.split(font,Component.literal(item.barLabel() + ": "
                     + (item.ratio() == null ? "0" : UiMenuBar.rawNumber(item.ratio() * 100) + "%")), wrap));
-            lines.addAll(font.split(Component.literal("세부 내역 없음").withStyle(s -> s.withColor(0x9BABB4)), wrap));
+            lines.addAll(UiTooltips.split(font,Component.literal("세부 내역 없음").withStyle(s -> s.withColor(0x9BABB4)), wrap));
         }
         cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;
-        cachedBody = List.copyOf(lines); return cachedBody;
+        cachedBody = UiTooltips.collapseBlankLines(lines); return cachedBody;
     }
     private static Component fuelNumbers(String text,int color) {
         var result=Component.empty();
@@ -92,6 +92,6 @@ public final class UiHudTooltip {
             visible.add(title.getVisualOrderText());
         }
         visible.addAll(content);
-        g.setTooltipForNextFrame(font, visible, mx, Math.max(16, my));
+        g.setTooltipForNextFrame(font, UiTooltips.collapseBlankLines(visible), mx, my);
     }
 }

@@ -21,13 +21,13 @@ public final class UiCommandLabels {
         if(text==null||text.isEmpty())return text;
         text=text.replace("이 버튼을 눌러서 모드를 전환하거나 §GCtrl§!을 길게 누르십시오.","이 버튼을 눌러서 모드를 전환하십시오.").replace("이 버튼을 눌러서 모드를 전환하거나 §GAlt§!를 길게 누르십시오.","이 버튼을 눌러서 모드를 전환하십시오.");
         var lines=new ArrayList<String>();boolean removedTail=false;
-        for(String line:text.split("\\n",-1)) {
-            String visible=line.replaceAll("§.","").strip();
+        for(String line:text.split("\\R",-1)) {
+            String visible=line.replaceAll("§(?:#[0-9a-fA-F]{6}|.)","").strip();
             if(visible.matches("(?i)^(?:단축키|키 설정|shortcut|hotkey)\\s*[:：].*")||visible.startsWith("£ctrl + £b로 ")) {
-                while(!lines.isEmpty()&&lines.getLast().isBlank())lines.removeLast();
+                while(!lines.isEmpty()&&UiTooltipText.blank(lines.getLast()))lines.removeLast();
                 removedTail=true;continue;
             }
-            if(removedTail&&line.isBlank())continue;
+            if(removedTail&&UiTooltipText.blank(line))continue;
             lines.add(line.replaceAll(" 또는 £(?:ctrl\\s*\\+\\s*£)?[a-zA-Z]+\\s*$",""));removedTail=false;
         }
         return String.join("\n",lines);

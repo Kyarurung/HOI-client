@@ -32,7 +32,7 @@ public final class UiKeywordIcons {
             }
             return Optional.empty();
         }, net.minecraft.network.chat.Style.EMPTY);
-        return result.append(decorateSource(line[0], inferIcons));
+        return UiTooltips.sourceSpacing(result.append(decorateSource(line[0], inferIcons)));
     }
     private static Component decorateSource(Component text, boolean inferIcons) {
         if(!text.getString().contains("£"))return inferIcons ? decorate(text) : text;

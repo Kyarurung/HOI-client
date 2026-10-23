@@ -41,7 +41,7 @@ public final class UiPoliticalTooltip {
     }
     private static int draw(GuiGraphicsExtractor g, Font font, ProtocolMenuView.Entry entry, String flag, String countryName,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, boolean compact, boolean icons) {
-        entry = new ProtocolMenuView.Entry(entry.name(), entry.value(), UiTooltipText.sourceSpacing(entry.detail()), entry.progress(), entry.icon());
+        entry = new ProtocolMenuView.Entry(entry.name(), entry.value(), UiTooltipText.sourceSpacing(UiCommandLabels.withoutShortcuts(entry.detail())), entry.progress(), entry.icon());
         int width = Math.max(80, Math.min(270, viewportWidth - 24));
         if (compact) {
             int measured = 80;
@@ -58,13 +58,13 @@ public final class UiPoliticalTooltip {
         if (!compact) rows.add(new UiTooltipRow(Component.literal(entry.value().isBlank() ? entry.name() : entry.value())
                 .withColor(UiTooltips.GOLD).getVisualOrderText(), "", font.lineHeight + 3));
         if (!flag.isEmpty() && compact) {
-            var lines = font.split(Component.literal(detail), width - 15);
+            var lines = UiTooltips.split(font,Component.literal(detail), width - 15);
             for (int i = 0; i < lines.size(); i++) rows.add(new UiTooltipRow(lines.get(i), i == 0 ? flag : "", font.lineHeight + 1));
             detail = "";
         } else if (!flag.isEmpty()) {
             var role = Component.literal(countryName).withColor(UiTooltips.GOLD)
                     .append(Component.literal("의 국가원수").withStyle(net.minecraft.ChatFormatting.WHITE));
-            var roleLines = font.split(role, width - 15);
+            var roleLines = UiTooltips.split(font,role, width - 15);
             for (int i = 0; i < roleLines.size(); i++) rows.add(new UiTooltipRow(roleLines.get(i), i == 0 ? flag : "", font.lineHeight + 1));
             if (!detail.isEmpty()) rows.add(new UiTooltipRow(Component.empty().getVisualOrderText(), "", font.lineHeight + 1));
         }
@@ -80,6 +80,7 @@ public final class UiPoliticalTooltip {
             } else for (var text : UiTooltips.formattedLines(font, line, width + 24, icons))
                 rows.add(new UiTooltipRow(text, "", font.lineHeight + 1));
         }
+        rows=new ArrayList<>(UiTooltipText.collapseBlankLines(rows,row->row.image().isEmpty()&&row.text()!=null&&UiTooltips.blank(row.text())));
         int total = rows.stream().mapToInt(UiTooltipRow::height).sum();
         int height = Math.min(total, viewportHeight - 30);
         scroll = Math.clamp(scroll, 0, Math.max(0, (total - height + 9) / 10));

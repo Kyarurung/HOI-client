@@ -124,14 +124,14 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             button.active = detail == null && confirmation == null; addRenderableWidget(button);
         }
         if (actionsVisible()) {
-            int pitch = Math.max(16, ScreenDiplomacyHeader.scaled(29, pane));
+            int pitch = Math.max(14, ScreenDiplomacyHeader.scaled(29, pane));
             actionScroll = Math.clamp(actionScroll, 0, Math.max(0, view.actions().entries().size() * pitch - (height - 33 - bodyTop())));
             int y = bodyTop() - actionScroll;
             for (var action : view.actions().entries()) {
                 int actionY = y;
                 y += pitch;
                 if (actionY < bodyTop() || actionY + pitch > height - 33) continue;
-                var button = new ScreenActionButton(action.name(), pane / 2 + 3, actionY, pane / 2 - 12, Math.max(15, ScreenDiplomacyHeader.scaled(28, pane)),
+                var button = new ScreenActionButton(action.name(), pane / 2 + 3, actionY, pane / 2 - 12, pitch - 1,
                         () -> { confirmation = action; amountText = "1"; confirmationScroll = 0; if (action.id().startsWith("page_") || action.id().equals("lend_lease") || action.id().equals("volunteers")) { actionScroll = 0; sendAction(); } else rebuildWidgets(); });
                 button.active = action.enabled() && !pending && confirmation == null && detail == null;
                 button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(action.name() + "\n" + action.detail())));
@@ -278,7 +278,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             }
             g.disableScissor();
             if (view.actions() != null && !view.actions().message().isBlank()) {
-                var lines = font.split(Component.literal(view.actions().message()), pane - 24);
+                var lines = dev.hoi.client.ui.UiTooltips.split(font,Component.literal(view.actions().message()), pane - 24);
                 int messageY = height - 42 - Math.min(3, lines.size()) * 12;
                 for (var line : lines.stream().limit(3).toList()) { dev.hoi.client.ui.UiText.text(g, font, line, 12, messageY, 0xFFFFBB22); messageY += 12; }
             }
@@ -286,7 +286,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 int x = detailX(), w = detailWidth();
                 g.nextStratum(); UiMenuStyle.panel(g, x, top, w, 207);
                 UiMenuStyle.heading(g, font, confirmation.name(), x + 10, top + 9, w - 20, UiMenuStyle.TEXT);
-                var lines = font.split(Component.literal(dev.hoi.client.ui.UiCountryDisplay.name(view.target(), view.name()) + "\n\n" + confirmation.detail()), w - 24);
+                var lines = dev.hoi.client.ui.UiTooltips.split(font,Component.literal(dev.hoi.client.ui.UiCountryDisplay.name(view.target(), view.name()) + "\n\n" + confirmation.detail()), w - 24);
                 confirmationScroll = Math.clamp(confirmationScroll, 0, Math.max(0, lines.size() * 13 - (confirmation.amountInput() == null ? 127 : 84)));
                 g.enableScissor(x + 7, top + 36, x + w - 7, top + (confirmation.amountInput() == null ? 165 : 122));
                 int y = top + 38 - confirmationScroll;
@@ -301,7 +301,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 int x = detailX(), w = detailWidth();
                 g.nextStratum(); UiMenuStyle.panel(g, x, top, w, height - top - 31);
                 UiMenuStyle.heading(g, font, trim(detail.name(), w - 55), x + 9, top + 9, w - 44, UiMenuStyle.TEXT);
-                var lines = font.split(Component.literal(detail.value() + "\n\n" + (detail.detail().isEmpty() ? "추가 정보 없음" : detail.detail())), w - 22);
+                var lines = dev.hoi.client.ui.UiTooltips.split(font,Component.literal(detail.value() + "\n\n" + (detail.detail().isEmpty() ? "추가 정보 없음" : detail.detail())), w - 22);
                 detailScroll = Math.clamp(detailScroll, 0, Math.max(0, lines.size() * 13 - (height - top - 78)));
                 g.enableScissor(x + 7, top + 32, x + w - 7, height - 37);
                 int y = top + 34 - detailScroll;
@@ -369,7 +369,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         if (confirmation != null) { confirmationScroll -= (int)(vertical * 26); return true; }
         if (detail != null) { detailScroll -= (int)(vertical * 26); return true; }
         if (x < pane && y >= bodyTop()) {
-            if (actionsVisible() && x >= pane / 2) actionScroll -= (int)(vertical * Math.max(16, ScreenDiplomacyHeader.scaled(29, pane)));
+            if (actionsVisible() && x >= pane / 2) actionScroll -= (int)(vertical * Math.max(14, ScreenDiplomacyHeader.scaled(29, pane)));
             else scroll -= (int)(vertical * 39);
             rebuildWidgets(); return true;
         }

@@ -213,7 +213,7 @@ public final class ScreenDoctrine extends Screen implements InputSidebarMovement
         if (tooltipBounds != null) tooltipScroll = tooltipBounds.scroll();
     }
     private net.minecraft.util.FormattedCharSequence firstLine(Component text,int width) {
-        var lines=font.split(text,Math.max(1,(int)(width/UiText.scale(font))));
+        var lines=UiTooltips.split(font,text,Math.max(1,(int)(width/UiText.scale(font))));
         return lines.isEmpty()?Component.empty().getVisualOrderText():lines.getFirst();
     }
     static int rewardFrame(int branch, boolean unlocked) { return branch * 2 + (unlocked ? 0 : 1); }
