@@ -27,7 +27,7 @@ public final class ProtocolAudioPayloads {
         MAP_ARMY("ui.map.army"), MAP_NAVY("ui.map.navy"), MAP_AIR("ui.map.air"),
         MAP_SUPPLY("ui.map.supply"), MAP_CONSTRUCTION("ui.map.construction"),
         POLITICS_APPOINT("ui.politics.appoint"), POLITICS_LAW("ui.politics.law"), UI_CLICK("ui.click"),
-        COUNTRY_SELECT("ui.country.select");
+        COUNTRY_SELECT("ui.country.select"), ORDER_CONVOY_TRANSPORT("ui.order.convoy_transport");
         private final String sound;
         Cue(String sound) { this.sound = sound; }
         public String sound() { return sound; }

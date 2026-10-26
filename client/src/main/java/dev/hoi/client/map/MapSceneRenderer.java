@@ -31,6 +31,7 @@ public final class MapSceneRenderer {
     private static MapSceneMesh decision;
     private static int decisionColor=0xffffffff;
     private static String planCountry="";
+    private static List<dev.hoi.protocol.ProtocolCommanderHud.AirArrow> air=List.of();
     private static final MapSceneAssembler PLANS=new MapSceneAssembler();
     private static final MapSceneAssembler DEPLOYMENT = new MapSceneAssembler();
     private static final MapSceneAssembler OCCUPATION = new MapSceneAssembler();
@@ -47,9 +48,8 @@ public final class MapSceneRenderer {
             Map.entry(Material.DESERT, Identifier.parse("minecraft:block/sand")),
             Map.entry(Material.NAVY_RIVER, Identifier.parse("minecraft:block/gray_concrete")),
             Map.entry(Material.AIR_RIVER, Identifier.parse("minecraft:block/light_gray_concrete")),
-            Map.entry(Material.GRAY, Identifier.parse("minecraft:block/gray_concrete")), Map.entry(Material.DEPLOYMENT, Identifier.parse("minecraft:block/lime_concrete")),
-            Map.entry(Material.AIR_SELECTED, Identifier.parse("minecraft:block/white_concrete")), Map.entry(Material.AIR_ACTIVE, Identifier.parse("minecraft:block/white_concrete")));
-    private record MapRenderFrame(List<MapTile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city,List<MapTile> decision,int decisionColor,MapAirRangeOverlay.Frame ranges) {}
+            Map.entry(Material.GRAY, Identifier.parse("minecraft:block/gray_concrete")), Map.entry(Material.DEPLOYMENT, Identifier.parse("minecraft:block/lime_concrete")));
+    private record MapRenderFrame(List<MapTile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city,List<MapTile> decision,int decisionColor,MapAirRangeOverlay.Frame ranges,List<MapAirArrowOverlay.Mesh> air) {}
     public static void register() {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_LOAD.register((world,chunk)->MapAirRangeOverlay.clear());
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_UNLOAD.register((world,chunk)->MapAirRangeOverlay.clear());
@@ -69,7 +69,7 @@ public final class MapSceneRenderer {
         });
         dev.hoi.protocol.ProtocolCommanderHud.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolCommanderHud.PlanOverlay.TYPE,(packet,context)->{
-            receivePlans(packet.country(),packet.page(),packet.movement());
+            receivePlans(packet.country(),packet.page(),packet.movement(),packet.air());
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(MapSceneRenderer::clear));
         LevelExtractionEvents.END_EXTRACTION.register(context -> {
@@ -90,7 +90,8 @@ public final class MapSceneRenderer {
             if (occupation != null && dimension.equals(occupation.dimension())) examinedTiles+=occupation.collect(camera.pos, tiles);
             if(plans!=null&&dimension.equals(plans.dimension()))examinedTiles+=plans.collect(camera.pos,tiles);
             tiles.removeIf(tile -> !camera.cullFrustum.isVisible(tile.bounds()));
-            visibleTiles=tiles.size();
+            var airMeshes=plans!=null&&dimension.equals(plans.dimension())?MapAirArrowOverlay.build(air,context.level().getGameTime()/20.0).stream().filter(mesh->camera.cullFrustum.isVisible(mesh.tile().bounds())&&mesh.tile().bounds().distanceToSqr(camera.pos)<=ProtocolAtlasVisibility.BOUNDARY_RANGE*ProtocolAtlasVisibility.BOUNDARY_RANGE&&MapAirArrowOverlay.texture(mesh.kind())!=null).toList():List.<MapAirArrowOverlay.Mesh>of();
+            visibleTiles=tiles.size()+airMeshes.size();
             var client = Minecraft.getInstance();
             if (sprites == null) {
                 var atlas = client.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
@@ -106,7 +107,7 @@ public final class MapSceneRenderer {
             var highlighted=new ArrayList<MapTile>();
             if(decision!=null)decision.collect(camera.pos,highlighted);
             highlighted.removeIf(tile->!camera.cullFrustum.isVisible(tile.bounds()));
-            context.levelState().setData(FRAME, new MapRenderFrame(tiles, sprites, city,highlighted,decisionColor,ranges));
+            context.levelState().setData(FRAME, new MapRenderFrame(tiles, sprites, city,highlighted,decisionColor,ranges,airMeshes));
         });
         LevelRenderEvents.COLLECT_SUBMITS.register(MapSceneRenderer::draw);
     }
@@ -124,17 +125,20 @@ public final class MapSceneRenderer {
     static void clearOccupation() {occupation=null;OCCUPATION.clear();}
     static void receivePlans(String country,ProtocolAtlasScene.Page page) {receivePlans(country,page,List.of());}
     static void receivePlans(String country,ProtocolAtlasScene.Page page,List<dev.hoi.protocol.ProtocolCommanderHud.MovementQuad> movement) {
+        receivePlans(country,page,movement,List.of());
+    }
+    static void receivePlans(String country,ProtocolAtlasScene.Page page,List<dev.hoi.protocol.ProtocolCommanderHud.MovementQuad> movement,List<dev.hoi.protocol.ProtocolCommanderHud.AirArrow> arrows) {
         var client=Minecraft.getInstance();
         if(!country.equals(dev.hoi.client.ClientCampaignHud.country())||client.level==null||!page.dimension().equals(client.level.dimension().identifier().toString()))return;
         if(!planCountry.equals(country))clearPlans();
-        planCountry=country;var complete=PLANS.accept(page,movement);if(complete!=null)plans=MapSceneMesh.build(page.dimension(),complete.boxes(),complete.movement());
+        planCountry=country;var complete=PLANS.accept(page,movement,arrows);if(complete!=null){plans=MapSceneMesh.build(page.dimension(),complete.boxes(),complete.movement());air=complete.air();}
     }
     private static void receivePlans(ProtocolAtlasScene.Page page) {
         var boxes=PLANS.accept(page);if(boxes!=null)plans=MapSceneMesh.build(page.dimension(),boxes);
     }
-    static void clearPlans(){plans=null;planCountry="";PLANS.clear();}
+    static void clearPlans(){air=List.of();plans=null;planCountry="";PLANS.clear();}
     static void clear() { clearDeployment(); clearOccupation(); clearPlans(); decision=null;active = null; resourcesReloaded(); visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
-    public static void resourcesReloaded() { city = null; sprites = null; MapAirRangeOverlay.clear(); }
+    public static void resourcesReloaded() { city = null; sprites = null; MapAirRangeOverlay.clear(); MapAirArrowOverlay.clear(); }
     static int tileCount() { return active == null ? 0 : active.tiles().size(); }
     static int visibleTileCount() { return visibleTiles; }
     static int examinedTileCount() { return examinedTiles; }
@@ -142,7 +146,7 @@ public final class MapSceneRenderer {
         var frame = context.levelState().getData(FRAME); if (frame == null) return;
         var camera = context.levelState().cameraRenderState.pos;
         var pose = context.poseStack(); pose.pushPose(); pose.translate(-camera.x, -camera.y, -camera.z);
-        for(var tile:frame.ranges().fill())if(context.levelState().cameraRenderState.cullFrustum.isVisible(tile.bounds()))context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")),(matrix,consumer)->emit(tile,frame.sprites().get(Material.AIR_SELECTED),matrix,consumer,0x20ffffff));
+        for(var tile:frame.ranges().fill())if(context.levelState().cameraRenderState.cullFrustum.isVisible(tile.bounds()))context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")),(matrix,consumer)->emit(tile,frame.sprites().get(Material.COMPLIANCE),matrix,consumer,0x20ffffff));
         for(var tile:frame.ranges().outline())if(context.levelState().cameraRenderState.cullFrustum.isVisible(tile.bounds()))context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(Identifier.parse("hoi:textures/gui/map/air_range.png")),(matrix,consumer)->emit(tile,null,matrix,consumer,frame.ranges().color()));
         for (var tile : frame.tiles()) {
             if (tile.material() == Material.CITY) {
@@ -154,17 +158,19 @@ public final class MapSceneRenderer {
                 }
                 continue;
             }
-            if(tile.movement()){context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(Identifier.parse(tile.mission()?"hoi:textures/gui/map/mission_arrow.png":"hoi:textures/gui/map/movement_arrow.png")),(matrix,consumer)->emit(tile,null,matrix,consumer));continue;}
+            if(tile.movement()){context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(movementTexture(tile.arrow())),(matrix,consumer)->emit(tile,null,matrix,consumer));continue;}
             var sprite = frame.sprites().get(tile.material());
-            var type = tile.material() == Material.DMZ || tile.material() == Material.AIR_SELECTED || tile.material() == Material.AIR_ACTIVE ? RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")) : tile.material() == Material.FOREST || tile.material() == Material.JUNGLE ? RenderTypes.cutoutMovingBlock() : RenderTypes.solidMovingBlock();
+            var type = tile.material() == Material.DMZ ? RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")) : tile.material() == Material.FOREST || tile.material() == Material.JUNGLE ? RenderTypes.cutoutMovingBlock() : RenderTypes.solidMovingBlock();
             context.submitNodeCollector().submitCustomGeometry(pose, type, (matrix, consumer) -> emit(tile, sprite, matrix, consumer));
         }
         for(var tile:frame.decision())context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")),
-                (matrix,consumer)->emit(tile,frame.sprites().get(Material.AIR_SELECTED),matrix,consumer,frame.decisionColor()));
+                (matrix,consumer)->emit(tile,frame.sprites().get(Material.COMPLIANCE),matrix,consumer,frame.decisionColor()));
+        for(var mesh:frame.air()){var texture=MapAirArrowOverlay.texture(mesh.kind());if(texture!=null)context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(texture),(matrix,consumer)->emit(mesh.tile(),null,matrix,consumer,MapAirArrowOverlay.color(mesh.state())));}
         pose.popPose();
     }
+    static Identifier movementTexture(dev.hoi.protocol.ProtocolCommanderHud.Arrow arrow){return Identifier.parse("hoi:textures/gui/map/"+switch(arrow){case MOVE->"movement_arrow";case MISSION->"mission_arrow";case RETREAT->"retreat_arrow";}+".png");}
     private static void emit(MapTile tile, TextureAtlasSprite sprite, PoseStack.Pose pose, VertexConsumer consumer) {
-        int color = tile.movement()?0xbfffffff:tile.material() == Material.RESISTANCE ? 0xff9b6363 : tile.material() == Material.COMPLIANCE ? 0xff5b668f : tile.material() == Material.DMZ ? 0xfeff0000 : tile.material() == Material.AIR_SELECTED ? 0xccffff00 : tile.material() == Material.AIR_ACTIVE ? 0x8000ff00 : tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
+        int color = tile.movement()?0xbfffffff:tile.material() == Material.RESISTANCE ? 0xff9b6363 : tile.material() == Material.COMPLIANCE ? 0xff5b668f : tile.material() == Material.DMZ ? 0xfeff0000 : tile.material() == Material.WATER ? 0xff3f76e4 : 0xffffffff;
         emit(tile,sprite,pose,consumer,color);
     }
     private static void emit(MapTile tile,TextureAtlasSprite sprite,PoseStack.Pose pose,VertexConsumer consumer,int color) {

@@ -12,7 +12,7 @@ public final class ProtocolResearchPayloads {
     private static boolean registered;
     private ProtocolResearchPayloads() {}
     public static final int MAX_JSON = 400_000;
-    public enum Action { OPEN, START, CANCEL, CLOSE }
+    public enum Action { OPEN, START, CANCEL, CLOSE, DESIGN_TEAM }
     public record OpenScreen() implements CustomPacketPayload {
         public static final Type<OpenScreen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "research_open_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf, OpenScreen> CODEC = StreamCodec.unit(new OpenScreen());

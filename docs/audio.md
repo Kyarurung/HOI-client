@@ -18,6 +18,8 @@
 
 ## 선택·시작·지도 효과음
 
+서버의 `Signal(ORDER_CONVOY_TRANSPORT)`는 기존 `AudioUiSounds.receive` 경로에서 `hoi:ui.order.convoy_transport`를 한 번 재생한다. 원본 `order_convoy_transport` → `convoy_transport_unit_01`은 외부 팩의 sound-provenance에 보존한다. 클라이언트 우클릭만으로 재생하지 않으며 승인 신호의 수신을 기다린다. `sea-transfer` 집중 검사는 SoundManager의 실제 로드·재생과 Master 채널을 검사한다. 직접 장치 청취와 운영 서버 승인 패킷의 종단간 검증은 별도다.
+
 국가 영토를 우클릭해 선택을 저장한 뒤 `COUNTRY_SELECT`로 `ui.country.select`를 한 번 재생한다. 원본은 HOI4 `select_country`의 `menu/click_mouse_over_03.wav`이다. 거절된 선택은 효과음을 내지 않는다.
 
 `/준비`는 시작 효과음을 내지 않는다. 전원이 준비한 뒤 `/시작`가 성공하면 중앙 선택 화면을 닫고 `ui.game_start`와 `ui.game_start_signal`을 각각 한 번 재생한다. 두 원본 표본을 별도 이벤트로 두어 무작위 선택으로 하나가 누락되지 않게 한다. 거절된 시작 요청은 소리나 음악 상태를 바꾸지 않는다.

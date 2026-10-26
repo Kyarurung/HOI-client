@@ -32,11 +32,19 @@ public record ProtocolMenuView(String country, String countryName, String date, 
         for (int i = 0; i < pages.size(); i++) if (pages.get(i).tab() != ProtocolMenuTab.ORDER.get(i)) throw new IllegalArgumentException("Invalid menu order");
     }
     public Page page(ProtocolMenuTab tab) { return pages.get(tab.ordinal()); }
-    public record Manufacturer(String id, List<String> groups, Entry entry) {
+    public record ManufacturerEquipment(String token, String name, int traits, int designs, int lines) {
+        public ManufacturerEquipment {
+            bounded(token,128); bounded(name,128);
+            if(!token.matches("[A-Za-z0-9_]+") || traits<0 || designs<0 || lines<0 || traits>256 || designs>256 || lines>256) throw new IllegalArgumentException("Invalid manufacturer equipment");
+        }
+    }
+    public record Manufacturer(String id, List<String> groups, Entry entry, String type, int size, int points, List<ManufacturerEquipment> equipment) {
+        public Manufacturer(String id, List<String> groups, Entry entry) { this(id, groups, entry, "", 0, 0, List.of()); }
         public Manufacturer {
-            bounded(id,128); groups=List.copyOf(groups);
+            bounded(id,128); groups=List.copyOf(groups); type=type==null?"":type; bounded(type,128); equipment=equipment==null?List.of():List.copyOf(equipment);
             if(id.isBlank() || entry==null || groups.isEmpty() || groups.size()>4
                     || !List.of("armor","navy","air","materiel").containsAll(groups)) throw new IllegalArgumentException("Invalid manufacturer");
+            if(size<0 || size>10000 || points<0 || points>10000 || equipment.size()>32) throw new IllegalArgumentException("Invalid manufacturer state");
         }
     }
     public record Page(ProtocolMenuTab tab, List<Section> sections) {

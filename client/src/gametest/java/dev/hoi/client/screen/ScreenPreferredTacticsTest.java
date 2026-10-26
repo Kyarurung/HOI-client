@@ -58,7 +58,7 @@ public final class ScreenPreferredTacticsTest {
                     var screen=(ScreenPreferredTactics)client.gui.screen();
                     var units=new dev.hoi.client.ui.UiUnits(screen.width,screen.height);
                     if(resolution[2]==2&&screen.bodyLineCount()<2)throw new AssertionError("Full native explanation must wrap instead of shrinking into one unreadable line");
-                    if(screen.bodyLineCount()*(client.font.lineHeight+1)*screen.bodyTextScale()>units.size(26)+.001f)throw new AssertionError("Tactic explanation escaped its own body rectangle");
+                    if(screen.bodyLineCount()*(client.font.lineHeight+1)*screen.bodyTextScale()>screen.bodyAreaHeight()+.001f)throw new AssertionError("Tactic explanation escaped its own body rectangle");
                     if(screen.bodyTextScale()<units.scale()*.5f)throw new AssertionError("Native tactic explanation became unreadably small: "+Arrays.toString(resolution)+" scale="+screen.bodyTextScale()+" units="+units.scale()+" lines="+screen.bodyLineCount());
                 });
                 context.takeScreenshot("hoi-national-tactics-"+resolution[0]+"x"+resolution[1]+"-gui"+resolution[2]);
@@ -90,10 +90,10 @@ public final class ScreenPreferredTacticsTest {
             context.setScreen(()->new ScreenPreferredTactics(insufficient,null,locked::add));hover(context,"tactic_basic_attack");context.takeScreenshot("hoi-national-tactics-insufficient-cp-gui2");click(context,"tactic_basic_attack");
             context.runOnClient(client->{if(!locked.isEmpty())throw new AssertionError("Insufficient national CP cannot issue a tactic action");});
             var actions=new ArrayList<ProtocolDialogPayloads.Action>();context.setScreen(()->new ScreenPreferredTactics(leader,null,actions::add));
-            hover(context,"tactic_basic_attack");context.takeScreenshot("hoi-general-preferred-tactics-gui2");click(context,"tactic_basic_attack");
+            hover(context,leader.tiles().getFirst().section());context.takeScreenshot("hoi-general-preferred-tactics-gui2");click(context,leader.tiles().getFirst().section());
             if(actions.size()!=1||!actions.getFirst().token().equals(leader.token()))throw new AssertionError("Leader must use its own issued session");
             var low=fixture("leader-tactic-low-skill");var rejected=new ArrayList<ProtocolDialogPayloads.Action>();
-            context.setScreen(()->new ScreenPreferredTactics(low,null,rejected::add));hover(context,"tactic_basic_attack");context.takeScreenshot("hoi-general-tactics-low-skill-tooltip-gui2");click(context,"tactic_basic_attack");
+            context.setScreen(()->new ScreenPreferredTactics(low,null,rejected::add));hover(context,leader.tiles().getFirst().section());context.takeScreenshot("hoi-general-tactics-low-skill-tooltip-gui2");click(context,leader.tiles().getFirst().section());
             context.runOnClient(client->{if(!rejected.isEmpty())throw new AssertionError("Below-level leader selection must retain its authoritative lock");});
             var lowTree=fixture("leader-tactic-low-skill-trait-tree");var entryActions=new ArrayList<ProtocolDialogPayloads.Action>();
             context.setScreen(()->new ScreenCommanderTraits(lowTree,null,entryActions::add));
@@ -107,7 +107,7 @@ public final class ScreenPreferredTacticsTest {
             context.takeScreenshot("hoi-general-tactics-low-skill-entry-tooltip-gui2");
             context.setScreen(()->new ScreenDialog(fixtureUnchecked("leader-tactic-confirm")));context.waitTicks(3);context.takeScreenshot("hoi-general-preferred-tactic-confirm-gui2");
             context.setScreen(()->new ScreenPreferredTactics(fixtureUnchecked("leader-tactic-selected"),null));
-            hover(context,"tactic_basic_attack");context.takeScreenshot("hoi-general-preferred-tactic-selected-gui2");context.setScreen(()->null);
+            hover(context,leader.tiles().getFirst().section());context.takeScreenshot("hoi-general-preferred-tactic-selected-gui2");context.setScreen(()->null);
         }catch(Exception failure){throw new AssertionError("Native preferred tactic renderer verification failed",failure);}
     }
     private static ProtocolDialogView fixtureUnchecked(String name) {

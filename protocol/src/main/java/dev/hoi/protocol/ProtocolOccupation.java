@@ -31,8 +31,9 @@ public final class ProtocolOccupation {
         public Details(int totalStates,double factoryShare,double resourceShare,Double divisions,double coverage){this(totalStates,factoryShare,resourceShare,divisions,coverage,null);}
         public Details {if(totalStates<0)throw new IllegalArgumentException("Occupation state total");positive(factoryShare);positive(resourceShare);ratio(coverage);if(divisions!=null)positive(divisions);}
     }
-    public record Administration(boolean resistance,boolean returnTerritory,boolean enabled,String tooltip) {
-        public Administration {text(tooltip,6000);}
+    public record Administration(boolean resistance,boolean returnTerritory,boolean enabled,String tooltip,String confirm) {
+        public Administration(boolean resistance,boolean returnTerritory,boolean enabled,String tooltip) {this(resistance,returnTerritory,enabled,tooltip,"");}
+        public Administration {text(tooltip,6000);confirm=confirm==null?"":confirm;text(confirm,6000);}
     }
     public record Row(String state,String name,String country,String countryName,double resistance,double compliance,
             double garrison,int factories,String template,String law,String resistanceTooltip,String complianceTooltip,
@@ -65,7 +66,7 @@ public final class ProtocolOccupation {
             if(rows.size()>2048||templates.size()>256||laws.size()>64)throw new IllegalArgumentException("Occupation view limit");
         }
     }
-    public enum Action { OPEN, REFRESH, CLOSE, LAW, TEMPLATE, RESET, RESISTANCE, COMPLIANCE }
+    public enum Action { OPEN, REFRESH, CLOSE, LAW, TEMPLATE, RESET, RESISTANCE, COMPLIANCE, RETURN }
     public record Request(Action action,String token,long revision,String state,String value) implements CustomPacketPayload {
         public Request {Objects.requireNonNull(action);UUID.fromString(token);if(revision<0)throw new IllegalArgumentException("Invalid occupation revision");text(state,160);text(value,160);}
         public static final Type<Request> TYPE=new Type<>(Identifier.parse("hoi:occupation_request_v3"));

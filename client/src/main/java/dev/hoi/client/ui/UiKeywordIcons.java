@@ -12,7 +12,7 @@ public final class UiKeywordIcons {
     private record UiIconBinding(String label, String glyph) {}
     private static List<UiIconBinding> bindings;
     private static Map<String,String> tokens=Map.of();
-    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)£?");
+    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)[^\\r\\n]?");
     private UiKeywordIcons() {}
     static void clear() { bindings = null; tokens=Map.of(); }
     public static Component decorateLines(Component text) {
@@ -38,19 +38,26 @@ public final class UiKeywordIcons {
         if(!text.getString().contains("£"))return inferIcons ? decorate(text) : text;
         if(bindings==null)bindings=load();
         var result=Component.empty();
+        var matcher=TOKENS.matcher(text.getString());
+        int start=0;
+        while(matcher.find()) {
+            appendRange(result,text,start,matcher.start());
+            String token=matcher.group(1).replaceFirst("^GFX_","");
+            String glyph=tokens.get(token.equals("pol_power_icon")?"pol_power":token);
+            if(glyph!=null)result.append(Component.literal(glyph).withStyle(s->s.withFont(FONT).withColor(0xFFFFFF)));
+            start=matcher.end();
+        }
+        appendRange(result,text,start,text.getString().length());
+        return result;
+    }
+    private static void appendRange(net.minecraft.network.chat.MutableComponent result,Component text,int start,int end) {
+        int[] position={0};
         text.visit((style,part)->{
-            var matcher=TOKENS.matcher(part);
-            int start=0;
-            while(matcher.find()) {
-                result.append(Component.literal(part.substring(start,matcher.start())).withStyle(style));
-                String glyph=tokens.get(matcher.group(1).replaceFirst("^GFX_",""));
-                if(glyph!=null)result.append(Component.literal(glyph).withStyle(s->s.withFont(FONT).withColor(0xFFFFFF)));
-                start=matcher.end();
-            }
-            result.append(Component.literal(part.substring(start)).withStyle(style));
+            int from=Math.max(0,start-position[0]),to=Math.min(part.length(),end-position[0]);
+            if(from<to)result.append(Component.literal(part.substring(from,to)).withStyle(style));
+            position[0]+=part.length();
             return Optional.empty();
         },net.minecraft.network.chat.Style.EMPTY);
-        return result;
     }
     public static Component decorate(Component text) {
         if (bindings == null) bindings = load();

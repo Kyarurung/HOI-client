@@ -81,7 +81,8 @@ public final class ScreenDialogCoordinator {
         var existing = find(view.token());
         if (existing != null) {
             if(view.revision()<existing.view().revision())return;
-            if(view.kind()==ProtocolDialogView.Kind.STATE&&(existing instanceof ScreenAirDetail||existing instanceof ScreenMapDetail)
+            if(ScreenOfficerRoster.matches(view)!=(existing instanceof ScreenOfficerRoster)||ScreenDivisionTemplates.matches(view)!=(existing instanceof ScreenDivisionTemplates)||ScreenCommanderConfirmation.matches(view)!=(existing instanceof ScreenCommanderConfirmation)){if(view.revision()>existing.view().revision())show(view);}
+            else if(view.kind()==ProtocolDialogView.Kind.STATE&&(existing instanceof ScreenAirDetail||existing instanceof ScreenMapDetail)
                     &&(existing instanceof ScreenAirDetail)!=view.image().equals("air_detail/background"))show(view);
             else existing.update(view);
             return;
@@ -117,12 +118,17 @@ public final class ScreenDialogCoordinator {
                     view.presentation().equals("research_complete") ? "ui.research.complete" : "ui.focus.complete");
         } else {
             HoiClient.cancelOpen();
-            var parent = contentScreen();
+            var originalParent = contentScreen();
+            var parent = originalParent;
+            if (parent instanceof ScreenCommanderConfirmation confirmation) parent=confirmation.backdrop();
+            if (parent instanceof ScreenOfficerRoster officers) parent=officers.backdrop();
             if (parent instanceof ScreenPreferredTactics tactics) parent=tactics.backdrop();
             if (parent instanceof ScreenPoliticsChoice politics) parent = politics.backdrop();
             if (parent instanceof ScreenCommanderRoster commander) parent = commander.backdrop();
+            if (parent instanceof ScreenOrganization organization) parent = organization.backdrop();
             if (parent instanceof ScreenCommanderTraits traits) parent = traits.backdrop();
-            var screen = Set.of("commander/tactic-confirm","commander/advisor-confirm").contains(view.image()) ? new ScreenDialog(view) : view.image().endsWith("preferred_tactic_selection") ? new ScreenPreferredTactics(view,parent) : view.kind() == ProtocolDialogView.Kind.COMMANDER ? ((view.image().startsWith("commander/trait-")||view.image().equals("commander/advisor-roles"))?new ScreenCommanderTraits(view,parent):new ScreenCommanderRoster(view,parent)) : view.kind() == ProtocolDialogView.Kind.POLITICS ? new ScreenPoliticsChoice(view, parent) : view.kind() == ProtocolDialogView.Kind.STATE ? (view.image().equals("air_detail/background") ? new ScreenAirDetail(view) : new ScreenMapDetail(view)) : new ScreenDialog(view);
+            var screen = ScreenOfficerRoster.matches(view) ? new ScreenOfficerRoster(view,originalParent instanceof ScreenCommanderRoster?originalParent:parent) : ScreenDivisionTemplates.matches(view) ? new ScreenDivisionTemplates(view) : view.image().startsWith("organization/") ? new ScreenOrganization(view,parent) : ScreenCommanderConfirmation.matches(view) ? new ScreenCommanderConfirmation(view) : view.image().equals("commander/tactic-confirm") ? new ScreenDialog(view) : view.image().endsWith("preferred_tactic_selection") ? new ScreenPreferredTactics(view,parent) : view.kind() == ProtocolDialogView.Kind.COMMANDER ? ((view.image().startsWith("commander/trait-")||view.image().equals("commander/advisor-roles"))?new ScreenCommanderTraits(view,parent):new ScreenCommanderRoster(view,parent)) : view.kind() == ProtocolDialogView.Kind.POLITICS ? new ScreenPoliticsChoice(view, parent) : view.kind() == ProtocolDialogView.Kind.STATE ? (view.image().equals("air_detail/background") ? new ScreenAirDetail(view) : new ScreenMapDetail(view)) : new ScreenDialog(view);
+            if(screen instanceof ScreenCommanderConfirmation confirmation)confirmation.backdrop(originalParent instanceof ScreenOfficerRoster officers?officers.backdrop():originalParent);
             if (client.gui.screen() == notifications && notifications != null) {
                 notifications.backdrop(screen); screen.init(notifications.width, notifications.height);
             } else client.gui.setScreen(screen);
@@ -149,11 +155,13 @@ public final class ScreenDialogCoordinator {
             return;
         }
         if (notifications != null && notifications.backdrop() instanceof ScreenDialog screen && screen.view().token().equals(token)) {
-            notifications.backdrop(screen instanceof ScreenPreferredTactics tactics ? tactics.backdrop() : screen instanceof ScreenPoliticsChoice politics ? politics.backdrop() : screen instanceof ScreenCommanderRoster commander ? commander.backdrop() : screen instanceof ScreenCommanderTraits traits ? traits.backdrop() : null);
+            notifications.backdrop(screen instanceof ScreenOrganization organization ? organization.backdrop() : screen instanceof ScreenPreferredTactics tactics ? tactics.backdrop() : screen instanceof ScreenPoliticsChoice politics ? politics.backdrop() : screen instanceof ScreenCommanderRoster commander ? commander.backdrop() : screen instanceof ScreenCommanderTraits traits ? traits.backdrop() : null);
             return;
         }
         if (client.gui.screen() instanceof ScreenDialog screen && screen.view().token().equals(token)) {
-            if (screen instanceof ScreenCompletion completion) completion.dismiss();
+            if (screen instanceof ScreenOfficerRoster officers) officers.dismiss();
+            else if (screen instanceof ScreenOrganization organization) organization.dismiss();
+            else if (screen instanceof ScreenCompletion completion) completion.dismiss();
             else if (screen instanceof ScreenPreferredTactics tactics) tactics.dismiss();
             else if (screen instanceof ScreenPoliticsChoice politics) politics.dismiss();
             else if (screen instanceof ScreenCommanderRoster commander) commander.dismiss();

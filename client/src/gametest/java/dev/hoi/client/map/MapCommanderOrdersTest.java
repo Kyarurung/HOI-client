@@ -24,6 +24,34 @@ final class MapCommanderOrdersTest {
     private static void clickLabel(String key){String prefix=UiCommandLabels.withoutShortcuts(UiCommandLabels.text(key,"missing/"+key));var hit=MapCommanderPanels.hits().stream().filter(h->h.tip().startsWith(prefix)).findFirst().orElseThrow(()->new AssertionError("Missing mouse control: "+key));net.minecraft.client.Minecraft.getInstance().gui.screen().mouseClicked(new MouseButtonEvent(hit.x()+hit.w()/2.,hit.y()+hit.h()/2.,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0)),false);}
     private static MouseButtonEvent right(double x,double y){return new MouseButtonEvent(x,y,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_RIGHT,0));}
     private static void ack(Context issued,long revision,String pending){MapCommanderOrders.accept(new Context(issued.token(),revision,issued.country(),issued.dimension(),pending));}
+    private static void queuedMoves(ClientGameTestContext game,Context issued,String kind,int width,int height){
+        var commands=new ArrayList<Command>();var firstRay=new Ray[1];var position=new net.minecraft.world.phys.Vec3[1];
+        game.runOnClient(client->{
+            MapCommanderOrders.commandObserver=commands::add;
+            long revision=MapCommanderOrders.currentContext().revision()+1;ack(issued,revision,"");
+            if(!kind.equals("air")){
+                MapUnitHud.replaceKeys(List.of(kind.equals("navy")?"selected-outside-card|navy_destroyer":"unit/selected-unassigned"));
+                var expected=List.of(kind.equals("navy")?"navy/selected-outside-card":"unit/selected-unassigned");
+                if(!MapCommanderPanels.commandSelection().equals(expected))throw new AssertionError("Map selection must override card membership, including unassigned units");
+                MapCommanderOrders.selectionChanged();
+            }
+            var a=new Ray(0,-1,0);var b=new Ray(.1,-Math.sqrt(.99),0);var c=new Ray(.2,-Math.sqrt(.96),0);
+            if(!MapCommanderOrders.map(List.of(a))||!MapCommanderOrders.map(List.of(b))||!MapCommanderOrders.map(List.of(c))||commands.size()!=1)throw new AssertionError("Movement must retain only the latest waiting click");
+            ack(issued,revision,"");if(commands.size()!=1)throw new AssertionError("Equal revision must not drain queued movement");
+            ack(issued,revision+1,"");if(commands.size()!=2||!commands.getLast().rays().equals(List.of(c))||commands.getLast().revision()!=revision+1)throw new AssertionError("Latest movement must use the acknowledged revision exactly once");
+            ack(issued,revision+2,"");if(commands.size()!=2)throw new AssertionError("Movement queue must drain once");
+            var screen=client.gui.screen();double x=screen.width*.78,y=screen.height*.48;
+            var matrix=client.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();var vector=matrix.transformProject(new org.joml.Vector3f((float)(x/screen.width*2-1),(float)(1-y/screen.height*2),1)).normalize();firstRay[0]=new Ray(vector.x,vector.y,vector.z);
+            screen.mouseClicked(right(x,y),false);position[0]=client.player.position();client.player.setPos(position[0].add(2,0,0));ack(issued,revision+3,"");
+        });
+        game.waitTicks(3);
+        game.runOnClient(client->{
+            var screen=client.gui.screen();screen.mouseReleased(right(screen.width*.83,screen.height*.52));
+            if(commands.size()!=3||!commands.getLast().rays().equals(List.of(firstRay[0])))throw new AssertionError("Camera movement and a newer context must preserve the initial ordinary-click ray");
+        });
+        game.waitTicks(1);game.takeScreenshot("hoi-move-camera-first-ray-"+kind+"-"+width+"x"+height+"-gui2");
+        game.runOnClient(client->{client.player.setPos(position[0]);ack(issued,MapCommanderOrders.currentContext().revision()+1,"");});
+    }
     static void run(ClientGameTestContext game,ProtocolMenuView menu,String directory) throws java.io.IOException {
         try{
             for(String kind:List.of("army","navy","air")){
@@ -70,7 +98,7 @@ final class MapCommanderOrdersTest {
                         ack(issued[0],11,kind.equals("army")?"":action);if(!MapCommanderOrders.ready())throw new AssertionError("New authoritative revision must release pending input");
                     });
                     if(!kind.equals("army"))game.runOnClient(client->{if(MapCommanderHud.boxes().stream().anyMatch(box->box.action()!=null&&box.tip().equals("선택한 부대 임무 패널")))throw new AssertionError("Direct mission controls must not be duplicated by an intermediate mission button");});
-                    game.getInput().setCursorPos(size[0]-30,90);game.runOnClient(client->{if(kind.equals("army"))MapCommanderOrders.message("현재 지도의 명령 정보를 기다리고 있습니다.");});game.waitTicks(1);game.runOnClient(client->{if(kind.equals("army"))assertHintOutsideControls();else if(MapCommanderOrders.hintBounds()!=null)throw new AssertionError("Target mode must not create a synthetic footer instruction");});game.takeScreenshot("hoi-direct-command-"+kind+"-"+size[0]+"x"+size[1]+"-gui2");
+                    game.getInput().setCursorPos(size[0]-30,90);game.runOnClient(client->{if(kind.equals("army"))MapCommanderOrders.message("현재 지도의 명령 정보를 기다리고 있습니다.");});game.waitTicks(1);game.runOnClient(client->{assertHintOutsideControls();});game.takeScreenshot("hoi-direct-command-"+kind+"-"+size[0]+"x"+size[1]+"-gui2");
                     if(kind.equals("army")){game.runOnClient(client->MapUnitHud.selectDivisions(refreshSelection.stream().filter(id->id.startsWith("unit/")).map(id->id.substring(5)).toList(),false));game.waitTicks(2);}
                     game.runOnClient(client->{
                         var screen=client.gui.screen();double x=screen.width*.78,y=screen.height*.48;int before=commands.size();var exact=MapCommanderPanels.commandSelection();
@@ -124,7 +152,9 @@ final class MapCommanderOrdersTest {
                         MapCommanderOrders.land("EDIT_PLAN",MapCommanderPanels.armyIds());ack(issued[0],43,"LAND/EDIT_PLAN");screen.mouseClicked(left,false);screen.mouseReleased(left);ack(issued[0],44,"LAND/EDIT_PLAN/FRONT");before=commands.size();screen.mouseClicked(left,false);var destination=new net.minecraft.client.input.MouseButtonEvent(x+20,y+20,new net.minecraft.client.input.MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseDragged(destination,20,20);screen.mouseReleased(destination);if(commands.size()!=before+1||!commands.getLast().action().equals("MAP/POINT")||commands.getLast().rays().size()!=2)throw new AssertionError("Left control point drag sends exactly the original and replacement rays");ack(issued[0],45,"");
                         MapCommanderOrders.land("FRONT",MapCommanderPanels.armyIds());ack(issued[0],46,"LAND/FRONT");before=commands.size();screen.mouseClicked(left,false);screen.mouseReleased(left);if(commands.size()!=before+1||!commands.getLast().action().equals("MAP")||commands.getLast().rays().size()!=1)throw new AssertionError("A single left click in FRONT mode sends exactly one border ray without changing selection");ack(issued[0],47,"");
                     });
+                    queuedMoves(game,issued[0],kind,size[0],size[1]);
                     game.runOnClient(client->{
+                        MapCommanderOrders.commandObserver=commands::add;
                         String action=kind.equals("army")?"LAND/FRONT":kind.equals("navy")?"NAVY/PATROL":"AIR/SUPERIORITY";
                         if(!MapCommanderOrders.send(action,commands.getFirst().selection(),List.of()))throw new AssertionError("Ready direct target request must be accepted");long waiting=commands.getLast().revision();int queued=commands.size();
                         if(!MapCommanderOrders.cancelTarget()||commands.size()!=queued)throw new AssertionError("Cancellation during command wait must queue without replaying data");

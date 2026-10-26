@@ -48,7 +48,8 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
     public static void clearPreferences() { factoryScales.clear(); }
     private Map<String, Integer> factoryScales() { return factoryScales.computeIfAbsent(view.country(), key -> new HashMap<>()); }
     private boolean allRepairPortsExpanded;
-    private String unitGroup = "", logisticsEquipment = "";
+    private String unitGroup = "", logisticsEquipment = "", manufacturerLine = "";
+    private boolean manufacturerName, manufacturerReverse, manufacturerSorted;
     private int tradeTab = 1, tradeAmount = 1, selectedSlot = -1;
     private boolean supportSlot, designer, closed, background, showOutdated;
     private final Set<String> hiddenResources = new HashSet<>(), expandedRepairPorts = new HashSet<>();
@@ -268,10 +269,29 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             graphics.pose().pushMatrix();
             graphics.pose().translate(0,-1f/minecraft.getWindow().getGuiScale());
             cellText(Integer.toString(index + 1), x.applyAsInt(3), y + 3, x.applyAsInt(30) - x.applyAsInt(3), header, TEXT, false);
-            cellText(UiText.ellipsize(font,e.name(),(int)((x.applyAsInt(219)-x.applyAsInt(35))/UiText.scale(font))), x.applyAsInt(35), y + 3, x.applyAsInt(219) - x.applyAsInt(35), header, TEXT, false);
+            cellText(UiText.ellipsize(font,e.name(),(int)((x.applyAsInt(193)-x.applyAsInt(35))/UiText.scale(font))), x.applyAsInt(35), y + 3, x.applyAsInt(193) - x.applyAsInt(35), header, TEXT, false);
             graphics.pose().popMatrix();
         }
-        tip(e.name(),x.applyAsInt(35),y,x.applyAsInt(219)-x.applyAsInt(35),header);
+        tip(e.name(),x.applyAsInt(35),y,x.applyAsInt(193)-x.applyAsInt(35),header);
+        if (graphics == null) {
+            var manufacturer = new UiPanelButton("군수산업체 · " + line.id(), x.applyAsInt(195), y + 1, Math.round(29 * scale), header,
+                    () -> { manufacturerLine = line.id(); picker = "manufacturer"; pickerScroll = 0; rebuildWidgets(); }) {
+                @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                    UiAssets.draw(g, dev.hoi.client.ui.UiOrganizationRow.art("production_item_has_mio"), getX(), getY(), getWidth(), getHeight());
+                    UiAssets.draw(g, line.manufacturer() == null ? dev.hoi.client.ui.UiOrganizationRow.art("attach_manufacturer") : line.manufacturer().icon(), getX(), getY(), getWidth(), getHeight());
+                }
+                @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean twice) {
+                    if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT && isMouseOver(event.x(), event.y())) {
+                        if (active && line.manufacturer() != null) { playDownSound(minecraft.getSoundManager()); send(MANUFACTURER, line.id(), "", 0); }
+                        return true;
+                    }
+                    return super.mouseClicked(event, twice);
+                }
+            };
+            manufacturer.active = pending == 0 && (line.manufacturer() != null || !line.manufacturers().isEmpty());
+            manufacturer.setTooltip(UiTooltips.createExact(line.manufacturer() == null ? line.manufacturerTooltip() : line.manufacturer().tooltip()));
+            addRenderableWidget(manufacturer);
+        }
         if (!e.naval()) {
             if (graphics != null) {
                 graphics.pose().pushMatrix(); graphics.pose().translate(6, y); graphics.pose().scale(scale);
@@ -1002,7 +1022,43 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
             default -> "INFANTRY";
         };
     }
+    private void layoutManufacturers() {
+        var line = view.lines().stream().filter(l -> l.id().equals(manufacturerLine)).findFirst().orElse(null);
+        if (line == null) return;
+        int w = Math.min(268, width - 16), x = Math.min(width - w - 8, pane + 88), y = top + 3, end = Math.min(bottom(), y + 326);
+        panel(x, y, w, end - y);
+        cellText("군수산업체", x + 8, y + 4, w - 34, 22, TEXT, false);
+        button("목록 닫기", "×", x + w - 25, y + 3, 19, 19, true, () -> { picker = ""; rebuildWidgets(); });
+        button("규모 정렬", "규모", x + 8, y + 29, 45, 18, true, () -> { manufacturerReverse = !manufacturerSorted || manufacturerName || !manufacturerReverse; manufacturerName = false; manufacturerSorted = true; rebuildWidgets(); });
+        button("이름 정렬", "이름", x + 56, y + 29, 60, 18, true, () -> { manufacturerReverse = manufacturerSorted && manufacturerName && !manufacturerReverse; manufacturerName = true; manufacturerSorted = true; rebuildWidgets(); });
+        var rows = new ArrayList<>(line.manufacturers());
+        if (manufacturerName) rows.sort(Comparator.comparing(LineManufacturer::name));
+        else if (manufacturerSorted) rows.sort(Comparator.comparingInt(LineManufacturer::size));
+        if (manufacturerReverse) Collections.reverse(rows);
+        int start = y + 51;
+        pickerScroll = Math.clamp(pickerScroll, 0, Math.max(0, 47 + rows.size() * 53 - (end - start)));
+        int emptyY = start - pickerScroll;
+        if (emptyY >= start && emptyY + 44 <= end) button("군수산업체 없이 생산", line.manufacturerEmpty(), x + 8, emptyY, w - 16, 44, true, () -> selectManufacturer(""));
+        for (int i = 0; i < rows.size(); i++) {
+            var row = rows.get(i); int ry = start + 47 + i * 53 - pickerScroll;
+            if (ry < start || ry + 49 > end) continue;
+            if (graphics != null) dev.hoi.client.ui.UiOrganizationRow.draw(graphics, row.icon(), row.size(), row.name(), row.type(), row.equipment(), x + 8, ry, w - 16);
+            if (graphics == null) {
+                var details = new UiMenuButton("세부 사항", x + w - 67, ry + 27, 54, 16, () -> dev.hoi.client.map.MapCommanderHud.open(new ProtocolCommanderHud.Open(ProtocolCommanderHud.Mode.ORGANIZATION, row.id(), List.of()))).background("mio/ui/gfx_leader_selection_button/frame_0");
+                details.active = pending == 0; addRenderableWidget(details);
+                var select = new UiPanelButton(row.name(), x + 8, ry, w - 16, 49, () -> selectManufacturer(row.id())) {
+                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
+                };
+                select.active = pending == 0; select.setTooltip(UiTooltips.createExact(row.tooltip())); addRenderableWidget(select);
+            }
+        }
+    }
+    private void selectManufacturer(String id) {
+        if (pending > 0) return;
+        picker = ""; send(MANUFACTURER, manufacturerLine, id, 0);
+    }
     private void layoutPicker() {
+        if(picker.equals("manufacturer")){layoutManufacturers();return;}
         if(picker.equals("naval_ports")){layoutNavalPorts();return;}
         if (picker.equals("equipment") || picker.equals("repairs")) { layoutProductionPicker(); return; }
         int w = Math.min(270, width - 16), x = width - pane >= w + 8 ? pane + 4 : (width - w) / 2, y = top + 3;
@@ -1090,7 +1146,7 @@ public final class ScreenIndustry extends Screen implements InputSidebarMovement
         }
         recess(x+7,y+5,45,16);
         art("production/picker/manufacturer",x+11,y+7,12,12);
-        cellText("0",x+26,y+5,24,16,GOLD,false);
+        cellText(Long.toString(view.lines().stream().filter(l -> l.manufacturer() != null).count()),x+26,y+5,24,16,GOLD,false);
         tip("군수산업조직 현황 미제공",x+7,y+5,45,16);
         var items=productionItems;
         int filtersY=y+25;

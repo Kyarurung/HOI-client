@@ -20,15 +20,25 @@
 
 ## 지휘관 임명과 상세 화면
 
+`advisor-politics`는 `HOI_COMMANDER_PREVIEW`의 `kor-advisor-roles-{before,after}-promote`, `kor-politics-staff-{before,after}-promote`, `kor-army-roster-tooltips`, `ins-menu-open-screen`을 사용한다. 정치 후보의 추가·유효 선택지·반복 클릭 잠금, 두 방향 고문 정렬, 원문 국민정신 툴팁을 GUI2 두 해상도로 검사한다. 시험 입력은 `InputConstants.MOUSE_BUTTON_LEFT`를 사용한다. SDL 입력의 버튼 번호를 GLFW 숫자로 가정하지 않는다.
+
+그림 없는 국민정신 툴팁은 기존 `sourceLines`로 원본 `§G`·`§!` 색 코드와 필드별 소수 자릿수를 보존한다. 원문에 없는 아이콘을 추정해 끼우지 않는다. 정치의 다른 항목은 기존 표시 경로를 유지한다.
+
+지휘관 목록은 `Leader.skillTooltip`·`capacityTooltip`·`assignTooltip`을 각각 큰 기술 숫자·수용량·행의 빈 영역에 표시하고, 이름·초상화에는 기존 `Tile.detail`을 표시한다. 기술·수용량·배정 안내를 클라이언트가 재계산하거나 빈 문구를 채우지 않는다. Shift+좌클릭은 서버가 `deploy/<id>` 선택지를 발급한 경우에만 사령부 배치 요청을 보내며, 없으면 일반 배정으로 처리한다. 특성·고문·진급 단추는 행 선택보다 우선하고 한 클릭으로 두 요청을 보내지 않는다. TFR `unitleaderwindow.gui`의 `sort_skills`·`sort_advisor`는 정렬 단추다. 고문 정렬 단추는 원본 GFX_sort_adviser 첫 프레임과 click_scroll(ui.scroll)을 쓴다. 첫 클릭은 서버 Leader.advisorState 2(기존 역할) → 1(추가 가능) → 0(없음), 동률이면 기술 내림차순이며 두 번째 클릭은 전체 역순이다. 이 정렬에서는 장군/원수 우선 정렬을 덧붙이지 않는다. 순서는 원본 엔진을 확인하지 못해 정한 서버 계약이며 원본 동일성을 주장하지 않는다.
+
+고문 추가·임명과 장군 진급은 `ScreenCommanderConfirmation`의 공통 확인창을 사용한다. TFR `popupwindow.gui`의 `default_confirmation_popup`(480×322, 제목 10/16, 본문 24/90, 취소 90/250, OK 260/250), `popupwindow.gfx`의 테두리 180×85를 GUI2 기준으로 적용한다. 기존 외부 팩의 `mio/ui/gfx_tiled_window_pol_goal/frame_0`와 `commander/commands/button_148x34/frame_0`가 각각 원본 배경·단추다. 긴 한국어 본문에는 창 높이를 늘리고 화면을 넘으면 본문만 스크롤한다. 원작 장군 진급 사진은 `20261024073659_1.jpg`이며 고문 추가 자체의 사진은 없어 공통 GUI 틀을 근거로 삼는다. 이름·역할·비용·색·빈 줄은 서버의 `UNIT_LEADER_ADD_ADVISOR_TITLE`·`UNIT_LEADER_ADD_ADVISOR_DESC`·`UNIT_LEADER_PROMOTE_POPUP_DESC` 결과를 사용한다. 발급된 확인·취소만 허용하며 요청 뒤에는 새 revision까지 잠근다. 비용 부족으로 확인 선택지가 없으면 확인 단추도 만들지 않는다.
+
+`HOI_COMMANDER_PREVIEW`를 검증된 서버 fixture 폴더로 설정하고 Java25에서 `test runGameTest remapJar -PhoiTestSuite=commander-contract -PhoiServerSource=<고정 서버> -PhoiProtocolSource=<고정 서버>/protocol/src/main/java -PhoiResourcePack=C:/HOI-resourcepack/build/resources.zip --console=plain --no-daemon`으로 재현한다. `kor-army-roster-tooltips`, `kor-advisor-promote-confirm`, `kor-promote-confirm`, `kor-command-panel-hq-deploying`을 사용한다. GUI2 2560×1440·1280×720에서 실제 호버와 렌더, 화면 MouseButtonEvent, Shift 배치/일반 배정 전환, 비용 부족·취소·반복 클릭·같은 revision 재응답을 검사한다. 사령부의 `DEPLOYING` 라벨·text·남은 일수 툴팁도 서버 상태를 따른다. 요청 전송은 모의 수집이므로 실제 서버 비용 차감·저장·정치 후보 추가의 종단간 검증과 구분한다. 기존 목록·역할·특성 회귀는 `commander-layout`으로 검사한다. 추가 입력의 고문 역할 전후·정치 후보 4명→5명(안병석 추가)·정렬 양방향·인도네시아 국민정신은 advisor-politics 집중 검사로 확인한다. INS 입력은 OpenScreen wrapper를 포함한다. 원본 한글패치 TFR_country_localisation_INS_l_korean.yml:4의 INS_jungle_warfare_tt 두 줄(정글 10.0%, 산악 10.8%)을 그대로 표시한다. 산악 문구 10.8%와 실제 기술 계산 10%의 차이는 원본 자료에 있으며 화면에서 수정하지 않는다. 실제 고문 비용 차감·저장·멀티플레이·직접 음향 청취와 전체 무필터 검사는 별도다.
+
 연속 빈 줄은 `UiTooltipText.collapseBlankLines`를 공통으로 사용한다. 문자열 원문, 스타일이 나뉜 Component, HUD·정치·중점처럼 제목과 본문을 합친 최종 줄 목록에도 적용하며 글자·색·수치·아이콘 순서를 바꾸지 않는다. 줄 수를 사용하는 본문 높이와 스크롤 계산도 같은 정규화 경로를 따른다. `test runGameTest remapJar -PhoiTestSuite=tooltip-spacing`는 `HOI_COMMANDER_PREVIEW`의 `kor-navy-assessment.json`, `kor-diplomacy-PRK.json`, `kor-navy-trait-tree.json`을 읽어 기뢰 부설·독립 보장·연안 싸움꾼을 GUI2 2560×1440·1280×720에서 실제 호버 렌더한다. 줄 축소 전후의 보이는 글자와 스타일 순서를 검사하고 앞뒤 여백·서식 조각 경계는 별도 회귀로 확인한다. 이 입력 검사는 운영 접속·다중 사용자·직접 효과음 청취 검증을 대신하지 않는다.
 
 임명 행과 특성·장교단 역할 머리칸의 이름·직책은 최종 글자 조각마다 볼드를 적용한다. 원문 색상 코드나 자식 스타일이 굵기를 해제하지 않는다. 제독 수용량은 원본처럼 숫자만 캡슐 가운데에 표시하고, 장군·원수 수용량은 메달을 유지한다. 임명 행의 `commander/traits/trait_add_new`는 서버 `traitDetails` 마지막 그림으로 기존 겹침·툴팁·특성 창 요청을 그대로 사용하며 보유 특성 수에 더하지 않는다. 역할 창의 첫 탭 문구는 서버 `traits` 선택지 라벨을 그대로 쓴다.
 
 볼드 래스터 대조는 `commander-layout`의 `hoi-header-bold-comparison-synthetic-*` 캡처로 같은 한글의 보통체·볼드체를 흰색·검정에서 비교한다. Minecraft 기본 Unihex 볼드는 오른쪽 0.5GUI 오프셋을 더하므로 GUI2에서 세로획이 1픽셀 넓어지고 가로획 높이는 유지된다. 실제 임명 행·특성 머리칸의 글자와 이 진단의 볼드 픽셀을 대조하며 스타일 플래그 검사와 실제 획 변화를 구분한다.
 
-역할 목록의 `trait_adviser_disabled`·`trait_adviser_picked`에는 각각 회색·크림색 서류 한 장이 이미 포함되어 있어 빈 서류를 덧그리지 않는다. `owned=true`는 인물 원본에 정의된 고유 역할로, 고용 전후 모두 파란 배경과 크림색 서류를 쓴다. 나머지 역할은 회색 서류다. `available`은 현재 모두 거짓이며 고용 여부는 해당 section 선택지의 임명·해임 라벨로 구분한다. 클릭 권한은 발급된 선택지만 따른다. 왼쪽 보유 목록은 선호 전술 상자 위에서 자르고 온전한 글자 줄만 표시한다. 넘치면 스크롤 표시와 휠로 마지막 특성 선택 줄까지 볼 수 있으며 글자는 1배를 유지한다. `commander-layout`의 렌더 스타일 검사와 `hoi-commander-advisor-left-scrolled-*` 캡처로 재현한다. `ScreenCommanderRosterTest`는 실제 서버 입력의 특성 추가 그림·원문 툴팁·인증된 특성 요청과 중복 클릭 차단을 확인한다. 특성 추가 그림은 서버가 남은 슬롯과 선택 가능한 특성을 모두 확인한 경우에만 보내며 클라이언트는 이를 재계산하지 않는다.
+역할 목록의 `trait_adviser_disabled`·`trait_adviser_picked`에는 각각 회색·크림색 서류 한 장이 이미 포함되어 있어 빈 서류를 덧그리지 않는다. `owned=true`는 인물 원본에 정의된 고유 역할로, 고용 전후 모두 파란 배경과 크림색 서류를 쓴다. 나머지 역할은 회색 서류다. 고용 여부와 고문 추가 가능 여부는 해당 section에 발급된 선택지의 라벨로 구분한다. 클릭 권한은 발급된 선택지만 따른다. 왼쪽 보유 목록은 선호 전술 상자 위에서 자르고 온전한 글자 줄만 표시한다. 넘치면 스크롤 표시와 휠로 마지막 특성 선택 줄까지 볼 수 있으며 글자는 1배를 유지한다. `commander-layout`의 렌더 스타일 검사와 `hoi-commander-advisor-left-scrolled-*` 캡처로 재현한다. `ScreenCommanderRosterTest`는 실제 서버 입력의 특성 추가 그림·원문 툴팁·인증된 특성 요청과 중복 클릭 차단을 확인한다. 특성 추가 그림은 서버가 남은 슬롯과 선택 가능한 특성을 모두 확인한 경우에만 보내며 클라이언트는 이를 재계산하지 않는다.
 
-군·집단군·함대의 임명 목록은 서버 `Leader`와 발급된 선택지를 사용한다. 장군의 `promotion` 문구가 있으면 진급 단추를 표시하고 `promote/<id>`가 있을 때만 활성화한다. 원수·제독에는 진급 단추를 만들지 않는다. `traits/<id>`는 세부 사항 창을 열며, 행 선택과 단추 입력을 구분해 한 번의 클릭으로 두 요청을 보내지 않는다. 진급 확인창은 서버가 준 한 명의 지휘관과 비용 문구, 진급·취소 선택지만 표시한다. 원본 확인창 스크린샷이 없어 기존 확인창 방식으로 배치한다. 임명 목록의 스크롤 막대는 끌어서 이동할 수 있으며 모든 행이 읽히도록 행 단위로 이동한다. 서버 기능이 없는 야전 장교 보기·함선 지휘관 보기·신규 지휘관은 표시하지 않는다.
+군·집단군·함대의 임명 목록은 서버 `Leader`와 발급된 선택지를 사용한다. 장군의 `promotion` 문구가 있으면 진급 단추를 표시하고 `promote/<id>`가 있을 때만 활성화한다. 원수·제독에는 진급 단추를 만들지 않는다. `traits/<id>`는 세부 사항 창을 열며, 행 선택과 단추 입력을 구분해 한 번의 클릭으로 두 요청을 보내지 않는다. 진급 확인창은 서버 본문·비용과 진급·취소 선택지를 공통 확인창에 표시한다. 원본 `20261024073659_1.jpg`처럼 목록 행이나 초상화를 본문에 덧붙이지 않는다. 임명 목록의 스크롤 막대는 끌어서 이동할 수 있으며 모든 행이 읽히도록 행 단위로 이동한다. 야전 장교 보기·함선 지휘관 보기는 원본 하단 위치에 표시하고 18나·다 서버 계약 전에는 비활성화한다. 배정 해제는 지휘관이 없어도 원본처럼 밝은 단추로 남기며 실제 해제 요청은 서버가 발급한 선택지가 있을 때만 전송한다. 하단 단추는 목록 오른쪽 끝에 맞추고 아래 테두리와 간격을 둔다. 임명된 지휘관 체크를 끄면 검색 여부와 무관하게 Leader.assigned 행을 숨긴다. 진급 확인창은 기존 목록 위에 뜨며 취소 뒤 원래 화면 계층을 복원한다. 신규 지휘관은 서버 기능이 없으면 표시하지 않는다.
 
 육군 상세의 비행단 단추는 배속 유무와 관계없이 표시한다. 기본 지도 군 카드 위의 배속 비행단 띠는 숨긴 상태를 유지한다. 사단을 고르고 + 군 카드를 누르면 보낸 사단 ID 집합과 기존 군 카드 ID를 기억하고, 다음 스냅숏에서 그 사단들로 새로 만들어진 군 하나가 확인될 때 일반 군 상세를 선택한다. 실패·불일치·국가/군종 변경에는 군을 추정하지 않는다.
 
@@ -42,7 +52,7 @@
 
 보유 특성의 효과는 이름 바로 다음 줄 또는 빈 줄 뒤에서 시작할 수 있다. 두 형식 모두 서버가 준 효과를 표시하고 역할 해금·설명·구매 조건을 효과 목록에 섞지 않는다. 원본 화면에만 있는 수치는 추가하지 않는다. 특성·역할 창은 GUI 단위 671.5×391.5를 기준으로 화면에 들어가지 않는 만큼만 줄인다. 글자는 1배 미만으로 줄이지 않고 긴 이름은 말줄임과 전체 내용 툴팁을 사용한다. 왼쪽 내용의 줄 간격은 글자 높이를 보존하며 넘치는 목록은 스크롤한다. 1280×720 GUI2에서도 플레이어 설정을 바꾸지 않는다.
 
-임명 목록의 `Leader.advisor`는 장교단 역할 단추의 원문 툴팁이고 `advisor/<id>` 선택지가 있어야 요청을 보낸다. 비활성 단추도 원본 색으로 그려 호버할 수 있으며 클릭을 소비해 뒤의 지휘관을 임명하지 않는다. 사용자 지시로 임명된 지휘관 보기 문구·체크박스는 제거하고 배정된 후보도 항상 포함한다. 집단군 기본 정렬은 기술 내림차순, 같은 기술이면 원수 우선이며 동순위는 서버 순서를 유지한다. 이름으로 재정렬하지 않는다. 기술 숫자는 굵은 흰색이고 수용량 옆에는 원본 `GFX_medal_collection`을 그린다. 세부 사항·진급은 같은 폭에 기존 글자 크기를 유지하며 집단군의 장군 진급은 적색 바탕이다. 군·집단군·함대 초상화 아래의 특성/고문 단추는 서버 `LEADER_TRAITS`·`LEADER_ADVISOR` controls의 그림·활성·툴팁·요청을 사용한다. 선택 가능한 특성의 + 그림을 클라이언트가 추측하지 않는다.
+임명 목록의 `Leader.advisor`는 장교단 역할 단추의 원문 툴팁이고 `advisor/<id>` 선택지가 있어야 요청을 보낸다. 비활성 단추도 원본 색으로 그려 호버할 수 있으며 클릭을 소비해 뒤의 지휘관을 임명하지 않는다. 15판 원본 대조 지시를 따라 제목줄의 임명된 지휘관 보기 문구·원본 GFX_generic_checkbox를 표시한다. 기본값은 체크이며 해제하면 Leader.assigned 후보만 로컬 목록에서 숨긴다. 이 필터는 서버 배정을 변경하지 않는다. 집단군 기본 정렬은 기술 내림차순, 같은 기술이면 원수 우선이며 동순위는 서버 순서를 유지한다. 이름으로 재정렬하지 않는다. 기술 숫자는 굵은 흰색이고 수용량 옆에는 원본 `GFX_medal_collection`을 그린다. 세부 사항·진급은 같은 폭에 기존 글자 크기를 유지하며 집단군의 장군 진급은 적색 바탕이다. 군·집단군·함대 초상화 아래의 특성/고문 단추는 서버 `LEADER_TRAITS`·`LEADER_ADVISOR` controls의 그림·활성·툴팁·요청을 사용한다. 선택 가능한 특성의 + 그림을 클라이언트가 추측하지 않는다.
 
 `Leader.advisorIcon`이 비어 있으면 모자 단추를, 값이 있으면 원본 서류 바탕 위에 해당 역할 칸을 표시한다. 임명 목록의 서류 위치는 `unitleaderwindow.gui` x3/y45와 중심 x28/y70의 절반 배율을 따른다. 카드·상세 패널의 `LEADER_ADVISOR.icon`이 `commander/commands/idea_traits_strip/`로 시작할 때도 같은 합성 그리기를 사용한다. 그림이 있어도 발급된 선택지·control의 활성 상태를 확인하며, 비활성 고문 단추 클릭이 뒤의 임명 행으로 넘어가지 않게 한다.
 
@@ -505,11 +515,19 @@ Task-force settings project only stored optional repair policy, auto-split, rein
 
 ### GUI2 카드와 지도 직접 명령
 
+지도에서 고른 사단·함대가 있으면 카드 구성원보다 우선한다. 함대 카운터의 `<id>|navy_<종류>`는 `navy/<id>`로 정규화하며 카드만 선택했을 때는 그 카드의 구성원을 사용한다. 빈 선택·유효하지 않은 지도 명령 세션·빈 광선·앞 명령 대기는 기존 액션바에 이유를 표시한다. “이동할 부대를 선택하세요.”, “지도에서 이동할 위치를 선택하세요.”, “앞선 명령 뒤에 마지막 이동 명령을 보냅니다.”는 게임 효과 설명이 아닌 HOI 입력 진단 문구이며 원본 localisation 키가 없다.
+
+직접 이동 입력만 검사하는 `direct-movement`는 기존 명령·계층 선택·상세 선택·기본 화면 우클릭 검사를 함께 실행한다. 더 넓은 패널·임무 오버레이 회귀는 `movement-controls`를 유지한다. 집중 재현은 `test runGameTest remapJar -PhoiTestSuite=direct-movement`에 서버·protocol 고정 사본과 외부 팩 경로를 지정한다. 모의 명령 관측으로 미배정 선택·카드 밖 함대 선택, 첫 ray, 카메라 이동, 마지막 대기 명령, 동일 revision 거절을 검사한다. 첫 ray 캡처에는 검증용 전송 완료 문구를 추가하지 않는다. 첫 ray 캡처는 실제 클라이언트 렌더링과 모의 명령 입력의 증거이며 서버 이동 성공·이동선·계획 이탈·멀티플레이 증거가 아니다. 새 서버 계약 입력의 이동선 검증은 별도다.
+
 군집단·군·함대 카드 행은 하단 액션바 위에 놓고 펼친 카드·부속 비행단·함대 선택과 팝업도 액션바 클릭 영역을 침범하지 않게 배치한다. GUI2 큰 화면과 작은 화면에서 같은 배치 규칙을 사용하며 사용자의 미선택 상태를 자동 선택으로 바꾸지 않는다. 직접 명령 안내문은 카드 상단 장식과 도구막대 제목을 포함한 전체 하단 영역 위에 놓고 팝업 클릭 영역도 피한다. 목표 입력 안내는 해당 입력 상태가 끝날 때까지 유지한다.
 
 군·군집단 카드 클릭은 서버가 제공한 전체 구성원 ID를 사단 선택 모델에 반영한다. 접힌 하위 군이나 화면에서 생략한 행도 구성원에 포함되며, 우클릭 이동과 선택 표시는 같은 ID 집합을 사용한다. Shift 카드 선택은 군 구성원 합집합을 갱신한다. 사용자가 행·지도에서 부분 선택한 뒤에는 일반 스냅샷 갱신이나 새 사단 추가가 그 선택을 전체로 확대하지 않는다. 닫기·선택 해제·국가·군종 전환은 해당 선택과 명령 범위를 제거한다.
 
-지도 우클릭은 서버 세션·리비전에 묶인 방향 벡터를 보낸다. 서버가 실제 시점과 지형에서 목표를 계산하고 자국 권한·범위·부대 상태를 검증한다. 진행 중 중복 입력은 보내지 않으며 선택·모드·국가·세계·카메라 변경은 진행 중 제스처를 폐기한다. 공군 배정과 육해군 이동 화살표는 서버의 저장된 상태를 사용한다. 사단·함대의 일반 이동은 원본 `gfx/mapitems/movearrow_move.dds`, 전략적 재배치와 해군 임무·초계는 초록 `movearrow_followorders.dds`를 사용한다. 서버가 보낸 진행 구간은 밝은 색이며 선분으로 그린 단순 화살표는 사용하지 않는다. 공군 배정은 이동 화살표와 구분되는 전용 화살표를 사용한다. 원작 화면(공군 지도 모드 캡처)대로 테두리 없는 납작한 띠에 띠보다 넓은 삼각형 화살촉을 붙이며, 공군 지도에서는 자국 비행단의 모든 임무 배정을 표시한다. 색은 원본 `NGraphics.AIR_MISSION_ARROW_ACTIVE_COLOR`(초록)와 `AIR_MISSION_ARROW_SELECTED_COLOR`(노랑)를 따라 선택하지 않은 배정은 초록, 선택한 비행단의 배정은 노랑으로 그린다. 색과 불투명도는 원본 값(초록 `0,1,0,0.5`, 노랑 `1,1,0,0.8`)을 흰 콘크리트 텍스처에 곱해 그리므로 텍스처 밝기만큼 약간 어둡다. `AIR_MISSION_ARROW_NONACTIVE_COLOR`(흰색 0.2)에 해당하는 "공역만 배정되고 활성 임무가 없는" 상태는 hoi 비행단 모델에 없어 표시하지 않는다. 실제 렌더 검사와 모의 전송 검사는 운영 다중 접속·실제 소켓 재접속 검증을 대신하지 않는다.
+지도 우클릭은 서버 세션·리비전에 묶인 방향 벡터를 보낸다. 서버가 실제 시점과 지형에서 목표를 계산하고 자국 권한·범위·부대 상태를 검증한다. 일반 우클릭은 카메라가 움직이거나 명령 revision이 갱신되어도 누른 순간의 첫 방향 벡터 하나를 보낸다. LAND/·NAVAL_AREAS/ 도구의 드래그와 카메라 이동 취소는 기존 규칙을 유지한다. 응답을 기다리는 동안의 일반 우클릭은 마지막 한 건만 보관하고, 더 높은 revision을 받은 뒤 같은 선택·세션에서 한 번 보낸다. 선택·도구·국가·세계 변경과 Esc/창 닫기는 보관한 이동을 폐기한다. 서버는 수신 시점의 실제 시점에서 광선을 해석하므로 첫 클릭 월드 좌표를 저장한 것으로 간주하지 않는다. 공군 배정과 육해군 이동 화살표는 서버의 저장된 상태를 사용한다. 사단·함대의 일반 이동은 원본 `gfx/mapitems/movearrow_move.dds`, 전략적 재배치와 해군 임무·초계는 초록 `movearrow_followorders.dds`를 사용한다. 서버가 보낸 진행 구간은 밝은 색이며 선분으로 그린 단순 화살표는 사용하지 않는다. 공군 공역 배정의 목표 색상 규칙은 사용자가 명시한 노랑=항공단 임무 할당 및 지정, 초록=임무 할당 및 미지정, 회색=임무 미할당 및 지정이다. 임무 미할당 상태를 지정 여부만 보고 노랑으로 만들지 않는다. 여기서 지정은 비행단/비행장 선택이며 군 카드 소속이나 공역 배정 자체와 구분한다. 임무 미할당·미지정 조합의 표시는 이 세 조건에서 임의로 추정하지 않는다. 원본 `NGraphics.AIR_MISSION_ARROW_ACTIVE_COLOR`는 `0,1,0,0.5`, `SELECTED_COLOR`는 `1,1,0,0.8`, `NONACTIVE_COLOR`는 `1,1,1,0.2`다. 현재 구현은 서버의 두 색 선분을 흰 콘크리트 텍스처로 그리며, 회색 상태와 원본 패턴·마스크 연결은 미구현이다. 원본 파일을 팩에 가져온 것만으로 실제 적용 완료로 간주하지 않는다. 실제 렌더 검사와 모의 전송 검사는 운영 다중 접속·실제 소켓 재접속 검증을 대신하지 않는다.
+
+원본 에셋은 `gfx/maparrows/maparrows.txt:986-1031`의 `air_mission_direction`(공역 임무)과 `air_transfer`(기지 이송)로 구분한다. 외부 팩 `map/air_mission`·`map/air_mission_mask`는 256×128, `map/air_transfer`·`map/air_transfer_mask`는 102×82 원본 RGBA다. `gfx/FX/maparrow.shader`의 `ArrowPixelShader`는 몸통/화살촉을 가로 절반으로 나누고 몸통 v 범위를 `body_uv_scale=0.4`로 제한하며 패턴과 RGB 마스크의 알파를 결합한다. 기존 박스마다 PNG 전체를 반복해서 그리는 것은 이 구조의 재현이 아니다. 현재 `MapAirMissionOverlay`의 선분과 `ProtocolAtlasScene.Box`에는 공역 임무/기지 이송 구분·연속 UV·비활성 상태가 충분하지 않다. 서버 담당자가 양쪽 protocol과 세 색 전환 입력을 제공한 뒤 클라이언트 렌더를 연결한다. 원본 보존·재추출은 [팩 자산 문서](../../HOI-resourcepack/docs/assets.md)를 따른다.
+
+공역 배정 화살표의 원본 비교 화면은 Steam `20261009024936_1.jpg`(선택 해제, 초록)와 `20261009024937_1.jpg`(선택, 노랑)다. `common/defines/00_graphics.lua:50-52`의 ACTIVE/NONACTIVE/SELECTED 색 정의를 함께 확인한다. 비활성 회색은 흰색에 알파 0.2를 적용한 상태이며 별도 회색 RGB를 임의로 만들지 않는다. 현재 공유 재질에는 `AIR_ACTIVE`와 `AIR_SELECTED`만 있고 서버는 HOLD·EXERCISE 배정을 제외하므로 회색은 미구현이다. 이를 활성 임무 화살표의 회색 변환만으로 구현한 것으로 처리하지 않는다. `test runGameTest remapJar -PhoiTestSuite=mission-overlays -PhoiServerSource=<검증된 서버 사본> -PhoiResourcePack=<팩 ZIP> --console=plain --no-daemon`으로 같은 공역 배정의 노랑·초록 재질과 해제 화면을 GUI2 두 해상도에서 재현한다. 노랑은 서버가 생성한 배정 입력이며 초록은 동일 기하의 재질을 시험에서 전환한 렌더 검증이다. 실제 선택 해제의 소켓 전송·서버 상태 변화, 회색 배정의 저장·복원은 이 검사로 입증하지 않는다.
 
 상륙 계획은 `UNITS_VIEW_BTN_DRAW_NAVAL_INV`, 군집단 선택의 전선은 `UNITS_VIEW_BTN_DRAW_DEFENCE_ARMY_GROUP`, 공군 취소는 `HOLD_WINGS` 원문을 사용한다. 상륙 계획의 현재 초안 저장 범위 안내는 원문 뒤 빈줄로 구분한다. 육군 훈련은 서버가 원본 장비 소모·국가 경험치 본문과 Shift 클릭 설명을 제공하며 색상·경험치 아이콘·빈줄을 보존한다. `MapCommanderPanelsTest`는 군·군집단·공군에서 실제 컨트롤을 호버하여 전달 문구와 렌더된 툴팁의 일치 및 GUI2 두 해상도의 배경 경계를 검사한다. 이 렌더 검증은 운영 캠페인 접속 검증과 별개다.
 
@@ -525,7 +543,7 @@ Task-force settings project only stored optional repair policy, auto-split, rein
 
 기본 화면에서 선택한 사단·함대·비행단의 우클릭은 화면 중앙의 광선 하나를 기존 `MAP` 명령으로 보낸다. 건설 취소를 먼저 처리하며, 선택이 없거나 나라·차원·명령 세션이 맞지 않으면 기존 입력을 유지한다. F 지도 커서는 기존 누름/놓기 제스처를 유지한다. 두 경로 모두 서버 토큰·revision·선택 게시와 중복 요청 잠금을 공유한다. 응답 대기 중의 기본 화면 우클릭은 바닐라 사용으로 넘어가지 않는다. 클라이언트는 이동 성공이나 기지 변경을 미리 확정하지 않는다.
 
-`hoi:land_plan_overlay_v4`의 `MovementQuad.mission=false`는 기존 `map/movement_arrow`, `true`는 원본 `followOrdersArrow`에서 가져온 `map/mission_arrow`를 사용한다. 같은 지도 칸의 두 종류를 별도 메시로 묶고 서버의 몸통/화살촉 UV 및 진행 구간을 그대로 보존한다. 전략적 재배치의 조직력·속도, 함대의 직접/임무 이동 판정은 서버 책임이다.
+`hoi:land_plan_overlay_v5`의 `MovementQuad.arrow`는 `MOVE`에 `map/movement_arrow`, `MISSION`에 원본 `followOrdersArrow`의 `map/mission_arrow`, `RETREAT`에 원본 `movearrow_retreat.dds`의 `map/retreat_arrow`를 사용한다. 같은 지도 칸의 세 종류를 별도 메시로 묶고 서버의 몸통/화살촉 UV 및 진행 구간을 그대로 보존한다. 전략적 재배치의 조직력·속도, 후퇴 판정과 취소, 함대의 직접/임무 이동 판정은 서버 책임이다. `hoi:unit_hud_v5`의 `RETREATING`도 서버 상태 그대로 보존한다.
 
 집중 검사에서 육군·함대·비행단의 카드/목록 및 카운터 선택 12가지(두 해상도)는 F 지도와 기본 화면 모두 MAP 한 번만 전송했다. 기본 화면 연결 전 육해군 8가지는 F 지도 1회·기본 화면 0회로 재현했다. 반복 클릭 잠금·새 revision 재시도·선택 없음·3인칭의 기존 입력 유지도 검사한다. 비행단 재배치의 선택 노랑 화살표는 실제 서버 fixture이며, 비선택 초록 캡처는 같은 형상에 계약의 `AIR_ACTIVE` 재질을 적용한 렌더 검사다. 이 색 전환을 실제 서버 재선택 응답으로 재현했다고 세지 않는다.
 
@@ -533,7 +551,7 @@ Task-force settings project only stored optional repair policy, auto-split, rein
 
 `air-range`의 `MapAirHoverTest`는 두 GUI2 해상도에서 기본 화면/F 지도, 공군/육군 지도 비행단 선택, 기지/공역 원문과 커서 옆 경계, 늦은 응답·선택 변경·빈/잘못된 대상·선택 해제·3인칭, 기존 해역 응답을 검사한다. 공군 HUD는 서버 producer에서 만들지만 호버 응답과 육군 지도 비행단 선택은 계약을 주입한 검사다. 실제 서버 목표 판정·기지 이동 성공·멀티플레이를 증명하지 않는다. 배속 fixture 세 개는 `FabricCommanderOrderSessionsTest.directAttachAndDetachWriteTheAttachedWingHudFixtures`가 `AIR_ATTACH`/`AIR_DETACH`로 생성한다. `armyHud` 그룹은 이 producer를 사용하며 삭제된 `FabricAirArmyAttachmentOffersTest`에 의존하지 않는다.
 
-필터 없는 `test runGameTest remapJar`에는 기본/F 지도 우클릭, 범위 원·호버와 이동 게이지 검사도 포함된다. 전체 검사의 수동 입력 네 경로는 [전체 재현 절차](#함대-원본-배치와-구형-카드-순서)를 따르며, `HOI_MISSION_OVERLAY_FIXTURES`에는 같은 서버 검증에서 생성한 `army.json`, `navy.json`, `air.json`, `army-strategic.json`, `navy-mission.json`, `air-transfer.json` 여섯 파일이 모두 필요하다. 지휘관·장교단·육군 계획·임무 입력과 프로토콜 및 팩의 출처를 함께 고정한다. 필터 없는 렌더 검사도 실제 운영 목표 판정·이동 성공·저장/재접속·멀티플레이·직접 음향 청취를 대신하지 않는다.
+필터 없는 `test runGameTest remapJar`에는 기본/F 지도 우클릭, 범위 원·호버와 이동 게이지 검사도 포함된다. 전체 검사의 수동 입력 네 경로는 [전체 재현 절차](#함대-원본-배치와-구형-카드-순서)를 따르며, `HOI_MISSION_OVERLAY_FIXTURES`에는 같은 서버 검증에서 생성한 `army.json`, `navy.json`, `air-arrows.json`, `army-strategic.json`, `navy-mission.json`, `air-transfer.json` 여섯 파일이 모두 필요하다. 지휘관·장교단·육군 계획·임무 입력과 프로토콜 및 팩의 출처를 함께 고정한다. 필터 없는 렌더 검사도 실제 운영 목표 판정·이동 성공·저장/재접속·멀티플레이·직접 음향 청취를 대신하지 않는다.
 
 집중 재현은 `test runGameTest remapJar -PhoiTestSuite=map-orders`와 `-PhoiTestSuite=mission-overlays`를 사용한다. 서버·프로토콜 사본과 외부 팩 경로는 기존 `-PhoiServerSource`, `-PhoiProtocolSource`, `-PhoiResourcePack`으로 지정한다. 전자는 실제 클라이언트의 군/함대 카드·지도 카운터 선택 및 `ScreenMapCursor`와 `Minecraft.startUseItem`을 검사한다. HUD 내용은 서버 producer에서 생성하고 카운터 위치·비율 및 해군 카운터 그림은 입력 검사용 합성값이다. 후자는 서버가 생성한 일반 이동·전략적 재배치·함대 임무·비행단 재배치 메시를 GUI2 두 해상도로 렌더한다. 모의 요청 관찰과 로컬 렌더는 운영 소켓·멀티플레이·저장/재접속 검증을 대신하지 않는다.
 
@@ -566,7 +584,7 @@ The HQ designer uses original unit icons and server-derived base hitpoints and s
 
 ## 장교단·교리 본문 정렬
 
-장교단 영역 제목과 정신·참모 선택창 제목·부제, 국가 선호 전술 창 제목·필터 탭, 포획된 지휘관 제목·탭은 각각의 표시 칸 중앙에 배치한다. 정신·참모·법률 선택창의 후보 이름과 비용은 사용자가 지정한 원본 화면(Steam `20261011144045_1.jpg`~`20261011144528_1.jpg`)과 원본 GUI 정의를 따른다. 원본 2픽셀을 GUI2의 1단위로 옮긴다.
+정신·참모 선택창 제목·부제, 국가 선호 전술 창 제목·필터 탭, 포획된 지휘관 제목·탭은 각각의 표시 칸 중앙에 배치한다. 정신·참모·법률 선택창의 후보 이름과 비용은 사용자가 지정한 원본 화면(Steam `20261011144045_1.jpg`~`20261011144528_1.jpg`)과 원본 GUI 정의를 따른다. 원본 2픽셀을 GUI2의 1단위로 옮긴다.
 
 - 참모총장·최고사령부(`advisor/<슬롯>`): `command_character_view.gui`의 `command_character_view_window`. 창 500×590, 제목 y5, 부제 y30, 배너(`GFX_overview_top_strip_small` 4프레임: 육군·해군·공군·최고사령부) y45 부근에 창 폭 99%로 원본 502×59 비율을 유지해 배치, 후보 격자 시작 y114, 칸 231×74 2열. 칸 안에서 초상화 중심 (42,38), 이름 (76,10) 왼쪽 정렬, 특성 두 줄 (76,28), 비용은 오른쪽 끝 222에 맞춘 오른쪽 정렬 y47. 현재 인물은 `GFX_idea_entry_bg_2`의 둘째 프레임을 쓰고 비용을 표시하지 않는다. 정치 탭과 장교단 탭에서 같은 위치·같은 배치로 연다.
 - 정신(`officer/<군종>`): `countryofficercorpview.gui`의 `spirit_window`. 제목 y2, 부제 y24, 장식 배너 y50, 후보 격자 시작 y122, 이름 (76,10) 왼쪽 정렬, 경험치 비용은 칸 오른쪽 아래.
@@ -1093,3 +1111,125 @@ GUI2 두 해상도에서 회색 배치 행, 색 띠 없는 집단군 카드·펼
 
 팩 빌드 후 고정 cmp50 서버/protocol·cmp41-r5 팩의 최종 집중 `test runGameTest remapJar -PhoiTestSuite=navy-layout`는2분33초에 통과했다. PNG148장, client140·protocol124·fixture 생산자66개는 실패/오류/건너뜀0이며 변경 없는 성공 결과는 재사용했다. 생성 입력44개와 공유 protocol48개를 확인했고 최종 실행 중 Java/fixture 설정352개 해시는 변하지 않았다. 실제 두 해상도에서60/20과 합성80/104/40/42를 열람했으며 그림 칸의 화면 간격은27px다. 소수 좌표를 유지해 정수 GUI 반올림으로 간격이28/26px로 번갈아 바뀌지 않게 한다. 초기 컴파일의 blit 정수 좌표 오류와 새 검사에 사용한 구버전 마우스 버튼 번호 오류는 수정 후 재검증했다. 이26.3 빌드의 InputConstants 좌/우클릭은1/3이며 숫자를 직접 쓰지 않는다. staged JAR는 client 진입점만 포함하고 허용된 모드 아이콘 외 게임 그림/음원은 없다. 채워진 원작 배속 화면, GUI2 외 렌더, 필터 없는 전체 검증·운영 접속·저장/재접속·멀티플레이·직접 음향 청취는 미수행이며 전체 검증은 Claude 검토 후 별도 지시를 따른다.
 재측정 보정 뒤 같은 집중 명령은1분50초에 통과했고 PNG148장을 남겼다. GUI2 두 해상도에서 육군 능력치 본문은y136~144(칸 위+22~+30), 해군은y152~160(+24~+32)로 모두9px다. 기술 본문은 육군y119~132·해군y133~146으로14px이며 각각 칸 위+5~+18이다. 육군 검은 칸98×34px·해군96×34px, 특성 줄 좌측 이동14px·5px를 적용했고 숫자는 검은 칸 안에서 그림과 분리된다. 실행 중 Java/fixture 설정 해시는 불변이었다. 두 해군 전구에 보이는 같은 지구본 그림은 동일 카드의 중복이 아니라 전구1의mil_1·전구2의mil_2라는 서로 다른 예비 함대다. 표시 이름과 그림이 같으며 서버 소속을 그대로 따른다.
+
+
+## 원본 자산 준비와 국기 이름 호버
+
+상단 정치 국기 단추를 가리키면 서버의 현재 국가 표시 테이블에서 읽은 나라 이름만 표시한다. cosmetic 이름이 갱신되면 같은 화면에서도 갱신하며, 이름이 없으면 태그나 추정 이름을 대신 표시하지 않는다. 클릭 동작과 플레이어 GUI 설정은 바꾸지 않는다.
+
+연구 나무의 보병·지원·기갑·포·해군·공군·공학·산업 배경은 TFR `countrytechtreeview.gui`와 GFX가 가리키는 원본 사진을 외부 팩 `research/source/`에서 읽는다. GUI2의 기존 압축된 연구 배치에 맞춰 원본 크기의 0.5배에 연구 배율을 곱하고 나무와 함께 스크롤한다. 지원의 원본 x=-30, 기갑의 `GFX_techtree_stripes`를 반영한다. 원본 GUI에 중복된 동일 사진은 한 번만 그린다. 원작 좌표·글꼴 전체를 복제한 것이 아니며 기존 카드·글자 크기와 배치는 유지한다. 해군 지원 장비는 대응 사진을 확정하지 않아 기존 배경을 유지하고, 자산이 없는 경우에도 기존 배경으로 돌아간다. 상세 창은 아래 연구 상세 절의 계약을 사용한다.
+
+집중 재현: 팩에서 `python scripts/build_pack.py` 후 클라이언트에서 Java 25로 `./gradlew test runGameTest remapJar -PhoiTestSuite=asset-preparation -PhoiServerSource=<validated-server-copy> -PhoiProtocolSource=<validated-server-copy/protocol/src/main/java> -PhoiResourcePack=<HOI-resourcepack/build/resources.zip> --console=plain --no-daemon`. `UiCountryDisplayRenderTest`는 표시 테이블 변경 전후 이름 호버를, `ResearchBackgroundTest`는 원본 연구 fixture의 아홉 탭과 요청 없는 화면 전환을 GUI2 2560×1440/1280×720에서 검사한다. `MapTransportModelTest`는 원본 화물선으로부터 변환한 9개 모델 자산과 모의 display 엔티티를 검사한다. 이는 서버의 해상 수송 전환·효과음·명령 승인·실제 멀티플레이 검증이 아니다. 군수산업체 가져오기는 화면·상태 구현 완료를 뜻하지 않는다.
+
+The background render fixture activates existing button callbacks with Enter, as the existing research fixture does. It verifies rendering and absence of START/CANCEL requests; it is not proof of physical mouse selection or multiplayer behavior. The protocol comparison explicitly uses the validated server copy while the shared server checkout is being updated.
+
+## 임무 저장 안내와 원본 공군 화살표
+
+공군·해군 임무 단추는 현재 선택의 사전검증 응답이 아직 없어도 활성화한다. 현재 토큰·revision·선택과 일치하는 서버 `enabled=false` 응답만 임무를 막고 이유를 표시한다. `enabled=true`의 안내 문구는 비활성 조건으로 사용하지 않는다. 실제 요청의 토큰·revision·중복 전송 잠금과 서버 최종 검증은 유지한다. 임무 저장 응답이 `AIR/…` 또는 `NAVY/…` 대기로 바뀌면 각각 “지도에서 공역을 우클릭하세요.”, “지도에서 해역을 우클릭하세요.”를 기존 안내 영역에 표시한다. 이는 정확히 대응하는 원본 키가 없는 HOI 조작 안내이며, 대상 위의 원본 `AIR_REGION_RIGHT_CLICK` 툴팁을 대체하지 않는다. 해군 `ship_activity_no_assignment`는 임무 그림으로 치환하지 않고 원본 할당 없음 그림을 사용한다.
+
+공군 화살표는 `PlanOverlay.air`의 `AirArrow`를 페이지 0에서 받아 전체 장면 조립 후 한 번에 게시한다. 다른 국가·차원과 섞인/순서가 잘못된 페이지를 거절하며 빈 장면·권한 변경·접속 종료는 이전 화살표를 지운다. 이전 공군 상자 선분 재질은 제거되었으며 사거리 원과 결정 강조의 흰 재질은 별도로 유지한다.
+
+`MISSION`은 `air_mission_direction`, `TRANSFER`는 `air_transfer`의 원본 패턴/마스크를 외부 팩에서 읽는다. `MapAirArrowOverlay`는 원본 마스크의 초록 채널과 알파를 패턴 알파에 곱한 런타임 텍스처를 만들고 팩 재로드·접속 종료에 해제한다. 원본 파일은 수정하지 않는다. 근거는 바닐라 `gfx/maparrows/maparrows.txt:986–1031`, `gfx/FX/maparrow.shader:348–400` 및 이송용 `ArrowPixelShaderNoHead`다. 임무 몸통/머리는 가로 UV의 왼쪽/오른쪽 절반, 몸통 세로 배율은 0.4, 이송은 0.41과 반복 1.5·시간 배율 0.2를 적용한다. 현재 지도 축척 4원본 픽셀/블록으로 너비·머리 길이를 환산한다. 양 끝 좌표와 종류·상태는 서버 권위 값이다.
+
+색은 `00_graphics.lua:50–52`대로 `SELECTED` 노랑(알파 0.8), `ACTIVE` 초록(0.5), `NONACTIVE` 회색(흰색·0.2)이다. 서버의 회색 상태는 선택 여부보다 우선하며 임무와 공역이 모두 없으면 그리지 않는다. 공개 원본에는 엔진의 곡선 생성 코드가 없으므로 지형 위 리본은 양 끝을 잇는 포물선 높이 근사다. 원본의 지형 법선 왜곡·동적 조명·안개·선택 깜박임을 그대로 복제했다고 주장하지 않는다. 기존 콘크리트 선분 캡처는 이 원본 렌더의 증거가 아니다.
+
+팩 빌드 후 Java25 집중 재현은 `./gradlew test runGameTest remapJar -PhoiTestSuite=mission-overlays -PhoiServerSource=<validated-server-copy> -PhoiProtocolSource=<validated-server-copy/protocol/src/main/java> -PhoiResourcePack=<HOI-resourcepack/build/resources.zip> --console=plain --no-daemon`이다. 자동 `missionOverlay` 입력은 `army`, `navy`, `army-strategic`, `navy-mission`, `air-arrows`, `air-transfer`다. 공군 임무의 선택·비선택·임무 없는 배정 상태는 서버 producer 결과이며 이송 fixture는 선택 상태만 제공한다. 로컬 취소/권한/재로드 주입 검사는 실제 운영 소켓·멀티플레이·저장/재접속과 구분한다. `direct-movement`는 기존 입력·대기 명령 회귀와 임무 단추를, `movement-controls`는 지휘 패널과 임무 사전검증을 포함한다. 필터 없는 전체 검증은 별도 출하 단계다.
+
+`MapMissionButtonsTest`의 이전 검증은 모의 Context/Availability와 일반 HUD를 사용했고, `hoi-retreat-synthetic-*`는 일반 이동선에 RETREAT 종류만 주입했다. 현재 검사는 아래의 실제 서버 생산 입력으로 이를 보완한다. 회색 공군 원작 사진은 여전히 미확정이며 원본 색상 정의와 서버 fixture를 근거로 삼는다.
+
+고정 cmp50 서버와 같은 protocol을 명시한 집중 `test runGameTest remapJar`의 `direct-movement`, `mission-overlays`, `air-range`가 통과했다. 공군 사거리 채움/점선의 기존 표시와 선택 해제도 검사한다. client 145개·protocol 124개의 단위 검사 실패/오류는 0이며 변경 없는 protocol 성공 결과는 재사용했다. 해군 안내의 제목 겹침을 실제 캡처에서 발견해 임무 창 머리 영역 위로 옮기고 회귀 검사를 추가했다. client 전용 staged JAR에는 기존 모드 아이콘 외 정적 그림·음원이 없다. 전체 무필터 실행·운영 접속·저장/재접속·멀티플레이·직접 음향 청취는 미수행이다.
+
+
+실제 손 후퇴·강제 후퇴 상태와 임무 저장 전후 입력은 `mission-overlays`와 `direct-movement`로 검사한다. `MapMovementOverlayTest`는 `army-retreat-manual`·`army-retreat-forced`의 실제 후퇴 쿼드, 세 단계 `RETREATING`, 원본 텍스처의 회색 표시와 이동 진행을 확인한다. 강제 후퇴 입력은 같은 전투 저장에서 `manualRetreats`를 비운 것으로 자연스러운 조직력 붕괴 과정까지 재현하지 않는다. `cancelled` 이름의 캡처는 클라이언트 수신 상태 비우기 검사이며 강제 후퇴 취소가 허용된다는 뜻이 아니다. 서버 producer는 손 후퇴 취소와 강제 후퇴 취소 거부를 별도로 검사한다. 원작 후퇴 사진이 없어 원본 텍스처와 서버 상태를 근거로 하며 원작 화면과 픽셀 일치를 주장하지 않는다.
+
+임무 상태 검사는 `FabricMissionWaitingFixturesTest`·`FabricNavalRightClickTest`가 실제 캠페인에서 명령을 실행해 출력한 지역 없는 임무와 지역 할당 뒤 HUD·Context·Availability를 재생한다. 재생할 때 dimension과 요청 식별자(token/revision/sequence/request)는 시험 환경에 맞춘다. 공군은 비행단 하나, 해군은 대상 기동부대 하나를 선택하여 저장 뒤 안내와 지역 할당 뒤 상태 변화를 확인한다. 화면의 처리 함수를 호출하고 응답을 주입하므로 물리 마우스부터 실제 서버 저장까지 한 연결에서 수행하는 종단간 검증은 아니다.
+
+## 항구 간 해상 수송 표시
+
+기존 육군 MAP/LAND 요청을 유지하며 서버가 승인한 해상 수송의 MOVE 화살표를 기존 이동 렌더러로 표시한다. 첫 해역 도착 이후 수송 모델과 도착 항구의 병과 모델 복원은 서버 Polymer가 결정한다. 클라이언트에서 승선 시점이나 이동 상태를 추정하지 않는다. ORDER_CONVOY_TRANSPORT는 외부 원본 ui.order.convoy_transport를 재생한다.
+
+집중 재현은 HOI_MISSION_OVERLAY_FIXTURES=<고정 서버 입력>/mission-overlay-fixtures를 설정한 뒤 팩 빌드 및 Java25 test runGameTest remapJar -PhoiTestSuite=sea-transfer -PhoiServerSource=<고정 서버> -PhoiProtocolSource=<고정 서버>/protocol/src/main/java -PhoiResourcePack=C:/HOI-resourcepack/build/resources.zip --console=plain --no-daemon이다. army-sea-transfer.json의 출발·진행 해로를 확대/축소 없이 평탄한 시험장으로 평행 이동하여 실제 GUI2 두 해상도로 렌더한다. 빈 오버레이 제거와 다른 국가 입력 거부는 클라이언트 수신 검사이며 서버 수송 취소 명령의 증거가 아니다.
+
+수송 모델은 원본 화물선의 182큐브 근사다. MapSeaTransferTest는 army-sea-transfer.json의 sea 3단계와 signal을 읽어 gameMinute 0·1332·8532의 병과→수송선→병과 모델과 카운터 상태를 재생한다. 각 단계의 원본 위치를 시험 카메라 앞으로 동일하게 평행 이동하고 실제 yaw를 사용한 모의 item_display를 그린다. 바다 위를 포함해 세 단계 모두 카운터 선택을 검사한다. 이는 실제 producer 출력의 화면 검증이며 서버 Polymer가 소켓을 통해 모델을 바꾸는 종단간 검증은 아니다. 아홉 모델·효과음 로드와 Master 채널 재생도 별도 검사한다. 운영 접속·물리 입력에서 저장까지의 종단간 검증·멀티플레이·직접 음향 청취는 미수행이다.
+
+진행 화살표는 전체 해로보다 짧으므로 해당 캡처만 카메라를 가까이 옮긴다. 서버 좌표·UV·굵기는 바꾸지 않는다. `mission-overlays`와 전체 오버레이 순회에도 `army-sea-transfer`를 포함하며 고정 fixture 목록에서 파일 존재를 확인한다.
+
+
+## 군수산업체 목록·세부·정책
+
+정치 연구 & 생산 네 칸은 서버 manufacturers의 armor/navy/air/materiel 필터로 목록을 연다. 특성 점수 보유는 points>0이며 전체 목록 필터가 아니다. 명시적으로 정렬하기 전에는 서버의 원본 파일 순서를 유지한다. 규모·이름 정렬, 한 업체의 복수 분류, 서버 로고·규모·유형·장비별 특성 수를 보존한다. 목록은 최대 다섯 행 정도의 높이에서 휠·스크롤바 끌기로 이동하고, 세부 사항은 기존 Commander Open(ORGANIZATION, 업체 ID) 경로를 사용한다. 장비 토큰은 원본 GFX_military_industrial_organization_<token> 또는 GFX_mio_cat_* 정의로 대응한다.
+
+ScreenOrganization은 organization/detail·organization/policies를 기존 대화 세션으로 받는다. summary의 진행도·자금 툴팁, points, 속성, 장비별 설계/생산 수, 정책과 잠금 표시, header/trait 좌표·선행·배타 관계·획득 여부, queue/history 타일은 서버 값을 사용한다. 특성 툴팁은 원문·색·공백·줄바꿈을 유지하며 길면 툴팁 위 또는 Shift+휠로 끝까지 읽는다. 노드 종류 mio_special은 원본 월계관, mio는 톱니 프레임이다. 부모 조건은 needed와 parents를 따르고 호버한 노드의 선행선을 노랗게 표시한다. 나무 빈 곳의 사용 조건은 서버 body가 제공된 경우만 표시하며 없는 조건을 추정하지 않는다.
+
+좌클릭 unlock과 정책 attach는 서버 Choice.tooltip을 확인창 본문으로 사용한다. 취소는 로컬 창만 닫으며 확인 때 발급된 선택지를 현재 token/revision으로 한 번 보낸다. Shift+클릭은 queue/unqueue, 대기열 X는 unqueue다. 끌어 놓기는 up/down 한 건을 보내고 다음 revision에서 실제 순서 진전을 확인한 뒤 필요한 다음 요청을 보낸다. 같은 revision·다른 token·오래된 응답은 대기 잠금을 해제하지 않는다. 거절되어 순서가 그대로인 새 응답은 추가 이동을 중단한다. 미발급 선택지를 만들어 보내지 않으며 UI가 자금·특성·정책을 낙관적으로 변경하지 않는다.
+
+원본 틀은 TFR interface/military_industrial_organization/industrial_organization_list.gui·industrial_organization_detail.gui·industrial_org_policy.gui, 사진 20261024072205~072623 및 072358~072435이다. 정책의 국가별 그림 경로가 팩에 없으면 같은 GFX 이름의 공통 mio/ui 원본을 사용한다. 정책 비용의 GFX_pol_power_icon은 기존 pol_power 글리프와 동일한 원본 정치력 아이콘으로 대응한다. 대기열 안내는 번역 패치 3411756715의 localisation/korean/replace/TFR_misc_l_korean.yml:98 INDUSTRIAL_ORG_QUEUE_WINDOW_INSTRUCTION을 사용한다. 이력 사진은 없어 서버 이력 타일을 원본 창 틀에 표시하며 원작의 생산/설계 이력 자료가 구현됐다는 뜻은 아니다.
+
+아이콘 문법은 `£` 뒤 영문·숫자·밑줄(선택적 `|프레임`)을 그림 이름으로 찾고 바로 다음 한 글자를 구분자로 소비한다. 공백·한글·마침표에 같은 규칙을 쓴다. 따라서 `£command_power의 지휘력이`와 `£command_power. 지휘력을`은 아이콘 뒤 조사/마침표 없이, `£command_power만큼의`는 아이콘 뒤 `큼의`로 표시한다. 야전 장교의 서버 문구는 `£command_power 만큼의`로 보내 `만`을 보존한다. 색상이 나뉜 컴포넌트에 걸친 토큰도 같은 규칙이며 뒤 글자의 스타일은 유지한다.
+
+재현: 팩에서 python scripts/build_pack.py 후 Java25 클라이언트 test runGameTest remapJar -PhoiTestSuite=organizations -PhoiServerSource=<검증된 서버 사본> -PhoiProtocolSource=<같은 사본>/protocol/src/main/java -PhoiResourcePack=C:/HOI-resourcepack/build/resources.zip --console=plain --no-daemon. HOI_COMMANDER_PREVIEW에는 같은 서버의 kor-mio-menu, kor-mio-detail-lig, kor-mio-detail-lig-unlocked/points/policy, kor-mio-policies-lig/ready/attached를 둔다. 지휘관은 commander-contract와 commander-layout으로 재현한다. GUI2 2560×1440·1280×720의 실제 렌더와 합성 MouseButtonEvent/모의 전송 검사이며 물리 입력→소켓→서버 비용·저장 종단간, 운영 접속·멀티플레이·직접 음향 청취·필터 없는 전체 검증은 별도다.
+
+정책·대기열은 기존 세부 창 위에 표시하고, 정책의 back 선택지는 X 닫기에 연결한다. 미획득 노드는 어두운 프레임을 사용하고 대기열 번호는 오른쪽 아래 원본 초록 배경에 표시한다. 왼쪽 속성은 한 줄, 장비 목록은 별도로 스크롤한다. 특성 툴팁은 노드 오른쪽 아래와 170GUI 폭의 보라→분홍 테두리를 사용한다. 실제 points·ready·attached·policy 고정 입력으로 특성 확인·정책 적용 전후와 잠금을 검사하며, 획득 후 툴팁은 generic_mio_trait_rapid_fire를 직접 호버해 확인한다.
+
+TraitNode.bonuses의 서버 순서대로 research→GFX_design_team_icon, equipment→GFX_industrial_manufacturer_icon, production/organization→GFX_organization_modifier_icon 원본을 사용한다. 마지막 두 범주는 같은 공장 그림을 사용하며 원본 엔진의 내부 그림 선택과 같다는 주장은 하지 않는다. 한국 목록과 LIG 유형을 검증했으며 모든 국가·유형을 검증한 것은 아니다.
+
+## 생산 라인 군수산업체·연구 설계국
+
+생산 라인 머리의 렌치+ 또는 업체 로고를 좌클릭하면 서버가 발급한 후보와 ‘군수산업체 없이 생산’ 행을 연다. 로고 우클릭은 제거다. 규모·이름 정렬과 기존 조직 세부 창 연결을 제공하며 요청은 MANUFACTURER(session, revision, lineId, organizationId 또는 빈 값, 0)이다. 응답 대기 중 반복 요청을 차단하고 서버 상태를 받기 전에 로고나 혜택을 바꾸지 않는다. 후보 없는 빈 칸은 서버 툴팁을 표시하고 배정 요청을 보내지 않는다. 장비 파생형 설계국 배정은 서버 미지원 범위로 남긴다.
+
+연구 상세의 연구 단추는 적합한 업체가 있으면 선택 창을 열고 Shift+클릭 또는 적합한 업체가 없으면 업체 없이 시작한다. 선택 창은 원본 파일 순서로 시작하며 이름·비용 정렬, 서버 일일 비용·자금·바쁜 업체의 현재 기술을 표시한다. 호버한 업체의 technologies/rates로 남은 일수를 미리 표시하며 현재보다 짧으면 ▼를 붙인다. 진행 중 연구는 DESIGN_TEAM만 보내고 빈 행은 기존 배정을 해제한다. 새 연구에 업체를 고르면 START만 먼저 보내며, 같은 세션·국가의 더 높은 revision에서 정확한 슬롯·기술이 시작됐음을 확인한 뒤 DESIGN_TEAM을 보낸다. 거절·오래된 응답·시간 초과·화면 종료는 후속 배정을 보내지 않는다. 서버가 다른 연구에서 업체를 옮기는 동작은 서버 권위다. 연구 슬롯 로고의 툴팁은 서버 혜택과 해당 기술 자금만 표시하고 할당 안내를 덧붙이지 않는다.
+
+재현은 위 Gradle 명령의 -PhoiTestSuite=organization-assignment를 사용한다. HOI_COMMANDER_PREVIEW에 kor-production-mio-unassigned/assigned와 kor-research-design-team-before/after를 둔다. ScreenOrganizationAssignmentTest는 실제 렌더와 합성 클릭으로 배정·제거·반복 차단, START 승인 후 새 revision 배정, 거절·중복 응답, Shift 시작과 업체 없이 연구를 검사한다. 연구 시작 가능 상태는 실제 연구 중 fixture를 변형한 명시적 합성이며 정책/특성 가능 상태와 배정 전후는 실제 producer 출력이다. 두 해상도의 GUI2 검증과 실제 서버 비용·저장·멀티플레이 검증을 구분한다.
+
+
+## 군 패널 원본 툴팁·편제 변경·해산
+
+군 카드의 전력 막대는 `Panel.forces`(아군 / 아군과 적군의 합)를 표시한다. 적이 없어 null이면 채우지 않는다. 계획 진행도와 섞지 않으며 `tooltips.forces`를 그대로 표시한다. 실행 단추는 기존 `ACTIVATE`/`DEACTIVATE`의 서버 툴팁과 `planEvaluation` 0/1/2 표시를 유지한다.
+
+군 패널의 보급·연료·평균 조직력/전투력·빈 지휘관 초상·전략적 재배치와 사령부는 서버 `Panel.tooltips`·`Headquarters.tooltip`을 사용한다. 사단 줄은 `MemberData.tooltips`의 참호·상세 참호·적응·조직력·전투력·연료·편제를 각 원본 아이콘/막대에 연결한다. 참호 상세는 같은 삽 아이콘에 1초 머물면 표시하고 다른 영역으로 이동하거나 화면 상태를 초기화하면 지연을 다시 센다. 1초는 원본 엔진의 미확정 지연에 대한 클라이언트 선택이다. 서버가 보내는 기술·교리·국민정신별 조직력·참호 출처와 날씨 줄은 원문 순서로 표시하며 £tech_mod/£doctrine_mod는 원본 아이콘으로 표시한다. 서버에 없는 연료 종류별 상세·기반시설·신뢰도 계산을 만들어 채우지 않는다.
+
+사단 줄 방패는 `DIVISION_VIEW_SELECT_ARMY`로 소속 군을 선택한다. 머리 방패의 `CHOOSE_INSIGNIA`, 세부 `OPEN_LEADER_DETAILS`, 열차포 `RAILWAY_GUN_CLICK_TO_SELECT_ASSIGNED`, 배정 해제 `CONFIRMUNASSIGNUNIT(S)`는 원본 키를 쓴다. 수송 중량 툴팁은 `TRANSPORT_WEIGHT_DESC`만 표시한다. 통폐합은 서버 기능이 없어 원본 불가능 설명과 조건으로 비활성화한다.
+
+편제 후보는 `template/` 타일로 목록을 만들며 같은 ID의 Choice가 없는 행은 회색이고 선택 요청을 보내지 않는다. 원본 TFR `interface/unitview.gui`의 `divisions`·`unit_template_entry`와 이미 가져온 `GFX_tiled_window_1b_thin_border`·`GFX_mini_tooltip`을 재사용한다. 25GUI 행, 5개 표시, 휠·스크롤 막대 끌기를 사용하며 이름은 왼쪽 정렬 두 줄이며 더 긴 내용은 말줄임한다. 병과 그림은 48×23GUI, 스크롤바는 ▲/손잡이/▼이며 막힌 행 툴팁은 행 오른쪽에 둔다. 서버가 발급하지 않은 보충 우선순위는 그리지 않는다.
+
+사단 해산·편제 변경 확인창은 기존 TFR 공통 원본 틀과 버튼을 쓰며 본문의 순서·색·빈 줄·인력/장비 수량을 서버 응답 그대로 표시한다. 긴 본문은 버튼을 고정하고 스크롤한다. 발급된 확인만 OK로 표시하고 취소·Esc·반복 클릭·같은 revision 재응답에는 중복 요청을 보내지 않는다. 화면에서 자산을 차감하거나 사단을 미리 제거하지 않는다.
+
+재현: `HOI_COMMANDER_PREVIEW=<검증된 fixtures>`를 지정하고 팩 빌드 후 Java25 `test runGameTest remapJar -PhoiTestSuite=army-tooltips -PhoiServerSource=<고정 서버> -PhoiProtocolSource=<고정 서버>/protocol/src/main/java -PhoiResourcePack=C:/HOI-resourcepack/build/resources.zip --console=plain --no-daemon`을 실행한다. 운영 서버와 분리된 개발 렌더 검사다. GUI2 2560×1440·1280×720에서 실제 렌더와 합성 클릭/모의 전송을 검사한다. `kor-army-panel-tooltips`는 카드 한 개이므로 View에 감싸 시험 차원으로 바꾸며, `kor-disband-confirm`은 서버 producer 응답이다. 적 없는 카드의 전력 25% 및 적응 아이콘 가시성, 긴 해산 본문과 거절 상태는 합성 경계 검사다. 검증된 편제 목록·변경 확인 producer 입력이 없으면 해당 두 화면은 합성 목록/본문으로 검사하며 실제 특수부대 상한·필요/획득 계산 검증으로 해석하지 않는다. 편제 아이콘의 클릭은 기존 사단 선택/우클릭 집중 동작을 보존하며 툴팁에 있는 편제 설계·모병 단축 입력의 서버 기능을 새로 구현하지 않는다. 실제 서버 소켓·편제 비용/해산 반환·저장·운영 접속·멀티플레이·직접 음향 청취·무필터 전체 검증과 구분한다.
+
+
+군 카드 전력 막대는 별도 클릭 영역을 만들지 않고 기존 카드 하단 요청 경로의 툴팁만 바꾼다. 기존 부대 배정/계획 동작을 가로채지 않는다. `army-groups`는 `commander-controls`의 군 카드/선택/끌기/사령부 구성 검사만 반복하는 집중 suite이며 기존 전체 호출과 검사를 유지한다. 일부 고정 서버의 자동 생성 `armyHud` 묶음에는 `kor-promote-confirm`, `kor-army-panel-tooltips`, `kor-disband-confirm` 및 편제 입력이 없어 해당 결합 suite나 무필터 검사가 입력 누락으로 중단될 수 있다. 서버 exporter에서 검증된 입력을 추가하기 전에는 위 명령의 `HOI_COMMANDER_PREVIEW`를 완전한 검증 fixtures로 지정한 집중 검증 범위를 보고한다. 입력이 없는 편제 화면을 합성 검사만으로 실제 계산 완료라고 보고하지 않는다.
+
+
+## 연구 상세·영토 반환·함장과 야전 장교
+
+연구 상세는 `Tech.upgrades`의 범위·능력치·지형 효과와 `Tech.units`의 잠금 해제 부대 능력치를 서버 순서대로 표시한다. 표시 문자열의 정밀도는 다시 계산하지 않으며 지형 비율만 해당 비율 단위의 백분율로 표시한다. null 지형 값은 숫자를 채우지 않는다. 지형 원·장화/칼/방패 및 부호는 원본 `GFX_terrain_mod_*`·`GFX_adjuster_*` 그림을 쓴다. 장비의 자원·사진·능력치는 기존 `research_details.json`에 남으며 국가별 장비 보정은 서버에서 아직 제공하지 않는다. 상세 창은 원본 금속 머리와 어두운 줄무늬 본문, 얇은 테두리로 구성하고 본문만 스크롤한다. 연구 설계국 선택 창은 상세와 상단을 맞추고 작은 화면에서도 두 창이 겹치지 않게 옮긴다. 일수 미리보기의 숫자와 ▼ 사이에는 공백을 두며 일 단위는 흰색이다.
+
+점령지의 영토 반환은 `Administration.returnTerritory && enabled`일 때만 확인창을 연다. 본문은 `confirm`, 툴팁은 `tooltip`이며 취소는 요청을 보내지 않는다. OK는 해당 행의 state/country와 현재 token/revision으로 `RETURN`을 한 번 전송한다. 응답 전에는 행을 지우지 않는다. 다른 revision을 받으면 열린 확인창을 폐기하고 다시 확인해야 한다. 확인창 동안 배경 조작과 자동 새로고침을 막는다. 국가 해방은 서버가 발급하지 않아 비활성 상태를 유지한다. 핵심주 수 툴팁은 `OCCUPIED_COUNTRY_CORE_COUNT_TOOLTIP`의 `NUM_CORES`, `NUM_CONTROLLED_CORES`를 실제 전체·통제 주 수로 채운다.
+
+임명 목록의 `officers`/`captains` 선택지를 받았을 때만 야전 장교/함선 지휘관 단추를 켠다. `ScreenOfficerRoster`는 원본 목록 틀과 행에 부대 그림·숙련도·초상·직함/이름·부대명·경험치를 표시하고 숙련도/유형/표창/경험치 정렬, 검색, 휠·막대 끌기, 서버 발급 page/N 이동을 제공한다. `promote/<section>`이 발급된 행만 진급할 수 있으며 세부 사항은 서버가 지원하지 않아 회색이다. 같은 revision·반복 클릭·미발급 요청은 전송하지 않는다. 진급 확인은 장교 목록을 닫고 원래 장군/제독 임명 창 위에 표시하며 OK/취소는 서버 선택을 보낸다. 야전 장교 확인 문구는 서버의 `£command_power 만큼의`를 그대로 받으며, 공통 한 글자 구분자 소비 규칙으로 공백만 먹고 ‘만큼의’를 보존한다. 장교단·역할·인물 선호 전술은 기존 권한과 국가 선호 전술의 독립 상태를 유지한다. 선호 전술 창은 GUI2에서 원본 폭을 유지하고 세로 공간이 부족할 때만 축소한다.
+
+공통 사단/장교 확인창은 233×154GUI(466×308픽셀)를 기준으로 버튼을 고정하고 긴 본문을 스크롤한다. 사단 확인창의 스크롤바는 짧아도 표시하며 장교 확인창은 실제 넘칠 때만 표시한다. 사단 해산의 §R은 밝은 빨강, 지휘관 진급 비용/감소는 어두운 빨강을 사용한다. 군 툴팁은 커서 오른쪽 아래에 좁은 폭으로 배치하고 긴 하이픈 구분선을 보존한다. 기본 글꼴과 크기를 유지하므로 원본 엔진의 줄 높이와 픽셀 동일하지 않다. MIO 왼쪽 속성·장비는 하나의 스크롤 영역으로 잘라 정책 단추 위로 새지 않으며 특성 툴팁에는 기존 원본 능력치 아이콘 대응을 적용한다. 트리 머리는 원본 `GFX_tiled_plain_bg_small`의 네 귀 리벳을 사용한다. 장교 오른쪽 방패는 `btn_army`의 소속 군·함대 휘장으로 확인됐다. `unitLevel`은 왼쪽 아래 숙련도에만 사용한다. 오른쪽 휘장은 `Officer.insignia`의 0~80 프레임을 사용하며 null인 미소속 부대에는 방패를 그리지 않는다. 기본 휘장 0과 명시적으로 고른 12를 실제 producer 입력으로 구분한다.
+
+재현: 검증된 서버와 같은 protocol, 팩 빌드를 준비하고 `HOI_COMMANDER_PREVIEW=<완전한 fixtures>`를 지정한다. Java25에서 `test runGameTest remapJar -PhoiTestSuite=final-contract -PhoiServerSource=<고정 서버> -PhoiProtocolSource=<고정 서버>/protocol/src/main/java -PhoiResourcePack=C:/HOI-resourcepack/build/resources.zip --console=plain --no-daemon`을 실행한다. `final-review`는 배정·MIO·군 툴팁·편제/해산, `officer-comparison`은 장교단/역할/선호 전술 비교와 기존 전술 입력 검사를 실행한다. 각 suite는 GUI2 2560×1440·1280×720에서 실제 렌더와 합성 입력/모의 요청을 사용한다. wrapper는 provider run 밖에서 띄우고 종료까지 확인한다.
+
+`final-contract` 입력은 `kor-research-sections`, `kor-field-officers`, `kor-field-officer-promote`, `kor-ship-captains`, `kor-ship-captain-promote`, `kor-army-roster-tooltips`, `kor-navy-admirals`, `occupation-return-view-before/after`다. 연구 세 기술은 실제 producer 자료를 빈 슬롯 시험 세션에 넣고, 점령지는 실제 전체 View와 반환 후 View를 재생한다. 이 점령지는 초기 저장에서 도쿄와 아르메니아를 한국에 넘긴 시험 장면으로 실제 전쟁 점령 재현이 아니다. 편제 목록의 허용 7행/상한 거절 4행 및 변경 확인은 `kor-template-list/confirm` producer 입력을 사용한다. 긴 본문·미발급·동일 revision 등의 경계 검사는 합성 상태임을 구분한다. 실제 소켓→서버 비용/반환→저장, 운영 접속, 멀티플레이, 직접 청취, 모든 연구 유형/국가 및 무필터 전체 검증은 별도다. 판 끝 무필터 검증에서는 서버 전체 검증으로 생성한 완전한 fixtures를 `HOI_COMMANDER_PREVIEW`로 고정하며 불완전한 자동 생성 묶음과 섞지 않는다.
+
+### 원본 대조 보정과 전체 재현
+
+연구 상세는 전체 폭 금속 머리, 안쪽 줄무늬 몸통, 흰 제목, 일수 칸과 원본 연구 단추를 사용한다. 설명을 문장 마침표마다 강제로 자르지 않는다. `Upgrade.scopeId`가 분류이면 원본 병종 아이콘과 이름, 개별 부대이면 아이콘만 표시한다. 효과와 장비·모듈·부대 값은 오른쪽 정렬한 두 칸 표이며 지형 배열은 서버 순서를 유지한다. 기술 그림이 없으면 범주 대체 그림을 그리지 않는다. 짧은 창도 267GUI 높이를 유지하고 긴 창은 화면 아래까지 확장한 뒤 필요한 경우 본문만 스크롤한다. 원본의 210·263·설계국 적용 192일은 내림 계산과 일치한다. 설계국 호버는 최소 1일의 내림을 사용한다. 공유 `Tech.remainingDays`와 설계국 호버 모두 최소 1일의 내림을 사용한다.
+
+연구 슬롯은 46GUI 간격과 42GUI 높이로 배치하고, 화면에 들어가는 슬롯 수에 맞춰 스크롤한다. 이름·연도·일수·로고가 서로 겹치지 않게 분리한다. 배정된 슬롯은 원본 `GFX_research_line_mio_bg`의 톱니 배경을 쓰며, 진행 중에는 같은 그림의 빈 격자 영역을 UV로 재사용해 중앙 플라스크를 덮는다. PNG 원본은 수정하지 않는다. 로고 툴팁은 슬롯 오른쪽에 표시한다.
+
+점령지의 저항 없는 나라 행에는 `GFX_occupation_country_entry_bg_top_locked`를 사용하고 0인 공장·자원은 `---`로 표시한다. 반환/해방 단추의 흰 글자를 유지하며 권한 없는 클릭은 차단한다. 제목의 주둔군 기록·장비 문서 그림은 원본 자리의 장식이며 관련 서버 기능이 제공되지 않아 새 동작을 연결하지 않는다. 반환 확인은 배경을 어둡게 하지 않고 본문을 가운데 정렬한다.
+
+장교단은 작은 해상도에서도 275GUI 폭을 유지하고 세로로 스크롤한다. 사령부 수는 서버 값을 그대로 사용한다. 비교 입력 `kor-selected-menu`는 0/1, `kor-mio-menu`는 0/0이므로 같은 상태로 비교하지 않는다. 선호 전술 설명은 기본 글꼴의 정수 배율을 쓰고 줄 수에 따라 카드 시작 위치를 내린다. 비교 자료는 `kor-leader-tactics-low-skill`과 `kor-leader-tactics-choices`의 실제 producer 카드로 잠금·모두/공격/방어 탭을 검사한다. 국가 전술과 인물 전술의 선택 세션은 별개다.
+
+집중 검사는 `final-contract`, `final-review`, `tooltip-spacing`, `officer-comparison`을 사용한다. 전체 검사는 같은 명령에서 `-PhoiTestSuite`를 생략한다. `HOI_COMMANDER_PREVIEW`에는 검증된 서버가 만든 전체 fixtures를 고정하고, `HOI_MISSION_OVERLAY_FIXTURES`에는 같은 사본의 임무 입력을 둔다. 나머지 producer 입력은 Gradle의 `prepareRendererFixtures`가 같은 `hoiServerSource`에서 생성한다. PowerShell wrapper를 `Invoke-CimMethod -ClassName Win32_Process -MethodName Create`로 provider run 밖에서 시작하고, 로그·exit 파일과 프로세스 종료까지 확인한다. 실제 소켓 요청에 따른 비용/반환/저장, 운영 접속·멀티플레이·직접 음향 청취는 이 렌더 검증의 범위가 아니다. 원본과 국가·인물·상태·글꼴이 다른 비교를 픽셀 동일성으로 보고하지 않는다.
+
+함장 행 왼쪽은 `unit_hud/navy_<선체>`를 원본 `GFX_navy_icon_<선체>`로 연결한다. 이전 지도용 `onmap_destroyer.dds`의 FS 표기는 함장 목록에서 사용하지 않는다. 중단된 1935 무필터 시도는 전체 검증 완료로 세지 않는다. 최종 검증은 일수 내림과 `Officer.insignia` 계약이 포함된 동일한 고정 서버·protocol·fixtures로 실행한다.
+
+현재 원작 대비 외형 한계: 지휘관 임명 목록은 완전한 4행을 보이고 원본 사진의 잘린 다섯째 행은 생략하므로 스크롤로 다음 후보를 확인한다. 장교 목록의 부대명과 행 배경 가로 장식이 맞닿고, 기본 글꼴의 ▼ 모양은 원본과 다르며, 연구 상세의 긴 설명은 머리 영역에서 잘릴 수 있다. 함장 선체 그림 안의 CV/CL/DD 표기는 원본 이미지에 포함된 것이다. 미확정 엔진 동작(함대/태스크 포스 휘장 선택, 슬롯 자금 995/1000, 정찰전차 인력 950/450, 교리 트랙 구조와 동적 특성 그림)과 실제 소켓·비용·저장·멀티플레이·직접 음향 청취는 렌더 검증과 구분한다.
+
+육군 계획 목표 대화 창의 드래그는 일반 지도 이동과 별도로 여러 ray를 수집한다. 일반 이동은 누른 첫 ray를 유지하고, 계획선 입력은 최대 64개와 해당 창의 token/revision을 보존한다.
+
+소형 연구 슬롯의 스크롤 접근성은 `test runGameTest remapJar -PhoiTestSuite=research-slots`로 재현한다. 854×480에서 서버가 준 5개·6개 슬롯 각각의 화면 안 배치와 마지막 슬롯까지의 도달성을 검사하며, 휠 입력 한 번은 한 슬롯 이동으로 처리한다.

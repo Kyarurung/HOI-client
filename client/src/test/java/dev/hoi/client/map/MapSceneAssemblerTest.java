@@ -33,5 +33,14 @@ class MapSceneAssemblerTest {
         assertNull(assembler.accept(new ProtocolAtlasScene.Page(first,"hoi:army",0,2,List.of(BOX)),List.of(q)));assertNull(assembler.accept(new ProtocolAtlasScene.Page(other,"hoi:army",1,2,List.of()),List.of(q)));
         assertNull(assembler.accept(new ProtocolAtlasScene.Page(first,"hoi:army",0,2,List.of(BOX)),List.of(q)));var result=assembler.accept(new ProtocolAtlasScene.Page(first,"hoi:army",1,2,List.of()),List.of(q));assertEquals(List.of(BOX),result.boxes());assertEquals(List.of(q,q),result.movement());var mesh=MapSceneMesh.build("hoi:army",result.boxes(),result.movement());assertTrue(mesh.tiles().stream().anyMatch(MapSceneMesh.MapTile::movement));var vertices=mesh.tiles().stream().filter(MapSceneMesh.MapTile::movement).findFirst().orElseThrow().vertices();assertEquals(.125f,vertices[3]);assertEquals(.5f,vertices[4]);assertEquals(.7f,vertices[11]);
     }
+    @Test void airArrowsPublishWithCompleteSceneAndRejectLaterPageInjection(){
+        var assembler=new MapSceneAssembler();var id=UUID.randomUUID();var arrow=new dev.hoi.protocol.ProtocolCommanderHud.AirArrow("wing",dev.hoi.protocol.ProtocolCommanderHud.AirArrowKind.MISSION,dev.hoi.protocol.ProtocolCommanderHud.AirArrowState.NONACTIVE,new dev.hoi.protocol.ProtocolCommanderHud.PlanPoint(1,64,1),new dev.hoi.protocol.ProtocolCommanderHud.PlanPoint(10,64,5));
+        assertNull(assembler.accept(new ProtocolAtlasScene.Page(id,"hoi:air",0,2,List.of()),List.of(),List.of(arrow)));
+        var complete=assembler.accept(new ProtocolAtlasScene.Page(id,"hoi:air",1,2,List.of()),List.of(),List.of());assertEquals(List.of(arrow),complete.air());
+        assertNull(assembler.accept(new ProtocolAtlasScene.Page(id,"hoi:air",0,2,List.of()),List.of(),List.of(arrow)));
+        assertNull(assembler.accept(new ProtocolAtlasScene.Page(id,"hoi:air",1,2,List.of()),List.of(),List.of(arrow)));
+        assertNull(assembler.accept(new ProtocolAtlasScene.Page(id,"hoi:air",1,2,List.of()),List.of(),List.of()));
+        assertTrue(assembler.accept(new ProtocolAtlasScene.Page(UUID.randomUUID(),"hoi:air",0,1,List.of()),List.of(),List.of()).air().isEmpty());
+    }
 
 }

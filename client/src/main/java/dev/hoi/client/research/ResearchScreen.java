@@ -1,7 +1,6 @@
 package dev.hoi.client.research;
 
-import dev.hoi.client.ui.UiPanelButton;
-
+import dev.hoi.client.ui.*;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.input.InputSidebarMovement;
@@ -10,7 +9,6 @@ import dev.hoi.client.ui.UiMenuBar;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
-
 import dev.hoi.protocol.ProtocolResearchPayloads;
 import dev.hoi.protocol.ProtocolResearchView;
 import dev.hoi.protocol.ProtocolResearchView.Tech;
@@ -34,7 +32,11 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     private String category = CATEGORIES[0], detail, focusedTech;
     private int selectedSlot, slotOffset, treeTop, treeBottom, treePadding, panelX, panelY, panelW, panelH, detailScroll, pending, hudScroll;
     private double scrollX, scrollY;
-    private boolean panning, overview = true;
+    private boolean panning, overview = true, teamPicker, teamCostSort, teamDescending, teamSorted;
+    private int teamScroll, teamX, teamY, teamWidth, teamHeight, waitingTeamSlot = -1;
+    private String waitingTeam = "", waitingTechnology = "", hoveredTeam = "";
+    private final List<net.minecraft.client.gui.components.AbstractWidget> teamBackdrop = new ArrayList<>(), teamDetails = new ArrayList<>();
+    private final Map<Button, String> teamRows = new LinkedHashMap<>();
     private final java.util.function.Consumer<ProtocolResearchPayloads.Request> requests;
     private final java.util.function.Consumer<ProtocolMenuTab> menus;
     private final List<Button> baseButtons = new ArrayList<>();
@@ -51,13 +53,22 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (!next.country().equals(view.country())) { minecraft.gui.setScreen(null); return; }
         if (next.revision() <= view.revision()) return;
         view = next; pending = 0;
+        if (waitingTeamSlot >= 0) {
+            int slot = waitingTeamSlot; String team = waitingTeam, technology = waitingTechnology;
+            waitingTeamSlot = -1; waitingTeam = ""; waitingTechnology = "";
+            if (slot < view.slots().size() && view.slots().get(slot).technology().equals(technology)
+                    && view.designTeams().stream().anyMatch(t -> t.id().equals(team) && t.technologies().contains(technology))) {
+                pending = 100;
+                requests.accept(new ProtocolResearchPayloads.Request(ProtocolResearchPayloads.Action.DESIGN_TEAM, view.session(), view.revision(), slot, team));
+            }
+        }
         selectedSlot = Math.min(selectedSlot, view.slots().size() - 1);
         if (detail != null && view.technology(detail) == null) detail = null;
         rebuildWidgets();
     }
     @Override protected void init() {
         if (!overview) InputSidebarMovement.release(minecraft);
-        clearWidgets(); baseButtons.clear();
+        clearWidgets(); baseButtons.clear(); teamRows.clear(); teamBackdrop.clear(); teamDetails.clear();
         UiMenuBar.buttons(width, view.country(), ProtocolMenuTab.RESEARCH, tab -> {
             if (tab == ProtocolMenuTab.RESEARCH) { HoiClient.cancelOpen(); overview = true; detail = null; rebuildWidgets(); }
             else menus.accept(tab);
@@ -77,11 +88,11 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (detail != null) initDetail();
     }
     public int treeTop() { return treeTop; }
-    private int visibleSlots() { return 6; }
+    private int visibleSlots() { return Math.max(1, Math.min(6, (height - slotsTop() - 8) / 46)); }
     private int menuBottom() { return UiMenuBar.height(width); }
     private int overviewWidth() { return UiPanelLayout.width(ProtocolMenuTab.RESEARCH, width); }
-    private int slotPitch() { return Math.min(54, Math.max(17, (height - slotsTop() - 8) / visibleSlots())); }
-    private int bannerHeight() { return Math.max(1, Math.min((overviewWidth() - 12) * 138 / 532, height - menuBottom() - 80 - visibleSlots() * 17)); }
+    private int slotPitch() { return 46; }
+    private int bannerHeight() { return Math.max(1, Math.min((overviewWidth() - 12) * 138 / 532, height - menuBottom() - 80 - Math.min(6, view.slots().size()) * 46)); }
     private int slotsTop() { return menuBottom() + 72 + bannerHeight(); }
     private void initOverview() {
         int pane = overviewWidth(), count = visibleSlots();
@@ -96,6 +107,15 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
                 if (technology != null) { category = ResearchLayout.category(technology); showDetail(technology.id()); }
                 else rebuildWidgets();
             }));
+            var team = view.designTeams().stream().filter(t -> t.id().equals(slot.designTeam())).findFirst().orElse(null);
+            if (team != null) {
+                int size = 30, logoX = pane - size - 15, logoY = slotsTop() + n * slotPitch() + 19;
+                var logo = new UiPanelButton(team.name(), logoX, logoY, size, 13, () -> {}) {
+                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) { UiAssets.draw(g, team.icon(), getX(), getY(), getWidth(), getHeight()); if(isHovered())UiTooltips.drawSourceScrollable(g,font,teamTooltip(team,slot.technology(),false),pane+2,getY()-7,ResearchScreen.this.width,ResearchScreen.this.height,0,210); }
+                    @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) { return false; }
+                };
+                logo.setTooltip(null); addRenderableWidget(logo);
+            }
         }
     }
     private void overviewTooltip(GuiGraphicsExtractor g,int x,int y) {
@@ -127,6 +147,16 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
                 ? new dev.hoi.client.ui.UiMenuButton(label, x, y, w, h, action)
                 : new UiPanelButton(label, x, y, w, h, action));
     }
+    private Button researchButton(String label, int x, int y, int w, int h, Runnable action) {
+        return addRenderableWidget(new UiPanelButton(label,x,y,w,h,action) {
+            @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
+                UiAssets.draw(g,"research/detail/gfx_government_button/frame_0",getX(),getY(),getWidth(),getHeight());
+                var text=font.plainSubstrByWidth(getMessage().getString(),getWidth()-18);
+                g.text(font,text,getX()+(getWidth()-12-font.width(text))/2,getY()+(getHeight()-font.lineHeight)/2,active?0xFF333333:0xFF6C6C6C,false);
+                UiAssets.drawContent(g,"mio/ui/gfx_design_team_icon/frame_0",getX()+getWidth()-13,getY()+1,11,getHeight()-2);
+            }
+        });
+    }
     public void showDetail(String id) {
         var target = view.technology(id);
         if (target == null) return;
@@ -143,24 +173,30 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     }
     private void initDetail() {
         baseButtons.forEach(b -> { b.active = false; b.visible = false; });
-        panelW = Math.min(366, width - 24); panelH = Math.min(350, height - menuBottom() - 24);
+        panelW = Math.min(266, width - 24); panelH = height - menuBottom() - 18;
         panelX = Math.min(Math.max(12, width / 5), width - panelW - 12);
-        panelY = menuBottom() + Math.max(12, (height - menuBottom() - panelH) / 2);
+        if (teamPicker) panelX = Math.max(8, Math.min(panelX, width - panelW - Math.min(268, width - 16) - 12));
+        panelY = menuBottom() + 12;
         var tech = view.technology(detail);
-        button("×", panelX + panelW - 28, panelY + 8, 20, 20, () -> { detail = null; rebuildWidgets(); });
+        panelH = Math.min(panelH, Math.max(267, detailBody(null, tech, 0) + 118));
+        button("×", panelX + panelW - 16, panelY + 3, 14, 14, () -> { detail = null; rebuildWidgets(); });
         var activeSlot = view.slots().stream().filter(s -> s.technology().equals(detail)).findFirst();
         String action = tech.status() == ProtocolResearchView.Status.ACTIVE ? "연구 중단"
                 : tech.status() == ProtocolResearchView.Status.COMPLETED ? "연구 완료"
                 : tech.status() == ProtocolResearchView.Status.LOCKED ? "선행 연구 필요"
                 : view.availableSlot(selectedSlot)>=0 ? "연구" : "빈 슬롯 필요";
-        var start = button(pending > 0 ? "응답 대기…" : action, panelX + panelW - 104, panelY + 37, 90, 22, () -> {
-            pending = 100;
-            requests.accept(new ProtocolResearchPayloads.Request(activeSlot.isPresent() ? ProtocolResearchPayloads.Action.CANCEL : ProtocolResearchPayloads.Action.START,
-                    view.session(), view.revision(), activeSlot.map(ProtocolResearchView.Slot::index).orElse(view.availableSlot(selectedSlot)), detail));
-            detail = null;
-            overview = true;
-            rebuildWidgets();
+        var start = researchButton(pending > 0 ? "응답 대기…" : action, panelX + panelW - 78, panelY + 28, 70, 13, () -> {
+            if (activeSlot.isPresent()) {
+                pending = 100;
+                requests.accept(new ProtocolResearchPayloads.Request(ProtocolResearchPayloads.Action.CANCEL, view.session(), view.revision(), activeSlot.get().index(), detail));
+                detail = null; overview = true; rebuildWidgets();
+            } else if (dev.hoi.client.ui.UiPriorityControls.shifted() || eligibleTeams().isEmpty()) selectTeam("");
+            else { teamPicker = true; teamScroll = 0; rebuildWidgets(); }
         });
+        if (!activeSlot.isPresent()) start.setTooltip(UiTooltips.createExact(researchTeamTooltip()));
+        if (activeSlot.isPresent() && !eligibleTeams().isEmpty()) {
+            button(UiTooltips.officerText(teamText("header")).getString(), panelX + panelW - 98, panelY + 44, 90, 14, () -> { teamPicker = true; teamScroll = 0; rebuildWidgets(); }).active = pending == 0;
+        }
         ((UiPanelButton)start).sound("ui.click");
         var child = subTechnology(tech);
         if (child != null) {
@@ -177,8 +213,88 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         }
         start.active = pending == 0 && (activeSlot.isPresent() || tech.status() == ProtocolResearchView.Status.AVAILABLE
                 && view.availableSlot(selectedSlot)>=0);
+        if (teamPicker) initTeams();
     }
-    @Override public void tick() { if (pending > 0 && --pending == 0) rebuildWidgets(); }
+    private List<ProtocolResearchView.DesignTeam> eligibleTeams() {
+        return view.designTeams().stream().filter(t -> t.technologies().contains(detail)).toList();
+    }
+    private String teamText(String key) { return view.designTeamText().getOrDefault(key, ""); }
+    private String researchTeamTooltip() {
+        var rows = eligibleTeams(); var result = new ArrayList<String>();
+        if (!rows.isEmpty()) {
+            result.add(teamText("available_title"));
+            for (var team : rows) result.add(teamText("available_item").replace("$NAME$", team.name()));
+            result.add("");
+        }
+        result.add(teamText(rows.isEmpty() ? "research" : "research_mio"));
+        if (!rows.isEmpty()) { result.add("--------------"); result.add(teamText("task_info")); }
+        return String.join("\n", result);
+    }
+    private String teamTooltip(ProtocolResearchView.DesignTeam team, String technology, boolean assign) {
+        int index = team.technologies().indexOf(technology);
+        String result = team.tooltip();
+        if (index >= 0) result += "\n" + teamText("funds").replace("$VALUE$", Integer.toString(team.funds().get(index)));
+        if (!team.technology().isEmpty() && !team.technology().equals(technology)) {
+            var busy = view.technology(team.technology());
+            result += "\n\n" + teamText("busy").replace("$NAME$", team.name()) + "\n" + (busy == null ? team.technology() : busy.name());
+        }
+        return assign ? result + "\n\n" + teamText("assign") : result;
+    }
+    private Component teamDays(Tech tech, int savedDays) {
+        var team = eligibleTeams().stream().filter(t -> t.id().equals(hoveredTeam)).findFirst().orElse(null);
+        if (team == null) return Component.literal(Long.toString(tech.remainingDays(savedDays))).withStyle(style->style.withColor(GOLD)).append(Component.literal("일").withStyle(style->style.withColor(TEXT)));
+        int index = team.technologies().indexOf(tech.id());
+        long days = Math.max(1, (long)Math.floor((tech.baseDays() - tech.progress()) / team.rates().get(index) - savedDays));
+        return Component.literal(days + (days < tech.remainingDays(savedDays) ? " ▼" : "")).withStyle(style->style.withColor(days < tech.remainingDays(savedDays) ? 0x55FF55 : GOLD)).append(Component.literal("일").withStyle(style->style.withColor(TEXT)));
+    }
+    private void selectTeam(String team) {
+        if (pending > 0 || detail == null || !team.isEmpty() && eligibleTeams().stream().noneMatch(t -> t.id().equals(team))) return;
+        var active = view.slots().stream().filter(slot -> slot.technology().equals(detail)).findFirst();
+        int slot = active.map(ProtocolResearchView.Slot::index).orElse(view.availableSlot(selectedSlot));
+        if (slot < 0) return;
+        teamPicker = false; pending = 100;
+        if (active.isEmpty()) {
+            if (!team.isEmpty()) { waitingTeamSlot = slot; waitingTeam = team; waitingTechnology = detail; }
+            requests.accept(new ProtocolResearchPayloads.Request(ProtocolResearchPayloads.Action.START, view.session(), view.revision(), slot, detail));
+        } else requests.accept(new ProtocolResearchPayloads.Request(ProtocolResearchPayloads.Action.DESIGN_TEAM, view.session(), view.revision(), slot, team));
+        detail = null; overview = true; rebuildWidgets();
+    }
+    private List<ProtocolResearchView.DesignTeam> sortedTeams() {
+        var rows = new ArrayList<>(eligibleTeams());
+        if (teamCostSort) rows.sort(Comparator.comparingDouble(ProtocolResearchView.DesignTeam::dailyCost));
+        else if (teamSorted) rows.sort(Comparator.comparing(ProtocolResearchView.DesignTeam::name));
+        if (teamDescending) Collections.reverse(rows);
+        return rows;
+    }
+    private void initTeams() {
+        for (var child : children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget) { widget.active = false; if(widget.visible)teamBackdrop.add(widget); widget.visible=false; }
+        teamWidth = Math.min(268, width - 16); teamHeight = Math.min(330, height - menuBottom() - 12);
+        teamX = Math.min(width - teamWidth - 8, panelX + panelW + 4); teamY = panelY;
+        button("×", teamX + teamWidth - 23, teamY + 3, 18, 18, () -> { teamPicker = false; rebuildWidgets(); });
+        button("이름", teamX + 35, teamY + 28, 40, 15, () -> { teamDescending = teamSorted && !teamCostSort && !teamDescending; teamCostSort = false; teamSorted = true; rebuildWidgets(); });
+        button("비용", teamX + 78, teamY + 28, 40, 15, () -> { teamDescending = teamSorted && teamCostSort && !teamDescending; teamCostSort = true; teamSorted = true; rebuildWidgets(); });
+        var rows = sortedTeams(); int start = teamY + 50;
+        teamScroll = Math.clamp(teamScroll, 0, Math.max(0, 47 + rows.size() * 53 - (teamHeight - 57)));
+        if (teamScroll == 0) addRenderableWidget(new dev.hoi.client.ui.UiMenuButton(UiTooltips.officerText(teamText("empty")).getString(), teamX + 8, start, teamWidth - 16, 44, () -> selectTeam("")).background("commander/commands/button_148x34/frame_0"));
+        for (int i = 0; i < rows.size(); i++) {
+            var team = rows.get(i); int y = start + 47 + i * 53 - teamScroll;
+            if (y < start || y + 49 > teamY + teamHeight - 7) continue;
+            teamDetails.add(addRenderableWidget(new dev.hoi.client.ui.UiMenuButton("세부 사항", teamX + teamWidth - 67, y + 27, 54, 16, () -> dev.hoi.client.map.MapCommanderHud.open(new dev.hoi.protocol.ProtocolCommanderHud.Open(dev.hoi.protocol.ProtocolCommanderHud.Mode.ORGANIZATION, team.id(), List.of()))).background("mio/ui/gfx_leader_selection_button/frame_0")));
+            var row = addRenderableWidget(new UiPanelButton(team.name(), teamX + 8, y, teamWidth - 16, 49, () -> selectTeam(team.id())) {
+                @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                    UiOrganizationRow.draw(g, team.icon(), team.size(), team.name(), team.type(), team.equipment(), getX(), getY(), getWidth());
+                    UiText.leftSingleLine(g, font, UiKeywordIcons.decorateLines(UiTooltips.officerText(teamText("cost").replace("$VALUE$", String.format(Locale.ROOT, "%.2f", team.dailyCost()))), false), getX() + getWidth() - 68, getY() + 3, 64, 14, TEXT);
+                }
+            });
+            row.active = pending == 0; teamRows.put(row, team.id());
+        }
+    }
+    private void drawTeams(GuiGraphicsExtractor g) {
+        g.nextStratum(); UiMenuStyle.panel(g, teamX, teamY, teamWidth, teamHeight);
+        UiText.centered(g, font, UiTooltips.officerText(teamText("header")).getString(), teamX + 8, teamY + 4, teamWidth - 35, 20, TEXT, false);
+        UiAssets.draw(g, "mio/ui/gfx_land_battle_leader_skill_bg/frame_0", teamX + 10, teamY + 28, 17, 18);
+    }
+    @Override public void tick() { if (pending > 0 && --pending == 0) { waitingTeamSlot = -1; waitingTeam = ""; waitingTechnology = ""; rebuildWidgets(); } }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         if (overview) { drawOverview(g); UiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll); super.extractRenderState(g, mouseX, mouseY, delta); overviewTooltip(g,mouseX,mouseY); return; }
         g.fillGradient(0, 0, width, height, 0xFF1B201E, 0xFF060909);
@@ -190,9 +306,16 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         g.text(font, "진행", 76, height - 24, color(ProtocolResearchView.Status.ACTIVE));
         g.text(font, "잠김", 108, height - 24, color(ProtocolResearchView.Status.LOCKED));
         if (detail != null && !view.message().isEmpty()) g.text(font, trim(view.message(), width - 24), 12, height - 12, MUTED);
-        if (detail != null) drawDetail(g);
+        terrainMouseX = mouseX; terrainMouseY = mouseY; terrainTooltip = "";
+        if (detail != null) { hoveredTeam = teamRows.entrySet().stream().filter(e -> e.getKey().isMouseOver(mouseX, mouseY)).map(Map.Entry::getValue).findFirst().orElse(""); drawDetail(g); }
         UiMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll);
+        if (teamPicker) { for(var widget:teamBackdrop){widget.visible=true;widget.extractRenderState(g,-1,-1,delta);widget.visible=false;} drawTeams(g); }
         super.extractRenderState(g, mouseX, mouseY, delta);
+        if (teamPicker) for (var widget : teamDetails) widget.extractRenderState(g,mouseX,mouseY,delta);
+        if (teamPicker) for (var entry : teamRows.entrySet()) if (entry.getKey().isMouseOver(mouseX,mouseY) && teamDetails.stream().noneMatch(w -> w.isMouseOver(mouseX,mouseY))) {
+            var team = view.designTeams().stream().filter(t -> t.id().equals(entry.getValue())).findFirst().orElseThrow();
+            UiTooltips.drawSourceScrollable(g,font,teamTooltip(team,detail,true),teamX+teamWidth,mouseY,width,height,0,194);
+        }
     }
     private void drawOverview(GuiGraphicsExtractor g) {
         int pane = overviewWidth(), top = menuBottom(), bannerY = top + 39;
@@ -222,12 +345,13 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         }
         g.disableScissor();
         g.enableScissor(10, treeTop, width - 10, treeBottom);
+        boolean sourceBackground = drawSourceBackground(g);
         for (int i = 0; !layout.sourceTree() && i <= layout.years().size(); i++) {
             int x = (int)(20 + i * ResearchLayout.COLUMN - scrollX);
             g.verticalLine(x, treeTop, treeBottom, 0xFF1C2421);
         }
         boolean reference = ResearchSourceLayout.applies(layout);
-        if (reference) drawReferenceGuides(g);
+        if (reference && !sourceBackground) drawReferenceGuides(g);
         if(layout.sourceTree() && !reference) for(var guide:layout.yearGuides().entrySet()) {
             int gx=layout.vertical()?14:(int)(10+guide.getValue()-scrollX);
             int gy=layout.vertical()?(int)(treeTop+guide.getValue()-scrollY):treeTop+treePadding+2;
@@ -337,6 +461,29 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             }
         }
     }
+    private boolean drawSourceBackground(GuiGraphicsExtractor g) {
+        String sprite = switch (category) {
+            case "INFANTRY" -> "infantry_techtree_bg";
+            case "SUPPORT" -> "support_techtree_bg";
+            case "ARMOR" -> "armortech_bg";
+            case "ARTILLERY" -> "artillery_techtree_bg";
+            case "NAVY" -> "naval_techtree_bg";
+            case "AIR" -> "air_techtree_bg";
+            case "ENGINEERING" -> "engineering_techtree_bg";
+            case "INDUSTRY" -> "industry_techtree_bg";
+            default -> "";
+        };
+        if (sprite.isEmpty()) return false;
+        String path = "research/source/gfx_" + sprite + "/atlas";
+        int[] size = UiAssets.imageSize(path);
+        if (size[0] == 0) return false;
+        double scale = ResearchSourceLayout.scale(layout) * 0.5;
+        int x = (int)(10 - scrollX), y = (int)(treeTop + treePadding - scrollY);
+        if (category.equals("ARMOR")) UiAssets.tiledNineSlice(g, "research/source/gfx_techtree_stripes/atlas",
+                x, y, Math.max(layout.width(), width - 20), Math.max(layout.height(), treeBottom - treeTop), 0, scale);
+        if (category.equals("SUPPORT")) x -= (int)Math.round(30 * scale);
+        return UiAssets.draw(g, path, x, y, (int)Math.round(size[0] * scale), (int)Math.round(size[1] * scale));
+    }
     private void drawReferenceGuides(GuiGraphicsExtractor g) {
         double scale = ResearchSourceLayout.scale(layout);
         for (int row = 0; layout.vertical() && row < (int)Math.ceil(layout.height() / (44 * scale)); row++) if (row % 2 == 0) {
@@ -367,41 +514,73 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         }
     }
     private void drawDetail(GuiGraphicsExtractor g) {
-        g.nextStratum(); g.fill(0, menuBottom(), width, height, 0xB0000000);
-        g.fillGradient(panelX, panelY, panelX + panelW, panelY + panelH, 0xFF343B43, 0xFF101416);
-        g.outline(panelX, panelY, panelW, panelH, 0xFF82909B);
+        g.nextStratum();
+        UiAssets.nineSlice(g, "research/source/gfx_tiled_window_thin_border2/frame_0", panelX, panelY, panelW, panelH, 5, .5);
+        UiAssets.nineSlice(g, "research/source/gfx_tiled_paper_bg/frame_0", panelX + 5, panelY + 106, panelW - 10, panelH - 111, 6, .5);
+        UiAssets.draw(g, "research/source/gfx_tech_info_top_win/frame_0", panelX, panelY, panelW, 106);
         var tech = view.technology(detail);
-        g.centeredText(font, ResearchText.gold(trim(tech.name(), panelW - 70)), panelX + panelW / 2 - 10, panelY + 14, TEXT);
-        g.horizontalLine(panelX + 8, panelX + panelW - 8, panelY + 30, 0xFF657078);
-        UiAssets.technology(g, view.country(), tech, panelX + 12, panelY + 39, 52, 37, GOLD);
-        g.fill(panelX + 70, panelY + 37, panelX + panelW - 110, panelY + 59, 0xFF0C1014);
+        g.centeredText(font, ResearchText.white(trim(tech.name(), panelW - 40)), panelX + panelW / 2, panelY + 6, TEXT);
+        String art = UiAssets.technologyPath(view.country(), tech);
+        if (!art.isEmpty()) UiAssets.drawContent(g, art, panelX + 18, panelY + 20, 38, 36);
+        UiAssets.nineSlice(g, "commander/commands/mini_tooltip/frame_0", panelX + 76, panelY + 28, 109, 13, 4, .5);
         int bank = view.slots().stream().filter(slot -> slot.technology().equals(tech.id())).findFirst()
                 .map(ProtocolResearchView.Slot::savedDays).orElse(view.slots().get(selectedSlot).savedDays());
-        g.centeredText(font, tech.remainingDays(bank) + "일", panelX + (70 + panelW - 110) / 2, panelY + 44, GOLD);
-        g.text(font, status(tech.status()) + " · " + tech.year() + "년", panelX + 70, panelY + 65, MUTED);
-        int contentHeight = panelH - 100;
+        g.centeredText(font, teamDays(tech, bank), panelX + 130, panelY + 30, GOLD);
+        if (tech.source() != null && !tech.source().description().isBlank()) {
+            g.enableScissor(panelX + 10, panelY + 57, panelX + panelW - 10, panelY + 102);
+            detailText(g, List.of(ResearchText.keywords(tech.source().description())), panelX + 10, panelY + 59, panelW - 28, TEXT);
+            g.disableScissor();
+        }
+        int contentHeight = panelH - 118;
         int total = detailBody(null, tech, 0);
         detailScroll = Math.clamp(detailScroll, 0, Math.max(0, total - contentHeight));
-        g.enableScissor(panelX + 10, panelY + 88, panelX + panelW - 10, panelY + panelH - 12);
-        detailBody(g, tech, panelY + 88 - detailScroll);
+        g.enableScissor(panelX + 10, panelY + 108, panelX + panelW - 10, panelY + panelH - 10);
+        detailBody(g, tech, panelY + 108 - detailScroll);
         g.disableScissor();
+        if (!terrainTooltip.isEmpty()) UiTooltips.drawSourceScrollable(g, font, terrainTooltip, terrainMouseX, terrainMouseY, width, height, 0, 184);
         if (total > contentHeight) {
             int thumb = Math.max(10, contentHeight * contentHeight / total);
             int pos = detailScroll * (contentHeight - thumb) / Math.max(1, total - contentHeight);
-            g.fill(panelX + panelW - 7, panelY + 88 + pos, panelX + panelW - 4, panelY + 88 + pos + thumb, GOLD);
+            g.fill(panelX + panelW - 7, panelY + 108 + pos, panelX + panelW - 4, panelY + 108 + pos + thumb, GOLD);
         }
     }
+    private int sectionHeading(GuiGraphicsExtractor g, String text, int y) {
+        if (g != null) g.centeredText(font, text, panelX + panelW / 2, y + 5, TEXT);
+        return y + 22;
+    }
     private int detailBody(GuiGraphicsExtractor g, Tech tech, int y) {
-        y = detailText(g, detailLines(tech), panelX + 14, y, panelW - 30, TEXT);
+        var intro = detailLines(tech);
+        if (tech.source() != null && !tech.source().description().isBlank()) intro = intro.subList(2, intro.size());
+        y = detailText(g, intro, panelX + 14, y, panelW - 30, TEXT);
         var cards = ResearchDetails.cards(tech, view.country());
         if (!cards.isEmpty()) {
             for (var card : cards) if (!card.kind().equals("부대")) y = detailCard(g, card, y + 4);
         }
-        var units = cards.stream().filter(card -> card.kind().equals("부대")).toList();
-        var otherUnlocks = unlockNames(tech).stream().filter(label -> cards.stream().noneMatch(card -> card.name().equals(label))).toList();
-        if (!units.isEmpty() || !otherUnlocks.isEmpty()) {
-            y = detailText(g, List.of(ResearchText.white("잠금 해제")), panelX + 14, y + 5, panelW - 30, TEXT);
+        var units = cards.stream().filter(card -> card.kind().equals("부대") && tech.units().stream().noneMatch(unit -> unit.name().equals(card.name()))).toList();
+        var otherUnlocks = tech.units().isEmpty() && cards.isEmpty() ? unlockNames(tech) : List.<String>of();
+        if (!tech.upgrades().isEmpty()) {
+            y = sectionHeading(g, UiCommandLabels.text("RESEARCH_UPGRADES_HEADER", "업그레이드"), y);
+            for (var upgrade : tech.upgrades()) {
+                String scope = upgrade.scopeId();
+                if (g != null) {
+                    String art = "research/detail/gfx_unit_" + scope + (scope.startsWith("category_") ? "" : "_icon_medium") + "/frame_0";
+                    UiAssets.drawContent(g, art, panelX + 14, y + 4, 30, 20);
+                    if (scope.startsWith("category_")) detailText(g, List.of(ResearchText.white(upgrade.scope())), panelX + 48, y + 6, panelW - 62, TEXT);
+                }
+                y += scope.startsWith("category_") ? 32 : 26;
+                y = sectionStats(g, upgrade.lines(), y);
+                y = terrainCards(g, upgrade.terrain(), y);
+            }
+        }
+        if (!units.isEmpty() || !otherUnlocks.isEmpty() || !tech.units().isEmpty()) {
+            y = sectionHeading(g, UiCommandLabels.text("RESEARCH_UNLOCKS_HEADER", "잠금 해제"), y);
             for (var card : units) y = detailCard(g, card, y + 4);
+            for (var unit : tech.units()) {
+                if (g != null) UiAssets.drawContent(g, "research/detail/gfx_unit_" + unit.id() + "_icon_medium/frame_0", panelX + 14, y + 4, 35, 22);
+                y += 30;
+                y = sectionStats(g, unit.stats(), y);
+                y = terrainCards(g, unit.terrain(), y);
+            }
             y = detailText(g, otherUnlocks.stream().map(this::unlockName).toList(), panelX + 14, y + 4, panelW - 30, TEXT);
         }
         if (tech.source() != null && !tech.source().deferredEffects().isEmpty()) {
@@ -410,31 +589,73 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         }
         return y;
     }
+    private int sectionStats(GuiGraphicsExtractor g, List<ProtocolResearchView.StatLine> stats, int y) {
+        for (var stat : stats) {
+            var label = UiKeywordIcons.decorateLines(UiTooltips.officerText(stat.name() + ":"));
+            var value = UiTooltips.officerText((stat.value().startsWith("+") ? "§G" : stat.value().startsWith("-") ? "§R" : "§Y") + stat.value());
+            var lines = font.split(label, panelW - 108);
+            if (g != null) {
+                g.fill(panelX + panelW / 2, y, panelX + panelW / 2 + 1, y + Math.max(10, lines.size() * 10), 0x885B2929);
+                g.fill(panelX + panelW - 22, y, panelX + panelW - 21, y + Math.max(10, lines.size() * 10), 0x885B2929);
+                for (int i = 0; i < lines.size(); i++) g.text(font, lines.get(i), panelX + 38, y + i * 10, TEXT, false);
+                g.text(font, value, panelX + panelW - 44 - font.width(value), y, TEXT, false);
+            }
+            y += Math.max(10, lines.size() * 10);
+        }
+        return y;
+    }
+    private int terrainCards(GuiGraphicsExtractor g, List<ProtocolResearchView.TerrainValue> terrains, int y) {
+        int perRow = Math.max(1, (panelW - 28) / 42);
+        for (int i = 0; i < terrains.size(); i++) {
+            var terrain = terrains.get(i); int x = panelX + 14 + i % perRow * 42, top = y + i / perRow * 43;
+            if (g == null) continue;
+            UiAssets.draw(g, "research/detail/gfx_adjuster_" + terrain.id() + "_bg/frame_0", x + 9, top + 5, 20, 20);
+            UiAssets.draw(g, "research/detail/gfx_terrain_mod_frame/frame_0", x + 3, top + 2, 32, 29);
+            Double[] values = {terrain.movement(), terrain.attack(), terrain.defence()};
+            String[] types = {"movement", "attack", "defense"};
+            for (int j = 0; j < 3; j++) UiAssets.draw(g, "research/detail/gfx_terrain_mod_" + types[j] + "_strip/frame_" + (values[j] == null || values[j] == 0 ? 2 : values[j] > 0 ? 0 : 1), x + 5 + j * 11, top + 21, 11, 11);
+            if (terrainMouseX >= x && terrainMouseX < x + 40 && terrainMouseY >= top && terrainMouseY < top + 42 && terrainMouseY >= panelY + 88 && terrainMouseY < panelY + panelH - 12) {
+                var tooltip = new StringBuilder(terrain.name()); String[] names = {"이동", "공격", "방어"};
+                for (int j = 0; j < 3; j++) if (values[j] != null) tooltip.append("\n").append(names[j]).append(": ").append(values[j] < 0 ? "§R" : "§G").append(String.format(Locale.ROOT, "%+.1f%%", values[j] * 100)).append("§!");
+                terrainTooltip = tooltip.toString();
+            }
+        }
+        return y + ((terrains.size() + perRow - 1) / perRow) * 43;
+    }
+    private int terrainMouseX, terrainMouseY;
+    private String terrainTooltip = "";
     private int detailText(GuiGraphicsExtractor g, List<? extends Component> lines, int x, int y, int w, int color) {
         for (var line : dev.hoi.client.ui.UiTooltipText.collapseBlankLines(lines,row->dev.hoi.client.ui.UiTooltipText.blank(row.getString()))) {
-            var wrapped = dev.hoi.client.ui.UiTooltips.split(font,dev.hoi.client.ui.UiTooltips.sentences(ResearchText.decorateEffect(line)), w);
-            if (wrapped.isEmpty()) { y += 13; continue; }
-            for (var text : wrapped) { if (g != null) g.text(font, text, x, y, color); y += 13; }
+            var wrapped = dev.hoi.client.ui.UiTooltips.split(font,ResearchText.decorateEffect(line), w);
+            if (wrapped.isEmpty()) { y += 10; continue; }
+            for (var text : wrapped) { if (g != null) g.text(font, text, x, y, color); y += 10; }
         }
         return y;
     }
     private int detailCard(GuiGraphicsExtractor g, ResearchDetails.ResearchCard card, int y) {
-        int x = panelX + 14, w = panelW - 30;
-        boolean image = !card.texture().isEmpty();
-        int textX = x + (image ? 90 : 7), textW = w - (image ? 97 : 14);
-        var heading = List.of(card.kind().equals("부대") ? ResearchText.white(card.name()) : ResearchText.gold(card.name()), ResearchText.white(card.kind()));
-        var effects = card.effects().stream().filter(text -> !ResearchText.zeroEffect(text)).map(ResearchText::effect).toList();
-        int end = detailText(null, heading, textX, y + 7, textW, TEXT);
-        int statsY = Math.max(y + (image ? 64 : 34), end + 4);
-        int bottom = detailText(null, effects, x + 7, statsY, w - 14, TEXT) + 7;
-        if (g != null) {
-            g.fill(x, y, x + w, bottom, 0xFF151C21);
-            g.outline(x, y, w, bottom - y, 0xFF52616B);
-            if (image) UiAssets.draw(g, card.texture(), x + 5, y + 5, 78, 52);
-            detailText(g, heading, textX, y + 7, textW, TEXT);
-            detailText(g, effects, x + 7, statsY, w - 14, TEXT);
+        int x=panelX+14,w=panelW-30;
+        boolean image=!card.texture().isEmpty();
+        if(g!=null){
+            if(image)UiAssets.drawContent(g,card.texture(),x+5,y+4,64,38);
+            detailText(g,List.of(ResearchText.gold(card.name())),x+(image?76:7),y+7,w-(image?83:14),TEXT);
         }
-        return bottom;
+        y+=image?45:24;
+        for(String effect:card.effects()){
+            if(ResearchText.zeroEffect(effect))continue;
+            var formatted=ResearchText.effect(effect);String value=formatted.getString();int split=value.lastIndexOf(':');
+            if(split<0){y=detailText(g,List.of(formatted),x+7,y,w-14,TEXT);continue;}
+            var label=UiKeywordIcons.decorateLines(ResearchText.white(value.substring(0,split+1)),true);
+            var lines=font.split(label,w-95);String number=value.substring(split+1).strip();
+            int row=Math.max(10,lines.size()*10);
+            if(g!=null){
+                for(int i=0;i<lines.size();i++)g.text(font,lines.get(i),x+19,y+i*10,TEXT,false);
+                g.fill(panelX+panelW/2,y,panelX+panelW/2+1,y+row,0xFF583639);
+                g.fill(panelX+panelW-22,y,panelX+panelW-21,y+row,0xFF583639);
+                g.text(font,number,panelX+panelW-44-font.width(number),y,GOLD,false);
+            }
+            y+=row;
+        }
+        return y+8;
     }
     public List<Component> detailLines(Tech tech) {
         var result = new ArrayList<Component>();
@@ -450,7 +671,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             tech.source().conditions().stream().map(ResearchText::white).forEach(result::add);
         }
         var effects = tech.effects().stream().filter(text -> !ResearchText.zeroEffect(text) && !text.endsWith(" 해금") && !tech.tooltipOnlyEffects().contains(text)).toList();
-        if (!effects.isEmpty()) {
+        if (!effects.isEmpty() && tech.upgrades().isEmpty()) {
             result.add(ResearchText.gold("효과:")); effects.stream().map(ResearchText::effect).forEach(result::add); result.add(Component.empty());
         }
         return result;
@@ -503,6 +724,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     }
     private boolean insideTree(double x, double y) { return !overview && x >= 10 && x < width - 10 && y >= treeTop && y < treeBottom; }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
+        if (teamPicker) { if (event.x() < teamX || event.x() > teamX + teamWidth || event.y() < teamY || event.y() > teamY + teamHeight) return true; return super.mouseClicked(event, twice); }
         if (event.y() < menuBottom()) return super.mouseClicked(event, twice);
         if (detail == null && insideTree(event.x(), event.y())) {
             clearFocus();
@@ -530,12 +752,14 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (overview && x < overviewWidth() && y >= slotsTop() && view.slots().size() > visibleSlots()) {
             slotOffset -= (int)Math.signum(vertical); rebuildWidgets(); return true;
         }
+        if (teamPicker) { teamScroll -= (int)(vertical * 53); rebuildWidgets(); return true; }
         if (detail != null) { detailScroll -= (int)(vertical * 26); return true; }
         if (insideTree(x, y)) { scrollX -= horizontal * 40; scrollY -= vertical * 40; clampScroll(); return true; }
         return super.mouseScrolled(x, y, horizontal, vertical);
     }
     @Override public boolean keyPressed(KeyEvent event) {
         if (allowsMovement() && InputSidebarMovement.consumes(minecraft, event)) return true;
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && teamPicker) { teamPicker = false; rebuildWidgets(); return true; }
         if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && detail != null) { detail = null; rebuildWidgets(); return true; }
         if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && !overview) { overview = true; rebuildWidgets(); return true; }
         if (!overview && detail == null && getFocused() == null && !layout.nodes().isEmpty()) {
@@ -556,7 +780,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     }
     @Override public int unitHudLeft(){return overviewWidth();}
     @Override public boolean allowsMovement() { return overview && detail == null; }
-    @Override public void removed() { InputSidebarMovement.release(minecraft); if (ScreenDialogCoordinator.suspending()) return; requests.accept(new ProtocolResearchPayloads.Request(ProtocolResearchPayloads.Action.CLOSE, view.session(), 0, -1, "")); }
+    @Override public void removed() { InputSidebarMovement.release(minecraft); if (ScreenDialogCoordinator.suspending()) return; waitingTeamSlot = -1; waitingTeam = ""; waitingTechnology = ""; requests.accept(new ProtocolResearchPayloads.Request(ProtocolResearchPayloads.Action.CLOSE, view.session(), 0, -1, "")); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private String trim(String value, int max) { return font.width(value) <= max ? value : font.plainSubstrByWidth(value, Math.max(1, max - font.width("…"))) + "…"; }

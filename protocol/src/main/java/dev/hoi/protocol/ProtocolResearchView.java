@@ -4,7 +4,11 @@ import java.util.List;
 import java.util.Objects;
 
 public record ProtocolResearchView(String session, long revision, String country, String countryName,
-                           long day, String date, String speed, List<Slot> slots, List<Tech> technologies, String message, ProtocolCountryHud hud, Benefits benefits) {
+                           long day, String date, String speed, List<Slot> slots, List<Tech> technologies, String message, ProtocolCountryHud hud, Benefits benefits, List<DesignTeam> designTeams, java.util.Map<String,String> designTeamText) {
+    public ProtocolResearchView(String session,long revision,String country,String countryName,long day,String date,
+            String speed,List<Slot> slots,List<Tech> technologies,String message,ProtocolCountryHud hud,Benefits benefits) {
+        this(session,revision,country,countryName,day,date,speed,slots,technologies,message,hud,benefits,List.of(),java.util.Map.of());
+    }
     public ProtocolResearchView(String session,long revision,String country,String countryName,long day,String date,
             String speed,List<Slot> slots,List<Tech> technologies,String message,ProtocolCountryHud hud) {
         this(session,revision,country,countryName,day,date,speed,slots,technologies,message,hud,Benefits.NONE);
@@ -18,7 +22,12 @@ public record ProtocolResearchView(String session, long revision, String country
         if (hud == null) hud = ProtocolCountryHud.UNKNOWN;
         Objects.requireNonNull(session); Objects.requireNonNull(country); Objects.requireNonNull(countryName);
         Objects.requireNonNull(date); ProtocolCampaignStyle.requireSpeed(speed); Objects.requireNonNull(message);
-        slots = List.copyOf(slots); technologies = List.copyOf(technologies);
+        slots = List.copyOf(slots); technologies = List.copyOf(technologies); designTeams = designTeams == null ? List.of() : List.copyOf(designTeams);
+        if (designTeams.size() > 64) throw new IllegalArgumentException("연구 화면 데이터 한도 초과");
+        designTeamText = designTeamText == null ? java.util.Map.of() : java.util.Map.copyOf(designTeamText);
+        if (designTeamText.size() > 32 || designTeamText.entrySet().stream().anyMatch(e -> !e.getKey().matches("[a-z_]{1,32}") || e.getValue().length() > 1000)) throw new IllegalArgumentException("Invalid design team text");
+        var teams = new java.util.HashSet<String>();
+        for (var team : designTeams) if (!teams.add(team.id())) throw new IllegalArgumentException("Duplicate design team");
         if (slots.size() > 16 || technologies.size() > 512) throw new IllegalArgumentException("연구 화면 데이터 한도 초과");
         if (day < 0 || revision < 0 || !country.isEmpty() && slots.isEmpty()) throw new IllegalArgumentException("Invalid research view");
         var ids = new java.util.HashSet<String>();
@@ -27,7 +36,8 @@ public record ProtocolResearchView(String session, long revision, String country
         for (int i = 0; i < slots.size(); i++) {
             var slot = slots.get(i);
             if (slot.index() != i || slot.savedDays() < 0 || slot.savedDays() > 30 || slot.technology() == null
-                    || !slot.technology().isEmpty() && (!ids.contains(slot.technology()) || !assigned.add(slot.technology())))
+                    || !slot.technology().isEmpty() && (!ids.contains(slot.technology()) || !assigned.add(slot.technology()))
+                    || !slot.designTeam().isEmpty() && (slot.technology().isEmpty() || !teams.contains(slot.designTeam())))
                 throw new IllegalArgumentException("Invalid research slot");
         }
     }
@@ -51,10 +61,43 @@ public record ProtocolResearchView(String session, long revision, String country
         }
     }
     public enum Status { LOCKED, AVAILABLE, ACTIVE, COMPLETED }
-    public record Slot(int index, String technology, int savedDays) {}
+    public record Slot(int index, String technology, int savedDays, String designTeam) {
+        public Slot(int index,String technology,int savedDays) { this(index,technology,savedDays,""); }
+        public Slot { designTeam = designTeam == null ? "" : designTeam; if (designTeam.length() > 128) throw new IllegalArgumentException("Invalid research slot"); }
+    }
+    public record DesignTeam(String id, String name, String icon, int size, String type, List<ProtocolMenuView.ManufacturerEquipment> equipment, double bonus, double dailyCost, double completionFundsPerDay,
+            String technology, List<String> technologies, List<Double> rates, List<Integer> funds, String tooltip) {
+        public DesignTeam {
+            Objects.requireNonNull(id); Objects.requireNonNull(name); icon = icon == null ? "" : icon; technology = technology == null ? "" : technology; tooltip = tooltip == null ? "" : tooltip;
+            technologies = technologies == null ? List.of() : List.copyOf(technologies); rates = rates == null ? List.of() : List.copyOf(rates); funds = funds == null ? List.of() : List.copyOf(funds);
+            type = type == null ? "" : type; equipment = equipment == null ? List.of() : List.copyOf(equipment);
+            if (rates.size() != technologies.size() || funds.size() != technologies.size() || rates.stream().anyMatch(r -> !Double.isFinite(r) || r <= 0) || funds.stream().anyMatch(f -> f < 0) || type.length() > 128 || equipment.size() > 32)
+                throw new IllegalArgumentException("Invalid design team");
+            if (!id.matches("[A-Za-z0-9_]{1,128}") || name.length() > 128 || icon.length() > 160 || technology.length() > 160 || tooltip.length() > 3000 || size < 0 || size > 10000
+                    || !Double.isFinite(bonus) || !Double.isFinite(dailyCost) || dailyCost < 0 || !Double.isFinite(completionFundsPerDay) || completionFundsPerDay < 0 || technologies.size() > 512)
+                throw new IllegalArgumentException("Invalid design team");
+        }
+    }
+    public record StatLine(String name, String value) {
+        public StatLine { Objects.requireNonNull(name); Objects.requireNonNull(value); if (name.length() > 160 || value.length() > 64) throw new IllegalArgumentException("Invalid research stat"); }
+    }
+    public record TerrainValue(String id, String name, Double movement, Double attack, Double defence) {
+        public TerrainValue { Objects.requireNonNull(id); Objects.requireNonNull(name); if (!id.matches("[a-z_]{1,32}") || name.length() > 64 || java.util.stream.Stream.of(movement, attack, defence).anyMatch(v -> v != null && !Double.isFinite(v))) throw new IllegalArgumentException("Invalid research terrain"); }
+    }
+    public record Upgrade(String scope, List<StatLine> lines, List<TerrainValue> terrain, String scopeId) {
+        public Upgrade(String scope, List<StatLine> lines, List<TerrainValue> terrain) { this(scope, lines, terrain, ""); }
+        public Upgrade { Objects.requireNonNull(scope); scopeId = scopeId == null ? "" : scopeId; lines = List.copyOf(lines); terrain = terrain == null ? List.of() : List.copyOf(terrain); if (scope.length() > 160 || !scopeId.matches("[a-z0-9_]{0,64}") || lines.size() > 32 || terrain.size() > 16) throw new IllegalArgumentException("Invalid research upgrade"); }
+    }
+    public record UnitCard(String id, String name, List<StatLine> stats, List<TerrainValue> terrain) {
+        public UnitCard { Objects.requireNonNull(id); Objects.requireNonNull(name); stats = List.copyOf(stats); terrain = List.copyOf(terrain); if (id.length() > 64 || name.length() > 160 || stats.size() > 16 || terrain.size() > 16) throw new IllegalArgumentException("Invalid research unit"); }
+    }
     public record Tech(String id, String category, String name, int year, int tier, int baseDays,
                        double progress, double dailyRate, List<String> prerequisites,
-                       List<String> effects, List<String> unlocks, Status status, Source source,List<String> tooltipOnlyEffects) {
+                       List<String> effects, List<String> unlocks, Status status, Source source,List<String> tooltipOnlyEffects,List<Upgrade> upgrades,List<UnitCard> units) {
+        public Tech(String id,String category,String name,int year,int tier,int baseDays,double progress,double dailyRate,
+                List<String> prerequisites,List<String> effects,List<String> unlocks,Status status,Source source,List<String> tooltipOnlyEffects) {
+            this(id,category,name,year,tier,baseDays,progress,dailyRate,prerequisites,effects,unlocks,status,source,tooltipOnlyEffects,List.of(),List.of());
+        }
         public Tech(String id,String category,String name,int year,int tier,int baseDays,double progress,double dailyRate,
                 List<String> prerequisites,List<String> effects,List<String> unlocks,Status status,Source source) {
             this(id,category,name,year,tier,baseDays,progress,dailyRate,prerequisites,effects,unlocks,status,source,List.of());
@@ -64,7 +107,8 @@ public record ProtocolResearchView(String session, long revision, String country
             this(id,category,name,year,tier,baseDays,progress,dailyRate,prerequisites,effects,unlocks,status,null);
         }
         public Tech {
-            tooltipOnlyEffects=tooltipOnlyEffects==null?List.of():List.copyOf(tooltipOnlyEffects);
+            tooltipOnlyEffects=tooltipOnlyEffects==null?List.of():List.copyOf(tooltipOnlyEffects);upgrades=upgrades==null?List.of():List.copyOf(upgrades);units=units==null?List.of():List.copyOf(units);
+            if(upgrades.size()>16||units.size()>8) throw new IllegalArgumentException("Invalid research sections");
             if(tooltipOnlyEffects.size()>128||!effects.containsAll(tooltipOnlyEffects)) throw new IllegalArgumentException("Invalid tooltip effects");
             Objects.requireNonNull(id); Objects.requireNonNull(category); Objects.requireNonNull(name);
             Objects.requireNonNull(status);
@@ -74,7 +118,7 @@ public record ProtocolResearchView(String session, long revision, String country
         }
         public double fraction() { return status == Status.COMPLETED ? 1 : Math.clamp(progress / baseDays, 0, 1); }
         public long remainingDays(int savedDays) {
-            return status == Status.COMPLETED ? 0 : Math.max(1, (long)Math.ceil((baseDays - progress) / dailyRate - savedDays));
+            return status == Status.COMPLETED ? 0 : Math.max(1, (long)Math.floor((baseDays - progress) / dailyRate - savedDays));
         }
     }
     public Tech technology(String id) {

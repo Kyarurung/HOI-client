@@ -57,6 +57,67 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             ProtocolResearchPayloads.registerPayloadTypes(); ProtocolResearchPayloads.registerPayloadTypes();
         });
         loadPack(context);
+        if (System.getProperty("hoi.testSuite", "all").equals("research-slots")) {
+            try (var world = context.worldBuilder().create()) {
+                context.getInput().resizeWindow(854, 480); context.waitTicks(3);
+                for (int count : List.of(5, 6)) {
+                    var view = fixtureResearch();
+                    var slots = java.util.stream.IntStream.range(0, count).mapToObj(i -> new ProtocolResearchView.Slot(i, "", 0)).toList();
+                    var compact = new ProtocolResearchView(view.session(), view.revision(), view.country(), view.countryName(), view.day(), view.date(), view.speed(), slots, view.technologies(), view.message());
+                    context.setScreen(() -> new ResearchScreen(compact, request -> {})); context.waitTicks(2);
+                    context.runOnClient(client -> checkCompactSlots(client.gui.screen(), count));
+                    context.takeScreenshot("hoi-compact-research-slots-" + count);
+                }
+            }
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("officer-comparison")){try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenOfficerComparisonTest.run(context);dev.hoi.client.screen.ScreenPreferredTacticsTest.run(context);}return;}
+        if(System.getProperty("hoi.testSuite","all").equals("final-review")){
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.screen.ScreenOrganizationAssignmentTest.run(context);
+                dev.hoi.client.screen.ScreenOrganizationTest.run(context);
+                dev.hoi.client.map.MapArmyTooltipTest.run(context,fixtureMenu());
+                dev.hoi.client.screen.ScreenDivisionDialogsTest.run(context,fixtureMenu());
+            }
+            return;
+        }
+        if(Set.of("all","final-contract").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.research.ResearchSectionsTest.run(context);
+                dev.hoi.client.screen.ScreenTerritoryReturnTest.run(context);
+                dev.hoi.client.screen.ScreenOfficerContractTest.run(context);
+            }
+            if(System.getProperty("hoi.testSuite","all").equals("final-contract"))return;
+        }
+        if(Set.of("all","organization-assignment").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenOrganizationAssignmentTest.run(context);}
+            if(System.getProperty("hoi.testSuite","all").equals("organization-assignment"))return;
+        }
+        if(Set.of("all","organizations").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenOrganizationTest.run(context);}
+            if(System.getProperty("hoi.testSuite","all").equals("organizations"))return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("sea-transfer")){
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.map.MapMissionOverlayRenderTest.run(context,world.getServer()::runCommand);
+                dev.hoi.client.map.MapTransportModelTest.run(context,world.getServer()::runCommand);
+                dev.hoi.client.map.MapSeaTransferTest.run(context,world.getServer()::runCommand);
+            }
+            return;
+        }
+        if(Set.of("all","advisor-politics").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenAdvisorPoliticsTest.run(context);}
+            if(System.getProperty("hoi.testSuite","all").equals("advisor-politics"))return;
+        }
+        if (Set.of("all", "asset-preparation").contains(System.getProperty("hoi.testSuite", "all"))) {
+            try (var world = context.worldBuilder().create()) {
+                if (System.getProperty("hoi.testSuite", "all").equals("asset-preparation")) dev.hoi.client.ui.UiCountryDisplayRenderTest.run(context, fixtureMenu());
+                dev.hoi.client.research.ResearchBackgroundTest.run(context);
+                dev.hoi.client.map.MapTransportModelTest.run(context, world.getServer()::runCommand);
+                if(System.getProperty("hoi.testSuite","all").equals("all"))dev.hoi.client.map.MapSeaTransferTest.run(context,world.getServer()::runCommand);
+            }
+            if (System.getProperty("hoi.testSuite", "all").equals("asset-preparation")) return;
+        }
         if(System.getProperty("hoi.testSuite","all").equals("country-assets")){
             try(var world=context.worldBuilder().create()){dev.hoi.client.ui.UiCountryDisplayRenderTest.run(context,fixtureMenu());}
             return;
@@ -123,12 +184,24 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenDiplomacyActionsTest.run(context);}
             return;
         }
+        if(Set.of("all","army-tooltips").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapArmyTooltipTest.run(context,fixtureMenu());dev.hoi.client.screen.ScreenDivisionDialogsTest.run(context,fixtureMenu());}
+            if(System.getProperty("hoi.testSuite","all").equals("army-tooltips"))return;
+        }
+        if(Set.of("all","commander-contract").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenCommanderContractTest.run(context);dev.hoi.client.map.MapLeaderControlsTest.runHeadquartersDeployment(context,fixtureMenu());}
+            if(System.getProperty("hoi.testSuite","all").equals("commander-contract"))return;
+        }
         if(System.getProperty("hoi.testSuite","all").equals("commander-layout")){
             try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenCommanderRosterTest.run(context);dev.hoi.client.screen.ScreenCommanderTraitTreeTest.run(context);dev.hoi.client.screen.ScreenAdmiralSourceTest.run(context);dev.hoi.client.map.MapLeaderControlsTest.run(context,fixtureMenu());dev.hoi.client.screen.ScreenDiplomacyActionsTest.run(context);dev.hoi.client.map.MapCommanderHudTest.runTraitOverlay(context,fixtureMenu());}
             return;
         }
         if(System.getProperty("hoi.testSuite","all").equals("commander-controls")){
             try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapCommanderHudTest.runArmyLayout(context,fixtureMenu());}
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("army-groups")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapCommanderHudTest.runArmyGroups(context,fixtureMenu());}
             return;
         }
         if(System.getProperty("hoi.testSuite","all").equals("headquarters-layout")){
@@ -164,6 +237,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 var server=world.getServer();server.runCommand("gamerule minecraft:send_command_feedback false");server.runCommand("time set noon");server.runCommand("weather clear");server.runCommand("gamemode spectator @a");
                 dev.hoi.client.map.MapMissionOverlayRenderTest.run(context,server::runCommand);
             }
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("direct-movement")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapCommanderHudTest.runMovementInput(context,fixtureMenu(),world.getServer()::runCommand);}
             return;
         }
         if(System.getProperty("hoi.testSuite","all").equals("all")){
@@ -476,12 +553,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.runOnClient(client -> check(client.gui.screen().children().stream().filter(c -> c instanceof Button b
                     && b.getMessage().getString().equals("세부 사항")).count() == 1, "Armor manufacturer filter"));
             context.waitTicks(2); context.takeScreenshot("hoi-politics-manufacturers-armor");
-            click(context, "군수품 산업체");
+            click(context, "군수품");
             context.runOnClient(client -> check(client.gui.screen().children().stream().filter(c -> c instanceof Button b
                     && b.getMessage().getString().equals("세부 사항")).count() == 2, "Shared artillery manufacturer also appears in materiel"));
             context.waitTicks(2); context.takeScreenshot("hoi-politics-manufacturers-materiel");
-            click(context, "세부 사항"); context.waitTicks(2); context.takeScreenshot("hoi-politics-manufacturer-detail");
-            context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
             for (var tab : ProtocolMenuTab.ORDER) if (tab != ProtocolMenuTab.RESEARCH && tab != ProtocolMenuTab.INTELLIGENCE) {
                 click(context, tab.label() + " 메뉴");
@@ -564,7 +639,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.waitTicks(2); context.takeScreenshot("hoi-research-compact-slots");
             context.runOnClient(client -> {
                 checkToolbar(client.gui.screen());
-                check(client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).count() == 5, "Five actual compact slots");
+                checkCompactSlots(client.gui.screen(), 5);
             });
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
             context.setScreen(() -> fixtureMainMenu(menu, ProtocolMenuTab.POLITICS, view, requests));
@@ -589,9 +664,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.setScreen(() -> new ResearchScreen(six, requests::add)); context.waitTicks(2);
             context.runOnClient(client -> {
                 checkToolbar(client.gui.screen());
-                var slots = client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).map(c -> (ResearchSlotButton)c).toList();
-                check(slots.size() == 6 && slots.getLast().getBottom() <= client.gui.screen().height - 8,
-                        "Six-slot capacity still fits at compact resolution");
+                checkCompactSlots(client.gui.screen(), 6);
             });
             context.takeScreenshot("hoi-research-six-slot-capacity");
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
@@ -609,6 +682,15 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             fullTfrCatalog(context);
             context.setScreen(() -> null);
         }
+    }
+    private static void checkCompactSlots(net.minecraft.client.gui.screens.Screen screen, int total) {
+        var slots = screen.children().stream().filter(c -> c instanceof ResearchSlotButton).map(c -> (ResearchSlotButton)c).toList();
+        check(!slots.isEmpty() && slots.getLast().getBottom() <= screen.height - 8, "Visible compact slots fit the sidebar");
+        for (int i = 0; i < total; i++) screen.mouseScrolled(12, screen.height - 20, 0, -1);
+        check(screen.children().stream().anyMatch(c -> c instanceof ResearchSlotButton slot
+                && slot.getMessage().getString().startsWith("슬롯 " + total + " · ") && slot.getBottom() <= screen.height - 8),
+                "Every supplied slot remains reachable by scrolling");
+        for (int i = 0; i < total; i++) screen.mouseScrolled(12, screen.height - 20, 0, 1);
     }
     private static void fullTfrCatalog(ClientGameTestContext context) {
         ProtocolResearchView view;

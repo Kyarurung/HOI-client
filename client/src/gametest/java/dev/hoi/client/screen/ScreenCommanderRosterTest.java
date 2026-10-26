@@ -51,8 +51,16 @@ public final class ScreenCommanderRosterTest {
                     game.runOnClient(c->{
                         var order=screen.children().stream().filter(w->w instanceof dev.hoi.client.ui.UiMenuButton).map(w->(dev.hoi.client.ui.UiMenuButton)w).map(w->w.getMessage().getString()).filter(s->s.contains("-")).toList();
                         var expected=group?List.of("marshal-high","general-high","marshal-low","general-low"):List.of("general-high","general-low","marshal-high","marshal-low");
-                        if(screen.children().stream().filter(w->w instanceof dev.hoi.client.ui.UiMenuButton).map(w->((dev.hoi.client.ui.UiMenuButton)w).getMessage().getString()).anyMatch(label->label.contains("임명된 지휘관")))throw new AssertionError("Assigned filter must not be present");
+                        if(screen.children().stream().filter(w->w instanceof dev.hoi.client.ui.UiMenuButton).map(w->((dev.hoi.client.ui.UiMenuButton)w).getMessage().getString()).noneMatch(label->label.contains("임명된 지휘관")))throw new AssertionError("Assigned filter must be present");
                         if(!order.equals(expected))throw new AssertionError("Roster rank/skill order changed: "+order);
+                        for(int toggle=0;toggle<2;toggle++){
+                            var filter=screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.getMessage().getString().equals("임명된 지휘관 보기")).map(w->(net.minecraft.client.gui.components.AbstractWidget)w).findFirst().orElseThrow();
+                            var event=new net.minecraft.client.input.MouseButtonEvent(filter.getX()+2,filter.getY()+2,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(event,false);screen.mouseReleased(event);
+                            boolean visible=screen.children().stream().anyMatch(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.getMessage().getString().equals("marshal-low"));
+                            if(visible!=(toggle==1)||!sent.isEmpty())throw new AssertionError("Assigned filter must only hide/reveal assigned rows locally");
+                        }
+                        var remove=screen.choiceButton("remove");if(remove==null||!remove.active)throw new AssertionError("Empty assignment must retain the source's bright remove control");
+                        var emptyRemove=new net.minecraft.client.input.MouseButtonEvent(remove.getX()+2,remove.getY()+2,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(emptyRemove,false);screen.mouseReleased(emptyRemove);if(!sent.isEmpty())throw new AssertionError("Bright remove must not grant an unavailable choice");
                         if(screen.choiceButton("marshal-low")!=null)throw new AssertionError("Sorting granted an unavailable choice");
                         if(screen.choiceButton("promote/marshal-high")!=null||screen.choiceButton("promote/general-low").active||!screen.choiceButton("promote/general-high").active)throw new AssertionError("Promotion visibility and authorization must follow the server fields");
                         var disabled=screen.choiceButton("advisor/general-low");if(disabled==null||disabled.active)throw new AssertionError("Unavailable advisor must retain a disabled tooltip target");
@@ -108,7 +116,7 @@ public final class ScreenCommanderRosterTest {
             }
             var confirmation=new ProtocolDialogPayloads.Show(java.nio.file.Files.readString(java.nio.file.Path.of(directory,"kor-promote-confirm.json")),true).view().issued(UUID.randomUUID().toString(),11);
             for(String choice:List.of("promote","cancel")){
-                var actions=new ArrayList<ProtocolDialogPayloads.Action>();var screen=game.computeOnClient(c->new ScreenCommanderRoster(confirmation,null,actions::add));game.setScreen(()->screen);game.waitTicks(2);
+                var actions=new ArrayList<ProtocolDialogPayloads.Action>();var screen=game.computeOnClient(c->new ScreenCommanderConfirmation(confirmation,(v,id)->actions.add(new ProtocolDialogPayloads.Action(v.token(),v.revision(),id))));game.setScreen(()->screen);game.waitTicks(2);
                 game.getInput().setCursorPos(size[0]-5,size[1]-5);game.takeScreenshot("hoi-commander-promotion-"+choice+"-"+size[0]+"x"+size[1]+"-gui2");
                 game.runOnClient(c->{var button=screen.choiceButton(choice);if(button==null||!button.active)throw new AssertionError("Promotion confirmation must expose the issued choice");var click=new net.minecraft.client.input.MouseButtonEvent(button.getX()+2,button.getY()+2,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(click,false);screen.mouseClicked(click,true);if(!actions.equals(List.of(new ProtocolDialogPayloads.Action(confirmation.token(),11,choice))))throw new AssertionError("Promotion confirmation must send one authenticated action");});
             }

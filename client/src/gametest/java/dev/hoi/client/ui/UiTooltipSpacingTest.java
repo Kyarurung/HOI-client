@@ -30,6 +30,13 @@ public final class UiTooltipSpacingTest {
     }
     public static void components(ClientGameTestContext context) {
         context.runOnClient(client->{
+            String glyph=UiKeywordIcons.decorateLines(Component.literal("£command_power"),false).getString();
+            if(glyph.equals("£command_power"))throw new AssertionError("Command power glyph missing");
+            for(var sample:Map.of("£command_power 35.00 만큼","35.00 만큼","£command_power의 지휘력이"," 지휘력이","£command_power. 지휘력을"," 지휘력을","£command_power만큼의","큼의").entrySet())if(!UiKeywordIcons.decorateLines(Component.literal(sample.getKey()),false).getString().equals(glyph+sample.getValue()))throw new AssertionError("Source icon delimiter: "+sample.getKey());
+            var styled=Component.literal("£command_").append(Component.literal("power ").withColor(0xFFBD00)).append(Component.literal("35.00 만큼").withColor(0xA2B9CF));
+            var decorated=UiKeywordIcons.decorateLines(styled,false);
+            if(!decorated.getString().equals(glyph+"35.00 만큼"))throw new AssertionError("Split icon token");
+            decorated.visit((style,part)->{if(part.contains("35.00")&&style.getColor().getValue()!=0xA2B9CF)throw new AssertionError("Icon delimiter changed following style");return Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
             var text=Component.literal("heading\n").withColor(0xFFBD00).append(Component.literal("\n§r\n---\n")).append(Component.literal("body 0.00%\n\n").withColor(0xA2B9CF));
             var normalized=UiTooltips.sourceSpacing(text);
             if(!normalized.getString().equals("heading\n\nbody 0.00%\n\n"))throw new AssertionError("Component boundaries must collapse without trimming margins");

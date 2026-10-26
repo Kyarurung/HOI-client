@@ -121,15 +121,17 @@ public final class ScreenOccupationTest {
         context.runOnClient(client->{
             requests.clear();
             var screen=(ScreenOccupation)client.gui.screen();
-            for(var child:screen.children())if(child instanceof Button button&&Set.of("영토 반환","국가 해방").contains(button.getMessage().getString())) {
-                if(button.active)throw new AssertionError("Both territory actions must remain blocked even if an older snapshot enables them");
-                button.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
-            }
-            if(!requests.isEmpty()||screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().equals("반환 확인")))throw new AssertionError("Territory actions have no request or confirmation path");
+            var actions=screen.children().stream().filter(w->w instanceof Button button&&Set.of("영토 반환","국가 해방").contains(button.getMessage().getString())).map(w->(Button)w).toList();
+            for(var button:actions)if(button.active!=button.getMessage().getString().equals("영토 반환"))throw new AssertionError("Authorized territory return is enabled; country release stays blocked");
+            press(screen,"영토 반환");
+            if(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("OK")))throw new AssertionError("Return opens confirmation");
+            press(screen,"취소");
+            for(var child:screen.children())if(child instanceof Button button&&button.getMessage().getString().equals("국가 해방"))button.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
+            if(!requests.isEmpty()||screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().equals("OK")))throw new AssertionError("Cancelled return and blocked release must not send requests");
         });
         for(String caption:List.of("영토 반환","국가 해방")) {
             var hover=context.computeOnClient(client->{var b=(Button)client.gui.screen().children().stream().filter(w->w instanceof Button button&&button.getMessage().getString().equals(caption)).findFirst().orElseThrow();double scale=client.getWindow().getGuiScale();return new double[]{(b.getX()+b.getWidth()/2.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};});
-            context.getInput().setCursorPos(hover[0],hover[1]);context.waitTicks(12);context.takeScreenshot(caption.equals("영토 반환")?"hoi-occupation-return-blocked-gui2":"hoi-occupation-release-blocked-gui2");
+            context.getInput().setCursorPos(hover[0],hover[1]);context.waitTicks(12);context.takeScreenshot(caption.equals("영토 반환")?"hoi-occupation-return-enabled-gui2":"hoi-occupation-release-blocked-gui2");
         }
         context.setScreen(()->null);
     }

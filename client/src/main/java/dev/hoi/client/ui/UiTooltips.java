@@ -19,8 +19,7 @@ public final class UiTooltips {
     }
     public static void clear() {LAYOUTS.clear();}
     public static org.joml.Vector2ic position(int width,int height,int mouseX,int mouseY,int textWidth,int textHeight) {
-        var position=net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE.positionTooltip(width,height,mouseX,mouseY,textWidth,textHeight);
-        return new org.joml.Vector2i(Math.clamp(position.x(),7,Math.max(7,width-textWidth-7)),Math.clamp(position.y(),7,Math.max(7,height-textHeight-7)));
+        return new org.joml.Vector2i(Math.clamp(mouseX+11,7,Math.max(7,width-textWidth-7)),Math.clamp(mouseY+14,7,Math.max(7,height-textHeight-7)));
     }
     private static net.minecraft.network.chat.Style sourceColor(net.minecraft.network.chat.Style style) {
         var color = style.getColor();
@@ -83,24 +82,30 @@ public final class UiTooltips {
     }
     public static ScrolledTooltip drawOfficerScrollable(GuiGraphicsExtractor graphics, Font font, String text,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth) {
+        return drawSourceScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,maxWidth,false);
+    }
+    public static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth, boolean gradient) {
         String content = officerCodes(text);
-        var lines = exactLines(font, content, Math.min(viewportWidth, maxWidth));
+        var lines = formattedLines(font, content, Math.min(viewportWidth, maxWidth), true, gradient);
         int width = Math.min(Math.max(1, viewportWidth - 20), Math.max(80, lines.stream().mapToInt(font::width).max().orElse(80)));
         int lineHeight = font.lineHeight + 1;
         int total = lines.size() * lineHeight;
         int height = Math.min(total, Math.max(1, viewportHeight - 20));
         int maxScroll = Math.max(0, total - height);
         scroll = Math.clamp(scroll, 0, maxScroll);
-        int x = Math.clamp(mouseX + 12, 5, Math.max(5, viewportWidth - width - 5));
-        int y = Math.clamp(mouseY - 12, 5, Math.max(5, viewportHeight - height - 5));
+        int x = Math.clamp(mouseX + 11, 5, Math.max(5, viewportWidth - width - 5));
+        int y = Math.clamp(mouseY + 14, 5, Math.max(5, viewportHeight - height - 5));
         graphics.nextStratum();
-        graphics.fill(x - 4, y - 4, x + width + 4, y + height + 4, 0xFF9A45AB);
+        if(gradient)graphics.fillGradient(x-4,y-4,x+width+4,y+height+4,0xFF754CB3,0xFFD147A5);else graphics.fill(x - 4, y - 4, x + width + 4, y + height + 4, 0xFF9A45AB);
         graphics.fill(x - 3, y - 3, x + width + 3, y + height + 3, 0xF0100914);
         graphics.enableScissor(x, y, x + width, y + height);
         for (int i = Math.max(0, scroll / lineHeight); i < lines.size(); i++) {
             int top = y + i * lineHeight - scroll;
             if (top >= y + height) break;
-            graphics.text(font, lines.get(i), x, top, 0xFFE0E0E0);
+            var plain=new StringBuilder();lines.get(i).accept((index,style,code)->{plain.appendCodePoint(code);return true;});
+            if(plain.toString().strip().matches("-{4,}")){for(int dash=0;dash<49;dash+=4)graphics.fill(x+dash,top+font.lineHeight/2,x+Math.min(49,dash+3),top+font.lineHeight/2+1,0xFF888888);}
+            else graphics.text(font, lines.get(i), x, top, 0xFFE0E0E0, false);
         }
         graphics.disableScissor();
         if (maxScroll > 0) {
@@ -127,6 +132,7 @@ public final class UiTooltips {
     public static Component productionText(Component text) {
         return UiKeywordIcons.decorateLines(sentences(text));
     }
+    private static boolean sourceBlank(String value) { String plain=value.replaceAll("§(?:#[0-9a-fA-F]{6}|.)", "").strip();return plain.isBlank()||plain.matches("-{1,3}"); }
     public static Component sourceSpacing(net.minecraft.network.chat.FormattedText text) {
         var rows=new ArrayList<net.minecraft.network.chat.MutableComponent>();
         rows.add(Component.empty());
@@ -143,13 +149,13 @@ public final class UiTooltips {
         var cleaned=new ArrayList<Component>();boolean removed=false;
         for(var row:rows) {
             var value=withoutShortcuts(row);
-            if(value==null){while(!cleaned.isEmpty()&&UiTooltipText.blank(cleaned.getLast().getString()))cleaned.removeLast();removed=true;continue;}
-            if(removed&&UiTooltipText.blank(value.getString()))continue;
+            if(value==null){while(!cleaned.isEmpty()&&sourceBlank(cleaned.getLast().getString()))cleaned.removeLast();removed=true;continue;}
+            if(removed&&sourceBlank(value.getString()))continue;
             cleaned.add(value);removed=false;
         }
-        for(var row:UiTooltipText.collapseBlankLines(cleaned,line->UiTooltipText.blank(line.getString()))) {
+        for(var row:UiTooltipText.collapseBlankLines(cleaned,line->sourceBlank(line.getString()))) {
             if(!first)result.append("\n");
-            if(!UiTooltipText.blank(row.getString()))result.append(row);
+            if(!sourceBlank(row.getString()))result.append(row);
             first=false;
         }
         return result;
@@ -180,7 +186,7 @@ public final class UiTooltips {
     public static boolean blank(FormattedCharSequence line) {
         var text=new StringBuilder();
         line.accept((index,style,code)->{text.appendCodePoint(code);return true;});
-        return UiTooltipText.blank(text.toString());
+        return sourceBlank(text.toString());
     }
     public static List<FormattedCharSequence> collapseBlankLines(List<FormattedCharSequence> lines) {
         return UiTooltipText.collapseBlankLines(lines,UiTooltips::blank);
@@ -236,7 +242,7 @@ public final class UiTooltips {
         if(cached!=null)return cached;
         var lines = new ArrayList<FormattedCharSequence>();
         for (String line : UiTooltipText.colorLines(text)) {
-            if (UiTooltipText.blank(line)) lines.add(Component.empty().getVisualOrderText());
+            if (sourceBlank(line)) lines.add(Component.empty().getVisualOrderText());
             else {
                 var value = styled(Component.literal(line),false);
                 lines.addAll(font.split(icons ? UiKeywordIcons.decorateLines(value,inferIcons) : value, width));

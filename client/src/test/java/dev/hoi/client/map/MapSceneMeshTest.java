@@ -10,11 +10,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class MapSceneMeshTest {
     @Test void colocatedOrdinaryAndMissionMovementKeepSeparateTexturesAndIdenticalUvs() {
         var ordinary=new dev.hoi.protocol.ProtocolCommanderHud.MovementQuad(1,64,1,2,4,0,.125f,.5f,1,1);
-        var mission=new dev.hoi.protocol.ProtocolCommanderHud.MovementQuad(1,64,1,2,4,0,.125f,.5f,1,1,true);
+        var mission=new dev.hoi.protocol.ProtocolCommanderHud.MovementQuad(1,64,1,2,4,0,.125f,.5f,1,1,dev.hoi.protocol.ProtocolCommanderHud.Arrow.MISSION);
         var tiles=MapSceneMesh.build("hoi:army",List.of(),List.of(ordinary,mission)).tiles();
         assertEquals(2,tiles.size());assertTrue(tiles.stream().allMatch(MapSceneMesh.MapTile::movement));
-        assertFalse(tiles.getFirst().mission());assertTrue(tiles.getLast().mission());
+        assertEquals(dev.hoi.protocol.ProtocolCommanderHud.Arrow.MOVE,tiles.getFirst().arrow());assertEquals(dev.hoi.protocol.ProtocolCommanderHud.Arrow.MISSION,tiles.getLast().arrow());
         assertArrayEquals(tiles.getFirst().vertices(),tiles.getLast().vertices());
+        var retreat=new dev.hoi.protocol.ProtocolCommanderHud.MovementQuad(1,64,1,2,4,0,.125f,.5f,1,1,dev.hoi.protocol.ProtocolCommanderHud.Arrow.RETREAT);
+        var third=MapSceneMesh.build("hoi:army",List.of(),List.of(ordinary,mission,retreat)).tiles();
+        assertEquals(3,third.size());assertArrayEquals(third.getFirst().vertices(),third.getLast().vertices());
+        assertEquals("hoi:textures/gui/map/retreat_arrow.png",MapSceneRenderer.movementTexture(third.getLast().arrow()).toString());
     }
     @Test void cubeFacesKeepTheirWindingUvAndNormals() {
         var mesh = MapSceneMesh.build("hoi:army", List.of(new Box(2, 3, 5, 7, 11, 13, 0, Material.BLACK)));

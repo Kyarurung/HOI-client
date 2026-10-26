@@ -29,7 +29,7 @@ final class MapAirRangeOverlay {
             for(int z=0;z<16;z++)for(int x=0;x<16;x++)for(int[] corner:new int[][]{{0,0},{0,1},{1,1},{1,0}}){float u=(x+corner[0])/16f,v=(z+corner[1])/16f;vertex(pixels,world,circle.x()+(u*2-1)*extent,circle.z()+(v*2-1)*extent,u,v,fallback,.12f);}
             for(int i=0;i<128;i++){double a=i*Math.TAU/128,b=(i+1)*Math.TAU/128;vertex(disk,world,circle.x(),circle.z(),0,0,fallback,.1f);vertex(disk,world,circle.x()+(float)Math.sin(a)*circle.radius(),circle.z()+(float)Math.cos(a)*circle.radius(),0,0,fallback,.1f);vertex(disk,world,circle.x()+(float)Math.sin(b)*circle.radius(),circle.z()+(float)Math.cos(b)*circle.radius(),0,0,fallback,.1f);vertex(disk,world,circle.x(),circle.z(),0,0,fallback,.1f);}
             var bounds=new AABB(circle.x()-extent,world.getMinY(),circle.z()-extent,circle.x()+extent,world.getMaxY(),circle.z()+extent);
-            fill.add(new MapSceneMesh.MapTile(Material.AIR_SELECTED,bounds,disk.toFloatArray(),List.of()));outline.add(new MapSceneMesh.MapTile(Material.AIR_SELECTED,bounds,pixels.toFloatArray(),List.of()));
+            fill.add(new MapSceneMesh.MapTile(Material.COMPLIANCE,bounds,disk.toFloatArray(),List.of()));outline.add(new MapSceneMesh.MapTile(Material.COMPLIANCE,bounds,pixels.toFloatArray(),List.of()));
         }
         return frame=new Frame(List.copyOf(fill),List.copyOf(outline),next.size()==1?0xff66cc7f:0xffffff00);
     }

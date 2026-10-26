@@ -9,6 +9,12 @@ import java.util.*;
 
 public final class MapCommanderHudTest {
     private MapCommanderHudTest() {}
+    public static void runMovementInput(ClientGameTestContext context,ProtocolMenuView menu,java.util.function.Consumer<String> command){
+        String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)throw new IllegalStateException("Authoritative commander fixtures are required");
+        try{MapCommanderOrdersTest.run(context,menu,directory);MapMissionButtonsTest.run(context,menu,directory);}catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}
+        MapHierarchySelectionTest.run(context,menu);MapSelectionDetailsTest.run(context,menu);MapRightClickTest.run(context,command);
+    }
+    public static void runArmyGroups(ClientGameTestContext context,ProtocolMenuView menu){MapCommanderGroupsRenderTest.run(context,menu);}
     public static void runArmyLayout(ClientGameTestContext context,ProtocolMenuView menu){MapCommanderPanelsTest.runArmyLayout(context,menu);MapCommanderGroupsRenderTest.run(context,menu);}
     public static void runHeadquartersLayout(ClientGameTestContext context,ProtocolMenuView menu){MapCommanderGroupsRenderTest.run(context,menu);}
     public static void runTraitOverlay(ClientGameTestContext game,ProtocolMenuView menu){

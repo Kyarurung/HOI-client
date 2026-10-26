@@ -2,7 +2,6 @@ package dev.hoi.client.research;
 
 import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.ui.UiAssets;
-
 import dev.hoi.protocol.ProtocolResearchView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -24,22 +23,25 @@ public final class ResearchSlotButton extends Button {
         var font = Minecraft.getInstance().font;
         int color = 0xFF94B4C4;
         g.fillGradient(x, y, x + w, y + h, 0xFF3E5A70, 0xFF172731);
-        UiAssets.draw(g, "panel/research_slot", x, y, w, h);
+        String background=slot.designTeam().isEmpty()?"panel/research_slot":"mio/ui/gfx_research_line_mio_bg/frame_0";
+        UiAssets.draw(g,background,x,y,w,h);
+        if(technology!=null){var image=net.minecraft.resources.Identifier.fromNamespaceAndPath("hoi","textures/gui/"+background+".png");g.blit(image,x+Math.round(w*.44f),y+Math.round(h*.15f),x+Math.round(w*.56f),y+Math.round(h*.76f),.59f,.71f,.15f,.76f);}
         g.outline(x, y, w, h, color);
-        boolean compactActive = technology != null && h < 40;
-        String title = compactActive ? "" : technology == null ? "연구 선택" : technology.name();
-        if (font.width(title) > w - 20) title = font.plainSubstrByWidth(title, Math.max(1, w - 29)) + "…";
-        int titleY = compactActive || h < 24 ? (h - 8) / 2 : technology == null ? Math.min(10, (h - 8) / 2) : 6;
+        String title = technology == null ? "연구할 기술을 선택하세요." : technology.name();
+        int titleWidth = technology == null ? w - 20 : w - 65;
+        if (font.width(title) > titleWidth) title = font.plainSubstrByWidth(title, Math.max(1, titleWidth - 9)) + "…";
+        int titleY = 6;
         if (technology != null) {
-            int imageWidth = Math.min(112, w / 2);
-            int imageHeight = h >= 40 ? Math.min(26, h - 28) : Math.min(24, Math.max(6, h - (h >= 20 ? 12 : 4)));
+            int imageWidth = 35;
+            int imageHeight = 22;
             String art = UiAssets.technologyPath(country, technology);
-            if (!UiAssets.drawContent(g, art, x + (w - imageWidth) / 2, y + (h - imageHeight) / 2, imageWidth, imageHeight))
-                UiAssets.technology(g, country, technology, x + (w - imageWidth) / 2, y + (h - imageHeight) / 2,
+            if (!UiAssets.drawContent(g, art, x + (w - imageWidth) / 2, y + 15, imageWidth, imageHeight))
+                UiAssets.technology(g, country, technology, x + (w - imageWidth) / 2, y + 15,
                     imageWidth, imageHeight, color);
             String status = technology.remainingDays(slot.savedDays()) + "일";
-            int statusX = compactActive ? x + w - 10 - font.width(status) : x + 10;
-            g.text(font, status, statusX, y + (compactActive ? titleY : h - 13), color);
+            int statusX = x + w - 10 - font.width(status);
+            g.text(font, Component.literal(Long.toString(technology.remainingDays(slot.savedDays()))).withStyle(style->style.withColor(0xFFD060)).append(Component.literal("일").withStyle(style->style.withColor(0xFFFFFF))), statusX, y + titleY, color);
+            g.text(font, Integer.toString(technology.year()), x + 10, y + h - 15, 0xFFE0E6E8);
         }
         g.text(font, title, x + 10, y + titleY, 0xFFE0E6E8);
         if (h >= 20) {

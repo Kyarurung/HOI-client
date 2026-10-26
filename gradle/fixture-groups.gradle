@@ -61,7 +61,7 @@ ext.hoiRendererFixtureGroups = [
             'leader-tactic-low-skill', 'leader-tactic-low-skill-trait-tree',
             'leader-tactic-confirm', 'leader-tactic-selected'
         ],
-        suites: ['all', 'officers', 'officer-review', 'tactics']
+        suites: ['all', 'officers', 'officer-review', 'officer-comparison', 'tactics']
     ],
     doctrine: [
         environment: 'HOI_DOCTRINE_PREVIEW', property: 'hoiDoctrinePreview',
@@ -85,9 +85,11 @@ ext.hoiRendererFixtureGroups = [
             'dev.hoi.fabric.FabricArmyCohesionOffersTest', 'dev.hoi.fabric.FabricNavalConvoyTargetOffersTest',
             'dev.hoi.fabric.FabricAirArmyFollowingTest', 'dev.hoi.fabric.FabricCommanderOrderSessionsTest',
             'dev.hoi.fabric.FabricArmyAbilityOffersTest', 'dev.hoi.fabric.FabricNavalHudTest',
-            'dev.hoi.fabric.FabricNavalAirTheatersTest'
+            'dev.hoi.fabric.FabricNavalAirTheatersTest', 'dev.hoi.fabric.FabricMissionWaitingFixturesTest', 'dev.hoi.fabric.FabricNavalRightClickTest'
         ],
         fixtures: [
+            'kor-air-mission-waiting-context', 'kor-air-mission-waiting-hud', 'kor-air-mission-waiting-availability', 'kor-air-mission-region-hud',
+            'kor-navy-mission-waiting-context', 'kor-navy-mission-waiting-hud', 'kor-navy-mission-waiting-availability', 'kor-navy-mission-region-hud',
             'kor-command-panel-army', 'kor-command-panel-navy', 'kor-command-panel-navy-patrol-reserve', 'kor-navy-assessment', 'kor-navy-assessment-carrier', 'kor-sea-tooltips', 'kor-command-panel-air', 'kor-command-panel-area',
             'kor-command-panel-navy-theaters', 'kor-command-panel-air-theaters', 'kor-command-panel-navy-ten-forces',
             'kor-command-panel-army-assigned', 'kor-command-panel-army-group-assigned',
@@ -106,7 +108,7 @@ ext.hoiRendererFixtureGroups = [
             'army-ability-makeshift_bridges-source-kor-dialog', 'army-ability-requisition_winter_gear-source-kor-dialog',
             'army-ability-tactic_gas_bombardment-source-kor-dialog', 'army-ability-ALL-source-kor-dialog'
         ],
-        suites: ['missions', 'movement-controls', 'army-layout', 'navy-layout']
+        suites: ['missions', 'movement-controls', 'direct-movement', 'army-layout', 'navy-layout']
     ],
     mapOrders: [
         environment: 'HOI_COMMANDER_PREVIEW', property: 'hoi.commandFixtureOutput',
@@ -117,7 +119,7 @@ ext.hoiRendererFixtureGroups = [
     missionOverlay: [
         environment: 'HOI_MISSION_OVERLAY_FIXTURES', property: 'hoi.missionOverlayFixtureOutput',
         producers: ['dev.hoi.map.MapMovementOverlayTest', 'dev.hoi.map.MapAirMissionOverlayTest'],
-        fixtures: ['army', 'air', 'navy', 'army-strategic', 'navy-mission', 'air-transfer'],
+        fixtures: ['army', 'air-arrows', 'navy', 'army-strategic', 'navy-mission', 'air-transfer', 'army-retreat-manual', 'army-retreat-forced', 'army-sea-transfer'],
         suites: ['movement-controls', 'mission-overlays']
     ]
 ]

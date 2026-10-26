@@ -207,8 +207,18 @@ public record ProtocolIndustryView(String session, long revision, String country
                 throw new IllegalArgumentException("Invalid equipment amounts");
         }
     }
+    public record LineManufacturer(String id, String name, String icon, int size, String type, List<ProtocolMenuView.ManufacturerEquipment> equipment, String tooltip) {
+        public LineManufacturer {
+            text(id,128); text(name,128); icon=icon==null?"":icon; text(icon,160); type=type==null?"":type; text(type,128); equipment=equipment==null?List.of():List.copyOf(equipment); tooltip=tooltip==null?"":tooltip; text(tooltip,3000);
+            if(!id.matches("[A-Za-z0-9_]+")||size<0||size>10000||equipment.size()>32) throw new IllegalArgumentException("Invalid line manufacturer");
+        }
+    }
     public record Line(String id, String equipment, int factories, int availableFactories, double efficiency,
-            double daily, double progress, double shortage, Conversion conversion, Integer operating, Integer damaged, Double efficiencyGain, Double efficiencyBaseGain, Double efficiencyResourcePenalty, Set<String> missingResources) {
+            double daily, double progress, double shortage, Conversion conversion, Integer operating, Integer damaged, Double efficiencyGain, Double efficiencyBaseGain, Double efficiencyResourcePenalty, Set<String> missingResources,
+            LineManufacturer manufacturer, List<LineManufacturer> manufacturers, String manufacturerTooltip, String manufacturerEmpty) {
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain,Double efficiencyBaseGain,Double efficiencyResourcePenalty,Set<String> missingResources) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,efficiencyBaseGain,efficiencyResourcePenalty,missingResources,null,List.of(),"","");
+        }
         public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain,Double efficiencyBaseGain,Double efficiencyResourcePenalty) {
             this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,efficiencyBaseGain,efficiencyResourcePenalty,Set.of());
         }
@@ -225,6 +235,8 @@ public record ProtocolIndustryView(String session, long revision, String country
         public int damagedFactories() {return damaged==null?0:damaged;}
         public int reservedFactories() {return factories-operatingFactories()-damagedFactories();}
         public Line {
+            manufacturers=manufacturers==null?List.of():List.copyOf(manufacturers); manufacturerTooltip=manufacturerTooltip==null?"":manufacturerTooltip; text(manufacturerTooltip,3000); manufacturerEmpty=manufacturerEmpty==null?"":manufacturerEmpty; text(manufacturerEmpty,240);
+            if(manufacturers.size()>64) throw new IllegalArgumentException("Too many line manufacturers");
             missingResources=missingResources==null?Set.of():Set.copyOf(missingResources);
             if(missingResources.size()>8)throw new IllegalArgumentException("Too many missing resources");
             missingResources.forEach(resource->text(resource,32));

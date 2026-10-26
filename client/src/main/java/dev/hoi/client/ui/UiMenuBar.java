@@ -227,6 +227,10 @@ public final class UiMenuBar {
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
             int x = getX(), y = getY(), w = getWidth(), h = getHeight();
             drawTab(g, tab, country, selected, x, y, w, h);
+            if (tab == ProtocolMenuTab.POLITICS && UiTooltips.contains(this, mx, my)) {
+                String name = UiCountryDisplay.name(country, "");
+                if (!name.isBlank()) UiTooltips.drawExact(g, Minecraft.getInstance().font, name, mx, my);
+            }
         }
     }
     public static void drawFlag(GuiGraphicsExtractor g, String country, int x, int y, int w, int h) {

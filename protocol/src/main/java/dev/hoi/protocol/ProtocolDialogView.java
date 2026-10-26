@@ -13,7 +13,8 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
         public LeaderTrait(String icon,String name,String tooltip) {this(icon,name,tooltip,null);}
         public LeaderTrait {asset(icon);text(name,160);text(tooltip,3000);}
     }
-    public record Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails,String promotion,String advisor,String advisorIcon) {
+    public record Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails,String promotion,String advisor,String advisorIcon,String skillTooltip,String capacityTooltip,String assignTooltip,int advisorState) {
+        public Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails,String promotion,String advisor,String advisorIcon) {this(role,skill,abilities,capacity,assigned,traits,abilityTooltips,traitDetails,promotion,advisor,advisorIcon,"","","",0);}
         public Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails,String promotion,String advisor) {this(role,skill,abilities,capacity,assigned,traits,abilityTooltips,traitDetails,promotion,advisor,"");}
         public Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails,String promotion) {this(role,skill,abilities,capacity,assigned,traits,abilityTooltips,traitDetails,promotion,"");}
         public Leader(String role,int skill,List<Integer> abilities,int capacity,boolean assigned,List<String> traits,List<String> abilityTooltips,List<LeaderTrait> traitDetails) {this(role,skill,abilities,capacity,assigned,traits,abilityTooltips,traitDetails,"");}
@@ -27,14 +28,20 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
             abilityTooltips.forEach(v->text(v,500));traitDetails=traitDetails==null?List.of():List.copyOf(traitDetails);
             if(traitDetails.size()>128)throw new IllegalArgumentException("Invalid commander trait details");
             promotion=promotion==null?"":promotion;text(promotion,600);advisor=advisor==null?"":advisor;text(advisor,600);advisorIcon=advisorIcon==null?"":advisorIcon;asset(advisorIcon);
+            skillTooltip=skillTooltip==null?"":skillTooltip;text(skillTooltip,1200);capacityTooltip=capacityTooltip==null?"":capacityTooltip;text(capacityTooltip,600);assignTooltip=assignTooltip==null?"":assignTooltip;text(assignTooltip,600);if(advisorState<0||advisorState>2)throw new IllegalArgumentException("Invalid commander advisor state");
         }
+        public Leader withTooltips(String skillTooltip,String capacityTooltip,String assignTooltip) {return new Leader(role,skill,abilities,capacity,assigned,traits,abilityTooltips,traitDetails,promotion,advisor,advisorIcon,skillTooltip,capacityTooltip,assignTooltip,advisorState);}
     }
-    public record TraitNode(int row,int column,boolean terrain,List<String> parents,List<String> exclusive,boolean owned,boolean assignable,boolean available,String kind) {
+    public record TraitNode(int row,int column,boolean terrain,List<String> parents,List<String> exclusive,boolean owned,boolean assignable,boolean available,String kind,int needed,List<String> bonuses) {
+        public static final List<String> BONUSES=List.of("research","equipment","production","organization");
+        public TraitNode(int row,int column,boolean terrain,List<String> parents,List<String> exclusive,boolean owned,boolean assignable,boolean available,String kind,int needed) {this(row,column,terrain,parents,exclusive,owned,assignable,available,kind,needed,List.of());}
+        public TraitNode(int row,int column,boolean terrain,List<String> parents,List<String> exclusive,boolean owned,boolean assignable,boolean available,String kind) {this(row,column,terrain,parents,exclusive,owned,assignable,available,kind,0);}
         public TraitNode(int row,int column,boolean terrain,List<String> parents,List<String> exclusive,boolean owned,boolean assignable,boolean available) {this(row,column,terrain,parents,exclusive,owned,assignable,available,"");}
         public TraitNode {
             kind=kind==null?"":kind;text(kind,64);if(!kind.isEmpty()&&!kind.matches("[a-z0-9_]+"))throw new IllegalArgumentException("Invalid commander trait kind");
-            parents=List.copyOf(parents);exclusive=List.copyOf(exclusive);
-            if(row<-32||row>100||column<-32||column>32||parents.size()>32||exclusive.size()>32)throw new IllegalArgumentException("Invalid commander trait node");
+            parents=List.copyOf(parents);exclusive=List.copyOf(exclusive);bonuses=bonuses==null?List.of():List.copyOf(bonuses);
+            if(!BONUSES.containsAll(bonuses)||new java.util.HashSet<>(bonuses).size()!=bonuses.size())throw new IllegalArgumentException("Invalid commander trait bonuses");
+            if(row<-32||row>100||column<-32||column>32||parents.size()>32||exclusive.size()>32||needed<0||needed>parents.size())throw new IllegalArgumentException("Invalid commander trait node");
             for(String id:parents)text(id,80);for(String id:exclusive)text(id,80);
             if(available&&(owned||!assignable))throw new IllegalArgumentException("Invalid commander trait action");
         }
@@ -42,7 +49,16 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
     public record TacticCard(boolean attacking,boolean unlocked,boolean selected,List<String> effects,String phase) {
         public TacticCard {effects=List.copyOf(effects);if(effects.size()!=4&&effects.size()!=6)throw new IllegalArgumentException("Invalid tactic effects");effects.forEach(effect->text(effect,80));text(phase,160);}
     }
-    public record Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay,Leader leader,TraitNode traitNode,TacticCard tactic) {
+    public record Officer(String title,String unit,String unitIcon,String type,int unitLevel,double unitExperience,int medals,double experience,String experienceTooltip,String promotion,Integer insignia) {
+        public Officer(String title,String unit,String unitIcon,String type,int unitLevel,double unitExperience,int medals,double experience,String experienceTooltip,String promotion) {this(title,unit,unitIcon,type,unitLevel,unitExperience,medals,experience,experienceTooltip,promotion,null);}
+        public Officer {
+            text(title,64);text(unit,160);asset(unitIcon);type=type==null?"":type;text(type,160);
+            experienceTooltip=experienceTooltip==null?"":experienceTooltip;text(experienceTooltip,600);promotion=promotion==null?"":promotion;text(promotion,1200);
+            if(unitLevel<0||unitLevel>4||!Double.isFinite(unitExperience)||unitExperience<0||unitExperience>1||medals<0||medals>1000||!Double.isFinite(experience)||experience<0||experience>100000||insignia!=null&&(insignia<0||insignia>80))throw new IllegalArgumentException("Invalid unit officer row");
+        }
+    }
+    public record Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay,Leader leader,TraitNode traitNode,TacticCard tactic,Officer officer) {
+        public Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay,Leader leader,TraitNode traitNode,TacticCard tactic) {this(section,name,value,icon,detail,gauge,overlay,leader,traitNode,tactic,null);}
         public Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay,Leader leader,TraitNode traitNode) {this(section,name,value,icon,detail,gauge,overlay,leader,traitNode,null);}
         public Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay,Leader leader) {this(section,name,value,icon,detail,gauge,overlay,leader,null);}
         public Tile(String section,String name,String value,String icon,String detail,Gauge gauge,String overlay) {this(section,name,value,icon,detail,gauge,overlay,null);}

@@ -28,6 +28,7 @@ public final class MapCommanderOrders {
     private static String heldAction="";
     private static ModeRequest latched,resume;
     private static HeldMap heldMap;
+    private static HeldMap queuedMove;
     private static boolean heldOwned,heldClosing;
     private static ModeRequest afterHeld;
     private static String hint="";
@@ -47,11 +48,13 @@ public final class MapCommanderOrders {
     static void accept(Context next){
         var client=Minecraft.getInstance();if(client.level==null||!next.country().equals(ClientCampaignHud.country())||!next.dimension().equals(client.level.dimension().identifier().toString())||retired.contains(next.token()))return;
         if(context!=null&&context.token().equals(next.token())&&next.revision()<context.revision())return;
+        String previousPending=context==null?"":context.pending();boolean acknowledged=context!=null&&context.token().equals(next.token())&&waitingRevision>=0&&next.revision()>waitingRevision;
         boolean fresh=context==null||!context.token().equals(next.token());
         if(fresh){if(context!=null)retired.add(context.token());sequence=0;detailGeneration=-1;detailPages.clear();published=null;waitingRevision=-1;cancelQueued=false;hint="";hintTicks=0;generation++;}
-        context=next;if(fresh){heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;latched=null;resume=null;}if(waitingRevision>=0&&next.revision()>waitingRevision)waitingRevision=-1;
+        context=next;if(fresh){heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;queuedMove=null;latched=null;resume=null;}if(waitingRevision>=0&&next.revision()>waitingRevision)waitingRevision=-1;
         long availabilityRequest=MapCommanderAvailability.request();selectionChanged();if(cancelQueued&&waitingRevision<0){cancelQueued=false;if(!next.pending().isEmpty())send("CANCEL",List.of(),List.of());}
-        continueHeld();MapCommanderHud.reconcileCardOrder();MapCommanderAvailability.update(context,sequence-1,published,availabilityRequest==MapCommanderAvailability.request());
+        if(acknowledged&&waitingRevision<0&&!next.pending().equals(previousPending)){if(next.pending().startsWith("AIR/"))message("지도에서 공역을 우클릭하세요.");else if(next.pending().startsWith("NAVY/"))message("지도에서 해역을 우클릭하세요.");}
+        continueHeld();continueMove();MapCommanderHud.reconcileCardOrder();MapCommanderAvailability.update(context,sequence-1,published,availabilityRequest==MapCommanderAvailability.request());
     }
     static void acceptDetails(DetailPage page){
         if(!valid()||!page.token().equals(context.token())||page.sequence()!=sequence-1||published==null||!published.equals(MapCommanderPanels.commandSelection())||page.generation()<detailGeneration)return;
@@ -63,7 +66,7 @@ public final class MapCommanderOrders {
     }
     static boolean valid(){var client=Minecraft.getInstance();return context!=null&&client.level!=null&&context.country().equals(ClientCampaignHud.country())&&context.dimension().equals(client.level.dimension().identifier().toString());}
     static void scopeChanged(View previous,View next){generation++;if(context!=null&&(!context.country().equals(next.country())||!context.dimension().equals(next.dimension())||previous.dimension().equals(next.dimension())&&previous.branch()!=next.branch()))reset();}
-    static void reset(){MapCommanderCardDrag.reset();MapCommanderAvailability.reset();heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;latched=null;resume=null;if(context!=null)retired.add(context.token());context=null;sequence=0;detailGeneration=-1;detailPages.clear();published=null;waitingRevision=-1;cancelQueued=false;hint="";hintTicks=0;hintBounds=null;generation++;}
+    static void reset(){MapCommanderCardDrag.reset();MapCommanderAvailability.reset();heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;queuedMove=null;latched=null;resume=null;if(context!=null)retired.add(context.token());context=null;sequence=0;detailGeneration=-1;detailPages.clear();published=null;waitingRevision=-1;cancelQueued=false;hint="";hintTicks=0;hintBounds=null;generation++;}
     public static boolean ready(){return valid()&&waitingRevision<0;}
     public static String pending(){if(!valid())return "";if(heldAction.isEmpty())return context.pending();return heldOwned&&(context.pending().startsWith(heldAction+"/")||heldAction.equals("LAND/EDIT_PLAN")&&context.pending().equals("LAND/AREA_STATES"))?context.pending():heldAction;}
     static void held(String type){
@@ -86,21 +89,26 @@ public final class MapCommanderOrders {
     public static boolean editsPoint(){return pending().startsWith("LAND/EDIT_PLAN/");}
     public static boolean confirmDraft(){return MapCommanderPanels.armyCommandVisible()&&pending().equals("LAND/AREA_STATES")&&send("CONFIRM",List.of(),List.of());}
     public static boolean drawsPlanLine(){return pending().startsWith("LAND/")&&!pointMode();}
-    public static String gestureContext(){return valid()?context.token()+"/"+context.revision()+"/"+generation+"/"+context.pending():"";}
-    static void message(String text){hint=text;hintTicks=60;}
+    public static boolean targetTool(){return pending().startsWith("LAND/")||pending().startsWith("NAVAL_AREAS/");}
+    public static String gestureContext(){return valid()?context.token()+"/"+(targetTool()?context.revision():"")+"/"+generation+"/"+context.pending():"";}
+    private static void continueMove(){
+        if(queuedMove==null||!ready()||cancelQueued)return;
+        var queued=queuedMove;queuedMove=null;if(!targetTool()&&queued.selection().equals(MapCommanderPanels.commandSelection()))send("MAP",queued.selection(),queued.rays());
+    }
+    public static void message(String text){hint=text;hintTicks=60;}
     static void drawMessage(net.minecraft.client.gui.GuiGraphicsExtractor graphics){
         hintBounds=null;String text=hintTicks>0?hint:"";if(text.isEmpty())return;
         var font=Minecraft.getInstance().font;var lines=dev.hoi.client.ui.UiTooltips.split(font,Component.literal(text),Math.max(1,graphics.guiWidth()-24));
         int width=lines.stream().mapToInt(font::width).max().orElse(0)+12,height=lines.size()*(font.lineHeight+2)+8,x=(graphics.guiWidth()-width)/2,y=graphics.guiHeight()-height-8;
         y=Math.min(y,MapCommanderHud.boxes().stream().mapToInt(MapCommanderHud.Box::y).min().orElse(graphics.guiHeight())-new dev.hoi.client.ui.UiUnits(graphics.guiWidth(),graphics.guiHeight()).size(32)-height-6);
-        var occupied=new ArrayList<HintBounds>();for(var box:MapCommanderHud.boxes())occupied.add(new HintBounds(box.x(),box.y(),box.width(),box.height()));for(var hit:MapCommanderPanels.hits())occupied.add(new HintBounds(hit.x(),hit.y(),hit.w(),hit.h()));
+        var occupied=new ArrayList<HintBounds>();for(var box:MapCommanderHud.boxes())occupied.add(new HintBounds(box.x(),box.y(),box.width(),box.height()));for(var hit:MapCommanderPanels.hits()){int header=hit.icon().startsWith("naval_mission_")?new dev.hoi.client.ui.UiUnits(graphics.guiWidth(),graphics.guiHeight()).size(24):0;occupied.add(new HintBounds(hit.x(),hit.y()-header,hit.w(),hit.h()+header));}
         boolean shifted;do{shifted=false;for(var box:occupied)if(x<box.x()+box.width()&&x+width>box.x()&&y<box.y()+box.height()+4&&y+height+4>box.y()){y=box.y()-height-6;shifted=true;}}while(shifted);
         y=Math.max(dev.hoi.client.ui.UiMenuBar.height(graphics.guiWidth())+4,y);hintBounds=new HintBounds(x,y,width,height);graphics.fill(x,y,x+width,y+height,0xCC101418);
         int lineY=y+4;for(var line:lines){graphics.text(font,line,x+(width-font.width(line))/2,lineY,0xFFFFFFFF);lineY+=font.lineHeight+2;}
     }
     static void selectionScopeChanged(){resume=null;heldMap=null;generation++;if(valid()&&(!context.pending().isEmpty()||waitingRevision>=0))cancelTarget();}
     public static boolean cancelTarget(){
-        heldMap=null;
+        heldMap=null;queuedMove=null;
         if(!valid()||context.pending().isEmpty()&&waitingRevision<0)return false;
         if(waitingRevision>=0)cancelQueued=true;else send("CANCEL",List.of(),List.of());return true;
     }
@@ -111,7 +119,7 @@ public final class MapCommanderOrders {
         boolean changed=published!=null;var packet=new Selection(context.token(),sequence++,keys);published=keys;generation++;
         if(selectionObserver!=null)selectionObserver.accept(packet);else ClientPlayNetworking.send(packet);
         MapCommanderAvailability.update(context,sequence-1,published,false);
-        if(changed){resume=null;heldMap=null;}
+        if(changed){resume=null;heldMap=null;queuedMove=null;}
         if(changed&&(!context.pending().isEmpty()||waitingRevision>=0)){if(waitingRevision>=0)cancelQueued=true;else send("CANCEL",List.of(),List.of());}
     }
     static boolean send(String action,List<String> selection,List<Ray> rays){
@@ -125,15 +133,19 @@ public final class MapCommanderOrders {
     public static boolean map(List<Ray> rays){return map(rays,false);}
     public static boolean useMap(Minecraft client){
         if(client.player==null||client.gui.screen()!=null||!client.options.getCameraType().isFirstPerson()||!MapCommanderHud.cardsVisible()||!valid()||MapCommanderPanels.commandSelection().isEmpty())return false;
-        if(!ready())return true;
         var matrix=client.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
         var vector=matrix.transformProject(new org.joml.Vector3f(0,0,1)).normalize();
-        try{map(List.of(new Ray(vector.x,vector.y,vector.z)));}catch(IllegalArgumentException sky){}
+        try{map(List.of(new Ray(vector.x,vector.y,vector.z)));}catch(IllegalArgumentException sky){message("지도에서 이동할 위치를 선택하세요.");}
         return true;
     }
     public static boolean map(List<Ray> rays,boolean pointEdit){
-        if(rays.isEmpty())return false;var selected=MapCommanderPanels.commandSelection();if(selected.isEmpty()&&pending().isEmpty())return false;
-        var points=drawsPlanLine()?rays:List.of(rays.getLast());
+        if(!valid()){message("현재 지도의 명령 정보를 기다리고 있습니다.");return false;}
+        if(rays.isEmpty()){message("지도에서 이동할 위치를 선택하세요.");return false;}var selected=MapCommanderPanels.commandSelection();if(selected.isEmpty()&&pending().isEmpty()){message("이동할 부대를 선택하세요.");return false;}
+        var points=drawsPlanLine()?rays:List.of(targetTool()?rays.getLast():rays.getFirst());
+        if(!targetTool()){
+            if(selected.size()>2048){message("선택한 부대가 명령 입력 한도를 초과했습니다.");return false;}
+            selectionChanged();if(waitingRevision>=0){queuedMove=new HeldMap("MAP",selected,points,context.revision());message("앞선 명령 뒤에 마지막 이동 명령을 보냅니다.");return true;}
+        }
         if(clicksBorder()&&points.stream().allMatch(points.getFirst()::equals))points=List.of(points.getFirst());
         if(!heldAction.isEmpty()&&(!heldOwned||!context.pending().startsWith(heldAction)&&!context.pending().equals("LAND/AREA_STATES"))){var targets=heldAction.equals("LAND/ASSIGN_UNITS")?selected:MapCommanderPanels.armyIds();if(targets.isEmpty()){message("명령 대상을 선택하세요.");return false;}var queued=new HeldMap(heldAction,selected,points,context.revision());if(send(heldAction,targets,List.of())){heldOwned=true;heldMap=queued;return true;}return false;}
         return send(pointEdit&&editsPoint()?"MAP/POINT":"MAP",selected,pointEdit&&editsPoint()?List.of(rays.getFirst(),rays.getLast()):points);

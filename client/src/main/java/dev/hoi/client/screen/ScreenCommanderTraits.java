@@ -61,7 +61,7 @@ public final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi
         if(terrain)terrainScroll=next;else scroll=next;rebuildWidgets();
     }
     private void button(String id,String text,double px,double py,double w,double h) {
-        var button=new UiMenuButton(text,x(px),y(py),size(w),size(h),()->submit(id)).caption("");if(id.equals("advisor-roles"))button.background("officer/hq/captured_tab/frame_1");button.active=!pending;choices.put(id,button);addRenderableWidget(button);
+        var button=new UiMenuButton(text,x(px),y(py),size(w),size(h),()->submit(id)).caption("");if(id.equals("advisor-roles")||id.equals("traits"))button.background("officer/hq/captured_tab/frame_1");button.active=!pending;choices.put(id,button);addRenderableWidget(button);
     }
     @Override protected void init() {
         scale=Math.min(1,Math.min((width-12)/671.5f,(height-UiMenuBar.height(width)-12)/391.5f));left=(width-size(671.5))/2;top=Math.max(UiMenuBar.height(width)+6,(height-size(391.5))/2);choices.clear();nodeButtons.clear();
@@ -150,18 +150,18 @@ public final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi
         var preferred=view().tiles().stream().filter(t->t.section().equals("preferred-tactic-info")).findFirst().orElse(null);
         if(preferred!=null) {
             UiAssets.nineSlice(g,"commander/commands/tiled_plain_bg/frame_0",x(5),y(337.5),size(135),size(46.5),4,.5*scale);
-            text(g,preferred.name(),10,340,125,10,0xFFFFFFFF);
+            text(g,preferred.name(),10,341,125,12,0xFFFFFFFF);
             var button=choices.get("preferred-tactic");if(button!=null&&UiTooltips.contains(button,mx,my))hovered=preferred.detail();
         }
         boolean navy=hero!=null?hero.leader().role().equals("제독"):roleTiles().stream().anyMatch(t->t.section().contains("NAVY_CHIEF/"));
         if(advisorRoles()) {
-            text(g,"최고사령부",147,35,305,13,0xFFFFFFFF);text(g,navy?"해군참모총장":"육군참모총장",469.5,35,192,13,0xFFFFFFFF);
+            text(g,"§l최고사령부",147,35,305,13,0xFFFFFFFF);text(g,navy?"§l해군참모총장":"§l육군참모총장",469.5,35,192,13,0xFFFFFFFF);
             for(var tile:roleTiles()) {
                 int px=x(chief(tile)?469.5:147),py=roleY(tile);if(py<y(55)||py+size(26)>y(380))continue;
                 boolean owned=tile.traitNode()!=null?tile.traitNode().owned():tile.section().endsWith("/dismiss"),hover=mx>=px&&mx<px+size(122)&&my>=py&&my<py+size(26);
                 sourceArt(g,"commander/commands/trait_adviser_"+(owned?"picked":"disabled")+"/frame_0",px,py,244,52,.5f);
                 if(!tile.icon().isEmpty())UiAssets.draw(g,tile.icon(),px+size(3),py+size(3),size(20),size(20));
-                String[] lines=dev.hoi.client.ui.UiTooltipText.sourceSpacing(tile.name()).split("\n",-1);int textHeight=Math.max(font.lineHeight,size(10)),textTop=py+Math.max(0,(size(26)-lines.length*textHeight)/2);
+                String[] lines=dev.hoi.client.ui.UiTooltipText.sourceSpacing(tile.name()).split("\n",-1);int textHeight=Math.max(font.lineHeight,size(10)),textTop=py+size(2);
                 for(int index=0;index<lines.length;index++)label(g,lines[index],px+size(25),textTop+index*textHeight,size(94),textHeight,0xFFFFFFFF,false);
                 if(hover)hovered=tile.detail();
             }
@@ -177,8 +177,8 @@ public final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi
             sourceArt(g,"commander/tree/"+state,px,py,166,39,.5f);if(!tile.icon().isEmpty())sourceArt(g,tile.icon(),px+length(5),py+length(2),23,33,.5f);label(g,tile.name(),px+size(20),py+size(6),size(61.5),size(10),UiMenuStyle.TEXT,false);if(hover)hovered=tile.detail();
         }
         }
-        scrollbar(g,false);if(maximum(true)>0)scrollbar(g,true);
-        for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget&&!nodeButtons.contains(child)){if(child instanceof AbstractWidget button&&choices.containsValue(button)){if(child==choices.get("preferred-tactic")){button.extractRenderState(g,mx,my,delta);UiAssets.draw(g,preferred.icon(),x(11.5),y(350),size(45),size(25));label(g,preferred.value(),x(65),y(355),size(75),size(10),0xFFFFFFFF,false);var required=java.util.regex.Pattern.compile("기술 레벨 (\\d+)").matcher(preferred.detail());if(required.find())label(g,"요구 기술 §e"+required.group(1),x(65),y(365),size(75),size(10),0xFFFFFFFF,false);}else drawButton(g,button,mx,my,delta);}else widget.extractRenderState(g,mx,my,delta);}
+        if(!advisorRoles()||maximum(false)>0)scrollbar(g,false);if(maximum(true)>0)scrollbar(g,true);
+        for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget&&!nodeButtons.contains(child)){if(child instanceof AbstractWidget button&&choices.containsValue(button)){if(child==choices.get("preferred-tactic")){button.extractRenderState(g,mx,my,delta);UiAssets.draw(g,preferred.icon(),x(11.5),y(350),size(45),size(25));var preference=font.split(UiTooltips.officerText(preferred.value()),size(75));for(int n=0;n<preference.size();n++)g.text(font,preference.get(n),x(65),y(350)+n*font.lineHeight,0xFFFFFFFF,false);var required=java.util.regex.Pattern.compile("기술 레벨 (\\d+)").matcher(preferred.detail());if(required.find())label(g,"요구 기술 §e"+required.group(1),x(65),y(350)+Math.max(2,preference.size())*font.lineHeight,size(75),size(10),0xFFFFFFFF,false);}else drawButton(g,button,mx,my,delta);}else widget.extractRenderState(g,mx,my,delta);}
         if(confirming()) {UiMenuStyle.panel(g,x(230),y(170),size(225),size(93));text(g,view().title(),238,178,209,19,UiMenuStyle.TEXT);text(g,view().body(),238,202,209,24,UiMenuStyle.TEXT);for(String key:List.of("confirm","cancel")){var button=choices.get(key);if(button!=null)drawButton(g,button,mx,my,delta);}}
         else if(!hovered.isEmpty()||!clippedTooltip.isEmpty())tooltipBounds=UiTooltips.drawOfficerScrollable(g,font,hovered.isEmpty()?clippedTooltip:hovered,mx,my,width,height,0,Math.max(240,size(240)));
     }

@@ -17,7 +17,7 @@ public final class ProtocolUnitHud {
     public static final Set<String> NAVAL_TYPES=Set.of("destroyer","light_cruiser","heavy_cruiser","battlecruiser","battleship","carrier","submarine");
     public static final Set<String> AIR_TYPES=Set.of("fighter","heavy_fighter","cas","naval_bomber","tactical_bomber","strategic_bomber","scout","transport");
     public enum Allegiance { OURS, ALLIED, ENEMY, OTHER }
-    public enum Status { IDLE, MOVING, FIGHTING, TRAINING, OPERATING }
+    public enum Status { IDLE, MOVING, FIGHTING, TRAINING, OPERATING, RETREATING }
     private static boolean registered;
     private ProtocolUnitHud() {}
     public static synchronized void registerPayloadTypes() {
@@ -86,7 +86,7 @@ public final class ProtocolUnitHud {
             if(counters.size()>MAX_ROWS||counters.stream().map(Counter::key).distinct().count()!=counters.size())
                 throw new IllegalArgumentException("Invalid unit counter rows");
         }
-        public static final Type<Snapshot> TYPE=new Type<>(Identifier.parse("hoi:unit_hud_v4"));
+        public static final Type<Snapshot> TYPE=new Type<>(Identifier.parse("hoi:unit_hud_v5"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Snapshot> CODEC=StreamCodec.of((b,p)-> {
             b.writeUtf(p.dimension,128);b.writeVarInt(p.counters.size());
             for(var c:p.counters) {

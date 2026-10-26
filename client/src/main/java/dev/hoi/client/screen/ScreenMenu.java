@@ -34,7 +34,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private int[] captivityCounts;
     public void captivityCounts(int missing,int held){captivityCounts=new int[]{missing,held};}
     private void openCaptivity(boolean ours){var screen=new ScreenCommanderCaptivity(this,ours);ScreenDialogCoordinator.setContent(screen);screen.open();}
-    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(!selectionPreview&&selected==ProtocolMenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&manufacturerMaximum>0&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&event.x()>=detailX()+detailWidth()-8&&event.x()<detailX()+detailWidth()&&event.y()>=top+59&&event.y()<Math.min(height-8,top+328)){manufacturerDragging=true;dragManufacturer(event.y());return true;}if(!selectionPreview&&selected==ProtocolMenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
     private ProtocolMenuView view;
     private boolean selectionPreview;
     private final Runnable researchOpen;
@@ -47,7 +47,10 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private String focusTarget;
     private String detailIcon;
     private String manufacturerGroup, manufacturerDetailId;
-    private int manufacturerScroll;
+    private int manufacturerScroll,manufacturerMaximum;
+    private boolean manufacturerDragging;
+    private boolean manufacturerByName,manufacturerDescending,manufacturerSorted;
+    private final Map<net.minecraft.client.gui.components.AbstractWidget,String> manufacturerTooltips=new LinkedHashMap<>();
     private int spiritScroll, tooltipScroll;
     private boolean balanceOpen;
     private ProtocolMenuView.Entry hoveredPolitics;
@@ -182,7 +185,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private boolean hasFooterActions() { return selected == ProtocolMenuTab.RESEARCH || selected == ProtocolMenuTab.INTELLIGENCE; }
     private int contentBottom() { return height - (hasFooterActions() ? 36 : 8); }
     private int detailX() { return width - pane >= 240 ? pane + 6 : Math.max(8, (width - detailWidth()) / 2); }
-    private int detailWidth() { return Math.min(310, width - (width - pane >= 240 ? pane + 14 : 16)); }
+    private int detailWidth() { return Math.min(manufacturerGroup!=null?268:310, width - (width - pane >= 240 ? pane + 14 : 16)); }
     private int rowHeight() { return selected == ProtocolMenuTab.PRODUCTION || selected == ProtocolMenuTab.RECRUITMENT ? 49 : 37; }
     private void layoutRows(boolean widgets, GuiGraphicsExtractor g) {
         if (selected == ProtocolMenuTab.POLITICS) { layoutPolitics(widgets, g); return; }
@@ -236,7 +239,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         int y = contentTop() - scroll;
         var sections = view.page(ProtocolMenuTab.OFFICER_CORPS).sections();
         var commanders = sections.stream().filter(v -> v.icon().equals("high_command")).flatMap(v -> v.entries().stream()).toList();
-        if (g != null) UiMenuStyle.metal(g, 8, y, pane - 16, 36);
+        if (g != null) { UiMenuStyle.metal(g, 8, y, pane - 110, 36); UiMenuStyle.metal(g, pane - 98, y, 90, 36); }
         int count = Math.min(3, commanders.size()), cell = Math.min(31, (pane - 65) / 3);
         for (int i = 0; i < count; i++) {
             var entry = commanders.get(i); int bx = 11 + i * cell;
@@ -250,14 +253,14 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             if (g != null) UiAssets.draw(g, "officer/preferred_tactic", pane - 65, y + 4, 48, 28);
             officerControl(widgets, tactic, "preferred_tactic", 0, pane - 65, y + 4, 48, 28);
         }
-        y += 44;
+        y += 38;
         double commandScale=Math.min(.5,(pane-22)/418.0);int hqWidth=(int)Math.round(200*commandScale),captureWidth=(int)Math.round(218*commandScale),commandHeight=(int)Math.round(62*commandScale),captureX=pane-11-captureWidth;
         var captured=sections.stream().filter(v->v.icon().equals("captivity")).flatMap(v->v.entries().stream()).toList();String missing=captivityCounts!=null?Integer.toString(captivityCounts[0]):captured.isEmpty()?"—":captured.getFirst().value(),held=captivityCounts!=null?Integer.toString(captivityCounts[1]):captured.size()<2?"—":captured.get(1).value();
         String capturedTip="§e포획된 지휘관§r\n§a클릭§r하여 우리의 실종된 지휘관 확인\n§a우클릭§r하여 우리가 포획한 지휘관 확인\n\n우리의 실종된 지휘관: §e"+missing+"§r\n우리에게 포획된 지휘관: §e"+held+"§r\n\n"+dev.hoi.client.ui.UiCommandLabels.text("CAPTURED_GENERALS_DELAYED_OPERATIVES","전투 중에 지휘관이 포로로 잡힐 수 있습니다. 포획된 지휘관은 습격이나 첩보 작전을 통해 구출할 수 있습니다.");
         var deployed=sections.stream().filter(v->v.icon().equals("army_hq")).flatMap(v->v.entries().stream()).findFirst().orElse(null);int badgeX=11+hqWidth,badgeY=y+(int)Math.round(19*commandScale),badgeWidth=(int)Math.round(18*commandScale),badgeHeight=(int)Math.round(27*commandScale),counterX=11+(int)Math.round(220*commandScale),counterWidth=Math.max(1,captureX-counterX-1);
-        if(g!=null){UiMenuStyle.metal(g,8,y,pane-16,commandHeight+4);UiAssets.draw(g,"officer/hq/hq_button",11,y+3,hqWidth,(int)Math.round(49*commandScale));UiAssets.draw(g,"officer/hq/captured_button",captureX,y+2,captureWidth,commandHeight);dev.hoi.client.ui.UiText.centered(g,font,"육군 사령부 편제",25,y+4,hqWidth-28,commandHeight-5,TEXT);if(deployed!=null){UiAssets.draw(g,"officer/hq/badge",badgeX,badgeY,badgeWidth,badgeHeight);dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(deployed.value()),counterX,badgeY,counterWidth,badgeHeight,TEXT);}dev.hoi.client.ui.UiText.centered(g,font,"포획된 지휘관",captureX+(int)Math.round(69*commandScale),y+3,captureWidth-(int)Math.round(75*commandScale),commandHeight-7,TEXT);}
+        if(g!=null){g.fill(8,y,pane-8,y+commandHeight+4,0xFF342E2B);UiAssets.draw(g,"officer/hq/hq_button",11,y+3,hqWidth,(int)Math.round(49*commandScale));UiAssets.draw(g,"officer/hq/captured_button",captureX,y+2,captureWidth,commandHeight);dev.hoi.client.ui.UiText.centered(g,font,"육군 사령부 편제",25,y+4,hqWidth-28,commandHeight-5,TEXT);if(deployed!=null){UiAssets.draw(g,"officer/hq/badge",badgeX,badgeY,badgeWidth,badgeHeight);dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(deployed.value()),counterX,badgeY,counterWidth,badgeHeight,TEXT);}dev.hoi.client.ui.UiText.centered(g,font,"포획된 지휘관",captureX+(int)Math.round(69*commandScale),y+3,captureWidth-(int)Math.round(75*commandScale),commandHeight-7,TEXT);dev.hoi.client.ui.UiText.centered(g,font,held,captureX+18,y+19,10,9,GOLD,false);}
         if(widgets){int rowY=y;var headquarters=new UiMenuButton("육군 사령부 편제",11,rowY+2,hqWidth,commandHeight,()->{var screen=new ScreenArmyHeadquarters(this);ScreenDialogCoordinator.setContent(screen);screen.open();}).caption("").background("none");headquarters.setTooltip(null);officerTooltips.put(headquarters,dev.hoi.client.ui.UiCommandLabels.text("ARMY_HQ_TEMPLATES_TOGGLE_TOOLTIP","§G클릭§!하여 §Y육군 사령부 편제§! 목록을 전환합니다. 이 목록에서는 육군 사령부 편제를 검토 및 관리할 수 있습니다."));addRenderableWidget(headquarters);if(deployed!=null){var counter=new dev.hoi.client.ui.UiHoverRegion(deployed.name(),badgeX,badgeY,counterX+counterWidth-badgeX,badgeHeight);officerTooltips.put(counter,deployed.detail());counter.active=detail==null;addRenderableWidget(counter);}var button=new UiMenuButton("포획된 지휘관",captureX,rowY+2,captureWidth,commandHeight,()->openCaptivity(true)).caption("").background("none");button.setTooltip(null);capturedButton=button;officerTooltips.put(button,capturedTip);addRenderableWidget(button);}
-        y += commandHeight+9;
+        y += commandHeight+3;
         for (String branch : List.of("army", "navy", "air", "special")) {
             var section = sections.stream().filter(v -> v.icon().equals(branch)).findFirst().orElse(null);
             if (section == null) continue;
@@ -269,7 +272,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 UiAssets.cover(g, "officer/" + artBranch + "/background", 9, y + 17, pane - 18, h - 18);
                 UiAssets.cover(g, "officer/" + artBranch + "/header", 9, y - 8, pane - 18, h);
                 UiAssets.draw(g, "officer/" + branch + "/banner", 8, y - 4, 49, 35);
-                dev.hoi.client.ui.UiText.centered(g, font, section.title(), 60, y - 1, pane - 72, 17, TEXT);
+                if(special)g.fill(8,y,pane-8,y+17,0xFF4A4A31);
+                dev.hoi.client.ui.UiText.left(g, font, Component.literal(section.title()).withStyle(net.minecraft.ChatFormatting.BOLD), 60, y - 1, pane - 72, 17, TEXT);
             }
             if (!special && !entries.isEmpty()) {
                 var chief = entries.getFirst();
@@ -281,7 +285,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             }
             int doctrineIndex = special ? 0 : 1;
             if (entries.size() > doctrineIndex) {
-                var doctrine = entries.get(doctrineIndex); int dx = special ? pane - 61 : pane * 3 / 4 - 22;
+                var doctrine = entries.get(doctrineIndex); int dx = special ? pane - 61 : pane * 340 / 550;
                 if (g != null) {
                     UiAssets.draw(g, "officer/" + branch + "/doctrine_frame", dx, y + 19, 44, 44);
                     UiAssets.drawContent(g, doctrine.icon(), dx + 6, y + 25, 32, 32);
@@ -351,7 +355,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         var styled = UiTooltips.styled(Component.literal(value), false);
         float scale = officerStatScale(font, styled, available);
         g.pose().pushMatrix();
-        g.pose().translate(x, y + (15 - font.lineHeight * scale) / 2f);
+        g.pose().translate(x + available - font.width(styled) * scale, y + (15 - font.lineHeight * scale) / 2f);
         g.pose().scale(scale);
         g.text(font, styled.getVisualOrderText(), 0, 0, GOLD); g.pose().popMatrix();
     }
@@ -609,8 +613,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         UiMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
         UiMenuStyle.panel(g, 0, top, pane, height - top);
         String heading=trim(selected == ProtocolMenuTab.POLITICS ? "정치" : selected.label(),pane-44);int headingX=10;
-        if(selected==ProtocolMenuTab.OFFICER_CORPS){float scale=(font.lineHeight+2f)/font.lineHeight;String label=font.plainSubstrByWidth(heading,Math.max(1,(int)((pane-44)/scale)));headingX+=Math.round((pane-44-font.width(label)*scale)/2);}
-        UiMenuStyle.heading(g, font, heading, headingX, top + 9, pane - 44, TEXT);
+
+        UiMenuStyle.heading(g, font, selected==ProtocolMenuTab.OFFICER_CORPS?"§l"+heading:heading, headingX, top + 9, pane - 44, TEXT);
         if (selected == ProtocolMenuTab.POLITICS) drawPoliticsBanner(g);
         if (selected == ProtocolMenuTab.INTELLIGENCE) {
             UiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);
@@ -634,6 +638,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (balanceOpen && selected == ProtocolMenuTab.POLITICS && view.balance() != null) drawBalance(g, mx, my);
         super.extractRenderState(g, mx, my, delta);
         drawPoliticsTooltip(g, mx, my, mx);
+        if(manufacturerGroup!=null&&detail==null)manufacturerTooltips.entrySet().stream().filter(e->UiTooltips.contains(e.getKey(),mx,my)).findFirst().ifPresent(e->UiTooltips.drawSourceScrollable(g,font,e.getValue(),mx,my,width,height,0));
         if (selected == ProtocolMenuTab.OFFICER_CORPS && detail == null) {
             String text = officerTooltips.entrySet().stream().filter(entry -> entry.getKey().isMouseOver(mx, my))
                     .map(Map.Entry::getValue).findFirst().orElse("");
@@ -659,7 +664,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
             lines.add(Component.literal(title).withColor(UiTooltips.GOLD).getVisualOrderText());
             if (party) lines.add(Component.literal(hovered.value()).getVisualOrderText());
-            if (!hovered.detail().isBlank()) lines.addAll(UiTooltips.lines(font, hovered.detail(), width));
+            if (!hovered.detail().isBlank()) lines.addAll(spirits.contains(hovered) ? UiTooltips.sourceLines(font, hovered.detail(), width) : UiTooltips.lines(font, hovered.detail(), width));
             lines=new ArrayList<>(UiTooltips.collapseBlankLines(lines));
             int count = Math.max(1, (height - 48) / (font.lineHeight + 1));
             tooltipScroll = Math.clamp(tooltipScroll, 0, Math.max(0, lines.size() - count));
@@ -750,24 +755,33 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         for (var line : lines) { dev.hoi.client.ui.UiText.text(g, font, line, x + 14, y, TEXT); y += 13; }
         g.disableScissor();
     }
+    private void dragManufacturer(double y){int end=Math.min(height-8,top+328)-4;manufacturerScroll=(int)(Math.clamp((y-top-59)/Math.max(1,end-top-59),0,1)*manufacturerMaximum);rebuildWidgets();}
+    @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy){if(manufacturerDragging){dragManufacturer(event.y());return true;}return super.mouseDragged(event,dx,dy);}
+    @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event){if(manufacturerDragging){manufacturerDragging=false;return true;}return super.mouseReleased(event);}
     private void layoutManufacturers(boolean widgets, GuiGraphicsExtractor g) {
-        int x = detailX(), w = detailWidth(), bottom = height - 34;
-        var groups = List.of("all", "materiel", "armor", "air", "navy");
-        var names = List.of("전체", "군수품", "전차", "비행기", "함선");
-        var icons = List.of("menu/production", "politics/materiel_manufacturer", "politics/tank_manufacturer", "politics/aircraft_manufacturer", "politics/naval_manufacturer");
-        var rows = view.manufacturers().stream().filter(m -> manufacturerGroup.equals("all") || m.groups().contains(manufacturerGroup)).toList();
+        if(widgets)manufacturerTooltips.clear();
+        int x = detailX(), w = detailWidth(), bottom = Math.min(height-8,top+328);
+        var groups = List.of("points", "materiel", "armor", "air", "navy");
+        var names = List.of("특성 점수 보유", "군수품", "전차", "비행기", "함선");
+        var icons = List.of("mio/ui/gfx_refitting/frame_0", "mio/ui/gfx_inf_art_checkbox/frame_0", "mio/ui/gfx_armour_checkbox/frame_0", "mio/ui/gfx_air_checkbox/frame_0", "mio/ui/gfx_screen_ships_checkbox/frame_0");
+        Comparator<ProtocolMenuView.Manufacturer> order=manufacturerByName?Comparator.comparing(m->m.entry().name()):Comparator.comparingInt(ProtocolMenuView.Manufacturer::size);
+        if(manufacturerDescending)order=order.reversed();
+        var filtered=view.manufacturers().stream().filter(m -> manufacturerGroup.equals("points") ? m.points()>0 : m.groups().contains(manufacturerGroup));
+        var rows=(manufacturerSorted?filtered.sorted(order):filtered).toList();
         int available = Math.max(1, bottom - top - 62);
-        manufacturerScroll = Math.clamp(manufacturerScroll, 0, Math.max(0, rows.size() * 49 - available));
+        manufacturerMaximum=Math.max(0,rows.size()*49-available);manufacturerScroll = Math.clamp(manufacturerScroll, 0, manufacturerMaximum);
         if (g != null) {
             g.nextStratum(); UiMenuStyle.panel(g, x, top, w, bottom - top);
-            UiMenuStyle.heading(g, font, "군수산업체", x + 10, top + 9, w - 44, TEXT);
+            dev.hoi.client.ui.UiText.centered(g,font,"군수산업체",x+10,top+5,w-35,20,TEXT,false);
         }
         if (widgets) {
+            addRenderableWidget(new UiMenuButton("규모",x+8,top+32,24,18,()->{manufacturerDescending=manufacturerSorted&&!manufacturerByName&&!manufacturerDescending;manufacturerByName=false;manufacturerSorted=true;rebuildWidgets();}).caption("").background(ScreenOrganization.art("sort_skill")));
+            addRenderableWidget(new UiMenuButton("이름",x+34,top+32,45,18,()->{manufacturerDescending=manufacturerSorted&&manufacturerByName&&!manufacturerDescending;manufacturerByName=true;manufacturerSorted=true;rebuildWidgets();}));
             addRenderableWidget(new UiMenuButton("×", x + w - 25, top + 3, 19, 19, () -> { manufacturerGroup = null; rebuildWidgets(); }));
             for (int i = 0; i < groups.size(); i++) {
                 final String group = groups.get(i);
-                addRenderableWidget(new UiMenuButton(names.get(i) + " 산업체", icons.get(i), manufacturerGroup.equals(group),
-                        x + 9 + i * 30, top + 30, 27, 23, () -> { manufacturerGroup = group; manufacturerScroll = 0; rebuildWidgets(); }));
+                String icon=i>0&&manufacturerGroup.equals(group)?icons.get(i).replace("frame_0","frame_1"):icons.get(i);
+                addRenderableWidget(new UiMenuButton(names.get(i), x+w-122+i*23,top+30,23,18,()->{manufacturerGroup=group;manufacturerScroll=0;rebuildWidgets();}).caption("").background(icon).sound("ui.checkbox"));
             }
         }
         if (g != null) g.enableScissor(x + 8, top + 59, x + w - 8, bottom - 4);
@@ -775,21 +789,18 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         for (var manufacturer : rows) {
             var entry = manufacturer.entry();
             if (g != null) {
-                UiMenuStyle.metal(g, x + 8, y, w - 16, 45);
-                UiAssets.draw(g, entry.icon(), x + 12, y + 9, 25, 28);
-                officerText(g, entry.name(), x + 43, y + 7, w - 55, TEXT);
-                officerText(g, entry.value(), x + 43, y + 20, w - 116, GOLD);
+                dev.hoi.client.ui.UiOrganizationRow.draw(g,entry.icon(),manufacturer.size(),entry.name(),manufacturer.type(),manufacturer.equipment(),x+8,y,w-16);
             }
             if (widgets && y >= top + 59 && y + 45 <= bottom - 4) {
-                addRenderableWidget(new UiMenuButton("세부 사항", x + w - 70, y + 25, 56, 16, () -> {
-                    detail = entry; detailIcon = "research_production"; manufacturerDetailId = manufacturer.id(); detailScroll = 0; rebuildWidgets();
-                }));
+                var hover=new dev.hoi.client.ui.UiHoverRegion(entry.name(),x+8,y,w-16,45);manufacturerTooltips.put(hover,entry.detail());
+                addRenderableWidget(new UiMenuButton("세부 사항", x + w - 67, y + 31, 54, 16, () -> dev.hoi.client.map.MapCommanderHud.open(new dev.hoi.protocol.ProtocolCommanderHud.Open(dev.hoi.protocol.ProtocolCommanderHud.Mode.ORGANIZATION,manufacturer.id(),List.of()))).background(ScreenOrganization.art("leader_selection_button")));addRenderableWidget(hover);
             }
             y += 49;
         }
         if (g != null) {
-            if (rows.isEmpty()) officerText(g, "등록된 군수산업체 없음", x + 14, top + 69, w - 28, MUTED);
+
             g.disableScissor();
+            if(manufacturerMaximum>0){int thumb=Math.max(12,available*available/(available+manufacturerMaximum));int sy=top+59+(available-thumb)*manufacturerScroll/manufacturerMaximum;g.fill(x+w-7,top+59,x+w-3,bottom-4,0xFF181B20);g.fill(x+w-7,sy,x+w-3,sy+thumb,0xFF89929C);}
         }
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {

@@ -49,9 +49,9 @@ public final class ScreenMapCursor extends Screen implements InputSidebarMovemen
         if(event.y()<UiMenuBar.height(width)||minecraft.level==null)return false;
         if(dev.hoi.client.map.MapCommanderHud.pressAt(event.x(),event.y(),event.button(),twice))return true;
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT||event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&(dev.hoi.client.map.MapCommanderOrders.pointMode()||dev.hoi.client.map.MapCommanderOrders.clicksBorder()||dev.hoi.client.map.MapCommanderOrders.editsPoint())){
-            if(!dev.hoi.client.map.MapCommanderOrders.ready())return false;
+            if(dev.hoi.client.map.MapCommanderOrders.targetTool()&&!dev.hoi.client.map.MapCommanderOrders.ready()){dev.hoi.client.map.MapCommanderOrders.message("앞선 명령의 응답을 기다리고 있습니다.");return true;}
             commandButton=event.button();commandContext=dev.hoi.client.map.MapCommanderOrders.gestureContext();commandLine=dev.hoi.client.map.MapCommanderOrders.drawsPlanLine();
-            return commandGesture.begin(minecraft,event.x(),event.y(),width,height);
+            return commandGesture.begin(minecraft,event.x(),event.y(),width,height,!dev.hoi.client.map.MapCommanderOrders.targetTool());
         }
         if(event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return false;
         selecting=true;

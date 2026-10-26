@@ -25,20 +25,24 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
     private int pane,top,scroll,sort,pending,refresh,optionScroll;
     private boolean compliance,templates,showPeaceful=true;
     private String target;
+    private Row returnTarget;
+    private int returnScroll;
+    private long returnRevision;
+    private List<net.minecraft.util.FormattedCharSequence> returnLines=List.of();
     public ScreenOccupation(){this(UUID.randomUUID().toString(),null,r->{if(ClientPlayNetworking.canSend(Request.TYPE))ClientPlayNetworking.send(r);});}
     ScreenOccupation(String token,View view,Consumer<Request> transport){super(Component.literal("점령지"));this.token=token;this.view=view;this.transport=transport;}
     public void open(){send(Action.OPEN,"","");}
     public void update(View next){
         if(!token.equals(next.token())||view!=null&&next.revision()<=view.revision())return;
         if(next.country().isEmpty()||view!=null&&!view.country().equals(next.country())){minecraft.gui.setScreen(null);return;}
-        view=next;pending=0;rebuildWidgets();
+        view=next;pending=0;returnTarget=null;rebuildWidgets();
     }
     private int s(int value){return Math.round(value*pane/550f);}
     private float textScale(){return Math.max(1f,pane/550f*2);}
     private int headerLabelY(){return top+s(48)+(s(74)-Math.round(font.lineHeight*textScale())-s(4)-s(32))/2;}
     private int headerControlsY(){return headerLabelY()+Math.round(font.lineHeight*textScale())+s(4);}
     @Override protected void init(){
-        pane=Math.max(180,UiPanelLayout.width(ProtocolMenuTab.CONSTRUCTION,width)-6);top=UiMenuBar.height(width);controls.clear();
+        pane=Math.max(180,UiPanelLayout.width(ProtocolMenuTab.CONSTRUCTION,width));top=UiMenuBar.height(width);controls.clear();
         UiMenuBar.buttons(width,view==null?"":view.country(),ProtocolMenuTab.POLITICS,t->{if(t==ProtocolMenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(t);}).forEach(this::addRenderableWidget);
         addRenderableWidget(new UiMenuButton("×",pane-s(43),top+s(7),s(34),s(34),this::onClose));
         if(view==null)return;
@@ -46,7 +50,7 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
         add("주둔 사단 편제","occupation/template_button",templateIcon(view.defaultTemplate()),"",s(13),headerControlsY(),s(76),s(31),false,()->select("*",true)).setTooltip(UiTooltips.createExact(templateTooltip(null)));
         add(law(view.defaultLaw()),"occupation/select_law_button",lawIcon(view.defaultLaw()),law(view.defaultLaw()),s(93),headerControlsY(),s(169),s(32),false,()->select("*",false)).setTooltip(UiTooltips.createExact(currentLawTooltip(null,view.defaultLaw())));
         control("저항도 지도",compliance?"occupation/resistance_tab_inactive":"occupation/resistance_tab",null,"",446,68,47,54,()->{compliance=false;send(Action.RESISTANCE,"","");}).setTooltip(UiTooltips.createExact(label("OCCUPATION_RESISTANCE_TAB_TOOLTIP")));
-        control("순응도 지도",compliance?"occupation/compliance_tab_active":"occupation/compliance_tab",null,"",493,68,47,54,()->{compliance=true;send(Action.COMPLIANCE,"","");}).setTooltip(UiTooltips.createExact(label("OCCUPATION_COMPLIANCE_TAB_TOOLTIP")));
+        control("순응도 지도",compliance?"occupation/compliance_tab_active":"occupation/compliance_tab",null,"",493,79,47,43,()->{compliance=true;send(Action.COMPLIANCE,"","");}).setTooltip(UiTooltips.createExact(label("OCCUPATION_COMPLIANCE_TAB_TOOLTIP")));
         String[] labels={"이름","주둔군","경제","저항도","순응도"};
         String[] sorts={"NAME","GARRISON","ECONOMY","RESISTANCE","COMPLIANCE"};
         for(int i=0;i<5;i++){int index=i;control(labels[i],sort==i?"tension/sort":"tension/sort_selected",null,labels[i],14+i*106,128,100,29,()->{sort=index;scroll=0;rebuildWidgets();}).setTooltip(UiTooltips.createExact(label("OCCUPATION_SORT_"+sorts[i]+"_TOOLTIP")));}
@@ -58,7 +62,7 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
                 add((expanded.contains(row.country())?"점령지 접기 · ":"점령지 펼치기 · ")+row.countryName(),"occupation/"+(expanded.contains(row.country())?"collapse":"expand"),null,"",s(9),y+s(38),s(19),s(19),false,()->{if(!expanded.add(row.country()))expanded.remove(row.country());rebuildWidgets();});
                 if(row.hasResistance())add("주둔 사단 편제","occupation/template_button",templateIcon(row.template()),"",s(18),y+s(84),s(76),s(31),false,()->select(row.state(),true)).setTooltip(UiTooltips.createExact(templateTooltip(entry)));
                 var admin=row.administration();boolean returning=admin!=null&&admin.returnTerritory();String caption=returning?"영토 반환":"국가 해방";
-                var release=add(caption,"occupation/release",null,caption,s(190),y+s(84),s(150),s(32),false,()->{});release.active=false;
+                var release=add(caption,"occupation/release",null,caption,s(190),y+s(84),s(149),s(27),false,()->openReturn(row.country()));release.active=pending==0&&returning&&admin.enabled();
                 release.setTooltip(UiTooltips.createExact(admin==null?"현재 게임 조건에서는 국가를 해방할 수 없습니다.":admin.tooltip()));
                 if(row.hasResistance())add(law(row.law()),"occupation/select_law_button",lawIcon(row.law()),law(row.law()),s(346),y+s(84),s(169),s(32),false,()->select(row.state(),false)).setTooltip(UiTooltips.createExact(currentLawTooltip(entry,row.law())));
             }else{
@@ -67,6 +71,7 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
             }
         }
         if(target!=null)buildPopup();
+        if(returnTarget!=null)buildReturn();
     }
     private void rebuildEntries(){
         Comparator<Row> order=switch(sort){case 1->Comparator.comparingDouble(Row::garrison).reversed();case 2->Comparator.comparingInt(Row::factories).reversed();case 3->Comparator.comparingDouble(Row::resistance).reversed();case 4->Comparator.comparingDouble(Row::compliance).reversed();default->Comparator.comparing(Row::name);};
@@ -88,7 +93,7 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
     }
     private Administration groupAdministration(List<Row> group){
         if(group.stream().anyMatch(r->r.administration()==null))return null;
-        return new Administration(group.stream().anyMatch(Row::hasResistance),group.getFirst().administration().returnTerritory(),group.stream().anyMatch(r->r.administration().enabled()),group.stream().map(r->r.administration().tooltip()).distinct().collect(java.util.stream.Collectors.joining("\n")));
+        return new Administration(group.stream().anyMatch(Row::hasResistance),group.getFirst().administration().returnTerritory(),group.stream().anyMatch(r->r.administration().enabled()),group.stream().map(r->r.administration().tooltip()).distinct().collect(java.util.stream.Collectors.joining("\n")),group.getFirst().administration().confirm());
     }
     private Details groupDetails(List<Row> group){
         if(group.stream().anyMatch(r->r.details()==null))return null;
@@ -104,6 +109,33 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
         return new Details(group.getFirst().details().totalStates(),factories==0?0:group.stream().mapToDouble(r->r.factories()*r.details().factoryShare()).sum()/factories,
                 resources==0?0:group.stream().mapToDouble(r->r.details().economy().resources()*r.details().resourceShare()).sum()/resources,
                 group.stream().anyMatch(r->r.details().divisions()==null)?null:group.stream().mapToDouble(r->r.details().divisions()).sum(),group.stream().mapToDouble(r->r.details().coverage()).average().orElseThrow(),economy);
+    }
+    private void openReturn(String country){
+        if(pending>0)return;
+        returnTarget=view.rows().stream().filter(r->r.country().equals(country)&&r.administration()!=null&&r.administration().returnTerritory()&&r.administration().enabled()).findFirst().orElse(null);
+        if(returnTarget==null)return;
+        returnRevision=view.revision();returnScroll=0;target=null;rebuildWidgets();
+    }
+    private void buildReturn(){
+        for(var child:children())if(child instanceof net.minecraft.client.gui.components.AbstractWidget widget)widget.active=false;
+        returnLines=font.split(UiKeywordIcons.decorateLines(UiTooltips.officerText(returnTarget.administration().confirm()),false),183);
+        int x=(width-233)/2,y=(height-154)/2;
+        addRenderableWidget(new UiMenuButton(UiCommandLabels.text("CANCEL","취소"),x+43,y+124,70,13,()->{returnTarget=null;rebuildWidgets();}).background("commander/commands/button_148x34/frame_0").sound("ui.close"));
+        addRenderableWidget(new UiMenuButton("OK",x+128,y+124,70,13,this::confirmReturn).background("commander/commands/button_148x34/frame_0"));
+    }
+    private void confirmReturn(){
+        if(returnTarget==null||pending>0||view.revision()!=returnRevision)return;
+        var selected=returnTarget;returnTarget=null;send(Action.RETURN,selected.state(),selected.country());
+    }
+    private void drawReturn(GuiGraphicsExtractor g){
+        int x=(width-233)/2,y=(height-154)/2;
+        g.nextStratum();
+        UiAssets.nineSlice(g,"mio/ui/gfx_tiled_window_pol_goal/frame_0",x,y,233,154,43,.5);
+        UiText.centered(g,font,Component.literal(UiCommandLabels.text("RETURN_TERRITORY_TITLE","영토 반환")).withStyle(net.minecraft.ChatFormatting.BOLD),x+8,y+9,217,22,UiMenuStyle.TEXT,false);
+        int available=71;returnScroll=Math.clamp(returnScroll,0,Math.max(0,returnLines.size()*10-available));
+        g.enableScissor(x+12,y+40,x+221,y+111);
+        for(int i=0;i<returnLines.size();i++)g.text(font,returnLines.get(i),x+(233-font.width(returnLines.get(i)))/2,y+40+i*10-returnScroll,UiMenuStyle.TEXT,false);
+        g.disableScissor();
     }
     private void buildPopup(){
         for(var control:controls)control.button().active=false;
@@ -140,7 +172,9 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
     private boolean visible(Entry e,int y){return y>=top+s(190)&&y+s(e.country()?120:e.row().hasResistance()?60:30)<=height-3;}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         UiMenuStyle.panel(g,0,top,pane,height-top);UiAssets.nineSlice(g,"construction/ui/header",0,top,pane,s(43),4,.5);
-        UiMenuStyle.heading(g,font,"점령지",s(16),top+s(11),pane-s(60),UiMenuStyle.TEXT);
+        UiText.left(g,font,Component.literal("점령지").withStyle(net.minecraft.ChatFormatting.BOLD),s(28),top+s(7),s(350),s(34),UiMenuStyle.TEXT);
+        UiAssets.draw(g,"occupation/source/gfx_sunk_ships_button/frame_0",s(410),top+s(7),s(28),s(29));
+        UiAssets.draw(g,"occupation/source/gfx_equip_overview_button/frame_0",s(450),top+s(7),s(28),s(29));
         UiMenuBar.draw(g,width,dev.hoi.client.ClientCampaignHud.hud(),mx,my,0);
         if(view!=null){
             float headerPixel=1f/minecraft.getWindow().getGuiScale();
@@ -162,28 +196,29 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
             for(var control:controls){drawControl(g,control,mx,my);if(target!=null&&!templates&&control.button().isMouseOver(mx,my)){var option=options().stream().filter(o->o.name().equals(control.button().getMessage().getString())).findFirst().orElse(null);if(option!=null)control.button().setTooltip(UiTooltips.createExact(UiPriorityControls.controlled()?option.comparisons().getOrDefault(selected(),option.tooltip()):lawTooltip(targetEntry(),option.id())));}}
             if(target!=null)drawOptions(g);
         }
+        if(returnTarget!=null)drawReturn(g);
         super.extractRenderState(g,mx,my,delta);
-        if(view!=null&&target==null){
+        if(view!=null&&target==null&&returnTarget==null){
             if(mx>=s(288)&&mx<s(408)&&my>=headerControlsY()&&my<headerControlsY()+s(31))UiTooltips.drawExact(g,font,label("FOREIGN_SUPPORT_TOOLTIP"),mx,my);
-            for(var entry:entries){int y=rowY(entry);if(!visible(entry,y))continue;if(!entry.row().hasResistance())continue;drawDetailsTooltip(g,entry,y,mx,my);if(drawResistanceEffectTooltip(g,entry,y,mx,my))continue;int bx=s(entry.country()?292:280),by=y+s(entry.country()?8:35);if(mx>=bx&&mx<s(516)&&my>=by&&my<by+s(entry.country()?70:25)){boolean comp=entry.country()?my>=by+s(35):mx>=s(397);UiTooltips.drawExact(g,font,comp?entry.row().complianceTooltip():entry.row().resistanceTooltip(),mx,my);}}
+            for(var entry:entries){int y=rowY(entry);if(!visible(entry,y))continue;if(entry.country()&&entry.row().details()!=null&&mx>=s(69)&&mx<s(158)&&my>=y+s(21)&&my<y+s(42))UiTooltips.drawExact(g,font,format("OCCUPIED_COUNTRY_CORE_COUNT_TOOLTIP",Map.of("NUM_CONTROLLED_CORES",Integer.toString(entry.count()),"NUM_CORES",Integer.toString(entry.row().details().totalStates()))),mx,my);if(!entry.row().hasResistance())continue;drawDetailsTooltip(g,entry,y,mx,my);if(drawResistanceEffectTooltip(g,entry,y,mx,my))continue;int bx=s(entry.country()?292:280),by=y+s(entry.country()?8:35);if(mx>=bx&&mx<s(516)&&my>=by&&my<by+s(entry.country()?70:25)){boolean comp=entry.country()?my>=by+s(35):mx>=s(397);UiTooltips.drawExact(g,font,comp?entry.row().complianceTooltip():entry.row().resistanceTooltip(),mx,my);}}
         }
     }
     private void drawRow(GuiGraphicsExtractor g,Entry entry,int y){
         var row=entry.row();
-        UiAssets.draw(g,entry.country()?"occupation/entry_top":row.hasResistance()?"occupation/state_entry":"occupation/state_entry_no_resistance",s(7),y+(entry.country()?1:0),s(519),s(entry.country()?121:row.hasResistance()?63:30));
+        UiAssets.draw(g,entry.country()?(row.hasResistance()?"occupation/entry_top":"occupation/source/gfx_occupation_country_entry_bg_top_locked/frame_0"):row.hasResistance()?"occupation/state_entry":"occupation/state_entry_no_resistance",s(7),y+(entry.country()?1:0),s(519),s(entry.country()?121:row.hasResistance()?63:30));
         if(entry.country()){
             int textHeight=Math.round(font.lineHeight*textScale());
             int flagY=(y+s(4)-1+y+s(23)-1+textHeight-s(31))/2;
             g.pose().pushMatrix();g.pose().translate(0,1f/minecraft.getWindow().getGuiScale());
             UiMenuBar.drawFlag(g,row.country(),s(20),flagY,s(45),s(31));g.pose().popMatrix();
-            text(g,row.countryName(),s(72),y+s(4)-1,s(205),UiMenuStyle.TEXT,false);
+            UiText.left(g,font,Component.literal(row.countryName()).withStyle(net.minecraft.ChatFormatting.BOLD),s(72),y+s(8),s(205),s(18),UiMenuStyle.TEXT);
             int stateIconHeight=Math.round(font.lineHeight*textScale());
             UiAssets.drawContent(g,"occupation/garrison",s(69),y+s(23)-1,stateIconHeight,stateIconHeight);text(g,entry.count()+"/"+(row.details()==null?"—":row.details().totalStates()),s(92),y+s(23)-1,s(65),UiMenuStyle.TEXT,false);
             int resourceY=y+s(46)+1;
             int economyTextY=resourceY+(s(30)-textHeight)/2;
             UiAssets.drawContent(g,"hud/manpower",s(36),economyTextY-1,s(29),textHeight+2);text(g,row.details()==null||row.details().economy()==null||row.details().economy().manpower()==null?"—":number(row.details().economy().manpower()),s(66),economyTextY,s(61),UiMenuStyle.TEXT,false);
             UiAssets.drawContent(g,"hud/factories",s(106),economyTextY-1,s(31),textHeight+2);text(g,row.factories()==0?"---":row.details()==null?"—":percent(row.details().factoryShare()),s(140),economyTextY,s(56),UiMenuStyle.TEXT,false);
-            UiAssets.draw(g,"occupation/resources",s(199),resourceY,s(32),s(30));text(g,row.details()==null?"—":percent(row.details().resourceShare()),s(234),economyTextY,s(52),UiMenuStyle.TEXT,false);
+            UiAssets.draw(g,"occupation/resources",s(199),resourceY,s(32),s(30));text(g,row.details()==null?"—":row.details().economy()!=null&&row.details().economy().resources()==0?"---":percent(row.details().resourceShare()),s(234),economyTextY,s(52),UiMenuStyle.TEXT,false);
             if(row.hasResistance()){drawRebellion(g,row,y);
             drawBar(g,row.resistance(),false,s(299),y+s(12),s(200),false);drawBar(g,row.compliance(),true,s(299),y+s(43),s(200),false);}
         }else{
@@ -277,7 +312,8 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
         if(c.texture()!=null){if(c.texture().startsWith("occupation/select_entry"))UiAssets.nineSlice(g,c.texture(),x,y,w,h,5,pane/550.0);else UiAssets.draw(g,c.texture(),x,y,w,h);}
         if(mapMode)g.pose().popMatrix();
         if(c.icon()!=null&&!c.icon().isEmpty()){int size=Math.min(h-s(2),s(30));if(c.icon().startsWith("production/units/"))UiAssets.drawContent(g,c.icon(),x+s(7),y+(h-size)/2,s(47),size);else UiAssets.draw(g,c.icon(),x+s(4),y+(h-size)/2,size,size);if(c.texture()!=null&&c.texture().equals("occupation/template_button"))UiAssets.draw(g,"occupation/template_change",x+w-s(16),y+s(6),s(12),s(18));}
-        if(!c.caption().isEmpty()){int inset=c.icon()==null?(c.left()?s(4):0):s(32);text(g,c.caption(),x+inset,y+(h-font.lineHeight*textScale())/2f,w-inset-(c.icon()==null?0:s(5)),b.active?UiMenuStyle.TEXT:UiMenuStyle.MUTED,!c.left());}
+        if("occupation/release".equals(c.texture())){UiText.centered(g,font,Component.literal(c.caption()).withStyle(net.minecraft.ChatFormatting.BOLD),x,y,w,h,UiMenuStyle.TEXT,false);return;}
+        if(!c.caption().isEmpty()){int inset=c.icon()==null?(c.left()?s(4):0):s(32);text(g,c.caption(),x+inset,y+(h-font.lineHeight*textScale())/2f,w-inset-(c.icon()==null?0:s(5)),b.active||"occupation/release".equals(c.texture())?UiMenuStyle.TEXT:UiMenuStyle.MUTED,!c.left());}
     }
     private void drawOptions(GuiGraphicsExtractor g){
         var options=options();int x=popupX(),w=popupWidth();
@@ -293,9 +329,9 @@ public final class ScreenOccupation extends Screen implements InputSidebarMoveme
     private static String percent(double value){return String.format(Locale.ROOT,"%.0f%%",value*100);}
     private static String number(double value){return value>=1000?String.format(Locale.ROOT,"%.1fK",value/1000):String.format(Locale.ROOT,"%.0f",value);}
     private void send(Action action,String state,String value){if(pending>0&&action!=Action.CLOSE)return;pending=100;transport.accept(new Request(action,token,view==null?0:view.revision(),state,value));rebuildWidgets();}
-    @Override public void tick(){if(pending>0)--pending;else if(++refresh%60==0&&view!=null)send(Action.REFRESH,"","");}
-    @Override public boolean mouseScrolled(double x,double y,double h,double v){if(target!=null){optionScroll-=(int)(v*s(38));rebuildWidgets();return true;}if(x<pane){scroll-=(int)(v*s(40));rebuildWidgets();return true;}return super.mouseScrolled(x,y,h,v);}
-    @Override public boolean keyPressed(KeyEvent e){if(e.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE&&target!=null){target=null;rebuildWidgets();return true;}return InputSidebarMovement.consumes(minecraft,e)||super.keyPressed(e);}
+    @Override public void tick(){if(pending>0)--pending;else if(++refresh%60==0&&view!=null&&returnTarget==null)send(Action.REFRESH,"","");}
+    @Override public boolean mouseScrolled(double x,double y,double h,double v){if(returnTarget!=null){returnScroll-=(int)(v*22);return true;}if(target!=null){optionScroll-=(int)(v*s(38));rebuildWidgets();return true;}if(x<pane){scroll-=(int)(v*s(40));rebuildWidgets();return true;}return super.mouseScrolled(x,y,h,v);}
+    @Override public boolean keyPressed(KeyEvent e){if(returnTarget!=null){if(e.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE){returnTarget=null;rebuildWidgets();}else if(e.key()==com.mojang.blaze3d.platform.InputConstants.KEY_RETURN||e.key()==com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER)confirmReturn();return true;}if(e.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE&&target!=null){target=null;rebuildWidgets();return true;}return InputSidebarMovement.consumes(minecraft,e)||super.keyPressed(e);}
     @Override public boolean keyReleased(KeyEvent e){return InputSidebarMovement.consumes(minecraft,e)||super.keyReleased(e);}
     @Override public void removed(){InputSidebarMovement.release(minecraft);transport.accept(new Request(Action.CLOSE,token,view==null?0:view.revision(),"",""));}
     @Override public boolean allowsMovement(){return true;}

@@ -34,6 +34,7 @@ public final class UiCountryDisplayRenderTest {
             context.getInput().resizeWindow(1280, 720);
             context.waitTicks(3);
             context.takeScreenshot("hoi-country-display-original-assets-synthetic-compact-gui2");
+            flagHover(context, "cosmetic");
             context.getInput().resizeWindow(2560, 1440);
             context.runOnClient(client -> client.gui.setScreen(new ScreenCountry(new ProtocolCountryView("KOR", menu.hud(), "KOR", menu.countryName(), true,
                     List.of(), List.of(), List.of(), java.util.Arrays.stream(ProtocolIntelDomain.values()).map(domain -> new ProtocolCountryView.Report(domain, 0, List.of())).toList()))));
@@ -49,6 +50,7 @@ public final class UiCountryDisplayRenderTest {
             context.getInput().resizeWindow(1280, 720);
             context.waitTicks(3);
             context.takeScreenshot("hoi-country-display-restored-synthetic-compact-gui2");
+            flagHover(context, "restored");
             context.runOnClient(client -> {
                 UiCountryDisplay.accept(new ProtocolCountryDisplay.Table(List.of(new ProtocolCountryDisplay.Entry("KOR", "대한민국", "unavailable_source_key"))));
                 if (!UiMenuBar.flagTexture("KOR").equals("country/kor/flag")) throw new AssertionError("Missing original falls back to the stable tag");
@@ -60,6 +62,15 @@ public final class UiCountryDisplayRenderTest {
             context.getInput().resizeWindow(1600, 1000);
             context.waitTicks(3);
         }
+    }
+    private static void flagHover(ClientGameTestContext context, String state) {
+        for (int[] size : List.of(new int[]{2560, 1440}, new int[]{1280, 720})) {
+            context.getInput().resizeWindow(size[0], size[1]);
+            context.getInput().setCursorPos(32, 30);
+            context.waitTicks(3);
+            context.takeScreenshot("hoi-country-flag-name-" + state + "-" + size[0] + "-gui2");
+        }
+        context.getInput().setCursorPos(600, 350);
     }
     private static ProtocolMenuView assetMenu(ProtocolMenuView menu) {
         var pages = menu.pages().stream().map(page -> page.tab() != ProtocolMenuTab.POLITICS ? page :

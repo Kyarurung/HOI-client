@@ -27,7 +27,16 @@ public final class ScreenCommanderSourceTest {
             context.runOnClient(client->{
                 for(String asset:List.of("panel","army","navy","marshal","attack","defense","planning","logistics","maneuver","coordination"))if(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/commander/ui/"+asset+".png")).isEmpty())throw new AssertionError("Missing source commander frame "+asset);
                 long candidates=client.gui.screen().children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->issued.tiles().stream().anyMatch(t->t.name().equals(c.getMessage().getString()))).count();
-                if(candidates!=5)throw new AssertionError("Original frame must display five complete rows: "+candidates);
+                if(candidates!=4)throw new AssertionError("Roster must retain four complete rows above the footer: "+candidates);
+                var screen=(ScreenCommanderRoster)client.gui.screen();var reached=new HashSet<String>();
+                for(int step=0;step<issued.tiles().size();step++){
+                    var visible=screen.children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->issued.tiles().stream().anyMatch(t->t.name().equals(c.getMessage().getString()))).toList();
+                    visible.forEach(c->reached.add(c.getMessage().getString()));
+                    var row=visible.getFirst();screen.mouseScrolled(row.getX()+1,row.getY()+1,0,-1);
+                }
+                for(var tile:issued.tiles())if(tile.leader()!=null&&!reached.contains(tile.name()))throw new AssertionError("Scrolling must reach server candidate "+tile.name());
+                var row=screen.children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->reached.contains(c.getMessage().getString())).findFirst().orElseThrow();
+                screen.mouseScrolled(row.getX()+1,row.getY()+1,0,issued.tiles().size());
             });
             context.getInput().setCursorPos(2400,1300);context.waitTicks(3);context.takeScreenshot("hoi-commander-army-appointment-gui2");
             if(issued.tiles().stream().anyMatch(t->!t.section().equals("remove")&&t.leader()==null))throw new AssertionError("Native rows require server supplied role, skills and capacity");
