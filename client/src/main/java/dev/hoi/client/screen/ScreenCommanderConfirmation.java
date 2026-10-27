@@ -48,10 +48,7 @@ final class ScreenCommanderConfirmation extends ScreenDialog {
         int y=top+45-scroll;
         for(var line:lines){g.text(font,line,left+(pane-font.width(line))/2,y,UiMenuStyle.TEXT,false);y+=10;}g.disableScissor();
         if(division(view())||lines.size()*10>panelHeight-89){
-            int available=panelHeight-89,thumb=Math.max(8,available*available/Math.max(available,lines.size()*10)),sy=top+45+scroll*(available-thumb)/Math.max(1,lines.size()*10-available);
-            UiAssets.nineSlice(g,"commander/commands/scroll_track/frame_0",left+pane-10,top+45,6,available,3,.5);
-            UiAssets.nineSlice(g,"commander/commands/scroll_drager/frame_0",left+pane-10,sy,6,thumb,3,.5);
-            UiText.centered(g,font,"▲",left+pane-12,top+35,10,9,UiMenuStyle.TEXT,false);UiText.centered(g,font,"▼",left+pane-12,top+panelHeight-45,10,9,UiMenuStyle.TEXT,false);
+            scrollbar().draw(g,scroll);
         }
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget)widget.extractRenderState(g,mx,my,delta);
         for(var button:buttons.values()){var label=button.getMessage().copy().withStyle(net.minecraft.ChatFormatting.BOLD);g.text(font,label,button.getX()+(button.getWidth()-font.width(label))/2,button.getY()+(button.getHeight()-font.lineHeight)/2,button.active?0xFFFFFFFF:UiMenuStyle.MUTED,true);}
@@ -59,8 +56,9 @@ final class ScreenCommanderConfirmation extends ScreenDialog {
     @Override protected void choose(String id){if(pending||view().choices().stream().noneMatch(c->c.id().equals(id)))return;pending=true;buttons.values().forEach(b->b.active=false);super.choose(id);}
     @Override public void onClose(){choose("cancel");}
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical){if(x<left||x>=left+pane||y<top||y>=top+panelHeight)return false;scroll=Math.clamp(scroll-(int)(vertical*33),0,Math.max(0,lines.size()*10-(panelHeight-89)));return true;}
-    private void dragBody(double y){int h=panelHeight-89;scroll=(int)Math.round(Math.clamp((y-top-45)/Math.max(1,h),0,1)*Math.max(0,lines.size()*10-h));}
-    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent e,boolean twice){if(e.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&e.x()>=left+pane-13&&e.x()<left+pane&&e.y()>=top+35&&e.y()<top+panelHeight-36){if(e.y()<top+45)scroll=Math.max(0,scroll-22);else if(e.y()>=top+panelHeight-45)scroll=Math.min(Math.max(0,lines.size()*10-(panelHeight-89)),scroll+22);else{dragging=true;dragBody(e.y());}return true;}return super.mouseClicked(e,twice);}
+    private UiScrollBar scrollbar(){return new UiScrollBar(left+pane-13,top+37,top+panelHeight-36,panelHeight-89,lines.size()*10);}
+    private void dragBody(double y){scroll=scrollbar().offset(y);}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent e,boolean twice){if(e.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&scrollbar().contains(e.x(),e.y())){if(scrollbar().arrow(e.y()))scroll=scrollbar().step(e.y(),scroll,22);else{dragging=true;dragBody(e.y());}return true;}return super.mouseClicked(e,twice);}
     @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent e,double dx,double dy){if(dragging){dragBody(e.y());return true;}return super.mouseDragged(e,dx,dy);}
     @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent e){if(dragging){dragging=false;return true;}return super.mouseReleased(e);}
     @Override public boolean keyPressed(net.minecraft.client.input.KeyEvent event){if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_RETURN||event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER){view().choices().stream().filter(c->!c.id().equals("cancel")).findFirst().ifPresent(c->choose(c.id()));return true;}return super.keyPressed(event);}

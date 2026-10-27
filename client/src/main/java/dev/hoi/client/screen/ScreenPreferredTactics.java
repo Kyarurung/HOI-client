@@ -15,6 +15,7 @@ final class ScreenPreferredTactics extends ScreenDialog {
     private final Map<String,AbstractWidget> buttons=new HashMap<>();
     private UiUnits units;
     private int left,top,scroll,filter,tooltipScroll,rowsTop;
+    private boolean dragging;
     private boolean pending;
     private int bodyLineCount;
     private float bodyTextScale;
@@ -112,16 +113,15 @@ final class ScreenPreferredTactics extends ScreenDialog {
             if(hover)tooltip=tactic.unlocked()?"§H"+row.name()+"§!\n"+row.detail():row.detail();
         }
         g.disableScissor();
-        UiText.centered(g,font,"▲",x(183),y(56),size(8),size(8),UiMenuStyle.TEXT,false);UiText.centered(g,font,"▼",x(183),y(299),size(8),size(8),UiMenuStyle.TEXT,false);
-        if(rows.size()*size(47)>(y(299.5)-rowsTop)) {
-            int track=(y(299.5)-rowsTop),total=rows.size()*size(47),thumb=Math.max(size(9),track*track/total);
-            int py=rowsTop+scroll*(track-thumb)/Math.max(1,total-track);
-            g.fill(x(185),rowsTop,x(188),y(299.5),0xFF1A181F);g.fill(x(185),py,x(188),py+thumb,0xFF938B9A);
-        }
+        scrollbar().draw(g,scroll);
         if(!tooltip.equals(hovered)){hovered=tooltip;tooltipScroll=0;}
         tooltipBounds=tooltip.isEmpty()?null:UiTooltips.drawSourceScrollable(g,font,tooltip,mx,my,width,height,tooltipScroll,size(250));
         if(tooltipBounds!=null)tooltipScroll=tooltipBounds.scroll();
     }
+    private UiScrollBar scrollbar(){return new UiScrollBar(x(183),rowsTop-size(8),y(307.5),y(299.5)-rowsTop,rows().size()*size(47));}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&scrollbar().contains(event.x(),event.y())){if(scrollbar().arrow(event.y()))scroll=scrollbar().step(event.y(),scroll,size(47));else{dragging=true;scroll=scrollbar().offset(event.y());}rebuildWidgets();return true;}return super.mouseClicked(event,twice);}
+    @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy){if(dragging){scroll=scrollbar().offset(event.y());rebuildWidgets();return true;}return super.mouseDragged(event,dx,dy);}
+    @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event){if(dragging){dragging=false;return true;}return super.mouseReleased(event);}
     @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical) {
         if(!hovered.isEmpty()&&com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)){tooltipScroll-=(int)(vertical*size(15));return true;}
         if(mx<left||mx>x(196)||my<rowsTop||my>y(299.5))return false;

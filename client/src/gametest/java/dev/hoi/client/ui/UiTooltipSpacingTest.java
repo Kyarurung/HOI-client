@@ -42,10 +42,37 @@ public final class UiTooltipSpacingTest {
             if(!normalized.getString().equals("heading\n\nbody 0.00%\n\n"))throw new AssertionError("Component boundaries must collapse without trimming margins");
             var lines=UiTooltips.split(client.font,text,300);
             if(lines.stream().filter(line->!UiTooltips.blank(line)).count()!=2)throw new AssertionError("Styled body rows were lost");
+            if(lines.size()!=3||UiTooltips.blank(lines.getFirst())||UiTooltips.blank(lines.getLast()))throw new AssertionError("Tooltip margins must be removed");
+            var separated=Component.literal("§f─").append(Component.literal(" — -§r\nheading\n§#123456— ─ -\nㅡㅡㅡ\n====\n\nbody 0.00%\n———"));
+            var normalizedLines=UiTooltips.split(client.font,separated,300);
+            if(normalizedLines.size()!=3||!UiTooltips.blank(normalizedLines.get(1)))throw new AssertionError("Mixed separators must collapse to one blank row");
             var shortcut=Component.literal("heading\n\n단축").withColor(0xFFBD00).append(Component.literal("키: Z\n\n\n").withColor(0xFF3232)).append(Component.literal("  body 0.00% 또는 £ctrl + £b").withColor(0xA2B9CF));
             var filtered=UiTooltips.sourceSpacing(shortcut);
             if(!filtered.getString().equals("heading\n  body 0.00%"))throw new AssertionError("Shortcuts spanning styled components remain");
             filtered.visit((style,part)->{if(part.contains("body")&&style.getColor().getValue()!=0xA2B9CF)throw new AssertionError("Shortcut removal changed source color");return Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
         });
+    }
+    public static void geometry(ClientGameTestContext context) {
+        class TooltipScreen extends net.minecraft.client.gui.screens.Screen {
+            UiTooltips.ScrolledTooltip shortTip,longTip;
+            TooltipScreen(){super(Component.literal("Tooltip geometry regression"));}
+            @Override public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor g,int mx,int my,float delta) {
+                g.fill(0,0,width,height,0xFF24212A);
+                shortTip=UiTooltips.drawSourceScrollable(g,font,"§e연구§r",24,30,width,height,0,184);
+                longTip=UiTooltips.drawSourceScrollable(g,font,"\n§f— ─ -§r\n§e조정치§r\n---\nㅡㅡㅡ\n====\n\n───\n공격: §a+5.00%§r\n방어: §c-12.50%§r\n————",24,100,width,height,0,184);
+                UiPoliticalTooltip.drawTextDetail(g,font,"§e연구§r",200,45,width,height,0);
+            }
+        }
+        for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
+            context.getInput().resizeWindow(size[0],size[1]);context.runOnClient(client->client.options.guiScale().set(2));
+            var screen=context.computeOnClient(client->new TooltipScreen());context.setScreen(()->screen);context.waitTicks(3);
+            context.runOnClient(client->{
+                if(screen.shortTip.width()!=client.font.width(UiTooltips.officerText("§e연구§r")))throw new AssertionError("Short tooltip must match its text width");
+                var lines=UiTooltips.sourceLines(client.font,"§f— ─ -§r\n§e조정치§r\n\n───\n공격: §a+5.00%§r\n방어: §c-12.50%§r\n————",184);
+                if(screen.longTip.width()!=lines.stream().mapToInt(client.font::width).max().orElseThrow()||screen.longTip.height()!=4*(client.font.lineHeight+1))throw new AssertionError("Tooltip width or separator height");
+            });
+            context.takeScreenshot("hoi-tooltip-width-separators-synthetic-"+size[0]+"-gui2");
+        }
+        context.setScreen(()->null);
     }
 }

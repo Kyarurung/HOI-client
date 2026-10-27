@@ -44,7 +44,7 @@ public final class UiPoliticalTooltip {
         entry = new ProtocolMenuView.Entry(entry.name(), entry.value(), UiTooltipText.sourceSpacing(UiCommandLabels.withoutShortcuts(entry.detail())), entry.progress(), entry.icon());
         int width = Math.max(80, Math.min(270, viewportWidth - 24));
         if (compact) {
-            int measured = 80;
+            int measured = 1;
             for (String line : entry.detail().split("\\R")) {
                 if(line.startsWith("[caption:"))continue;
                 var value = UiTooltips.sentences(Component.literal(line));
@@ -77,10 +77,14 @@ public final class UiPoliticalTooltip {
                 String image = line.substring(7, line.length() - 1);
                 int imageHeight = UiAssets.imageHeight(image, width);
                 if (imageHeight > 0) rows.add(new UiTooltipRow(null, image, imageHeight));
-            } else for (var text : UiTooltips.formattedLines(font, line, width + 24, icons))
+            } else if(UiTooltipText.blank(line))rows.add(new UiTooltipRow(net.minecraft.util.FormattedCharSequence.EMPTY,"",font.lineHeight+1));
+            else for (var text : UiTooltips.formattedLines(font, line, width + 24, icons))
                 rows.add(new UiTooltipRow(text, "", font.lineHeight + 1));
         }
-        rows=new ArrayList<>(UiTooltipText.collapseBlankLines(rows,row->row.image().isEmpty()&&row.text()!=null&&UiTooltips.blank(row.text())));
+        rows=new ArrayList<>(UiTooltips.collapseBlankLines(rows,row->row.image().isEmpty()&&row.text()!=null&&UiTooltips.blank(row.text())));
+        int imageWidth = width;
+        width = Math.min(width, Math.max(1, rows.stream().mapToInt(row -> row.image().isEmpty() ? font.width(row.text())
+                : row.text() != null && !row.caption() ? 15 + font.width(row.text()) : imageWidth).max().orElse(1)));
         int total = rows.stream().mapToInt(UiTooltipRow::height).sum();
         int height = Math.min(total, viewportHeight - 30);
         scroll = Math.clamp(scroll, 0, Math.max(0, (total - height + 9) / 10));

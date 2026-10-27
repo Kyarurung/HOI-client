@@ -33,6 +33,7 @@ public record ProtocolIndustryView(String session, long revision, String country
     }
     public ProtocolIndustryView withHeadquarters(ProtocolArmyHeadquarters value){return new ProtocolIndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,value,captivity);}
     public ProtocolIndustryView withCaptivity(ProtocolCommanderCaptivity value){return new ProtocolIndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,value);}
+    public ProtocolIndustryView withEquipment(List<Equipment> value){return new ProtocolIndustryView(session,revision,country,hud,economy,resources,modifiers,value,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity);}
     public record NavalTarget(String id,String name,String port,int level,int ships) {
         public NavalTarget {text(id,128);text(name,256);text(port,128);if(level<0||ships<0)throw new IllegalArgumentException("Invalid naval destination");}
         public boolean fleet(){return id.startsWith("fleet/");}
@@ -153,7 +154,19 @@ public record ProtocolIndustryView(String session, long revision, String country
     }
     public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
             double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
-            String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer, List<ProtocolTankDesigner.Stat> stats) {
+            String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer, List<ProtocolTankDesigner.Stat> stats,
+            int manufacturerChoices, List<LineManufacturer> manufacturers, String manufacturerEmpty) {
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer, List<ProtocolTankDesigner.Stat> stats) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,designer,stats,0,List.of(),"");
+        }
+        public Equipment withManufacturerChoices(int value) {
+            return new Equipment(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,designer,stats,value,manufacturers,manufacturerEmpty);
+        }
+        public Equipment withManufacturers(List<LineManufacturer> value,String empty) {
+            return new Equipment(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,designer,stats,manufacturerChoices,value,empty);
+        }
         public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
                 double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
                 String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer) {
@@ -203,6 +216,8 @@ public record ProtocolIndustryView(String session, long revision, String country
             if (sourceEquipment != null) text(sourceEquipment,128);
             resources=boundedMap(resources,8);
             stats=stats==null?List.of():bounded(stats,64);
+            manufacturers=manufacturers==null?List.of():bounded(manufacturers,64); manufacturerEmpty=manufacturerEmpty==null?"":manufacturerEmpty; text(manufacturerEmpty,240);
+            if (manufacturerChoices < 0 || manufacturerChoices > 64) throw new IllegalArgumentException("Invalid manufacturer choices");
             if (!Double.isFinite(cost) || cost <= 0 || factoryLimit < 1 || stockpile < 0 || reserved < 0 || deployed < 0 || deficit < 0 || demand != null && demand < 0)
                 throw new IllegalArgumentException("Invalid equipment amounts");
         }
@@ -289,12 +304,35 @@ public record ProtocolIndustryView(String session, long revision, String country
     public record Stat(String name, String group, double value, String unit, String id) {
         public Stat(String name, String group, double value, String unit) { this(name,group,value,unit,null); }
     }
+    public record NameGroup(String id, String name, List<String> examples, String fallback) {
+        public NameGroup { text(id,128); text(name,256); examples=bounded(examples,15); examples.forEach(v->text(v,256)); text(fallback,256); if(id.isEmpty())throw new IllegalArgumentException("Invalid name group"); }
+    }
+    public record Designer(String baseline, boolean copy, List<NameGroup> nameGroups, boolean paradrop, String paradropTooltip, int specialForces, String specialForcesTooltip,
+            int brigadeRows, int regimentBattalions, String lineLocked, String rowLocked, String regimentLocked, double costMinimum, double costMaximum, List<String> resources,
+            boolean armor, String nicheTooltip) {
+        public Designer {
+            text(baseline,128); nameGroups=bounded(nameGroups,256); text(paradropTooltip,4096); text(specialForcesTooltip,4096);
+            text(lineLocked,1024); text(rowLocked,4096); text(regimentLocked,1024); resources=bounded(resources,8); resources.forEach(v->text(v,32)); nicheTooltip=nicheTooltip==null?"":nicheTooltip; text(nicheTooltip,1024);
+            if(specialForces<0||specialForces>25||brigadeRows<4||brigadeRows>5||regimentBattalions<1||regimentBattalions>5||!Double.isFinite(costMinimum)||!Double.isFinite(costMaximum)||costMinimum<0||costMaximum<costMinimum)
+                throw new IllegalArgumentException("Invalid division designer");
+        }
+    }
     public record Template(String id, String name, List<String> line, List<String> support, List<Stat> stats,
-            Map<String,Long> equipment, double days, long manpower, List<Integer> columns, Map<Integer,String> regimentSupport, Integer experienceCost) {
+            Map<String,Long> equipment, double days, long manpower, List<Integer> columns, Map<Integer,String> regimentSupport, Integer experienceCost,
+            List<ProtocolTankDesigner.Adjustment> adjustments, Integer priority, String nameGroup, Designer designer) {
+        public Template(String id,String name,List<String> line,List<String> support,List<Stat> stats,Map<String,Long> equipment,double days,long manpower,List<Integer> columns,Map<Integer,String> regimentSupport,Integer experienceCost,List<ProtocolTankDesigner.Adjustment> adjustments) {
+            this(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,adjustments,1,"",null);
+        }
+        public Template(String id,String name,List<String> line,List<String> support,List<Stat> stats,Map<String,Long> equipment,double days,long manpower,List<Integer> columns,Map<Integer,String> regimentSupport,Integer experienceCost) {
+            this(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,List.of());
+        }
         public Template(String id,String name,List<String> line,List<String> support,List<Stat> stats,Map<String,Long> equipment,double days,long manpower,List<Integer> columns,Map<Integer,String> regimentSupport) {
             this(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,0);
         }
-        public Template withExperienceCost(int cost) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,cost); }
+        public Template withExperienceCost(int cost) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,cost,adjustments,priority,nameGroup,designer); }
+        public Template withAdjustments(List<ProtocolTankDesigner.Adjustment> value) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,value,priority,nameGroup,designer); }
+        public Template withSettings(int value,String group) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,adjustments,value,group,designer); }
+        public Template withDesigner(Designer value) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,adjustments,priority,nameGroup,value); }
         public Template(String id, String name, List<String> line, List<String> support, List<Stat> stats,
                 Map<String,Long> equipment, double days, long manpower) {
             this(id,name,line,support,stats,equipment,days,manpower,null,null);
@@ -303,6 +341,9 @@ public record ProtocolIndustryView(String session, long revision, String country
             text(id,128); text(name,128);
             line=bounded(line,25); support=bounded(support,5); stats=bounded(stats,64); equipment=boundedMap(equipment,512);
             experienceCost = experienceCost == null ? 0 : experienceCost;
+            adjustments = adjustments == null ? List.of() : bounded(adjustments,16);
+            priority = priority == null ? 1 : priority; nameGroup = nameGroup == null ? "" : nameGroup; text(nameGroup,128);
+            if (priority < 0 || priority > 2) throw new IllegalArgumentException("Invalid template priority");
             if (experienceCost < 0 || line.isEmpty() && !id.equals("draft") || !Double.isFinite(days) || days < 0 || manpower < 0)
                 throw new IllegalArgumentException("Invalid division template");
             if (columns != null) {

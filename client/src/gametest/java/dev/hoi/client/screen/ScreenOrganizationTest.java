@@ -12,11 +12,73 @@ import net.minecraft.client.input.*;
 
 public final class ScreenOrganizationTest {
     private ScreenOrganizationTest() {}
+    public static void types(ClientGameTestContext game) {
+        int previous = game.computeOnClient(c -> c.options.guiScale().get());
+        try {
+            var types = new Gson().fromJson(json("mio-types"), com.google.gson.JsonArray.class);
+            if (types.size() != 30) throw new AssertionError("Expected all 30 authoritative MIO types");
+            for (var item : types) {
+                var type = item.getAsJsonObject(); String fixture = type.get("fixture").getAsString();
+                if (System.getProperty("hoi.testSuite", "all").equals("mio-long-type") && !fixture.equals("mio-type-20")) continue;
+                String menuFixture = type.get("menu").getAsString();
+                var menuView = new Gson().fromJson(json(menuFixture.isEmpty() ? "mio-menu-kor" : menuFixture), ProtocolMenuPayloads.OpenScreen.class).view();
+                for (int[] size : List.of(new int[]{2560,1440}, new int[]{1280,720})) {
+                    game.getInput().resizeWindow(size[0],size[1]); game.runOnClient(c -> c.options.guiScale().set(2));
+                    var menu = game.computeOnClient(c -> new ScreenMenu(menuView, ProtocolMenuTab.POLITICS, () -> {})); game.setScreen(() -> menu);
+                    game.runOnClient(c -> {
+                        var organization = menuView.manufacturers().stream().filter(m -> m.id().equals(type.get("organization").getAsString())).findFirst();
+                        if (organization.isPresent()) {
+                            try { var f = ScreenMenu.class.getDeclaredField("manufacturerGroup"); f.setAccessible(true); f.set(menu, organization.get().groups().getFirst()); menu.init(menu.width,menu.height); }
+                            catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+                        }
+                    });
+                    game.getInput().setCursorPos(size[0]-3,80); game.waitTicks(2);
+                    if (!menuFixture.isEmpty()) game.takeScreenshot("hoi-"+fixture+"-list-"+size[0]+"-gui2");
+                    for (String stage : List.of("detail","queue","policies")) {
+                        var view = source(fixture+"-"+stage);
+                        if (stage.equals("detail") && view.tiles().stream().filter(t -> t.traitNode()!=null).count()!=type.get("traits").getAsInt()) throw new AssertionError("Trait fixture count: "+fixture);
+                        var screen = game.computeOnClient(c -> new ScreenOrganization(view,menu,(v,id)->{})); game.setScreen(() -> screen);
+                        if (stage.equals("queue")) game.runOnClient(c -> click(screen,screen.control("queue"),0));
+                        game.getInput().setCursorPos(size[0]-3,80); game.waitTicks(2); game.takeScreenshot("hoi-"+fixture+"-"+stage+"-"+size[0]+"-gui2");
+                        if (stage.equals("detail")) {
+                            game.runOnClient(c -> screen.mouseScrolled(screen.width/2.,screen.height/2.,0,-100)); game.waitTicks(2);
+                            game.takeScreenshot("hoi-"+fixture+"-tree-bottom-"+size[0]+"-gui2");
+                        }
+                    }
+                }
+            }
+        } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+        finally { game.setScreen(() -> null); game.runOnClient(c -> c.options.guiScale().set(previous)); }
+    }
     private static String json(String name)throws java.io.IOException{return Files.readString(Path.of(System.getenv("HOI_COMMANDER_PREVIEW"),name+".json"));}
     private static ProtocolDialogView source(String name)throws java.io.IOException{return new ProtocolDialogPayloads.Show(json(name),true).view().issued(UUID.randomUUID().toString(),7);}
     private static MouseButtonEvent event(AbstractWidget b,int modifiers,int button){return new MouseButtonEvent(b.getX()+b.getWidth()/2.,b.getY()+b.getHeight()/2.,new MouseButtonInfo(button,modifiers));}
     private static void click(Screen screen,AbstractWidget b,int modifiers){if(b==null)throw new AssertionError("Missing control");var e=event(b,modifiers,InputConstants.MOUSE_BUTTON_LEFT);screen.mouseClicked(e,false);screen.mouseReleased(e);}
     private static AbstractWidget named(Screen screen,String name){return screen.children().stream().filter(w->w instanceof AbstractWidget b&&b.getMessage().getString().equals(name)).map(w->(AbstractWidget)w).findFirst().orElseThrow(()->new AssertionError(name));}
+    private static void unavailableQueue(ClientGameTestContext game,ProtocolDialogView source,Screen parent,int width) {
+        var denied=new ProtocolDialogView(source.token(),source.revision(),source.kind(),source.title(),source.subtitle(),source.body(),source.flag(),source.image(),source.sound(),source.tiles(),source.choices().stream().filter(c->!c.id().startsWith("queue/")&&!c.id().startsWith("up/")&&!c.id().startsWith("down/")).toList(),source.presentation());
+        var actions=new ArrayList<String>();
+        var screen=game.computeOnClient(c->new ScreenOrganization(denied,parent,(v,id)->actions.add(id)));
+        game.setScreen(()->screen);
+        var target=source.tiles().stream().filter(t->t.traitNode()!=null&&t.traitNode().row()==0&&source.choices().stream().anyMatch(c->c.id().equals("queue/"+t.section().substring(6)))).findFirst().orElseThrow();
+        game.runOnClient(c->{
+            click(screen,screen.control(target.section()),InputConstants.MOD_SHIFT);
+            click(screen,screen.control(target.section()),InputConstants.MOD_SHIFT);
+            if(!actions.isEmpty())throw new AssertionError("Missing queue choice must reject repeated Shift clicks");
+            if(screen.control("history")!=null||screen.control("traits")!=null)throw new AssertionError("MIO detail tabs must remain absent");
+            click(screen,screen.control("queue"),0);
+            var queued=source.tiles().stream().filter(t->t.traitNode()!=null&&!t.value().isEmpty()).sorted(Comparator.comparingInt(t->Integer.parseInt(t.value()))).toList();
+            var first=screen.control("queue-row/"+queued.getFirst().section().substring(6));
+            var last=screen.control("queue-row/"+queued.getLast().section().substring(6));
+            screen.mouseClicked(event(last,0,InputConstants.MOUSE_BUTTON_LEFT),false);
+            screen.mouseReleased(event(first,0,InputConstants.MOUSE_BUTTON_LEFT));
+            screen.mouseClicked(event(first,0,InputConstants.MOUSE_BUTTON_LEFT),false);
+            screen.mouseReleased(event(last,0,InputConstants.MOUSE_BUTTON_LEFT));
+            if(!actions.isEmpty())throw new AssertionError("Missing up/down choices must reject both queue drag directions");
+        });
+        game.getInput().setCursorPos(width-5,80);game.waitTicks(3);game.takeScreenshot("hoi-mio-queue-unavailable-synthetic-"+width+"-gui2");
+        game.runOnClient(c->{screen.onClose();screen.update(source.issued(source.token(),source.revision()+1));click(screen,screen.control(target.section()),InputConstants.MOD_SHIFT);if(!actions.equals(List.of("queue/"+target.section().substring(6))))throw new AssertionError("New authoritative choices must restore queue input");});
+    }
     public static void run(ClientGameTestContext game){
         int scale=game.computeOnClient(c->c.options.guiScale().get());
         try{
@@ -42,14 +104,21 @@ public final class ScreenOrganizationTest {
                 for(var view:List.of(base,unlocked,policies)){
                     var sent=new ArrayList<ProtocolDialogPayloads.Action>();var screen=game.computeOnClient(c->new ScreenOrganization(view,menu,(v,id)->sent.add(new ProtocolDialogPayloads.Action(v.token(),v.revision(),id))));game.setScreen(()->screen);game.waitTicks(3);
                     String stage=view==base?"detail":view==unlocked?"unlocked":"policies";game.takeScreenshot("hoi-mio-"+stage+"-"+size[0]+"-gui2");
+                    if(view==base){
+                        var blocked=view.tiles().stream().filter(t->t.traitNode()!=null&&!t.traitNode().parents().isEmpty()&&t.traitNode().row()<2&&t.value().isEmpty()&&view.choices().stream().noneMatch(ch->ch.id().equals("queue/"+t.section().substring(6)))).findFirst().orElseThrow();
+                        var blockedButton=game.computeOnClient(c->screen.control(blocked.section()));
+                        game.runOnClient(c->{click(screen,blockedButton,InputConstants.MOD_SHIFT);click(screen,blockedButton,InputConstants.MOD_SHIFT);if(!sent.isEmpty())throw new AssertionError("Authoritative prerequisite-blocked trait must not send a queue request");});
+                        game.getInput().setCursorPos((blockedButton.getX()+12)*2,(blockedButton.getY()+12)*2);game.waitTicks(3);game.takeScreenshot("hoi-mio-prerequisite-blocked-"+size[0]+"-gui2");
+                    }
                     if(view==policies){var first=game.computeOnClient(c->screen.control("attach/"+view.tiles().getFirst().section().substring(7)));game.getInput().setCursorPos((first.getX()+20)*2,(first.getY()+20)*2);game.waitTicks(3);game.takeScreenshot("hoi-mio-policy-tooltip-"+size[0]+"-gui2");game.runOnClient(c->{if(view.choices().stream().anyMatch(ch->ch.id().startsWith("attach/")))throw new AssertionError("Initial policy fixture should be unavailable");screen.mouseScrolled(screen.width/2.,screen.height/2.,0,-5);if(!sent.isEmpty())throw new AssertionError("Scrolling policy choices must not apply one");click(screen,screen.control("back"),0);if(!sent.equals(List.of(new ProtocolDialogPayloads.Action(view.token(),7,"back"))))throw new AssertionError("Policy back authentication");});continue;}
                     var target=view.tiles().stream().filter(t->t.section().startsWith("trait/")&&view.choices().stream().anyMatch(ch->ch.id().equals("queue/"+t.section().substring(6)))&&t.traitNode().row()==0).findFirst().orElseThrow();
                     var control=game.computeOnClient(c->screen.control(target.section()));game.getInput().setCursorPos((control.getX()+12)*2,(control.getY()+12)*2);game.waitTicks(3);game.takeScreenshot("hoi-mio-trait-tooltip-"+stage+"-"+size[0]+"-gui2");
                     game.runOnClient(c->{var right=event(control,0,InputConstants.MOUSE_BUTTON_RIGHT);screen.mouseClicked(right,false);if(!sent.isEmpty())throw new AssertionError("Right click must not mutate traits");click(screen,control,InputConstants.MOD_SHIFT);click(screen,control,InputConstants.MOD_SHIFT);if(!sent.equals(List.of(new ProtocolDialogPayloads.Action(view.token(),7,"queue/"+target.section().substring(6)))))throw new AssertionError("Queue must send one authenticated request");screen.update(view);if(screen.control("policies").active)throw new AssertionError("Same revision must preserve pending lock");screen.update(view.issued(view.token(),8));click(screen,screen.control("queue"),0);});
                     game.getInput().setCursorPos(size[0]-5,80);game.waitTicks(3);game.takeScreenshot("hoi-mio-queue-"+stage+"-"+size[0]+"-gui2");
-                    if(view==unlocked){game.runOnClient(c->{var queued=view.tiles().stream().filter(t->t.section().startsWith("trait/")&&!t.value().isEmpty()).sorted(Comparator.comparingInt(t->Integer.parseInt(t.value()))).toList();var last=queued.getLast();String token=last.section().substring(6);var row=screen.control("queue-row/"+token);var first=screen.control("queue-row/"+queued.getFirst().section().substring(6));sent.clear();screen.mouseClicked(event(row,0,InputConstants.MOUSE_BUTTON_LEFT),false);screen.mouseReleased(event(first,0,InputConstants.MOUSE_BUTTON_LEFT));if(!sent.equals(List.of(new ProtocolDialogPayloads.Action(view.token(),8,"up/"+token))))throw new AssertionError("Drag must move queue through the current revision");screen.update(view.issued(view.token(),8));if(sent.size()!=1)throw new AssertionError("Duplicate revision must not repeat a queue move");});}
-                    game.runOnClient(c->{screen.onClose();screen.update(view.issued(view.token(),9));click(screen,screen.control("history"),0);});game.waitTicks(3);game.takeScreenshot("hoi-mio-history-"+stage+"-"+size[0]+"-gui2");
+                    if(view==unlocked){game.runOnClient(c->{var queued=view.tiles().stream().filter(t->t.section().startsWith("trait/")&&!t.value().isEmpty()).sorted(Comparator.comparingInt(t->Integer.parseInt(t.value()))).toList();var last=queued.getLast();String token=last.section().substring(6);var row=screen.control("queue-row/"+token);var first=screen.control("queue-row/"+queued.getFirst().section().substring(6));sent.clear();screen.mouseClicked(event(row,0,InputConstants.MOUSE_BUTTON_LEFT),false);screen.mouseReleased(event(first,0,InputConstants.MOUSE_BUTTON_LEFT));var expected=view.choices().stream().anyMatch(ch->ch.id().equals("up/"+token))?List.of(new ProtocolDialogPayloads.Action(view.token(),8,"up/"+token)):List.<ProtocolDialogPayloads.Action>of();if(!sent.equals(expected))throw new AssertionError("Drag must honor the current authoritative queue move choice");screen.update(view.issued(view.token(),8));if(!sent.equals(expected))throw new AssertionError("Duplicate revision must not repeat a queue move");});}
+                    game.runOnClient(c->{screen.onClose();screen.update(view.issued(view.token(),9));if(screen.control("history")!=null||screen.control("traits")!=null)throw new AssertionError("MIO details must expose the trait tree without history or trait tabs");});game.waitTicks(3);game.takeScreenshot("hoi-mio-traits-only-"+stage+"-"+size[0]+"-gui2");
                 }
+                unavailableQueue(game,unlocked,menu,size[0]);
                 var available=source("kor-mio-detail-lig-points");
                 var actions=new ArrayList<String>();var screen=game.computeOnClient(c->new ScreenOrganization(available,menu,(v,id)->actions.add(id)));game.setScreen(()->screen);
                 game.runOnClient(c->{click(screen,screen.control("trait/"+available.choices().stream().filter(ch->ch.id().startsWith("unlock/")).findFirst().orElseThrow().id().substring(7)),0);if(!actions.isEmpty()||screen.control("ok-confirm")==null)throw new AssertionError("Unlock must show confirmation first");click(screen,screen.control("cancel-confirm"),0);if(!actions.isEmpty())throw new AssertionError("Cancel must not unlock");click(screen,screen.control("trait/"+available.choices().stream().filter(ch->ch.id().startsWith("unlock/")).findFirst().orElseThrow().id().substring(7)),0);click(screen,screen.control("ok-confirm"),0);if(!actions.equals(List.of(available.choices().stream().filter(ch->ch.id().startsWith("unlock/")).findFirst().orElseThrow().id())))throw new AssertionError("Unlock confirm must send exactly one action");});

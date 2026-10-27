@@ -56,7 +56,26 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             check(dispatcher.getRoot().getChild("준비") == null && dispatcher.getRoot().getChild("시작") == null, "Lobby commands belong to the server");
             ProtocolResearchPayloads.registerPayloadTypes(); ProtocolResearchPayloads.registerPayloadTypes();
         });
+        if(System.getProperty("hoi.testSuite","all").equals("network-campaign")) {
+            dev.hoi.client.screen.ScreenNetworkCampaignTest.run(context);
+            return;
+        }
         loadPack(context);
+        if(Set.of("all","production-scrollbars").contains(System.getProperty("hoi.testSuite","all"))) {
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.screen.ScreenProductionScrollTest.run(context);
+                dev.hoi.client.screen.ScreenConstructionScrollTest.run(context,fixtureMenu().hud());
+            }
+            if(System.getProperty("hoi.testSuite","all").equals("production-scrollbars"))return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("tooltip-layout")){
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.ui.UiTooltipSpacingTest.geometry(context);
+                dev.hoi.client.screen.ScreenTooltipSpacingTest.run(context);
+                dev.hoi.client.screen.ScreenDivisionDialogsTest.run(context,fixtureMenu());
+            }
+            return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("research-slots")) {
             try (var world = context.worldBuilder().create()) {
                 context.getInput().resizeWindow(854, 480); context.waitTicks(3);
@@ -68,6 +87,42 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                     context.runOnClient(client -> checkCompactSlots(client.gui.screen(), count));
                     context.takeScreenshot("hoi-compact-research-slots-" + count);
                 }
+            }
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("source-layout")){
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.screen.ScreenOrganizationAssignmentTest.run(context);
+                dev.hoi.client.screen.ScreenOfficerContractTest.run(context);
+                dev.hoi.client.screen.ScreenDivisionDesignerTest.run(context);
+            }
+            return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("screen-polish")){
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.screen.ScreenDivisionDesignerTest.run(context);
+                dev.hoi.client.screen.ScreenProductionOfferTest.run(context);
+                dev.hoi.client.research.ResearchSectionsTest.run(context);
+            }
+            return;
+        }
+        if(Set.of("all","division-designer").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenDivisionDesignerTest.run(context);}
+            if(System.getProperty("hoi.testSuite","all").equals("division-designer"))return;
+        }
+        if(Set.of("all","mio-types","mio-long-type").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenOrganizationTest.types(context);}
+            if(!System.getProperty("hoi.testSuite","all").equals("all"))return;
+        }
+        if(System.getProperty("hoi.testSuite","all").equals("source-scrollbars")){
+            try(var world=context.worldBuilder().create()){
+                dev.hoi.client.screen.ScreenOfficerContractTest.run(context);
+                dev.hoi.client.screen.ScreenCommanderRosterTest.run(context);
+                dev.hoi.client.screen.ScreenOrganizationAssignmentTest.run(context);
+                dev.hoi.client.screen.ScreenOrganizationTest.run(context);
+                dev.hoi.client.screen.ScreenDivisionDialogsTest.run(context,fixtureMenu());
+                dev.hoi.client.screen.ScreenOfficerComparisonTest.run(context);
+                dev.hoi.client.screen.ScreenPreferredTacticsTest.run(context);
             }
             return;
         }
@@ -88,6 +143,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 dev.hoi.client.screen.ScreenOfficerContractTest.run(context);
             }
             if(System.getProperty("hoi.testSuite","all").equals("final-contract"))return;
+        }
+        if(Set.of("all","production-offer").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenProductionOfferTest.run(context);}
+            if(System.getProperty("hoi.testSuite","all").equals("production-offer"))return;
         }
         if(Set.of("all","organization-assignment").contains(System.getProperty("hoi.testSuite","all"))){
             try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenOrganizationAssignmentTest.run(context);}
@@ -161,7 +220,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         if(Set.of("all","tooltip-spacing","review-tooltips").contains(System.getProperty("hoi.testSuite","all"))){
-            try(var world=context.worldBuilder().create()){dev.hoi.client.map.MapTooltipSpacingTest.run(context,fixtureMenu());dev.hoi.client.screen.ScreenTooltipSpacingTest.run(context);}
+            try(var world=context.worldBuilder().create()){dev.hoi.client.ui.UiTooltipSpacingTest.geometry(context);dev.hoi.client.map.MapTooltipSpacingTest.run(context,fixtureMenu());dev.hoi.client.screen.ScreenTooltipSpacingTest.run(context);}
             if(System.getProperty("hoi.testSuite","all").equals("tooltip-spacing"))return;
         }
         if(Set.of("all","trait-experience","review-tooltips").contains(System.getProperty("hoi.testSuite","all"))){
@@ -379,6 +438,14 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 world.getServer().runCommand("gamemode spectator @a");
                 dev.hoi.client.audio.AudioMusicRoutingChecks.run(context, world.getServer()::runCommand);
                 dev.hoi.client.audio.AudioPlaylistGainTest.run(context);
+            }
+            return;
+        }
+        if (System.getProperty("hoi.testSuite", "all").equals("industry")) {
+            try (var world = context.worldBuilder().create()) {
+                ScreenIndustryChecks.run(context, fixtureMenu().hud());
+                ScreenCompletionChecks.run(context);
+                ScreenRegimentChecks.run(context);
             }
             return;
         }
@@ -1056,7 +1123,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
     }
     private static void hudHover(ClientGameTestContext context, ProtocolMenuView menu) {
         context.runOnClient(client->{
-            var rows=List.of(new dev.hoi.protocol.ProtocolHudDetail.Row("증감", "+0.125", dev.hoi.protocol.ProtocolHudDetail.Tone.GOOD),new dev.hoi.protocol.ProtocolHudDetail.Row("영점", "0.00", dev.hoi.protocol.ProtocolHudDetail.Tone.NORMAL),new dev.hoi.protocol.ProtocolHudDetail.Row("---", "", dev.hoi.protocol.ProtocolHudDetail.Tone.NORMAL));
+            var rows=List.of(new dev.hoi.protocol.ProtocolHudDetail.Row("증감", "+0.125", dev.hoi.protocol.ProtocolHudDetail.Tone.GOOD),new dev.hoi.protocol.ProtocolHudDetail.Row("---", "", dev.hoi.protocol.ProtocolHudDetail.Tone.NORMAL),new dev.hoi.protocol.ProtocolHudDetail.Row("영점", "0.00", dev.hoi.protocol.ProtocolHudDetail.Tone.NORMAL),new dev.hoi.protocol.ProtocolHudDetail.Row("---", "", dev.hoi.protocol.ProtocolHudDetail.Tone.NORMAL));
             var source=new dev.hoi.protocol.ProtocolHudDetail(List.of(),"§a+0.125\n§a---\n0.00");
             for(var detail:List.of(new dev.hoi.protocol.ProtocolHudDetail(rows),source)) {
                 var hud=new ProtocolCountryHud(0.0,0.0,0.0,null,null,null,false,0L,null,Map.of("political_power",detail));
@@ -1070,6 +1137,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 });
                 check(text.toString().contains("+0.125")&&text.toString().contains("0.00")&&!text.toString().contains("---"),"HUD retains issued precision, sign and zero rows");
                 check(body.stream().anyMatch(line->line==net.minecraft.util.FormattedCharSequence.EMPTY),"HUD separator becomes a blank line");
+                check(body.getFirst()!=net.minecraft.util.FormattedCharSequence.EMPTY&&body.getLast()!=net.minecraft.util.FormattedCharSequence.EMPTY,"HUD trims outer blank lines");
             }
         });
         var issued=new ProtocolMenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),dev.hoi.client.screen.ScreenIndustryChecks.tankFixture("tank-empty-fixture.json").hud());
@@ -1085,11 +1153,8 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 line.accept((index,style,character)->{text.appendCodePoint(character);return true;});
                 rows.add(text.toString());
             }
-            check(rows.getFirst().isEmpty(),"Fuel title is separated from current fuel");
-            var fuel=issued.hud().details().get("fuel");
-            long blanks=fuel.sourceText()==null?1+fuel.rows().stream().filter(r->r.label().isEmpty()&&r.value().isEmpty()).count()
-                    :Arrays.stream(fuel.sourceText().split("\\R",-1)).filter(String::isEmpty).count();
-            check(blanks>=5&&rows.stream().filter(String::isEmpty).count()==blanks,"Fuel preserves the issued paragraph breaks and title spacing");
+            check(rows.getFirst().startsWith("현재 연료:"),"Fuel starts with content after trimming the outer blank line");
+            check(rows.stream().filter(String::isEmpty).count()==7,"Fuel preserves all seven internal paragraph breaks");
         });
         try (var stream = ResearchScreenTest.class.getResourceAsStream("/hud-source-fixture.json")) {
             if (stream == null) throw new AssertionError("Missing source HUD fixture");
@@ -1108,7 +1173,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                     var indicator = UiMenuBar.indicators(original).stream().filter(i -> i.icon().equals(key)).findFirst().orElseThrow();
                     var body = dev.hoi.client.ui.UiHudTooltip.body(client.font,1280,original,indicator);
                     if (key.equals("gdp")) check(body.size() * (client.font.lineHeight + 1) + 12 <= 540,"Complete GDP tooltip fits GUI2 at 1920x1080 without scrolling");
-                    long expected = original.details().get(key).sourceText().lines().filter(String::isEmpty).count();
+                    long expected = original.details().get(key).sourceText().strip().lines().filter(String::isEmpty).count();
                     check(body.stream().filter(line -> line == net.minecraft.util.FormattedCharSequence.EMPTY).count() == expected,"Original HUD paragraph breaks survive rendering: " + key);
                     var text = new StringBuilder();
                     boolean[] white = {false}, gold = {false}, icon = {false};

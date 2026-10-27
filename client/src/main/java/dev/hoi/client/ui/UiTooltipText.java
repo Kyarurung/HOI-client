@@ -8,7 +8,7 @@ public final class UiTooltipText {
     private static final Pattern NUMBER = Pattern.compile("(?:(?<![A-Za-z0-9_:/.§-])|(?<=§[0-9a-fA-F]))[+-]?\\d+(?:,\\d{3})*(?:\\.\\d+)?(?![A-Za-z0-9_:/.-])");
     static final Pattern COLORS = Pattern.compile("(?i)§(#[0-9a-f]{6}|[0-9a-fk-or])");
     private static final Pattern CODES = Pattern.compile("§(?:#[0-9a-fA-F]{6}|.)");
-    private static final Pattern SEPARATOR = Pattern.compile("(?:-{3,})?");
+    private static final Pattern SEPARATOR = Pattern.compile("[\\p{Pd}─━═ㅡᅳ−_=~～]{3,}");
     private UiTooltipText() {}
     public static String sections(String... paragraphs) {
         return java.util.Arrays.stream(paragraphs).filter(value->value!=null&&!value.isBlank()).collect(java.util.stream.Collectors.joining("\n\n"));
@@ -58,7 +58,7 @@ public final class UiTooltipText {
             return java.util.regex.Matcher.quoteReplacement(result);
         });
     }
-    public static boolean blank(String line) { return SEPARATOR.matcher(CODES.matcher(line).replaceAll("").strip()).matches(); }
+    public static boolean blank(String line) { String plain=CODES.matcher(line).replaceAll("").replaceAll("(?U)\\s","");return plain.isEmpty()||SEPARATOR.matcher(plain).matches(); }
     public static boolean visible(String line) {
         String plain=CODES.matcher(line).replaceAll("").strip();
         if(plain.isEmpty())return false;

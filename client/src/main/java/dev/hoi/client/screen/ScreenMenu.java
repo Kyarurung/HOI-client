@@ -1,5 +1,6 @@
 package dev.hoi.client.screen;
 
+import dev.hoi.client.ui.UiScrollBar;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.input.InputSidebarMovement;
@@ -34,7 +35,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private int[] captivityCounts;
     public void captivityCounts(int missing,int held){captivityCounts=new int[]{missing,held};}
     private void openCaptivity(boolean ours){var screen=new ScreenCommanderCaptivity(this,ours);ScreenDialogCoordinator.setContent(screen);screen.open();}
-    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&manufacturerMaximum>0&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&event.x()>=detailX()+detailWidth()-8&&event.x()<detailX()+detailWidth()&&event.y()>=top+59&&event.y()<Math.min(height-8,top+328)){manufacturerDragging=true;dragManufacturer(event.y());return true;}if(!selectionPreview&&selected==ProtocolMenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&manufacturerScrollbar().contains(event.x(),event.y())){if(manufacturerScrollbar().arrow(event.y())){manufacturerScroll=manufacturerScrollbar().step(event.y(),manufacturerScroll,49);rebuildWidgets();}else{manufacturerDragging=true;dragManufacturer(event.y());}return true;}if(!selectionPreview&&selected==ProtocolMenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
     private ProtocolMenuView view;
     private boolean selectionPreview;
     private final Runnable researchOpen;
@@ -755,7 +756,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         for (var line : lines) { dev.hoi.client.ui.UiText.text(g, font, line, x + 14, y, TEXT); y += 13; }
         g.disableScissor();
     }
-    private void dragManufacturer(double y){int end=Math.min(height-8,top+328)-4;manufacturerScroll=(int)(Math.clamp((y-top-59)/Math.max(1,end-top-59),0,1)*manufacturerMaximum);rebuildWidgets();}
+    private UiScrollBar manufacturerScrollbar(){int end=Math.min(height-8,top+328)-4,visible=end-top-59;return new UiScrollBar(detailX()+detailWidth()-11,top+51,end+8,visible,visible+manufacturerMaximum);}
+    private void dragManufacturer(double y){manufacturerScroll=manufacturerScrollbar().offset(y);rebuildWidgets();}
     @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy){if(manufacturerDragging){dragManufacturer(event.y());return true;}return super.mouseDragged(event,dx,dy);}
     @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event){if(manufacturerDragging){manufacturerDragging=false;return true;}return super.mouseReleased(event);}
     private void layoutManufacturers(boolean widgets, GuiGraphicsExtractor g) {
@@ -800,7 +802,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (g != null) {
 
             g.disableScissor();
-            if(manufacturerMaximum>0){int thumb=Math.max(12,available*available/(available+manufacturerMaximum));int sy=top+59+(available-thumb)*manufacturerScroll/manufacturerMaximum;g.fill(x+w-7,top+59,x+w-3,bottom-4,0xFF181B20);g.fill(x+w-7,sy,x+w-3,sy+thumb,0xFF89929C);}
+            manufacturerScrollbar().draw(g,manufacturerScroll);
         }
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {

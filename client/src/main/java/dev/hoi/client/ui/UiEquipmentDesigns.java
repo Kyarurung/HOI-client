@@ -139,6 +139,17 @@ public final class UiEquipmentDesigns {
         var names=object(details(),"stats");
         return names.has(key)?names.get(key).getAsString():key;
     }
+    public static String divisionStatField(String id, String field) {
+        var stat = object(object(details(), "divisionStats"), id == null ? "" : id);
+        return stat.has(field) ? sourceText(stat.get(field).getAsString()) : "";
+    }
+    public static String divisionStatValue(dev.hoi.protocol.ProtocolIndustryView.Stat stat) {
+        String format = divisionStatField(stat.id(), "format");
+        var precision = java.util.regex.Pattern.compile("\\|[^$]*?([0-9])").matcher(format);
+        int decimals = precision.find() ? Integer.parseInt(precision.group(1)) : java.util.Set.of("MANPOWER", "TRAINING_TIME", "COMBAT_WIDTH").contains(stat.id() == null ? "" : stat.id()) ? 0 : 1;
+        boolean percent = stat.unit().equals("PERCENT");
+        return number(stat.value() * (percent ? 100 : 1), decimals) + (percent ? "%" : stat.unit().equals("KM_PER_HOUR") ? "km/h" : "");
+    }
     public static String statCaption(String key,String fallback) {
         var icon=object(object(details(),"statIcons"),key);
         String name=statName(key);

@@ -46,11 +46,12 @@ public final class ScreenEventTooltipTest {
                         });
                         context.getInput().setCursorPos(cursor[0], cursor[1]); context.waitTicks(4);
                         String key = name + "-choice-" + i + "-" + size[0];
+                        context.takeScreenshot("hoi-event-tooltip-" + key + "-gui2");
                         context.runOnClient(c -> {
                             var screen = ((ScreenDialogStack)c.gui.screen()).find(view.token());
                             var tooltip = screen.tooltipBounds();
                             var optionView = view.choices().get(option);
-                            if (optionView.tooltip().isEmpty() != (tooltip == null)) throw new AssertionError("Empty effects must have no tooltip");
+                            if (optionView.tooltip().isEmpty() != (tooltip == null)) throw new AssertionError("Effect tooltip visibility mismatch: " + key + ", empty=" + optionView.tooltip().isEmpty() + ", bounds=" + tooltip + ", button=" + Arrays.toString(box(choice(screen, optionView))) + ", cursor=" + Arrays.toString(cursor));
                             if (tooltip != null) {
                                 if (tooltip.x() < 4 || tooltip.y() < 4 || tooltip.x() + tooltip.width() + 4 > screen.width || tooltip.y() + tooltip.height() + 4 > screen.height) throw new AssertionError("Effect tooltip leaves viewport");
                                 var matcher = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+)").matcher(optionView.tooltip());
@@ -62,7 +63,6 @@ public final class ScreenEventTooltipTest {
                             }
                             if (!sent.isEmpty()) throw new AssertionError("Hovering cannot choose or dismiss an event");
                         });
-                        context.takeScreenshot("hoi-event-tooltip-" + key + "-gui2");
                     }
                 }
                 var source = new ProtocolDialogPayloads.Show(Files.readString(directory.resolve("event-korea-356.json")), true).view();

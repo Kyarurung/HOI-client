@@ -61,7 +61,7 @@ ext.hoiRendererFixtureGroups = [
             'leader-tactic-low-skill', 'leader-tactic-low-skill-trait-tree',
             'leader-tactic-confirm', 'leader-tactic-selected'
         ],
-        suites: ['all', 'officers', 'officer-review', 'officer-comparison', 'tactics']
+        suites: ['all', 'officers', 'officer-review', 'officer-comparison', 'source-scrollbars', 'tactics']
     ],
     doctrine: [
         environment: 'HOI_DOCTRINE_PREVIEW', property: 'hoiDoctrinePreview',

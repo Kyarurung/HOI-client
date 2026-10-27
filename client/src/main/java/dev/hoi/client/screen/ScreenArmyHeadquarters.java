@@ -99,21 +99,14 @@ public final class ScreenArmyHeadquarters extends Screen implements InputSidebar
         if(hq().details()==null)return;int index=0;
         for(var value:hq().details().adjustments()){
             int n=index++,row=n/4,columns=Math.min(4,hq().details().adjustments().size()-row*4),bx=x(686+(480-columns*112)/2+n%4*112),by=y(370+row*72);
-            var region=new UiHoverRegion("HQ 지역 변동치 · "+value.id(),bx,by,s(105),s(66));region.setTooltip(UiTooltips.createExact(adjustmentTooltip(value)));addRenderableWidget(region);
+            var region=new UiHoverRegion("HQ 지역 변동치 · "+value.id(),bx,by,s(105),s(66));region.setTooltip(UiTooltips.createExact(UiTerrainAdjustment.tooltip(value)));addRenderableWidget(region);
         }
-    }
-    private String adjustmentTooltip(ProtocolTankDesigner.Adjustment value){
-        var lines=new ArrayList<String>();lines.add("§e"+UiEquipmentDesigns.adjusterName(value.id()));double[] values={value.movement(),value.attack(),value.defense()};String[] keys={"MOVEMENT","ATTACK","DEFENCE"};
-        for(int i=0;i<3;i++)lines.add("§f"+UiEquipmentDesigns.tooltip("STAT_ADJUSTER_"+keys[i]).stripTrailing().replaceAll(":$","")+": "+(values[i]<0?"§c":"§a")+String.format(Locale.ROOT,"%+.1f%%",values[i]*100));
-        return String.join("\n\n",lines);
     }
     private void drawAdjustments(GuiGraphicsExtractor g){
         g.fill(x(662),y(356),x(1192),y(614),0xFF101012);if(hq().details()==null)return;int index=0;
         for(var value:hq().details().adjustments()){
             int n=index++,row=n/4,columns=Math.min(4,hq().details().adjustments().size()-row*4),bx=x(686+(480-columns*112)/2+n%4*112),by=y(370+row*72);
-            UiAssets.draw(g,"production/design/adjusters/"+value.id(),bx+s(30),by+s(10),s(40),s(40));UiAssets.draw(g,"production/design/controls/adjuster_frame",bx+s(18),by+s(5),s(64),s(57));
-            double[] values={value.movement(),value.attack(),value.defense()};String[] icons={"movement","attack","defense"};
-            for(int i=0;i<3;i++){String key="production/design/controls/"+icons[i];UiAssets.drawAlignedContent(g,key+"_"+(values[i]>1e-8?"positive":values[i]<-1e-8?"negative":"neutral"),key+"_neutral",bx+s(22+i*22),by+s(43),s(20),s(20));}
+            UiTerrainAdjustment.draw(g,value,bx+s(18),by+s(5),this::s);
         }
     }
     private void pickerWidgets(){

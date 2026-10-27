@@ -31,7 +31,7 @@ public final class ResearchSectionsTest {
                     var team=teams.designTeams().stream().filter(t->t.name().equals("SNT모티브")).findFirst().orElseThrow();
                     var row=game.computeOnClient(c->(net.minecraft.client.gui.components.AbstractWidget)screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget v&&v.getMessage().getString().equals(team.name())).findFirst().orElseThrow());
                     game.getInput().setCursorPos((row.getX()+100)*2,(row.getY()+10)*2);game.waitTicks(4);
-                    game.runOnClient(c->{try{var method=ResearchScreen.class.getDeclaredMethod("teamDays",ProtocolResearchView.Tech.class,int.class);method.setAccessible(true);var value=(net.minecraft.network.chat.Component)method.invoke(screen,techs.getFirst(),0);if(!value.getString().equals("192 ▼일"))throw new AssertionError("Expected floor hover 192: "+value.getString());}catch(ReflectiveOperationException e){throw new RuntimeException(e);}});
+                    game.runOnClient(c->{long days=screen.teamDays(techs.getFirst(),0);if(days!=192)throw new AssertionError("Expected floor hover 192: "+days);});
                     game.takeScreenshot("hoi-research-floor-hover-"+size[0]+"-gui2");
                     if(requests.stream().anyMatch(r->r.action()==ProtocolResearchPayloads.Action.START||r.action()==ProtocolResearchPayloads.Action.CANCEL))throw new AssertionError("Inspecting sections mutated research");
                 }

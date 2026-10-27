@@ -29,6 +29,17 @@ class UiTooltipTextTest {
     }
     @Test void sourceSeparatorsBecomeBlankLinesWithoutChangingHyphenatedValues() {
         assertEquals("숲\n\n공격: -12.5%",UiTooltipText.spacing("숲\n§f----§r\n공격: -12.5%"));
+        for(String separator:java.util.List.of("§Y---§!", " ---- ", "§#123456--------------", "ㅡㅡㅡ", "ᅳᅳᅳ", "───", "━━━", "═══", "————", "– – –", "−−−", "___", "=========", "~~~", "～～～", "§f- - -§r", "§Y — ─ - §!", "§#123456————", "—\u00a0─\u2003-")) {
+            assertTrue(UiTooltipText.blank(separator));
+            assertEquals("숲\n\n공격: -12.5%",UiTooltipText.spacing("\n"+separator+"\n숲\n"+separator+"\n\n"+separator+"\n공격: -12.5%\n"+separator));
+        }
+        for(String text:java.util.List.of("공격: -12.5%", "2020-01-01", "hoi:air_0", "— 미확인", "--- 설명 ---", "A=B", "ㅡㅡㅡ 설명")) {
+            assertFalse(UiTooltipText.blank(text));
+            assertEquals(text,UiTooltipText.spacing(text));
+        }
+        assertFalse(UiTooltipText.blank("-"));
+        assertFalse(UiTooltipText.blank("--"));
+        assertFalse(UiTooltipText.blank("— 미확인"));
     }
     @Test void populationPreservesZeroGrowthAndParagraphs() {
         String text="§e민간인 인구§f: §e3.00M§f/§e3.00M§f\n\n§e일간 성장§f: 0.00% (모병 가능: 0, 민간인: 0)\n\n기본: §e0.00%§f";

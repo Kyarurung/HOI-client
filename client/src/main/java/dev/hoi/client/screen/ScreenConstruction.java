@@ -9,6 +9,7 @@ import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiTooltips;
 import dev.hoi.client.ui.UiAssets;
+import dev.hoi.client.ui.UiScrollBar;
 
 import dev.hoi.protocol.*;
 import dev.hoi.protocol.ProtocolConstructionView.*;
@@ -33,6 +34,8 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     private final Consumer<ProtocolConstructionPayloads.Request> transport;
     private ProtocolConstructionView view;
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
+    private UiScrollBar queueScrollbar,paletteScrollbar;
+    private boolean queueDragging,paletteDragging;
     private record ScreenPaletteGroup(String name,int offset,int height) {}
     private List<ScreenPaletteGroup> paletteGroups=List.of();
     private boolean loadingFailed;
@@ -56,6 +59,7 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     }
     int panelWidth(){return pane;}
     @Override protected void init() {
+        queueScrollbar=null;paletteScrollbar=null;
         pane=UiPanelLayout.width(ProtocolMenuTab.CONSTRUCTION,width);top=UiMenuBar.height(width);
         UiMenuBar.buttons(width,view==null?"":view.country(),ProtocolMenuTab.CONSTRUCTION,t->{
             if(t==ProtocolMenuTab.CONSTRUCTION)return;
@@ -80,7 +84,8 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
             offset+=((group.size()+1)/2)*(icon+1);
         }
         paletteGroups=List.copyOf(groups);
-        paletteScroll=Math.clamp(paletteScroll,0,Math.max(0,offset-1-Math.max(0,height-y-30)));
+        paletteScrollbar=new UiScrollBar(pane-10,y,height-30,height-y-30,offset-1);
+        paletteScroll=Math.clamp(paletteScroll,0,paletteScrollbar.maximum());
         for(var entry:entries) {
             var b=entry.building();int bx=x+entry.column()*(icon+1),by=y+entry.offset()-paletteScroll;
             if(by<y||by+icon>height-30)continue;
@@ -100,8 +105,8 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
                     ()->send(ProtocolConstructionPayloads.Action.REPAIR,"",Math.clamp(repair+direction,0,10000),null));
             button.active=pending==0&&(direction>0||repair>0);button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal("건설보다 수리를 우선하는 공장 수")));addRenderableWidget(button);
         }
-        int visibleRows=Math.max(1,(height-queueY()-30)/rowHeight());
-        scroll=Math.clamp(scroll/rowHeight(),0,Math.max(0,view.projects().size()-visibleRows))*rowHeight();
+        queueScrollbar=new UiScrollBar(paletteX()-11,queueY(),height-30,height-queueY()-30,view.projects().size()*rowHeight());
+        scroll=Math.clamp(scroll,0,queueScrollbar.maximum());
         for(int i=0;i<view.projects().size();i++) {
             var p=view.projects().get(i);int by=queueY()+i*rowHeight()-scroll;
             if(by<queueY()||by+rowHeight()>height-30)continue;
@@ -120,10 +125,10 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         }
     }
     private int paletteSize(){return Math.min(29,Math.max(19,(height-top-156)/11-3));}
-    private int paletteX(){return pane-2*(paletteSize()+2)-6;}
+    private int paletteX(){return pane-2*(paletteSize()+2)-16;}
     private int queueY(){return top+77+reservationHeight()*ScreenConstructionRows.count(view.summary());}
     private int reservationHeight(){return Math.clamp((height-top-77-30-rowHeight())/ScreenConstructionRows.count(view.summary()),16,27);}
-    private int column(int sourceX){return 6+(paletteX()-11)*sourceX/402;}
+    private int column(int sourceX){return 6+(paletteX()-21)*sourceX/402;}
     private int rowHeight(){return 29;}
     private String buildingName(String id) {
         return view.buildings().stream().filter(b->b.id().equals(id)).map(Building::name).findFirst().orElse(id);
@@ -134,7 +139,7 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         UiMenuStyle.heading(g, font,"건설",9,top+8, pane - 44,UiMenuStyle.TEXT);
         UiMenuBar.draw(g,width,view == null ? dev.hoi.client.ClientCampaignHud.hud() : view.hud(),mx,my,hudScroll);
         if(view!=null) {
-            var s=view.summary();int q=paletteX()-5;
+            var s=view.summary();int q=paletteX()-15;
             UiAssets.draw(g,"construction/summary/civilian_factory_repair",pane-123,top+5,18,16);
             UiAssets.nineSlice(g,"construction/ui/number_box",pane-78,top+3,29,19,4,.5);
             String repairCount=Integer.toString(s.repairPriority());
@@ -194,6 +199,8 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
                 if(mx>=column(172)&&mx<column(172)+23&&my>=y+2&&my<y+25&&p.taskTooltip()!=null)UiTooltips.drawExact(g,font,p.taskTooltip(),mx,my);
                 else if(mx>=6&&mx<column(318)&&my>=y&&my<y+rowHeight()-3)UiTooltips.drawExact(g,font,p.tooltip()==null?p.name()+" · "+buildingName(p.building())+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.2f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"):p.tooltip(),mx,my);
             }
+            queueScrollbar.draw(g,scroll);
+            paletteScrollbar.draw(g,paletteScroll);
             if(mx>=pane-123&&mx<pane-27&&my>=top+3&&my<top+23)UiTooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
             if(mx>=6&&mx<q&&my>=top+27&&my<top+58) {
                 int column=Math.min(2,(mx-6)/cell);
@@ -238,7 +245,19 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         if(!passive)rebuildWidgets();
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
-        int q=paletteX()-5,cell=(q-6)/3;
+        if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
+            if(queueScrollbar!=null&&queueScrollbar.contains(event.x(),event.y())) {
+                if(queueScrollbar.arrow(event.y()))scroll=queueScrollbar.step(event.y(),scroll,rowHeight());
+                else {queueDragging=true;scroll=queueScrollbar.offset(event.y());}
+                rebuildWidgets();return true;
+            }
+            if(paletteScrollbar!=null&&paletteScrollbar.contains(event.x(),event.y())) {
+                if(paletteScrollbar.arrow(event.y()))paletteScroll=paletteScrollbar.step(event.y(),paletteScroll,paletteSize()+1);
+                else {paletteDragging=true;paletteScroll=paletteScrollbar.offset(event.y());}
+                rebuildWidgets();return true;
+            }
+        }
+        int q=paletteX()-15,cell=(q-6)/3;
         if(view!=null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&event.x()>=6+cell*2&&event.x()<q&&event.y()>=top+27&&event.y()<top+58) {
             HoiClient.openMenu(ProtocolMenuTab.TRADE);return true;
         }
@@ -265,8 +284,18 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     }
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical) {
         if(y<top&&view!=null){hudScroll=UiMenuBar.scroll(width,view.hud(),hudScroll,horizontal,vertical);return true;}
-        if(x<pane){if(x>=paletteX())paletteScroll-=(int)(vertical*(paletteSize()+1));else scroll-=(int)(vertical*rowHeight());rebuildWidgets();return true;}
+        if(x>=paletteX()&&x<pane&&paletteScrollbar!=null&&y>=paletteScrollbar.top()&&y<paletteScrollbar.bottom()) {paletteScroll-=(int)(vertical*(paletteSize()+1));rebuildWidgets();return true;}
+        if(x>=0&&x<paletteX()&&queueScrollbar!=null&&y>=queueScrollbar.top()&&y<queueScrollbar.bottom()) {scroll-=(int)(vertical*rowHeight());rebuildWidgets();return true;}
         return super.mouseScrolled(x,y,horizontal,vertical);
+    }
+    @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {
+        if(queueDragging&&queueScrollbar!=null){scroll=queueScrollbar.offset(event.y());rebuildWidgets();return true;}
+        if(paletteDragging&&paletteScrollbar!=null){paletteScroll=paletteScrollbar.offset(event.y());rebuildWidgets();return true;}
+        return super.mouseDragged(event,dx,dy);
+    }
+    @Override public boolean mouseReleased(MouseButtonEvent event) {
+        boolean dragging=queueDragging||paletteDragging;queueDragging=false;paletteDragging=false;
+        return super.mouseReleased(event)||dragging;
     }
     @Override public void tick() {
         if(pending>0&&--pending==0){

@@ -21,8 +21,9 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
     private String leaderChoice(String prefix,ProtocolDialogView.Tile tile){return prefix+(tile.section().startsWith("admiral/")?tile.section().substring(8):tile.section());}
     private int left,top,pane,bottom,scroll,listTop,rowHeight,sort;
     private boolean dragging;
-    private int maximumScroll(){return Math.max(0,rows.size()*rowHeight-Math.max(1,(bottom-30-listTop)/rowHeight)*rowHeight);}
-    private void dragScroll(double mouseY){int h=bottom-30-listTop,thumb=Math.max(12,h*h/(h+maximumScroll()));scroll=(int)Math.round(Math.clamp((mouseY-listTop-thumb/2.)/Math.max(1,h-thumb),0,1)*maximumScroll()/rowHeight)*rowHeight;rebuildWidgets();}
+    private UiScrollBar scrollbar(){return new UiScrollBar(left+pane-11,listTop-1,bottom-30,bottom-30-listTop,rows.size()*rowHeight);}
+    private int maximumScroll(){return scrollbar().maximum();}
+    private void dragScroll(double mouseY){scroll=scrollbar().offset(mouseY);rebuildWidgets();}
     private String query="",renderedTooltip="";
     String renderedTooltip(){return renderedTooltip;}
     private final Set<String> longDetails=new HashSet<>();
@@ -123,10 +124,10 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
         }
         int end=nativeRows?bottom-30:bottom;scroll=Math.clamp(scroll,0,nativeRows?maximumScroll():Math.max(0,rows.size()*rowHeight-(end-listTop)));
         for(int i=0;i<rows.size();i++){
-            var tile=rows.get(i);int y=listTop+i*rowHeight-scroll;if(y<listTop||y+rowHeight-2>end)continue;
+            var tile=rows.get(i);int y=listTop+i*rowHeight-scroll;if(nativeRows?y+rowHeight<=listTop||y>=end:y<listTop||y+rowHeight-2>end)continue;
             boolean choice=view().choices().stream().anyMatch(c->c.id().equals(tile.section()));
             if(!nativeRows&&!choice&&UiTooltips.exactLines(font,UiCommandLabels.withoutShortcuts(tile.detail()),204).size()>8)longDetails.add(tile.section());
-            var button=new UiMenuButton(tile.name(),left+5,y,pane-(nativeRows?20:10),rowHeight-2,()->submit(tile.section())).caption("");button.active=!pending&&choice&&!promoting();button.setTooltip(nativeRows||longDetails.contains(tile.section())?null:UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(button);if(choice&&!promoting())choiceButtons.put(tile.section(),button);
+            var button=new UiMenuButton(tile.name(),left+5,Math.max(listTop,y),pane-(nativeRows?20:10),Math.min(y+rowHeight-2,end)-Math.max(listTop,y),()->submit(tile.section())).caption("");button.active=!pending&&choice&&!promoting();button.setTooltip(nativeRows||longDetails.contains(tile.section())?null:UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(button);if(choice&&!promoting())choiceButtons.put(tile.section(),button);
             if(nativeRows&&!promoting()){
                 String details=leaderChoice("traits/",tile);
                 rowButton(details,"세부 사항",view().choices().stream().filter(c->c.id().equals(details)).map(ProtocolDialogView.Choice::tooltip).findFirst().orElse("지휘관 세부 사항을 봅니다."),left+165,y+28,48);
@@ -140,13 +141,14 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
             }
         }
         if(view().choices().stream().anyMatch(c->c.id().equals("confirm")))addRenderableWidget(new UiMenuButton("확인",left+pane-70,top+28,63,19,()->submit("confirm")));
+        if(nativeRows&&!promoting())for(var entry:choiceButtons.entrySet())if(entry.getKey().startsWith("traits/")||entry.getKey().startsWith("promote/")||entry.getKey().startsWith("advisor/")){var b=entry.getValue();b.active&=b.getY()>=listTop&&b.getY()+b.getHeight()<=bottom-30;}
         if(pending)children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).forEach(w->w.active=false);
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
         if(nativeRows&&!promoting())UiAssets.draw(g,"commander/ui/panel",left,top,pane,(int)Math.round(pane*607.0/550));else UiMenuStyle.panel(g,left,top,pane,bottom-top+3);UiText.leftSingleLine(g,font,UiTooltips.officerText(view().title()),left+7,top+3,nativeRows&&!promoting()?pane-110:pane-30,nativeRows?14:19,0xFFFFFFFF);
         if(!nativeRows)UiText.centered(g,font,view().body(),left+6,top+27,pane-12,19,UiMenuStyle.MUTED);
-        for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget)widget.extractRenderState(g,mx,my,delta);
+        for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget){if(nativeRows&&!promoting()&&child instanceof AbstractWidget b&&b.getY()>=listTop&&b.getY()<bottom-30){g.enableScissor(left+5,listTop,left+pane-12,bottom-30);widget.extractRenderState(g,my>=listTop&&my<bottom-30?mx:-1,my,delta);g.disableScissor();}else widget.extractRenderState(g,mx,my,delta);}
         if(nativeRows&&!promoting())UiAssets.draw(g,"commander/commands/division_list_column_button/frame_7",left+14,top+20,9,8);
         if(nativeRows&&!promoting()){
             UiAssets.draw(g,"commander/commands/generic_checkbox/frame_"+(showAssigned?1:0),left+pane-36,top+3,15,14);
@@ -157,8 +159,9 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
         String hovered="";
         if(!overDetail(mx,my))clearDetail();
         int end=nativeRows?bottom-30:bottom;
+        if(nativeRows&&!promoting())g.enableScissor(left+5,listTop,left+pane-12,end);
         for(int i=0;i<rows.size();i++){
-            var tile=rows.get(i);int y=listTop+i*rowHeight-scroll;if(y<listTop||y+rowHeight-2>end)continue;
+            var tile=rows.get(i);int y=listTop+i*rowHeight-scroll;if(nativeRows?y+rowHeight<=listTop||y>=end:y<listTop||y+rowHeight-2>end)continue;
             if(nativeRows){
                 var leader=tile.leader();
                 if(mx>=left+5&&mx<left+pane-15&&my>=y&&my<y+rowHeight-2) {
@@ -197,12 +200,14 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
                 if(detailRow<0&&longDetails.contains(tile.section())&&mx>=left+5&&mx<left+pane-10&&my>=y&&my<y+rowHeight-2){detailText=UiCommandLabels.withoutShortcuts(tile.detail());detailRow=i;}
                 UiAssets.draw(g,rowIcon(tile),left+8,y+3,43,52);UiText.centered(g,font,tile.name(),left+57,y+5,pane-66,23,UiMenuStyle.TEXT);UiText.centered(g,font,tile.value(),left+57,y+30,pane-66,20,tile.value().equals("사용 불가")||tile.value().equals("승진 불가")?0xFFE15B5B:0xFFFFAA00);}
         }
+        if(nativeRows&&!promoting())g.disableScissor();
+        if(my<listTop||my>=end)hovered="";
         if(promoting()){
             for(String id:List.of("promote","cancel"))rowButtonText(g,choiceButtons.get(id));
             var lines=font.split(UiKeywordIcons.decorateLines(UiTooltips.officerText(view().body()),false),pane-22);int lineY=listTop+rowHeight+8;
             for(var line:lines){g.text(font,line,left+11,lineY,UiMenuStyle.TEXT,false);lineY+=11;}
         }
-        if(nativeRows&&!promoting()&&maximumScroll()>0){int h=bottom-30-listTop,thumb=Math.max(12,h*h/(h+maximumScroll()));UiAssets.nineSlice(g,"commander/commands/scroll_track/frame_0",left+pane-9,listTop,6,h,3,.5);UiAssets.nineSlice(g,"commander/commands/scroll_drager/frame_0",left+pane-9,listTop+(h-thumb)*scroll/maximumScroll(),6,thumb,3,.5);}
+        if(nativeRows&&!promoting())scrollbar().draw(g,scroll);
         landGesture.draw(g);
         if(detailRow>=0){detailTooltip=UiTooltips.drawOfficerScrollable(g,font,detailText,mx,my,width,height,detailScroll,204);detailScroll=detailTooltip.scroll();}
         renderedTooltip=hovered;
@@ -229,8 +234,9 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
     }
     @Override public void removed(){dev.hoi.client.map.MapCommanderHud.cancelDrag();landGesture.clear();super.removed();}
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){
-        if(nativeRows&&!promoting()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&event.x()>=left+pane-10&&event.x()<left+pane-2&&event.y()>=listTop&&event.y()<bottom-20){dragging=true;dragScroll(event.y());return true;}
-        if(nativeRows&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)for(var entry:choiceButtons.entrySet())if((entry.getKey().startsWith("traits/")||entry.getKey().startsWith("promote/")||entry.getKey().startsWith("advisor/"))&&UiTooltips.contains(entry.getValue(),event.x(),event.y())){if(entry.getValue().active){entry.getValue().playDownSound(minecraft.getSoundManager());submit(entry.getKey());}return true;}
+        if(nativeRows&&!promoting()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&scrollbar().contains(event.x(),event.y())){if(scrollbar().arrow(event.y())){scroll=scrollbar().step(event.y(),scroll,rowHeight);rebuildWidgets();}else{dragging=true;dragScroll(event.y());}return true;}
+        if(nativeRows&&!promoting()&&event.y()>=bottom-30&&event.y()<bottom-26)return true;
+        if(nativeRows&&event.y()>=listTop&&event.y()<bottom-30&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)for(var entry:choiceButtons.entrySet())if((entry.getKey().startsWith("traits/")||entry.getKey().startsWith("promote/")||entry.getKey().startsWith("advisor/"))&&UiTooltips.contains(entry.getValue(),event.x(),event.y())){if(entry.getValue().active){entry.getValue().playDownSound(minecraft.getSoundManager());submit(entry.getKey());}return true;}
         if(nativeRows&&!pending&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             for(int i=0;i<rows.size();i++) {
                 var tile=rows.get(i);int rowY=listTop+i*rowHeight-scroll;

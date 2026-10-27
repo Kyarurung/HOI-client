@@ -59,10 +59,10 @@ public final class UiTooltips {
         return result;
     }
     public static net.minecraft.client.gui.components.Tooltip create(Component text) {
-        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(format(sourceSpacing(text)),false)));
+        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(format(sourceSpacing(text,true)),false)));
     }
     public static net.minecraft.client.gui.components.Tooltip createExact(String text) {
-        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(sourceSpacing(Component.literal(text)),false),false));
+        return net.minecraft.client.gui.components.Tooltip.create(UiKeywordIcons.decorateLines(styled(sourceSpacing(Component.literal(text),true),false),false));
     }
     public static net.minecraft.client.gui.components.Tooltip createOfficer(String text) {
         return createExact(officerCodes(text));
@@ -88,7 +88,7 @@ public final class UiTooltips {
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth, boolean gradient) {
         String content = officerCodes(text);
         var lines = formattedLines(font, content, Math.min(viewportWidth, maxWidth), true, gradient);
-        int width = Math.min(Math.max(1, viewportWidth - 20), Math.max(80, lines.stream().mapToInt(font::width).max().orElse(80)));
+        int width = Math.min(Math.max(1, viewportWidth - 20), Math.max(1, lines.stream().mapToInt(font::width).max().orElse(1)));
         int lineHeight = font.lineHeight + 1;
         int total = lines.size() * lineHeight;
         int height = Math.min(total, Math.max(1, viewportHeight - 20));
@@ -103,9 +103,7 @@ public final class UiTooltips {
         for (int i = Math.max(0, scroll / lineHeight); i < lines.size(); i++) {
             int top = y + i * lineHeight - scroll;
             if (top >= y + height) break;
-            var plain=new StringBuilder();lines.get(i).accept((index,style,code)->{plain.appendCodePoint(code);return true;});
-            if(plain.toString().strip().matches("-{4,}")){for(int dash=0;dash<49;dash+=4)graphics.fill(x+dash,top+font.lineHeight/2,x+Math.min(49,dash+3),top+font.lineHeight/2+1,0xFF888888);}
-            else graphics.text(font, lines.get(i), x, top, 0xFFE0E0E0, false);
+            graphics.text(font, lines.get(i), x, top, 0xFFE0E0E0, false);
         }
         graphics.disableScissor();
         if (maxScroll > 0) {
@@ -132,8 +130,11 @@ public final class UiTooltips {
     public static Component productionText(Component text) {
         return UiKeywordIcons.decorateLines(sentences(text));
     }
-    private static boolean sourceBlank(String value) { String plain=value.replaceAll("§(?:#[0-9a-fA-F]{6}|.)", "").strip();return plain.isBlank()||plain.matches("-{1,3}"); }
+    private static boolean sourceBlank(String value) { return UiTooltipText.blank(value); }
     public static Component sourceSpacing(net.minecraft.network.chat.FormattedText text) {
+        return sourceSpacing(text,false);
+    }
+    private static Component sourceSpacing(net.minecraft.network.chat.FormattedText text,boolean trim) {
         var rows=new ArrayList<net.minecraft.network.chat.MutableComponent>();
         rows.add(Component.empty());
         text.visit((style,part)->{
@@ -153,7 +154,8 @@ public final class UiTooltips {
             if(removed&&sourceBlank(value.getString()))continue;
             cleaned.add(value);removed=false;
         }
-        for(var row:UiTooltipText.collapseBlankLines(cleaned,line->sourceBlank(line.getString()))) {
+        var normalized=trim?collapseBlankLines(cleaned,line->sourceBlank(line.getString())):UiTooltipText.collapseBlankLines(cleaned,line->sourceBlank(line.getString()));
+        for(var row:normalized) {
             if(!first)result.append("\n");
             if(!sourceBlank(row.getString()))result.append(row);
             first=false;
@@ -189,7 +191,13 @@ public final class UiTooltips {
         return sourceBlank(text.toString());
     }
     public static List<FormattedCharSequence> collapseBlankLines(List<FormattedCharSequence> lines) {
-        return UiTooltipText.collapseBlankLines(lines,UiTooltips::blank);
+        return collapseBlankLines(lines,UiTooltips::blank);
+    }
+    public static <T> List<T> collapseBlankLines(List<T> lines,java.util.function.Predicate<T> blank) {
+        int first=0,last=lines.size();
+        while(first<last&&blank.test(lines.get(first)))first++;
+        while(last>first&&blank.test(lines.get(last-1)))last--;
+        return UiTooltipText.collapseBlankLines(lines.subList(first,last),blank);
     }
     public static void background(GuiGraphicsExtractor graphics,int x,int y,int width,int height) {
         UiAssets.nineSlice(graphics,"production/tooltip",x,y,width,height,6,.5);

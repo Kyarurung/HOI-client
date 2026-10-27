@@ -26,7 +26,7 @@ public final class ScreenCommanderSourceTest {
             context.setScreen(()->new ScreenCommanderRoster(issued,parent,sent::add));
             context.runOnClient(client->{
                 for(String asset:List.of("panel","army","navy","marshal","attack","defense","planning","logistics","maneuver","coordination"))if(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/commander/ui/"+asset+".png")).isEmpty())throw new AssertionError("Missing source commander frame "+asset);
-                long candidates=client.gui.screen().children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->issued.tiles().stream().anyMatch(t->t.name().equals(c.getMessage().getString()))).count();
+                long candidates=client.gui.screen().children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->issued.tiles().stream().anyMatch(t->t.name().equals(c.getMessage().getString()))).filter(c->c.getHeight()==47).count();
                 if(candidates!=4)throw new AssertionError("Roster must retain four complete rows above the footer: "+candidates);
                 var screen=(ScreenCommanderRoster)client.gui.screen();var reached=new HashSet<String>();
                 for(int step=0;step<issued.tiles().size();step++){

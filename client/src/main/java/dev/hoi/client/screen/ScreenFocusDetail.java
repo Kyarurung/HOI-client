@@ -89,7 +89,7 @@ final class ScreenFocusDetail {
     private int maximum(int index){return switch(index){case 0 -> requirementMaximum;case 1 -> descriptionMaximum;default -> rewardMaximum;};}
     private int offset(int index){return switch(index){case 0 -> requirementScroll;case 1 -> descriptionScroll;default -> rewardScroll;};}
     private void offset(int index,int value){value=Math.clamp(value,0,maximum(index));switch(index){case 0 -> requirementScroll=value;case 1 -> descriptionScroll=value;default -> rewardScroll=value;}}
-    private static int thumbHeight(Bounds area,int maximum){return Math.min(Math.max(8,area.height()-16),Math.max(8,(area.height()-16)*area.height()/(maximum+area.height())));}
+    private static int thumbHeight(Bounds area,int maximum){return 8;}
     private static int thumbTop(Bounds area,int scroll,int maximum){return area.y()+8+(area.height()-16-thumbHeight(area,maximum))*scroll/maximum;}
     boolean press(double x,double y) {
         release();
@@ -226,7 +226,7 @@ final class ScreenFocusDetail {
             UiAssets.nineSlice(g,"commander/commands/scroll_track/frame_0",x+1,area.y()+8,6,area.height()-16,4,.5);
             UiAssets.draw(g,"commander/commands/scroll_up/frame_0",x,area.y(),8,8);
             UiAssets.draw(g,"commander/commands/scroll_down/frame_0",x,area.y()+area.height()-8,8,8);
-            UiAssets.nineSlice(g,"commander/commands/scroll_drager/frame_0",x,thumbTop(area,scroll,maximum),8,thumbHeight(area,maximum),4,.5);
+            UiAssets.draw(g,"commander/commands/scroll_drager/frame_0",x,thumbTop(area,scroll,maximum),8,thumbHeight(area,maximum));
         }
     }
     private static void drawCentered(GuiGraphicsExtractor g,Font font,String text,Bounds area,float scale) {

@@ -605,27 +605,27 @@ public final class ScreenDecision extends Screen implements InputSidebarMovement
     }
     private int maximumScroll() { return Math.max(0,total-contentBottom()+contentTop()); }
     private int scrollThumbHeight() {
-        int track=Math.max(1,contentBottom()-contentTop()-20);
-        return Math.min(track,Math.max(12,track*(contentBottom()-contentTop())/Math.max(1,total)));
+        return 8;
     }
     private int scrollThumbTop() {
         int travel=Math.max(1,contentBottom()-contentTop()-20-scrollThumbHeight());
         return contentTop()+10+(int)Math.round(travel*scroll/(double)Math.max(1,maximumScroll()));
     }
     private void drawScrollbar(GuiGraphicsExtractor g) {
+        if(maximumScroll()==0)return;
         String path="commander/commands/";
         int x=pane-11,top=contentTop(),height=contentBottom()-top;
         UiAssets.nineSlice(g,path+"scrollbar_vertical_bg/frame_0",x,top,9,height,3,.5);
         UiAssets.nineSlice(g,path+"scroll_track/frame_0",x+2,top+10,5,height-20,2,.5);
         UiAssets.draw(g,path+"scroll_up/frame_0",x,top,8,8);
         UiAssets.draw(g,path+"scroll_down/frame_0",x,contentBottom()-8,8,8);
-        UiAssets.nineSlice(g,path+"scroll_drager/frame_0",x,scrollThumbTop(),8,scrollThumbHeight(),3,.5);
+        UiAssets.draw(g,path+"scroll_drager/frame_0",x,scrollThumbTop(),8,scrollThumbHeight());
     }
     private void scrollTo(int value) {
         scroll=Math.clamp(value,0,maximumScroll());rebuildWidgets();
     }
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice) {
-        if(event.x()>=pane-12 && event.x()<pane && event.y()>=contentTop() && event.y()<contentBottom()) {
+        if(maximumScroll()>0 && event.x()>=pane-12 && event.x()<pane && event.y()>=contentTop() && event.y()<contentBottom()) {
             if(event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return true;
             if(event.y()<contentTop()+10)scrollTo(scroll-28);
             else if(event.y()>=contentBottom()-10)scrollTo(scroll+28);

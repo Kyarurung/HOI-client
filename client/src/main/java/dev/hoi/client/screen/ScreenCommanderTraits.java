@@ -49,17 +49,9 @@ public final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi
     private int nodeY(ProtocolDialogView.TraitNode n) {return y(55+27.5*n.row())-(n.terrain()?terrainScroll:scroll);}
     boolean visible(ProtocolDialogView.TraitNode n) {int py=nodeY(n);return n.row()>=0&&py>=y(55)&&py+size(19.5)<=y(380);}
     private int maximum(boolean terrain){if(advisorRoles())return Math.max(0,(int)roleTiles().stream().filter(t->chief(t)==terrain).count()*size(26)-size(325));return Math.max(0,view().tiles().stream().filter(t->t.traitNode()!=null&&t.traitNode().terrain()==terrain).mapToInt(t->Math.max(0,t.traitNode().row())*size(27.5)+size(19.5)-size(325)).max().orElse(0));}
-    private void scrollbar(GuiGraphicsExtractor g,boolean terrain){
-        int maximum=maximum(terrain),px=x(terrain?661:452),py=y(55),height=size(325),thumb=Math.max(size(12),height*height/(height+maximum));
-        UiAssets.nineSlice(g,"commander/commands/scroll_track/frame_0",px,py,size(8),height,3,scale*.5);
-        int offset=maximum==0?0:(height-thumb)*(terrain?terrainScroll:scroll)/maximum;
-        UiAssets.nineSlice(g,"commander/commands/scroll_drager/frame_0",px,py+offset,size(8),thumb,3,scale*.5);
-    }
-    private void dragScrollbar(double mouseY){
-        boolean terrain=dragging==1;int maximum=maximum(terrain),height=size(325),thumb=Math.max(size(12),height*height/(height+maximum));
-        int next=(int)Math.round(Math.clamp((mouseY-y(55)-thumb/2.)/Math.max(1,height-thumb),0,1)*maximum);
-        if(terrain)terrainScroll=next;else scroll=next;rebuildWidgets();
-    }
+    private UiScrollBar scrollbar(boolean terrain){return new UiScrollBar(x(terrain?661:452),y(47),y(388),size(325),size(325)+maximum(terrain));}
+    private void scrollbar(GuiGraphicsExtractor g,boolean terrain){scrollbar(terrain).draw(g,terrain?terrainScroll:scroll);}
+    private void dragScrollbar(double mouseY){int next=scrollbar(dragging==1).offset(mouseY);if(dragging==1)terrainScroll=next;else scroll=next;rebuildWidgets();}
     private void button(String id,String text,double px,double py,double w,double h) {
         var button=new UiMenuButton(text,x(px),y(py),size(w),size(h),()->submit(id)).caption("");if(id.equals("advisor-roles")||id.equals("traits"))button.background("officer/hq/captured_tab/frame_1");button.active=!pending;choices.put(id,button);addRenderableWidget(button);
     }
@@ -145,7 +137,7 @@ public final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi
             sourceArt(g,"commander/tree/new",x(10),y(ownedY),33,40,.45f);ownedLabel(g,"특성 선택",x(28),y(ownedY+2),size(104),size(12),0xFFB3A578,false);
             if(mx>=x(8)&&mx<x(135)&&my>=y(87.5)&&my>=y(ownedY)&&my<y(ownedY+20)&&my<y(331.5))hovered=view().body();
             ownedY+=24;g.disableScissor();ownedMax=Math.max(0,ownedY+ownedScroll-331);
-            if(ownedMax>0){int h=y(331.5)-y(87.5),thumb=Math.max(size(12),h*h/(h+size(ownedMax)));UiAssets.nineSlice(g,"commander/commands/scroll_track/frame_0",x(136),y(87.5),size(4),h,3,scale*.5);UiAssets.nineSlice(g,"commander/commands/scroll_drager/frame_0",x(136),y(87.5)+(h-thumb)*ownedScroll/ownedMax,size(4),thumb,3,scale*.5);}
+            if(ownedMax>0){int h=y(331.5)-y(87.5),thumb=8;UiAssets.nineSlice(g,"commander/commands/scroll_track/frame_0",x(136),y(87.5),size(4),h,3,scale*.5);UiAssets.draw(g,"commander/commands/scroll_drager/frame_0",x(138)-thumb/2,y(87.5)+(h-thumb)*ownedScroll/ownedMax,thumb,thumb);}
         }
         var preferred=view().tiles().stream().filter(t->t.section().equals("preferred-tactic-info")).findFirst().orElse(null);
         if(preferred!=null) {
@@ -190,7 +182,7 @@ public final class ScreenCommanderTraits extends ScreenDialog implements dev.hoi
         if(terrain)terrainScroll=Math.clamp(terrainScroll-(int)(vertical*size(20)),0,Math.max(0,max));else scroll=Math.clamp(scroll-(int)(vertical*size(20)),0,Math.max(0,max));rebuildWidgets();return true;
     }
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){
-        if(!confirming()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&event.y()>=y(55)&&event.y()<y(380))for(int index=0;index<2;index++)if(event.x()>=x(index==1?661:452)&&event.x()<x(index==1?669:460)){dragging=index;dragScrollbar(event.y());return true;}
+        if(!confirming()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)for(int index=0;index<2;index++){var bar=scrollbar(index==1);if(bar.contains(event.x(),event.y())){if(bar.arrow(event.y())){if(index==1)terrainScroll=bar.step(event.y(),terrainScroll,size(26));else scroll=bar.step(event.y(),scroll,size(26));rebuildWidgets();}else{dragging=index;dragScrollbar(event.y());}return true;}}
         return super.mouseClicked(event,twice)||event.x()>=left&&event.x()<x(671.5)&&event.y()>=top&&event.y()<y(391.5);
     }
     @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy){if(dragging<0)return super.mouseDragged(event,dx,dy);dragScrollbar(event.y());return true;}

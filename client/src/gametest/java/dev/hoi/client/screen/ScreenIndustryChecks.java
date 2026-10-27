@@ -537,12 +537,12 @@ public final class ScreenIndustryChecks {
             }
             var geometry = context.computeOnClient(client -> {
                 var screen = (ScreenIndustry)client.gui.screen();
-                float scale = (screen.panelWidth() - 12) / 511f;
+                float scale = (screen.panelWidth() - 22) / 511f;
                 int x = 6 + Math.round(464 * scale), w = screen.panelWidth() - 9 - x;
                 int textWidth = Math.min(w - 10, Math.round(client.font.width("30") * dev.hoi.client.ui.UiText.scale(client.font)));
                 int left = x + (w - 8 - textWidth) / 2;
-                return new float[]{scale, left, textWidth, dev.hoi.client.ui.UiMenuBar.height(screen.width) + 135,
-                        Math.max(62, Math.round((screen.panelWidth() - 12) * 116f / 511)) + 2};
+                return new float[]{scale, left, textWidth, dev.hoi.client.ui.UiMenuBar.height(screen.width) + 147,
+                        Math.max(62, Math.round((screen.panelWidth() - 22) * 116f / 511)) + 2};
             });
             var model = fixture.equipment().getFirst();
             for (int i = 0; i < 2; i++) {
@@ -996,6 +996,7 @@ public final class ScreenIndustryChecks {
         context.runOnClient(client -> checkBounds((ScreenIndustry)client.gui.screen()));
         click(context,"대대 목록 닫기");
         context.getInput().resizeWindow(854, 480); context.waitTicks(3);
+        context.takeScreenshot("hoi-industry-compact-designer-before-bounds");
         context.runOnClient(client -> { var s = (ScreenIndustry)client.gui.screen(); checkBounds(s); s.mouseScrolled(150, 160, 0, -100); checkBounds(s); });
         context.waitTicks(2); context.takeScreenshot("hoi-industry-compact-designer");
         context.runOnClient(client -> {
