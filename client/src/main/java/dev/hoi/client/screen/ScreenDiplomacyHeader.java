@@ -42,9 +42,10 @@ final class ScreenDiplomacyHeader {
         UiText.text(g, font, font.plainSubstrByWidth(entry(view, "다음 선거").value(), (int)(textW / UiText.scale(font))), textX, textY + 25, UiMenuStyle.TEXT);
         int focusH = Math.max(28, scaled(64, pane));
         int focusY = y + leaderH - focusH - 3, focusX = right + scaled(100, pane);
-        UiAssets.draw(g, "politics/empty/focus", right + 4, focusY, scaled(90, pane), focusH);
-        UiAssets.nineSlice(g, "diplomacy/focus", focusX, focusY, pane - focusX - 12, focusH, 5, pane / 550.0);
         var focus = view.focuses().stream().filter(e -> !e.value().equals("완료")).findFirst().orElse(new ProtocolMenuView.Entry("선택된 중점 없음", "", ""));
+        UiAssets.draw(g, focus.name().equals("알려지지 않은 중점") ? ScreenIntelLedger.source("goal_unknown", 0)
+            : focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), right + 4, focusY, scaled(90, pane), focusH);
+        UiAssets.nineSlice(g, "diplomacy/focus", focusX, focusY, pane - focusX - 12, focusH, 5, pane / 550.0);
         UiText.centered(g, font, focus.name(), focusX + 4, focusY + 3, pane - focusX - 20, focusH - 6, UiMenuStyle.TEXT);
         int spiritY = spiritsTop(top, pane), spiritH = Math.max(32, scaled(72, pane));
         UiAssets.nineSlice(g, "diplomacy/spirits", scaled(15, pane), spiritY, pane - scaled(30, pane), spiritH, 5, pane / 550.0);
@@ -74,6 +75,11 @@ final class ScreenDiplomacyHeader {
         int size=scaled(80,pane),left=right+(cellW-size)/2+2,upper=politicsTop(top)+(cellH-size)/2+1;
         double dx=x-left-size/2.0,dy=mouseY-upper-size/2.0;
         return ScreenPartyChart.at(view.diplomacy().stream().filter(party->party.icon().startsWith("politics/party/") || party.icon().startsWith("politics/ideology/")).toList(),dx,dy,size/2.0);
+    }
+    ProtocolMenuView.Entry focusAt(ProtocolCountryView view, double x, double mouseY, int pane, int top) {
+        int height = Math.max(28, scaled(64, pane)), y = politicsTop(top) + leaderHeight(pane) - height - 3;
+        if (x < scaled(147, pane) || x >= pane - 12 || mouseY < y || mouseY >= y + height) return null;
+        return view.focuses().stream().filter(entry -> !entry.value().equals("완료")).findFirst().orElse(null);
     }
     boolean leaderAt(double x, double y, int pane, int top) {
         int left = scaled(13, pane), upper = politicsTop(top);

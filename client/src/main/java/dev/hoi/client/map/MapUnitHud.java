@@ -75,7 +75,7 @@ public final class MapUnitHud {
         if(!MapCommanderPanels.shift())selected.clear();
         for(int i=boxes.size()-1;i>=0;i--) {
             var box=boxes.get(i);
-            if(box.contains(x,y)&&selectable(box.counter(),dimension)){if(!selected.remove(box.counter().key()))selected.add(box.counter().key());dev.hoi.client.audio.AudioUiSounds.play("ui.division.select");MapCommanderPanels.mapSelectionChanged();return true;}
+            if(box.contains(x,y)&&selectable(box.counter(),dimension)){if(!selected.remove(box.counter().key()))selected.add(box.counter().key());dev.hoi.client.audio.AudioUiSounds.play(selectionSound(box.counter()));MapCommanderPanels.mapSelectionChanged();return true;}
         }
         MapCommanderPanels.mapSelectionChanged();return false;
     }
@@ -88,9 +88,10 @@ public final class MapUnitHud {
         double right=Math.max(startX,endX),bottom=Math.max(startY,endY);
         for(var box:boxes)if(selectable(box.counter(),dimension)&&box.x()<right&&box.x()+box.width()>left
                 &&box.y()<bottom&&box.y()+box.height()>top)selected.add(box.counter().key());
-        if(!selected.isEmpty())dev.hoi.client.audio.AudioUiSounds.play("ui.division.select");
+        boxes.stream().map(MapHudBox::counter).filter(c->selected.contains(c.key())).findFirst().ifPresent(c->dev.hoi.client.audio.AudioUiSounds.play(selectionSound(c)));
         MapCommanderPanels.mapSelectionChanged(true);
     }
+    private static String selectionSound(Counter counter){return counter.navy()?"ui.fleet.select":counter.air()?"ui.aircraft.select":"ui.division.select";}
     static boolean selectable(Counter counter,String dimension) {
         if(dimension.startsWith("hoi:atlas_army_"))return !counter.navy()&&!counter.air();
         if(dimension.startsWith("hoi:atlas_navy_"))return counter.navy();
@@ -160,10 +161,10 @@ public final class MapUnitHud {
                 || !UiAssets.draw(g,"unit_hud/flags/"+c.country().toLowerCase(Locale.ROOT),c.navy()||c.air()?4:5,flagY,10,7))
             UiAssets.draw(g,flag,c.navy()||c.air()?4:5,flagY,10,7);
         if(c.navy()) {
-            UiText.centered(g,font,Integer.toString(c.capitals()),32,5,34,14,0xFFFFFFFF);
-            UiText.centered(g,font,count(c.count()-c.capitals()),32,20,34,14,0xFFFFFFFF);
+            UiText.centered(g,font,Integer.toString(c.capitals()),32,4,34,14,0xFFFFFFFF);
+            UiText.centered(g,font,count(c.count()-c.capitals()),32,19,34,14,0xFFFFFFFF);
             if(c.capitals()>0)UiAssets.draw(g,"unit_hud/capital",59,7,7,7);
-        } else UiText.centered(g,font,c.unknown()?"?":count(c.count()),c.air()?21:36,c.air()?8:7,c.air()?50:20,14,0xFFFFFFFF);
+        } else UiText.centered(g,font,c.unknown()?"0":count(c.count()),c.air()?21:36,7,c.air()?50:20,14,0xFFFFFFFF);
         if(c.status()==Status.TRAINING)UiAssets.draw(g,"unit_hud/"+(c.air()?"air_training":"training"),c.air()?-14:c.navy()?63:54,c.air()?7:8,c.air()?14:12,c.air()?14:12);
         if(c.air()&&c.status()==Status.IDLE)UiAssets.draw(g,"unit_hud/no_orders",-10,8,12,14);
         if(MapCommanderPanels.counterSelected(c.key()))UiAssets.draw(g,"unit_hud/"+(c.navy()?"navy":"army")+"_selected",0,0,c.navy()?74:68,c.navy()?36:28);
@@ -204,12 +205,12 @@ public final class MapUnitHud {
         int line=y+8+titleCount*12;
         String[] labels={"평균 조직력","평균 내구도","보급 상황"};
         double[] ratios={c.organization(),c.strength(),c.supply()};
-        for(int i=0;i<labels.length;i++)UiText.text(g,font,Component.literal(labels[i]+": ").append(Component.literal(c.unknown()&&i==2?"?":decimal(ratios[i]*100)+"%").withColor(dev.hoi.client.ui.UiTooltips.GOLD)),x+6,line+i*12,0xFFFFFFFF);
+        for(int i=0;i<labels.length;i++)UiText.text(g,font,Component.literal(labels[i]+": ").append(Component.literal(c.unknown()&&i==2?"0":decimal(ratios[i]*100)+"%").withColor(dev.hoi.client.ui.UiTooltips.GOLD)),x+6,line+i*12,0xFFFFFFFF);
         int i=0;
         for(var entry:new TreeMap<>(c.battalions()).entrySet()) {
             int bx=x+6+i%columns*cellWidth,by=line+40+i/columns*16;
             UiAssets.drawTinted(g,"unit_hud/"+entry.getKey(),bx,by,16,12,tint(c.allegiance()));
-            UiText.text(g,font,(c.unknown()?entry.getValue()+"–"+c.battalionMaximums().get(entry.getKey()):Integer.toString(entry.getValue())),bx+18,by+1,0xFFFFFFFF);i++;
+            UiText.leftSingleLine(g,font,Component.literal(c.unknown()?entry.getValue()+"–"+c.battalionMaximums().get(entry.getKey()):Integer.toString(entry.getValue())),bx+18,by,cellWidth-18,12,0xFFFFFFFF);i++;
         }
     }
 }

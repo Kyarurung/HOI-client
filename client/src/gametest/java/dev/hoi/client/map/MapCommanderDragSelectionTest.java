@@ -21,8 +21,25 @@ final class MapCommanderDragSelectionTest {
         for(var entry:json.getAsJsonArray("cards")){var card=entry.getAsJsonObject();if(card.get("id").getAsString().equals(armies.getFirst().id()))card.getAsJsonObject("panel").addProperty("parent","");}
         var detached=new Snapshot(json.toString()).view();drag(game,detached,rows);game.runOnClient(client->stack(3));capture(game,size,"mixed-groups");
         drag(game,view,armies.getFirst().panel().members());game.runOnClient(client->{hidden();if(MapCommanderPanels.hits().stream().filter(h->h.icon().equals("army_portrait")).count()!=1||MapCommanderPanels.hits().stream().noneMatch(h->h.icon().equals("deploy_hq_button")))throw new AssertionError("One dragged army retains its full panel");});capture(game,size,"single-army");
-        game.runOnClient(client->{MapUnitHud.selectDivisions(rows.stream().map(Member::id).toList(),false);});game.waitTicks(2);game.runOnClient(client->{hidden();if(MapCommanderPanels.hits().stream().anyMatch(h->h.icon().equals("army_portrait")))throw new AssertionError("Direct selection must not enter the drag-only stack");});
+        game.runOnClient(client->{MapUnitHud.selectDivisions(rows.stream().map(Member::id).toList(),false);});game.waitTicks(2);game.runOnClient(client->stack(4));capture(game,size,"direct-multiple");
+        selectionPaths(game,size,view,armies);
         game.runOnClient(client->{MapCommanderHud.reset();MapUnitHud.reset();MapCommanderHud.accept(view);MapCommanderPanels.select(group.id(),false);});game.waitTicks(2);
+    }
+    static void selectionPaths(ClientGameTestContext game,int[] size,View view,List<Card> armies){
+        var army=armies.getFirst();
+        game.runOnClient(client->{MapCommanderHud.reset();MapUnitHud.reset();MapCommanderHud.accept(view);MapCommanderPanels.select(army.id(),false);});game.waitTicks(2);
+        var rowCount=game.computeOnClient(client->MapCommanderPanels.hits().stream().filter(h->h.icon().equals("division_army")).count());
+        game.runOnClient(client->{var half=MapCommanderPanels.hits().stream().filter(h->h.icon().equals("select_half")).findFirst().orElseThrow();MapCommanderPanels.click(half.x()+half.w()/2.,half.y()+half.h()/2.);});game.waitTicks(2);
+        game.runOnClient(client->{
+            if(MapUnitHud.selectedKeys().size()!=(army.panel().divisionIds().size()+1)/2)throw new AssertionError("Half selection must retain exactly half of the original divisions");
+            if(MapCommanderPanels.hits().stream().filter(h->h.icon().equals("army_portrait")).count()!=1||MapCommanderPanels.hits().stream().noneMatch(h->h.icon().equals("deploy_hq_button")))throw new AssertionError("Half selection must preserve the current army detail");
+            if(MapCommanderPanels.hits().stream().filter(h->h.icon().equals("division_army")).count()!=rowCount)throw new AssertionError("Half selection must keep selected and unselected rows in the same body");
+        });capture(game,size,"half-in-place");
+        game.runOnClient(client->MapCommanderPanels.select(army.id(),false));game.waitTicks(2);
+        game.getInput().holdKey(InputConstants.KEY_LSHIFT);
+        try{game.runOnClient(client->{var portrait=MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_ARMY&&b.request().target().equals(armies.get(1).id())).findFirst().orElseThrow();MapCommanderHud.clickAt(portrait.x()+portrait.width()/2.,portrait.y()+portrait.height()/2.,InputConstants.MOUSE_BUTTON_LEFT,false);});}finally{game.getInput().releaseKey(InputConstants.KEY_LSHIFT);}
+        game.waitTicks(2);
+        game.runOnClient(client->{if(MapCommanderPanels.hits().stream().filter(h->h.icon().equals("army_portrait")).count()!=3)throw new AssertionError("Shift-selected armies must share the drag selection header layout");});capture(game,size,"shift-multiple");
     }
     private static void drag(ClientGameTestContext game,View view,List<Member> rows){
         game.runOnClient(client->{MapCommanderHud.reset();MapUnitHud.reset();MapCommanderHud.accept(view);var camera=client.gameRenderer.mainCamera();var center=camera.position().add(new net.minecraft.world.phys.Vec3(camera.forwardVector()).scale(12)).subtract(new net.minecraft.world.phys.Vec3(camera.leftVector()).scale(3));var counter=new dev.hoi.protocol.ProtocolUnitHud.Counter("cmp39-selection","KOR","대한민국","infantry","선택 검사",rows.size(),center.x,center.y-3.1,center.z,1,1,1,Map.of());MapUnitHud.accept(new dev.hoi.protocol.ProtocolUnitHud.Snapshot(view.dimension(),List.of(counter)));});game.waitTicks(2);

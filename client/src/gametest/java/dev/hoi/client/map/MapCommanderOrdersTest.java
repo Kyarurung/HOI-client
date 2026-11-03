@@ -15,12 +15,7 @@ import net.minecraft.client.input.MouseButtonInfo;
 
 final class MapCommanderOrdersTest {
     private MapCommanderOrdersTest() {}
-    private static void assertHintOutsideControls(){
-        var hint=MapCommanderOrders.hintBounds();if(hint==null)throw new AssertionError("Direct map input must render its visible hint");
-        var screen=net.minecraft.client.Minecraft.getInstance().gui.screen();int ceiling=MapCommanderHud.boxes().stream().mapToInt(MapCommanderHud.Box::y).min().orElseThrow()-new dev.hoi.client.ui.UiUnits(screen.width,screen.height).size(32);if(hint.y()+hint.height()>ceiling)throw new AssertionError("Direct hint must remain above card decorations and the whole bottom actionbar");
-        for(var box:MapCommanderHud.boxes())if(hint.x()<box.x()+box.width()&&hint.x()+hint.width()>box.x()&&hint.y()<box.y()+box.height()&&hint.y()+hint.height()>box.y())throw new AssertionError("Direct hint overlaps commander card");
-        for(var hit:MapCommanderPanels.hits())if(hint.x()<hit.x()+hit.w()&&hint.x()+hint.width()>hit.x()&&hint.y()<hit.y()+hit.h()&&hint.y()+hint.height()>hit.y())throw new AssertionError("Direct hint overlaps panel/actionbar/popup");
-    }
+    private static void assertMessagesHidden(){if(!MapSelectorHud.hidesMessages())throw new AssertionError("Campaign commands must hide HUD explanations");}
     private static void clickLabel(String key){String prefix=UiCommandLabels.withoutShortcuts(UiCommandLabels.text(key,"missing/"+key));var hit=MapCommanderPanels.hits().stream().filter(h->h.tip().startsWith(prefix)).findFirst().orElseThrow(()->new AssertionError("Missing mouse control: "+key));net.minecraft.client.Minecraft.getInstance().gui.screen().mouseClicked(new MouseButtonEvent(hit.x()+hit.w()/2.,hit.y()+hit.h()/2.,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0)),false);}
     private static MouseButtonEvent right(double x,double y){return new MouseButtonEvent(x,y,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_RIGHT,0));}
     private static void ack(Context issued,long revision,String pending){MapCommanderOrders.accept(new Context(issued.token(),revision,issued.country(),issued.dimension(),pending));}
@@ -98,7 +93,7 @@ final class MapCommanderOrdersTest {
                         ack(issued[0],11,kind.equals("army")?"":action);if(!MapCommanderOrders.ready())throw new AssertionError("New authoritative revision must release pending input");
                     });
                     if(!kind.equals("army"))game.runOnClient(client->{if(MapCommanderHud.boxes().stream().anyMatch(box->box.action()!=null&&box.tip().equals("선택한 부대 임무 패널")))throw new AssertionError("Direct mission controls must not be duplicated by an intermediate mission button");});
-                    game.getInput().setCursorPos(size[0]-30,90);game.runOnClient(client->{if(kind.equals("army"))MapCommanderOrders.message("현재 지도의 명령 정보를 기다리고 있습니다.");});game.waitTicks(1);game.runOnClient(client->{assertHintOutsideControls();});game.takeScreenshot("hoi-direct-command-"+kind+"-"+size[0]+"x"+size[1]+"-gui2");
+                    game.getInput().setCursorPos(size[0]-30,90);game.runOnClient(client->{if(kind.equals("army"))MapCommanderOrders.message("현재 지도의 명령 정보를 기다리고 있습니다.");});game.waitTicks(1);game.runOnClient(client->{assertMessagesHidden();});game.takeScreenshot("hoi-direct-command-"+kind+"-"+size[0]+"x"+size[1]+"-gui2");
                     if(kind.equals("army")){game.runOnClient(client->MapUnitHud.selectDivisions(refreshSelection.stream().filter(id->id.startsWith("unit/")).map(id->id.substring(5)).toList(),false));game.waitTicks(2);}
                     game.runOnClient(client->{
                         var screen=client.gui.screen();double x=screen.width*.78,y=screen.height*.48;int before=commands.size();var exact=MapCommanderPanels.commandSelection();
@@ -120,7 +115,7 @@ final class MapCommanderOrdersTest {
                             if(!commands.getLast().action().equals("LAND/FRONT")||!commands.getLast().selection().equals(List.of(first.id()))||!(client.gui.screen() instanceof ScreenMapCursor))throw new AssertionError("Front button must enter direct map drawing for the actual Army without a plan chooser");
                             ack(issued[0],13,"LAND/FRONT");var screen=client.gui.screen();double x=screen.width*.60,y=screen.height*.42;screen.mouseClicked(right(x,y),false);
                             for(int n=1;n<=80;n++)screen.mouseDragged(right(x+n*screen.width*.002,y+n*screen.height*.001),screen.width*.002,screen.height*.001);
-                        });game.waitTicks(65);game.runOnClient(client->{if(MapCommanderOrders.hintBounds()!=null)throw new AssertionError("Drawing mode must not create a synthetic footer instruction");});game.takeScreenshot("hoi-direct-land-drag-"+size[0]+"x"+size[1]+"-gui2");
+                        });game.waitTicks(65);game.runOnClient(client->{assertMessagesHidden();});game.takeScreenshot("hoi-direct-land-drag-"+size[0]+"x"+size[1]+"-gui2");
                         game.runOnClient(client->{
                             var screen=client.gui.screen();int before=commands.size();screen.mouseReleased(right(screen.width*.76,screen.height*.5));
                             if(commands.size()!=before+1||!commands.getLast().action().equals("MAP")||commands.getLast().rays().size()<2||commands.getLast().rays().size()>64)throw new AssertionError("Actual land drag must send its bounded sampled ray path once");

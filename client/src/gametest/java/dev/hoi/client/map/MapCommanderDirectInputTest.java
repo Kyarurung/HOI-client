@@ -55,7 +55,7 @@ final class MapCommanderDirectInputTest {
         }
     }
     private static List<String> skills(){return MapCommanderPanels.hits().stream().map(MapCommanderPanels.Hit::icon).filter(icon->icon.startsWith("ability_")).toList();}
-    private static MapCommanderPanels.Hit airRow(Member wing){return MapCommanderPanels.hits().stream().filter(hit->hit.sound().equals("ui.division.select")&&hit.tip().equals("§e"+wing.name()+"§r\n"+wing.detail())).findFirst().orElseThrow();}
+    private static MapCommanderPanels.Hit airRow(Member wing){return MapCommanderPanels.hits().stream().filter(hit->hit.sound().equals("ui.aircraft.select")&&hit.tip().equals("§e"+wing.name()+"§r\n"+wing.detail())).findFirst().orElseThrow();}
     private static void clickArmy(String army){var box=MapCommanderHud.boxes().stream().filter(value->value.request()!=null&&value.request().mode()==Mode.ASSIGN_ARMY&&value.request().target().equals(army)).findFirst().orElseThrow();if(!MapCommanderHud.clickAt(box.x()+box.width()/2.,box.y()+box.height()/2.))throw new AssertionError("The actual army portrait must consume its selection click");}
     private static void retiredHit(MapCommanderPanels.Hit hit,String country){
         if(!MapCommanderPanels.hits().isEmpty())throw new AssertionError("Selection transitions must invalidate previous rendered hit closures immediately");

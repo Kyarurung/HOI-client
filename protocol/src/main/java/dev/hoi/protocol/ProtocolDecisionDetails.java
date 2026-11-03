@@ -46,16 +46,24 @@ public final class ProtocolDecisionDetails {
             } catch(RuntimeException error) {throw invalid("line",error);}
         }
     }
-    public record Section(Phase phase,List<Line> lines) {
+    public record Section(Phase phase,List<Line> lines,long days) {
+        public Section(Phase phase,List<Line> lines) {this(phase,lines,0);}
         public Section {
-            try {Objects.requireNonNull(phase);lines=ProtocolCountryView.bounded(lines,MAX_LINES);}
+            try {Objects.requireNonNull(phase);lines=ProtocolCountryView.bounded(lines,MAX_LINES);if(days<0||days>365_000||days>0&&phase!=Phase.MODIFIER)throw new IllegalArgumentException("Invalid section days");}
             catch(RuntimeException error) {throw invalid("section",error);}
         }
     }
     public record View(String country,String session,long revision,String id,String name,String description,String source,int line,
-            List<Section> sections,String limitation,boolean complete) {
+            List<Section> sections,String limitation,boolean complete,String mission,long missionDays) {
+        public View(String country,String session,long revision,String id,String name,String description,String source,int line,
+                List<Section> sections,String limitation,boolean complete) {
+            this(country,session,revision,id,name,description,source,line,sections,limitation,complete,"",0);
+        }
         public View {
             try {
+                mission=mission==null?"":mission;
+                if(!Set.of("","BAD","GOOD","SELECTABLE").contains(mission)||missionDays<0||missionDays>365_000||missionDays>0&&mission.isEmpty())
+                    throw new IllegalArgumentException("Invalid mission");
                 ProtocolCountryView.tag(country);uuid(session);identifier(id);
                 ProtocolCountryView.text(name,MAX_NAME);ProtocolCountryView.text(description,MAX_DESCRIPTION);
                 ProtocolCountryView.text(source,MAX_SOURCE);ProtocolCountryView.text(limitation,MAX_LIMITATION);

@@ -15,6 +15,7 @@ public final class AudioChecks {
             if (!AudioUiSounds.START_SOUNDS.equals(List.of("ui.game_start", "ui.game_start_signal")))
                 throw new AssertionError("Both original start samples must play, not random variants");
             required.addAll(AudioUiSounds.START_SOUNDS);
+            required.addAll(List.of("ui.agency.decrypt.hover", "ui.agency.decrypt.select"));
             for (String event : required) {
                 if (AudioUiSounds.instance(event).getSource() != net.minecraft.sounds.SoundSource.MASTER)
                     throw new AssertionError("All HOI UI sounds use MASTER: " + event);

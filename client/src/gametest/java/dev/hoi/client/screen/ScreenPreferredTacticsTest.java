@@ -43,7 +43,7 @@ public final class ScreenPreferredTacticsTest {
             var national=fixture("national-tactic-choices");var leader=fixture("leader-tactic-choices");
             if(national.tiles().stream().anyMatch(t->t.tactic()==null)||leader.tiles().stream().anyMatch(t->!t.value().isEmpty()))
                 throw new AssertionError("Current native tactic metadata and separate leader quote required");
-            for(var resolution:List.of(new int[]{2560,1440,2},new int[]{1920,1080,2},new int[]{2560,1440,1},new int[]{1280,720,3})) {
+            for(var resolution:List.of(new int[]{2560,1440,2},new int[]{1280,720,2},new int[]{1920,1080,2},new int[]{2560,1440,1},new int[]{1280,720,3})) {
                 context.getInput().resizeWindow(resolution[0],resolution[1]);context.runOnClient(client->client.options.guiScale().set(resolution[2]));
                 var actions=new ArrayList<ProtocolDialogPayloads.Action>();
                 context.setScreen(()->new ScreenPreferredTactics(national,null,actions::add));

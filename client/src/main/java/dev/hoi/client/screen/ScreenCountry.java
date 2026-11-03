@@ -1,11 +1,13 @@
 package dev.hoi.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.ui.UiMenuBar;
 import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiAssets;
+import dev.hoi.client.ui.UiCountryFlags;
 
 import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -21,6 +23,8 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
     private java.util.function.Consumer<ProtocolCountryPayloads.Action> actionTransport = ClientPlayNetworking::send;
     private java.util.function.BooleanSupplier actionAvailable = () -> ClientPlayNetworking.canSend(ProtocolCountryPayloads.Action.TYPE);
     private ScreenDiplomacyHeader header;
+    private ScreenIntelLedger intelLedger;
+    private long ledgerOpenedAt;
     private String target, token = UUID.randomUUID().toString();
     private ProtocolIntelDomain domain = ProtocolIntelDomain.CIVILIAN;
     private boolean ledger, choosing, pending;
@@ -41,6 +45,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
     ProtocolCountryView view() { return view; }
     int panelWidth() { return pane; }
     void select(String tag) {
+        ledgerOpenedAt = net.minecraft.util.Util.getMillis();
         target = tag; view = null; token = UUID.randomUUID().toString(); scroll = 0; actionScroll = 0; detail = null; confirmation = null; pending = false; choosing = false;
         ticks = 0; rebuildWidgets();
     }
@@ -93,26 +98,27 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         header = new ScreenDiplomacyHeader(view, pane);
         int half = (pane - 18) / 2;
         var dip = new UiMenuButton("외교", 7, ScreenDiplomacyHeader.tabs(top), half, 20, () -> { ledger = false; choosing = false; scroll = 0; detail = null; rebuildWidgets(); });
-        var intel = new UiMenuButton("첩보 장부", 11 + half, ScreenDiplomacyHeader.tabs(top), half, 20, () -> { ledger = true; choosing = false; scroll = 0; detail = null; rebuildWidgets(); });
+        var intel = new UiMenuButton("첩보 장부", 11 + half, ScreenDiplomacyHeader.tabs(top), half, 20, () -> { ledgerOpenedAt = net.minecraft.util.Util.getMillis(); ledger = true; choosing = false; scroll = 0; detail = null; rebuildWidgets(); });
+        dip.background("none"); intel.background("none");
         addRenderableWidget(dip); addRenderableWidget(intel);
+        intelLedger = null;
         if (ledger && !choosing) {
             int cell = (pane - 16) / 4;
             for (var d : ProtocolIntelDomain.values()) {
                 var report = view.report(d);
-                var button = new UiMenuButton(d.label + " 정보", d.icon, domain == d, 8 + d.ordinal() * cell, ScreenDiplomacyHeader.tabs(top) + 25, cell - 2, 30,
-                        () -> { domain = d; scroll = 0; detail = null; rebuildWidgets(); });
-                String tips = "총 " + d.label + " 정보: " + String.format(Locale.ROOT, "%.1f%%", report.percent())
-                        + (view.shared() ? "\n동맹 정보 공유" : "") + "\n\n" + d.tiers.stream()
-                        .map(t -> (ProtocolIntelDomain.permits(report.percent(), view.shared(), t.percent()) ? "✓ " : "× ") + t.percent() + "% · " + t.description())
-                        .collect(java.util.stream.Collectors.joining("\n"));
-                button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(tips))); addRenderableWidget(button);
+                var button = new UiMenuButton(d.label + " 정보", 8 + d.ordinal() * cell, ScreenDiplomacyHeader.tabs(top) + 25, cell, 30,
+                        () -> { ledgerOpenedAt = net.minecraft.util.Util.getMillis(); domain = d; scroll = 0; detail = null; rebuildWidgets(); }).caption("").background("none");
+                String tips = report.tooltip();
+                button.setTooltip(dev.hoi.client.ui.UiTooltips.createExact(tips)); addRenderableWidget(button);
             }
+            intelLedger = new ScreenIntelLedger(view.report(domain), domain, pane, bodyTop() - 15, height - 33, ledgerOpenedAt);
+            intelLedger.addHoverRegions(this::addRenderableWidget);
         }
         addRenderableWidget(new UiMenuButton("국가 목록 열기", 8, height - 26, pane - 16, 19, () -> { choosing = !choosing; scroll = 0; detail = null; rebuildWidgets(); }));
-        int count = choosing ? view.countries().size() : entries().size(); total = count * 39;
+        int count = choosing ? view.countries().size() : entries().size(); total = count * (choosing ? 39 : relationPitch());
         int rowsWidth = !ledger && !choosing ? pane / 2 - 12 : pane - 22;
         scroll = Math.clamp(scroll, 0, Math.max(0, total - (height - 33 - bodyTop())));
-        for (int i = 0; (ledger || choosing) && i < count; i++) {
+        for (int i = 0; choosing && i < count; i++) {
             int y = bodyTop() + i * 39 - scroll;
             if (y < bodyTop() || y + 36 > height - 33) continue;
             final int index = i;
@@ -182,12 +188,14 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
     String relationTooltipAt(double x, double y) {
         if (view == null || ledger || choosing || detail != null || confirmation != null
                 || x < 9 || x >= pane / 2 - 3 || y < bodyTop() || y >= height - 33) return "";
-        int row = (int)(y - bodyTop() + scroll) / 39;
-        int rowY = bodyTop() + row * 39 - scroll;
-        return row >= 0 && row < view.relations().size() && y < rowY + 36
+        int row = (int)(y - bodyTop() + scroll) / relationPitch();
+        int rowY = bodyTop() + row * relationPitch() - scroll;
+        return row >= 0 && row < view.relations().size() && y < rowY + relationPitch() - 2
                 ? relationTooltip(view.relations().get(row)) : "";
     }
     private int bodyTop() { return choosing ? ScreenDiplomacyHeader.tabs(top) + 25 : ledger ? ScreenDiplomacyHeader.tabs(top) + 75 : ScreenDiplomacyHeader.body(top, pane); }
+    private int relationPitch() { return ScreenDiplomacyHeader.scaled(50, pane); }
+    String ledgerDetailAt(double x, double y) { return intelLedger == null ? "" : intelLedger.detailAt(x, y); }
     private int detailX() { return width - pane >= 200 ? pane + 5 : 5; }
     private int detailWidth() { return Math.min(330, width - detailX() - 6); }
     @Override public void tick() {
@@ -215,7 +223,7 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 String value = stat.value().endsWith("%") ? ProtocolNumberBounds.percent(stat.progress(), 0) : stat.value();
                 int x = statsX + i * statWidth;
                 dev.hoi.client.ui.UiText.iconText(g, font, i == 0 ? "hud/stability" : "hud/war_support",
-                        value.equals("정보 없음") ? "?" : value, x, top + 4, statWidth, 18, 11, UiMenuStyle.TEXT);
+                        value.equals("정보 없음") ? "0" : value, x, top + 4, statWidth, 18, 11, UiMenuStyle.TEXT);
                 if (mx >= x && mx < x + statWidth && my >= top + 4 && my < top + 22)
                     dev.hoi.client.ui.UiTooltips.drawExact(g, font, dev.hoi.client.ui.UiCountryDisplay.name(view.target(), view.name()) + " · " + stat.name() + ": " + (stat.value().endsWith("%") ? ProtocolNumberBounds.percent(stat.progress(), 2) : stat.value()), mx, my);
             }
@@ -239,38 +247,47 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
                 if (mx >= pane - 44 && mx < pane - 12 && my >= top + 33 && my < top + 65)
                     dev.hoi.client.ui.UiTooltips.draw(g, font, factionEntry.value() + "\n" + factionEntry.detail(), mx, my);
             }
+            int half = (pane - 18) / 2;
+            UiAssets.nineSlice(g, ScreenIntelLedger.source("tab_intel_ledger", ledger ? 0 : 1), 7, ScreenDiplomacyHeader.tabs(top), half, 20, 5, pane / 550.0);
+            UiAssets.nineSlice(g, ScreenIntelLedger.source("tab_intel_ledger", ledger ? 1 : 0), 11 + half, ScreenDiplomacyHeader.tabs(top), half, 20, 5, pane / 550.0);
             if (ledger && !choosing) for (var d : ProtocolIntelDomain.values()) {
                 int cell = (pane - 16) / 4, x = 8 + d.ordinal() * cell;
-                dev.hoi.client.ui.UiText.text(g, font, (int)view.report(d).percent() + "%", x + 10, ScreenDiplomacyHeader.tabs(top) + 58, UiMenuStyle.TEXT);
+                int y = ScreenDiplomacyHeader.tabs(top) + 25;
+                UiAssets.nineSlice(g, ScreenIntelLedger.source("intel_ledger_tab_btn", domain == d ? 1 : 0), x, y, cell, 30, 5, pane / 550.0);
+                UiAssets.draw(g, d.icon, x + (cell - 22) / 2, y + 1, 22, 16);
+                dev.hoi.client.ui.UiText.centered(g, font, Math.round(view.report(d).percent()) + "%", x, y + 17, cell, 12, UiMenuStyle.TEXT);
             }
             if (!ledger && !choosing) header.draw(g, font, view, pane, top);
             if (!ledger && !choosing) {
                 UiMenuStyle.recess(g, 5, bodyTop() - 4, pane / 2 - 8, Math.max(6, height - 27 - bodyTop()));
                 UiMenuStyle.recess(g, pane / 2, bodyTop() - 4, pane / 2 - 5, Math.max(6, height - 27 - bodyTop()));
-            } else UiMenuStyle.recess(g, 5, bodyTop() - 3, pane - 10, Math.max(6, height - 30 - bodyTop()));
+            } else if (choosing) UiMenuStyle.recess(g, 5, bodyTop() - 3, pane - 10, Math.max(6, height - 30 - bodyTop()));
+            if (intelLedger != null) intelLedger.draw(g, font);
             g.enableScissor(6, bodyTop(), pane - 6, height - 33);
             int count = choosing ? view.countries().size() : entries().size();
             int rowsWidth = !ledger && !choosing ? pane / 2 - 12 : pane - 22;
-            for (int i = 0; i < count; i++) {
-                int y = bodyTop() + i * 39 - scroll;
-                if (y + 36 < bodyTop() || y > height - 33) continue;
-                if (!ledger && !choosing) UiAssets.nineSlice(g, "diplomacy/relations", 9, y, rowsWidth, 36, 4, pane / 550.0);
+            for (int i = 0; (!ledger || choosing) && i < count; i++) {
+                int rowHeight = choosing ? 36 : relationPitch() - 2;
+                int y = bodyTop() + i * (choosing ? 39 : relationPitch()) - scroll;
+                if (y + rowHeight < bodyTop() || y > height - 33) continue;
+                if (!ledger && !choosing) UiAssets.draw(g, "diplomacy/relations", 9, y + ScreenDiplomacyHeader.scaled(3, pane), ScreenDiplomacyHeader.scaled(235, pane), ScreenDiplomacyHeader.scaled(44, pane));
                 else UiMenuStyle.control(g, 9, y, rowsWidth, 36, false, false);
                 if (!choosing && entries().get(i).name().equals("정보가 충분하지 않습니다"))
                     UiAssets.draw(g, "intel/no_intel", 9, y, rowsWidth, 36);
                 if (!ledger && !choosing) {
                     var relation=view.relations().get(i);
-                    UiAssets.draw(g,relation.icon(),11,y+7,22,22);
-                    int fw=Math.max(20,ScreenDiplomacyHeader.scaled(44,pane))+2,fh=Math.round(fw*38f/52);
+                    UiAssets.draw(g,relation.icon(),9-ScreenDiplomacyHeader.scaled(3,pane),y+ScreenDiplomacyHeader.scaled(12,pane),ScreenDiplomacyHeader.scaled(46,pane),ScreenDiplomacyHeader.scaled(27,pane));
+                    int fw=ScreenDiplomacyHeader.scaled(47,pane),fh=ScreenDiplomacyHeader.scaled(32,pane);
                     for(int j=0;j<relation.countries().size();j++) {
                         var country=relation.countries().get(j);
-                        int fx=dev.hoi.client.ui.UiFlagStack.left(j,relation.countries().size(),34,rowsWidth-26,fw),fy=y+(36-fh)/2;
-                        dev.hoi.client.ui.UiFlagStack.draw(g,"country/"+country.tag().toLowerCase(Locale.ROOT)+"/flag",fx,fy,fw,fh);
+                        int fx=dev.hoi.client.ui.UiFlagStack.left(j,relation.countries().size(),9+ScreenDiplomacyHeader.scaled(40,pane),ScreenDiplomacyHeader.scaled(160,pane),fw),fy=y+ScreenDiplomacyHeader.scaled(5,pane);
+                        UiCountryFlags.draw(g,"country/"+country.tag().toLowerCase(Locale.ROOT)+"/flag","small2",fx,fy,fw,fh);
                     }
                     continue;
                 }
                 String icon = choosing ? "country/" + view.countries().get(i).tag().toLowerCase(Locale.ROOT) + "/flag" : ledger ? domain.icon : "country/" + view.target().toLowerCase(Locale.ROOT) + "/flag";
-                UiAssets.draw(g, icon, 12, y + 5, 27, 25);
+                if (icon.endsWith("/flag")) UiCountryFlags.draw(g, icon, "small2", 12, y + 5, 27, 25);
+                else UiAssets.draw(g, icon, 12, y + 5, 27, 25);
                 String name = choosing ? dev.hoi.client.ui.UiCountryDisplay.name(view.countries().get(i).tag(), view.countries().get(i).name()) : entries().get(i).name();
                 String value = choosing ? view.countries().get(i).tag() : entries().get(i).value();
                 dev.hoi.client.ui.UiText.text(g, font, trim(name, rowsWidth - 42), 46, y + 6, UiMenuStyle.TEXT);
@@ -312,7 +329,13 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         super.extractRenderState(g, mx, my, delta);
         String relationTooltip = relationTooltipAt(mx, my);
         if (!relationTooltip.isEmpty()) dev.hoi.client.ui.UiTooltips.drawExact(g, font, relationTooltip, mx, my);
+        if (intelLedger != null && detail == null && confirmation == null) {
+            String tooltip = intelLedger.detailAt(mx, my);
+            if (!tooltip.isEmpty()) dev.hoi.client.ui.UiTooltips.drawExact(g, font, tooltip, mx, my);
+        }
         if (view != null && !ledger && !choosing && detail == null && confirmation == null) {
+            var focus = header.focusAt(view, mx, my, pane, top);
+            if (focus != null) dev.hoi.client.ui.UiTooltips.drawExact(g, font, focus.detail(), mx, my);
             var spirit = header.spiritAt(mx, my, pane, top);
             var party = header.partyAt(view,mx,my,pane,top);
             if(party!=null) dev.hoi.client.ui.UiTooltips.drawExact(g,font,party.detail(),mx,my);
@@ -330,18 +353,19 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
     ProtocolCountryView.Choice flagAt(double x,double y) {
         if(view==null||ledger||choosing||detail!=null||confirmation!=null
                 ||x<9||x>=pane/2-3||y<bodyTop()||y>=height-33||view.relations().isEmpty())return null;
-        int row=(int)(y-bodyTop()+scroll)/39;
+        int row=(int)(y-bodyTop()+scroll)/relationPitch();
         if(row<0||row>=view.relations().size())return null;
         var countries=view.relations().get(row).countries();
-        int fw=Math.max(20,ScreenDiplomacyHeader.scaled(44,pane))+2,fh=Math.round(fw*38f/52),ry=bodyTop()+row*39-scroll;
+        int fw=ScreenDiplomacyHeader.scaled(47,pane),fh=ScreenDiplomacyHeader.scaled(32,pane),ry=bodyTop()+row*relationPitch()-scroll+ScreenDiplomacyHeader.scaled(5,pane);
         for(int i=0;i<countries.size();i++) {
-            int fx=dev.hoi.client.ui.UiFlagStack.left(i,countries.size(),34,pane/2-38,fw);
-            int visible=dev.hoi.client.ui.UiFlagStack.visibleWidth(i,countries.size(),34,pane/2-38,fw);
-            if(x>=fx&&x<fx+visible&&y>=ry+(36-fh)/2&&y<ry+(36+fh)/2)return countries.get(i);
+            int fx=dev.hoi.client.ui.UiFlagStack.left(i,countries.size(),9+ScreenDiplomacyHeader.scaled(40,pane),ScreenDiplomacyHeader.scaled(160,pane),fw);
+            int visible=dev.hoi.client.ui.UiFlagStack.visibleWidth(i,countries.size(),9+ScreenDiplomacyHeader.scaled(40,pane),ScreenDiplomacyHeader.scaled(160,pane),fw);
+            if(x>=fx&&x<fx+visible&&y>=ry&&y<ry+fh)return countries.get(i);
         }
         return null;
     }
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice) {
+        if (intelLedger != null && detail == null && confirmation == null && event.button() == InputConstants.MOUSE_BUTTON_LEFT && intelLedger.click(event.x(), event.y())) return true;
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             var country=flagAt(event.x(),event.y());
             if(country!=null){select(country.tag());return true;}
@@ -349,7 +373,14 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
         return super.mouseClicked(event,twice);
     }
     private String trim(String text, int w) { return dev.hoi.client.ui.UiText.ellipsize(font, text, w); }
+    @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dx, double dy) {
+        return intelLedger != null && intelLedger.drag(event.y()) || super.mouseDragged(event, dx, dy);
+    }
+    @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
+        return intelLedger != null && intelLedger.release() || super.mouseReleased(event);
+    }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
+        if (intelLedger != null && detail == null && confirmation == null && intelLedger.scroll(x, y, vertical)) return true;
         if (y < UiMenuBar.STATS_HEIGHT && x >= 40 && x < UiMenuBar.statsRight(width)) {
             hudScroll = UiMenuBar.scroll(width, view == null ? ProtocolCountryHud.UNKNOWN : view.hud(), hudScroll, horizontal, vertical); return true;
         }
@@ -404,7 +435,6 @@ public final class ScreenCountry extends Screen implements InputSidebarMovement.
             setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(label)));
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-            if (active && isHoveredOrFocused()) g.outline(getX(),getY(),getWidth(),getHeight(),UiMenuStyle.ACCENT);
         }
     }
 }

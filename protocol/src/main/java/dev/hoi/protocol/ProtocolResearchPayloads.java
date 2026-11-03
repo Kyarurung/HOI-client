@@ -11,7 +11,7 @@ public final class ProtocolResearchPayloads {
     private static final Gson JSON = new Gson();
     private static boolean registered;
     private ProtocolResearchPayloads() {}
-    public static final int MAX_JSON = 400_000;
+    public static final int MAX_JSON = 600_000;
     public enum Action { OPEN, START, CANCEL, CLOSE, DESIGN_TEAM }
     public record OpenScreen() implements CustomPacketPayload {
         public static final Type<OpenScreen> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "research_open_v1"));
@@ -47,6 +47,7 @@ public final class ProtocolResearchPayloads {
         ProtocolFocusPayloads.registerPayloadTypes();
         ProtocolUnitHud.registerPayloadTypes();
         ProtocolDoctrinePayloads.registerPayloadTypes();
+        ProtocolRaidPayloads.registerPayloadTypes();
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE, Response.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(OpenScreen.TYPE, OpenScreen.CODEC);
@@ -56,6 +57,7 @@ public final class ProtocolResearchPayloads {
         PayloadTypeRegistry.clientboundPlay().register(ProtocolMenuPayloads.SelectionPreview.TYPE, ProtocolMenuPayloads.SelectionPreview.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ProtocolAgencyPayloads.Request.TYPE, ProtocolAgencyPayloads.Request.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ProtocolAgencyPayloads.Response.TYPE, ProtocolAgencyPayloads.Response.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ProtocolAgencyPayloads.Highlight.TYPE, ProtocolAgencyPayloads.Highlight.CODEC);
         registered = true;
     }
 }

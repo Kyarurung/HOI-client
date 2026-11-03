@@ -89,6 +89,18 @@ final class ScreenOrganization extends ScreenDialog {
         scroll=Math.clamp(scroll,0,Math.max(0,maxRow*56+96-(panelHeight-30)));
         for(var t:traits){if(t.traitNode()==null)continue;String token=t.section().substring(6);nodes.put(token,t);int x=nodeX(t),y=nodeY(t);if(y<top+48||y+40>top+panelHeight-8)continue;button(t.section(),t.name(),x,y,32,40,false,()->{});buttons.get(t.section()).setTooltip(UiTooltips.createOfficer(t.detail()));}
     }
+    private void funds(GuiGraphicsExtractor g,ProtocolDialogView.Tile summary){
+        g.pose().pushMatrix();g.pose().translate(left+68,top+53);g.pose().scale(.5f);
+        UiAssets.draw(g,art("leader_exp_bg"),0,0,171,11);
+        UiAssets.draw(g,art("leader_exp_fg_mid_background"),0,-1,171,11);
+        if(summary.gauge()!=null){
+            int progress=(int)Math.round(171*Math.clamp(summary.gauge().fraction(),0,1));
+            if(progress>0)g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+art("leader_exp_fg_mid_fill")+".png"),0,-1,progress,10,0,progress/171f,0,1);
+            UiAssets.draw(g,art("leader_exp_fg_begin"),0,0,3,11);
+            UiAssets.draw(g,art("leader_exp_fg_end"),Math.min(168,progress),0,3,11);
+        }
+        g.pose().popMatrix();
+    }
     private int nodeX(ProtocolDialogView.Tile t){return left+170+t.traitNode().column()*44;}
     private int nodeY(ProtocolDialogView.Tile t){return top+56+t.traitNode().row()*56-scroll;}
     private void text(GuiGraphicsExtractor g,String value,int x,int y,int w,int h,int color){UiText.leftSingleLine(g,font,UiKeywordIcons.decorateLines(UiTooltips.officerText(value),false),x,y,w,h,color);}
@@ -96,7 +108,7 @@ final class ScreenOrganization extends ScreenDialog {
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if((policies()||queueOpen)&&detailBackdrop!=null){detailBackdrop.extractRenderState(g,-1,-1,delta);g.nextStratum();}else if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
         String hovered="";int tipX=mx,tipY=my;boolean traitTooltip=false;
-        if(!queueOpen){g.fill(left,top,left+pane,top+panelHeight,0xFF111316);UiAssets.nineSlice(g,art("tiled_plain_bg"),left,top,pane,panelHeight,5,.5);
+        if(!queueOpen){g.fill(left,top,left+pane,top+panelHeight,0xFF111316);UiAssets.tiledNineSlice(g,art("tiled_plain_bg"),left,top,pane,panelHeight,64,.5);
         if(policies()){UiAssets.nineSlice(g,art("tiled_plain_bg"),left,top,pane,48,5,.5);g.pose().pushMatrix();g.pose().translate(left+pane/2f,top+7);g.pose().scale(1.25f);g.centeredText(font,net.minecraft.network.chat.Component.literal(view().title()).withStyle(net.minecraft.ChatFormatting.BOLD),0,0,0xFFFFFFFF);g.pose().popMatrix();}else {var title=net.minecraft.network.chat.Component.literal(view().subtitle()).withStyle(net.minecraft.ChatFormatting.BOLD);g.pose().pushMatrix();g.pose().translate(left+10,top+6);g.pose().scale(1.25f);g.text(font,net.minecraft.network.chat.Component.literal(UiText.ellipsize(font,title.getString(),184)).withStyle(net.minecraft.ChatFormatting.BOLD),0,0,0xFFFFFFFF,false);g.pose().popMatrix();}
         hovered=!policies()&&mx>=left+160&&mx<left+pane-6&&my>=top+26&&my<top+panelHeight-6?view().body():"";
         if(policies()){
@@ -104,20 +116,32 @@ final class ScreenOrganization extends ScreenDialog {
             for(int i=0;i<rows.size();i++){var t=rows.get(i);int y=top+48+i*48-scroll;UiAssets.draw(g,art("mio_entry_bg"),left+8,y,pane-16,44);if(offered("attach/"+t.section().substring(7))||t.overlay().equals("current"))icon(g,t.icon(),left+17,y+3,38,38);else {String path=t.icon();if(!UiAssets.drawGrayscale(g,path,left+17,y+3,38,38)&&path.startsWith("mio/country/"))UiAssets.drawGrayscale(g,"mio/ui/"+path.split("/",4)[3],left+17,y+3,38,38);}text(g,t.name(),left+62,y+13,pane-125,18,t.overlay().equals("current")?0xFF80DD80:UiMenuStyle.TEXT);text(g,"£GFX_pol_power_icon §Y"+t.value(),left+pane-60,y+14,50,18,UiMenuStyle.ACCENT);if(mx>=left+8&&mx<left+pane-8&&my>=Math.max(top+48,y)&&my<Math.min(top+panelHeight-23,y+44))hovered=t.detail();}g.disableScissor();scrollbar(0).draw(g,scroll);
         }else{
             UiAssets.tiledNineSlice(g,art("tiled_window2_1b_border"),left+3,top+75,155,panelHeight-80,64,.5);
-            UiAssets.nineSlice(g,art("tiled_plain_bg"),left+4,top+27,151,44,4,.5);var summary=tile("summary");if(summary!=null){UiAssets.draw(g,summary.icon(),left+10,top+34,35,30);UiAssets.draw(g,art("land_battle_leader_skill_bg"),left+48,top+34,18,25);UiText.centered(g,font,summary.value(),left+48,top+34,18,15,UiMenuStyle.TEXT,false);var points=tile("points");if(points!=null)text(g,points.name(),left+70,top+33,85,17,UiMenuStyle.TEXT);g.fill(left+70,top+55,left+150,top+60,0xFF777780);if(summary.gauge()!=null){g.fill(left+70,top+55,left+70+(int)(80*summary.gauge().fraction()),top+60,0xFFD7CD7F);if(mx>=left+70&&mx<left+150&&my>=top+52&&my<top+65)hovered=summary.gauge().tooltip();}}
+            UiAssets.tiledNineSlice(g,art("tiled_plain_bg"),left+3,top+25,155,50,64,.5);var summary=tile("summary");if(summary!=null){UiAssets.draw(g,summary.icon(),left+10,top+33,32,30);UiAssets.draw(g,art("land_battle_leader_skill_bg"),left+43,top+38,21,30);UiText.centered(g,font,summary.value(),left+43,top+41,21,9,UiMenuStyle.TEXT,false);var points=tile("points");if(points!=null)text(g,points.name(),left+68,top+38,86,10,UiMenuStyle.TEXT);funds(g,summary);if(summary.gauge()!=null&&mx>=left+68&&mx<left+154&&my>=top+50&&my<top+63)hovered=summary.gauge().tooltip();}
             int sideTop=top+108,sideBottom=top+panelHeight-50;
             int content=sideContentHeight(),visible=sideBottom-sideTop;
             sideScroll=Math.clamp(sideScroll,0,Math.max(0,content-visible));
             g.enableScissor(left+8,sideTop,left+154,sideBottom);int y=sideTop-sideScroll;
-            UiText.centered(g,font,"속성",left+12,y,135,16,UiMenuStyle.TEXT,false);y+=19;
+            UiText.centered(g,font,UiTooltips.officerText("속성",true),left+12,y,135,16,UiMenuStyle.TEXT,false);y+=19;
             for(var t:tiles("attribute/")){String value=t.section().endsWith("assign_cost")?"£GFX_pol_power_icon "+t.value()+"/일":t.value();text(g,t.name()+": "+(t.icon().equals("good")?"§G":"§Y")+value,left+12,y,137,14,UiMenuStyle.TEXT);if(mx>=left+8&&mx<left+154&&my>=Math.max(sideTop,y)&&my<Math.min(sideBottom,y+14))hovered=t.detail();y+=15;}
-            UiText.centered(g,font,"장비 혜택",left+12,y,135,16,UiMenuStyle.TEXT,false);y+=18;var type=tile("type");if(type!=null){UiText.left(g,font,type.name(),left+12,y,135,typeHeight()-3,0xFFFFAA00);y+=typeHeight();}
+            UiText.centered(g,font,UiTooltips.officerText("장비 혜택",true),left+12,y,135,16,UiMenuStyle.TEXT,false);y+=18;var type=tile("type");if(type!=null){UiText.left(g,font,type.name(),left+12,y,135,typeHeight()-3,0xFFFFAA00);y+=typeHeight();}
             for(var t:tiles("equipment/")){UiAssets.draw(g,equipmentIcon(t.section().substring(10)),left+12,y+5,23,23);text(g,UiText.ellipsize(font,t.name(),110),left+38,y,110,14,UiMenuStyle.TEXT);var counts=t.value().split("/",-1);if(counts.length==2){UiAssets.draw(g,art("design_team_icon"),left+39,y+17,10,10);text(g,counts[0],left+52,y+16,30,12,UiMenuStyle.TEXT);UiAssets.draw(g,art("industrial_manufacturer_icon"),left+83,y+17,10,10);text(g,counts[1],left+96,y+16,30,12,UiMenuStyle.TEXT);}if(mx>=left+8&&mx<left+154&&my>=Math.max(sideTop,y)&&my<Math.min(sideBottom,y+37))hovered=t.detail();y+=37;}
-            g.disableScissor();if(content>visible)scrollbar(1).draw(g,sideScroll);g.enableScissor(left+160,top+26,left+pane-6,top+panelHeight-6);
+            g.disableScissor();if(content>visible)scrollbar(1).draw(g,sideScroll);g.enableScissor(left+160,top+25,left+pane-6,top+panelHeight-6);
             UiAssets.draw(g,art("mio_details_background"),left+160,top+28,pane-166,panelHeight-34);
-                UiAssets.nineSlice(g,art("tiled_plain_bg_small"),left+164,top+27,pane-174,19,12,.5);for(var t:tiles("header/")){int x=left+186+(int)(Double.parseDouble(t.value())*44);UiText.centeredSingleLine(g,font,UiTooltips.officerText(t.name()),x-80,top+27,160,19,UiMenuStyle.TEXT);}
-                for(var t:nodes.values()){int x=nodeX(t)+16,y1=nodeY(t);boolean hot=mx>=x-16&&mx<x+16&&my>=y1&&my<y1+40;for(String parentId:t.traitNode().parents()){var p=nodes.get(parentId);if(p==null)continue;int px=nodeX(p)+16,py=nodeY(p)+38,mid=py+10;int color=hot?0xFFFFDD55:0xFFA3A3D7;boolean dot=t.traitNode().needed()!=t.traitNode().parents().size();line(g,px,py,px,mid,color,dot);line(g,px,mid,x,mid,color,dot);line(g,x,mid,x,y1,color,dot);}for(String exclusive:t.traitNode().exclusive()){var other=nodes.get(exclusive);if(other!=null&&other.traitNode().column()>t.traitNode().column()){int ox=nodeX(other);line(g,x+16,y1+20,ox,y1+20,0xFFA3A3D7,false);UiText.centered(g,font,"◀",x+15,y1+14,8,12,0xFF478D58,false);UiText.centered(g,font,"▶",ox-7,y1+14,8,12,0xFF478D58,false);UiAssets.draw(g,art("focus_link_exclusive"),(x+16+ox)/2-10,y1+14,20,12);UiText.centered(g,font,"!",(x+16+ox)/2-3,y1+14,6,12,0xFFB83430,false);}}}
-                for(var t:nodes.values()){int x=nodeX(t),y1=nodeY(t);int frame=t.traitNode().owned()?0:2;String sprite=t.traitNode().kind().equals("mio_special")?"country_spefific_org_trait_button":"industrial_org_trait_button";UiAssets.draw(g,"mio/ui/gfx_"+sprite+"/frame_"+frame,x,y1,32,40);UiAssets.draw(g,t.icon(),x+5,y1+4,22,24);int bonusX=x+16-t.traitNode().bonuses().size()*5;for(String bonus:t.traitNode().bonuses()){String image=switch(bonus){case "equipment"->"design_team_icon";case "production"->"industrial_manufacturer_icon";default->"organization_modifier_icon";};UiAssets.draw(g,art(image),bonusX,y1+29,10,12);bonusX+=10;}if(!t.value().isEmpty()){UiAssets.draw(g,"mio/ui/gfx_topbar_alert_bg/frame_3",x+24,y1+22,13,13);UiText.centered(g,font,t.value(),x+24,y1+22,13,13,UiMenuStyle.TEXT,false);}if(mx>=x&&mx<x+32&&my>=Math.max(top+48,y1)&&my<Math.min(top+panelHeight-8,y1+40)){hovered=t.detail();traitTooltip=true;tipX=x+29;tipY=y1+20;}}
+                UiAssets.tiledNineSlice(g,art("mio_header_transparent"),left+160,top+25,pane-166,22,16,.5);
+                for(var t:tiles("header/")){int x=left+186+(int)(Double.parseDouble(t.value())*44);UiText.centeredSingleLine(g,font,UiTooltips.officerText(t.name(),true),x-80,top+31,160,12,UiMenuStyle.TEXT);}
+                for(var t:nodes.values()){int x=nodeX(t)+16,y1=nodeY(t);boolean hot=mx>=x-16&&mx<x+16&&my>=y1&&my<y1+40;for(String parentId:t.traitNode().parents()){var p=nodes.get(parentId);if(p==null)continue;int px=nodeX(p)+16,py=nodeY(p)+38,mid=py+10;int color=hot?0xFFFFDD55:0xFFA3A3D7;boolean dot=t.traitNode().needed()!=t.traitNode().parents().size();line(g,px,py,px,mid,color,dot);line(g,px,mid,x,mid,color,dot);line(g,x,mid,x,y1,color,dot);}}
+                var exclusivePairs=new HashSet<Set<String>>();
+                for(var t:nodes.values())for(String exclusive:t.traitNode().exclusive()){
+                    var other=nodes.get(exclusive);
+                    if(other==null||other==t||!exclusivePairs.add(Set.of(t.section(),other.section())))continue;
+                    var first=nodeX(t)<nodeX(other)?t:other;var second=first==t?other:t;
+                    int x=nodeX(first)+30,end=nodeX(second)+2,linkY=nodeY(first)+8;
+                    g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+art("focus_exclusive_line1")+".png"),x+8,linkY+6,end-8,linkY+14,0,1,0,1);
+                    UiAssets.draw(g,"mio/ui/gfx_focus_link_exclusive/frame_1",x,linkY,16,16);
+                    UiAssets.draw(g,"mio/ui/gfx_focus_link_exclusive/frame_2",end-16,linkY,16,16);
+                    UiAssets.draw(g,art("focus_link_exclusive"),(x+end)/2-8,linkY,16,16);
+                }
+                for(var t:nodes.values()){int x=nodeX(t),y1=nodeY(t);int frame=t.traitNode().owned()?0:2;String sprite=t.traitNode().kind().equals("mio_special")?"country_spefific_org_trait_button":"industrial_org_trait_button";UiAssets.draw(g,"mio/ui/gfx_"+sprite+"/frame_"+frame,x,y1,32,40);UiAssets.draw(g,t.icon(),x+5,y1+4,22,24);var bonuses=t.traitNode().bonuses();int bonusWidth=Math.min(25,bonuses.size()*10);for(int i=0;i<bonuses.size();i++){String bonus=bonuses.get(i);int bonusX=UiFlagStack.left(i,bonuses.size(),x+16-bonusWidth/2,bonusWidth,10);String image=switch(bonus){case "equipment"->"design_team_icon";case "production"->"industrial_manufacturer_icon";default->"organization_modifier_icon";};UiAssets.draw(g,art(image),bonusX,y1+27,10,12);}if(!t.value().isEmpty()){UiAssets.draw(g,"mio/ui/gfx_topbar_alert_bg/frame_3",x+24,y1+22,13,13);UiText.centered(g,font,t.value(),x+24,y1+22,13,13,UiMenuStyle.TEXT,false);}if(mx>=x&&mx<x+32&&my>=Math.max(top+48,y1)&&my<Math.min(top+panelHeight-8,y1+40)){hovered=t.detail();traitTooltip=true;tipX=x+29;tipY=y1+20;}}
             g.disableScissor();
         }
         for(var entry:buttons.entrySet())if(!entry.getKey().startsWith("trait/")&&!entry.getKey().startsWith("attach/")&&!entry.getKey().startsWith("queue-row/"))((net.minecraft.client.gui.components.Renderable)entry.getValue()).extractRenderState(g,mx,my,delta);

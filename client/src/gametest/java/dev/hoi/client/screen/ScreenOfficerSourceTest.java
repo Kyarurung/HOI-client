@@ -15,6 +15,8 @@ public final class ScreenOfficerSourceTest {
         context.getInput().resizeWindow(2560, 1440);
         context.runOnClient(client -> client.options.guiScale().set(2));
         try {
+            ScreenOfficerComparisonTest.verifySpecialBanner(context,new ProtocolMenuPayloads.OpenScreen(Files.readString(Path.of(directory,"kor-initial.json"))).view());
+            context.getInput().resizeWindow(2560,1440);
             context.runOnClient(client -> {
                 var lines = UiTooltips.sourceLines(client.font,"§H제목§!\n---\n§G+0.01§! £doctrine_mastery\n\n  조건",324);
                 if (lines.size() != 5 || client.font.width(lines.get(1)) != 0 || client.font.width(lines.get(3)) != 0)
@@ -82,8 +84,8 @@ public final class ScreenOfficerSourceTest {
                     expected.put(command.name() + " · " + command.value(), command.detail());
                     expected.put(counter.name(), counter.detail());
                     if (!armyEntries.get(1).detail().startsWith("§H육군 교리§!\n\n대교리: §H") || !armyEntries.get(1).detail().endsWith("\n\n§G클릭§!하여 교리 화면 열기")
-                            || !armyEntries.getFirst().value().equals("미지정") || !armyEntries.getFirst().detail().equals("§G클릭하여 §H육군참모총장§G 추가§!")
-                            || !command.detail().equals("§G클릭하여 §H최고사령부§G 추가§!") || !counter.detail().startsWith("배치된 §Y육군 사령부§!: §Y"))
+                            || !armyEntries.getFirst().value().equals("미지정") || !armyEntries.getFirst().detail().equals("§G클릭§!하여 §H육군참모총장§G 추가")
+                            || !command.detail().equals("§G클릭§!하여 §H최고사령부§G 추가") || !counter.detail().startsWith("배치된 §Y육군 사령부§!: §Y"))
                         throw new AssertionError("Officer source fixture must carry the native doctrine, staff and headquarters tooltips");
                     int shot = 0;
                     for (var entry : expected.entrySet()) {

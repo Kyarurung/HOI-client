@@ -53,6 +53,7 @@ public final class ScreenEventTooltipTest {
                             var optionView = view.choices().get(option);
                             if (optionView.tooltip().isEmpty() != (tooltip == null)) throw new AssertionError("Effect tooltip visibility mismatch: " + key + ", empty=" + optionView.tooltip().isEmpty() + ", bounds=" + tooltip + ", button=" + Arrays.toString(box(choice(screen, optionView))) + ", cursor=" + Arrays.toString(cursor));
                             if (tooltip != null) {
+                                ScreenDecisionPanelTest.verifyTooltipSpacing(c.font,new ScreenDecisionText(),optionView.tooltip());
                                 if (tooltip.x() < 4 || tooltip.y() < 4 || tooltip.x() + tooltip.width() + 4 > screen.width || tooltip.y() + tooltip.height() + 4 > screen.height) throw new AssertionError("Effect tooltip leaves viewport");
                                 var matcher = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+)").matcher(optionView.tooltip());
                                 while (matcher.find()) {

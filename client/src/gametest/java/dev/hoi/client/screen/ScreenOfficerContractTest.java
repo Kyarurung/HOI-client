@@ -18,7 +18,7 @@ public final class ScreenOfficerContractTest {
                 game.getInput().resizeWindow(size[0],size[1]);game.runOnClient(c->c.options.guiScale().set(2));
                 for(String branch:List.of("field-officer","ship-captain")){
                     var view=source("kor-"+branch+"s");var confirm=source("kor-"+branch+"-promote");var roster=source(branch.equals("ship-captain")?"kor-navy-admirals":"kor-army-roster-tooltips");
-                    if(branch.equals("field-officer")){if(!Integer.valueOf(12).equals(view.tiles().getFirst().officer().insignia())||view.tiles().stream().skip(1).anyMatch(t->t.officer().insignia()!=null))throw new AssertionError("Field officer insignia contract");}else if(view.tiles().stream().anyMatch(t->!Integer.valueOf(0).equals(t.officer().insignia())))throw new AssertionError("Fleet default insignia contract");
+                    if(branch.equals("field-officer")){if(!Integer.valueOf(12).equals(view.tiles().getFirst().officer().insignia())||view.tiles().stream().skip(1).anyMatch(t->t.officer().insignia()!=null))throw new AssertionError("Field officer insignia contract");}else if(view.tiles().stream().anyMatch(t->!Integer.valueOf(3).equals(t.officer().insignia())))throw new AssertionError("Fleet default insignia contract");
                     var actions=new ArrayList<String>();
                     var screen=game.computeOnClient(c->new ScreenOfficerRoster(view,null,(v,id)->actions.add(id)));game.setScreen(()->screen);
                     game.getInput().setCursorPos(size[0]-5,80);game.waitTicks(3);game.takeScreenshot("hoi-"+branch+"-list-"+size[0]+"-gui2");

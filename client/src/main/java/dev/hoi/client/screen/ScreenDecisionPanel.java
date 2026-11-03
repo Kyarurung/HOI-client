@@ -63,7 +63,7 @@ final class ScreenDecisionPanel {
                 paintedBounds=new Rect(paintedBounds.x(),paintedBounds.y()+transparent,paintedBounds.width(),paintedBounds.height()-transparent);
             }
             if(coronavirus && draw.element().kind().equals("text") && draw.element().text()!=null) {
-                var lines=text.lines(font,draw.element().text().value(),Math.max(1,(int)(paintedBounds.width()/draw.fontScale())));
+                var lines=text.lines(font,draw.element().text().value(),Math.max(1,(int)(paintedBounds.width()/draw.fontScale())),Objects.requireNonNullElse(draw.element().layout().font(),"").endsWith("header"));
                 double ink=lines.stream().mapToInt(font::width).max().orElse(0)*draw.fontScale();
                 double offset=switch(Objects.requireNonNullElse(draw.element().layout().alignment(),"left")) {
                     case "center" -> (paintedBounds.width()-ink)/2;
@@ -105,7 +105,7 @@ final class ScreenDecisionPanel {
             if(element.kind().equals("text") && element.text()!=null) {
                 graphics.pose().scale((float)draw.fontScale());
                 int available=Math.max(1,(int)Math.floor(rectangle.width()/draw.fontScale()));
-                var lines=text.lines(font,element.text().value(),available);
+                var lines=text.lines(font,element.text().value(),available,Objects.requireNonNullElse(element.layout().font(),"").endsWith("header"));
                 for(int row=0;row<lines.size();row++) {
                     var line=lines.get(row);
                     double textLeft=switch(Objects.requireNonNullElse(element.layout().alignment(),"left")) {
@@ -160,11 +160,11 @@ final class ScreenDecisionPanel {
                 path.isEmpty() && element.sprite()!=null?assets.getOrDefault(element.sprite(),""):path,ScreenDecisionPanel::dimensions);
         double ownScale=Objects.requireNonNullElse(layout.scale(),1.0);
         var metrics=fonts.getOrDefault(layout.font(),new FontMetrics(font.lineHeight,font.lineHeight+1));
-        double fontScale=metrics.size()/font.lineHeight;
+        double fontScale=(metrics.size()+(element.name().equals("NatAsm_member_text")?2:0))/font.lineHeight;
         double defaultWidth=element.kind().equals("text")?parent.width():size[0];
         double width=measure(layout.width(),parent.width(),defaultWidth)*ownScale;
         double defaultHeight=element.kind().equals("text") && element.text()!=null
-                ?text.lines(font,element.text().value(),Math.max(1,(int)(width/fontScale))).size()*metrics.lineHeight():size[1];
+                ?text.lines(font,element.text().value(),Math.max(1,(int)(width/fontScale)),Objects.requireNonNullElse(layout.font(),"").endsWith("header")).size()*metrics.lineHeight():size[1];
         double height=measure(layout.height(),parent.height(),defaultHeight)*ownScale;
         if(coronavirus && element.kind().equals("text") && !Boolean.TRUE.equals(layout.fixedSize()))height=Math.max(height,defaultHeight*ownScale);
         double left=parent.x(),top=parent.y();

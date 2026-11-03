@@ -14,6 +14,17 @@ class MapCommanderPanelOrderTest {
     private static final Card THIRD=card("C",Mode.ASSIGN_ARMY,"G","04","03");
     private static final List<Member> ROWS=GROUP.panel().members().stream().sorted(Comparator.comparing(Member::id)).toList();
     private static List<String> ids(List<Member> rows){return rows.stream().map(Member::id).toList();}
+    @Test void emptyArmiesDisappearWithoutHidingGroupsOrOtherBranches(){
+        var empty=card("empty",Mode.ASSIGN_ARMY,"G");
+        var group=card("group",Mode.ARMY_GROUP,"");
+        var fleet=card("fleet",Mode.NAVY_FLEET,"");
+        var view=new View("KOR","minecraft:overworld",Mode.ARMY,List.of(empty,group,FIRST,fleet),ROWS,true);
+        var visible=MapCommanderHud.visibleCards(view);
+        assertEquals(List.of(group,FIRST,fleet),visible.cards());
+        assertEquals(view.wings(),visible.wings());
+        assertEquals(view.running(),visible.running());
+        assertEquals(4,view.cards().size());
+    }
     @Test void airCardsSelectOnlyWingsAttachedToTheirArmyOrChildArmies(){
         var wings=new ArrayList<Member>();
         for(String army:List.of("A","B","C","OTHER",""))wings.add(new Member("wing"+wings.size(),"wing","","","",1,new Open(Mode.AIR_MISSION,""),"",null,Map.of(),"","",new MemberData("",army,1,null)));

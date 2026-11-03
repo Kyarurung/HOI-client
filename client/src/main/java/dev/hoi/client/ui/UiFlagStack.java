@@ -26,7 +26,7 @@ public final class UiFlagStack {
         g.pose().pushMatrix();
         g.pose().translate(frameX + (frameW - fitW) / 2, frameY + (frameH - fitH) / 2);
         g.pose().scale(fitW / 47f, fitH / 32f);
-        UiAssets.cover(g, icon, 5, 5, 37, 22);
+        UiCountryFlags.draw(g, icon, "small2", 0, 0, 47, 32);
         g.pose().popMatrix();
         UiAssets.draw(g, "map_detail/flag_frame_thin", frameX, frameY, frameW, frameH);
         UiAssets.draw(g, "map_detail/flag_frame", x, y, width, height);

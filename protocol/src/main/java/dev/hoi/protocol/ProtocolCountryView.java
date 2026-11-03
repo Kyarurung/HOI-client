@@ -41,11 +41,31 @@ public record ProtocolCountryView(String viewer, ProtocolCountryHud hud, String 
         }
     }
     public record Choice(String tag, String name) { public Choice { ProtocolCountryView.tag(tag); text(name, 128); } }
-    public record Report(ProtocolIntelDomain domain, double percent, List<ProtocolMenuView.Entry> entries) {
+    public record Report(ProtocolIntelDomain domain, double percent, List<ProtocolMenuView.Entry> entries, String tooltip, List<Section> sections) {
+        public Report(ProtocolIntelDomain domain, double percent, List<ProtocolMenuView.Entry> entries, String tooltip) { this(domain, percent, entries, tooltip, List.of()); }
+        public Report(ProtocolIntelDomain domain, double percent, List<ProtocolMenuView.Entry> entries) { this(domain, percent, entries, ""); }
         public Report {
             Objects.requireNonNull(domain);
             if (!Double.isFinite(percent) || percent < 0 || percent > 100) throw new IllegalArgumentException("Invalid intelligence");
             entries = bounded(entries, 128);
+            tooltip = tooltip == null ? "" : tooltip;
+            text(tooltip, 4000);
+            sections = sections == null ? List.of() : bounded(sections, 8);
+            if (sections.stream().map(Section::id).distinct().count() != sections.size()) throw new IllegalArgumentException("Duplicate intelligence section");
+        }
+    }
+    public record Section(String id, String state, String text, String tooltip, List<Row> rows) {
+        public static final List<String> STATES = List.of("shown", "no_intel");
+        public Section {
+            ProtocolCountryView.text(id, 32); ProtocolCountryView.text(text, 128); tooltip = tooltip == null ? "" : tooltip; ProtocolCountryView.text(tooltip, 1000);
+            if (!id.matches("[a-z_]+") || !STATES.contains(state)) throw new IllegalArgumentException("Invalid intelligence section");
+            rows = bounded(rows, 96);
+        }
+    }
+    public record Row(String group, boolean header, String name, String value, String detail, String icon) {
+        public Row {
+            text(group, 64); text(name, 128); text(value, 64); text(detail, 1000); text(icon, 128);
+            if (!icon.matches("[a-z0-9_:./-]*")) throw new IllegalArgumentException("Invalid intelligence row icon");
         }
     }
     public Report report(ProtocolIntelDomain domain) { return reports.stream().filter(r -> r.domain() == domain).findFirst().orElseThrow(); }

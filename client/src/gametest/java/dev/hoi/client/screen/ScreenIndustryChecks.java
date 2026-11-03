@@ -323,8 +323,14 @@ public final class ScreenIndustryChecks {
         check(requests.getLast().action()==ProtocolIndustryPayloads.Action.TANK_UPGRADE&&requests.getLast().amount()==1,"Engine upgrade sends a bounded level request");
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,ready.session(),ready,requests::add));context.waitTicks(2);
         int beforeManufacturer=requests.size();
-        context.runOnClient(client->check(!button((ScreenIndustry)client.gui.screen(),"전차 설계사 · 군수산업체 선택은 아직 지원하지 않습니다.").active,"Unsupported manufacturer selection is disabled"));
-        check(requests.size()==beforeManufacturer,"Manufacturer placeholder does not send gameplay requests");
+        check(ready.tankDesigner().designTeam()==null,"Legacy fixture has no design-team contract");
+        context.runOnClient(client->{
+            var screen=(ScreenIndustry)client.gui.screen();
+            var manufacturer=button(screen,"전차 설계사 · 군수산업체");
+            check(!manufacturer.active,"Manufacturer selection without a server contract is disabled");
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(manufacturer.getX()+manufacturer.getWidth()/2.0,manufacturer.getY()+manufacturer.getHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
+        });
+        check(requests.size()==beforeManufacturer,"Manufacturer selection without a server contract does not send gameplay requests");
         click(context,"설계 저장 · 육군 경험치 "+ready.tankDesigner().experience());
         check(requests.getLast().action()==ProtocolIndustryPayloads.Action.TANK_SAVE&&requests.getLast().item().equals(ready.tankDesigner().name()),"Save retains the source design name");
         context.setScreen(()->new ScreenIndustry(ProtocolMenuTab.PRODUCTION,empty.session(),empty,requests::add));context.waitTicks(3);
@@ -347,8 +353,11 @@ public final class ScreenIndustryChecks {
         context.runOnClient(client->{
             var screen=(ScreenIndustry)client.gui.screen();
             var back=button(screen,"모듈 선택 뒤로");
-            int right=emptySlot.choices().stream().map(entry->button(screen,entry.name())).mapToInt(widget->widget.getX()+widget.getWidth()).max().orElseThrow();
-            check(back.getX()+back.getWidth()==right,"Back button aligns with the module card right edge");
+            int minY=dev.hoi.client.ui.UiMenuBar.height(screen.width)+client.font.lineHeight+8;
+            int w=Math.min(Math.min(screen.width-24,Math.max(780,screen.width*5/8)),(screen.height-minY-12)*1092/553);
+            int x=(screen.width-w)/2,y=Math.max(minY,(screen.height-w*553/1092)/2);
+            check(back.getX()==x+406*w/1092&&back.getY()==y+71*w/1092
+                    &&back.getWidth()==123*w/1092&&back.getHeight()==36*w/1092,"Back button retains the original sprite position and dimensions");
         });
         context.getInput().setCursorPos(2400,1300);context.takeScreenshot("hoi-tank-empty-module-preview-gui2");
         int beforeHover=requests.size();
@@ -538,22 +547,20 @@ public final class ScreenIndustryChecks {
             var geometry = context.computeOnClient(client -> {
                 var screen = (ScreenIndustry)client.gui.screen();
                 float scale = (screen.panelWidth() - 22) / 511f;
-                int x = 6 + Math.round(464 * scale), w = screen.panelWidth() - 9 - x;
-                int textWidth = Math.min(w - 10, Math.round(client.font.width("30") * dev.hoi.client.ui.UiText.scale(client.font)));
-                int left = x + (w - 8 - textWidth) / 2;
-                return new float[]{scale, left, textWidth, dev.hoi.client.ui.UiMenuBar.height(screen.width) + 147,
-                        Math.max(62, Math.round((screen.panelWidth() - 22) * 116f / 511)) + 2};
+                int x = 6 + Math.round(462 * scale);
+                return new float[]{scale, x + Math.round(5 * scale), x + Math.round(48 * scale), dev.hoi.client.ui.UiMenuBar.height(screen.width) + 147,
+                        Math.round((screen.panelWidth() - 22) * 116f / 511) + 2, x + Math.round(25 * scale)};
             });
             var model = fixture.equipment().getFirst();
             for (int i = 0; i < 2; i++) {
                 int row = 0;
                 for (String resource : model.resources().keySet()) {
-                    int y0 = (int)geometry[3] + i * (int)geometry[4] + Math.round((33 + row++ * 23) * geometry[0]) + 1;
+                    int y0 = (int)geometry[3] + i * (int)geometry[4] + Math.round((31 + row++ * 24) * geometry[0]);
                     int iconRed = 0, numberRed = 0;
-                    for (int y = y0 * 2; y < (y0 + Math.round(22 * geometry[0])) * 2; y++)
-                        for (int x = (int)geometry[1] * 2; x < ((int)geometry[1] + 8 + (int)geometry[2]) * 2; x++) {
+                    for (int y = y0 * 2; y < (y0 + Math.round(24 * geometry[0])) * 2; y++)
+                        for (int x = (int)geometry[1] * 2; x < (int)geometry[2] * 2; x++) {
                             int pixel = image.getRGB(x, y), red = pixel >> 16 & 255, green = pixel >> 8 & 255, blue = pixel & 255;
-                            if (x < ((int)geometry[1] + 7) * 2) {
+                            if (x < (int)geometry[5] * 2) {
                                 if (red > 100 && red > green + 20 && red > blue + 20) iconRed++;
                             } else if ((pixel & 0xFFFFFF) == dev.hoi.client.ui.UiTooltips.BAD) numberRed++;
                         }

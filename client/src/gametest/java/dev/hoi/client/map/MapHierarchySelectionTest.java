@@ -31,8 +31,22 @@ final class MapHierarchySelectionTest {
         try{for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})){
             var commands=new ArrayList<Command>();var selections=new ArrayList<Selection>();var issued=new Context[1];var initial=new View[1];game.getInput().resizeWindow(size[0],size[1]);
             game.runOnClient(client->{client.options.guiScale().set(2);ClientCampaignHud.accept(ProtocolHudPayloads.State.of("KOR",menu.hud()));MapCommanderHud.reset();MapUnitHud.reset();MapCommanderOrders.reset();MapCommanderHud.requestObserver=null;MapCommanderOrders.commandObserver=commands::add;MapCommanderOrders.selectionObserver=selections::add;initial[0]=view(client.level.dimension().identifier().toString(),List.of("a1","a2","a3"),List.of("b1","b2"));MapCommanderHud.accept(initial[0]);issued[0]=new Context(UUID.randomUUID().toString(),0,"KOR",initial[0].dimension(),"");MapCommanderOrders.accept(issued[0]);client.player.setXRot(60);client.player.setYRot(0);});
-            game.setScreen(ScreenMapCursor::new);game.waitTicks(2);
-            game.runOnClient(client->{selected();if(MapCommanderHud.boxes().stream().anyMatch(b->b.request()!=null&&Set.of("A","B").contains(b.request().target())))throw new AssertionError("Unselected group children must begin collapsed");click("G");selected("a1","a2","a3","b1","b2");});game.waitTicks(2);
+            game.setScreen(()->new dev.hoi.client.screen.ScreenMenu(menu,ProtocolMenuTab.OFFICER_CORPS,()->{}));game.waitTicks(3);
+            game.takeScreenshot("hoi-sidebar-selection-before-"+size[0]+"-gui2");
+            game.runOnClient(client->{
+                var screen=client.gui.screen();
+                var body=new MouseButtonEvent(20,100,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
+                var hook=net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.afterMouseClick(screen).invoker();
+                if(hook.afterMouseClick(screen,body,false)||client.gui.screen()!=screen)throw new AssertionError("Empty sidebar body must not click the map");
+                var card=MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_ARMY&&b.request().target().equals("A")).findFirst().orElseThrow();
+                var event=new MouseButtonEvent(card.x()+card.width()/2.,card.y()+card.height()/2.,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
+                if(!hook.afterMouseClick(screen,event,screen.mouseClicked(event,false))||!(client.gui.screen() instanceof ScreenMapCursor))throw new AssertionError("Map card must replace the open sidebar and retain the cursor");
+                selected("a1","a2","a3");
+                if(!commands.isEmpty())throw new AssertionError("Switching a sidebar to a selected army must not issue orders");
+            });game.waitTicks(3);game.takeScreenshot("hoi-sidebar-selection-after-"+size[0]+"-gui2");
+            game.runOnClient(client->{MapCommanderHud.reset();MapUnitHud.reset();MapCommanderHud.accept(initial[0]);issued[0]=new Context(UUID.randomUUID().toString(),0,"KOR",initial[0].dimension(),"");MapCommanderOrders.accept(issued[0]);});
+            game.setScreen(ScreenMapCursor::new);game.waitTicks(2);game.takeScreenshot("hoi-hierarchy-reset-"+size[0]+"-gui2");
+            game.runOnClient(client->{selected();if(!MapCommanderHud.groups.expanded("G")||!MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_ARMY).map(b->b.request().target()).toList().containsAll(List.of("A","B")))throw new AssertionError("Unselected group children must begin expanded");click("G");selected("a1","a2","a3","b1","b2");});game.waitTicks(2);
             game.takeScreenshot("hoi-hierarchy-group-"+size[0]+"x"+size[1]+"-gui2");
             game.runOnClient(client->{move(commands,issued[0],1,"a1","a2","a3","b1","b2");click("A");selected("a1","a2","a3");});game.waitTicks(2);
             game.takeScreenshot("hoi-hierarchy-army-"+size[0]+"x"+size[1]+"-gui2");
@@ -40,8 +54,8 @@ final class MapHierarchySelectionTest {
             game.takeScreenshot("hoi-hierarchy-subset-"+size[0]+"x"+size[1]+"-gui2");
             game.getInput().holdKey(o->o.keyShift);game.runOnClient(client->{click("B");selected("a1","b1","b2");});game.getInput().releaseKey(o->o.keyShift);game.waitTicks(2);game.runOnClient(client->{MapCommanderHud.accept(initial[0]);selected("a1","b1","b2");if(!new HashSet<>(selections.getLast().keys()).equals(MapUnitHud.selectedKeys()))throw new AssertionError("Adding a full Army to a partial selection must publish only that mixed exact union");MapCommanderPanels.select("B",true);selected("a1");});
             game.runOnClient(client->{MapCommanderPanels.select("A",false);MapCommanderPanels.select("B",true);});game.waitTicks(2);
-            game.runOnClient(client->{var close=MapCommanderPanels.hits().stream().filter(h->h.tip().equals("닫기")&&h.x()<client.gui.screen().width/3).findFirst().orElseThrow();MapCommanderHud.clickAt(close.x()+close.w()/2.,close.y()+close.h()/2.);selected("b1","b2");MapCommanderPanels.select("A",false);MapCommanderPanels.select("B",true);MapUnitHud.selectDivisions(List.of("a1","b1"),false);});game.waitTicks(2);
-            game.runOnClient(client->{var close=MapCommanderPanels.hits().stream().filter(h->h.tip().equals("선택 해제")&&h.x()<client.gui.screen().width/3).findFirst().orElseThrow();MapCommanderHud.clickAt(close.x()+close.w()/2.,close.y()+close.h()/2.);selected();MapCommanderPanels.select("A",false);});
+            game.runOnClient(client->{var close=MapCommanderPanels.hits().stream().filter(h->h.tip().equals("닫기")&&h.x()<client.gui.screen().width/3).skip(1).findFirst().orElseThrow();MapCommanderHud.clickAt(close.x()+close.w()/2.,close.y()+close.h()/2.);selected("b1","b2");MapCommanderPanels.select("A",false);MapCommanderPanels.select("B",true);MapUnitHud.selectDivisions(List.of("a1","b1"),false);});game.waitTicks(2);
+            game.runOnClient(client->{var close=MapCommanderPanels.hits().stream().filter(h->h.icon().equals("nv_btn_close")&&h.x()<client.gui.screen().width/3).findFirst().orElseThrow();MapCommanderHud.clickAt(close.x()+close.w()/2.,close.y()+close.h()/2.);selected();MapCommanderPanels.select("A",false);});
             game.runOnClient(client->{
                 MapCommanderPanels.select("B",true);selected("a1","a2","a3","b1","b2");move(commands,issued[0],4,"a1","a2","a3","b1","b2");MapCommanderPanels.select("A",true);selected("b1","b2");MapCommanderPanels.select("B",true);selected();
                 MapCommanderPanels.select("G",false);MapCommanderHud.accept(view(initial[0].dimension(),List.of("a2","a3","a4"),List.of("b1")));selected("a2","a3","a4","b1");move(commands,issued[0],5,"a2","a3","a4","b1");

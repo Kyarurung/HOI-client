@@ -15,9 +15,15 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
     private final UiFlagStack ownerFlags = new UiFlagStack(), claimFlags = new UiFlagStack();
     private int tooltipScroll;
     private ProtocolDialogView.Tile hovered;
+    private long accessPendingRevision = -1;
     private record ScreenMapHover(ProtocolDialogView.Tile tile, int x, int y, int w, int h) {}
     private final List<ScreenMapHover> hovers = new ArrayList<>();
     ScreenMapDetail(ProtocolDialogView view) { super(view); }
+    ScreenMapDetail(ProtocolDialogView view, java.util.function.BiConsumer<ProtocolDialogView, String> send) { super(view, send); }
+    @Override void update(ProtocolDialogView next) {
+        if (next.token().equals(view().token()) && next.revision() > view().revision()) accessPendingRevision = -1;
+        super.update(next);
+    }
     private boolean sea() { return view().image().equals("map_detail/sea"); }
     @Override int panelLeft() { return left; }
     @Override int panelTop() { return top; }
@@ -29,6 +35,30 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         scale = Math.min(pane / (double)sourceWidth, (height - UiMenuBar.height(width) - 4) / (double)sourceHeight);
         pane = (int)Math.round(sourceWidth * scale); tall = (int)Math.round(sourceHeight * scale);
         left = 0; top = height - tall;
+        if (sea()) {
+            var access = tiles("access");
+            var levels = List.of("ALLOWED", "AVOID", "BLOCKED");
+            for (int i = 0; i < Math.min(3, access.size()); i++) {
+                var tile = access.get(i);
+                String choice = "naval_access/" + levels.get(i), texture = "map_detail/access_" + i;
+                boolean authorized = view().choices().stream().anyMatch(c -> c.id().equals(choice));
+                String label = view().choices().stream().filter(c -> c.id().equals(choice)).map(ProtocolDialogView.Choice::label).findFirst().orElse(tile.detail().split("\\R", 2)[0]);
+                var button = new UiPanelButton(label, x(21+i*35), y(248), n(31), n(33), () -> {
+                    if (accessPendingRevision >= 0 || view().choices().stream().noneMatch(c -> c.id().equals(choice))) return;
+                    accessPendingRevision = view().revision();
+                    choose(choice);
+                    rebuildWidgets();
+                }) {
+                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                        if (authorized) UiAssets.draw(g, texture, getX(), getY(), getWidth(), getHeight());
+                        else UiAssets.drawGrayscale(g, texture, getX(), getY(), getWidth(), getHeight());
+                        if (tile.value().equals("selected")) UiAssets.draw(g, "map_detail/access_highlight", getX(), getY(), getWidth(), getHeight());
+                    }
+                };
+                button.active = authorized && accessPendingRevision < 0;
+                addRenderableWidget(button);
+            }
+        }
         addRenderableWidget(new UiMenuButton("×", x(sea()?398:425), y(sea()?5:9), n(25), n(25), this::onClose));
         if(dev.hoi.client.ClientCampaignHud.visible())UiMenuBar.buttons(width,dev.hoi.client.ClientCampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
     }
@@ -44,8 +74,11 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         label(g,value,px,py,w,h,color,size,centered,true);
     }
     private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,int size,boolean centered,boolean wrap) {
+        label(g,value,px,py,w,h,color,size,centered,wrap,false);
+    }
+    private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,int size,boolean centered,boolean wrap,boolean bold) {
         float textScale=(float)(Math.max(10,size*scale)/font.lineHeight);
-        var text=UiTooltips.sentences(Component.literal(value));
+        var text=UiTooltips.sentences(Component.literal(value).withStyle(style->style.withBold(bold)));
         if(!wrap)textScale=Math.min(textScale,n(w)/(float)Math.max(1,font.width(text)));
         var lines=UiTooltips.split(font,text,Math.max(1,(int)(n(w)/textScale)));
         if(lines.isEmpty())return;
@@ -122,7 +155,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         hovers.clear();
         if(!ScreenDialogCoordinator.renderingContent())dev.hoi.client.ClientCampaignHud.draw(g);
         art(g,sea()?"map_detail/sea":"map_detail/state",0,0,sea()?433:463,sea()?300:683);
-        if(!sea())label(g,view().title(),13,5,436,30,UiMenuStyle.TEXT,24,true);
+        if(!sea())label(g,view().title(),13,5,436,30,UiMenuStyle.TEXT,24,true,true,true);
         if(sea())sea(g);else land(g);
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable r)r.extractRenderState(g,mx,my,delta);
         var current=hovers.stream().filter(h->mx>=h.x()&&mx<h.x()+h.w()&&my>=h.y()&&my<h.y()+h.h()).map(ScreenMapHover::tile).findFirst().orElse(null);
@@ -179,7 +212,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         }
         var buildings=tiles("state");for(int i=0;i<buildings.size();i++)cell(g,buildings.get(i),153+i*59,47,62,84,true);
         var slots=tiles("slots");
-        String slotValue=slots.isEmpty()?"?":"§6"+slots.getFirst().value().replace("/","§f/§6");
+        String slotValue=slots.isEmpty()?"0":"§6"+slots.getFirst().value().replace("/","§f/§6");
         float slotScale=(float)(Math.max(10,12*scale)/font.lineHeight);
         var slotNumber=UiTooltips.sentences(Component.literal(slotValue));
         int numberX=font.width("열린 슬롯 ");
@@ -187,7 +220,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         g.pose().translate(x(165),y(143)+(n(20)-font.lineHeight*slotScale)/2);
         g.pose().scale(slotScale);
         g.text(font,Component.literal("열린 슬롯 "),0,-1,UiMenuStyle.TEXT);
-        g.text(font,slotNumber,numberX,0,UiMenuStyle.TEXT);
+        g.text(font,slotNumber,numberX,-1,UiMenuStyle.TEXT);
         g.text(font,Component.literal("개"),numberX+font.width(slotNumber),-1,UiMenuStyle.TEXT);
         g.pose().popMatrix();
         if(!slots.isEmpty())hovers.add(new ScreenMapHover(slots.getFirst(),x(149),y(137),n(289),n(25)));
@@ -197,17 +230,18 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         for(int i=0;i<25;i++) {
             int index=sharedScroll*5+i;
             if(index>=shared.size()&&!unknown)break;
-            var t=unknown?new ProtocolDialogView.Tile("shared","정보 부족","?","map_detail/unknown","이 주의 공장에 대한 정보가 없습니다"):shared.get(index);
+            var t=unknown?new ProtocolDialogView.Tile("shared","정보 부족","0","map_detail/unknown","이 주의 공장에 대한 정보가 없습니다"):shared.get(index);
             cell(g,t,149+i%5*58,162+i/5*47,56,46,false);
         }
         var resources=tiles("resources");
         for(int i=0;i<resources.size();i++) {
             int step=resources.size()>6?24:31,cellHeight=step-2;
             var t=resources.get(i);int px=32+i%2*50,py=302+i/2*step;
-            g.pose().pushMatrix();g.pose().translate(-1,0);
+            int offset=t.value().replaceAll("§.", "").replaceAll("[^0-9]", "").length()>3?-1:0;
+            g.pose().pushMatrix();g.pose().translate(offset,0);
             art(g,t.icon(),px,py,14,cellHeight);label(g,t.value(),px+16,py,34,cellHeight,UiMenuStyle.TEXT,12,false,false);
             g.pose().popMatrix();
-            hovers.add(new ScreenMapHover(t,x(px)-1,y(py),n(46),n(cellHeight)));
+            hovers.add(new ScreenMapHover(t,x(px)+offset,y(py),n(46),n(cellHeight)));
         }
         label(g,"주 변동치",44,398,200,19,UiMenuStyle.TEXT,12,false);
         var features=tiles("features");
@@ -240,7 +274,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         var weather=tiles("weather");
         art(g,weather.isEmpty()||weather.getFirst().icon().isEmpty()?"map_detail/ocean":weather.getFirst().icon(),10,36,413,70);
         art(g,"map_detail/sea_header",0,-2,435,62);
-        label(g,view().title(),42,6,356,28,UiMenuStyle.TEXT,20,true);
+        label(g,view().title(),42,6,356,28,UiMenuStyle.TEXT,20,true,true,true);
         art(g,"map_detail/sea_dominance_header_bg",10,106,414,37);
         art(g,"map_detail/dominance",90,114,28,16);
         int frameWidth=n(191),frameHeight=n(20);
@@ -287,12 +321,8 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
         label(g,"접근",21,225,70,23,UiMenuStyle.TEXT,12,false);
         var access=tiles("access");
         for(int i=0;i<3;i++) {
-            art(g,"map_detail/access_"+i,21+i*35,248,31,33);
             if(i<access.size())hovers.add(new ScreenMapHover(access.get(i),x(21+i*35),y(248),n(31),n(33)));
         }
-        art(g,"map_detail/logbook",378,245,37,36);
-        var logbook=tiles("logbook");
-        if(!logbook.isEmpty())hovers.add(new ScreenMapHover(logbook.getFirst(),x(378),y(245),n(37),n(36)));
     }
     String flagAt(double px,double py) {
         for(var hover:hovers)if(px>=hover.x()&&px<hover.x()+hover.w()&&py>=hover.y()&&py<hover.y()+hover.h()
@@ -309,7 +339,7 @@ final class ScreenMapDetail extends ScreenDialog implements InputSidebarMovement
             if(event.y()<UiMenuBar.height(width))return super.mouseClicked(event,twice);
             if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);
         }
-        return super.mouseClicked(event,twice);
+        super.mouseClicked(event,twice);return true;
     }
     @Override public boolean mouseScrolled(double x,double y,double h,double v) {
         if(hovered!=null&&!hovered.detail().isEmpty()){tooltipScroll-=(int)v;return true;}

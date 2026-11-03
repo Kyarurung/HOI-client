@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 public final class ScreenFocusDetailTest {
     private ScreenFocusDetailTest() {}
     public static void run(ClientGameTestContext context) {
+        ScreenFocusInlaysTest.run(context);
         sourceScenes(context);
         ProtocolFocusPayloads.View source;
         try (var input=ScreenFocusDetailTest.class.getResourceAsStream("/hoi/focus/KOR.json")) {
@@ -22,6 +23,16 @@ public final class ScreenFocusDetailTest {
         } catch(java.io.IOException failure){throw new AssertionError(failure);}
         for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
             context.getInput().resizeWindow(size[0],size[1]);context.waitTicks(2);
+            context.setScreen(() -> new ScreenFocus(source,request -> {}));
+            context.runOnClient(client -> {
+                var screen=(ScreenFocus)client.gui.screen();
+                var left=source.nodes().stream().filter(node -> node.id().equals("KOR_mitigation_response_measures")).findFirst().orElseThrow();
+                var right=source.nodes().get(left.exclusive().getFirst());
+                var drag=new net.minecraft.client.input.MouseButtonEvent(5,200,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_MIDDLE,0));
+                check(screen.mouseClicked(drag,false),"Original focus tree must accept panning for the exclusive-link comparison");
+                screen.mouseDragged(drag,screen.width/2.0-screen.panX()-(left.x()+right.x())*24*screen.zoomLevel(),120-screen.panY()-Math.min(left.y(),right.y())*84*screen.zoomLevel());screen.mouseReleased(drag);
+            });
+            context.getInput().setCursorPos(0,0);context.waitTicks(2);context.takeScreenshot("hoi-focus-exclusive-source-tree-"+size[0]+"-gui2");
             for(String id:List.of("KOR_discussion_of_covid_response_measures","KOR_mitigation_response_measures",
                     "KOR_a_new_decade_of_the_twentyonest_century","KOR_proud_k_quarantine",
                     "KOR_successful_vaccine_development","KOR_start_of_vaccine_research",
@@ -78,6 +89,21 @@ public final class ScreenFocusDetailTest {
             var view=gson.fromJson(Files.readString(path.resolve("kor-oil-shock-view.json"),StandardCharsets.UTF_8),ProtocolFocusPayloads.View.class);
             var details=com.google.gson.JsonParser.parseString(Files.readString(path.resolve("kor-oil-shock-details.json"),StandardCharsets.UTF_8)).getAsJsonObject();
             var scenes=List.of(
+                    new String[]{"20261028003540_1","KOR_sending_contact_tracing_and_quarantine_text_messages"},
+                    new String[]{"20261028003541_1","KOR_school_closure_order"},
+                    new String[]{"20261028003542_1","KOR_strengthening_international_cooperation"},
+                    new String[]{"20261028003543_1","KOR_start_of_vaccine_research"},
+                    new String[]{"20261028003545_1","KOR_support_for_mask_production_companies"},
+                    new String[]{"20261028003546_1","KOR_covid_disaster_relief_funds"},
+                    new String[]{"20261028003547_1","KOR_successful_vaccine_development"},
+                    new String[]{"20261028003548_1","KOR_proud_k_quarantine"},
+                    new String[]{"20261028003551_1","KOR_citizens_please_be_reassured"},
+                    new String[]{"20261028003553_1","KOR_partial_entry_ban"},
+                    new String[]{"20261028003554_1","KOR_police_force_strengthening"},
+                    new String[]{"20261028003555_1","KOR_complete_entry_ban"},
+                    new String[]{"20261028003558_1","KOR_implementation_of_nighttime_curfew"},
+                    new String[]{"20261028003559_1","KOR_intensive_care_hospitals"},
+                    new String[]{"20261028003600_1","KOR_declaration_of_emergency_quarantine_order"},
                     new String[]{"20261014201913_1","KOR_discussion_of_covid_response_measures"},
                     new String[]{"20261014201915_1","KOR_mitigation_response_measures"},
                     new String[]{"20261014201916_1","KOR_a_new_decade_of_the_twentyonest_century"},

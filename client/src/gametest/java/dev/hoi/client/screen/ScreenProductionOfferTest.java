@@ -58,6 +58,13 @@ public final class ScreenProductionOfferTest {
                     game.getInput().setCursorPos(size[0] - 2, size[1] - 2); game.waitTicks(3);
                     if (action.equals("assign")) game.takeScreenshot("hoi-production-offer-" + size[0] + "-gui2");
                     game.runOnClient(c -> {
+                        int beforeSort=requests.size();
+                        click(screen,named(screen,"규모 정렬"),InputConstants.MOUSE_BUTTON_LEFT);
+                        click(screen,named(screen,"규모 정렬"),InputConstants.MOUSE_BUTTON_LEFT);
+                        click(screen,named(screen,"이름 정렬"),InputConstants.MOUSE_BUTTON_LEFT);
+                        var expected=equipment.manufacturers().stream().map(ProtocolIndustryView.LineManufacturer::name).sorted().toList();
+                        var actual=screen.children().stream().filter(w->w instanceof AbstractWidget b&&expected.contains(b.getMessage().getString())).map(w->((AbstractWidget)w).getMessage().getString()).toList();
+                        if(!actual.equals(expected.subList(0,actual.size()))||requests.size()!=beforeSort)throw new AssertionError("Manufacturer sorting must order visible rows without sending production requests");
                         var blank = new MouseButtonEvent((int)field(screen, "manufacturerX") + 5, (int)field(screen, "manufacturerY") + 24, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
                         int requestCount = requests.size(); screen.mouseClicked(blank, false); screen.mouseReleased(blank);
                         if (requests.size() != requestCount || ((String)field(screen, "manufacturerEquipment")).isEmpty()) throw new AssertionError("Blank popup space must not dismiss or send a request");
@@ -145,14 +152,13 @@ public final class ScreenProductionOfferTest {
             var button = game.computeOnClient(c -> {
                 screen.showDetail(tech.id());
                 if (state.equals("pending")) { field(screen, "pending", 100); screen.init(screen.width, screen.height); }
-                int x = (int)field(screen, "panelX") + 187, y = (int)field(screen, "panelY") + 28;
+                int x = (int)field(screen, "panelX") + 179, y = (int)field(screen, "panelY") + 29;
                 var control = screen.children().stream().filter(w -> w instanceof AbstractWidget b && b.getX() == x && b.getY() == y).map(w -> (AbstractWidget)w).findFirst().orElseThrow();
                 String full = switch (state) { case "locked" -> "선행 연구 필요"; case "completed" -> "연구 완료"; case "active" -> "연구 중단"; case "full" -> "빈 슬롯 필요"; case "pending" -> "응답 대기…"; default -> "연구"; };
-                boolean overflow = c.font.width(full) > control.getWidth() - 30;
-                if (!control.getMessage().getString().equals(overflow ? "연구" : full) || c.font.width(control.getMessage()) > control.getWidth() - 30) throw new AssertionError("Research caption outside visible source background: " + state);
+                if (!control.getMessage().getString().equals("연구") || c.font.width(control.getMessage()) > control.getWidth() - 30) throw new AssertionError("Research caption outside visible source background: " + state);
                 if (control.getX() < 0 || control.getRight() > screen.width || control.getY() < 0 || control.getBottom() > screen.height) throw new AssertionError("Research button outside viewport");
                 if (control.active != (state.equals("available") || state.equals("active"))) throw new AssertionError("Research button authorization changed: " + state);
-                if (overflow) {
+                {
                     try {
                         var tooltipField = AbstractWidget.class.getDeclaredField("tooltip"); tooltipField.setAccessible(true);
                         var holder = (net.minecraft.client.gui.components.WidgetTooltipHolder)tooltipField.get(control);
@@ -166,7 +172,13 @@ public final class ScreenProductionOfferTest {
                 return control;
             });
             game.getInput().setCursorPos(width - 3, 3); game.waitTicks(2);
-            game.takeScreenshot("hoi-research-button-synthetic-" + state + "-" + width + "-gui2");
+            var image = javax.imageio.ImageIO.read(game.takeScreenshot("hoi-research-button-synthetic-" + state + "-" + width + "-gui2").toFile());
+            int white = 0;
+            for (int py = (button.getY() + 3) * 2; py < (button.getBottom() - 3) * 2; py++) for (int px = (button.getX() + 28) * 2; px < (button.getRight() - 28) * 2; px++) {
+                int rgb = image.getRGB(px, py);
+                if ((rgb >> 16 & 255) > 230 && (rgb >> 8 & 255) > 230 && (rgb & 255) > 230) white++;
+            }
+            if (white < 12) throw new AssertionError("Research text must render white in every state: " + state + ", pixels=" + white);
             game.getInput().setCursorPos((button.getX() + 5) * 2, (button.getY() + 5) * 2); game.waitTicks(4);
             game.takeScreenshot("hoi-research-button-tooltip-synthetic-" + state + "-" + width + "-gui2");
         }

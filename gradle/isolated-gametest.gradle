@@ -40,11 +40,19 @@ def finish = tasks.register("finish${taskName.capitalize()}") {
     doLast {
         if (details.started != null) {
             def failure = execution.get().state.failure
-            details.status = failure == null ? 'passed' : 'failed'
+            def log = new File(directory, 'logs/latest.log')
+            def markers = ['Client gametests failed with an exception', 'runOnClient called when no client is running']
+            def detected = []
+            if (log.isFile()) log.eachLine('UTF-8') { line ->
+                markers.each { marker -> if (line.contains(marker) && !detected.contains(marker)) detected.add(marker) }
+            }
+            details.status = failure == null && detected.isEmpty() ? 'passed' : 'failed'
             details.finished = Instant.now().toString()
             if (failure != null) details.failure = failure.message
+            if (!detected.isEmpty()) details.logFailures = detected
             publish()
             logger.lifecycle("GameTest ${details.status}; evidence retained at ${directory}")
+            if (failure == null && !detected.isEmpty()) throw new GradleException("GameTest log contains fatal client errors: ${detected.join('; ')}")
         }
     }
 }

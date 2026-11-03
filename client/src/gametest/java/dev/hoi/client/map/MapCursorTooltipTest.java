@@ -49,7 +49,7 @@ public final class MapCursorTooltipTest {
     }
     private static void memberTooltip(ClientGameTestContext game,Member member,String suffix,boolean army) throws java.io.IOException {
         var point=game.computeOnClient(client->{
-            var hit=MapCommanderPanels.hits().stream().filter(h->(army||h.icon().isEmpty()&&h.sound().equals("ui.division.select"))&&h.tip().contains(member.name())&&h.tip().contains(member.detail())).findFirst().orElseThrow();
+            var hit=MapCommanderPanels.hits().stream().filter(h->(army||h.icon().isEmpty()&&h.sound().equals(dev.hoi.client.audio.AudioUiSounds.selection(member.request().mode())))&&h.tip().contains(member.name())&&h.tip().contains(member.detail())).findFirst().orElseThrow();
             if(army){String prefix=String.join("\n",dev.hoi.client.ui.UiCommandLabels.text("ARMY_LIST_CLICK_SELECT_DIVISION",""),dev.hoi.client.ui.UiCommandLabels.text("ARMY_LIST_RIGHT_CLICK_PAN",""),dev.hoi.client.ui.UiCommandLabels.text("ARMY_LIST_DOUBLE_CLICK_TEMPLATE",""),dev.hoi.client.ui.UiCommandLabels.text("ARMY_LIST_CTRL_CLICK_TOGGLE",""))+"\n\n§Y"+member.name()+"§!\n";if(!hit.tip().equals(prefix+member.detail()))throw new AssertionError("Division tooltip must preserve native click lines and server detail without status");}
             else if(!hit.tip().equals("§e"+member.name()+"§r\n"+member.detail()))throw new AssertionError("Fleet and wing row tooltips must contain one yellow name and the server body without repeated status");
             for(int y=hit.y()+1;y<hit.y()+hit.h();y+=2)for(int x=hit.x()+1;x<hit.x()+hit.w();x+=2)if(MapCommanderPanels.tooltipAt(x,y).equals(hit.tip()))return new int[]{x,y};

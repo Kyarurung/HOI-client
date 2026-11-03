@@ -49,10 +49,10 @@ public final class MapSceneRenderer {
             Map.entry(Material.NAVY_RIVER, Identifier.parse("minecraft:block/gray_concrete")),
             Map.entry(Material.AIR_RIVER, Identifier.parse("minecraft:block/light_gray_concrete")),
             Map.entry(Material.GRAY, Identifier.parse("minecraft:block/gray_concrete")), Map.entry(Material.DEPLOYMENT, Identifier.parse("minecraft:block/lime_concrete")));
-    private record MapRenderFrame(List<MapTile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city,List<MapTile> decision,int decisionColor,MapAirRangeOverlay.Frame ranges,List<MapAirArrowOverlay.Mesh> air) {}
+    private record MapRenderFrame(List<MapTile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city,List<MapTile> decision,int decisionColor,MapAirRangeOverlay.Frame ranges,List<MapAirArrowOverlay.Mesh> air,List<MapTile> networks,List<MapNavalInvasionOverlay.Mesh> invasions) {}
     public static void register() {
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_LOAD.register((world,chunk)->MapAirRangeOverlay.clear());
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_UNLOAD.register((world,chunk)->MapAirRangeOverlay.clear());
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_LOAD.register((world,chunk)->{MapAirRangeOverlay.clear();MapAgencyNetworks.invalidate();});
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_UNLOAD.register((world,chunk)->{MapAirRangeOverlay.clear();MapAgencyNetworks.invalidate();});
         ProtocolAtlasScene.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(ProtocolAtlasScene.Page.TYPE, (page, context) -> {
             if (receive(page)) ClientPlayNetworking.send(new ProtocolAtlasScene.Ready(page.scene()));
@@ -77,10 +77,13 @@ public final class MapSceneRenderer {
             var scene = active;
             String dimension = context.level().dimension().identifier().toString();
             var ranges=MapAirRangeOverlay.extract(context.level(),MapCommanderPanels.airRanges());
+            var networks = MapAgencyNetworks.extract();
+            var agency = MapAgencyHud.highlight();
+            var invasions=MapNavalInvasionOverlay.extract();MapNavalInvasionOverlay.project(invasions);
             if(!(dev.hoi.client.screen.ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenDecision screen)
                     || !screen.mapDimension().equals(dimension))decision=null;
             if (!(Minecraft.getInstance().gui.screen() instanceof dev.hoi.client.screen.ScreenIndustry screen) || !screen.selectingDeployment()) clearDeployment();
-            if ((scene == null || !dimension.equals(scene.dimension())) && (deployment == null || !dimension.equals(deployment.dimension())) && (occupation == null || !dimension.equals(occupation.dimension())) && (plans == null || !dimension.equals(plans.dimension())) && decision==null && ranges.outline().isEmpty()) {
+            if ((scene == null || !dimension.equals(scene.dimension())) && (deployment == null || !dimension.equals(deployment.dimension())) && (occupation == null || !dimension.equals(occupation.dimension())) && (plans == null || !dimension.equals(plans.dimension())) && decision==null && agency==null && ranges.outline().isEmpty() && networks.isEmpty() && invasions.isEmpty()) {
                 visibleTiles=0;context.levelState().setData(FRAME, null); return;
             }
             var camera = context.levelState().cameraRenderState;
@@ -89,6 +92,7 @@ public final class MapSceneRenderer {
             if (deployment != null && dimension.equals(deployment.dimension())) examinedTiles+=deployment.collect(camera.pos, tiles);
             if (occupation != null && dimension.equals(occupation.dimension())) examinedTiles+=occupation.collect(camera.pos, tiles);
             if(plans!=null&&dimension.equals(plans.dimension()))examinedTiles+=plans.collect(camera.pos,tiles);
+            if (agency != null && dimension.equals(agency.dimension())) examinedTiles += agency.collect(camera.pos, tiles);
             tiles.removeIf(tile -> !camera.cullFrustum.isVisible(tile.bounds()));
             var airMeshes=plans!=null&&dimension.equals(plans.dimension())?MapAirArrowOverlay.build(air,context.level().getGameTime()/20.0).stream().filter(mesh->camera.cullFrustum.isVisible(mesh.tile().bounds())&&mesh.tile().bounds().distanceToSqr(camera.pos)<=ProtocolAtlasVisibility.BOUNDARY_RANGE*ProtocolAtlasVisibility.BOUNDARY_RANGE&&MapAirArrowOverlay.texture(mesh.kind())!=null).toList():List.<MapAirArrowOverlay.Mesh>of();
             visibleTiles=tiles.size()+airMeshes.size();
@@ -107,7 +111,9 @@ public final class MapSceneRenderer {
             var highlighted=new ArrayList<MapTile>();
             if(decision!=null)decision.collect(camera.pos,highlighted);
             highlighted.removeIf(tile->!camera.cullFrustum.isVisible(tile.bounds()));
-            context.levelState().setData(FRAME, new MapRenderFrame(tiles, sprites, city,highlighted,decisionColor,ranges,airMeshes));
+            var networkMeshes = networks.stream().filter(tile -> camera.cullFrustum.isVisible(tile.bounds())
+                && tile.bounds().distanceToSqr(camera.pos) <= ProtocolAtlasVisibility.BOUNDARY_RANGE * ProtocolAtlasVisibility.BOUNDARY_RANGE).toList();
+            context.levelState().setData(FRAME, new MapRenderFrame(tiles, sprites, city,highlighted,decisionColor,ranges,airMeshes,networkMeshes,invasions));
         });
         LevelRenderEvents.COLLECT_SUBMITS.register(MapSceneRenderer::draw);
     }
@@ -138,7 +144,7 @@ public final class MapSceneRenderer {
     }
     static void clearPlans(){air=List.of();plans=null;planCountry="";PLANS.clear();}
     static void clear() { clearDeployment(); clearOccupation(); clearPlans(); decision=null;active = null; resourcesReloaded(); visibleTiles=0;examinedTiles=0;ASSEMBLER.clear(); }
-    public static void resourcesReloaded() { city = null; sprites = null; MapAirRangeOverlay.clear(); MapAirArrowOverlay.clear(); }
+    public static void resourcesReloaded() { city = null; sprites = null; MapAirRangeOverlay.clear(); MapAirArrowOverlay.clear(); MapAgencyNetworks.clear(); MapNavalInvasionOverlay.clear(); }
     static int tileCount() { return active == null ? 0 : active.tiles().size(); }
     static int visibleTileCount() { return visibleTiles; }
     static int examinedTileCount() { return examinedTiles; }
@@ -166,6 +172,11 @@ public final class MapSceneRenderer {
         for(var tile:frame.decision())context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(Identifier.parse("minecraft:textures/atlas/blocks.png")),
                 (matrix,consumer)->emit(tile,frame.sprites().get(Material.COMPLIANCE),matrix,consumer,frame.decisionColor()));
         for(var mesh:frame.air()){var texture=MapAirArrowOverlay.texture(mesh.kind());if(texture!=null)context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(texture),(matrix,consumer)->emit(mesh.tile(),null,matrix,consumer,MapAirArrowOverlay.color(mesh.state())));}
+        var invasionTexture=frame.invasions().isEmpty()?null:MapNavalInvasionOverlay.texture();
+        if(invasionTexture!=null)for(var mesh:frame.invasions())context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(invasionTexture),(matrix,consumer)->emit(mesh.tile(),null,matrix,consumer,MapNavalInvasionOverlay.color(mesh.plan())));
+        var networkTexture = frame.networks().isEmpty() ? null : MapAgencyNetworks.texture();
+        if (networkTexture != null) for (var tile : frame.networks()) context.submitNodeCollector().submitCustomGeometry(pose,
+            RenderTypes.entityTranslucentEmissive(networkTexture), (matrix, consumer) -> emit(tile, null, matrix, consumer, 0xFFFFFFFF));
         pose.popPose();
     }
     static Identifier movementTexture(dev.hoi.protocol.ProtocolCommanderHud.Arrow arrow){return Identifier.parse("hoi:textures/gui/map/"+switch(arrow){case MOVE->"movement_arrow";case MISSION->"mission_arrow";case RETREAT->"retreat_arrow";}+".png");}

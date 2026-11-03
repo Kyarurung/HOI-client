@@ -621,7 +621,7 @@ public final class ScreenCountryChecks {
         context.runOnClient(c -> {
             var screen=(ScreenCountry)c.gui.screen();
             int pane=screen.panelWidth(),top=dev.hoi.client.ui.UiMenuBar.height(screen.width);
-            int y=ScreenDiplomacyHeader.body(top,pane)+18;
+            int y=ScreenDiplomacyHeader.body(top,pane)+ScreenDiplomacyHeader.scaled(21,pane);
             if(screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(15,y,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false))
                 throw new AssertionError("Diplomacy relation background must not be clickable");
             if(screen.children().stream().anyMatch(w->w instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().startsWith("세력 ·")))

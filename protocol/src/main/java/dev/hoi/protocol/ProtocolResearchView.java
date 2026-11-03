@@ -61,9 +61,10 @@ public record ProtocolResearchView(String session, long revision, String country
         }
     }
     public enum Status { LOCKED, AVAILABLE, ACTIVE, COMPLETED }
-    public record Slot(int index, String technology, int savedDays, String designTeam) {
+    public record Slot(int index, String technology, int savedDays, String designTeam, String yearTooltip) {
         public Slot(int index,String technology,int savedDays) { this(index,technology,savedDays,""); }
-        public Slot { designTeam = designTeam == null ? "" : designTeam; if (designTeam.length() > 128) throw new IllegalArgumentException("Invalid research slot"); }
+        public Slot(int index,String technology,int savedDays,String designTeam) { this(index,technology,savedDays,designTeam,""); }
+        public Slot { designTeam = designTeam == null ? "" : designTeam; yearTooltip = yearTooltip == null ? "" : yearTooltip; if (designTeam.length() > 128 || yearTooltip.length() > 400) throw new IllegalArgumentException("Invalid research slot"); }
     }
     public record DesignTeam(String id, String name, String icon, int size, String type, List<ProtocolMenuView.ManufacturerEquipment> equipment, double bonus, double dailyCost, double completionFundsPerDay,
             String technology, List<String> technologies, List<Double> rates, List<Integer> funds, String tooltip) {

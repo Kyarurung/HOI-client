@@ -199,7 +199,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             if (g != null) {
                 UiMenuStyle.metal(g, 8, y, pane - 16, 21);
                 UiAssets.draw(g, texture(section.icon()), 13, y + 3, 19, 15);
-                dev.hoi.client.ui.UiText.text(g, font, trim(section.title(), pane - 68), 37, y + 6, TEXT);
+                dev.hoi.client.ui.UiText.text(g, font, dev.hoi.client.ui.UiTooltips.officerText(trim(section.title(), pane - 68), true), 37, y + 6, TEXT);
                 dev.hoi.client.ui.UiText.text(g, font, collapsed.contains(index) ? "+" : "−", pane - 25, y + 6, GOLD);
             }
             if (widgets && y >= contentTop() && y + 21 <= contentBottom()) {
@@ -255,13 +255,13 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             officerControl(widgets, tactic, "preferred_tactic", 0, pane - 65, y + 4, 48, 28);
         }
         y += 38;
-        double commandScale=Math.min(.5,(pane-22)/418.0);int hqWidth=(int)Math.round(200*commandScale),captureWidth=(int)Math.round(218*commandScale),commandHeight=(int)Math.round(62*commandScale),captureX=pane-11-captureWidth;
+        double commandScale=Math.min(.5,(pane-16)/523.0);int hqWidth=(int)Math.round(200*commandScale),captureWidth=(int)Math.round(218*commandScale),commandHeight=(int)Math.round(62*commandScale),commandX=8+(int)Math.round(10*commandScale),captureX=8+(int)Math.round(293*commandScale);
         var captured=sections.stream().filter(v->v.icon().equals("captivity")).flatMap(v->v.entries().stream()).toList();String missing=captivityCounts!=null?Integer.toString(captivityCounts[0]):captured.isEmpty()?"—":captured.getFirst().value(),held=captivityCounts!=null?Integer.toString(captivityCounts[1]):captured.size()<2?"—":captured.get(1).value();
         String capturedTip="§e포획된 지휘관§r\n§a클릭§r하여 우리의 실종된 지휘관 확인\n§a우클릭§r하여 우리가 포획한 지휘관 확인\n\n우리의 실종된 지휘관: §e"+missing+"§r\n우리에게 포획된 지휘관: §e"+held+"§r\n\n"+dev.hoi.client.ui.UiCommandLabels.text("CAPTURED_GENERALS_DELAYED_OPERATIVES","전투 중에 지휘관이 포로로 잡힐 수 있습니다. 포획된 지휘관은 습격이나 첩보 작전을 통해 구출할 수 있습니다.");
-        var deployed=sections.stream().filter(v->v.icon().equals("army_hq")).flatMap(v->v.entries().stream()).findFirst().orElse(null);int badgeX=11+hqWidth,badgeY=y+(int)Math.round(19*commandScale),badgeWidth=(int)Math.round(18*commandScale),badgeHeight=(int)Math.round(27*commandScale),counterX=11+(int)Math.round(220*commandScale),counterWidth=Math.max(1,captureX-counterX-1);
-        if(g!=null){g.fill(8,y,pane-8,y+commandHeight+4,0xFF342E2B);UiAssets.draw(g,"officer/hq/hq_button",11,y+3,hqWidth,(int)Math.round(49*commandScale));UiAssets.draw(g,"officer/hq/captured_button",captureX,y+2,captureWidth,commandHeight);dev.hoi.client.ui.UiText.centered(g,font,"육군 사령부 편제",25,y+4,hqWidth-28,commandHeight-5,TEXT);if(deployed!=null){UiAssets.draw(g,"officer/hq/badge",badgeX,badgeY,badgeWidth,badgeHeight);dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(deployed.value()),counterX,badgeY,counterWidth,badgeHeight,TEXT);}dev.hoi.client.ui.UiText.centered(g,font,"포획된 지휘관",captureX+(int)Math.round(69*commandScale),y+3,captureWidth-(int)Math.round(75*commandScale),commandHeight-7,TEXT);dev.hoi.client.ui.UiText.centered(g,font,held,captureX+18,y+19,10,9,GOLD,false);}
-        if(widgets){int rowY=y;var headquarters=new UiMenuButton("육군 사령부 편제",11,rowY+2,hqWidth,commandHeight,()->{var screen=new ScreenArmyHeadquarters(this);ScreenDialogCoordinator.setContent(screen);screen.open();}).caption("").background("none");headquarters.setTooltip(null);officerTooltips.put(headquarters,dev.hoi.client.ui.UiCommandLabels.text("ARMY_HQ_TEMPLATES_TOGGLE_TOOLTIP","§G클릭§!하여 §Y육군 사령부 편제§! 목록을 전환합니다. 이 목록에서는 육군 사령부 편제를 검토 및 관리할 수 있습니다."));addRenderableWidget(headquarters);if(deployed!=null){var counter=new dev.hoi.client.ui.UiHoverRegion(deployed.name(),badgeX,badgeY,counterX+counterWidth-badgeX,badgeHeight);officerTooltips.put(counter,deployed.detail());counter.active=detail==null;addRenderableWidget(counter);}var button=new UiMenuButton("포획된 지휘관",captureX,rowY+2,captureWidth,commandHeight,()->openCaptivity(true)).caption("").background("none");button.setTooltip(null);capturedButton=button;officerTooltips.put(button,capturedTip);addRenderableWidget(button);}
-        y += commandHeight+3;
+        var deployed=sections.stream().filter(v->v.icon().equals("army_hq")).flatMap(v->v.entries().stream()).findFirst().orElse(null);int badgeX=8+(int)Math.round(210*commandScale),badgeY=y+(int)Math.round(19*commandScale),badgeWidth=(int)Math.round(18*commandScale),badgeHeight=(int)Math.round(27*commandScale),counterX=8+(int)Math.round(230*commandScale),counterWidth=Math.max(1,captureX-counterX-1);
+        if(g!=null){g.enableScissor(8,y,8+(int)Math.round(523*commandScale),y+(int)Math.round(85*commandScale));UiAssets.draw(g,"officer/hq/ribbon",8,y,(int)Math.round(539*commandScale),(int)Math.round(59*commandScale));g.disableScissor();UiAssets.draw(g,"officer/hq/hq_button",commandX,y+3,hqWidth,(int)Math.round(49*commandScale));UiAssets.draw(g,"officer/hq/captured_button",captureX,y,captureWidth,commandHeight);dev.hoi.client.ui.UiText.centered(g,font,"육군 사령부 편제",commandX+8,y+3,hqWidth-16,(int)Math.round(49*commandScale),TEXT);if(deployed!=null){UiAssets.draw(g,"officer/hq/badge",badgeX,badgeY,badgeWidth,badgeHeight);dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(deployed.value()),counterX,badgeY,counterWidth,badgeHeight,TEXT);}dev.hoi.client.ui.UiText.centered(g,font,"포획된 지휘관",captureX+(int)Math.round(69*commandScale),y+4,captureWidth-(int)Math.round(75*commandScale),commandHeight-7,TEXT);g.pose().pushMatrix();float pixel=(float)(1.0/minecraft.getWindow().getGuiScale());g.pose().translate(pixel,0);dev.hoi.client.ui.UiText.centered(g,font,held,captureX+19,y+19,10,9,GOLD,false);g.pose().popMatrix();}
+        if(widgets){int rowY=y;var headquarters=new UiMenuButton("육군 사령부 편제",commandX,rowY+2,hqWidth,commandHeight,()->{var screen=new ScreenArmyHeadquarters(this);ScreenDialogCoordinator.setContent(screen);screen.open();}).caption("").background("none");headquarters.setTooltip(null);officerTooltips.put(headquarters,dev.hoi.client.ui.UiCommandLabels.text("ARMY_HQ_TEMPLATES_TOGGLE_TOOLTIP","§G클릭§!하여 §Y육군 사령부 편제§! 목록을 전환합니다. 이 목록에서는 육군 사령부 편제를 검토 및 관리할 수 있습니다."));addRenderableWidget(headquarters);if(deployed!=null){var counter=new dev.hoi.client.ui.UiHoverRegion(deployed.name(),badgeX,badgeY,counterX+counterWidth-badgeX,badgeHeight);officerTooltips.put(counter,deployed.detail());counter.active=detail==null;addRenderableWidget(counter);}var button=new UiMenuButton("포획된 지휘관",captureX,rowY,captureWidth,commandHeight,()->openCaptivity(true)).caption("").background("none");button.setTooltip(null);capturedButton=button;officerTooltips.put(button,capturedTip);addRenderableWidget(button);}
+        y += (int)Math.round(85*commandScale);
         for (String branch : List.of("army", "navy", "air", "special")) {
             var section = sections.stream().filter(v -> v.icon().equals(branch)).findFirst().orElse(null);
             if (section == null) continue;
@@ -272,8 +272,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 UiMenuStyle.recess(g, 8, y, pane - 16, h);
                 UiAssets.cover(g, "officer/" + artBranch + "/background", 9, y + 17, pane - 18, h - 18);
                 UiAssets.cover(g, "officer/" + artBranch + "/header", 9, y - 8, pane - 18, h);
-                UiAssets.draw(g, "officer/" + branch + "/banner", 8, y - 4, 49, 35);
                 if(special)g.fill(8,y,pane-8,y+17,0xFF4A4A31);
+                UiAssets.draw(g, "officer/" + branch + "/banner", 8, y - 4, 49, 35);
                 dev.hoi.client.ui.UiText.left(g, font, Component.literal(section.title()).withStyle(net.minecraft.ChatFormatting.BOLD), 60, y - 1, pane - 72, 17, TEXT);
             }
             if (!special && !entries.isEmpty()) {
@@ -615,7 +615,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         UiMenuStyle.panel(g, 0, top, pane, height - top);
         String heading=trim(selected == ProtocolMenuTab.POLITICS ? "정치" : selected.label(),pane-44);int headingX=10;
 
-        UiMenuStyle.heading(g, font, selected==ProtocolMenuTab.OFFICER_CORPS?"§l"+heading:heading, headingX, top + 9, pane - 44, TEXT);
+        UiMenuStyle.heading(g, font, heading, headingX, top + 9, pane - 44, TEXT);
         if (selected == ProtocolMenuTab.POLITICS) drawPoliticsBanner(g);
         if (selected == ProtocolMenuTab.INTELLIGENCE) {
             UiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);
@@ -774,7 +774,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         manufacturerMaximum=Math.max(0,rows.size()*49-available);manufacturerScroll = Math.clamp(manufacturerScroll, 0, manufacturerMaximum);
         if (g != null) {
             g.nextStratum(); UiMenuStyle.panel(g, x, top, w, bottom - top);
-            dev.hoi.client.ui.UiText.centered(g,font,"군수산업체",x+10,top+5,w-35,20,TEXT,false);
+            dev.hoi.client.ui.UiText.centered(g,font,dev.hoi.client.ui.UiTooltips.officerText("군수산업체",true),x+10,top+5,w-35,20,TEXT,false);
         }
         if (widgets) {
             addRenderableWidget(new UiMenuButton("규모",x+8,top+32,24,18,()->{manufacturerDescending=manufacturerSorted&&!manufacturerByName&&!manufacturerDescending;manufacturerByName=false;manufacturerSorted=true;rebuildWidgets();}).caption("").background(ScreenOrganization.art("sort_skill")));

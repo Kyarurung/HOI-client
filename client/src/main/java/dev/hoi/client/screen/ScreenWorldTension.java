@@ -112,7 +112,10 @@ public final class ScreenWorldTension extends Screen {
     private void begin(GuiGraphicsExtractor g) { g.pose().pushMatrix(); g.pose().translate(x,y); g.pose().scale(scale); }
     private void end(GuiGraphicsExtractor g) { g.pose().popMatrix(); }
     private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int color,boolean centered) {
-        float fontScale=Math.max(1.6f, 10f / (font.lineHeight * scale)); String line=font.plainSubstrByWidth(value,Math.max(1,(int)(w/fontScale)));
+        text(g,value,px,py,w,color,centered,false);
+    }
+    private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int color,boolean centered,boolean bold) {
+        float fontScale=Math.max(1.6f, 10f / (font.lineHeight * scale)); var line=net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(UiTooltips.officerText(value,bold),Math.max(1,(int)(w/fontScale))));
         g.pose().pushMatrix(); g.pose().translate(px+(centered?w/2f:0),py); g.pose().scale(fontScale);
         if(centered) g.centeredText(font,line,0,0,color); else g.text(font,line,0,0,color);
         g.pose().popMatrix();
@@ -125,7 +128,7 @@ public final class ScreenWorldTension extends Screen {
     }
     private void history(GuiGraphicsExtractor g) {
         UiAssets.draw(g,"tension/background",0,0,527,534);
-        text(g,"세계 긴장도 이력",20,28,500,0xFFE0E0DA,true);
+        text(g,"세계 긴장도 이력",20,28,500,0xFFE0E0DA,true,true);
         if(view==null || pending) { text(g,"서버 정보 불러오는 중…",30,176,467,0xFFA8ABA9,true); return; }
         int count=sort==ProtocolWorldTensionView.Sort.WARS?view.wars().size():view.entries().size();
         if(count==0) text(g,sort==ProtocolWorldTensionView.Sort.WARS?"현재 진행 중인 전쟁이 없습니다.":"세계 긴장도 발생 기록이 없습니다.",30,176,467,0xFFA8ABA9,true);
@@ -155,7 +158,7 @@ public final class ScreenWorldTension extends Screen {
         g.blit(id,0,0,1167,240,0,1,0,240f/506);
         g.blit(id,0,240,1167,514,0,1,239f/506,240f/506);
         g.blit(id,0,514,1167,780,0,1,240f/506,1);
-        text(g,war.name(),340,24,487,0xFFE0E0DA,true);
+        text(g,war.name(),340,24,487,0xFFE0E0DA,true,true);
         score(g,294,71,579,26,war.balance()); UiAssets.draw(g,"tension/score_frame",287,66,593,36);
         text(g,"야전 인력: "+sum(war.attackers()),20,72,264,0xFFE7C34C,true);
         text(g,"야전 인력: "+sum(war.defenders()),889,72,258,0xFFE7C34C,true);
@@ -184,7 +187,7 @@ public final class ScreenWorldTension extends Screen {
     }
     private String sum(List<ProtocolWorldTensionView.Participant> side) {
         long total=0;
-        for(var p:side) if(!p.callable()) { try {total=Math.addExact(total,Long.parseLong(p.manpower()));} catch(NumberFormatException|ArithmeticException e) {return "?";} }
+        for(var p:side) if(!p.callable()) { try {total=Math.addExact(total,Long.parseLong(p.manpower()));} catch(NumberFormatException|ArithmeticException e) {return "0";} }
         return UiMenuBar.number((double)total);
     }
     private static String percent(Double value) { return value==null?"—":String.format(Locale.ROOT,"%.1f%%",value); }
@@ -193,7 +196,7 @@ public final class ScreenWorldTension extends Screen {
     }
     private void score(GuiGraphicsExtractor g,int px,int py,int w,int h,Double amount) {
         UiAssets.draw(g,"tension/score_blue",px,py,w,h);
-        if(amount==null) { text(g,"?",px,py,w,0xFFE0E0DA,true);return; }
+        if(amount==null) { text(g,"0",px,py,w,0xFFE0E0DA,true);return; }
         int filled=(int)Math.round(w*amount);
         if(filled>0) g.blit(Identifier.parse("hoi:textures/gui/tension/score_red.png"),px,py,px+filled,py+h,0,amount.floatValue(),0,1);
     }

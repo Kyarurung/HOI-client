@@ -11,7 +11,7 @@ public final class UiMenuStyle {
     public static void heading(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font,
                                String text, int x, int y, int width, int color) {
         float scale = (font.lineHeight + 2f) / font.lineHeight;
-        String label = font.plainSubstrByWidth(text, Math.max(1, (int)(width / scale)));
+        var label = net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(UiTooltips.officerText(text, true), Math.max(1, (int)(width / scale))));
         g.pose().pushMatrix(); g.pose().translate(x, y - 1); g.pose().scale(scale);
         g.text(font, label, 0, 0, 0xFFFFFFFF); g.pose().popMatrix();
     }
@@ -63,6 +63,5 @@ public final class UiMenuStyle {
             bevel(g, x, y, w, h, true);
             g.horizontalLine(x + 3, x + w - 4, y + h - 3, ACCENT);
         } else metal(g, x, y, w, h);
-        if (hover) g.outline(x + 1, y + 1, w - 2, h - 2, ACCENT);
     }
 }

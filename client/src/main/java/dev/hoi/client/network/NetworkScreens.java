@@ -130,14 +130,29 @@ public final class NetworkScreens {
             try { screen.update(packet.view()); }
             catch (IllegalArgumentException invalid) { ScreenDialogCoordinator.setContent(null); message("교리 화면을 다시 열어주세요."); }
         });
+        ClientPlayNetworking.registerGlobalReceiver(ProtocolAgencyPayloads.Highlight.TYPE, (packet, context) -> dev.hoi.client.map.MapAgencyHud.accept(packet));
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.ProtocolRaidPayloads.Response.TYPE, (packet, context) -> {
+            try {
+                if (ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenRaid raid) raid.update(packet.view());
+                else dev.hoi.client.map.MapRaidHud.accept(packet.view());
+            }
+            catch (IllegalArgumentException invalid) {
+                if (ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenRaid raid) raid.revoke();
+                else dev.hoi.client.map.MapRaidHud.reset();
+            }
+        });
         ClientPlayNetworking.registerGlobalReceiver(ProtocolAgencyPayloads.Response.TYPE, (packet, context) -> {
-            if (!(ScreenDialogCoordinator.contentScreen() instanceof ScreenAgency agency)) return;
-            try { agency.update(packet.view()); }
+            try {
+                var view = packet.view();
+                if (ScreenDialogCoordinator.contentScreen() instanceof ScreenAgency agency) agency.update(view);
+                else dev.hoi.client.map.MapAgencyHud.accept(view);
+            }
             catch (IllegalArgumentException error) { message("정보기관 데이터를 읽을 수 없습니다."); }
         });
         ClientPlayNetworking.registerGlobalReceiver(ProtocolResearchPayloads.Response.TYPE, (packet, context) -> receiveResearch(packet));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             cancelOpen();
+            if (ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenRaid raid) raid.revoke();
             if (ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenDiplomacyLease editor) editor.revoke();
             if (ScreenDialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenDiplomacyVolunteers editor) editor.revoke();
             if (client.gui.screen() instanceof dev.hoi.client.screen.ScreenWorldTension) client.gui.setScreen(null);
@@ -252,8 +267,13 @@ public final class NetworkScreens {
         cancelOpen(); var screen = new ScreenIndustry(tab); ScreenDialogCoordinator.setContent(screen); screen.open();
     }
     public static void openAgency() {
+        dev.hoi.client.map.MapAgencyHud.reset();
         if (!ClientPlayNetworking.canSend(ProtocolAgencyPayloads.Request.TYPE)) { message("이 서버는 HOI 정보기관을 지원하지 않습니다."); return; }
         cancelOpen(); var screen = new ScreenAgency(null); ScreenDialogCoordinator.setContent(screen); screen.open();
+    }
+    public static void openRaids() {
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.ProtocolRaidPayloads.Request.TYPE)) return;
+        cancelOpen(); var screen = new dev.hoi.client.screen.ScreenRaid(); ScreenDialogCoordinator.setContent(screen); screen.open();
     }
     public static void openMenu(dev.hoi.protocol.ProtocolMenuTab tab) {
         if (!ClientCampaignHud.visible()) return;

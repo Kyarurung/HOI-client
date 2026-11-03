@@ -23,8 +23,10 @@ public final class MapSelectorHud {
     static boolean mapDimension(String dimension){return dimension.startsWith("hoi:atlas_");}
     static boolean active(){var level=Minecraft.getInstance().level;return level!=null&&mapDimension(level.dimension().identifier().toString());}
     static boolean selector(ItemStack item){var model=item.get(DataComponents.ITEM_MODEL);return item.is(Items.CARROT_ON_A_STICK)&&model!=null&&model.getNamespace().equals("hoi")&&model.getPath().startsWith("map/selector/");}
+    static boolean hidesMessages(){return active()||MapCommanderHud.hidesVanillaHud();}
     public static void register(){
-        for(var id:List.of(VanillaHudElements.HOTBAR,VanillaHudElements.SPECTATOR_MENU,VanillaHudElements.ARMOR_BAR,VanillaHudElements.HEALTH_BAR,VanillaHudElements.FOOD_BAR,VanillaHudElements.AIR_BAR,VanillaHudElements.MOUNT_HEALTH,VanillaHudElements.INFO_BAR,VanillaHudElements.EXPERIENCE_LEVEL,VanillaHudElements.HELD_ITEM_TOOLTIP,VanillaHudElements.SPECTATOR_TOOLTIP))HudElementRegistry.replaceElement(id,original->(g,delta)->{if(!MapCommanderHud.hidesVanillaHud())original.extractRenderState(g,delta);});
+        for(var id:List.of(VanillaHudElements.HOTBAR,VanillaHudElements.SPECTATOR_MENU,VanillaHudElements.ARMOR_BAR,VanillaHudElements.HEALTH_BAR,VanillaHudElements.FOOD_BAR,VanillaHudElements.AIR_BAR,VanillaHudElements.MOUNT_HEALTH,VanillaHudElements.INFO_BAR,VanillaHudElements.EXPERIENCE_LEVEL))HudElementRegistry.replaceElement(id,original->(g,delta)->{if(!MapCommanderHud.hidesVanillaHud())original.extractRenderState(g,delta);});
+        for(var id:List.of(VanillaHudElements.HELD_ITEM_TOOLTIP,VanillaHudElements.SPECTATOR_TOOLTIP,VanillaHudElements.OVERLAY_MESSAGE))HudElementRegistry.replaceElement(id,original->(g,delta)->{if(!hidesMessages())original.extractRenderState(g,delta);});
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR,Identifier.parse("hoi:map_selector_legend"),(g,delta)->{if(Minecraft.getInstance().gui.screen()==null)draw(g);});
         ScreenEvents.AFTER_INIT.register((client,screen,w,h)->{if(screen instanceof InputSidebarMovement.InputMovementScreen sidebar)ScreenEvents.afterExtract(screen).register((s,g,mx,my,delta)->{if(sidebar.allowsMovement())draw(g);});});
     }

@@ -23,8 +23,11 @@ public final class ScreenFocusChecks {
                 context.runOnClient(c->{
                     var screen=(ScreenFocus)c.gui.screen();
                     screen.update(ProtocolFocusPayloads.Response.of(screen.token(),view));
-                    if(screen.children().stream().noneMatch(child->child instanceof net.minecraft.client.gui.components.Button button&&button.getMessage().getString().equals("중점 시작")))
+                    if(!screen.selectedId().equals(target) || screen.detailBounds()==null)
                         throw new AssertionError("Source completion must open the selected focus detail after its private response");
+                    String action=view.nodes().getFirst().status().equals("진행 중")?"중점 취소":"중점 시작";
+                    if(screen.children().stream().noneMatch(child->child instanceof net.minecraft.client.gui.components.Button button&&button.getMessage().getString().equals(action)))
+                        throw new AssertionError("Source completion detail must expose the action for its authoritative focus status");
                 });
                 context.waitTicks(2);context.takeScreenshot("hoi-focus-completion-detail");
                 context.setScreen(()->new ScreenFocus(view,sent::add));context.waitTicks(2);

@@ -75,7 +75,7 @@ final class ScreenPreferredTactics extends ScreenDialog {
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
         UiMenuStyle.panel(g,left,top,size(196),size(306.5));
-        title(g,view().title(),x(2),y(1),size(176),size(14),UiMenuStyle.TEXT);
+        UiText.centeredSingleLine(g,font,UiTooltips.officerText(view().title(),true),x(2),y(1),size(176),size(14),UiMenuStyle.TEXT);
         for(var child:children())if(child instanceof AbstractWidget button&&button.getMessage().getString().equals("×"))button.extractRenderState(g,mx,my,delta);
         for(int i=0;i<3;i++) {
             var button=buttons.get("filter/"+i);

@@ -11,8 +11,29 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ResearchSlotTooltipTest {
+    public static void runSource(ClientGameTestContext context) {
+        for (String fixture : List.of("prc-research-slot-design-team", "research-year-4-51", "research-year-4-00")) {
+        var source = new ProtocolResearchPayloads.Response(dev.hoi.client.screen.ScreenDesignTeamCandidatesTest.fixture(fixture)).view();
+        if (fixture.startsWith("research-year-")) check(source.slots().getFirst().yearTooltip().contains(fixture.endsWith("51") ? "4.51년" : "4.00년"), "Server year formatting retains two places");
+        for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
+            context.getInput().resizeWindow(size[0],size[1]);context.runOnClient(client->client.options.guiScale().set(2));
+            var requests = new ArrayList<ProtocolResearchPayloads.Request>();overview(context,source,requests);
+            var point = context.computeOnClient(client->{
+                var screen=(ResearchScreen)client.gui.screen();var button=slot(screen,0);
+                int x=button.sourceX(59),y=button.sourceY(62);
+                check(screen.slotTooltipAt(x,y).equals(source.slots().getFirst().yearTooltip()),"Year region preserves authoritative year tooltip exactly");
+                double scale=client.getWindow().getGuiScale();return new double[]{x*scale,y*scale};
+            });
+            context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(4);context.takeScreenshot("hoi-research-year-source-"+fixture+"-"+size[0]+"-gui2");
+            context.runOnClient(client->check(requests.isEmpty(),"Year hover must not mutate research"));
+        }
+        }
+    }
     public static void run(ClientGameTestContext context, ProtocolResearchView base) {
         var technologies = new ArrayList<>(base.technologies());
+        var active = technologies.get(1);
+        var source = new ProtocolResearchView.Source("tooltip_fixture", "infantry", 0, 0, false, List.of(), List.of(), List.of(), List.of(), "시험 설명 첫 줄\n-----\n시험 설명 둘째 줄", List.of(), java.util.Map.of());
+        technologies.set(1, new ProtocolResearchView.Tech(active.id(), active.category(), active.name(), active.year(), active.tier(), active.baseDays(), active.progress(), active.dailyRate(), active.prerequisites(), active.effects(), active.unlocks(), active.status(), source, active.tooltipOnlyEffects(), List.of(), List.of(new ProtocolResearchView.UnitCard("infantry", "보병", List.of(new ProtocolResearchView.StatLine("대인 공격", "+5.00%")), List.of()))));
         var original = technologies.get(2);
         var completed = new ProtocolResearchView.Tech(original.id(), original.category(), original.name(),
                 original.year(), original.tier(), original.baseDays(), original.baseDays(), original.dailyRate(),
@@ -24,15 +45,25 @@ public final class ResearchSlotTooltipTest {
         var view = new ProtocolResearchView(base.session(), base.revision(), base.country(), base.countryName(),
                 base.day(), base.date(), base.speed(), slots, technologies, base.message(), base.hud(), base.benefits());
         var requests = new ArrayList<ProtocolResearchPayloads.Request>();
-        context.getInput().resizeWindow(1600, 1000);
+        for (int[] size : List.of(new int[]{2560,1440},new int[]{1280,720})) {
+        context.getInput().resizeWindow(size[0], size[1]);
         context.runOnClient(client -> client.options.guiScale().set(2));
+        lineStates(context, view, size);
         overview(context, view, requests);
         for (int index = 0; index < 3; index++) {
             final int slotIndex = index;
             var point = context.computeOnClient(client -> {
                 var button = slot((ResearchScreen)client.gui.screen(), slotIndex);
-                check(tooltip(button) == null, "Slot hover tooltip remains: " + slotIndex);
+                check(tooltip(button) == null, "Slot uses its source tooltip renderer: " + slotIndex);
                 var technology = view.technology(view.slots().get(slotIndex).technology());
+                var screen = (ResearchScreen)client.gui.screen();
+                String text = screen.slotTooltipAt(button.getX()+button.getWidth()/2.0,button.getY()+button.getHeight()/2.0);
+                check(technology == null ? text.isEmpty() : text.startsWith("§Y"+technology.name()), "Only occupied slots show the authoritative technology tooltip");
+                check(!text.contains("연구 시간") && !text.contains("앞선 기술") && !text.contains("-----"), "Slot tooltip omits tree timing and text separators");
+                if (slotIndex == 1) {
+                    check(text.contains("£unit_infantry_icon_medium£") && text.contains("+5.00%") && text.indexOf("보병") < text.indexOf("시험 설명"), "Slot preserves unit icon, exact precision and effect/description order");
+                    check(text.contains("\n\n시험 설명") && text.contains("첫 줄\n\n시험 설명 둘째 줄"), "Description and source separators use one blank line");
+                }
                 check(button.getMessage().getString().equals("슬롯 " + (slotIndex + 1) + " · "
                         + (technology == null ? "연구 선택" : technology.name())), "Slot accessible name changed");
                 check(button.active && button.visible, "Slot selection remains available");
@@ -43,8 +74,8 @@ public final class ResearchSlotTooltipTest {
             context.getInput().setCursorPos(point[0], point[1]);
             context.waitTicks(12);
             context.runOnClient(client -> check(!deferredTooltip(client, slot((ResearchScreen)client.gui.screen(), slotIndex)),
-                    "Hovering a research slot must not enqueue a rendered tooltip: " + slotIndex));
-            context.takeScreenshot("hoi-research-slot-hover-" + List.of("empty", "active", "completed").get(index));
+                    "Custom source tooltip must not enqueue a second widget tooltip: " + slotIndex));
+            context.takeScreenshot("hoi-research-slot-hover-" + List.of("empty", "active", "completed").get(index)+"-"+size[0]+"-gui2");
         }
         context.runOnClient(client -> {
             var screen = (ResearchScreen)client.gui.screen();
@@ -84,7 +115,7 @@ public final class ResearchSlotTooltipTest {
             var screen = (ResearchScreen)client.gui.screen();
             click(screen, slot(screen, 1));
             check(mutations(requests).isEmpty(), "Selecting active research does not cancel it");
-            click(screen, action(screen, "연구 중단"));
+            click(screen, action(screen, "연구"));
             check(mutations(requests).equals(List.of(new ProtocolResearchPayloads.Request(
                     ProtocolResearchPayloads.Action.CANCEL, view.session(), view.revision(), 1,
                     view.slots().get(1).technology()))), "Active-slot selection preserves authenticated CANCEL");
@@ -93,12 +124,66 @@ public final class ResearchSlotTooltipTest {
         context.runOnClient(client -> {
             var screen = (ResearchScreen)client.gui.screen();
             click(screen, slot(screen, 2));
-            check(action(screen, "연구 완료").visible, "Completed slot still opens its completed detail");
+            check(action(screen, "연구").visible, "Completed slot still opens its completed detail");
             check(mutations(requests).isEmpty(), "Selecting completed research does not send a mutation");
             check(screen.tooltipLines(completed).stream().anyMatch(line -> line.getString().equals("연구됨")),
                     "Completed technology explanation remains available");
             check(completed.fraction() == 1 && completed.remainingDays(0) == 0, "Completed progress is preserved");
         });
+        }
+    }
+    private static void lineStates(ClientGameTestContext context, ProtocolResearchView base, int[] size) {
+        var gson = new com.google.gson.Gson();
+        java.awt.image.BufferedImage plain = null;
+        for (int state = 0; state < 4; state++) {
+            int percent = state == 3 ? 50 : state * 50;
+            boolean assigned = state == 3;
+            var json = gson.toJsonTree(base).getAsJsonObject();
+            var tech = json.getAsJsonArray("technologies").get(1).getAsJsonObject();
+            tech.addProperty("progress", tech.get("baseDays").getAsInt() * percent / 100.0);
+            var first = json.getAsJsonArray("slots").get(0).getAsJsonObject();
+            first.addProperty("savedDays", percent * 30 / 100);
+            if (assigned) {
+                var team = new ProtocolResearchView.DesignTeam("slot_visual", "시험 업체", "mio/country/kor/gfx_idea_kor_hdhyundai/frame_0", 1, "시험 유형", List.of(), 0, 0, 0, "", List.of(), List.of(), List.of(), "시험 업체 툴팁");
+                json.add("designTeams", gson.toJsonTree(List.of(team)));
+                json.getAsJsonArray("slots").get(1).getAsJsonObject().addProperty("designTeam", team.id());
+            }
+            var view = gson.fromJson(json, ProtocolResearchView.class);
+            var requests = new ArrayList<ProtocolResearchPayloads.Request>();
+            overview(context, view, requests);
+            context.getInput().setCursorPos(size[0] - 2, size[1] - 2);
+            context.waitTicks(3);
+            var geometry = context.computeOnClient(client -> {
+                check(client.options.guiScale().get() == 2 && client.getWindow().getGuiScale() == 2, "Research evidence must use actual GUI2");
+                var screen = (ResearchScreen)client.gui.screen();
+                var button = slot(screen, 1);
+                check(button.getBottom() <= slot(screen, 2).getY(), "Source-height research lines do not overlap");
+                return new double[]{button.getX() * 2, button.getY() * 2, button.sourceScale() * 2, slot(screen, 0).getY() * 2};
+            });
+            var path = context.takeScreenshot("hoi-research-line-state-" + percent + (assigned ? "-assigned-" : "-plain-") + size[0] + "-gui2");
+            try {
+                var image = javax.imageio.ImageIO.read(path.toFile());
+                check(image.getWidth() == size[0] && image.getHeight() == size[1], "Screenshot preserves the actual framebuffer aspect ratio");
+                for (int row = 0; row < 2; row++) {
+                    int y = (int)Math.floor((row == 0 ? geometry[3] : geometry[1]) + 83 * geometry[2]);
+                    int start = image.getRGB((int)Math.floor(geometry[0] + 100 * geometry[2]), y) & 0xFFFFFF;
+                    int end = image.getRGB((int)Math.floor(geometry[0] + 420 * geometry[2]), y) & 0xFFFFFF;
+                    check(percent == 0 ? start == 0 : Math.abs((start >> 16) - (start & 255)) < 4 && (start & 255) > 100, "Research and banked-days bars preserve the original neutral fill");
+                    check(percent == 100 ? (end & 255) > 100 : end == 0, "Progress endpoints use the authoritative fraction");
+                }
+                if (state == 1) plain = image;
+                if (assigned) {
+                    int changed = 0;
+                    for (int y = 26; y < 64; y++) for (int x = 8; x < 55; x++) {
+                        int px = (int)Math.floor(geometry[0] + x * geometry[2]), py = (int)Math.floor(geometry[1] + y * geometry[2]);
+                        if (image.getRGB(px, py) != plain.getRGB(px, py)) changed++;
+                    }
+                    check(changed > 100, "Assigned research uses the original gear background");
+                }
+                java.nio.file.Files.writeString(path.resolveSibling(path.getFileName() + ".json"), gson.toJson(java.util.Map.of("width", image.getWidth(), "height", image.getHeight(), "guiScale", 2, "geometry", geometry, "percent", percent, "assigned", assigned, "synthetic", true)));
+            } catch (java.io.IOException failure) { throw new java.io.UncheckedIOException(failure); }
+            check(mutations(requests).isEmpty(), "Rendering progress and assignment must not mutate research");
+        }
     }
     private static void overview(ClientGameTestContext context, ProtocolResearchView view,
             ArrayList<ProtocolResearchPayloads.Request> requests) {

@@ -66,12 +66,35 @@ public final class ProtocolFocusPayloads {
         }
         public static Ack of(Request request) {return new Ack(request.action(),request.session(),request.revision(),request.id());}
     }
-    public record View(String country,String name,String tree,String session,long revision,String message,ProtocolCountryHud hud,List<Node> nodes,boolean cancelable,Detail detail,Ack ack) {
+    public record InlayImage(String name,String sprite) {
+        public InlayImage {ProtocolCountryView.text(name,128);ProtocolCountryView.text(sprite,128);}
+    }
+    public record InlayBar(String name,double progress) {
+        public InlayBar {ProtocolCountryView.text(name,128);if(!Double.isFinite(progress))throw new IllegalArgumentException("Invalid focus inlay progress");}
+    }
+    public record InlayText(String name,String text) {
+        public InlayText {ProtocolCountryView.text(name,128);ProtocolCountryView.text(text,256);}
+    }
+    public record Inlay(String id,String window,int x,int y,List<InlayImage> images,List<InlayBar> bars,List<InlayText> texts) {
+        public Inlay(String id,String window,int x,int y,List<InlayImage> images,List<InlayBar> bars) {this(id,window,x,y,images,bars,List.of());}
+        public Inlay {
+            ProtocolCountryView.text(id,128);ProtocolCountryView.text(window,128);images=List.copyOf(images);bars=List.copyOf(bars);texts=texts==null?List.of():List.copyOf(texts);
+            if(images.size()>16||bars.size()>16||texts.size()>16)throw new IllegalArgumentException("Invalid focus inlay");
+        }
+    }
+    public record View(String country,String name,String tree,String session,long revision,String message,ProtocolCountryHud hud,List<Node> nodes,boolean cancelable,Detail detail,Ack ack,String cancelTooltip,String startTooltip,List<Inlay> inlays) {
         public View(String country,String name,String tree,String session,long revision,String message,ProtocolCountryHud hud,List<Node> nodes,boolean cancelable) {
-            this(country,name,tree,session,revision,message,hud,nodes,cancelable,null,null);
+            this(country,name,tree,session,revision,message,hud,nodes,cancelable,null,null,"","",List.of());
+        }
+        public View(String country,String name,String tree,String session,long revision,String message,ProtocolCountryHud hud,List<Node> nodes,boolean cancelable,Detail detail,Ack ack) {
+            this(country,name,tree,session,revision,message,hud,nodes,cancelable,detail,ack,"","",List.of());
         }
         public View {
-            ProtocolCountryView.tag(country);UUID.fromString(session);ProtocolCountryView.text(name,256);ProtocolCountryView.text(tree,256);ProtocolCountryView.text(message,512);Objects.requireNonNull(hud);nodes=List.copyOf(nodes);
+            if(cancelTooltip==null)cancelTooltip="";
+            if(startTooltip==null)startTooltip="";
+            inlays=inlays==null?List.of():List.copyOf(inlays);
+            if(inlays.size()>16)throw new IllegalArgumentException("Invalid focus inlays");
+            ProtocolCountryView.tag(country);UUID.fromString(session);ProtocolCountryView.text(name,256);ProtocolCountryView.text(tree,256);ProtocolCountryView.text(message,512);ProtocolCountryView.text(cancelTooltip,512);ProtocolCountryView.text(startTooltip,512);Objects.requireNonNull(hud);nodes=List.copyOf(nodes);
             if(revision<0||nodes.size()>MAX_NODES||nodes.stream().map(Node::id).distinct().count()!=nodes.size())throw new IllegalArgumentException("Invalid focus graph");
             for(var n:nodes) {
                 for(var g:n.parents())for(int p:g)if(p<0||p>=nodes.size())throw new IllegalArgumentException("Invalid focus prerequisite");

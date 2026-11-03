@@ -34,6 +34,7 @@ public final class ScreenFocus extends Screen {
     public ScreenFocus(ProtocolFocusPayloads.View view,Consumer<ProtocolFocusPayloads.Request> sender){this(view,sender,true);}
     private ScreenFocus(ProtocolFocusPayloads.View view,Consumer<ProtocolFocusPayloads.Request> sender,boolean fixture){super(Component.literal("중점 계통도"));this.view=view;this.sender=sender;this.fixture=fixture;extended=view!=null && (view.ack()!=null || view.detail()!=null);}
     public String token(){return token;}
+    public static void resourcesReloaded(){ScreenFocusInlays.clear();}
     String searchText(){return query;}
     float zoomLevel(){return zoom;}
     float panX(){return panX;}
@@ -110,12 +111,13 @@ public final class ScreenFocus extends Screen {
             var n=selectedNode();
             detailPanel.layout(width,height,top);
             detailClose=addRenderableWidget(detailPanel.button(true,() -> {clearSelection();rebuildWidgets();}));
-            detailStart=detailPanel.button(false,() -> {request(ProtocolFocusPayloads.Action.START,n.id());rebuildWidgets();});
-            detailStart.active=n.enabled() && pending==null && (!extended || detail!=null && detail.executable());
-            if(detail!=null && !detail.limitation().isEmpty())detailStart.setTooltip(UiTooltips.createOfficer(detail.limitation()));
+            boolean cancel=n.status().equals("진행 중");
+            detailStart=detailPanel.button(false,() -> {request(cancel?ProtocolFocusPayloads.Action.CANCEL:ProtocolFocusPayloads.Action.START,n.id());rebuildWidgets();});
+            detailStart.setMessage(Component.literal(cancel?"중점 취소":"중점 시작"));
+            detailStart.setTooltip(UiTooltips.createOfficer(cancel?view.cancelTooltip():view.startTooltip()));
+            detailStart.active=pending==null && (cancel?view.cancelable():n.enabled() && (!extended || detail!=null && detail.executable()));
             addRenderableWidget(detailStart);
         }
-        if(view!=null && view.cancelable()) {var cancel=new UiMenuButton("중점 취소",8,height-28,85,21,() -> {request(ProtocolFocusPayloads.Action.CANCEL,selected);rebuildWidgets();});cancel.active=pending==null;addRenderableWidget(cancel);}
     }
     private void centerTree() {
         if(view.nodes().isEmpty()){panX=width/2f;panY=top+8;centered=true;return;}
@@ -132,20 +134,30 @@ public final class ScreenFocus extends Screen {
     }
     private ProtocolFocusPayloads.Node selectedNode(){return view==null?null:view.nodes().stream().filter(n -> n.id().equals(selected)).findFirst().orElse(null);}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
-        g.fill(0,0,width,height,0xFF030804);UiMenuBar.draw(g,width,view==null?ProtocolCountryHud.UNKNOWN:view.hud(),mx,my,0);
+        g.fill(0,UiMenuBar.height(width),width,height,0xFF030804);UiMenuBar.draw(g,width,view==null?ProtocolCountryHud.UNKNOWN:view.hud(),mx,my,0);
         UiMenuStyle.panel(g,0,top-29,width,29);
-        g.text(font,font.plainSubstrByWidth((view==null?"":view.name()+" ")+"중점 계통도",Math.max(30,width-245)),10,top-19,UiMenuStyle.TEXT);
+        var heading=UiTooltips.officerText((view==null?"":view.name()+" ")+"중점 계통도",true);
+        g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(heading,Math.max(30,width-245))),10,top-19,UiMenuStyle.TEXT);
         g.enableScissor(4,top,width-4,height-5);
         if(view!=null) {
+            ScreenFocusInlays.draw(g,view.inlays(),panX,panY,zoom);
             for(int i=0;i<view.nodes().size();i++) {
                 var n=view.nodes().get(i);
                 for(var group:n.parents())for(int parent:group)link(g,view.nodes().get(parent),n);
-                for(int other:n.exclusive())if(other>i) {
-                    var b=view.nodes().get(other);int left=(int)Math.min(x(n),x(b)),right=(int)Math.max(x(n),x(b)),lineY=(int)(y(n)+NODE_H*zoom-5*zoom);
-                    if(lineY>=top && lineY<height){g.fill(left,lineY,right,lineY+1,0xFF486858);UiAssets.draw(g,"focus/exclusive",(left+right)/2-9,lineY-7,18,14);}
-                }
             }
             for(var n:view.nodes())drawNode(g,n);
+            g.nextStratum();
+            var exclusivePairs=new HashSet<Set<Integer>>();
+            for(int i=0;i<view.nodes().size();i++)for(int other:view.nodes().get(i).exclusive()) {
+                if(other==i||!exclusivePairs.add(Set.of(i,other)))continue;
+                var a=view.nodes().get(i);var b=view.nodes().get(other);
+                int left=(int)(Math.min(x(a),x(b))+42*zoom),right=(int)(Math.max(x(a),x(b))-42*zoom),linkY=(int)(Math.min(y(a),y(b))+58.5*zoom),size=Math.max(1,Math.round(16*zoom));
+                if(right<=left||linkY+size<top||linkY>=height)continue;
+                g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/mio/ui/gfx_focus_exclusive_line1/frame_0.png"),left+size/2,linkY+Math.round(5*zoom),right-size/2,linkY+Math.round(11*zoom),0,1,0,1);
+                UiAssets.draw(g,"mio/ui/gfx_focus_link_exclusive/frame_1",left,linkY,size,size);
+                UiAssets.draw(g,"mio/ui/gfx_focus_link_exclusive/frame_2",right-size,linkY,size,size);
+                UiAssets.draw(g,"mio/ui/gfx_focus_link_exclusive/frame_0",(left+right-size)/2,linkY,size,size);
+            }
             g.nextStratum();
             for(var n:view.nodes())drawLabel(g,n);
         } else g.centeredText(font,"중점 계통도 불러오는 중…",width/2,top+36,UiMenuStyle.TEXT);
@@ -159,7 +171,7 @@ public final class ScreenFocus extends Screen {
             detailClose.extractRenderState(g,mx,my,delta);detailStart.extractRenderState(g,mx,my,delta);
         }
         if(!widgetAt(mx,my) && (selected.isEmpty() || !detailPanel.bounds().contains(mx,my))) {var node=at(mx,my);if(node!=null)g.setTooltipForNextFrame(font,UiTooltips.sourceLines(font,node.name()+"\n"+node.description()+"\n"+node.status()+(node.remaining()>0?" · "+ScreenFocusDetail.days(node.remaining())+"일 남음":""),width),mx,my);}
-        if(view!=null && !view.message().isEmpty())g.text(font,font.plainSubstrByWidth(view.message(),width-115),105,height-19,UiMenuStyle.TEXT);
+        if(view!=null && !view.message().isEmpty() && !Set.of("중점 시작","중점 취소").contains(view.message()))g.text(font,font.plainSubstrByWidth(view.message(),width-115),105,height-19,UiMenuStyle.TEXT);
     }
     private void link(GuiGraphicsExtractor g,ProtocolFocusPayloads.Node parent,ProtocolFocusPayloads.Node child) {
         int px=(int)x(parent),py=(int)(y(parent)+NODE_H*zoom-2*zoom),cx=(int)x(child),cy=(int)y(child),middle=(py+cy)/2;

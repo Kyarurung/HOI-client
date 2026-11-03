@@ -113,8 +113,8 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
                 order=view().image().equals("commander/group")?order.thenComparing(rank):rank.thenComparing(order);
             }
             rows=view().tiles().stream().filter(t->t.leader()!=null&&(showAssigned||!t.leader().assigned())&&t.name().toLowerCase(Locale.ROOT).contains(lower)).sorted(order).toList();
-            var officers=new UiMenuButton(view().image().equals("navy/admirals")?"함선 지휘관 보기":"야전 장교 보기",left+7,bottom-26,126,17,()->submit(view().image().equals("navy/admirals")?"captains":"officers"));officers.active=!pending&&view().choices().stream().anyMatch(c->c.id().equals(view().image().equals("navy/admirals")?"captains":"officers"));choiceButtons.put(view().image().equals("navy/admirals")?"captains":"officers",officers);addRenderableWidget(officers);
-            var remove=new UiMenuButton("배정 해제",left+pane-137,bottom-26,125,17,()->submit("remove"));remove.active=!pending;view().tiles().stream().filter(t->t.section().equals("remove")).findFirst().ifPresent(t->remove.setTooltip(UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(t.detail()))));choiceButtons.put("remove",remove);addRenderableWidget(remove);
+            var officers=new UiMenuButton(view().image().equals("navy/admirals")?"함선 지휘관 보기":"야전 장교 보기",left+pane-268,bottom-25,131,17,()->submit(view().image().equals("navy/admirals")?"captains":"officers")).background("mio/ui/gfx_button_261x34/frame_0").textShadow(false);officers.active=!pending&&view().choices().stream().anyMatch(c->c.id().equals(view().image().equals("navy/admirals")?"captains":"officers"));choiceButtons.put(view().image().equals("navy/admirals")?"captains":"officers",officers);addRenderableWidget(officers);
+            var remove=new UiMenuButton("배정 해제",left+pane-125,bottom-26,111,17,()->submit("remove")).background("mio/ui/gfx_button_221x34/frame_0").textShadow(false);remove.active=!pending;view().tiles().stream().filter(t->t.section().equals("remove")).findFirst().ifPresent(t->remove.setTooltip(UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(t.detail()))));choiceButtons.put("remove",remove);addRenderableWidget(remove);
         }
         if(promoting()){
             top=Math.max(UiMenuBar.height(width),height/2-85);bottom=top+170;listTop=top+25;
@@ -146,7 +146,7 @@ final class ScreenCommanderRoster extends ScreenDialog implements dev.hoi.client
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
-        if(nativeRows&&!promoting())UiAssets.draw(g,"commander/ui/panel",left,top,pane,(int)Math.round(pane*607.0/550));else UiMenuStyle.panel(g,left,top,pane,bottom-top+3);UiText.leftSingleLine(g,font,UiTooltips.officerText(view().title()),left+7,top+3,nativeRows&&!promoting()?pane-110:pane-30,nativeRows?14:19,0xFFFFFFFF);
+        if(nativeRows&&!promoting())UiAssets.draw(g,"commander/ui/panel",left,top,pane,(int)Math.round(pane*607.0/550));else UiMenuStyle.panel(g,left,top,pane,bottom-top+3);UiText.leftSingleLine(g,font,UiTooltips.officerText(view().title(),true),left+7,top+3,nativeRows&&!promoting()?pane-110:pane-30,nativeRows?14:19,0xFFFFFFFF);
         if(!nativeRows)UiText.centered(g,font,view().body(),left+6,top+27,pane-12,19,UiMenuStyle.MUTED);
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget){if(nativeRows&&!promoting()&&child instanceof AbstractWidget b&&b.getY()>=listTop&&b.getY()<bottom-30){g.enableScissor(left+5,listTop,left+pane-12,bottom-30);widget.extractRenderState(g,my>=listTop&&my<bottom-30?mx:-1,my,delta);g.disableScissor();}else widget.extractRenderState(g,mx,my,delta);}
         if(nativeRows&&!promoting())UiAssets.draw(g,"commander/commands/division_list_column_button/frame_7",left+14,top+20,9,8);

@@ -34,7 +34,7 @@ public final class ResearchBackgroundTest {
                 });
                 context.waitTicks(3);
                 var sprites = List.of("infantry_techtree_bg", "support_techtree_bg", "armortech_bg", "artillery_techtree_bg",
-                        "naval_techtree_bg", "", "air_techtree_bg", "engineering_techtree_bg", "industry_techtree_bg");
+                        "naval_techtree_bg", "naval_techtree_bg", "air_techtree_bg", "engineering_techtree_bg", "industry_techtree_bg");
                 for (int index = 0; index < sprites.size(); index++) {
                     int tab = index;
                     context.runOnClient(client -> {

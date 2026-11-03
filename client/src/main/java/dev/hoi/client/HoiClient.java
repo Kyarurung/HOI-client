@@ -6,6 +6,7 @@ import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.map.MapSceneRenderer;
 import dev.hoi.client.screen.ScreenDialogCoordinator;
+import dev.hoi.client.screen.ScreenRaid;
 import dev.hoi.client.ui.UiAssets;
 
 import dev.hoi.protocol.ProtocolResearchPayloads;
@@ -22,9 +23,12 @@ public final class HoiClient implements ClientModInitializer {
         dev.hoi.client.audio.AudioKoreanMusic.loadVolume();
         ProtocolResearchPayloads.registerPayloadTypes();
         ClientCampaignHud.register();
+        dev.hoi.client.input.InputMapInfo.register();
         dev.hoi.client.map.MapUnitHud.register();
         dev.hoi.client.map.MapSelectorHud.register();
         dev.hoi.client.map.MapCommanderHud.register();
+        dev.hoi.client.map.MapAgencyHud.register();
+        dev.hoi.client.map.MapRaidHud.register();
         dev.hoi.client.map.MapOccupationHud.register();
         ScreenDialogCoordinator.register();
         dev.hoi.protocol.ProtocolAudioPayloads.registerPayloadTypes();
@@ -39,7 +43,7 @@ public final class HoiClient implements ClientModInitializer {
         dev.hoi.protocol.ProtocolWorldTension.registerPayloadTypes();
         net.fabricmc.fabric.api.resource.v1.ResourceLoader.get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
                 .registerReloadListener(Identifier.fromNamespaceAndPath("hoi", "ui_image_dimensions"),
-                        (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> { UiAssets.clear(); dev.hoi.client.audio.AudioStorySounds.clear(); net.minecraft.client.Minecraft.getInstance().execute(dev.hoi.client.audio.AudioUnitVoices::reset); MapSceneRenderer.resourcesReloaded(); dev.hoi.client.audio.AudioKoreanMusic.reload(manager); });
+                        (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> { UiAssets.clear(); ScreenRaid.resourcesReloaded(); dev.hoi.client.audio.AudioStorySounds.clear(); net.minecraft.client.Minecraft.getInstance().execute(dev.hoi.client.audio.AudioUnitVoices::reset); MapSceneRenderer.resourcesReloaded(); dev.hoi.client.audio.AudioKoreanMusic.reload(manager); });
         ClientTickEvents.START_CLIENT_TICK.register(InputSidebarMovement::tick);
         NetworkScreens.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> registerCommands(dispatcher));

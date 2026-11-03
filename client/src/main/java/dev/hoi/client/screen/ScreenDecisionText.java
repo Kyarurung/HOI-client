@@ -31,8 +31,8 @@ final class ScreenDecisionText {
     private final Map<String,List<Component>> sourceRows = new LinkedHashMap<>();
     private Map<String,Image> images=Map.of();
     private Set<String> sprites=Set.of();
-    private record Image(String path,int width,int height) {}
-    private record Block(FormattedCharSequence text,Image image,int width,int height) {}
+    private record Image(String path,int width,int height,boolean namedPortrait,boolean banner) {}
+    record Block(FormattedCharSequence text,Image image,int width,int height,int captionOffset) {}
     void clear() { cache.clear();sourceRows.clear(); }
     void flags(JsonObject root) {
         var next=new HashMap<String,String>();
@@ -51,7 +51,7 @@ final class ScreenDecisionText {
             String path=value.get("path").getAsString();
             int width=value.get("width").getAsInt(),height=value.get("height").getAsInt();
             if(entry.getKey().matches("[A-Za-z0-9_]+") && path.matches("[a-z0-9_/.-]+") && !path.contains("..")
-                    && width>0 && height>0 && width<=4096 && height<=4096)next.put(entry.getKey(),new Image(path,width,height));
+                    && width>0 && height>0 && width<=4096 && height<=4096)next.put(entry.getKey(),new Image(path,width,height,value.has("source")&&value.get("source").getAsString().contains("/texticon_portraits/"),value.has("source")&&value.get("source").getAsString().contains("/texticons/banners/")));
         }
         images=Map.copyOf(next);
         sprites=root.get("sprites") instanceof JsonObject entries?Set.copyOf(entries.keySet()):Set.of();
@@ -156,12 +156,15 @@ final class ScreenDecisionText {
         return result;
     }
     List<FormattedCharSequence> lines(Font font,String text,int width) {
-        String key=width+"\n"+text;
+        return lines(font,text,width,false);
+    }
+    List<FormattedCharSequence> lines(Font font,String text,int width,boolean bold) {
+        String key=width+"\n"+bold+"\n"+text;
         var cached=cache.get(key);
         if(cached!=null)return cached;
         var result=new ArrayList<FormattedCharSequence>();
         for(var line:rows(text)) {
-            var wrapped=font.split(line,Math.max(1,width));
+            var wrapped=font.split(bold?line.copy().withStyle(net.minecraft.ChatFormatting.BOLD):line,Math.max(1,width));
             if(wrapped.isEmpty())result.add(FormattedCharSequence.EMPTY);
             else result.addAll(wrapped);
         }
@@ -172,8 +175,15 @@ final class ScreenDecisionText {
     }
     UiTooltips.ScrolledTooltip tooltip(GuiGraphicsExtractor graphics,Font font,String text,int mouseX,int mouseY,
             int viewportWidth,int viewportHeight,int scroll) {
-        var blocks=blocks(font,text,Math.max(1,Math.min(324,viewportWidth-20)));
-        int width=Math.min(Math.max(1,viewportWidth-20),Math.max(80,blocks.stream().mapToInt(Block::width).max().orElse(80)));
+        int imageWidth=0;
+        for(var row:rows(text)) {
+            var matcher=TOKENS.matcher(row.getString().strip());
+            var image=matcher.matches()&&matcher.group(1)!=null?images.get(matcher.group(1)):null;
+            if(image!=null)imageWidth=Math.max(imageWidth,Math.max(1,(int)Math.round(image.width()/2d)));
+        }
+        int limit=Math.max(1,Math.min(imageWidth>0?imageWidth:324,viewportWidth-20));
+        var blocks=blocks(font,text,limit);
+        int width=imageWidth>0?limit:Math.min(limit,Math.max(1,blocks.stream().mapToInt(Block::width).max().orElse(1)));
         int total=blocks.stream().mapToInt(Block::height).sum();
         int height=Math.min(total,Math.max(1,viewportHeight-20)),maxScroll=Math.max(0,total-height);
         scroll=Math.clamp(scroll,0,maxScroll);
@@ -188,7 +198,12 @@ final class ScreenDecisionText {
             if(top>=y+height)break;
             if(top+block.height()<=y)continue;
             if(block.image()==null)graphics.text(font,block.text(),x,top,0xFFE0E0E0);
-            else UiAssets.draw(graphics,block.image().path(),x+(width-block.width())/2,top,block.width(),block.height());
+            else {
+                int imageX=x+(width-block.width())/2;
+                if(block.image().banner())UiAssets.drawContent(graphics,block.image().path(),imageX,top,block.width(),block.height());
+                else UiAssets.draw(graphics,block.image().path(),imageX,top,block.width(),block.height());
+                if(block.text()!=null)graphics.text(font,block.text(),imageX+block.captionOffset(),top+(int)Math.round(block.height()*235.0/258)-font.lineHeight/2,0xFFFFFFFF);
+            }
         }
         graphics.disableScissor();
         if(maxScroll>0) {
@@ -197,21 +212,39 @@ final class ScreenDecisionText {
         }
         return new UiTooltips.ScrolledTooltip(x,y,width,height,scroll,maxScroll);
     }
-    private List<Block> blocks(Font font,String text,int width) {
+    List<Block> blocks(Font font,String text,int width) {
         var result=new ArrayList<Block>();
-        for(var row:rows(text)) {
+        var rows=UiTooltips.collapseBlankLines(rows(text),value->UiTooltipText.blank(value.getString()));
+        for(int index=0;index<rows.size();index++) {
+            var row=rows.get(index);
             var matcher=TOKENS.matcher(row.getString().strip());
             Image image=matcher.matches() && matcher.group(1)!=null?images.get(matcher.group(1)):null;
             if(image!=null) {
-                int imageWidth=Math.min(width,image.width());
+                int imageWidth=Math.min(width,Math.max(1,(int)Math.round(image.width()/2d)));
                 int imageHeight=Math.max(1,(int)Math.round(image.height()*(double)imageWidth/image.width()));
-                result.add(new Block(null,image,imageWidth,imageHeight));
+                if(image.banner()) {
+                    int[] content=UiAssets.contentSize(image.path());
+                    double scale=(double)imageWidth/image.width();
+                    imageWidth=Math.max(1,(int)Math.round(content[0]*scale));
+                    imageHeight=Math.max(1,(int)Math.round(content[1]*scale));
+                }
+                FormattedCharSequence caption=null;int captionOffset=0,next=index+1;
+                while(next<rows.size()&&UiTooltipText.blank(rows.get(next).getString()))next++;
+                if(image.namedPortrait()&&next<rows.size()) {
+                    var name=rows.get(next);String plain=name.getString(),trimmed=plain.strip();
+                    if(!trimmed.isEmpty()&&plain.startsWith(" ")) {
+                        caption=name.getVisualOrderText();
+                        captionOffset=(imageWidth-font.width(trimmed))/2-font.width(plain.substring(0,plain.length()-plain.stripLeading().length()));
+                        index=next;
+                    }
+                }
+                result.add(new Block(caption,image,imageWidth,imageHeight,captionOffset));
             } else {
                 var lines=font.split(row,width);
-                if(lines.isEmpty())result.add(new Block(FormattedCharSequence.EMPTY,null,0,font.lineHeight+1));
-                else for(var line:lines)result.add(new Block(line,null,font.width(line),font.lineHeight+1));
+                if(lines.isEmpty())result.add(new Block(FormattedCharSequence.EMPTY,null,0,font.lineHeight+1,0));
+                else for(var line:lines)result.add(new Block(line,null,font.width(line),font.lineHeight+1,0));
             }
         }
-        return result;
+        return UiTooltips.collapseBlankLines(result,block->block.image()==null&&UiTooltips.blank(block.text()));
     }
 }

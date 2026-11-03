@@ -86,16 +86,28 @@ public final class UiTooltips {
     }
     public static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth, boolean gradient) {
+        return drawSourceScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,maxWidth,gradient,gradient);
+    }
+    public static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth, boolean gradient, boolean inferIcons) {
+        return drawSourceScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,maxWidth,gradient,inferIcons,false);
+    }
+    public static ScrolledTooltip drawSourceScrollableAbove(GuiGraphicsExtractor graphics, Font font, String text,
+            int anchorX, int anchorY, int viewportWidth, int viewportHeight, int scroll) {
+        return drawSourceScrollable(graphics,font,text,anchorX,anchorY,viewportWidth,viewportHeight,scroll,324,false,false,true);
+    }
+    private static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
+            int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, int maxWidth, boolean gradient, boolean inferIcons, boolean above) {
         String content = officerCodes(text);
-        var lines = formattedLines(font, content, Math.min(viewportWidth, maxWidth), true, gradient);
+        var lines = formattedLines(font, content, Math.min(viewportWidth, maxWidth), true, inferIcons);
         int width = Math.min(Math.max(1, viewportWidth - 20), Math.max(1, lines.stream().mapToInt(font::width).max().orElse(1)));
         int lineHeight = font.lineHeight + 1;
         int total = lines.size() * lineHeight;
-        int height = Math.min(total, Math.max(1, viewportHeight - 20));
+        int height = Math.min(total, Math.max(1, above ? mouseY - 9 : viewportHeight - 20));
         int maxScroll = Math.max(0, total - height);
         scroll = Math.clamp(scroll, 0, maxScroll);
-        int x = Math.clamp(mouseX + 11, 5, Math.max(5, viewportWidth - width - 5));
-        int y = Math.clamp(mouseY + 14, 5, Math.max(5, viewportHeight - height - 5));
+        int x = Math.clamp(mouseX + (above ? 4 : 11), 5, Math.max(5, viewportWidth - width - 5));
+        int y = Math.clamp(above ? mouseY - height - 4 : mouseY + 14, 5, Math.max(5, viewportHeight - height - 5));
         graphics.nextStratum();
         if(gradient)graphics.fillGradient(x-4,y-4,x+width+4,y+height+4,0xFF754CB3,0xFFD147A5);else graphics.fill(x - 4, y - 4, x + width + 4, y + height + 4, 0xFF9A45AB);
         graphics.fill(x - 3, y - 3, x + width + 3, y + height + 3, 0xF0100914);
@@ -125,7 +137,7 @@ public final class UiTooltips {
     private static String officerCodes(String text) {
         return text.replace("§g", "§#8893A5").replace("§G", "§a").replace("§R", "§4")
                 .replace("§Y", "§e").replace("§H", "§e").replace("§W", "§f")
-                .replace("§B", "§9").replace("§C", "§b").replace("§O", "§6").replace("§!", "§r");
+                .replace("§B", "§9").replace("§C", "§b").replace("§O", "§6").replace("§L", "").replace("§!", "§r");
     }
     public static Component productionText(Component text) {
         return UiKeywordIcons.decorateLines(sentences(text));

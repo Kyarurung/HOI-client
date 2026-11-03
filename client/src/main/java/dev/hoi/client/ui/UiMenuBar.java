@@ -129,7 +129,6 @@ public final class UiMenuBar {
         UiMenuStyle.recess(g, x, percentY, 30, percentHeight);
         g.centeredText(font, hud.worldTension() == null ? "0" : percent(hud.worldTension()), x + 15, percentY + 2, UiMenuStyle.TEXT);
         if (mx >= x && mx < x + 30 && my >= 3 && my < percentY + percentHeight) {
-            g.outline(x, my >= percentY ? percentY : 3, 30, my >= percentY ? percentHeight : h, UiMenuStyle.ACCENT);
             showingTensionTooltip = true;
             try { UiHudTooltip.draw(g, width, hud, new UiIndicator("world_tension", "세계 긴장도", hud.worldTension(), UiFormat.PERCENT), mx, my); }
             finally { showingTensionTooltip = false; }

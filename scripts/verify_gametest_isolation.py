@@ -70,17 +70,22 @@ class IsolationProbe {
             return;
         }
         Files.writeString(root.resolve("child.pid"), Long.toString(ProcessHandle.current().pid()));
-        Files.writeString(root.resolve("logs/latest.log"), "probe log");
+        String log = switch (args[0]) {
+            case "exception" -> "Client gametests failed with an exception";
+            case "closed" -> "runOnClient called when no client is running";
+            default -> "probe log";
+        };
+        Files.writeString(root.resolve("logs/latest.log"), log);
         Files.writeString(root.resolve("world/session.lock"), "probe world");
-        if (!args[0].equals("0")) throw new IllegalStateException("Intentional probe failure");
+        if (args[0].equals("1")) throw new IllegalStateException("Intentional probe failure");
     }
 }
 """
     (output / "IsolationProbe.java").write_text(source, encoding="utf-8")
     results = []
 
-    def run(name, fail=False):
-        command = [str(wrapper), "-p", str(output), "probe", "--console=plain", "--no-daemon", "--max-workers=1", "-PprobeExit=" + ("1" if fail else "0")]
+    def run(name, fail=False, probe=None):
+        command = [str(wrapper), "-p", str(output), "probe", "--console=plain", "--no-daemon", "--max-workers=1", "-PprobeExit=" + (probe or ("1" if fail else "0"))]
         result = subprocess.run(command, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         (output / (name + ".log")).write_bytes(result.stdout)
         assert (result.returncode != 0) == fail, name
@@ -88,6 +93,8 @@ class IsolationProbe {
         directory = Path(data["runDirectory"])
         assert directory.parent == output / "build/run/probe-runs"
         assert data["status"] == ("failed" if fail else "passed"), data
+        if probe:
+            assert len(data["logFailures"]) == 1, data
         assert all(row["runDirectory"] != str(directory) for row in results)
         pid = int((directory / "child.pid").read_text())
         assert not alive(pid), ("JavaExec left a child running", pid)
@@ -107,9 +114,11 @@ class IsolationProbe {
     assert holder.returncode == 0
     assert before == {name: (first / name).read_bytes() for name in before}
     run("intentional-child-failure", fail=True)
+    run("zero-exit-client-exception", fail=True, probe="exception")
+    run("zero-exit-closed-client", fail=True, probe="closed")
     run("recovery-and-consecutive-rerun")
     (output / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
-    print("Passed four isolation/lifecycle checks; evidence:", output)
+    print("Passed six isolation/lifecycle checks; evidence:", output)
 
 
 if __name__ == "__main__":

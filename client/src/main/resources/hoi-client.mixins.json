@@ -7,6 +7,7 @@
     "MixinConstructionClick",
     "MixinKeyboardShortcut",
     "MixinMenuTooltip",
+    "MixinFontBaseline",
     "MixinMenuBackground",
     "MixinMenuSound",
     "MixinManagerAccess",

@@ -39,7 +39,7 @@ gradle.projectsEvaluated {
         classpath = fabric.sourceSets.test.runtimeClasspath
         filter { groups.each { name -> specification[name].producers.each { includeTestsMatching it } } }
         def staging = new File(temporaryDir, 'fixtures')
-        groups.each { name -> systemProperty specification[name].property, new File(staging, name).absolutePath }
+        groups.each { name -> systemProperty specification[name].property, new File(staging, specification[name].property).absolutePath }
         inputs.property 'fixtureGroups', groups
         inputs.files(sources).withPathSensitivity(PathSensitivity.RELATIVE)
         inputs.files(gradle.startParameter.initScripts + [new File(schema)]).withPathSensitivity(PathSensitivity.NONE)
@@ -50,14 +50,14 @@ gradle.projectsEvaluated {
         })
         doFirst {
             groups.each { name ->
-                def folder = new File(staging, name)
+                def folder = new File(staging, specification[name].property)
                 folder.mkdirs()
                 specification[name].fixtures.each { fixture -> Files.deleteIfExists(new File(folder, fixture + '.json').toPath()) }
             }
         }
         doLast {
             groups.each { name -> specification[name].fixtures.each { id ->
-                def fixture = new File(new File(staging, name), id + '.json')
+                def fixture = new File(new File(staging, specification[name].property), id + '.json')
                 if (!fixture.isFile() || fixture.length() == 0) {
                     throw new GradleException("Authoritative ${name} tests did not generate ${fixture.name}.")
                 }
@@ -69,7 +69,7 @@ gradle.projectsEvaluated {
                 def folder = new File(destination, name)
                 folder.mkdirs()
                 specification[name].fixtures.each { id ->
-                    Files.copy(new File(new File(staging, name), id + '.json').toPath(),
+                    Files.copy(new File(new File(staging, specification[name].property), id + '.json').toPath(),
                         new File(folder, id + '.json').toPath(), StandardCopyOption.REPLACE_EXISTING)
                 }
                 def fixtureHashes = specification[name].fixtures.collectEntries { id ->

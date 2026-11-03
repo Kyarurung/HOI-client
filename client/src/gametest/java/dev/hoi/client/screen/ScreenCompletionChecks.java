@@ -12,6 +12,8 @@ import java.util.*;
 
 public final class ScreenCompletionChecks {
     public static void run(ClientGameTestContext context) {
+        ScreenDoctrineNotificationTest.run(context);
+        ScreenCompletionDesignTeamTest.run(context);
         context.runOnClient(client -> {
             var played = new ArrayList<String>();
             net.minecraft.client.sounds.SoundEventListener listener = (sound, event, range) -> {
@@ -145,7 +147,7 @@ public final class ScreenCompletionChecks {
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
     }
     private static void completionActions(ClientGameTestContext context) {
-        for(String style:List.of("focus_complete","research_complete"))for(String choice:List.of("ack","details")) {
+        for(String style:List.of("focus_complete","research_complete","agency_upgrade_complete"))for(String choice:List.of("ack","details")) {
             var sent=new ArrayList<ProtocolDialogPayloads.Action>();
             var event=new ProtocolDialogView(UUID.randomUUID().toString(),1,ProtocolDialogView.Kind.EVENT,"국가 이벤트","","본문","","","",List.of(),List.of(new ProtocolDialogView.Choice("yes","선택")));
             var done=new ProtocolDialogView(UUID.randomUUID().toString(),2,ProtocolDialogView.Kind.DIPLOMACY,"완료","","","","menu/research","",List.of(),List.of(new ProtocolDialogView.Choice("ack","확인"),new ProtocolDialogView.Choice("details","세부 사항")),style);

@@ -36,9 +36,11 @@ public final class MapCommanderCardScopeTest {
         }finally{game.runOnClient(client->{MapCommanderAvailability.queryObserver=null;MapCommanderOrders.commandObserver=null;MapCommanderOrders.reset();MapCommanderHud.reset();MapUnitHud.reset();});}
     }
     public static void run(ClientGameTestContext game,ProtocolMenuView menu,String directory) throws java.io.IOException {
-        var source=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-air-diagnostics.json"))).view();
+        var diagnostics=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-air-diagnostics.json"))).view();
         var attached=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-air-attached.json"))).view();
         var detached=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-air-detached.json"))).view();
+        if(!MapCommanderHud.visibleCards(diagnostics).cards().isEmpty())throw new AssertionError("Zero-division diagnostic army must not remain visible");
+        var source=new View(diagnostics.country(),diagnostics.dimension(),diagnostics.branch(),attached.cards(),diagnostics.wings(),diagnostics.running(),diagnostics.theaters(),diagnostics.armyTheaters());
         var card=source.cards().getFirst();var ids=source.wings().stream().filter(w->w.data()!=null&&w.data().attachedArmy().equals(card.id())).map(Member::id).toList();
         if(ids.isEmpty()||ids.size()==source.wings().size())throw new AssertionError("Source must include attached and unrelated wings");
         for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})){

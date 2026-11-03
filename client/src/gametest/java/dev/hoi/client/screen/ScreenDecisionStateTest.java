@@ -17,6 +17,7 @@ public final class ScreenDecisionStateTest {
         var row=new ProtocolDecisionPayloads.Row("state@s:1041","category","합성 입력 검증","","주 결정","","",30.0,0,"",true,"30","","READY",null,
                 new ProtocolDecisionPayloads.Target("state","1041","수도권",""),List.of(1041),false,"",null);
         var view=new ProtocolDecisionPayloads.View("KOR",session,1,"합성 입력: 서버 캠페인 장면과 구별",0,1,hud,List.of(row));
+        context.runOnClient(client->detailLabels(hud));
         try {
             for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
                 sent.clear();context.getInput().resizeWindow(size[0],size[1]);
@@ -54,12 +55,9 @@ public final class ScreenDecisionStateTest {
                 context.takeScreenshot("hoi-decisions-private-map-synthetic-"+size[0]+"-gui2");
                 context.runOnClient(client->{
                     var screen=(ScreenDecision)client.gui.screen();var page=geometry[0];
-                    var go=button(screen,"지도에서 보기: "+ScreenDecision.rowName(row));
-                    screen.mouseClicked(click(go,InputConstants.MOUSE_BUTTON_RIGHT),false);
-                    screen.mouseClicked(click(go,InputConstants.MOUSE_BUTTON_LEFT),false);
-                    screen.mouseClicked(click(go,InputConstants.MOUSE_BUTTON_LEFT),true);
-                    if(sent.size()!=2 || sent.getLast().action()!=ProtocolDecisionPayloads.Action.GOTO)throw new AssertionError("GOTO must be authenticated and rate limited without taking the decision");
-                    screen.update(ProtocolDecisionPayloads.Response.of(screen.token(),new ProtocolDecisionPayloads.View("KOR",session,2,"",0,1,hud,List.of(row))));
+                    if(screen.children().stream().anyMatch(child->child instanceof Button button&&button.getMessage().getString().startsWith("지도에서 보기:")))throw new AssertionError("Decision rows must not invent a map button");
+                    if(sent.size()!=1 || sent.getFirst().action()!=ProtocolDecisionPayloads.Action.HIGHLIGHT)throw new AssertionError("Hover must preserve authenticated highlighting without GOTO");
+                    detailRefresh(screen,session,hud,row);
                     if(overlayTiles()!=0 || !screen.preferences.tracking("fixture","KOR",row.id()) || screen.preferences.popup("events"))throw new AssertionError("Revision changes must clear private geometry and preserve local settings");
                     screen.update(new ProtocolDecisionPayloads.Highlight(screen.token(),session,1,row.id(),page));
                     if(overlayTiles()!=0)throw new AssertionError("Stale geometry must not reappear");
@@ -69,6 +67,65 @@ public final class ScreenDecisionStateTest {
             }
             popups(context);
         } finally {context.setScreen(()->null);context.runOnClient(client->client.options.guiScale().set(scale));context.getInput().resizeWindow(1600,1000);context.waitTicks(2);}
+    }
+    @SuppressWarnings("unchecked")
+    private static void detailLabels(ProtocolCountryHud hud) {
+        try {
+            for(String kind:List.of("","GOOD","BAD","SELECTABLE"))for(boolean ready:List.of(false,true))for(boolean met:List.of(false,true))for(long days:List.of(0L,7L)) {
+                String session=UUID.randomUUID().toString();
+                var row=new ProtocolDecisionPayloads.Row("mission","category","category","","mission","","",30.0,ready?0:72,"",ready,"","",ready?"READY":"ACTIVE",240L,null,List.of(),met,ready?"":"GOOD",null);
+                var screen=new ScreenDecision(new ProtocolDecisionPayloads.View("KOR",session,1,"",0,1,hud,List.of(row)),request->{});
+                var line=new ProtocolDecisionDetails.Line("원문 효과",0,ProtocolDecisionDetails.Assessment.MET,"source",true);
+                var sections=List.of(new ProtocolDecisionDetails.Section(ProtocolDecisionDetails.Phase.READY_REQUIREMENTS,List.of(line)),new ProtocolDecisionDetails.Section(ProtocolDecisionDetails.Phase.COMPLETE,List.of(line)),new ProtocolDecisionDetails.Section(ProtocolDecisionDetails.Phase.MODIFIER,List.of(line),days),new ProtocolDecisionDetails.Section(ProtocolDecisionDetails.Phase.CANCEL,List.of(line)),new ProtocolDecisionDetails.Section(ProtocolDecisionDetails.Phase.TIMEOUT,List.of(line)));
+                var detail=new ProtocolDecisionDetails.View("KOR",session,1,row.id(),row.name(),"","fixture",1,sections,"",true,kind,kind.isEmpty()?0:days);
+                var field=ScreenDecision.class.getDeclaredField("details");field.setAccessible(true);((Map<String,ProtocolDecisionDetails.View>)field.get(screen)).put(row.id(),detail);
+                var hitType=Class.forName("dev.hoi.client.screen.ScreenDecision$ScreenDecisionHit");var ctor=hitType.getDeclaredConstructor(String.class,String.class,int.class,int.class);ctor.setAccessible(true);
+                var method=ScreenDecision.class.getDeclaredMethod("detailText",hitType);method.setAccessible(true);
+                String text=(String)method.invoke(screen,ctor.newInstance(row.id(),"",0,20));
+                String header=switch(kind) {case "BAD"->"완료 조건:";case "GOOD"->"실패 조건:";default->"선행 조건:";};
+                if(!text.contains(header)||!text.contains("중단 시:")||text.contains("취소 시 효과:")||text.contains("기한 만료 시 효과:"))throw new AssertionError("Decision detail must use original headers: "+text);
+                String complete=switch(kind) {case "BAD"->"완료 시 효과:";case "GOOD"->"실패 시 효과:";default->"선택 시 효과:";};
+                if(!text.contains(complete))throw new AssertionError("Completion header must follow authoritative mission kind: "+text);
+                String modifier=kind.isEmpty()?(days>0?"7일 동안:":"활성화된 동안:"):(kind.equals("SELECTABLE")?"선택 시":"완료 시")+(days>0?" 7일 동안:":":");
+                if(!text.contains(modifier))throw new AssertionError("Modifier header must follow mission kind and section days: "+text);
+                if(!kind.isEmpty()&&days>0) {
+                    String timeout=switch(kind) {case "BAD"->"7일 내로 미완료 시 효과:";case "GOOD"->"7일 후 효과:";default->"7일 내로 미선택 시 효과:";};
+                    if(!text.contains(timeout))throw new AssertionError("Timeout must use missionDays instead of row duration: "+text);
+                } else if(text.contains("일 내로")||text.contains("일 후 효과:"))throw new AssertionError("Ordinary decisions and unknown mission duration must not invent a timeout: "+text);
+                if(kind.isEmpty()&&(text.contains("완료 조건:")||text.contains("실패 조건:")||text.contains("완료 시 효과:")||text.contains("실패 시 효과:")))throw new AssertionError("Ordinary ACTIVE decisions must not use mission headers: "+text);
+                if(ready) {
+                    String cost="결정 선택에 £pol_power §"+(met?"H":"R")+"30§! 소모";
+                    if(!text.endsWith(cost))throw new AssertionError("Source cost must be last and preserve insufficient color: "+text);
+                } else if(text.contains("결정 선택에"))throw new AssertionError("Active decisions must not repeat selection cost: "+text);
+            }
+        } catch(ReflectiveOperationException error) {throw new AssertionError(error);}
+    }
+    @SuppressWarnings("unchecked")
+    private static void detailRefresh(ScreenDecision screen,String session,ProtocolCountryHud hud,ProtocolDecisionPayloads.Row row) {
+        try {
+            var requestsField=ScreenDecision.class.getDeclaredField("detailRequests");requestsField.setAccessible(true);
+            var requests=(Map<String,Integer>)requestsField.get(screen);
+            var detailsField=ScreenDecision.class.getDeclaredField("details");detailsField.setAccessible(true);
+            var details=(Map<String,ProtocolDecisionDetails.View>)detailsField.get(screen);
+            var old=new ProtocolDecisionDetails.View("KOR",session,1,row.id(),"합성 상세","이전 상세","fixture",1,List.of(),"",true);
+            requests.put(row.id(),0);screen.update(ProtocolDecisionDetails.Response.of(screen.token(),old));
+            if(!old.equals(details.get(row.id())))throw new AssertionError("Requested authoritative detail must be cached");
+            screen.update(ProtocolDecisionPayloads.Response.of(screen.token(),new ProtocolDecisionPayloads.View("KOR",session,2,"",0,1,hud,List.of(row))));
+            if(!old.equals(details.get(row.id())) || !requests.isEmpty())throw new AssertionError("A same-session refresh must retain details while allowing a new request");
+            var fresh=new ProtocolDecisionDetails.View("KOR",session,2,row.id(),"합성 상세","새 상세","fixture",1,List.of(),"",true);
+            screen.update(ProtocolDecisionDetails.Response.of(screen.token(),fresh));
+            if(!old.equals(details.get(row.id())))throw new AssertionError("An unsolicited detail must not replace the cache");
+            requests.put(row.id(),0);
+            for(var invalid:List.of(old,new ProtocolDecisionDetails.View("PRC",session,2,row.id(),"합성","","fixture",1,List.of(),"",true),
+                    new ProtocolDecisionDetails.View("KOR",UUID.randomUUID().toString(),2,row.id(),"합성","","fixture",1,List.of(),"",true))) {
+                screen.update(ProtocolDecisionDetails.Response.of(screen.token(),invalid));
+                if(!old.equals(details.get(row.id())))throw new AssertionError("Stale or foreign details must not replace the cache");
+            }
+            screen.update(ProtocolDecisionDetails.Response.of(UUID.randomUUID().toString(),fresh));
+            if(!old.equals(details.get(row.id())))throw new AssertionError("A foreign token must not replace details");
+            screen.update(ProtocolDecisionDetails.Response.of(screen.token(),fresh));
+            if(!fresh.equals(details.get(row.id())))throw new AssertionError("A requested current detail must replace retained data");
+        } catch(ReflectiveOperationException error) {throw new AssertionError(error);}
     }
     private static int overlayTiles() {
         try {

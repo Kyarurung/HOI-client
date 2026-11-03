@@ -19,10 +19,9 @@ public final class ResearchTabButton extends Button {
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play("ui.research.tab." + category.toLowerCase(java.util.Locale.ROOT)); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth();
-        if (selected) g.fill(x + 2, y + getHeight() - 5, x + w - 2, y + getHeight() + 1, 0xFF101A21);
+        if (selected) g.fill(x + 2, y + getHeight() - 5, x + w - 2, y + getHeight() + 1, 0xFF000000);
         String art = "tabs/" + category.toLowerCase(java.util.Locale.ROOT) + (selected ? "_selected" : "");
         if (!UiAssets.draw(g, art, x, y, w, getHeight(), selected ? 0 : 2, selected ? 0 : 3))
             ResearchIcons.fallback(g, category, x + w / 2 - 10, y + 9, 0xFF92AD83, 2);
-        if (isHoveredOrFocused()) g.outline(x + 2, y + 4, w - 4, getHeight() - 6, 0xFF9B9C96);
     }
 }

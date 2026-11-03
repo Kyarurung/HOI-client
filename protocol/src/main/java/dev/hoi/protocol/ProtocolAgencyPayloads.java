@@ -12,7 +12,7 @@ public final class ProtocolAgencyPayloads {
     private static final Gson JSON = new Gson();
     public static final int MAX_JSON = 400_000;
     private ProtocolAgencyPayloads() {}
-    public enum Kind { OPEN, REFRESH, CALL, CLOSE }
+    public enum Kind { OPEN, REFRESH, CALL, CLOSE, HIGHLIGHT }
     public record Request(Kind kind, String session, long revision, String item, List<String> arguments) implements CustomPacketPayload {
         private static final StreamCodec<io.netty.buffer.ByteBuf, List<String>> ARGUMENTS =
                 ByteBufCodecs.stringUtf8(128).apply(ByteBufCodecs.list(4));
@@ -38,5 +38,16 @@ public final class ProtocolAgencyPayloads {
         public static Response of(ProtocolAgencyView view) { return new Response(JSON.toJson(view)); }
         public ProtocolAgencyView view() { return ProtocolJsonCodec.read(JSON, json, ProtocolAgencyView.class); }
         @Override public Type<Response> type() { return TYPE; }
+    }
+    public record Highlight(String session, long revision, String item, ProtocolAtlasScene.Page page) implements CustomPacketPayload {
+        public Highlight {
+            if (revision < 0 || page == null) throw new IllegalArgumentException("Invalid agency highlight");
+            ProtocolAgencyView.text(session, 36); ProtocolAgencyView.text(item, 128);
+        }
+        public static final Type<Highlight> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "agency_highlight_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Highlight> CODEC = StreamCodec.of(
+                (b, p) -> { b.writeUtf(p.session, 36); b.writeVarLong(p.revision); b.writeUtf(p.item, 128); ProtocolAtlasScene.Page.CODEC.encode(b, p.page); },
+                b -> new Highlight(b.readUtf(36), b.readVarLong(), b.readUtf(128), ProtocolAtlasScene.Page.CODEC.decode(b)));
+        @Override public Type<Highlight> type() { return TYPE; }
     }
 }

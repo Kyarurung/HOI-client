@@ -432,7 +432,7 @@ public final class ScreenDiplomacyLease extends Screen implements InputSidebarMo
         if (parent != null) { parent.extractRenderState(g, -1, -1, delta); g.nextStratum(); }
         UiAssets.draw(g, "diplomacy/lease/background", left, top, s(527), s(612));
         assets.tile(g, "diplomacy/dialog/panel_dark", x(0), y(175), s(527), s(312), 64, 64, scale);
-        text(g, view.title(), x(0), y(30), s(530), s(20), UiMenuStyle.TEXT);
+        UiText.centeredSingleLine(g, font, UiTooltips.officerText(view.title(), true), x(0), y(30), s(530), s(20), UiMenuStyle.TEXT);
         text(g, view.currentStatus(), x(15), y(82), s(190), s(20), UiMenuStyle.TEXT);
         text(g, view.subtitle(), x(220), y(82), s(230), s(20), UiMenuStyle.TEXT);
         int index = 0;

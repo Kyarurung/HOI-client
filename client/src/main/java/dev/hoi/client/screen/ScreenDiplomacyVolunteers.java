@@ -311,7 +311,7 @@ public final class ScreenDiplomacyVolunteers extends Screen implements InputSide
         assets.beginFrame();
         if (parent != null) { parent.extractRenderState(g, -1, -1, delta); g.nextStratum(); }
         UiAssets.draw(g, "diplomacy/volunteers/background", left, top, s(527), s(612));
-        text(g, view.title(), x(-3), y(29), s(530), s(20), 0xFFFFFFFF);
+        UiText.centeredSingleLine(g, font, UiTooltips.officerText(view.title(), true), x(-3), y(29), s(530), s(20), 0xFFFFFFFF);
         UiAssets.draw(g, "diplomacy/volunteers/time/frame_0", x(60), y(80), s(46), s(46));
         text(g, view.transferText(), x(110), y(91), s(100), s(24), 0xFFFFFFFF);
         text(g, label("AIR_VOLUNTEERS"), x(370), y(91), s(150), s(24), 0xFFFFFFFF);

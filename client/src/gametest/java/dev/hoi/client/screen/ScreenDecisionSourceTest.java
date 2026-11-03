@@ -21,10 +21,11 @@ import net.minecraft.resources.Identifier;
 
 public final class ScreenDecisionSourceTest {
     private static final List<String> FIXTURES = List.of("prc", "kor", "jap", "prc-active", "prc-restored", "prc-completed", "kor-kfxx", "prc-eadi",
-            "kor-scene","kor-scene-active","kor-scene-ownership-lost","kor-scene-mission-timeout","kor-scene-target-active");
+            "kor-scene","kor-scene-active","kor-scene-ownership-lost","kor-scene-mission-timeout","kor-scene-target-active","kor-economic-crisis");
     private static final List<String> HOVER_IDS = List.of("PRC_advocate_for_militarization", "PRC_hold_pro_government_rally",
+            "KOR_second_imf_crisis",
             "KOR_kfxx_fighter_project_mission", "KOR_export_to_tur_k9", "PRC_declare_our_neutrality_in_europe", "PRC_invite_nepal_eadi",
-            "KOR_arms_factory_ulsan","KOR_arms_factory_gyungnam","KOR_coronavirus_infection_mission","KOR_export_to_pol_k9_plus");
+            "KOR_export_to_pol_k2","KOR_export_to_pol_k2a1","KOR_export_to_raj_k9","KOR_export_to_ast_k9","KOR_export_to_egy_k9","KOR_export_to_chi_k1A1","KOR_arms_factory_ulsan","KOR_arms_factory_gyungnam","KOR_coronavirus_infection_mission","KOR_export_to_pol_k9_plus");
     private static final Pattern BODY_IMAGE = Pattern.compile("£([A-Za-z0-9_]+)£?");
     private record Preview(String name, List<String> pages, List<ProtocolDecisionPayloads.Row> rows,
             List<ProtocolDecisionPayloads.Category> categories, JsonObject metadata, String sha256) {}
@@ -37,7 +38,9 @@ public final class ScreenDecisionSourceTest {
         context.runOnClient(client -> {
             var resource=client.getResourceManager().getResource(Identifier.parse("hoi:ui/decision_assets.json")).orElseThrow();
             try(var input=resource.open()) {
-                var sprites=JsonParser.parseString(new String(input.readAllBytes(),StandardCharsets.UTF_8)).getAsJsonObject().getAsJsonObject("sprites");
+                var bindings=JsonParser.parseString(new String(input.readAllBytes(),StandardCharsets.UTF_8)).getAsJsonObject();
+                var sprites=bindings.getAsJsonObject("sprites");
+                if(!bindings.getAsJsonObject("textImages").has("GFX_kor_diffusion"))throw new AssertionError("Defense export tooltip requires its original text image binding");
                 for(String symbol:List.of("GFX_kor_diffusion","GFX_decision_icon_KOR_K9","GFX_decision_icon_KOR_K2","GFX_decision_icon_KOR_arms_factory_icon","GFX_decision_icon_KOR_coronavirus_death","GFX_decision_icon_KOR_mega_city_icon","GFX_decision_icon_KOR_raillway_icon","GFX_FRA_Military_Aid","GFX_SOV_decision_increase_moscow_budget","GFX_decision_generic_exploit_land","GFX_decision_generic_investment")) {
                     if(!sprites.has(symbol) || dev.hoi.client.ui.UiAssets.imageHeight(sprites.get(symbol).getAsString(),100)<=0)
                         throw new AssertionError("Missing original reference decision art: "+symbol);
@@ -57,10 +60,12 @@ public final class ScreenDecisionSourceTest {
         var evidence = new ArrayList<Evidence>();
         try {
             var previews = new ArrayList<Preview>();
-            for (String name : FIXTURES) previews.add(read(Path.of(directory), name));
+            for (String name : System.getProperty("hoi.testSuite", "all").equals("economic-captivity") ? List.of("kor-economic-crisis") : FIXTURES) previews.add(read(Path.of(directory), name));
             var assets = context.computeOnClient(ScreenDecisionSourceTest::assets);
             context.runOnClient(client -> {
                 var text=sourceText();
+                String wrappedPadding="§Y제목§!\n\n\n"+" ".repeat(400)+"§G효과: +0.00%§!\n\n§!\n끝\n\n\n";
+                ScreenDecisionPanelTest.verifyTooltipSpacing(client.font,text,wrappedPadding);
                 String padded="앞\n\n§r\n---\n[KOR.GetFlag]\n\n\n\n뒤";
                 if(text.sourceRows(padded).size()!=9 || text.rows(padded).size()!=5
                         || !text.sourceRows(padded).get(2).getString().isEmpty())
@@ -98,10 +103,26 @@ public final class ScreenDecisionSourceTest {
                     var screenshots = new LinkedHashMap<String, String>();
                     String suffix = preview.name() + "-" + size[0] + "x" + size[1] + "-gui2";
                     screenshots.put("top", screenshot(context, "hoi-decisions-source-" + suffix, size));
+                    if (preview.name().equals("kor-economic-crisis")) {
+                        var crisis = preview.categories().stream().filter(category -> category.id().equals("KOR_new_econimic_crisis_category")).findFirst().orElseThrow();
+                        if (!preview.categories().getFirst().id().equals("KOR_national_assembly_category") || preview.categories().indexOf(crisis) != 1)
+                            throw new AssertionError("Economic crisis must follow the source national assembly category");
+                        context.runOnClient(client -> locate((ScreenDecision)client.gui.screen(), crisis.name()));
+                        context.waitTicks(2);
+                        int[] point = context.computeOnClient(client -> headerTooltip((ScreenDecision)client.gui.screen(), crisis));
+                        context.getInput().setCursorPos(point[0] * 2, point[1] * 2); context.waitTicks(3);
+                        screenshots.put("crisis-tooltip", screenshot(context, "hoi-decisions-source-crisis-tooltip-" + suffix, size));
+                        context.runOnClient(client -> locate((ScreenDecision)client.gui.screen(), "제2차 외환위기 대응"));
+                        margin(context);
+                        screenshots.put("crisis-row", screenshot(context, "hoi-decisions-source-crisis-row-" + suffix, size));
+                    }
                     if(preview.name().equals("kor")) {
+                        var assembly=preview.categories().stream().filter(category->category.id().equals("KOR_national_assembly_category")).findFirst().orElseThrow();
+                        int[] assemblyPoint=context.computeOnClient(client->headerTooltip((ScreenDecision)client.gui.screen(),assembly));
+                        context.getInput().setCursorPos(assemblyPoint[0]*2,assemblyPoint[1]*2);context.waitTicks(3);
+                        screenshots.put("assembly-tooltip",screenshot(context,"hoi-decisions-source-assembly-tooltip-"+suffix,size));
                         context.runOnClient(client -> {
                             var screen=(ScreenDecision)client.gui.screen();
-                            var assembly=preview.categories().stream().filter(category->category.id().equals("KOR_national_assembly_category")).findFirst().orElseThrow();
                             var button=(Button)screen.children().stream().filter(child->child instanceof Button control
                                     && control.getMessage().getString().equals(sourceText().component(assembly.name()).getString())).findFirst().orElseThrow();
                             button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
@@ -126,6 +147,12 @@ public final class ScreenDecisionSourceTest {
                             if(white>150)banner=true;
                         }
                         if(!banner)throw new AssertionError("Original banner must follow its category header without double-counted text-icon padding");
+                        var hoverPoint=context.computeOnClient(client->{
+                            var category=preview.categories().stream().filter(value->value.id().equals("KOR_korea_defense_business_category")).findFirst().orElseThrow();
+                            return headerTooltip((ScreenDecision)client.gui.screen(),category);
+                        });
+                        context.getInput().setCursorPos(hoverPoint[0]*2,hoverPoint[1]*2);context.waitTicks(3);
+                        screenshots.put("arms-tooltip",screenshot(context,"hoi-decisions-source-arms-tooltip-"+suffix,size));
                         context.runOnClient(client->{var screen=(ScreenDecision)client.gui.screen();screen.mouseScrolled(3,UiMenuBar.height(screen.width)+53,0,-10000);});
                         margin(context);screenshots.put("arms-icons",screenshot(context,"hoi-decisions-source-arms-icons-"+suffix,size));
                         context.runOnClient(client -> {
@@ -183,6 +210,10 @@ public final class ScreenDecisionSourceTest {
                             throw new AssertionError("Source tooltip row name is ambiguous: " + id);
                         margin(context);
                         int[] point = context.computeOnClient(client -> locate((ScreenDecision) client.gui.screen(), row.get().name()));
+                        if(preview.name().equals("kor-scene")) {
+                            var exported=JsonParser.parseString(Files.readString(Path.of(directory,"kor-scene-details.json"))).getAsJsonObject();
+                            if(exported.has(id))context.runOnClient(client->acceptDetail((ScreenDecision)client.gui.screen(),id,exported.getAsJsonObject(id)));
+                        }
                         context.getInput().setCursorPos(point[0] * 2, point[1] * 2);
                         context.waitTicks(3);
                         screenshots.put(id, screenshot(context, "hoi-decisions-source-hover-" + id.toLowerCase(Locale.ROOT) + "-" + suffix, size));
@@ -237,6 +268,23 @@ public final class ScreenDecisionSourceTest {
             context.getInput().resizeWindow(original[1], original[2]);
             context.waitTicks(3);
         }
+    }
+    @SuppressWarnings("unchecked")
+    private static void acceptDetail(ScreenDecision screen,String id,JsonObject exported){
+        try{
+            var requests=ScreenDecision.class.getDeclaredField("detailRequests");requests.setAccessible(true);((Map<String,Integer>)requests.get(screen)).put(id,0);
+            var response=new dev.hoi.protocol.ProtocolDecisionDetails.Response(screen.token(),exported.toString());screen.update(response);
+            var details=ScreenDecision.class.getDeclaredField("details");details.setAccessible(true);
+            if(!response.view().equals(((Map<?,?>)details.get(screen)).get(id)))throw new AssertionError("Decision details must retain the matching authoritative session/revision: "+id);
+            var hits=ScreenDecision.class.getDeclaredField("hits");hits.setAccessible(true);
+            Object hit=null;for(var candidate:(List<?>)hits.get(screen)){var key=candidate.getClass().getDeclaredMethod("id");key.setAccessible(true);if(key.invoke(candidate).equals(id)){hit=candidate;break;}}
+            if(hit==null)throw new AssertionError("Missing visible decision detail hit: "+id);
+            var render=ScreenDecision.class.getDeclaredMethod("detailText",hit.getClass());render.setAccessible(true);String text=(String)render.invoke(screen,hit);
+            for(var section:response.view().sections())for(var line:section.lines())if(!text.contains(line.text()))throw new AssertionError("Decision rendering changed a server source line: "+id);
+            int complete=text.indexOf("선택 시 효과:"),modifier=text.indexOf("30일 동안:"),remove=text.indexOf("제거 시 효과:");
+            if(complete<0||modifier<=complete||remove<=modifier||text.contains("else_if")||text.contains("조건부 원본 효과"))throw new AssertionError("Export detail requires complete, timed modifier and selected remove effects in source order: "+id);
+            if(id.equals("KOR_export_to_pol_k2")&&!text.contains("구형이 먼저 제공됩니다."))throw new AssertionError("K2 export must preserve the source old-equipment sentence");
+        }catch(ReflectiveOperationException error){throw new AssertionError(error);}
     }
     private static Preview read(Path directory, String name) throws IOException {
         byte[] bytes = Files.readAllBytes(directory.resolve(name + "-pages.json"));
@@ -358,7 +406,7 @@ public final class ScreenDecisionSourceTest {
         }
         throw new AssertionError("Source decision scrolling did not reach the end: " + preview.name());
     }
-    private static int[] locate(ScreenDecision screen, String name) {
+    static int[] locate(ScreenDecision screen, String name) {
         String label = sourceText().component(name).getString();
         resetScroll(screen);
         for (int step = 0; step < 10_000; step++) {
@@ -368,6 +416,23 @@ public final class ScreenDecisionSourceTest {
             if (!scroll(screen)) break;
         }
         throw new AssertionError("Source tooltip row is unreachable: " + name);
+    }
+    private static int[] headerTooltip(ScreenDecision screen,ProtocolDecisionPayloads.Category category) {
+        String name=sourceText().component(category.name()).getString();
+        try {
+            var field=ScreenDecision.class.getDeclaredField("hits");field.setAccessible(true);
+            boolean found=false;
+            for(var hit:(List<?>)field.get(screen)) {
+                var id=hit.getClass().getDeclaredMethod("id");id.setAccessible(true);
+                if(!id.invoke(hit).equals("category/"+category.id()))continue;
+                var tooltip=hit.getClass().getDeclaredMethod("tooltip");tooltip.setAccessible(true);
+                if(!tooltip.invoke(hit).equals("§Y"+name+"§!"))throw new AssertionError("Category hover must contain only its original gold title: "+category.id());
+                found=true;
+            }
+            if(!found)throw new AssertionError("Missing category hover: "+category.id());
+        } catch(ReflectiveOperationException error) {throw new AssertionError(error);}
+        var button=(Button)screen.children().stream().filter(child->child instanceof Button control&&control.getMessage().getString().equals(name)).findFirst().orElseThrow();
+        return new int[]{button.getX()+button.getWidth()/2,button.getY()+button.getHeight()/2};
     }
     private static boolean scroll(ScreenDecision screen) {
         int before = screen.scrollOffset();

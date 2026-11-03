@@ -15,6 +15,13 @@ public final class AudioUiSounds {
                 net.minecraft.util.RandomSource.create(), false, 0,
                 net.minecraft.client.resources.sounds.SoundInstance.Attenuation.NONE, 0, 0, 0, true);
     }
+    public static String selection(dev.hoi.protocol.ProtocolCommanderHud.Mode mode) {
+        return switch(mode) {
+            case NAVY_HQ, NAVY_FLEET, NAVAL_MISSION, NAVAL_TASK_FORCES -> "ui.fleet.select";
+            case AIR, AIR_MISSION -> "ui.aircraft.select";
+            default -> "ui.division.select";
+        };
+    }
     public static void play(String path) {
         if (path.isEmpty()) return;
         var sounds=Minecraft.getInstance().getSoundManager();var id=id(path);

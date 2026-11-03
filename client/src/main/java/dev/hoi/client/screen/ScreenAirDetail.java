@@ -54,8 +54,11 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
         text(g,value,px,py,w,h,center,14);
     }
     private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,boolean center,int size) {
+        text(g,value,px,py,w,h,center,size,false);
+    }
+    private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,boolean center,int size,boolean bold) {
         float factor=(float)Math.max(7,size*scale)/font.lineHeight;
-        var line=font.split(UiTooltips.sentences(Component.literal(value)),Math.max(1,(int)(n(w)/factor))).stream().findFirst().orElse(null);
+        var line=font.split(UiTooltips.sentences(Component.literal(value).withStyle(style->style.withBold(bold))),Math.max(1,(int)(n(w)/factor))).stream().findFirst().orElse(null);
         if(line==null)return;
         float offset=center?(n(w)-font.width(line)*factor)/2:0;
         g.pose().pushMatrix();g.pose().translate(x(px)+offset,y(py)+(n(h)-(font.lineHeight-1)*factor)/2);g.pose().scale(factor);
@@ -98,8 +101,8 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
         stat(g,tile("enemy_efficiency"),387,119,434);
         stat(g,tile("enemy_detection"),463,119,503);
         g.pose().pushMatrix();g.pose().translate(0,1);
-        text(g,title("own_label","아군"),18,155,210,22,true,21);
-        text(g,title("enemy_label","적군"),324,155,210,22,true,21);
+        text(g,title("own_label","아군"),18,155,210,22,true,21,true);
+        text(g,title("enemy_label","적군"),324,155,210,22,true,21,true);
         g.pose().popMatrix();
         combat(g,tile("air_losses"),false);
         combat(g,tile("air_kills"),true);
@@ -134,7 +137,7 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
         }
         g.nextStratum();
         g.pose().pushMatrix();g.pose().translate(0,2);
-        text(g,view().title(),12,2,528,26,true,21);
+        text(g,view().title(),12,2,528,26,true,21,true);
         g.pose().popMatrix();
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable r)r.extractRenderState(g,mx,my,delta);
         var current=hovers.reversed().stream().filter(h->mx>=h.x()&&mx<h.x()+h.w()&&my>=h.y()&&my<h.y()+h.h()).map(ScreenAirHover::tile).findFirst().orElse(null);
@@ -170,7 +173,7 @@ final class ScreenAirDetail extends ScreenDialog implements InputSidebarMovement
             if(event.y()<UiMenuBar.height(width))return super.mouseClicked(event,twice);
             if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);
         }
-        return super.mouseClicked(event,twice);
+        super.mouseClicked(event,twice);return true;
     }
     @Override public boolean mouseScrolled(double px,double py,double h,double v) {
         if(px>=x(10)&&px<x(542)&&py>=y(278)&&py<y(428)){scroll-=(int)v;return true;}

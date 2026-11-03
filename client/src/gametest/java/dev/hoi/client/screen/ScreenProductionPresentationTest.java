@@ -160,7 +160,7 @@ final class ScreenProductionPresentationTest {
                     var above = client.gui.screen().children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals("생산 라인 한 칸 위로") && b.getY() < button.getY()).map(w -> (net.minecraft.client.gui.components.Button) w).reduce((a, b) -> b).orElseThrow();
                     if (above.getBottom() != button.getY()) throw new AssertionError("Priority buttons must remain adjacent without overlapping");
                 }
-                if (!up && button.getBottom() != equipment.getBottom() + 2) throw new AssertionError("Both priority buttons must extend downward by one GUI unit each");
+                if (!up && (button.getBottom() > equipment.getBottom() || equipment.getBottom() - button.getBottom() > 2)) throw new AssertionError("Priority buttons must stay within the equipment bottom edge, allowing its one-GUI offset and rounding");
                 return new int[]{button.getX(), button.getY(), button.getWidth(), button.getHeight()};
             });
             context.getInput().setCursorPos((bounds[0] + bounds[2] / 2.0) * 2, (bounds[1] + bounds[3] / 2.0) * 2);

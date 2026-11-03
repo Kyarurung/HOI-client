@@ -84,8 +84,8 @@ public final class UiKeywordIcons {
         var resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "ui/keyword_icons.json"));
         if (resource.isEmpty()) return List.of();
         try (var input = resource.get().open()) {
-            byte[] data = input.readNBytes(262145);
-            if (data.length > 262144) return List.of();
+            byte[] data = input.readNBytes(524289);
+            if (data.length > 524288) return List.of();
             var root = JsonParser.parseString(new String(data, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
             if (root.get("version").getAsInt() != 1) return List.of();
             var result = new ArrayList<UiIconBinding>();

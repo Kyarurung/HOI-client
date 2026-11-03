@@ -42,4 +42,13 @@ class MapCommanderCardDragTest {
             assertEquals(List.of("last","hidden","first"),MapCommanderCardDrag.drop(view,List.of(new MapCommanderCardDrag.Slot(first,0,42),new MapCommanderCardDrag.Slot(last,42,42)),"first",84).order());
         }
     }
+    @Test void creationSlotKeepsMembershipAndHiddenSiblingPositions(){
+        assertEquals(new MapCommanderCardDrag.Drop("G1",List.of("B","A")),MapCommanderCardDrag.endDrop(VIEW,slots(),"A"));
+        var a=card("A",Mode.ASSIGN_ARMY,"G1");var hidden=card("hidden",Mode.ASSIGN_ARMY,"G1");var b=card("B",Mode.ASSIGN_ARMY,"G1");
+        var view=new View("KOR","hoi:atlas_army",Mode.ARMY,List.of(a,hidden,b));
+        var visible=List.of(new MapCommanderCardDrag.Slot(a,0,42),new MapCommanderCardDrag.Slot(b,42,42));
+        assertEquals(new MapCommanderCardDrag.Drop("G1",List.of("B","hidden","A")),MapCommanderCardDrag.endDrop(view,visible,"A"));
+        assertEquals(new MapCommanderCardDrag.Drop("G1",List.of("A","hidden","B")),MapCommanderCardDrag.endDrop(view,visible,"B"));
+    }
+
 }

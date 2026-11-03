@@ -43,7 +43,7 @@ final class ScreenDialogStack extends Screen {
         var old = find(view.token());
         if (old != null) { old.update(view); return; }
         if (windows.size() >= 64) return;
-        var window = view.completion() ? new ScreenCompletion(view,send) : view.leaderEvent() ? new ScreenLeaderEvent(view,send) : new ScreenDialog(view,send);
+        var window = ScreenDoctrineNotification.matches(view) ? new ScreenDoctrineNotification(view,send) : view.completion() ? new ScreenCompletion(view,send) : view.leaderEvent() ? new ScreenLeaderEvent(view,send) : new ScreenDialog(view,send);
         window.stacked = true;
         window.minimize = () -> minimize(view.token());
         windows.add(window);
@@ -68,10 +68,11 @@ final class ScreenDialogStack extends Screen {
         if (backdrop != null && !ScreenDialogCoordinator.suspending()) { backdrop.removed(); backdrop = null; }
     }
     List<Screen> layers() {
-        ScreenDialog event = null, superEvent = null, completion = null;
+        ScreenDialog event = null, superEvent = null, completion = null, doctrineReward = null;
         for (var window : windows) {
             if (minimized.contains(window.view().token())) continue;
-            if (window.view().completion()) completion = window;
+            if (window instanceof ScreenDoctrineNotification doctrine && doctrine.reward()) doctrineReward = window;
+            else if (window.view().completion()) completion = window;
             else if (window.view().kind() == ProtocolDialogView.Kind.SUPER_EVENT) superEvent = window;
             else event = window;
         }
@@ -80,6 +81,7 @@ final class ScreenDialogStack extends Screen {
         if (superEvent != null) layers.add(superEvent);
         if (backdrop != null) layers.add(backdrop);
         if (event != null && event.view().token().equals(foreground)) { layers.remove(event); layers.add(event); }
+        if (doctrineReward != null) layers.add(doctrineReward);
         if (completion != null) layers.add(completion);
         return layers;
     }
@@ -92,7 +94,7 @@ final class ScreenDialogStack extends Screen {
             } else if (screen instanceof ScreenDialog window && x >= window.panelLeft() && x < window.panelLeft() + window.panelWidth()
                     && y >= window.panelTop() && y < window.panelTop() + window.panelHeight()) return window;
         }
-        return backdrop != null && y < dev.hoi.client.ui.UiMenuBar.height(width) ? backdrop : null;
+        return backdrop;
     }
     private Screen keyboardTarget() {
         var layers = layers();
@@ -107,14 +109,22 @@ final class ScreenDialogStack extends Screen {
         contentPass = dev.hoi.client.ClientCampaignHud.visible();
         try {
             for (var screen : layers()) {
+                if (screen == backdrop) net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.beforeExtract(screen).invoker().beforeExtract(screen,g,screen == target ? mx : -1,screen == target ? my : -1,delta);
                 screen.extractRenderState(g, screen == target ? mx : -1, screen == target ? my : -1, delta);
+                if (screen == backdrop) net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.afterExtract(screen).invoker().afterExtract(screen,g,screen == target ? mx : -1,screen == target ? my : -1,delta);
                 g.nextStratum();
             }
         } finally { contentPass = false; }
     }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
         pressedTarget = inputAt(event.x(), event.y());
-        return pressedTarget == null ? super.mouseClicked(event, twice) : pressedTarget.mouseClicked(event, twice);
+        boolean consumed = pressedTarget == null ? super.mouseClicked(event, twice) : pressedTarget.mouseClicked(event, twice);
+        if (!consumed && (pressedTarget == null || pressedTarget == backdrop) && backdrop instanceof dev.hoi.client.input.InputSidebarMovement.InputMovementScreen sidebar
+                && sidebar.allowsMovement() && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
+                && event.x() >= sidebar.unitHudLeft() && event.y() >= dev.hoi.client.ui.UiMenuBar.height(width)) {
+            return dev.hoi.client.input.InputMapInfo.clickAt(minecraft, event.x(), event.y(), width, height);
+        }
+        return consumed;
     }
     @Override public boolean mouseReleased(MouseButtonEvent event) {
         var target = pressedTarget; pressedTarget = null;

@@ -1,4 +1,10 @@
 ext.hoiRendererFixtureGroups = [
+    designTeam: [
+        environment: 'HOI_DESIGN_TEAM_PREVIEW', property: 'hoi.commandFixtureOutput',
+        producers: ['dev.hoi.fabric.FabricDesignVariantTeamsTest', 'dev.hoi.fabric.FabricOperativeCandidatesTest', 'dev.hoi.fabric.research.ResearchSlotDesignTeamFixtureTest'],
+        fixtures: ['kor-designer-mio-unassigned', 'kor-designer-mio-assigned', 'kor-designer-mio-outdated', 'prc-agency-recruit-candidates', 'prc-research-slot-design-team', 'research-year-4-51', 'research-year-4-00'],
+        suites: ['all', 'design-team-candidates']
+    ],
     leaderEvent: [
         environment: 'HOI_LEADER_EVENT_PREVIEW', property: 'hoiLeaderEventPreview',
         producers: ['dev.hoi.fabric.FabricPresentationViewsTest'],
@@ -19,11 +25,11 @@ ext.hoiRendererFixtureGroups = [
         environment: 'HOI_DECISION_PREVIEW', property: 'hoiDecisionPreview',
         producers: ['dev.hoi.fabric.FabricDecisionPresentationTest'],
         fixtures: [
-            'kor-pages', 'kor-metadata', 'jap-pages', 'jap-metadata',
+            'kor-pages', 'kor-metadata', 'jap-pages', 'jap-metadata', 'kor-economic-crisis-pages', 'kor-economic-crisis-metadata',
             'prc-pages', 'prc-metadata', 'prc-active-pages', 'prc-active-metadata',
             'prc-restored-pages', 'prc-restored-metadata', 'prc-completed-pages', 'prc-completed-metadata',
             'kor-kfxx-pages', 'kor-kfxx-metadata', 'prc-eadi-pages', 'prc-eadi-metadata',
-            'decision-panels', 'kor-scene-pages', 'kor-scene-metadata', 'kor-scene-active-pages', 'kor-scene-active-metadata',
+            'decision-panels', 'kor-scene-pages', 'kor-scene-metadata', 'kor-scene-details', 'kor-scene-active-pages', 'kor-scene-active-metadata',
             'kor-scene-ownership-lost-pages', 'kor-scene-ownership-lost-metadata', 'kor-scene-mission-timeout-pages',
             'kor-scene-mission-timeout-metadata', 'kor-scene-target-active-pages', 'kor-scene-target-active-metadata'
         ],
@@ -53,6 +59,13 @@ ext.hoiRendererFixtureGroups = [
         fixtures: ['headquarters-list', 'headquarters-draft', 'headquarters-saved', 'headquarters-preview', 'headquarters-conflict'],
         suites: ['all', 'headquarters', 'captivity']
     ],
+    completion: [
+        environment: 'HOI_COMPLETION_PREVIEW', property: 'hoi.commandFixtureOutput',
+        producers: ['dev.hoi.fabric.FabricCompletionProgressTest'],
+        fixtures: ['kor-research-complete-design-team', 'kor-research-complete-no-design-team', 'prc-agency-upgrade-complete',
+                   'kor-doctrine-reward-notification', 'kor-doctrine-milestone-notification'],
+        suites: ['all', 'industry', 'completion-design-team', 'doctrine-notifications']
+    ],
     tactics: [
         environment: 'HOI_TACTIC_PREVIEW', property: 'hoiTacticPreview',
         producers: ['dev.hoi.fabric.FabricLeaderTacticOffersTest'],
@@ -74,11 +87,12 @@ ext.hoiRendererFixtureGroups = [
             'doctrine-naval-ready', 'doctrine-naval-selected', 'doctrine-air-ready', 'doctrine-air-selected',
             'doctrine-land-progress', 'doctrine-land-before-grand-switch', 'doctrine-land-after-grand-switch'
         ],
-        suites: ['all', 'doctrine', 'officer-review']
+        suites: ['all', 'doctrine', 'doctrine-icons', 'officer-review']
     ],
     armyHud: [
         environment: 'HOI_COMMANDER_PREVIEW', property: 'hoi.commandFixtureOutput',
         producers: [
+            'dev.hoi.fabric.FabricLeaderButtonsTest', 'dev.hoi.fabric.FabricCommanderAdvisorSessionsTest', 'dev.hoi.fabric.FabricAdmiralOffersTest',
             'dev.hoi.fabric.FabricCommanderHudDetailsTest', 'dev.hoi.fabric.FabricCommanderDialogSessionsTest',
             'dev.hoi.fabric.FabricArmyGroupSessionsTest',
             'dev.hoi.fabric.FabricAirAdministrationOffersTest', 'dev.hoi.fabric.FabricAirDeterminateStateTest',
@@ -88,6 +102,7 @@ ext.hoiRendererFixtureGroups = [
             'dev.hoi.fabric.FabricNavalAirTheatersTest', 'dev.hoi.fabric.FabricMissionWaitingFixturesTest', 'dev.hoi.fabric.FabricNavalRightClickTest'
         ],
         fixtures: [
+            'kor-promote-confirm', 'kor-army-appointment-advisors', 'kor-army-group-marshal', 'kor-navy-admirals-source',
             'kor-air-mission-waiting-context', 'kor-air-mission-waiting-hud', 'kor-air-mission-waiting-availability', 'kor-air-mission-region-hud',
             'kor-navy-mission-waiting-context', 'kor-navy-mission-waiting-hud', 'kor-navy-mission-waiting-availability', 'kor-navy-mission-region-hud',
             'kor-command-panel-army', 'kor-command-panel-navy', 'kor-command-panel-navy-patrol-reserve', 'kor-navy-assessment', 'kor-navy-assessment-carrier', 'kor-sea-tooltips', 'kor-command-panel-air', 'kor-command-panel-area',
@@ -114,7 +129,7 @@ ext.hoiRendererFixtureGroups = [
         environment: 'HOI_COMMANDER_PREVIEW', property: 'hoi.commandFixtureOutput',
         producers: ['dev.hoi.fabric.FabricCommanderHudDetailsTest'],
         fixtures: ['kor-command-panel-army', 'kor-command-panel-navy', 'kor-command-panel-air'],
-        suites: ['map-orders', 'air-range']
+        suites: ['map-orders', 'air-range', 'naval-invasion-map']
     ],
     missionOverlay: [
         environment: 'HOI_MISSION_OVERLAY_FIXTURES', property: 'hoi.missionOverlayFixtureOutput',

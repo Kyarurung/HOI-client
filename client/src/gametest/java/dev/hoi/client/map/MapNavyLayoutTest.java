@@ -48,7 +48,11 @@ public final class MapNavyLayoutTest {
                 game.runOnClient(client->{if(!MapCommanderPanels.commandSelection().equals(List.of("navy/"+force.id())))throw new AssertionError("Selection must retain exact task-force identity");});
                 game.takeScreenshot("hoi-navy-single-force-"+size[0]+"x"+size[1]+"-gui2");
                 click(game,game.computeOnClient(client->hit("선택 해제 · "+force.name())),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
-                game.runOnClient(client->{if(!MapCommanderPanels.commandSelection().isEmpty())throw new AssertionError("X must deselect the task force without destroying it");});
+                game.runOnClient(client->{if(!MapCommanderPanels.commandSelection().isEmpty()||!MapCommanderPanels.hits().isEmpty())throw new AssertionError("Deselecting the last task force must close its fleet panel");});
+                game.takeScreenshot("hoi-navy-last-force-deselected-"+size[0]+"x"+size[1]+"-gui2");
+                game.runOnClient(client->{var box=portrait(fleet.id());var e=mouse(box.x()+box.width()/2.,box.y()+box.height()/2.,InputConstants.MOUSE_BUTTON_LEFT);client.gui.screen().mouseClicked(e,false);client.gui.screen().mouseReleased(e);});game.waitTicks(2);
+                click(game,game.computeOnClient(client->hit("선택 · "+force.name())),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
+                game.runOnClient(client->{if(!MapCommanderPanels.commandSelection().equals(List.of("navy/"+force.id())))throw new AssertionError("Reopened fleet must allow exact task-force selection before select all");});
                 click(game,game.computeOnClient(client->hit(UiCommandLabels.text("SELECT_ALL","모두 선택"))),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
                 game.runOnClient(client->{if(MapCommanderPanels.commandSelection().size()!=fleet.panel().members().size()||!opens.isEmpty()||!commands.isEmpty())throw new AssertionError("Select all is local selection only");});
                 var patrol=game.computeOnClient(client->MapCommanderPanels.hits().stream().filter(h->h.tip().startsWith(UiCommandLabels.text("NAVAL_MISSION_NAME_PATROL","초계"))).findFirst().orElseThrow());

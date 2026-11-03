@@ -36,6 +36,10 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
     private UiScrollBar queueScrollbar,paletteScrollbar;
     private boolean queueDragging,paletteDragging;
+    private String draggedProject="";
+    private double projectDragX,projectDragY,projectPointerY,projectOffsetY;
+    private final Map<String,List<net.minecraft.client.gui.components.AbstractWidget>> projectWidgets=new HashMap<>();
+    private boolean projectMoved;
     private record ScreenPaletteGroup(String name,int offset,int height) {}
     private List<ScreenPaletteGroup> paletteGroups=List.of();
     private boolean loadingFailed;
@@ -55,11 +59,11 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
             minecraft.gui.setScreen(null);return;
         }
         if(view!=null&&next.revision()<=view.revision())return;
-        view=next;pending=0;rebuildWidgets();
+        draggedProject="";view=next;pending=0;rebuildWidgets();
     }
     int panelWidth(){return pane;}
     @Override protected void init() {
-        queueScrollbar=null;paletteScrollbar=null;
+        queueScrollbar=null;paletteScrollbar=null;projectWidgets.clear();
         pane=UiPanelLayout.width(ProtocolMenuTab.CONSTRUCTION,width);top=UiMenuBar.height(width);
         UiMenuBar.buttons(width,view==null?"":view.country(),ProtocolMenuTab.CONSTRUCTION,t->{
             if(t==ProtocolMenuTab.CONSTRUCTION)return;
@@ -108,8 +112,9 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         queueScrollbar=new UiScrollBar(paletteX()-11,queueY(),height-30,height-queueY()-30,view.projects().size()*rowHeight());
         scroll=Math.clamp(scroll,0,queueScrollbar.maximum());
         for(int i=0;i<view.projects().size();i++) {
-            var p=view.projects().get(i);int by=queueY()+i*rowHeight()-scroll;
-            if(by<queueY()||by+rowHeight()>height-30)continue;
+            var p=view.projects().get(i);int by=projectY(p);
+            if((by<queueY()||by+rowHeight()>height-30)&&!p.id().equals(draggedProject))continue;
+            var widgets=new ArrayList<net.minecraft.client.gui.components.AbstractWidget>();projectWidgets.put(p.id(),widgets);
             for(int action=0;action<3;action++) {
                 var kind=action==0?ProtocolConstructionPayloads.Action.UP:action==1?ProtocolConstructionPayloads.Action.DOWN:ProtocolConstructionPayloads.Action.CANCEL;
                 String art="construction/ui/"+(action==0?"up":action==1?"down":"cancel");
@@ -120,7 +125,7 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
                     }
                 };
                 button.active=pending==0&&(action!=0||i>0)&&(action!=1||i<view.projects().size()-1);
-                button.setTooltip(dev.hoi.client.ui.UiTooltips.create(action<2?dev.hoi.client.ui.UiPriorityControls.tooltip(action==0):Component.literal("§a클릭하면 §e건설이 취소§a됩니다.\nCtrl + 클릭하면 §e건설 모두 취소§a됩니다.")));addRenderableWidget(button);
+                button.setTooltip(dev.hoi.client.ui.UiTooltips.create(action<2?dev.hoi.client.ui.UiPriorityControls.tooltip(action==0):Component.literal("§a클릭하면 §e건설이 취소§a됩니다.\nCtrl + 클릭하면 §e건설 모두 취소§a됩니다.")));addRenderableWidget(button);widgets.add(button);
             }
         }
     }
@@ -178,26 +183,9 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
                     UiTooltips.drawExact(g,font,Component.translatable("hoi.construction.group."+group.name()).getString(),mx,my);
             }
             for(int i=0;i<view.projects().size();i++) {
-                var p=view.projects().get(i);int y=queueY()+i*rowHeight()-scroll;
+                var p=view.projects().get(i);int y=projectY(p);
                 if(y<queueY()||y+rowHeight()>height-30)continue;
-                UiAssets.draw(g,"construction/ui/entry",6,y,q-6,rowHeight()-2);
-                dev.hoi.client.ui.UiText.cell(g,font,p.name(),column(20),y+3,column(162)-column(20),20,UiMenuStyle.TEXT,false);
-                UiAssets.draw(g,"construction/"+p.building(),column(172),y+2,23,23);
-                dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(p.levels()),column(190),y+14,12,11,UiMenuStyle.TEXT,true);
-                dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",column(249)+1,y+1,column(310)-column(249),17,UiMenuStyle.TEXT,false);
-                int progressX=column(250),progressWidth=column(310)-progressX;
-                g.pose().pushMatrix();
-                g.pose().translate(0,-1f/minecraft.getWindow().getGuiScale());
-                UiAssets.draw(g,"construction/ui/progress_background",progressX,y+18,progressWidth,5);
-                int filled=(int)(progressWidth*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1));
-                if(filled>0) {
-                    g.enableScissor(progressX,y+17,progressX+filled,y+24);
-                    UiAssets.draw(g,"construction/ui/progress",progressX,y+18,progressWidth,5);
-                    g.disableScissor();
-                }
-                g.pose().popMatrix();
-                if(mx>=column(172)&&mx<column(172)+23&&my>=y+2&&my<y+25&&p.taskTooltip()!=null)UiTooltips.drawExact(g,font,p.taskTooltip(),mx,my);
-                else if(mx>=6&&mx<column(318)&&my>=y&&my<y+rowHeight()-3)UiTooltips.drawExact(g,font,p.tooltip()==null?p.name()+" · "+buildingName(p.building())+"\n"+String.format(Locale.ROOT,"진행 %.0f / %.0f · 하루 %.2f\n완료 예상: %s",p.progress(),p.cost(),p.daily(),p.daily()>0?(long)Math.ceil(Math.max(0,p.cost()-p.progress())/p.daily())+"일":"공장 배정 대기"):p.tooltip(),mx,my);
+                if(!projectMoved||!p.id().equals(draggedProject))drawProject(g,p,y,mx,my);
             }
             queueScrollbar.draw(g,scroll);
             paletteScrollbar.draw(g,paletteScroll);
@@ -209,7 +197,52 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
             }
         } else dev.hoi.client.ui.UiText.text(g, font,loadingFailed?"서버 응답이 없습니다.":"건설 현황을 불러오는 중…",10,top+40,UiMenuStyle.MUTED);
         drawConversions(g,mx,my);
+        var movingWidgets=projectMoved&&!draggedProject.isEmpty()?projectWidgets.getOrDefault(draggedProject,List.of()).stream().filter(widget->widget.visible).toList():List.<net.minecraft.client.gui.components.AbstractWidget>of();
+        for(var widget:movingWidgets)widget.visible=false;
         super.extractRenderState(g,mx,my,delta);
+        for(var widget:movingWidgets)widget.visible=true;
+        if(view!=null&&projectMoved&&!draggedProject.isEmpty()) {
+            var project=view.projects().stream().filter(p->p.id().equals(draggedProject)).findFirst().orElse(null);
+            if(project!=null) {
+                int y=Math.clamp((int)Math.round(projectPointerY-projectOffsetY),queueY(),Math.max(queueY(),height-30-rowHeight()));
+                g.nextStratum();g.enableScissor(6,y,paletteX()-15,y+rowHeight()-2);UiMenuStyle.panel(g,0,top,pane,height-top);g.disableScissor();g.pose().pushMatrix();g.pose().translate(0,y-projectY(project));
+                drawProject(g,project,projectY(project),-1,-1);
+                for(var widget:movingWidgets)widget.extractRenderState(g,-1,-1,delta);
+                g.pose().popMatrix();
+            }
+        }
+    }
+    private int projectY(Project project) {
+        int index=view.projects().indexOf(project);
+        if(projectMoved&&!draggedProject.isEmpty()) {
+            int source=-1;for(int i=0;i<view.projects().size();i++)if(view.projects().get(i).id().equals(draggedProject))source=i;
+            int target=Math.clamp((int)(projectPointerY-queueY()+scroll)/rowHeight(),0,view.projects().size()-1);
+            if(index==source)index=target;else if(source<target&&index>source&&index<=target)index--;else if(source>target&&index>=target&&index<source)index++;
+        }
+        return queueY()+index*rowHeight()-scroll;
+    }
+    private void drawProject(GuiGraphicsExtractor g,Project p,int y,int mx,int my) {
+        int q=paletteX()-15;
+        UiAssets.draw(g,"construction/ui/entry",6,y,q-6,rowHeight()-2);
+        dev.hoi.client.ui.UiText.cell(g,font,p.name(),column(20),y+3,column(162)-column(20),20,UiMenuStyle.TEXT,false);
+        UiAssets.draw(g,"construction/"+p.building(),column(172),y+2,23,23);
+        dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(p.levels()),column(190),y+14,12,11,UiMenuStyle.TEXT,true);
+        dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",column(249)+1,y+1,column(310)-column(249),17,UiMenuStyle.TEXT,false);
+        int progressX=column(250),progressWidth=column(310)-progressX;
+        g.pose().pushMatrix();
+        g.pose().translate(0,-1f/minecraft.getWindow().getGuiScale());
+        UiAssets.draw(g,"construction/ui/progress_background",progressX,y+18,progressWidth,5);
+        int filled=(int)(progressWidth*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1));
+        if(filled>0) {
+            g.enableScissor(progressX,y+17,progressX+filled,y+24);
+            UiAssets.draw(g,"construction/ui/progress",progressX,y+18,progressWidth,5);
+            g.disableScissor();
+        }
+        g.pose().popMatrix();
+        if(mx>=column(172)&&mx<column(172)+23&&my>=y+2&&my<y+25&&p.taskTooltip()!=null)UiTooltips.drawExact(g,font,p.taskTooltip(),mx,my);
+        else if(mx>=column(249)&&mx<column(310)&&my>=y&&my<y+rowHeight()-3&&p.tooltip()!=null)UiTooltips.drawExact(g,font,p.tooltip(),mx,my);
+        else if(mx>=6&&mx<q&&my>=y&&my<y+rowHeight()-3&&children().stream().noneMatch(child->child instanceof net.minecraft.client.gui.components.AbstractWidget widget&&widget.isMouseOver(mx,my)))
+            UiTooltips.drawExact(g,font,dev.hoi.client.ui.UiEquipmentDesigns.tooltip("PRODUCTION_DRAG_N_DROP"),mx,my);
     }
     private void drawConversions(GuiGraphicsExtractor g,int mx,int my) {
         conversionBoxes=List.of();
@@ -240,11 +273,20 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
     private void send(ProtocolConstructionPayloads.Action action,String item,int amount,Vector3f ray) {
         if(pending>0&&action!=ProtocolConstructionPayloads.Action.CLOSE)return;
         boolean passive=action==ProtocolConstructionPayloads.Action.REFRESH;
+        if(!passive)draggedProject="";
         if(action==ProtocolConstructionPayloads.Action.OPEN)loadingFailed=false;
         if(!passive)pending=view==null?200:100;transport.accept(new ProtocolConstructionPayloads.Request(action,token,view==null?0:view.revision(),item,amount,ray==null?0:ray.x,ray==null?0:ray.y,ray==null?0:ray.z));
         if(!passive)rebuildWidgets();
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
+        if(!draggedProject.isEmpty()){draggedProject="";rebuildWidgets();return true;}
+        if(view!=null&&pending==0&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&event.x()>=6&&event.x()<column(231)&&event.y()>=queueY()&&event.y()<height-30) {
+            int index=(int)(event.y()-queueY()+scroll)/rowHeight();
+            int y=queueY()+index*rowHeight()-scroll;
+            if(index>=0&&index<view.projects().size()&&y>=queueY()&&y+rowHeight()<=height-30) {
+                draggedProject=view.projects().get(index).id();projectDragX=event.x();projectDragY=projectPointerY=event.y();projectOffsetY=event.y()-y;projectMoved=false;return true;
+            }
+        }
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             if(queueScrollbar!=null&&queueScrollbar.contains(event.x(),event.y())) {
                 if(queueScrollbar.arrow(event.y()))scroll=queueScrollbar.step(event.y(),scroll,rowHeight());
@@ -289,11 +331,28 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         return super.mouseScrolled(x,y,horizontal,vertical);
     }
     @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {
+        if(!draggedProject.isEmpty()) {
+            projectPointerY=event.y();
+            projectMoved|=Math.hypot(event.x()-projectDragX,event.y()-projectDragY)>=4;
+            if(projectMoved&&event.x()>=6&&event.x()<paletteX()-15) {
+                if(event.y()<queueY()+12)scroll-=rowHeight();else if(event.y()>height-42)scroll+=rowHeight();
+                rebuildWidgets();
+            }
+            return true;
+        }
         if(queueDragging&&queueScrollbar!=null){scroll=queueScrollbar.offset(event.y());rebuildWidgets();return true;}
         if(paletteDragging&&paletteScrollbar!=null){paletteScroll=paletteScrollbar.offset(event.y());rebuildWidgets();return true;}
         return super.mouseDragged(event,dx,dy);
     }
     @Override public boolean mouseReleased(MouseButtonEvent event) {
+        if(!draggedProject.isEmpty()) {
+            String id=draggedProject;draggedProject="";rebuildWidgets();
+            if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&projectMoved&&pending==0&&event.x()>=6&&event.x()<paletteX()-15&&event.y()>=queueY()&&event.y()<height-30) {
+                int index=(int)(event.y()-queueY()+scroll)/rowHeight();
+                if(index>=0&&index<view.projects().size()&&!view.projects().get(index).id().equals(id)){dev.hoi.client.audio.AudioUiSounds.play("ui.click");send(ProtocolConstructionPayloads.Action.MOVE,id,index,null);}
+            }
+            return true;
+        }
         boolean dragging=queueDragging||paletteDragging;queueDragging=false;paletteDragging=false;
         return super.mouseReleased(event)||dragging;
     }
@@ -304,9 +363,9 @@ public final class ScreenConstruction extends Screen implements InputSidebarMove
         }
         else if(view!=null&&++refresh%60==0&&pending==0)send(ProtocolConstructionPayloads.Action.REFRESH,"",0,null);
     }
-    @Override public boolean keyPressed(KeyEvent e){return InputSidebarMovement.consumes(minecraft,e)||super.keyPressed(e);}
+    @Override public boolean keyPressed(KeyEvent e){if(!draggedProject.isEmpty()&&e.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE){draggedProject="";rebuildWidgets();return true;}return InputSidebarMovement.consumes(minecraft,e)||super.keyPressed(e);}
     @Override public boolean keyReleased(KeyEvent e){return InputSidebarMovement.consumes(minecraft,e)||super.keyReleased(e);}
-    @Override public void removed(){InputSidebarMovement.release(minecraft);if(ScreenDialogCoordinator.suspending())return;transport.accept(new ProtocolConstructionPayloads.Request(ProtocolConstructionPayloads.Action.CLOSE,token,view==null?0:view.revision(),"",0,0,0,0));}
+    @Override public void removed(){draggedProject="";InputSidebarMovement.release(minecraft);if(ScreenDialogCoordinator.suspending())return;transport.accept(new ProtocolConstructionPayloads.Request(ProtocolConstructionPayloads.Action.CLOSE,token,view==null?0:view.revision(),"",0,0,0,0));}
     @Override public int unitHudLeft(){return pane;}
     @Override public boolean allowsMovement(){return true;}
     @Override public boolean isPauseScreen(){return false;}

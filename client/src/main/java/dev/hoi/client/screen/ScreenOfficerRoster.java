@@ -57,7 +57,7 @@ final class ScreenOfficerRoster extends ScreenDialog {
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
         UiAssets.draw(g,"commander/officers/gfx_leader_selection_bg/frame_0",left,top,pane,bottom-top);
-        UiText.leftSingleLine(g,font,UiTooltips.officerText(view().title()),left+10,top+4,pane-33,14,UiMenuStyle.TEXT);
+        UiText.leftSingleLine(g,font,UiTooltips.officerText(view().title(),true),left+10,top+4,pane-33,14,UiMenuStyle.TEXT);
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable renderable&&(!buttons.containsValue(child)||((AbstractWidget)child).getY()>=bottom-14))renderable.extractRenderState(g,mx,my,delta);
         UiAssets.draw(g,"commander/commands/unit_level/frame_0",left+20,top+20,14,14);
         int[] sortX={7,48,167,219};UiText.centered(g,font,descending?"▲":"▼",left+sortX[sort]+30,top+21,8,12,0xFFFFD060,false);

@@ -10,7 +10,7 @@ final class MapCommanderGroups {
     void clear(){expanded.clear();foldedRows.clear();scope="";}
     void accept(View view){
         String next=view.country()+"/"+view.dimension()+"/"+(view.branch()==Mode.AIR?Mode.ARMY:view.branch());if(!next.equals(scope)){clear();scope=next;}
-        var ids=view.cards().stream().map(Card::id).collect(java.util.stream.Collectors.toSet());expanded.keySet().retainAll(ids);foldedRows.retainAll(ids);
+        var ids=view.cards().stream().map(Card::id).collect(java.util.stream.Collectors.toSet());expanded.keySet().retainAll(ids);foldedRows.retainAll(ids);view.cards().stream().filter(c->c.role()==Mode.ARMY_GROUP).forEach(c->expanded.putIfAbsent(c.id(),true));
     }
     boolean expanded(String id){return expanded.getOrDefault(id,false);}
     void reveal(Card card){if(card.role()==Mode.ARMY_GROUP)expanded.putIfAbsent(card.id(),true);else if(card.panel()!=null&&!card.panel().parent().isEmpty())expanded.putIfAbsent(card.panel().parent(),true);}

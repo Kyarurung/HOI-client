@@ -99,7 +99,8 @@ public final class ScreenDiplomacyActionsTest {
                 new ProtocolCountryView.Actions(session, revision, "", actions), List.of());
     }
     private static void source(ClientGameTestContext context) {
-        String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
+        String directory=System.getenv("HOI_AGENCY_OPERATION_PREVIEW");
+        if(directory==null)directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
         try {
             var view=new ProtocolCountryPayloads.Response(UUID.randomUUID().toString(),java.nio.file.Files.readString(java.nio.file.Path.of(directory,"kor-diplomacy-PRK.json"))).view();
             if(!view.viewer().equals("KOR")||!view.target().equals("PRK")||view.actions().entries().size()!=23||!view.actions().entries().getLast().id().equals("market_access"))throw new AssertionError("Actual KOR to PRK response must end with market access in one list");
@@ -110,6 +111,48 @@ public final class ScreenDiplomacyActionsTest {
                 context.runOnClient(c->{var screen=(ScreenCountry)c.gui.screen();if(screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().contains("다음 외교 행동")))throw new AssertionError("Source list must not insert an extra page action");screen.mouseScrolled(screen.panelWidth()-15,screen.height-70,0,-50);});context.waitTicks(3);
                 context.runOnClient(c->{var screen=(ScreenCountry)c.gui.screen();var market=view.actions().entries().getLast();var control=button(screen,market.name());if(control.getY()<0||control.getBottom()>screen.height||control.active!=market.enabled())throw new AssertionError("Market access must remain reachable with authoritative availability");});
                 context.takeScreenshot("hoi-diplomacy-source-market-"+size[0]+"x"+size[1]+"-gui2");
+                var requests = new ArrayList<ProtocolCountryPayloads.Action>();
+                context.setScreen(() -> new ScreenCountry(view, requests::add));
+                context.runOnClient(c -> press(button((ScreenCountry)c.gui.screen(), "첩보 장부")));
+                for (var domain : ProtocolIntelDomain.values()) {
+                    context.runOnClient(c -> press(button((ScreenCountry)c.gui.screen(), domain.label + " 정보")));
+                    context.getInput().setCursorPos(size[0] - 2, 80); context.waitTicks(2);
+                    context.takeScreenshot("hoi-intel-ledger-" + domain.name().toLowerCase(Locale.ROOT) + "-" + size[0] + "-gui2");
+                    if (domain == ProtocolIntelDomain.ARMY && !view.report(domain).sections().isEmpty()) {
+                        context.runOnClient(client -> {
+                            var screen = (ScreenCountry)client.gui.screen();
+                            var tab = button(screen, "비축량");
+                            var event = new net.minecraft.client.input.MouseButtonEvent(tab.getX() + 5, tab.getY() + 5, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0));
+                            screen.mouseClicked(event, false); screen.mouseReleased(event);
+                            String expected = view.report(domain).sections().stream().filter(section -> section.id().equals("stockpiles")).findFirst().orElseThrow().tooltip();
+                            if (!screen.ledgerDetailAt(tab.getX() + 5, tab.getBottom() + 15).equals(expected)) throw new AssertionError("Stockpile tab did not retain issued section tooltip");
+                        });
+                        context.getInput().setCursorPos(size[0] - 2, 80); context.waitTicks(2);
+                        context.takeScreenshot("hoi-intel-ledger-stockpiles-" + size[0] + "-gui2");
+                    }
+                    var point = context.computeOnClient(c -> {
+                        var tab = button((ScreenCountry)c.gui.screen(), domain.label + " 정보");
+                        return new int[]{tab.getX() + tab.getWidth() / 2, tab.getY() + tab.getHeight() / 2};
+                    });
+                    context.getInput().setCursorPos(point[0] * 2, point[1] * 2); context.waitTicks(15);
+                    context.takeScreenshot("hoi-intel-ledger-" + domain.name().toLowerCase(Locale.ROOT) + "-report-tooltip-" + size[0] + "-gui2");
+                    var research = view.report(domain).entries().stream().filter(entry -> entry.detail().contains("계통도")).findFirst().orElse(null);
+                    if (research != null) {
+                        var at = context.computeOnClient(c -> {
+                            var screen = (ScreenCountry)c.gui.screen();
+                            var hover = screen.children().stream().filter(child -> child instanceof dev.hoi.client.ui.UiHoverRegion widget
+                                && widget.getMessage().getString().equals(research.name())).map(dev.hoi.client.ui.UiHoverRegion.class::cast).findFirst().orElseThrow();
+                            int x = hover.getX() + hover.getWidth() / 2, y = hover.getY() + hover.getHeight() / 2;
+                            if (!screen.ledgerDetailAt(x, y).equals(research.detail())) throw new AssertionError("Research tooltip changed authoritative wording or line breaks");
+                            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(x, y, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
+                            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(x, y, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT, 0)), false);
+                            return new int[]{x, y};
+                        });
+                        context.getInput().setCursorPos(at[0] * 2, at[1] * 2); context.waitTicks(15);
+                        context.takeScreenshot("hoi-intel-ledger-" + domain.name().toLowerCase(Locale.ROOT) + "-research-tooltip-" + size[0] + "-gui2");
+                    }
+                }
+                if (!requests.isEmpty()) throw new AssertionError("Intel ledger inspection must not send diplomatic actions");
             }
         }catch(java.io.IOException error){throw new AssertionError("Actual KOR to PRK fixture unavailable",error);}
     }

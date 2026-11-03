@@ -165,7 +165,7 @@ public class ScreenDialog extends Screen {
             int titleTop = top + Math.min(32, 48 - (int)Math.ceil(font.lineHeight * eventTitleScale(titleWidth)));
             eventTitle(g, start, titleTop, titleWidth, 18, ink, false);
         }
-        else text(g, Component.literal(trim(view.title(), (int)((left + pane - 14 - start) / textScale()))).getVisualOrderText(), start, top + 35, ink);
+        else text(g, net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(dev.hoi.client.ui.UiTooltips.officerText(view.title(), true), (int)((left + pane - 14 - start) / textScale()))), start, top + 35, ink);
         text(g, Component.literal(trim(view.subtitle(), (int)((pane - 28) / textScale()))).getVisualOrderText(), left + 12, top + 48, paper() ? 0xff62566a : UiMenuStyle.MUTED);
         g.enableScissor(left + 8, bodyTop, left + pane - 8, bodyBottom);
         int y = bodyTop + 5 - scroll;

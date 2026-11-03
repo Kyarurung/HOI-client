@@ -13,9 +13,11 @@ and material of uncertain ownership. Their original licenses, copyrights,
 notices and source provenance remain applicable; this repository does not
 grant additional redistribution rights for them.
 
-Gradle wrapper files retain their Apache-2.0 notices. External launcher and
-mod JARs retain their embedded licenses. Resource assets and generated
-source catalogs retain the source-specific rights recorded in provenance
-files and the source documentation. HOI-resourcepack/sources/bettermodel/
-retains its MIT license and toxicity188 copyright. Material without an
-established ownership or license grant is excluded rather than relicensed.
+Gradle wrapper files retain their Apache-2.0 notices. Third-party dependencies
+and bundled dependency JARs retain their own licenses and notices.
+
+External gameplay assets retain the rights recorded in
+[HOI-resourcepack](../HOI-resourcepack/LICENSE-SCOPE.md). Its BetterModel model
+notice applies to imported and derived assets, not to original HOI-client code.
+Material without an established ownership or license grant is excluded rather
+than relicensed.

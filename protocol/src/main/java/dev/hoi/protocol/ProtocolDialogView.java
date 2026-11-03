@@ -78,7 +78,7 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
     }
     public ProtocolDialogView {
         presentation=presentation==null?"":presentation;
-        if(!Set.of("","research_complete","focus_complete","leader_event","minor_flavor").contains(presentation)||Set.of("leader_event","minor_flavor").contains(presentation)&&kind!=Kind.EVENT)throw new IllegalArgumentException("Invalid dialog presentation");
+        if(!Set.of("","research_complete","focus_complete","agency_upgrade_complete","doctrine_reward_complete","doctrine_milestone_complete","leader_event","minor_flavor").contains(presentation)||Set.of("leader_event","minor_flavor").contains(presentation)&&kind!=Kind.EVENT)throw new IllegalArgumentException("Invalid dialog presentation");
         if(!token.isEmpty())UUID.fromString(token);
         if(revision<0)throw new IllegalArgumentException("Invalid dialog revision");
         Objects.requireNonNull(kind);text(title,240);text(subtitle,600);text(body,24000);asset(flag);asset(image);asset(sound);
@@ -87,7 +87,7 @@ public record ProtocolDialogView(String token,long revision,Kind kind,String tit
         if(choices.stream().map(Choice::id).distinct().count()!=choices.size())throw new IllegalArgumentException("Duplicate dialog choice");
     }
     public ProtocolDialogView issued(String id,long version) {return new ProtocolDialogView(id,version,kind,title,subtitle,body,flag,image,sound,tiles,choices,presentation);}
-    public boolean completion() {return presentation.equals("research_complete")||presentation.equals("focus_complete");}
+    public boolean completion() {return presentation.equals("research_complete")||presentation.equals("focus_complete")||presentation.equals("agency_upgrade_complete")||presentation.startsWith("doctrine_");}
     public boolean leaderEvent() {return presentation.equals("leader_event");}
     public boolean minorFlavor() {return presentation.equals("minor_flavor");}
     private static void asset(String value) {text(value,180);if(!value.isEmpty()&&!value.matches("[a-z0-9_/-]+"))throw new IllegalArgumentException("Invalid dialog image");}

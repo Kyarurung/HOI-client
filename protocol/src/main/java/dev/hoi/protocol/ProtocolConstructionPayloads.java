@@ -18,7 +18,7 @@ public final class ProtocolConstructionPayloads {
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE,Response.CODEC);
         registered=true;
     }
-    public enum Action { OPEN, REFRESH, SELECT, PLACE, CANCEL, UP, DOWN, REPAIR, CLOSE, CANCEL_AT, CONVERT }
+    public enum Action { OPEN, REFRESH, SELECT, PLACE, CANCEL, UP, DOWN, REPAIR, CLOSE, CANCEL_AT, CONVERT, MOVE }
     public record CancelMap() implements CustomPacketPayload {
         public static final CancelMap INSTANCE = new CancelMap();
         public static final Type<CancelMap> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "construction_cancel_map_v1"));

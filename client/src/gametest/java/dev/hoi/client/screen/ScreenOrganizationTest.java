@@ -16,9 +16,10 @@ public final class ScreenOrganizationTest {
         int previous = game.computeOnClient(c -> c.options.guiScale().get());
         try {
             var types = new Gson().fromJson(json("mio-types"), com.google.gson.JsonArray.class);
-            if (types.size() != 30) throw new AssertionError("Expected all 30 authoritative MIO types");
+            if (types.asList().stream().filter(item -> item.getAsJsonObject().get("owned").getAsBoolean()).count() != 24) throw new AssertionError("Expected all 24 actual owned MIO types");
             for (var item : types) {
                 var type = item.getAsJsonObject(); String fixture = type.get("fixture").getAsString();
+                if (!type.get("owned").getAsBoolean()) continue;
                 if (System.getProperty("hoi.testSuite", "all").equals("mio-long-type") && !fixture.equals("mio-type-20")) continue;
                 String menuFixture = type.get("menu").getAsString();
                 var menuView = new Gson().fromJson(json(menuFixture.isEmpty() ? "mio-menu-kor" : menuFixture), ProtocolMenuPayloads.OpenScreen.class).view();
@@ -37,9 +38,56 @@ public final class ScreenOrganizationTest {
                     for (String stage : List.of("detail","queue","policies")) {
                         var view = source(fixture+"-"+stage);
                         if (stage.equals("detail") && view.tiles().stream().filter(t -> t.traitNode()!=null).count()!=type.get("traits").getAsInt()) throw new AssertionError("Trait fixture count: "+fixture);
+                        if (stage.equals("detail")) game.runOnClient(c -> {
+                            for (var tile : view.tiles()) if (tile.traitNode()!=null && dev.hoi.client.ui.UiAssets.imageSize(tile.icon())[0]==0) throw new AssertionError("Missing owned MIO trait image: "+fixture+"/"+tile.icon());
+                        });
                         var screen = game.computeOnClient(c -> new ScreenOrganization(view,menu,(v,id)->{})); game.setScreen(() -> screen);
                         if (stage.equals("queue")) game.runOnClient(c -> click(screen,screen.control("queue"),0));
-                        game.getInput().setCursorPos(size[0]-3,80); game.waitTicks(2); game.takeScreenshot("hoi-"+fixture+"-"+stage+"-"+size[0]+"-gui2");
+                        game.getInput().setCursorPos(size[0]-3,80); game.waitTicks(2);
+                        var capture=game.takeScreenshot("hoi-"+fixture+"-"+stage+"-"+size[0]+"-gui2");
+                        if(fixture.equals("mio-type-20")&&stage.equals("detail")){
+                            var pixels=javax.imageio.ImageIO.read(capture.toFile());
+                            for(var trait:view.tiles())if(trait.traitNode()!=null&&!trait.traitNode().exclusive().isEmpty()){
+                                var other=view.tiles().stream().filter(t->t.section().equals("trait/"+trait.traitNode().exclusive().getFirst())).findFirst().orElseThrow();
+                                var first=screen.control(trait.traitNode().column()<other.traitNode().column()?trait.section():other.section());
+                                var second=screen.control(trait.traitNode().column()<other.traitNode().column()?other.section():trait.section());
+                                int green=0,red=0;
+                                for(int y=(first.getY()+8)*2;y<(first.getY()+24)*2;y++)for(int x=(first.getX()+32)*2;x<second.getX()*2;x++){
+                                    int rgb=pixels.getRGB(x,y),r=(rgb>>16)&255,g=(rgb>>8)&255,b=rgb&255;
+                                    if(g>r*1.3&&g>b*1.2&&g>40)green++;
+                                    if(r>g*1.5&&r>b*1.2&&r>40)red++;
+                                }
+                                if(green<12||trait.traitNode().row()!=2&&red<4)throw new AssertionError("Original exclusive sprites must render for one-sided relation: "+trait.section());
+                            }
+                            levelCenter(pixels,size[0],size[1]);
+                            int panelLeft=size[0]/2-Math.min(640,size[0]/2-12),panelTop=size[1]/2-Math.min(360,size[1]/2-12);
+                            var headerColors=new HashSet<Integer>();
+                            for(int x=panelLeft+400;x<panelLeft+900;x++)headerColors.add(pixels.getRGB(x,panelTop+72));
+                            if(headerColors.size()<3)throw new AssertionError("Empty transparent header must reveal the patterned tree background");
+                            var synthetic=new Gson().toJsonTree(view).getAsJsonObject();
+                            for(var tile:synthetic.getAsJsonArray("tiles"))if(tile.getAsJsonObject().get("section").getAsString().equals("summary"))tile.getAsJsonObject().addProperty("value","12");
+                            var longer=new Gson().fromJson(synthetic,ProtocolDialogView.class);
+                            game.setScreen(()->new ScreenOrganization(longer,menu,(v,id)->{}));game.waitTicks(2);
+                            levelCenter(javax.imageio.ImageIO.read(game.takeScreenshot("hoi-mio-level-12-synthetic-"+size[0]+"-gui2").toFile()),size[0],size[1]);
+                            var sample=synthetic.getAsJsonArray("tiles").asList().stream().map(com.google.gson.JsonElement::getAsJsonObject).filter(t->t.has("traitNode")&&!t.get("traitNode").isJsonNull()&&t.getAsJsonObject("traitNode").get("row").getAsInt()==0).findFirst().orElseThrow();
+                            sample.getAsJsonObject("traitNode").add("bonuses",new com.google.gson.JsonArray());
+                            var empty=detailPixels(game,synthetic,menu,"empty",size[0]);
+                            sample.getAsJsonObject("traitNode").add("bonuses",new Gson().toJsonTree(ProtocolDialogView.TraitNode.BONUSES));
+                            var crowded=detailPixels(game,synthetic,menu,"overlap",size[0]);
+                            var traitControl=screen.control(sample.get("section").getAsString());int changed=0;
+                            for(int y=traitControl.getY()*2;y<(traitControl.getY()+42)*2;y++)for(int x=(traitControl.getX()-8)*2;x<(traitControl.getX()+40)*2;x++)if(empty.getRGB(x,y)!=crowded.getRGB(x,y)){
+                                changed++;
+                                if(x<(traitControl.getX()+4)*2||x>=(traitControl.getX()+29)*2||y<(traitControl.getY()+27)*2||y>=(traitControl.getY()+39)*2)throw new AssertionError("Overlapping bonus icons escaped their original slot");
+                            }
+                            if(changed<20)throw new AssertionError("Crowded bonus row must remain visible");
+                            for(double fraction:List.of(.5,1.0)){
+                                for(var tile:synthetic.getAsJsonArray("tiles"))if(tile.getAsJsonObject().get("section").getAsString().equals("summary"))tile.getAsJsonObject().getAsJsonObject("gauge").addProperty("fraction",fraction);
+                                var progress=detailPixels(game,synthetic,menu,"funds-"+fraction,size[0]);int progressChanges=0;
+                                for(int y=panelTop+104;y<panelTop+119;y++)for(int x=panelLeft+136;x<panelLeft+307;x++)if(crowded.getRGB(x,y)!=progress.getRGB(x,y))progressChanges++;
+                                if(progressChanges<200)throw new AssertionError("Authoritative funds fraction must change original bar pixels");
+                            }
+                            game.setScreen(()->screen);
+                        }
                         if (stage.equals("detail")) {
                             game.runOnClient(c -> screen.mouseScrolled(screen.width/2.,screen.height/2.,0,-100)); game.waitTicks(2);
                             game.takeScreenshot("hoi-"+fixture+"-tree-bottom-"+size[0]+"-gui2");
@@ -49,6 +97,19 @@ public final class ScreenOrganizationTest {
             }
         } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
         finally { game.setScreen(() -> null); game.runOnClient(c -> c.options.guiScale().set(previous)); }
+    }
+    private static java.awt.image.BufferedImage detailPixels(ClientGameTestContext game,com.google.gson.JsonObject json,Screen parent,String label,int width)throws java.io.IOException{
+        var view=new Gson().fromJson(json,ProtocolDialogView.class);
+        game.setScreen(()->new ScreenOrganization(view,parent,(v,id)->{}));game.waitTicks(2);
+        return javax.imageio.ImageIO.read(game.takeScreenshot("hoi-mio-spacing-"+label+"-synthetic-"+width+"-gui2").toFile());
+    }
+    private static void levelCenter(java.awt.image.BufferedImage image,int width,int height){
+        int left=width/2-Math.min(640,width/2-12),top=height/2-Math.min(360,height/2-12),min=Integer.MAX_VALUE,max=-1;
+        for(int y=top+84;y<top+102;y++)for(int x=left+86;x<left+124;x++){
+            int rgb=image.getRGB(x,y),r=(rgb>>16)&255,g=(rgb>>8)&255,b=rgb&255;
+            if(r>180&&g>180&&b>180){min=Math.min(min,x);max=Math.max(max,x);}
+        }
+        if(max<0||Math.abs((min+max)/2.0-(left+107))>2)throw new AssertionError("Level digits must center in the red field at "+width+": "+min+".."+max);
     }
     private static String json(String name)throws java.io.IOException{return Files.readString(Path.of(System.getenv("HOI_COMMANDER_PREVIEW"),name+".json"));}
     private static ProtocolDialogView source(String name)throws java.io.IOException{return new ProtocolDialogPayloads.Show(json(name),true).view().issued(UUID.randomUUID().toString(),7);}

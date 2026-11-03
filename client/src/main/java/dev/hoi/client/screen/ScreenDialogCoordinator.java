@@ -37,6 +37,8 @@ public final class ScreenDialogCoordinator {
         var current = Minecraft.getInstance().gui.screen();
         if (current instanceof ScreenDialogStack stack) current = stack.backdrop();
         if (current instanceof ScreenAgencyOperation operation) return operation.backdrop();
+        if (current instanceof ScreenAgencyCandidates candidates) return candidates.backdrop();
+        if (current instanceof ScreenCommanderConfirmation confirmation && confirmation.backdrop() instanceof ScreenAgency agency) return agency;
         return current instanceof ScreenCompletion completion && completion.backdrop() != null ? completion.backdrop() : current;
     }
     static boolean menuScreen(Screen screen) {
@@ -115,7 +117,7 @@ public final class ScreenDialogCoordinator {
             showNotifications();
             if (view.kind() == ProtocolDialogView.Kind.SUPER_EVENT) AudioSuperEvent.play(view.token(), view.sound());
             else if (view.completion()) dev.hoi.client.audio.AudioUiSounds.play(
-                    view.presentation().equals("research_complete") ? "ui.research.complete" : "ui.focus.complete");
+                    view.presentation().equals("research_complete") ? "ui.research.complete" : view.presentation().equals("focus_complete") ? "ui.focus.complete" : "");
         } else {
             HoiClient.cancelOpen();
             var originalParent = contentScreen();
@@ -170,7 +172,17 @@ public final class ScreenDialogCoordinator {
         }
     }
     static void choose(ProtocolDialogView view, String choice) {
-        if (!view.token().isEmpty() && ClientPlayNetworking.canSend(ProtocolDialogPayloads.Action.TYPE))
+        boolean agencyDetails = view.presentation().equals("agency_upgrade_complete") && choice.equals("details");
+        if (agencyDetails) {
+            var current = find(view.token());
+            if (current == null || !current.view().equals(view) || view.choices().stream().noneMatch(c -> c.id().equals(choice))) return;
+        }
+        if (!view.token().isEmpty() && ClientPlayNetworking.canSend(ProtocolDialogPayloads.Action.TYPE)) {
             ClientPlayNetworking.send(new ProtocolDialogPayloads.Action(view.token(), view.revision(), choice));
+            if (agencyDetails) {
+                close(view.token());
+                dev.hoi.client.network.NetworkScreens.openAgency();
+            }
+        }
     }
 }

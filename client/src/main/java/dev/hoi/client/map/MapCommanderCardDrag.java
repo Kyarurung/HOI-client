@@ -10,6 +10,7 @@ final class MapCommanderCardDrag {
     private static List<Slot> slots=List.of();
     private static String id="",gesture="";
     private static double start,position,destination;
+    private static int creationX,rightLimit;
     private static boolean dragging;
     private static Drop queued;
     private static String queuedId="",queuedToken="";
@@ -51,17 +52,33 @@ final class MapCommanderCardDrag {
         if(box==null||box.request()==null||!Set.of(Mode.ASSIGN_ARMY,Mode.ASSIGN_GROUP_MARSHAL,Mode.NAVY_FLEET).contains(box.request().mode()))return false;
         var card=view.cards().stream().filter(c->c.id().equals(box.request().target())&&movable(view,c)).findFirst().orElse(null);if(card==null)return false;
         var visible=new ArrayList<Slot>();for(var b:boxes)if(b.request()!=null&&Set.of(Mode.ASSIGN_ARMY,Mode.ASSIGN_GROUP_MARSHAL,Mode.NAVY_FLEET).contains(b.request().mode()))view.cards().stream().filter(c->c.id().equals(b.request().target())&&movable(view,c)).findFirst().ifPresent(c->visible.add(new Slot(c,b.x(),b.width())));
-        visible.sort(Comparator.comparingInt(Slot::x));source=view;slots=List.copyOf(visible);id=card.id();start=position=destination=x;dragging=false;gesture=MapCommanderOrders.gestureContext();return true;
+        visible.sort(Comparator.comparingInt(Slot::x));
+        creationX=boxes.stream().filter(b->b.request()!=null&&b.request().mode()==Mode.CREATE_ARMY).mapToInt(MapCommanderHud.Box::x).findFirst().orElse(Integer.MAX_VALUE);
+        rightLimit=boxes.stream().filter(b->b.request()!=null&&b.request().mode()==Mode.CREATE_ARMY).mapToInt(b->b.x()+b.width()).findFirst().orElse(visible.getLast().x()+visible.getLast().width());
+        source=view;slots=List.copyOf(visible);id=card.id();start=position=destination=x;dragging=false;gesture=MapCommanderOrders.gestureContext();return true;
     }
     static boolean move(double x){
         if(id.isEmpty())return false;if(!gesture.equals(MapCommanderOrders.gestureContext())){cancel();return true;}
         dragging|=Math.abs(x-start)>=3;
+        var origin=slots.stream().filter(s->s.card().id().equals(id)).findFirst().orElseThrow();
+        if(origin.card().role()==Mode.ASSIGN_ARMY||origin.card().role()==Mode.ARMY_GROUP)x=start+Math.clamp(x-start,-origin.width(),origin.width());
         var block=slots.stream().filter(s->moves(s.card())).toList();int left=block.getFirst().x(),right=block.getLast().x()+block.getLast().width();
-        destination=Math.clamp(x,slots.getFirst().x(),slots.getLast().x()+slots.getLast().width());position=start+Math.clamp(x-start,slots.getFirst().x()-left,slots.getLast().x()+slots.getLast().width()-right);return true;
+        destination=Math.clamp(x,slots.getFirst().x(),rightLimit);position=start+Math.clamp(x-start,slots.getFirst().x()-left,rightLimit-right);return true;
+    }
+    private static Drop destinationDrop(){
+        if(destination<creationX)return drop(source,slots,id,destination);
+        return endDrop(source,slots,id);
+    }
+    static Drop endDrop(View view,List<Slot> visible,String id){
+        var card=view.cards().stream().filter(c->c.id().equals(id)).findFirst().orElseThrow();
+        var siblings=siblings(view,card,parent(card));var shown=new HashSet<String>();for(var slot:visible)shown.add(slot.card().id());
+        var order=new ArrayList<>(siblings.stream().map(Card::id).filter(shown::contains).filter(key->!key.equals(id)).toList());order.add(id);
+        var reordered=order.iterator();var complete=new ArrayList<String>();for(var sibling:siblings)complete.add(shown.contains(sibling.id())?reordered.next():sibling.id());
+        return new Drop(parent(card),complete);
     }
     private static boolean moves(Card card){return card.id().equals(id)||source!=null&&source.cards().stream().anyMatch(c->c.id().equals(id)&&c.role()==Mode.ARMY_GROUP)&&parent(card).equals(id);}
     static List<Card> preview(List<Card> visible){
-        if(!dragging||id.isEmpty())return visible;var drop=drop(source,slots,id,destination);
+        if(!dragging||id.isEmpty())return visible;var drop=destinationDrop();
         var block=visible.stream().filter(MapCommanderCardDrag::moves).toList();var result=new ArrayList<>(visible);result.removeAll(block);
         var moving=block.getFirst();int index=result.size();if(source.branch()==Mode.NAVY_HQ)for(int n=0;n<result.size();n++)if(result.get(n).role()==Mode.NAVY_HQ){index=n;break;}var order=drop.order();int own=order.indexOf(id);
         for(int i=own+1;i<order.size();i++){String next=order.get(i);int found=-1;for(int n=0;n<result.size();n++)if(result.get(n).id().equals(next)){found=n;break;}if(found>=0){index=found;break;}}
@@ -75,14 +92,14 @@ final class MapCommanderCardDrag {
     static void accept(View next){if(source!=null&&(!source.country().equals(next.country())||!source.dimension().equals(next.dimension())||source.branch()!=next.branch()||!source.cards().stream().map(c->c.id()+"/"+parent(c)).toList().equals(next.cards().stream().map(c->c.id()+"/"+parent(c)).toList())))cancel();if(queued!=null)queuedHud=true;reconcile(next);}
     static boolean release(double x){
         if(id.isEmpty())return false;move(x);if(id.isEmpty())return true;
-        String moved=id;var view=source;boolean dragged=dragging;Drop drop=dragged?drop(view,slots,id,destination):null;cancel();
-        if(!dragged){dev.hoi.client.audio.AudioUiSounds.play("ui.division.select");MapCommanderPanels.select(moved);return true;}
+        String moved=id;var view=source;boolean dragged=dragging;Drop drop=dragged?destinationDrop():null;cancel();
+        if(!dragged){dev.hoi.client.audio.AudioUiSounds.play(dev.hoi.client.audio.AudioUiSounds.selection(view.cards().stream().filter(c->c.id().equals(moved)).findFirst().orElseThrow().role()));MapCommanderPanels.select(moved);return true;}
         var card=view.cards().stream().filter(c->c.id().equals(moved)).findFirst().orElseThrow();
         if(card.role()==Mode.ASSIGN_ARMY&&!parent(card).equals(drop.parent())){
             if(view.branch()!=Mode.ARMY){MapCommanderOrders.message("군 소속은 육군 지도에서 변경하세요.");return true;}
             var context=MapCommanderOrders.currentContext();var values=new ArrayList<String>();if(!drop.parent().isEmpty())values.add("target/"+drop.parent());values.add(moved);
-            if(MapCommanderOrders.send("FORMATION/"+(drop.parent().isEmpty()?"DETACH_ARMIES":"MOVE_ARMIES"),values,List.of())){queued=drop;queuedId=moved;queuedToken=context.token();queuedRevision=context.revision();queuedView=view;queuedSelection=Set.copyOf(MapCommanderPanels.selectedCards());queuedHud=false;ticks=100;}
-        }else if(!siblings(view,card,drop.parent()).stream().map(Card::id).toList().equals(drop.order()))MapCommanderOrders.send("CARD_ORDER",drop.order(),List.of());
+            if(MapCommanderOrders.send("FORMATION/"+(drop.parent().isEmpty()?"DETACH_ARMIES":"MOVE_ARMIES"),values,List.of())){dev.hoi.client.audio.AudioUiSounds.play("ui.click");queued=drop;queuedId=moved;queuedToken=context.token();queuedRevision=context.revision();queuedView=view;queuedSelection=Set.copyOf(MapCommanderPanels.selectedCards());queuedHud=false;ticks=100;}
+        }else if(!siblings(view,card,drop.parent()).stream().map(Card::id).toList().equals(drop.order())&&MapCommanderOrders.send("CARD_ORDER",drop.order(),List.of()))dev.hoi.client.audio.AudioUiSounds.play("ui.click");
         return true;
     }
     static void reconcile(View view){

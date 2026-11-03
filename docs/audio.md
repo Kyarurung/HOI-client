@@ -51,7 +51,11 @@ The playlist slider persists in the client `config/hoi-audio.properties` and app
 
 `AudioPlaylistVolumeTest`, `AudioPlaylistGainTest` and `ScreenDialogVolumeTest` check playlist volume persistence, unrelated UI effect gains and the actual OpenAL channel/listener gains of the focus completion cue at zero, 35% and full volume, including live changes and repeated packets. The Korean playlist screen check (`AudioKoreanMusicChecks`) and the super-event and story-music gain loop of `AudioPlaylistGainTest` were removed on 2026-10-11 at the owner's request as already verified; track loading, album art, playlist controls, mismatched cancellation and stopped-channel cleanup are no longer covered by the client GameTest. These are local automated playback checks; they do not replace listening on the user's audio device.
 
-육해공 지도 부대의 좌클릭 선택·드래그 선택, 군/함대 카드와 상세 목록 선택은 기존 `ui.division.select`를 입력당 한 번 재생한다. 우클릭 사단 검사에서 보내던 `DIVISION_SELECT`는 제거했다. 이동·위치 보기의 별도 피드백, 지도 전환음과 반복 유닛 음향은 유지한다. 렌더·선택 상세 동기화는 선택음을 재생하지 않는다.
+지도 부대의 좌클릭·드래그 선택, 카드·전구·상세 목록은 병과별 원본 선택음을 입력당 한 번 재생한다. 육군은 `ui.division.select` → `select_army`, 함대·태스크포스는 `ui.fleet.select` → `select_fleet`, 비행단은 `ui.aircraft.select` → `select_aircraft`를 사용한다. 공군 지도에서 군·집단군 카드 자체를 선택하는 경우에는 카드의 육군 역할을 유지한다. 원본 `select_aircraft`의 음원은 이름이 비슷한 `select_aircraft_*`가 아니라 해당 effect에 선언된 `order_airwing_01..06`이며, 함대는 `select_fleet01..04`다. TFR의 정의 우선순위를 적용하고 정의가 없는 항목은 기본 게임의 원본을 계승한다. 경로·해시·원본 음량은 팩의 sound-provenance에 보존한다.
+
+우클릭 사단 검사에서 보내던 `DIVISION_SELECT`는 제거했다. 이동·위치 보기의 별도 피드백, 지도 전환음과 반복 유닛 음향은 유지한다. 렌더·선택 상세 동기화는 선택음을 재생하지 않는다. 생산·건설 대기열의 유효한 이동 드롭은 일반 클릭음을 한 번 내고 MOVE 한 번을 전송한다. 취소·같은 자리 드롭·비활성 요청에는 이동음을 추가하지 않는다. 이 드롭 피드백은 일반 클릭 연결이며 별도의 원본 드래그 전용 음원을 확인한 것은 아니다.
+
+`MapCommanderSelectionTest`는 실제 SoundManager listener로 태스크포스·비행단 목록 선택의 이벤트, 횟수와 Master 채널을 확인한다. 팩 빌드 후 `test runGameTest remapJar -PhoiTestSuite=commander-presentation`으로 재현한다. 실제 장치 청취와 운영 서버의 다중 접속 검증은 별도다.
 
 ## 원본 이야기 SFX 키 목록
 
@@ -75,3 +79,5 @@ TFR 원본 `one_minute_of_silence`는 음량 0.0과 전부 0인 60초 PCM을 가
 `hoi:story_music_v1`은 기존 story 재생 경로를 사용한다. 미등록 곡은 현재 재생이나 대기를 바꾸지 않는다. 등록 곡은 슈퍼 이벤트 뒤에서 기다리고 종료 후 재생하며, STOP/월드 이탈/disconnect의 기존 정리 규칙을 유지한다. `AudioStorySignalsTest`는 실제 Minecraft SoundManager에서 원본 SFX 한 번, 미등록 신호 무음, 60초 원본 무음곡 로드, Master 채널, 슈퍼 우선·대기 복귀와 STOP을 검사한다. 실제 장치의 주관적 청취·다중 접속의 scoped/global 전달·원본 캠페인 효과 실행은 별도 미수행이다.
 
 팩을 먼저 빌드한 뒤 Java 25에서 `.\gradlew.bat test runGameTest remapJar -PhoiTestSuite=story-signals --console=plain --no-daemon`으로 집중 재현한다. 전체 검사도 같은 검사를 포함한다. 서버 전체 검증과 클라이언트 전체 검증은 담당 이슈에서 슬롯을 합의한 뒤 순차 실행한다.
+
+수도 암호학 지도 단추는 TFR `mapicons.gui/cryptology_map_icon/state_icon`의 `Spy_Agency_Cryptology_Decipher_Pointer_Over_Target`와 `Spy_Agency_Cryptology_Decipher_Select_Target_Province`를 외부 팩 `ui.agency.decrypt.hover/select`로 재생한다. 단추에 진입할 때 호버를 한 번, 서버가 활성화한 현재 항목을 좌클릭할 때 선택음을 한 번 재생한다. 우클릭·대기·비활성은 선택음을 내지 않는다. 테스트 월드 입력 검사는 직접 청취를 대신하지 않는다.

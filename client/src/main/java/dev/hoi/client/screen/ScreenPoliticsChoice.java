@@ -5,6 +5,7 @@ import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
+import dev.hoi.client.ui.UiTooltips;
 import dev.hoi.protocol.ProtocolDialogView;
 import dev.hoi.protocol.ProtocolMenuTab;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -140,7 +141,7 @@ final class ScreenPoliticsChoice extends ScreenDialog {
                 var traits = traits(tile);
                 for (int line = 0; line < traits.size(); line++) {
                     int traitWidth = line==0||current ? textWidth : Math.max(1,textWidth-costWidth-2);
-                    dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(dev.hoi.client.ui.UiText.ellipsize(font,traits.get(line),traitWidth)),
+                    dev.hoi.client.ui.UiText.leftSingleLine(g,font,dev.hoi.client.ui.UiKeywordIcons.decorateLines(UiTooltips.officerText(traits.get(line)),false),
                             textLeft,y+14+line*9,traitWidth,9,UiMenuStyle.ACCENT);
                 }
                 if (!current) drawCost(g, tile, x + cell - 4 - costWidth, y + 25);
@@ -171,7 +172,7 @@ final class ScreenPoliticsChoice extends ScreenDialog {
         int color = blocked ? BLOCKED : 0xFF000000 | (cost(tile).startsWith("§c") ? dev.hoi.client.ui.UiTooltips.BAD : dev.hoi.client.ui.UiTooltips.GOLD);
         if (blocked) { UiAssets.draw(g,"keywords/agency_trigger_no",x,y,8,9); x += 10; }
         UiAssets.draw(g,currencyIcon(),x,y,10,10);
-        dev.hoi.client.ui.UiText.text(g,font,number(tile),x+12,y+1,color);
+        dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(number(tile)),x+12,y,font.width(number(tile)),10,color);
     }
     private void superWidgets(GuiGraphicsExtractor g, int mx, int my, float delta) {
         for (var child : children()) if (child instanceof net.minecraft.client.gui.components.Renderable widget) widget.extractRenderState(g, mx, my, delta);

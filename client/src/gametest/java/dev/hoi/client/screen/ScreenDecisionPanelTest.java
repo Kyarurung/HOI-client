@@ -78,8 +78,23 @@ public final class ScreenDecisionPanelTest {
                             var screen = (ScreenDecision)client.gui.screen();
                             require(field(screen, "hover").equals("panel/" + fixture.id() + "/" + hit.id()), "Source panel hover missing: " + hit.id());
                             require(field(screen, "tooltipBounds") != null, "Source panel tooltip not rendered: " + hit.id());
+                            verifyTooltipSpacing(client.font,(ScreenDecisionText)field(screen,"text"),hit.immediate()+hit.delayed());
+                            if(fixture.id().equals("ldp")) {
+                                var blocks=((ScreenDecisionText)field(screen,"text")).blocks(client.font,hit.immediate()+hit.delayed(),150);
+                                var banner=blocks.stream().filter(block->block.image()!=null).findFirst().orElseThrow();
+                                require(banner.width()==150&&banner.height()==64,"LDP banner must retain half scale while excluding its 108 transparent source rows");
+                            }
+                            var imageToken=java.util.regex.Pattern.compile("£([A-Za-z0-9_]+)£?").matcher(hit.immediate()+hit.delayed());
+                            int imageWidth=0;
+                            while(imageToken.find()) {
+                                var image=assets.root().getAsJsonObject("textImages").getAsJsonObject(imageToken.group(1));
+                                if(image!=null)imageWidth=Math.max(imageWidth,(int)Math.round(image.get("width").getAsInt()/2d));
+                            }
+                            if(imageWidth>0)require(((dev.hoi.client.ui.UiTooltips.ScrolledTooltip)field(screen,"tooltipBounds")).width()==Math.min(imageWidth,screen.width-20),"Image tooltip must wrap to its configured image width: "+hit.id());
                         });
-                        screenshots.put(hit.id() + "/" + hitIndex, screenshot(context, "hoi-decision-panel-hover-" + hit.id().toLowerCase(java.util.Locale.ROOT) + "-" + hitIndex + "-" + suffix, size));
+                        String hoverImage=screenshot(context, "hoi-decision-panel-hover-" + hit.id().toLowerCase(java.util.Locale.ROOT) + "-" + hitIndex + "-" + suffix, size);
+                        screenshots.put(hit.id() + "/" + hitIndex,hoverImage);
+                        if(fixture.id().equals("national_assembly")&&hit.id().equals("NatAsm_logo"))speakerNameplate(context,hoverImage);
                     }
                     context.getInput().setCursorPos(2, 2);
                     context.runOnClient(client -> resetScroll((ScreenDecision)client.gui.screen()));
@@ -124,6 +139,17 @@ public final class ScreenDecisionPanelTest {
             context.getInput().resizeWindow(original[1], original[2]);
             context.waitTicks(3);
         }
+    }
+    private static void speakerNameplate(ClientGameTestContext context,String screenshot)throws IOException {
+        var bounds=context.computeOnClient(client->(dev.hoi.client.ui.UiTooltips.ScrolledTooltip)field(client.gui.screen(),"tooltipBounds"));
+        int lineHeight=context.computeOnClient(client->client.font.lineHeight);
+        int centerX=(bounds.x()+bounds.width()/2)*2,centerY=(bounds.y()+2*(lineHeight+1)+118-bounds.scroll())*2;
+        var pixels=javax.imageio.ImageIO.read(Path.of(screenshot).toFile());int white=0;
+        for(int y=centerY-lineHeight;y<centerY+lineHeight;y++)for(int x=centerX-50;x<centerX+50;x++) {
+            int rgb=pixels.getRGB(x,y),r=rgb>>16&255,g=rgb>>8&255,b=rgb&255;
+            if(Math.min(r,Math.min(g,b))>210&&Math.max(r,Math.max(g,b))-Math.min(r,Math.min(g,b))<15)white++;
+        }
+        require(white>30,"Speaker name must render inside the original portrait nameplate");
     }
     private static Document fixtureDocument() {
         String directory = System.getenv("HOI_DECISION_PREVIEW");
@@ -324,6 +350,18 @@ public final class ScreenDecisionPanelTest {
             var element = value.getAsJsonObject();
             if (element.get("kind").getAsString().equals("radial")) element.add("frame", com.google.gson.JsonNull.INSTANCE);
             clearFrames(element.getAsJsonArray("children"));
+        }
+    }
+    static void verifyTooltipSpacing(net.minecraft.client.gui.Font font,ScreenDecisionText text,String source) {
+        for(int width:List.of(80,160,324)) {
+            var blocks=text.blocks(font,source,width);
+            boolean previous=false;
+            for(int index=0;index<blocks.size();index++) {
+                var block=blocks.get(index);
+                boolean blank=block.image()==null&&dev.hoi.client.ui.UiTooltips.blank(block.text());
+                require(!blank||(!previous&&index>0&&index<blocks.size()-1),"Repeated or outer blank rows remain after source tooltip wrapping");
+                previous=blank;
+            }
         }
     }
     private static String screenshot(ClientGameTestContext context, String name, int[] size) throws IOException {

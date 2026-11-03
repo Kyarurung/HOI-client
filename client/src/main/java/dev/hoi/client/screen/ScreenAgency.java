@@ -10,6 +10,10 @@ import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
+import dev.hoi.client.ui.UiCountryFlags;
+import dev.hoi.client.ui.UiScrollBar;
+import dev.hoi.client.ui.UiHoverRegion;
+import dev.hoi.client.ui.UiCommandLabels;
 
 import dev.hoi.protocol.*;
 import dev.hoi.protocol.ProtocolAgencyView.*;
@@ -33,10 +37,15 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     private String group = "operations", selectedId;
     private final List<String> arguments = new ArrayList<>();
     private int pane, top, scroll, detailScroll, choosing = -1, choiceScroll, pendingTicks, refreshTicks, overlayStart;
+    private boolean cryptoScrolling;
     private String searchText = "";
     private EditBox search;
     private ProtocolAgencyPayloads.Kind pendingKind;
     private String queuedUpgrade;
+    private final ScreenAgencyCapitalMap capitalMap = new ScreenAgencyCapitalMap();
+    private final dev.hoi.client.map.MapAgencyOperations operationMap = new dev.hoi.client.map.MapAgencyOperations();
+    List<ScreenAgencyCapitalMap.Hit> capitalHits() { return capitalMap.hits(); }
+    List<dev.hoi.client.map.MapAgencyOperations.Hit> operationHits() { return operationMap.hits(); }
     public ScreenAgency(Screen parent) {
         this(parent, UUID.randomUUID().toString(), null, request -> {
             if (ClientPlayNetworking.canSend(ProtocolAgencyPayloads.Request.TYPE)) ClientPlayNetworking.send(request);
@@ -46,15 +55,67 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         super(Component.literal("정보기관")); this.parent = parent; this.token = token; this.view = fixture; this.transport = transport;
     }
     String session() { return token; }
+    public ProtocolAgencyView snapshot() { return view; }
+    Screen dismissalBackdrop() { return parent instanceof ScreenMapCursor ? parent : this; }
+    private void closeDismissal() { if (parent instanceof ScreenMapCursor) onClose(); else minecraft.gui.setScreen(this); }
+    public boolean awaitingResponse() { return pendingTicks > 0; }
+    public void highlightMission(String id) {
+        if (view != null && pendingTicks == 0 && id.startsWith("assign:") && view.items().stream().anyMatch(item -> item.id().equals(id) && item.enabled()))
+            transport.accept(new ProtocolAgencyPayloads.Request(ProtocolAgencyPayloads.Kind.HIGHLIGHT, token, view.revision(), id, List.of()));
+    }
+    public void assignMission(String id, List<String> args) {
+        if (view == null || pendingTicks > 0 || !id.startsWith("assign:")) return;
+        var item = view.items().stream().filter(value -> value.id().equals(id) && value.enabled()).findFirst().orElse(null);
+        if (item != null && item.parameters().size() == args.size()) send(ProtocolAgencyPayloads.Kind.CALL, id, args);
+    }
+    void operationAction(String id) {
+        if (view == null || pendingTicks > 0) return;
+        var action = view.items().stream().filter(value -> value.id().equals(id) && value.enabled() && value.parameters().isEmpty()).findFirst().orElse(null);
+        if (action != null) send(ProtocolAgencyPayloads.Kind.CALL, id, List.of());
+    }
+    public void showMapItem(String id) {
+        if (view == null) return;
+        var item = view.items().stream().filter(value -> value.id().equals(id)).findFirst().orElse(null);
+        if (item == null) return;
+        if (id.equals("recruit") || id.startsWith("vacant:")) {
+            if (item.enabled() && !view.candidates().isEmpty() && pendingTicks == 0) minecraft.gui.setScreen(
+                    new ScreenAgencyCandidates(this, view, key -> send(ProtocolAgencyPayloads.Kind.CALL, key, List.of())));
+        } else if (id.startsWith("dismiss:")) {
+            if (item.enabled() && item.parameters().isEmpty() && pendingTicks == 0) {
+                var confirm = view.confirms().stream().filter(value -> value.item().equals(id)).findFirst().orElse(null);
+                if (confirm == null || minecraft.gui.screen() instanceof ScreenCommanderConfirmation) return;
+                long revision = view.revision();
+                var dialog = new ProtocolDialogView(token, revision, ProtocolDialogView.Kind.COMMANDER, confirm.title(), "", confirm.body(), "", "", "", List.of(),
+                        List.of(new ProtocolDialogView.Choice("cancel", dev.hoi.client.ui.UiCommandLabels.text("PDXO_CANCEL", "취소"), ""), new ProtocolDialogView.Choice("ok", "OK", "")));
+                var screen = new ScreenCommanderConfirmation(dialog, (ignored, choice) -> {
+                    if (!view.country().equals(dev.hoi.client.ClientCampaignHud.country())) { minecraft.gui.setScreen(null); return; }
+                    if (choice.equals("ok") && view.revision() == revision && pendingTicks == 0
+                            && view.items().stream().anyMatch(value -> value.id().equals(id) && value.enabled())) {
+                        send(ProtocolAgencyPayloads.Kind.CALL, id, List.of());
+                        dev.hoi.client.audio.AudioUiSounds.play("ui.disband");
+                    }
+                    closeDismissal();
+                });
+                screen.backdrop(this);
+                minecraft.gui.setScreen(screen);
+            }
+        } else selectItem(item);
+    }
     public void open() { send(ProtocolAgencyPayloads.Kind.OPEN, "", List.of()); }
     public void update(ProtocolAgencyView next) {
         if (!next.session().equals(token)) return;
         if (next.country().isEmpty() || view != null && !next.country().equals(view.country())) { minecraft.gui.setScreen(null); return; }
         if (view != null && next.revision() <= view.revision()) return;
-        if (minecraft.gui.screen() instanceof ScreenAgencyOperation operation && operation.backdrop() == this) operation.update(next);
+        capitalMap.clear();
+        operationMap.clear();
+        view = next;
+        if (minecraft.gui.screen() instanceof ScreenCommanderConfirmation confirmation && confirmation.backdrop() == this) closeDismissal();
         pendingTicks = 0;
         pendingKind = null;
-        view = next;
+        if (minecraft.gui.screen() instanceof ScreenAgencyOperation operation && operation.backdrop() == this) operation.update(next);
+        if (minecraft.gui.screen() instanceof ScreenAgencyCandidates candidates && candidates.backdrop() == this) candidates.update(next);
+        pendingTicks = 0;
+        pendingKind = null;
         var item = selected();
         if (item == null) { selectedId = null; choosing = -1; }
         else normalizeArguments(item);
@@ -87,7 +148,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
             if (tab == ProtocolMenuTab.INTELLIGENCE) return;
             if (tab == ProtocolMenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
         }).forEach(this::addRenderableWidget);
-        addRenderableWidget(new UiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
+        addRenderableWidget(new UiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose).caption("").background("menu/close").sound("ui.close"));
         if (view == null) return;
         String[] countLabels = {"모집된 요원", "적에게 포획된 요원", "적에게 사살당한 정보원"};
         String[] countIcons = {"total_operatives", "arrested_operatives", "dead_operatives"};
@@ -111,7 +172,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
             }
             for(int i=0;i<2;i++) {
                 String id=i==0?"operations":"cryptology";
-                var button=new UiMenuButton(i==0?"작전":"암호학",null,group.equals(id),8+i*(pane-16)/2,top+199,(pane-20)/2,23,()->changeGroup(id));
+                var button=new UiMenuButton(i==0?"작전":"암호학",null,group.equals(id),8+i*(pane-20)/2,top+199,(pane-20)/2,23,()->changeGroup(id));
                 button.background("agency/ui/tab" + i); button.textScale(.8f);addRenderableWidget(button);
             }
             return;
@@ -132,19 +193,19 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
                     rebuildWidgets(); break;
                 }
             });
-            improveButton.background("agency/ui/category"); improveButton.textScale(.8f); addRenderableWidget(improveButton);
+            improveButton.bold().background("agency/ui/category"); improveButton.textScale(.8f); addRenderableWidget(improveButton);
         }
         for (int i = 0; i < 2; i++) {
             String id = i == 0 ? "operations" : "cryptology", label = i == 0 ? "작전" : "암호학";
-            addRenderableWidget(new UiMenuButton(label, null, group.equals(id), 8 + i * (pane - 16) / 2, top + 199, (pane - 20) / 2, 23, () -> changeGroup(id)).background("agency/ui/tab" + i));
+            addRenderableWidget(new UiMenuButton(label, null, group.equals(id), 8 + i * (pane - 16) / 2, top + 199, (pane - 16) / 2 + (i == 1 ? (pane - 16) % 2 : 0), 23, () -> changeGroup(id)).bold().background("agency/ui/tab" + i));
         }
         var recruit = view.items().stream().filter(i -> i.id().equals("recruit")).findFirst().orElseThrow();
         var days = view.items().stream().filter(i -> i.id().equals("recruit_days")).findFirst().orElse(null);
-        String remaining = days == null || days.progress() < 0 ? "" : days.value() + "일";
-        var recruitButton = agencyGauge("정보원 모집", remaining.isEmpty() ? "정보원 모집" : "정보원 모집중", remaining,
-                top + 181, days == null ? 0 : days.progress(), () -> selectItem(recruit));
+        String remaining = recruit.enabled() && !view.candidates().isEmpty() ? "준비 완료!" : days == null || days.progress() < 0 ? "" : days.value() + "일";
+        var recruitButton = agencyGauge("정보원 모집", "정보원 모집중", remaining,
+                top + 181, days == null ? 0 : days.progress(), () -> { if (!view.candidates().isEmpty()) minecraft.gui.setScreen(new ScreenAgencyCandidates(this,view,item -> send(ProtocolAgencyPayloads.Kind.CALL,item,List.of()))); });
         recruitButton.setTooltip(null);
-        recruitButton.active = recruit.enabled() && pendingTicks == 0;
+        recruitButton.active = recruit.enabled() && !view.candidates().isEmpty() && pendingTicks == 0;
         addRenderableWidget(recruitButton);
         var project = view.items().stream().filter(v -> v.id().equals("cancel_project")).findFirst().orElse(null);
         String projectDays = project == null ? "" : project.value().substring(project.value().lastIndexOf('·') + 1).replace(" 남음", "").trim();
@@ -154,80 +215,158 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         addRenderableWidget(improvement);
         if (project != null) {
             var cancel = new UiMenuButton("사업 취소", recruitX() + 113, top + 164, 10, 12,
-                    () -> send(ProtocolAgencyPayloads.Kind.CALL, project.id(), List.of())).caption("×");
+                    () -> send(ProtocolAgencyPayloads.Kind.CALL, project.id(), List.of())).caption("").background("menu/close").sound("ui.close");
             cancel.active = pendingTicks == 0;
             addRenderableWidget(cancel);
         }
         overlayStart = children().size();
         if (group.equals("upgrades")) {
             for (var child : children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget button) button.active = false;
-            addRenderableWidget(new UiMenuButton("개선 창 닫기", upgradeX() + upgradeWidth() - 26, upgradeY() + 4, 20, 19, () -> changeGroup("operations")).caption("×"));
+            addRenderableWidget(new UiMenuButton("개선 창 닫기", upgradeX() + upgradeWidth() - 26, upgradeY() + 4, 20, 19, () -> changeGroup("operations")).caption("").background("menu/close").sound("ui.close"));
         }
         var items = visibleItems();
         boolean grid = group.equals("upgrades");
         int x = grid ? upgradeX() + 17 : 8, y = grid ? upgradeY() + 44 : top + (group.equals("cryptology") ? 254 : 226);
         int areaWidth = grid ? upgradeWidth() - 28 : pane - 16;
         int columns = grid ? upgradeColumns() : 1;
-        int pitch = grid ? 55 : pane < 250 && group.equals("operations") ? 73 : 51;
+        int pitch = grid ? 55 : group.equals("cryptology") ? cryptoPitch() : pane < 250 ? 73 : 51;
         int contentHeight = grid ? (items.isEmpty() ? 0 : upgradeOffset(items, items.size() - 1, columns) + pitch) : items.size() * pitch;
-        scroll = Math.clamp(scroll, 0, Math.max(0, contentHeight - ((grid ? upgradeY() + upgradeHeight() - 5 : height - 40) - y)));
+        int listBottom = grid ? upgradeY() + upgradeHeight() - 3 : group.equals("cryptology") ? height - 5 : height - 37;
+        scroll = Math.clamp(scroll, 0, Math.max(0, contentHeight - ((group.equals("cryptology") ? listBottom : listBottom - 3) - y)));
         if (selectedId == null || !grid) for (int i = 0; i < items.size(); i++) {
             var item = items.get(i); int position = grid ? upgradePosition(items, i, columns) : i;
             int bx = x + (position % columns) * areaWidth / columns, by = y + (grid ? upgradeOffset(items, i, columns) : i * pitch) - scroll;
-            if (by < y || by + pitch > (grid ? upgradeY() + upgradeHeight() - 3 : height - 37)) continue;
+            if (group.equals("cryptology") ? by + pitch <= y || by >= listBottom : by < y || by + pitch > listBottom) continue;
             if (grid) {
                 addRenderableWidget(new ScreenAgencyUpgradeButton(item, bx, by, areaWidth / columns - 4, pitch, () -> selectItem(item)));
                 continue;
             }
-            var button = new UiPanelButton(item.title(), bx, by, areaWidth / columns - 4, pitch - 5, () -> {
+            int widgetTop = group.equals("cryptology") ? Math.max(y, by) : by;
+            int widgetHeight = group.equals("cryptology") ? Math.max(1, Math.min(listBottom, by + pitch - 5) - widgetTop) : pitch - 5;
+            var button = new UiPanelButton(item.title(), bx, widgetTop, (group.equals("cryptology") ? areaWidth : areaWidth / columns - 4), widgetHeight, () -> {
                 selectItem(item);
             }) {
+                @Override public boolean isMouseOver(double mouseX, double mouseY) {
+                    if (item.id().startsWith("dismiss_operation:") && mouseX >= bx + getWidth() - 69
+                            && mouseX < bx + getWidth() - 7 && mouseY >= by + getHeight() - 25
+                            && mouseY < by + getHeight() - 7) return false;
+                    return super.isMouseOver(mouseX, mouseY);
+                }
                 @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                     int w = getWidth(), h = getHeight();
                     if (item.group().equals("operations")) {
+                        var operation = view.operations().stream().filter(value -> value.item().equals(item.id())).findFirst().orElse(null);
+                        var offer = view.offers().stream().filter(value -> value.item().equals(item.id())).findFirst().orElse(null);
+                        var tokens = operation != null ? operation.tokens() : offer != null ? offer.tokens() : List.<ProtocolAgencyView.Token>of();
+                        boolean completed = operation != null && operation.stage().equals("COMPLETED");
                         UiAssets.nineSlice(g, "agency/ui/operation_row" + (item.progress() >= 0 ? 1 : 0), bx, by, w, h, 4, .5);
-                        int imageRight = bx + Math.round(w * 96f / 519) - 3;
-                        int textX = imageRight + 8, flagX = bx + w - 26;
+                        int imageLeft = bx + Math.round(w * 10f / 519), imageRight = bx + Math.round(w * 96f / 519);
+                        int textX = imageRight + 5, flagX = bx + w - 26;
                         int actionX = bx + w - 69, actionY = by + h - 25;
+                        UiAssets.cover(g, ScreenAgencyOperation.texture(item.texture()), imageLeft, by + 1, imageRight - imageLeft, h - 4);
+                        if (completed) UiAssets.draw(g, ScreenAgencyOperation.sprite("GFX_operation_complete_list"), bx + 4, by + 3, Math.round(w * 408f / 519), h - 6);
                         g.enableScissor(bx + 4, by + 4, bx + w - 4, by + h - 4);
-                        UiAssets.cover(g, item.texture(), bx + 5, by + 5, imageRight - bx - 5, h - 10);
-                        UiText.text(g, font, trim(item.title(), (int)((flagX - textX - 6)/UiText.scale(font))), textX, by + 7, TEXT);
-                        String target=item.parameters().isEmpty()?"":item.parameters().getFirst().choices().stream().findFirst().map(Choice::value).orElse("");
-                        if(!target.isEmpty())UiAssets.draw(g,"country/"+target.toLowerCase(Locale.ROOT)+"/flag",flagX,by+7,16,11);
-                        if(item.id().startsWith("operation:")) {
-                            int requirementY = pane < 250 ? by + 24 : actionY + 2;
-                            UiAssets.draw(g,"agency/ui/required",textX,requirementY,13,13);
-                            UiText.text(g,font,"2",textX+14,requirementY+2,TEXT);
-                            UiAssets.draw(g,"agency/ui/network",textX+25,requirementY,13,13);
-                            UiText.text(g,font,"50%",textX+39,requirementY+2,TEXT);
-                            UiText.text(g,font,"60일",pane < 250 ? textX : actionX-42,actionY+4,GOLD);
+                        String title = trim(item.title(), (int)((flagX - textX - 6 - tokens.stream().filter(token -> !token.required()).count() * 15)/UiText.scale(font)));
+                        UiText.text(g, font, title, textX, by + 7, TEXT);
+                        float tokenX = textX + Math.round(font.width(title) * UiText.scale(font)) + 6;
+                        float tokenY = by + 5;
+                        for (var token : tokens) if (!token.required()) { ScreenAgencyOperation.token(g, token, tokenX, tokenY); tokenX += 15; }
+                        tokenX = bx + 107.5f;
+                        for (var token : tokens) if (token.required()) { ScreenAgencyOperation.token(g, token, tokenX, by + 25); tokenX += 17; }
+                        String target=operation != null ? operation.country() : item.parameters().isEmpty()?"":item.parameters().getFirst().choices().stream().findFirst().map(Choice::value).orElse("");
+                        if(!target.isEmpty())dev.hoi.client.ui.UiCountryFlags.draw(g,"country/"+target.toLowerCase(Locale.ROOT)+"/flag","small",flagX,by+7,16,11);
+                        if(offer != null || operation != null) {
+                            int requirementY = by + 25;
+                            g.pose().pushMatrix(); g.pose().translate(bx, requirementY); g.pose().scale(.5f);
+                            UiAssets.draw(g,"agency/ui/required",98,0,33,29);
+                            UiAssets.draw(g,"agency/ui/network",145,0,33,29);
+                            g.pose().popMatrix();
+                            UiText.text(g,font,Integer.toString(operation != null ? operation.required() : offer.required()),bx+67,requirementY+3,TEXT);
+                            UiText.text(g,font,java.math.BigDecimal.valueOf(operation != null ? operation.network() : offer.network()).stripTrailingZeros().toPlainString() + "%",bx+91,requirementY+3,TEXT);
+                            String duration = completed ? operation.completes() : (operation != null ? operation.total() - operation.days() : offer.days()) + "일";
+                            int[] actionBounds = UiAssets.visibleBounds(ScreenAgencyOperation.sprite("GFX_launch_operation_button_anim"), actionX, actionY, 62, 18);
+                            float durationRight = actionBounds[0] - 2.5f, durationWidth = font.width(duration) * UiText.scale(font);
+                            float durationX = durationRight - durationWidth, overflow = durationWidth - (durationRight - bx - 127);
+                            if (overflow > 0) {
+                                double phase = net.minecraft.util.Util.getMillis() % 6000 / 3000.0;
+                                durationX = bx + 127 - (float)(overflow * (phase <= 1 ? phase : 2 - phase));
+                            }
+                            g.enableScissor(bx + 127, actionY, (int)Math.ceil(durationRight), actionY + 18);
+                            g.pose().pushMatrix();
+                            g.pose().translate(durationX, actionY + 4);
+                            UiText.text(g,font,duration,0,0,GOLD);
+                            g.pose().popMatrix();
+                            g.disableScissor();
                         } else UiText.text(g,font,trim(item.value(),(int)((actionX-textX-6)/UiText.scale(font))),textX,actionY+4,GOLD);
-                        UiMenuStyle.control(g, actionX, actionY, 62, 18, false, false);
-                        UiText.centered(g, font, item.id().startsWith("cancel_") ? "진행 중" : item.id().startsWith("network:") ? "정보망" : "준비하기", actionX, actionY, 62, 18, TEXT);
+                        UiAssets.draw(g, ScreenAgencyOperation.sprite("GFX_launch_operation_button_anim"), actionX, actionY, 62, 18);
+                        String caption = operation == null ? item.id().startsWith("network:") ? "정보망" : "준비하기"
+                                : completed ? item.button()
+                                : operation.stage().equals("RUNNING") ? dev.hoi.client.ui.UiCommandLabels.text("OPERATION_VIEW_PROGRESS", "작전 중...")
+                                : operation.stage().equals("PREPARED") ? dev.hoi.client.ui.UiCommandLabels.text("PREPARED", "준비됨")
+                                : dev.hoi.client.ui.UiCommandLabels.text("OPERATION_VIEW_COLLECTING", "준비 중...");
+                        UiText.centered(g, font, caption, actionX, actionY, 62, 18, TEXT);
                         g.disableScissor();
                         return;
                     }
                     if (item.group().equals("cryptology")) {
-                        UiMenuStyle.metal(g, bx, by, w, h);
-                        UiAssets.draw(g, "agency/cryptology", bx + 4, by + 4, 15, 15);
-                        UiText.text(g, font, trim(item.title() + (item.id().equals("cipher_level") ? " " + item.value() : ""), (int)((w-28)/UiText.scale(font))), bx+23, by+5, TEXT);
-                        if (!item.id().equals("cipher_level")) {
-                            g.fill(bx+4,by+28,bx+w-120,by+40,0xFF16111C);
-                            g.fill(bx+4,by+28,bx+4+(int)((w-124)*Math.max(0,item.progress())),by+40,0xFF795698);
-                            UiText.centered(g,font,item.value(),bx+4,by+27,w-124,14,GOLD);
+                        g.enableScissor(bx, y, bx + w, listBottom);
+                        float scale = cryptoScale();
+                        g.pose().pushMatrix(); g.pose().translate(bx, by); g.pose().scale(scale);
+                        UiAssets.draw(g, ScreenAgencyOperation.sprite("GFX_cryptology_country_entry_bg"), 0, 0, 516, 87);
+                        String country = item.id().contains(":") ? item.id().split(":", 2)[1] : "";
+                        UiCountryFlags.draw(g, "country/" + country.toLowerCase(Locale.ROOT) + "/flag", "small2", 14, 13, 41, 26);
+                        UiAssets.draw(g, ScreenAgencyOperation.sprite("GFX_small_flag_frame_thin"), 11, 11, 47, 32);
+                        UiAssets.nineSlice(g, ScreenAgencyOperation.sprite("GFX_decrypt_button_bg"), 320, 15, 151, 53, 4, 1);
+                        var barBackground = net.minecraft.resources.Identifier.parse("hoi:textures/gui/" + ScreenAgencyOperation.sprite("GFX_crypto_bar_bg") + ".png");
+                        g.blit(barBackground, 10, 38, 205, 75, 0, 195 / 271f, 0, 1);
+                        g.blit(barBackground, 205, 38, 241, 75, 235 / 271f, 1, 0, 1);
+                        UiAssets.draw(g, ScreenAgencyOperation.sprite("GFX_crypto_bar_background"), 16, 50, 188, 14);
+                        int filled = Math.round(188 * (float)Math.clamp(item.progress(), 0, 1));
+                        if (filled > 0) g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/" + ScreenAgencyOperation.sprite(item.progress() >= 1 ? "GFX_crypto_bar_done" : "GFX_crypto_bar_fill") + ".png"),
+                                16, 50, 16 + filled, 64, 0, filled / 188f, 0, 1);
+                        if (item.progress() >= 1) UiAssets.draw(g, ScreenAgencyOperation.sprite("GFX_crypto_decryption_done_icon"), 232, 38, 39, 36);
+                        else UiAssets.drawGrayscale(g, ScreenAgencyOperation.sprite("GFX_crypto_decryption_done_icon"), 232, 38, 39, 36);
+                        g.pose().popMatrix();
+                        UiText.text(g, font, trim(item.title(), (int)(200 * scale / UiText.scale(font))), bx + Math.round(60 * scale), by + Math.round(11 * scale), TEXT);
+                        UiText.centered(g, font, item.value(), bx + Math.round(15 * scale), by + Math.round(49 * scale), Math.round(190 * scale), Math.round(18 * scale), TEXT);
+                        var cipher = view.ciphers().stream().filter(value -> value.country().equals(country)).findFirst().orElse(null);
+                        if (cipher != null) {
+                            String[] lines = cipher.activateText().split("\n", -1);
+                            for (int line = 0; line < lines.length; line++) UiText.centered(g, font, lines[line], bx + Math.round(328 * scale), by + Math.round((26 + line * 16) * scale), Math.round(135 * scale), Math.round(16 * scale), TEXT);
                         }
-                        return;
+                        var reveal = view.items().stream().filter(v -> v.id().equals("reveal:" + country)).findFirst().orElse(null);
+                        if (cipher == null && reveal != null) UiText.centered(g, font, reveal.button() + "\n" + reveal.value(), bx + Math.round(328 * scale), by + Math.round(17 * scale), Math.round(135 * scale), Math.round(48 * scale), TEXT);
+                        g.disableScissor();return;
                     }
                 }
             };
             button.active = selectedId == null && !item.group().equals("cryptology"); addRenderableWidget(button);
-            if (item.id().startsWith("decrypt:") || item.id().startsWith("pause:")) {
+            if (item.id().startsWith("dismiss_operation:")) {
+                var complete = new UiMenuButton(item.button(), bx + areaWidth / columns - 73, by + widgetHeight - 25, 62, 18, () -> operationAction(item.id()))
+                        .background(ScreenAgencyOperation.sprite("GFX_launch_operation_button_anim"));
+                complete.active = item.enabled() && pendingTicks == 0;
+                complete.setTooltip(UiTooltips.create(Component.literal(item.detail())));
+                addRenderableWidget(complete);
+            }
+            if (item.id().startsWith("cipher:")) {
+                var cipher = view.ciphers().stream().filter(value -> item.id().equals("cipher:" + value.country())).findFirst().orElseThrow();
+                cipherButton(cipher.toggle(), cipher.toggleTooltip(), !cipher.toggle().isEmpty(), "GFX_crypto_decryption_start_stop_button", cipher.state().equals("paused") ? 1 : 0, bx, by, 205, 38, 36, 36, y, listBottom);
+                cipherButton(cipher.activate(), cipher.activateTooltip(), cipher.activateEnabled(), "GFX_crypto_decryption_activate_button_animated", 0, bx, by, 280, 18, 48, 48, y, listBottom);
+                cipherButton(cipher.delete(), cipher.deleteTooltip(), cipher.deleteEnabled(), "GFX_NV_btn_delete", 0, bx, by, 474, 24, 32, 32, y, listBottom);
+                var status = new UiHoverRegion(cipher.status(), bx + Math.round(15 * cryptoScale()), Math.max(y, by + Math.round(49 * cryptoScale())), Math.round(190 * cryptoScale()), Math.max(1, Math.min(listBottom, by + Math.round(67 * cryptoScale())) - Math.max(y, by + Math.round(49 * cryptoScale()))));
+                status.setTooltip(UiTooltips.createExact(cipher.statusTooltip())); addRenderableWidget(status);
+            }
+            if ((item.id().startsWith("decrypt:") || item.id().startsWith("pause:")) && by + Math.round(38 * cryptoScale()) >= y && by + Math.round(74 * cryptoScale()) <= listBottom) {
                 int rowWidth = areaWidth - 4;
-                var toggle = new UiMenuButton(item.button(), bx + rowWidth - 113, by + 23, 53, 19, () -> selectItem(item));
+                var toggle = new UiMenuButton(item.button(), bx + Math.round(205 * cryptoScale()), by + Math.round(38 * cryptoScale()), Math.round(36 * cryptoScale()), Math.round(36 * cryptoScale()), () -> selectItem(item));
+                toggle.caption("").background("agency/operations/gfx_crypto_decryption_start_stop_button/frame_" + (item.id().startsWith("pause:") ? 1 : 0));
+                toggle.setTooltip(UiTooltips.create(Component.literal(item.detail())));
                 toggle.active = item.enabled() && pendingTicks == 0; addRenderableWidget(toggle);
                 var reveal = view.items().stream().filter(v -> v.id().equals("reveal:" + item.id().split(":", 2)[1])).findFirst().orElse(null);
                 if (reveal != null) {
-                    var action = new UiMenuButton("암호 공개", bx + rowWidth - 57, by + 23, 53, 19, () -> selectItem(reveal));
+                    var action = new UiMenuButton("암호 공개", bx + Math.round(280 * cryptoScale()), by + Math.round(18 * cryptoScale()), Math.round(48 * cryptoScale()), Math.round(48 * cryptoScale()), () -> selectItem(reveal));
+                    action.caption("").background(ScreenAgencyOperation.sprite("GFX_crypto_decryption_activate_button_animated"));
+                    action.setTooltip(UiTooltips.create(Component.literal(reveal.detail())));
                     action.active = reveal.enabled() && pendingTicks == 0; addRenderableWidget(action);
                 }
             }
@@ -278,9 +417,12 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     }
     private Item selected() { return view == null ? null : view.items().stream().filter(i -> i.id().equals(selectedId)).findFirst().orElse(null); }
     private List<Item> visibleItems() {
-        return view.items().stream().filter(i -> i.group().equals(group) && !i.id().equals("cancel_project") && !i.id().equals("cipher_level") && !i.id().equals("spy_master") && !i.id().startsWith("reveal:")).sorted(group.equals("upgrades") ? Comparator.comparingInt(ScreenAgency::upgradeOrder) : Comparator.comparingInt(i -> 0)).toList();
+        if (group.equals("cryptology") && !view.ciphers().isEmpty()) return view.ciphers().stream().map(cipher ->
+                new Item("cipher:" + cipher.country(), "cryptology", cipher.name(), cipher.status(), cipher.statusTooltip(), "", "", false, cipher.progress(), List.of())).toList();
+        return view.items().stream().filter(i -> i.group().equals(group) && !i.id().equals("cancel_project") && !i.id().equals("cipher_level") && !i.id().equals("spy_master") && !i.id().startsWith("reveal:")
+                && !i.id().startsWith("auto_commence:") && !i.id().startsWith("auto_repeat:") && !i.id().startsWith("commence_operation:")).sorted(group.equals("upgrades") ? Comparator.comparingInt(ScreenAgency::upgradeOrder) : Comparator.comparingInt(i -> 0)).toList();
     }
-    private void changeGroup(String next) { queuedUpgrade = null; group = next; selectedId = null; choosing = -1; scroll = 0; rebuildWidgets(); }
+    private void changeGroup(String next) { capitalMap.clear(); queuedUpgrade = null; group = next; selectedId = null; choosing = -1; scroll = 0; rebuildWidgets(); }
     private void selectItem(Item item) {
         if ((item.id().startsWith("upgrade:") || item.group().equals("cryptology")) && item.parameters().isEmpty()) {
             if (item.enabled()) {
@@ -289,7 +431,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
             }
             return;
         }
-        if (item.id().startsWith("operation:")) {
+        if (item.id().startsWith("operation:") || view.operations().stream().anyMatch(operation -> operation.item().equals(item.id()))) {
             minecraft.gui.setScreen(new ScreenAgencyOperation(this, item, args -> send(ProtocolAgencyPayloads.Kind.CALL, item.id(), args)));
             return;
         }
@@ -358,6 +500,10 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         } else if (++refreshTicks % 60 == 0 && pendingTicks == 0 && choosing < 0 && selectedId == null) send(ProtocolAgencyPayloads.Kind.REFRESH, "", List.of());
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
+        if (group.equals("cryptology") && selectedId == null && !cryptologyLocked()) capitalMap.draw(g, view, pane, top);
+        else capitalMap.clear();
+        if (group.equals("operations") && selectedId == null) operationMap.draw(g, view, pane, top);
+        else operationMap.clear();
         UiMenuStyle.panel(g, 0, top, pane, height - top);
         UiMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, 0);
         UiMenuStyle.heading(g, font, "정보기관", 10, top + 9, pane - 44, UiMenuStyle.TEXT);
@@ -377,10 +523,11 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
                 .map(Item::value).findFirst().orElse("—");
         UiText.text(g, font, defense, 76 + Math.round(font.width("방첩 활동:") * UiText.scale(font)), top + 57, GOLD);
         drawOperationsChrome(g);
+        UiAssets.tiledNineSlice(g, ScreenAgencyOperation.sprite("GFX_tiled_paper_bg2"), 8, top + 225, pane - 16, Math.max(1, height - top - 230), 64, .5);
         if (view != null && group.equals("cryptology")) {
             view.items().stream().filter(i -> i.id().equals("cipher_level")).findFirst().ifPresent(i -> {
                 UiAssets.draw(g, "keywords/agency_crypto_defense", 14, top + 232, 10, 12);
-                UiText.text(g, font, i.title() + " " + i.value(), 26, top + 234, TEXT);
+                UiText.text(g, font, view.ciphers().isEmpty() ? i.title() + " " + i.value() : i.title(), 26, top + 234, TEXT);
             });
             view.items().stream().filter(i -> i.id().equals("decryption_power")).findFirst().ifPresent(i -> {
                 UiAssets.draw(g, "keywords/agency_crypto", pane - 26, top + 231, 12, 12);
@@ -420,7 +567,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
                 int by = upgradeY() + 44 + upgradeOffset(items, i, columns) - scroll - 14;
                 if (by < upgradeY() + 34 || by + 14 > upgradeY() + upgradeHeight() - 3) continue;
                 UiAssets.cover(g, "agency/ui/branch", ux + 8, by, uw - 16, 69);
-                UiText.text(g, font, titles[upgradeCategory(items.get(i))], ux + 13, by + Math.round((14 - font.lineHeight * UiText.scale(font)) / 2f), TEXT);
+                UiText.text(g, font, UiTooltips.officerText(titles[upgradeCategory(items.get(i))], true), ux + 13, by + Math.round((14 - font.lineHeight * UiText.scale(font)) / 2f), TEXT);
             }
         }
         var item = selected();
@@ -445,13 +592,83 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
                 g.disableScissor();
             }
         }
-        if (view != null && !view.message().isBlank())
-            UiText.text(g, font, trim(view.message(), (int)((width - 24) / UiText.scale(font))), 12, height - 24, GOLD);
         if (overlay) {
             for (int i = overlayStart; i < children().size(); i++) if (children().get(i) instanceof net.minecraft.client.gui.components.Renderable widget)
                 widget.extractRenderState(g, mx, my, delta);
         } else super.extractRenderState(g, mx, my, delta);
+        if (group.equals("cryptology") && selectedId == null) cryptoBar().draw(g, scroll);
         drawHover(g, mx, my);
+        capitalMap.tooltip(g, mx, my);
+        operationMap.tooltip(g, mx, my);
+    }
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        if (view != null && group.equals("operations") && selectedId == null
+                && operationMap.click(event.x(), event.y(), event.button(), this::showMapItem)) return true;
+        if (group.equals("cryptology") && selectedId == null && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && cryptoBar().contains(event.x(), event.y())) {
+            cryptoScrolling = !cryptoBar().arrow(event.y());
+            scroll = cryptoScrolling ? cryptoBar().offset(event.y()) : cryptoBar().step(event.y(), scroll, cryptoPitch());
+            rebuildWidgets();return true;
+        }
+        var hit = capitalMap.at(event.x(), event.y());
+        if (hit != null && group.equals("cryptology") && selectedId == null && !cryptologyLocked()) {
+            if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && pendingTicks == 0) {
+                if (!hit.capital().item().isEmpty()) cipherAction(hit.capital().item());
+                else if (hit.item() != null) view.items().stream().filter(item -> item.id().equals(hit.item().id()) && item.enabled()).findFirst().ifPresent(item -> {
+                    dev.hoi.client.audio.AudioUiSounds.play("ui.agency.decrypt.select");
+                    selectItem(item);
+                });
+            }
+            return true;
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
+    private boolean cipherActionEnabled(String id) {
+        return view != null && !id.isEmpty() && (view.capitals().stream().anyMatch(capital -> capital.item().equals(id))
+                || view.ciphers().stream().anyMatch(cipher -> cipher.toggle().equals(id)
+                || cipher.activate().equals(id) && cipher.activateEnabled() || cipher.delete().equals(id) && cipher.deleteEnabled()));
+    }
+    private void cipherAction(String id) {
+        if (pendingTicks > 0 || !cipherActionEnabled(id)) return;
+        var confirm = view.confirms().stream().filter(value -> value.item().equals(id)).findFirst().orElse(null);
+        if (confirm == null) { send(ProtocolAgencyPayloads.Kind.CALL, id, List.of()); return; }
+        long revision = view.revision();
+        String country = view.country();
+        var dialog = new ProtocolDialogView(token, revision, ProtocolDialogView.Kind.COMMANDER, confirm.title(), "", confirm.body(), "", "", "", List.of(),
+                List.of(new ProtocolDialogView.Choice("cancel", UiCommandLabels.text("PDXO_CANCEL", "취소"), ""), new ProtocolDialogView.Choice("ok", "OK", "")));
+        var screen = new ScreenCommanderConfirmation(dialog, (ignored, choice) -> {
+            if (!country.equals(dev.hoi.client.ClientCampaignHud.country())) { minecraft.gui.setScreen(null); return; }
+            if (choice.equals("ok") && view.revision() == revision && pendingTicks == 0 && cipherActionEnabled(id)) send(ProtocolAgencyPayloads.Kind.CALL, id, List.of());
+            minecraft.gui.setScreen(this);
+        });
+        screen.backdrop(this); minecraft.gui.setScreen(screen);
+    }
+    private void cipherButton(String id, String tooltip, boolean enabled, String sprite, int frame, int bx, int by, int x, int y, int w, int h, int clipTop, int clipBottom) {
+        float scale = cryptoScale();
+        int left = bx + Math.round(x * scale), rowTop = by + Math.round(y * scale), rowBottom = by + Math.round((y + h) * scale);
+        int visibleTop = Math.max(clipTop, rowTop), visibleBottom = Math.min(clipBottom, rowBottom);
+        if (visibleBottom <= visibleTop) return;
+        String asset = "agency/operations/" + sprite.toLowerCase(Locale.ROOT) + "/frame_" + frame;
+        var button = new UiPanelButton(id, left, visibleTop, Math.round(w * scale), visibleBottom - visibleTop, () -> cipherAction(id)) {
+            @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                g.enableScissor(left, visibleTop, getRight(), visibleBottom);
+                if (enabled) UiAssets.draw(g, asset, left, rowTop, getWidth(), rowBottom - rowTop);
+                else UiAssets.drawGrayscale(g, asset, left, rowTop, getWidth(), rowBottom - rowTop);
+                g.disableScissor();
+            }
+        };
+        button.active = enabled && pendingTicks == 0;
+        button.setTooltip(UiTooltips.createExact(tooltip)); addRenderableWidget(button);
+    }
+    private UiScrollBar cryptoBar() { return new UiScrollBar(pane - 12, top + 254, height - 5, Math.max(1, height - 5 - top - 254), visibleItems().size() * cryptoPitch()); }
+    private float cryptoScale() { return (pane - 16) / 519f; }
+    private int cryptoPitch() { return Math.round(83 * cryptoScale()); }
+    @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dx, double dy) {
+        if (cryptoScrolling) { scroll = cryptoBar().offset(event.y());rebuildWidgets();return true; }
+        return super.mouseDragged(event, dx, dy);
+    }
+    @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
+        if (cryptoScrolling) { cryptoScrolling = false;return true; }
+        return super.mouseReleased(event);
     }
     private void drawHover(GuiGraphicsExtractor g, int mx, int my) {
         if (view == null || selectedId != null) return;
@@ -500,9 +717,9 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
     private int recruitX() { return Math.round(pane * 284f / 540); }
     private void drawOperationsChrome(GuiGraphicsExtractor g) {
         UiAssets.nineSlice(g,"agency/ui/section",6,top+77,pane-12,17,5,.5);
-        UiText.centered(g,font,"정보기관",12,top+80,(pane-12)*185/530-8,11,TEXT);
+        UiText.centered(g,font,UiTooltips.officerText("정보기관",true),12,top+80,(pane-12)*185/530-8,11,TEXT);
         UiAssets.nineSlice(g,"agency/ui/section",6,top+141,pane-12,17,5,.5);
-        UiText.centered(g,font,"작전",12,top+144,(pane-12)*185/530-8,11,TEXT);
+        UiText.centered(g,font,UiTooltips.officerText("작전",true),12,top+144,(pane-12)*185/530-8,11,TEXT);
         UiAssets.nineSlice(g,"agency/ui/operatives",6,top+159,pane-12,38,3,.5);
         for (int i = 0; i < 3; i++) {
             g.enableScissor(counterX(i) - 3, top + 179, counterX(i) + counterWidth() + 4, top + 195);
@@ -532,10 +749,14 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
                 }
                 UiAssets.draw(g, "agency/ui/progress_frame", x, y, 112, 15);
                 float scale = UiText.scale(font);
-                int daysWidth = Math.round(font.width(days) * scale);
+                int daysWidth = days.equals("준비 완료!") ? 23 : Math.round(font.width(days) * scale);
                 String visible = font.plainSubstrByWidth(label, Math.max(1, (int)((104 - daysWidth - (days.isEmpty() ? 0 : 4)) / scale)));
                 UiText.text(g, font, visible, x + 4, y + 2, TEXT);
-                UiText.text(g, font, days, x + 108 - daysWidth, y + 2, GOLD);
+                if (days.equals("준비 완료!")) {
+                    UiText.centeredSingleLine(g, font, Component.literal("준비"), x + 85, y + 1, 23, 7, GOLD);
+                    UiText.centeredSingleLine(g, font, Component.literal("완료!"), x + 85, y + 8, 23, 7, GOLD);
+                }
+                else UiText.text(g, font, days, x + 108 - daysWidth, y + 2, GOLD);
             }
         };
     }
@@ -555,6 +776,7 @@ public final class ScreenAgency extends Screen implements InputSidebarMovement.I
         UiMenuStyle.recess(g,gaugeLeft,top+68,gaugeRight-gaugeLeft,4);
         if(project!=null&&project.progress()>=0)g.fill(gaugeLeft+1,top+69,gaugeLeft+1+(int)((gaugeRight-gaugeLeft-2)*Math.clamp(project.progress(),0,1)),top+71,0xFF97AC6C);
         drawOperationsChrome(g);
+        UiAssets.tiledNineSlice(g, ScreenAgencyOperation.sprite("GFX_tiled_paper_bg2"), 8, top + 225, pane - 16, Math.max(1, height - top - 230), 64, .5);
         wrappedNotice(g,"기관을 창설하기 전에는 정보원을 모집할 수 없습니다.",recruitX(),top+169,pane-recruitX()-12);
         wrappedNotice(g,group.equals("cryptology")?"기관을 창설하면 암호 해독을 시작할 수 있습니다.":"작전은 정보원이 첩보망을 구축하여야\n시행할 수 있습니다.",16,top+274,pane-32);
     }

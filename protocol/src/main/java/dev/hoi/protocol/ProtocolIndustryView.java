@@ -83,12 +83,15 @@ public record ProtocolIndustryView(String session, long revision, String country
         this(session, revision, country, hud, economy, resources, modifiers, equipment, lines, partners, trades,
                 templates, battalions, companies, locations, recruits, deployed, draft, message, navalRepairs, null);
     }
-    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds, Double minimumTraining, Map<String,Double> equipmentRatios) {
+    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds, Double minimumTraining, Map<String,Double> equipmentRatios, Map<String,String> equipmentTooltips) {
+        public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds,Double minimumTraining,Map<String,Double> equipmentRatios) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,minimumTraining,equipmentRatios,Map.of());}
         public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds,Double minimumTraining) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,minimumTraining,Map.of());}
         public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,null);}
         public RecruitmentPolicy {
-            equipmentRatios=equipmentRatios==null?Map.of():boundedMap(equipmentRatios,6);
+            equipmentRatios=equipmentRatios==null?Map.of():boundedMap(equipmentRatios,6);equipmentTooltips=equipmentTooltips==null?Map.of():boundedMap(equipmentTooltips,6);
             if(!Set.of("reinforcement","upgrade","supply","operation","garrison","raid").containsAll(equipmentRatios.keySet())
+                    ||!Set.of("reinforcement","upgrade","supply","operation","garrison","raid").containsAll(equipmentTooltips.keySet())
+                    ||equipmentTooltips.values().stream().anyMatch(v->v==null||v.length()>4000)
                     ||equipmentRatios.values().stream().anyMatch(v->!Double.isFinite(v)||v<0||v>1))throw new IllegalArgumentException("Invalid equipment allocation ratio");
             if(minimumTraining!=null&&(!Double.isFinite(minimumTraining)||minimumTraining<0||minimumTraining>1)) throw new IllegalArgumentException("Invalid training threshold");
             retiredTemplates=Set.copyOf(retiredTemplates);priorities=boundedMap(priorities,6);reinforcementNeeds=boundedMap(reinforcementNeeds,512);
@@ -309,8 +312,16 @@ public record ProtocolIndustryView(String session, long revision, String country
     }
     public record Designer(String baseline, boolean copy, List<NameGroup> nameGroups, boolean paradrop, String paradropTooltip, int specialForces, String specialForcesTooltip,
             int brigadeRows, int regimentBattalions, String lineLocked, String rowLocked, String regimentLocked, double costMinimum, double costMaximum, List<String> resources,
-            boolean armor, String nicheTooltip) {
+            boolean armor, String nicheTooltip, Map<String,Integer> changeCosts) {
+        public Designer(String baseline, boolean copy, List<NameGroup> nameGroups, boolean paradrop, String paradropTooltip, int specialForces, String specialForcesTooltip,
+                int brigadeRows, int regimentBattalions, String lineLocked, String rowLocked, String regimentLocked, double costMinimum, double costMaximum, List<String> resources,
+                boolean armor, String nicheTooltip) {
+            this(baseline,copy,nameGroups,paradrop,paradropTooltip,specialForces,specialForcesTooltip,brigadeRows,regimentBattalions,lineLocked,rowLocked,regimentLocked,costMinimum,costMaximum,resources,armor,nicheTooltip,Map.of());
+        }
         public Designer {
+            changeCosts=changeCosts==null?Map.of():Map.copyOf(changeCosts);
+            if(changeCosts.size()>4096||changeCosts.values().stream().anyMatch(v->v==null||v<0||v>100_000))throw new IllegalArgumentException("Invalid division designer costs");
+            changeCosts.keySet().forEach(v->text(v,160));
             text(baseline,128); nameGroups=bounded(nameGroups,256); text(paradropTooltip,4096); text(specialForcesTooltip,4096);
             text(lineLocked,1024); text(rowLocked,4096); text(regimentLocked,1024); resources=bounded(resources,8); resources.forEach(v->text(v,32)); nicheTooltip=nicheTooltip==null?"":nicheTooltip; text(nicheTooltip,1024);
             if(specialForces<0||specialForces>25||brigadeRows<4||brigadeRows>5||regimentBattalions<1||regimentBattalions>5||!Double.isFinite(costMinimum)||!Double.isFinite(costMaximum)||costMinimum<0||costMaximum<costMinimum)

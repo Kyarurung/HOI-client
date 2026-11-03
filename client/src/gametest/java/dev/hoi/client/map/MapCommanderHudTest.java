@@ -9,6 +9,10 @@ import java.util.*;
 
 public final class MapCommanderHudTest {
     private MapCommanderHudTest() {}
+    public static double[] armyCardCenter() {
+        var box=MapCommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_ARMY).findFirst().orElseThrow();
+        return new double[]{box.x()+box.width()/2.,box.y()+box.height()/2.};
+    }
     public static void runMovementInput(ClientGameTestContext context,ProtocolMenuView menu,java.util.function.Consumer<String> command){
         String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)throw new IllegalStateException("Authoritative commander fixtures are required");
         try{MapCommanderOrdersTest.run(context,menu,directory);MapMissionButtonsTest.run(context,menu,directory);}catch(java.io.IOException error){throw new java.io.UncheckedIOException(error);}

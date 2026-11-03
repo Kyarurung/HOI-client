@@ -20,10 +20,15 @@ public final class ScreenArmyHeadquarters extends Screen implements InputSidebar
     private ProtocolIndustryView view;
     private EditBox name;
     private String draftName="";
-    private boolean pending,closed,confirmDiscard,closeAfterDiscard;
+    private boolean pending,closed,closeAfterDiscard,templatePicker,listDragging;
+    private ProtocolIndustryPayloads.Action pendingAction;
+    private int templateScroll;
+    private String pickerGroup="";
     private int left,listLeft,listWidth,designerWidth,designerTop,designerHeight,top,bottom,scroll,picker=-1,pickerScroll;
     private double scale;
     private final Map<net.minecraft.client.gui.components.AbstractWidget,String> scrollingTips=new LinkedHashMap<>();
+    private final List<UiPanelButton> slotButtons=new ArrayList<>();
+    private final List<UiMenuButton> listButtons=new ArrayList<>();
     private UiTooltips.ScrolledTooltip tooltip;
     private String tooltipText="";
     private int tooltipScroll;
@@ -39,13 +44,14 @@ public final class ScreenArmyHeadquarters extends Screen implements InputSidebar
         if(next.country().isEmpty()||view!=null&&!view.country().equals(next.country())){closed=true;ScreenDialogCoordinator.setContent(null);return;}
         if(view!=null&&next.revision()<=view.revision())return;
         var previous=draft();if(name!=null)draftName=name.getValue();view=next;pending=false;
-        if(draft()!=null&&(previous==null||!previous.id().equals(draft().id())))draftName=draft().name();
-        if(draft()==null){picker=-1;confirmDiscard=false;if(closeAfterDiscard){finishClose();return;}}
+        if(draft()!=null&&(previous==null||!previous.id().equals(draft().id())||pendingAction==HQ_EDIT||pendingAction==HQ_NEW||pendingAction==HQ_COPY||pendingAction==HQ_RESET)){draftName=draft().name();picker=-1;pickerGroup="";}
+        pendingAction=null;
+        if(draft()==null){picker=-1;if(closeAfterDiscard){finishClose();return;}}
         rebuildWidgets();
     }
     private ProtocolArmyHeadquarters hq(){return view==null?null:view.headquarters();}
     private ProtocolArmyHeadquarters.Template draft(){return hq()==null?null:hq().draft();}
-    private void send(ProtocolIndustryPayloads.Action action,String item,String other,int amount){if(closed||pending)return;pending=true;transport.accept(new ProtocolIndustryPayloads.Request(action,token,view==null?0:view.revision(),item,other,amount));if(minecraft!=null)rebuildWidgets();}
+    private void send(ProtocolIndustryPayloads.Action action,String item,String other,int amount){if(closed||pending)return;pending=true;pendingAction=action;templatePicker=false;transport.accept(new ProtocolIndustryPayloads.Request(action,token,view==null?0:view.revision(),item,other,amount));if(minecraft!=null)rebuildWidgets();}
     private UiMenuButton button(String caption,int x,int y,int w,int h,Runnable action){var button=new UiMenuButton(caption,x,y,w,h,action);button.active=!pending;addRenderableWidget(button);return button;}
     private UiMenuButton button(String caption,int x,int y,int w,Runnable action){return button(caption,x,y,w,18,action);}
     private int s(int value){return (int)Math.round(value*scale);}
@@ -53,106 +59,230 @@ public final class ScreenArmyHeadquarters extends Screen implements InputSidebar
     private int y(int value){return designerTop+s(value);}
     private UiMenuButton designerButton(String caption,int x,int y,int w,int h,Runnable action){return button(caption,x(x),y(y),s(w),Math.max(13,s(h)),action);}
     @Override protected void init(){
-        scrollingTips.clear();clearTooltip();
-        top=UiMenuBar.height(width)+2;bottom=Math.max(top+80,height-10);listWidth=Math.min(188,Math.max(100,width-8));listLeft=Math.min(Math.max(4,width-listWidth-4),parent==null?4:UiPanelLayout.width(ProtocolMenuTab.OFFICER_CORPS,width)+3);
+        scrollingTips.clear();slotButtons.clear();listButtons.clear();clearTooltip();
+        if(parent!=null&&(parent.width!=width||parent.height!=height))parent.resize(width,height);
+        top=UiMenuBar.height(width)+2;bottom=Math.min(height-4,top+Math.max(100,Math.round(height*.7f)));listWidth=Math.min(188,Math.max(100,width-8));listLeft=Math.min(Math.max(4,width-listWidth-4),parent==null?4:UiPanelLayout.width(ProtocolMenuTab.OFFICER_CORPS,width)+3);
         scale=Math.min(.5,Math.min((width-12)/1200.0,(height-top-8)/720.0));designerWidth=s(1200);designerHeight=s(720);left=(width-designerWidth)/2;designerTop=Math.max(top,(height-designerHeight)/2);name=null;
-        if(confirmDiscard){int w=Math.min(300,designerWidth-16),cx=left+(designerWidth-w)/2,cy=designerTop+designerHeight/2;button("계속 편집",cx+8,cy+10,(w-24)/2,()->{confirmDiscard=false;closeAfterDiscard=false;rebuildWidgets();});button("초안 버리기",cx+w/2+4,cy+10,(w-24)/2,()->{confirmDiscard=false;send(HQ_DISCARD,"","",0);});return;}
-        if(picker>=0&&draft()!=null){pickerWidgets();return;}
-        if(draft()==null){
-        var closeList=button("×",listLeft+listWidth-21,top+3,17,()->requestClose(true));closeList.active&=draft()==null;
-        if(hq()==null)return;
-        var fresh=button("새 설계",listLeft+listWidth/2,top+28,listWidth/2-6,()->send(HQ_NEW,"","",0));fresh.active&=draft()==null;
-        var refresh=button("목록 갱신",listLeft+5,bottom-22,listWidth-10,()->send(REFRESH,"","",0));refresh.active&=draft()==null;
-        int available=Math.max(0,bottom-top-110);scroll=Math.clamp(scroll,0,Math.max(0,hq().templates().size()*52-available));
-        for(int i=0;i<hq().templates().size();i++){var row=hq().templates().get(i);int ry=top+54+i*52-scroll;if(ry<top+54||ry+48>bottom-50)continue;var edit=button("편집",listLeft+listWidth-76,ry+27,34,()->send(HQ_EDIT,row.id(),"",0));edit.active&=draft()==null;var copy=button("복제",listLeft+listWidth-39,ry+27,34,()->send(HQ_COPY,row.id(),"",0));copy.active&=draft()==null;copy.setTooltip(UiTooltips.createOfficer("원본 편제를 유지하고 새 ID의 초안을 만듭니다. 저장 전에는 실제 편제가 바뀌지 않습니다."));}
-        }
+        listWidgets();
+        if(templatePicker&&draft()!=null){templateWidgets();return;}
+        if(picker>=0&&draft()!=null){pickerWidgets();statsWidgets();adjustmentWidgets();return;}
         if(draft()==null)return;
-        designerButton("×",1160,5,33,33,()->requestClose(false));
-        name=new EditBox(font,x(150),y(81),s(300),Math.max(15,s(35)),Component.literal("HQ 편제 이름"));name.setMaxLength(80);name.setValue(draftName);name.setResponder(value->draftName=value);name.active=!pending;addRenderableWidget(name);
+        designerButton("HQ 설계 닫기",1156,6,32,33,()->requestClose(false)).background("menu/close").caption("").sound("ui.close");
+        name=new EditBox(font,x(195),y(92),s(180),Math.max(10,s(20)),Component.literal("HQ 편제 이름"));name.setBordered(false);name.setMaxLength(80);name.setValue(draftName);name.setResponder(value->draftName=value);name.active=!pending;addRenderableWidget(name);
         for(int index=0;index<hq().slots().size();index++){
-            var slot=hq().slots().get(index);int selected=index;int sx=slot.support()?50+82*slot.index():slot.index()==0?170:62+106*(slot.index()-1);int sy=slot.support()?520:slot.index()==0?307:411;
-            var button=new UiMenuButton(slot.current().isEmpty()?(slot.reason().isEmpty()?"+":"잠김"):label(slot.current()),slot.current().isEmpty()?null:unitIcon(slot.current()),false,x(sx),y(sy),s(slot.support()?77:96),Math.max(13,s(36)),()->{picker=selected;pickerScroll=0;rebuildWidgets();});button.active=!pending;addRenderableWidget(button);
-            button.active&=slot.reason().isEmpty();scrollingTip(button,slot.reason().isEmpty()?(slot.current().isEmpty()?"클릭하여 HQ 부대 추가":unitDetail(slot.current())+"\n\n클릭하여 편성 후보 선택"):slot.reason());
+            var slot=hq().slots().get(index);int selected=index;int sx=slot.support()?50+82*slot.index():slot.index()==0?156:50+106*(slot.index()-1);int sy=slot.support()?541:slot.index()==0?311:415;
+            String texture=slot.current().isEmpty()?"production/design/division/"+(slot.reason().isEmpty()?"add":"locked"):unitIcon(slot.current());
+            var button=new UiPanelButton(slot.current().isEmpty()?(slot.reason().isEmpty()?"+":"잠김"):label(slot.current()),x(sx),y(sy),s(slot.support()?64:88),Math.max(13,s(slot.support()?32:42)),()->{
+                if(!slot.support()&&slot.index()>0){send(HQ_SLOT,slot.current().isEmpty()?draft().battalions().getFirst():"","line",slot.current().isEmpty()?draft().battalions().size():slot.index());return;}
+                picker=selected;pickerGroup="";pickerScroll=0;rebuildWidgets();
+            }){
+                @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){
+                    if(slot.support())UiAssets.draw(g,"production/design/division/support_slot",getX(),getY(),getWidth(),getHeight());
+                    else g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/design/division/slot_atlas.png"),getX(),getY(),getX()+getWidth(),getY()+getHeight(),0,.5f,0,1);
+                    int inset=slot.support()?0:s(12),iw=Math.min(s(76),getWidth()),ih=s(slot.support()?30:40);
+                    String shown=active&&isHoveredOrFocused()&&!slot.current().isEmpty()?(slot.support()||slot.index()==0?"officer/hq/replace":"production/designer/remove"):texture;
+                    UiAssets.drawAlignedContent(g,shown,shown,getX()+inset+(getWidth()-inset-iw)/2f-1,getY()+(getHeight()-ih)/2f-.5f,iw,ih);
+                }
+            };button.active=!pending;addRenderableWidget(button);slotButtons.add(button);
+            button.active&=slot.reason().isEmpty();scrollingTip(button,slot.tooltip());
         }
+        headerWidgets();
         statsWidgets();
+        summary(null);
+        costs(null);
         adjustmentWidgets();
-        designerButton("초기화",20,626,115,33,()->{draftName=draft().name();send(HQ_RESET,"","",0);});
-        var save=designerButton("저장",487,677,225,31,()->send(HQ_SAVE,draftName,"",0));save.active&=hq().saveReason().isEmpty();save.setTooltip(UiTooltips.createOfficer(hq().saveReason().isEmpty()?"원본 편제 복제·이름 변경: 경험치 0. 저장은 HQ 부대를 생성하거나 배치하지 않습니다.":hq().saveReason()));
-        designerButton("닫기",1048,677,126,31,()->requestClose(false));
+        var reset=designerButton("초기화",20,620,123,34,()->{draftName=draft().name();send(HQ_RESET,"","",0);}).background("production/design/division/reset").textShadow(false);scrollingTip(reset,UiEquipmentDesigns.tooltip("DESIGNER_RESET_DESC"));
+        var copy=designerButton("복제",150,620,123,36,()->send(HQ_COPY,draft().id(),"",0)).background("production/design/division/duplicate").textShadow(false);scrollingTip(copy,UiEquipmentDesigns.tooltip("DESIGNER_DUPLICATE_DESC"));copy.active&=hq().templates().stream().anyMatch(t->t.id().equals(draft().id()));
+        var save=new UiPanelButton("저장",x(487),y(667),s(221),s(36),()->send(HQ_SAVE,draftName,"",0)){
+            @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){
+                UiAssets.draw(g,"production/design/division/save",getX(),getY(),getWidth(),getHeight());
+                var text=UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal(experienceLabel("DESIGNER_ARMY_SAVE",hq().experience())),false),false);
+                UiText.centeredSingleLine(g,font,text,getX(),getY(),getWidth(),getHeight(),active?UiMenuStyle.TEXT:UiMenuStyle.MUTED);
+            }
+        };save.active=!pending&&hq().saveReason().isEmpty()&&!draftName.isBlank();addRenderableWidget(save);
+        scrollingTip(save,hq().saveReason().isEmpty()?experienceLabel("DESIGNER_ARMY_SAVE",hq().experience()):hq().saveReason());
+    }
+    private void listWidgets(){
+        var closeList=button("HQ 목록 닫기",listLeft+listWidth-22,top+5,17,17,()->requestClose(true)).caption("×");listButtons.add(closeList);
+        if(hq()==null)return;
+        var fresh=button("새 설계",listLeft+94,top+28,83,17,()->send(HQ_NEW,"","",0)).background("officer/hq/open_designer").caption("육군 사령부 설계");listButtons.add(fresh);
+        scroll=Math.clamp(scroll,0,listScrollBar().maximum());
+        for(int i=0;i<hq().templates().size();i++){
+            var row=hq().templates().get(i);int ry=listRow(i);if(ry<top+52||ry+48>bottom-4)continue;
+            listButtons.add(button("편집",listLeft+120,ry+29,35,13,()->send(HQ_EDIT,row.id(),"",0)).background("recruitment/button"));
+            listButtons.add(button("HQ 편제 삭제 · "+row.name(),listLeft+155,ry+29,15,13,()->send(HQ_DELETE,row.id(),"",0)).background("recruitment/delete_template").caption(""));
+        }
+        for(var control:listButtons)control.active&=!templatePicker&&picker<0;
+    }
+    private void headerWidgets(){
+        button("HQ 편제 목록",x(381),y(91),s(22),s(22),()->{templatePicker=true;templateScroll=0;rebuildWidgets();}).background("production/design/division/expand").caption("");
+        for(int priority=0;priority<3;priority++){
+            int value=priority;String key="TEMPLATE_PRIO_"+value;
+            var control=button("HQ 우선순위 · "+value,x(499+36*value),y(value==2?103:104),s(36),s(37),()->send(HQ_PRIORITY,"","",value)).background("production/design/division/priority_"+(value+(draft().priority()==value?3:0))).caption("");
+            control.setTooltip(UiTooltips.createExact("§e"+UiEquipmentDesigns.tooltip(key)+"§f\n"+UiEquipmentDesigns.tooltip(key+"_DESC")));
+        }
+        var paradrop=new UiHoverRegion("HQ 공수 가능",x(405),y(120),s(26),s(24));paradrop.setTooltip(UiTooltips.createExact(draft().paradropTooltip()));addRenderableWidget(paradrop);
+        var special=new UiHoverRegion("HQ 특수부대",x(430),y(120),s(26),s(24));special.setTooltip(UiTooltips.createExact(draft().specialForcesTooltip()));addRenderableWidget(special);
+    }
+    private void templateWidgets(){
+        button("HQ 편제 목록",x(381),y(91),s(22),s(22),()->{templatePicker=false;rebuildWidgets();}).background("production/design/division/expand").caption("");
+        templateScroll=Math.clamp(templateScroll,0,Math.max(0,hq().templates().size()-6));
+        for(int i=templateScroll;i<Math.min(hq().templates().size(),templateScroll+6);i++){
+            var row=hq().templates().get(i);
+            button(row.name(),x(188),y(121+(i-templateScroll)*50),s(200),s(46),()->send(HQ_EDIT,row.id(),"",0));
+        }
     }
     private static int statColumn(String id){return Set.of("MANPOWER","TRAINING_TIME","FUEL_CAPACITY","FUEL_USAGE").contains(id)?2:Set.of("SOFT_ATTACK","HARD_ATTACK","AIR_ATTACK","DEFENSE","BREAKTHROUGH","ARMOR","PIERCING","HARDNESS","INITIATIVE","ENTRENCHMENT","EQUIPMENT_CAPTURE_RATE","COMBAT_WIDTH").contains(id)?1:0;}
-    private static String statValue(ProtocolTankDesigner.Stat stat,boolean signed){return String.format(Locale.ROOT,signed?"%+.2f":"%.2f",stat.value()*(stat.percent()?100:1))+(stat.percent()?"%":stat.id().equals("SPEED")?" km/h":stat.id().equals("TRAINING_TIME")?"일":"");}
+    private static String statValue(ProtocolTankDesigner.Stat stat,boolean signed){return (signed&&stat.value()>0?"+":"")+UiEquipmentDesigns.divisionStatValue(new ProtocolIndustryView.Stat(stat.name(),"",stat.value(),stat.percent()?"PERCENT":stat.id().equals("SPEED")?"KM_PER_HOUR":"",stat.id()));}
+    private void summary(GuiGraphicsExtractor g){
+        String[] ids={"HARDNESS","ORGANIZATION","HP","SPEED"};int[] positions={86,216,326,436},widths={100,80,80,115};
+        for(int i=0;i<ids.length;i++){
+            String id=ids[i];var stat=hq().details()==null?null:hq().details().stats().stream().filter(value->id.equals(value.id())).findFirst().orElse(null);
+            String value=stat==null?"—":statValue(stat,false);int bx=x(positions[i]),by=y(192),w=s(widths[i]);
+            if(g==null){var region=new UiHoverRegion("HQ 요약 · "+id,bx,by,w,s(24));region.setTooltip(UiTooltips.createOfficer((stat==null?id:stat.name())+": "+value+"\n\n"+UiEquipmentDesigns.divisionStatField(id,"description")));addRenderableWidget(region);}
+            else{UiAssets.nineSlice(g,"commander/commands/generic_background/frame_0",bx,by,w,s(24),4,.5);UiText.iconText(g,font,UiEquipmentDesigns.divisionStatField(id,"texture"),value,bx+1,by,w-2,s(24),s(20),UiTooltips.GOLD|0xFF000000);}
+        }
+        if(g==null){var region=new UiHoverRegion("육군 경험치",x(297),y(628),s(70),s(24));region.setTooltip(UiTooltips.createOfficer(UiEquipmentDesigns.tooltip("CURRENT_EXPERIENCE")));addRenderableWidget(region);}
+        else UiText.iconText(g,font,"hud/army_experience",view.hud().armyExperience()==null?"—":ProtocolNumberBounds.fixed(view.hud().armyExperience(),0),x(297),y(628),s(70),s(24),s(20),UiMenuStyle.TEXT);
+    }
     private void statsWidgets(){
         if(hq().details()==null)return;int[] rows={0,0,0};
-        for(var stat:hq().details().stats()){int col=statColumn(stat.id()),row=rows[col]++;var region=new UiHoverRegion(stat.name(),x(672+col*174),y(74+row*22),s(166),s(22));region.setTooltip(UiTooltips.createOfficer(stat.name()+": "+statValue(stat,false)+"\n\n현재 편성·연구·교리를 반영한 능력치입니다. 장비는 원본 기본 프로필 기준입니다."));addRenderableWidget(region);}
+        for(var stat:hq().details().stats()){if(stat.id().equals("HARDNESS"))continue;int col=statColumn(stat.id()),row=rows[col]++;var region=new UiHoverRegion(stat.name(),x(672+col*174),y(74+row*20),s(166),s(20));region.setTooltip(UiTooltips.createOfficer(stat.name()+": "+statValue(stat,false)+"\n\n"+UiEquipmentDesigns.divisionStatField(stat.id(),"description")));addRenderableWidget(region);}
     }
-    private void statText(GuiGraphicsExtractor g,String text,int x,int y,int width,int height){UiText.centeredSingleLine(g,font,Component.literal(text),x,y,width,height,UiMenuStyle.TEXT);}
+    private void costs(GuiGraphicsExtractor g){
+        var template=draft();String days=template.deployDays()>0?template.deployDays()+"일":"—",power=ProtocolNumberBounds.fixed(template.baseCommandPower(),0);
+        String cost=UiEquipmentDesigns.tooltip(template.costMinimum()==template.costMaximum()?"DIVISION_PRODUCTION_COST_SINGLE_VAL":"DIVISION_PRODUCTION_COST_VAL")
+                .replace("$VALUE|0$",java.math.BigDecimal.valueOf(template.costMinimum()).setScale(0,java.math.RoundingMode.DOWN).toPlainString()).replace("$MINVALUE|0$",java.math.BigDecimal.valueOf(template.costMinimum()).setScale(0,java.math.RoundingMode.DOWN).toPlainString()).replace("$MAXVALUE|0$",java.math.BigDecimal.valueOf(template.costMaximum()).setScale(0,java.math.RoundingMode.DOWN).toPlainString());
+        if(g==null){
+            String durationKey="HQ_DEPLOY_AND_WITHDRAW_DAYS"+(template.deployDays()==1?"_SINGULAR":"");if(!hq().labels().containsKey(durationKey))durationKey="HQ_DEPLOY_DAYS"+(template.deployDays()==1&&hq().labels().containsKey("HQ_DEPLOY_DAYS_SINGULAR")?"_SINGULAR":"");
+            var time=new UiHoverRegion("HQ 배치 일수",x(380),y(623),s(90),s(29));time.setTooltip(UiTooltips.createExact(template.deployDays()>0?label(durationKey).replace("$DAYS$",Integer.toString(template.deployDays())):"—"));addRenderableWidget(time);
+            var command=new UiHoverRegion("HQ 배치 지휘력",x(480),y(623),s(60),s(29));command.setTooltip(UiTooltips.createExact(label("HQ_DEPLOY_CP_COST").replace("$COST|H0$","§H"+power+"§!")));addRenderableWidget(command);
+            var resources=new UiHoverRegion("HQ 생산 자원",x(548),y(628),Math.max(s(24),template.resources().size()*s(26)),s(24));resources.setTooltip(UiTooltips.createExact(UiEquipmentDesigns.tooltip("DIVISION_PRODUCTION_RESOURCE_DESC")));addRenderableWidget(resources);
+            var production=new UiHoverRegion("HQ 예상 생산 비용",x(700),y(628),s(470),s(25));production.setTooltip(UiTooltips.createExact(UiEquipmentDesigns.tooltip("DIVISION_PRODUCTION_COST_DESC")));addRenderableWidget(production);
+        }else{
+            UiAssets.nineSlice(g,"commander/commands/generic_background/frame_0",x(380),y(623),s(90),s(29),4,.5);
+            UiAssets.nineSlice(g,"commander/commands/generic_background/frame_0",x(480),y(623),s(60),s(29),4,.5);
+            UiText.iconText(g,font,"commander/commands/leader_en_route/frame_0",days,x(380),y(623),s(90),s(29),s(24),UiMenuStyle.TEXT);
+            UiText.iconText(g,font,"hud/command_power",power,x(480),y(623),s(60),s(29),s(24),UiMenuStyle.TEXT);
+            for(int i=0;i<template.resources().size();i++)UiAssets.draw(g,"production/resources/"+template.resources().get(i).toLowerCase(Locale.ROOT),x(548+i*26),y(628),s(24),s(24));
+            var line=UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal(cost),false),false);
+            UiText.text(g,font,line,x(1170)-Math.round(font.width(line)*UiText.scale(font)),y(630),UiMenuStyle.TEXT);
+        }
+    }
     private void drawStats(GuiGraphicsExtractor g){
-        String[] headers={"기본 능력치","전투 능력치","장비 비용"};for(int col=0;col<3;col++)statText(g,headers[col],x(672+col*174),y(47),s(166),s(24));
+        String[] headers={"기본 능력치","전투 능력치","장비 비용"};for(int col=0;col<3;col++)UiText.centeredSingleLine(g,font,UiTooltips.officerText(headers[col],true),x(672+col*174),y(47),s(166),s(24),0xFF000000);
         if(hq().details()==null)return;int[] rows={0,0,0};
-        for(var stat:hq().details().stats()){int col=statColumn(stat.id()),row=rows[col]++;statText(g,stat.name(),x(673+col*174),y(74+row*22),s(102),s(22));statText(g,statValue(stat,false),x(775+col*174),y(74+row*22),s(63),s(22));}
-        int row=5;for(var equipment:new TreeMap<>(draft().equipment()).entrySet()){statText(g,label(equipment.getKey())+": "+equipment.getValue(),x(1020),y(74+row++*24),s(166),s(24));}
-        statText(g,"기본 지휘력: "+number(draft().baseCommandPower()),x(1020),y(74+row*24),s(166),s(24));
+        for(var stat:hq().details().stats()){if(stat.id().equals("HARDNESS"))continue;int col=statColumn(stat.id()),row=rows[col]++,bx=x(673+col*174),by=y(74+row*20),w=s(166);String value=statValue(stat,false),icon=UiEquipmentDesigns.divisionStatField(stat.id(),"texture");int valueWidth=Math.round(font.width(value)*UiText.scale(font)),iconWidth=icon.isEmpty()?0:s(20);if(!icon.isEmpty())UiAssets.draw(g,icon,bx,by+s(2),s(18),s(16));UiText.text(g,font,Component.literal(UiText.ellipsize(font,stat.name()+":",Math.max(0,(int)((w-valueWidth-iconWidth-3)/UiText.scale(font))))).getVisualOrderText(),bx+iconWidth,by,0xFF000000,false);UiText.text(g,font,Component.literal(value).getVisualOrderText(),bx+w-valueWidth,by,0xFF000000,false);}
+        int row=rows[2];for(var equipment:new TreeMap<>(draft().equipment()).entrySet()){
+            if(equipment.getValue()<=0)continue;
+            int bx=x(1021),by=y(74+row++*20),w=s(166);String value=Long.toString(equipment.getValue());int valueWidth=Math.round(font.width(value)*UiText.scale(font));
+            UiText.text(g,font,Component.literal(UiText.ellipsize(font,label(equipment.getKey()),Math.max(0,(int)((w-valueWidth-3)/UiText.scale(font))))).getVisualOrderText(),bx,by,0xFF000000,false);
+            UiText.text(g,font,Component.literal(value).getVisualOrderText(),bx+w-valueWidth,by,0xFF000000,false);
+        }
     }
-    private static String changeTooltip(List<ProtocolTankDesigner.Stat> changes){var lines=new ArrayList<String>();for(var stat:changes){boolean lower=Set.of("SUPPLY_USE","EXPERIENCE_LOSS","WEIGHT","MANPOWER","TRAINING_TIME","FUEL_USAGE","COMBAT_WIDTH").contains(stat.id());lines.add("§f"+stat.name()+": "+((stat.value()<0)==lower?"§a":"§c")+statValue(stat,true)+"§r");}return lines.isEmpty()?"":"\n\n편성 변경 시\n"+String.join("\n",lines);}
     private void adjustmentWidgets(){
         if(hq().details()==null)return;int index=0;
         for(var value:hq().details().adjustments()){
-            int n=index++,row=n/4,columns=Math.min(4,hq().details().adjustments().size()-row*4),bx=x(686+(480-columns*112)/2+n%4*112),by=y(370+row*72);
-            var region=new UiHoverRegion("HQ 지역 변동치 · "+value.id(),bx,by,s(105),s(66));region.setTooltip(UiTooltips.createExact(UiTerrainAdjustment.tooltip(value)));addRenderableWidget(region);
+            int n=index++,row=n/5,columns=Math.min(5,hq().details().adjustments().size()-row*5),bx=x(662+(530-((columns-1)*100+78))/2+n%5*100),by=y(370+row*72);
+            var region=new UiHoverRegion("HQ 지역 변동치 · "+value.id(),bx,by,s(78),s(72));region.setTooltip(UiTooltips.createExact(UiTerrainAdjustment.tooltip(value)));addRenderableWidget(region);
         }
     }
     private void drawAdjustments(GuiGraphicsExtractor g){
-        g.fill(x(662),y(356),x(1192),y(614),0xFF101012);if(hq().details()==null)return;int index=0;
+        UiAssets.nineSlice(g,"production/design/division/adjustment_panel",x(662),y(356),s(530),s(258),8,.5);if(hq().details()==null)return;int index=0;
         for(var value:hq().details().adjustments()){
-            int n=index++,row=n/4,columns=Math.min(4,hq().details().adjustments().size()-row*4),bx=x(686+(480-columns*112)/2+n%4*112),by=y(370+row*72);
-            UiTerrainAdjustment.draw(g,value,bx+s(18),by+s(5),this::s);
+            int n=index++,row=n/5,columns=Math.min(5,hq().details().adjustments().size()-row*5),bx=x(662+(530-((columns-1)*100+78))/2+n%5*100),by=y(370+row*72);
+            UiTerrainAdjustment.draw(g,value,bx+s(4),by+s(4),this::s);
         }
     }
     private void pickerWidgets(){
         if(picker>=hq().slots().size()){picker=-1;rebuildWidgets();return;}var slot=hq().slots().get(picker);int px=pickerX(),py=pickerY(),pw=pickerWidth(),ph=pickerHeight();
-        button("편성 선택 취소",px+pw-108,py+5,102,()->{picker=-1;rebuildWidgets();});int visible=Math.max(1,(ph-38)/35);pickerScroll=Math.clamp(pickerScroll,0,Math.max(0,slot.choices().size()-visible));
-        for(int i=pickerScroll;i<Math.min(slot.choices().size(),pickerScroll+visible);i++){var choice=slot.choices().get(i);var b=button(choice.id().isEmpty()?"제거":label(choice.id()),px+8,py+30+(i-pickerScroll)*35,pw-16,29,()->{picker=-1;send(HQ_SLOT,choice.id(),slot.support()?"support":"line",slot.index());});b.active&=choice.reason().isEmpty();var tooltip=new StringBuilder(choice.id().isEmpty()?"선택한 HQ 부대를 초안에서 제거합니다. 저장 전 실제 편제는 유지됩니다.":unitDetail(choice.id()));tooltip.append(changeTooltip(choice.changes()));if(!choice.reason().isEmpty())tooltip.append("\n\n").append(choice.reason());scrollingTip(b,tooltip.toString());}
+        button("뒤로",px+s(506),py+s(2),s(123),Math.max(13,s(34)),this::pickerBack).background("commander/commands/button_123x34/frame_0");
+        if(!slot.support()&&pickerGroup.isEmpty()){
+            int index=0;
+            var remove=slot.choices().stream().filter(c->c.id().isEmpty()).findFirst().orElse(null);
+            if(remove!=null)pickerChoice(slot,remove,index++);
+            for(String group:List.of("infantry","mobile","armor")){
+                var choices=slot.choices().stream().filter(c->!c.id().isEmpty()&&c.group().equals(group)).toList();
+                if(choices.isEmpty())continue;
+                var representative=choices.stream().filter(c->c.id().equals(slot.current())).findFirst().orElse(choices.getFirst());
+                String caption=label("group_"+group+"_title"),cost=slot.groups().containsKey(group)?experienceLabel("NEW_GROUP_ADDITIONAL_COST",slot.groups().get(group)):"";
+                pickerCard(caption,unitIcon(representative.id()),cost,index++,true,()->{pickerGroup=group;pickerScroll=0;rebuildWidgets();});
+            }
+            return;
+        }
+        var choices=slot.choices().stream().filter(c->c.id().isEmpty()||slot.support()||c.group().equals(pickerGroup)).sorted(Comparator.comparing(c->!c.id().isEmpty())).toList();
+        int visible=Math.max(1,s(453)/Math.max(1,s(69)));pickerScroll=Math.clamp(pickerScroll,0,Math.max(0,(choices.size()+1)/2-visible));
+        for(int i=pickerScroll*2;i<Math.min(choices.size(),(pickerScroll+visible)*2);i++)pickerChoice(slot,choices.get(i),i-pickerScroll*2);
     }
-    private int pickerWidth(){return Math.min(300,designerWidth-16);}
-    private int pickerHeight(){return Math.min(300,designerHeight-20);}
-    private int pickerX(){return left+(designerWidth-pickerWidth())/2;}
-    private int pickerY(){return designerTop+(designerHeight-pickerHeight())/2;}
-    private void requestClose(boolean whole){if(pending)return;if(picker>=0){picker=-1;rebuildWidgets();return;}if(draft()!=null&&(hq().copy()||hq().dirty()||!draftName.equals(draft().name()))){confirmDiscard=true;closeAfterDiscard=whole;rebuildWidgets();}else if(draft()!=null){closeAfterDiscard=whole;send(HQ_DISCARD,"","",0);}else finishClose();}
+    private void pickerChoice(ProtocolArmyHeadquarters.Slot slot,ProtocolArmyHeadquarters.Choice choice,int index){
+        boolean selected=!choice.id().isEmpty()&&choice.id().equals(slot.current());
+        String costKey=choice.id().isEmpty()?(choice.experience()==0?"DESIGNER_REMOVE_NO_COST":"DESIGNER_REMOVE_DESC"):slot.current().isEmpty()?"DESIGNER_ADD_DESC":choice.experience()==0?"DESIGNER_NO_COST":"DESIGNER_REPLACE_DESC";
+        var button=pickerCard(choice.id().isEmpty()?"제거":label(choice.id()),choice.id().isEmpty()?"production/designer/remove":unitIcon(choice.id()),selected?"§G(현재 선택됨)§!":experienceLabel(costKey,choice.experience()),index,!selected&&choice.reason().isEmpty(),()->{picker=-1;send(HQ_SLOT,choice.id(),slot.support()?"support":"line",slot.index());});
+        scrollingTip(button,choice.tooltip());
+    }
+    private UiPanelButton pickerCard(String caption,String icon,String detail,int index,boolean enabled,Runnable action){
+        var button=new UiPanelButton(caption,pickerX()+s(72+index%2*256),pickerY()+s(54+index/2*69),s(250),s(66),action){
+            @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){
+                UiAssets.nineSlice(g,"commander/commands/mini_tooltip/frame_0",getX(),getY(),getWidth(),getHeight(),8,.5);
+                UiAssets.drawAlignedContent(g,icon,icon,getX()+s(9),getY()+s(17),s(76),s(42));
+                UiText.left(g,font,UiText.ellipsize(font,caption,Math.max(1,(int)(s(158)/UiText.scale(font)))),getX()+s(85),getY()+s(5),s(160),s(22),enabled?UiMenuStyle.TEXT:UiMenuStyle.MUTED);
+                UiText.leftSingleLine(g,font,UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal(detail),false),false),getX()+s(85),getY()+s(35),s(160),s(22),UiMenuStyle.TEXT);
+            }
+        };button.active=!pending&&enabled;addRenderableWidget(button);return button;
+    }
+    private void pickerBack(){if(!pickerGroup.isEmpty())pickerGroup="";else picker=-1;pickerScroll=0;rebuildWidgets();}
+    private int pickerWidth(){return s(660);}
+    private int listRow(int index){return top+52+(int)Math.round(index*47.5)-scroll;}
+    private UiScrollBar listScrollBar(){return new UiScrollBar(listLeft+listWidth-10,top+52,bottom-4,bottom-top-56,hq()==null||hq().templates().isEmpty()?0:(int)Math.round((hq().templates().size()-1)*47.5)+48);}
+    private int pickerHeight(){return s(580);}
+    private int pickerX(){return x(0);}
+    private int pickerY(){return y(40);}
+    private void requestClose(boolean whole){if(pending)return;if(templatePicker){templatePicker=false;rebuildWidgets();return;}if(picker>=0){pickerBack();return;}if(draft()!=null){closeAfterDiscard=whole;send(HQ_DISCARD,"","",0);}else finishClose();}
     private void finishClose(){if(closed)return;transport.accept(new ProtocolIndustryPayloads.Request(CLOSE,token,view==null?0:view.revision(),"","",0));closed=true;ScreenDialogCoordinator.setContent(parent);}
     @Override public void onClose(){requestClose(draft()==null);}
-    @Override public boolean allowsMovement(){return draft()==null&&!confirmDiscard;}
+    @Override public boolean allowsMovement(){return draft()==null&&!pending;}
     @Override public int unitHudLeft(){return parent instanceof InputSidebarMovement.InputMovementScreen sidebar?sidebar.unitHudLeft():0;}
-    @Override public boolean keyPressed(KeyEvent event){if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE){if(confirmDiscard){confirmDiscard=false;closeAfterDiscard=false;rebuildWidgets();}else onClose();return true;}return super.keyPressed(event);}
-    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(overTooltip(event.x(),event.y()))return true;if(draft()==null&&!confirmDiscard&&event.x()>listLeft+listWidth)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);super.mouseClicked(event,twice);return true;}
-    @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical){if(overTooltip(mx,my)){tooltipScroll=Math.clamp(tooltipScroll-(int)Math.round(vertical*3*(font.lineHeight+1)),0,tooltip.maxScroll());return true;}if(picker>=0){if(mx>=pickerX()&&mx<pickerX()+pickerWidth()&&my>=pickerY()&&my<pickerY()+pickerHeight()){pickerScroll=Math.max(0,pickerScroll-(int)Math.round(vertical));rebuildWidgets();}}else if(draft()==null&&!confirmDiscard&&mx>=listLeft&&mx<listLeft+listWidth){scroll=Math.max(0,scroll-(int)Math.round(vertical*24));rebuildWidgets();}return true;}
+    @Override public boolean keyPressed(KeyEvent event){if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE){onClose();return true;}return super.keyPressed(event);}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(overTooltip(event.x(),event.y()))return true;if(event.modifiers()!=0){for(int index=0;index<slotButtons.size();index++){var button=slotButtons.get(index);if(!UiTooltips.contains(button,event.x(),event.y()))continue;var slot=hq().slots().get(index);if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&button.active&&!slot.current().isEmpty()){int modifiers=event.modifiers();if((modifiers&com.mojang.blaze3d.platform.InputConstants.MOD_CONTROL)!=0&&!slot.support()&&slot.index()==0)send(HQ_SLOT,"","line_all",0);else if((modifiers&com.mojang.blaze3d.platform.InputConstants.MOD_SHIFT)!=0&&(slot.support()||slot.index()==0))send(HQ_SLOT,"",slot.support()?"support":"line",slot.index());}return true;}}if(templatePicker&&(event.x()<x(180)||event.x()>x(410)||event.y()<y(87)||event.y()>y(439))){templatePicker=false;rebuildWidgets();return true;}if((draft()==null||!insideDesigner(event.x(),event.y()))&&!pending&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&listScrollBar().maximum()>0&&listScrollBar().contains(event.x(),event.y())){if(listScrollBar().arrow(event.y()))scroll=listScrollBar().step(event.y(),scroll,20);else{listDragging=true;scroll=listScrollBar().offset(event.y());}rebuildWidgets();return true;}if(allowsMovement()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT){if(parent!=null&&(event.x()<listLeft||event.y()<top)){finishClose();return parent.mouseClicked(event,twice);}if(event.x()>listLeft+listWidth||event.y()>=bottom)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);}if(draft()!=null&&insideDesigner(event.x(),event.y())){for(var child:children())if(!listButtons.contains(child)&&child.mouseClicked(event,twice)){setFocused(child);if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)setDragging(true);break;}return true;}super.mouseClicked(event,twice);return true;}
+    @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy){if(listDragging){scroll=listScrollBar().offset(event.y());rebuildWidgets();return true;}return super.mouseDragged(event,dx,dy);}
+    @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event){if(listDragging){listDragging=false;return true;}return super.mouseReleased(event);}
+    @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical){if(overTooltip(mx,my)){tooltipScroll=Math.clamp(tooltipScroll-(int)Math.round(vertical*3*(font.lineHeight+1)),0,tooltip.maxScroll());return true;}if(templatePicker){templateScroll=Math.max(0,templateScroll-(int)Math.round(vertical));rebuildWidgets();}else if(picker>=0){if(mx>=pickerX()&&mx<pickerX()+pickerWidth()&&my>=pickerY()&&my<pickerY()+pickerHeight()){pickerScroll=Math.max(0,pickerScroll-(int)Math.round(vertical));rebuildWidgets();}}else if((draft()==null||!insideDesigner(mx,my))&&mx>=listLeft&&mx<listLeft+listWidth){scroll=Math.max(0,scroll-(int)Math.round(vertical*24));rebuildWidgets();}return true;}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
-        UiAssets.nineSlice(g,"officer/hq/list_background",listLeft,top,listWidth,bottom-top,8,1);UiAssets.draw(g,"officer/hq/list_header",listLeft,top,listWidth,51);UiText.centered(g,font,"육군 사령부 편제",listLeft+4,top+4,listWidth-29,18,UiMenuStyle.TEXT);
+        UiAssets.tiledNineSlice(g,"officer/hq/list_background",listLeft,top,listWidth,bottom-top,64,.5);UiAssets.draw(g,"officer/hq/list_header",listLeft+1,top,188,51);UiText.centered(g,font,UiTooltips.officerText("육군 사령부 편제",true),listLeft+10,top+4,158,18,UiMenuStyle.TEXT);
         if(hq()==null)g.text(font,pending?"불러오는 중…":"HQ 정보를 받지 못했습니다.",listLeft+6,top+54,UiMenuStyle.MUTED,false);
-        else for(int i=0;i<hq().templates().size();i++){var row=hq().templates().get(i);int ry=top+54+i*52-scroll;if(ry<top+54||ry+48>bottom-50)continue;UiAssets.draw(g,"officer/hq/template",listLeft+4,ry,listWidth-8,48);UiText.centered(g,font,row.name(),listLeft+42,ry+7,listWidth-48,18,UiMenuStyle.TEXT);UiAssets.draw(g,icon(row),listLeft+8,ry+5,29,26);}
-        if(view!=null&&!view.message().isBlank())paragraph(g,view.message(),listLeft+6,bottom-48,listWidth-12,22,UiMenuStyle.TEXT);
+        else for(int i=0;i<hq().templates().size();i++){var row=hq().templates().get(i);int ry=listRow(i);if(ry<top+52||ry+48>bottom-4)continue;UiAssets.draw(g,"officer/hq/template",listLeft+5,ry,171,48);UiText.centered(g,font,row.name(),listLeft+61,ry+11,99,10,UiMenuStyle.TEXT);UiAssets.draw(g,icon(row),listLeft+11,ry+12,38,21);UiAssets.draw(g,"officer/hq/allowed/frame_2",listLeft+6,ry+7,13,12);UiAssets.draw(g,"production/design/division/deployment_priority_"+row.priority(),listLeft+41,ry+8,8,26);UiAssets.draw(g,"commander/commands/leader_en_route/frame_0",listLeft+56,ry+27,12,14);UiText.left(g,font,row.deployDays()>0?row.deployDays()+"일":"—",listLeft+67,ry+30,28,10,UiMenuStyle.TEXT);UiAssets.draw(g,"hud/command_power",listLeft+94,ry+29,11,11);UiText.left(g,font,ProtocolNumberBounds.fixed(row.baseCommandPower(),0),listLeft+105,ry+30,14,10,UiMenuStyle.TEXT);}
+        if(listScrollBar().maximum()>0)listScrollBar().draw(g,scroll);
+        for(var control:listButtons)control.extractRenderState(g,draft()!=null&&insideDesigner(mx,my)?-1:mx,draft()!=null&&insideDesigner(mx,my)?-1:my,delta);
         if(draft()!=null){g.nextStratum();drawDesigner(g);}
-        if(picker>=0&&draft()!=null){g.nextStratum();UiMenuStyle.panel(g,pickerX(),pickerY(),pickerWidth(),pickerHeight());g.text(font,"편성 선택",pickerX()+8,pickerY()+10,UiMenuStyle.TEXT,false);}
-        if(confirmDiscard){g.nextStratum();int w=Math.min(300,designerWidth-16),cx=left+(designerWidth-w)/2,cy=designerTop+designerHeight/2;UiMenuStyle.panel(g,cx,cy-25,w,62);UiText.centered(g,font,"저장하지 않은 초안을 버리시겠습니까?",cx+7,cy-22,w-14,26,UiMenuStyle.TEXT);}
-        boolean over=overTooltip(mx,my);for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget)widget.extractRenderState(g,over?-1:mx,over?-1:my,delta);
+        if(picker>=0&&draft()!=null){g.nextStratum();UiAssets.nineSlice(g,"commander/commands/tiled_window_1b_border/frame_0",pickerX(),pickerY(),pickerWidth(),pickerHeight(),32,.5);UiText.left(g,font,UiEquipmentDesigns.tooltip("REGIMENT_WINDOW_DESC"),pickerX()+s(30),pickerY()+s(13),s(460),s(34),UiMenuStyle.TEXT);}
+        if(templatePicker){g.nextStratum();UiAssets.nineSlice(g,"officer/hq/list_background",x(180),y(114),s(230),s(325),8,scale);}
+        boolean over=overTooltip(mx,my);for(var child:children())if(!listButtons.contains(child)&&child instanceof net.minecraft.client.gui.components.Renderable widget)widget.extractRenderState(g,over?-1:mx,over?-1:my,delta);
         String hovered=over?tooltipText:scrollingTips.entrySet().stream().filter(entry->UiTooltips.contains(entry.getKey(),mx,my)).map(Map.Entry::getValue).findFirst().orElse("");
         if(hovered.isEmpty())clearTooltip();else{if(!hovered.equals(tooltipText)){tooltipText=hovered;tooltipScroll=0;}tooltip=UiTooltips.drawOfficerScrollable(g,font,tooltipText,mx,my,width,height,tooltipScroll);tooltipScroll=tooltip.scroll();}
     }
     private void drawDesigner(GuiGraphicsExtractor g){
         UiAssets.draw(g,"officer/hq/designer",left,designerTop,designerWidth,designerHeight);UiAssets.draw(g,"officer/hq/header",x(12),y(45),s(637),s(110));UiAssets.draw(g,"officer/hq/composition",x(12),y(255),s(386),s(354));UiAssets.draw(g,"officer/hq/modifiers",x(396),y(255),s(252),s(354));
-        UiText.centered(g,font,"육군 사령부 설계",x(340),y(3),s(490),s(35),UiMenuStyle.TEXT);UiAssets.draw(g,icon(draft()),x(24),y(60),s(86),s(66));if(name==null)UiText.centered(g,font,draftName,x(150),y(81),s(300),s(35),UiMenuStyle.TEXT);
-        UiText.centered(g,font,"육군 사령부 구성",x(30),y(226),s(340),s(28),UiMenuStyle.TEXT);UiText.centered(g,font,"지휘관 혜택",x(401),y(226),s(235),s(28),UiMenuStyle.TEXT);
-        UiText.centered(g,font,"대대",x(141),y(365),s(130),s(27),UiMenuStyle.TEXT);UiText.centered(g,font,"사령부 지원",x(40),y(483),s(340),s(27),UiMenuStyle.TEXT);
-        paragraph(g,hq().details()==null?"혜택 정보 없음":hq().details().leaderBenefits().isEmpty()?"지휘관 혜택 없음":hq().details().leaderBenefits(),x(416),y(280),s(214),s(285),UiMenuStyle.TEXT);
+        UiAssets.nineSlice(g,"commander/commands/tiled_header_1/frame_0",x(12),y(224),s(637),s(32),4,scale);
+        UiText.centered(g,font,UiTooltips.officerText("육군 사령부 설계",true),x(340),y(3),s(490),s(35),UiMenuStyle.TEXT);UiAssets.drawAlignedContent(g,icon(draft()),icon(draft()),x(38),y(80),s(76),s(42));if(name==null)UiText.left(g,font,draftName,x(195),y(92),s(180),s(20),UiMenuStyle.TEXT);
+        UiAssets.draw(g,"production/design/division/priority_icon_"+draft().priority(),x(93),y(70),s(16),s(35));
+        UiAssets.draw(g,"production/design/division/priority_bg",x(490),y(101),s(128),s(44));
+        UiAssets.draw(g,"production/design/division/paradrop_"+(draft().paradrop()?1:0),x(405),y(120),s(26),s(24));
+        UiAssets.draw(g,"production/design/division/special_"+(draft().specialForces()>0?1:0),x(430),y(120),s(26),s(24));
+        UiText.centered(g,font,UiTooltips.officerText("육군 사령부 구성",true),x(30),y(226),s(340),s(28),UiMenuStyle.TEXT);UiText.centered(g,font,UiTooltips.officerText("지휘관 혜택",true),x(401),y(226),s(235),s(28),UiMenuStyle.TEXT);
+        UiText.centered(g,font,UiTooltips.officerText("대대",true),x(141),y(359),s(130),s(27),UiMenuStyle.TEXT);UiText.centered(g,font,UiTooltips.officerText("사령부 지원",true),x(40),y(479),s(340),s(27),UiMenuStyle.TEXT);
+        var combatWidth=hq().details()==null?null:hq().details().stats().stream().filter(stat->stat.id().equals("COMBAT_WIDTH")).findFirst().orElse(null);
+        UiText.centered(g,font,combatWidth==null?"—":statValue(combatWidth,false),x(188),y(274),s(40),s(20),UiMenuStyle.TEXT);
+        paragraph(g,hq().details()==null?"혜택 정보 없음":hq().details().leaderBenefits(),x(418),y(270),s(226),s(333),UiMenuStyle.TEXT);
         drawStats(g);
+        summary(g);
+        costs(g);
         drawAdjustments(g);
-        paragraph(g,hq().saveReason().isEmpty()?"원본 편제 복제·이름 변경 경험치: 0":hq().saveReason(),x(156),y(626),s(870),s(40),UiMenuStyle.TEXT);
     }
-    private void paragraph(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color){for(var line:UiTooltips.split(font,Component.literal(text),Math.max(1,w))){if(h<font.lineHeight)break;g.text(font,line,x,y,color,false);y+=font.lineHeight+2;h-=font.lineHeight+2;}}
+    private boolean insideDesigner(double mx,double my){return mx>=left&&mx<left+designerWidth&&my>=designerTop&&my<designerTop+designerHeight;}
+    private void paragraph(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color){for(var line:UiTooltips.split(font,UiKeywordIcons.decorateLines(UiTooltips.styled(Component.literal(text),false),false),Math.max(1,w))){if(h<font.lineHeight)break;g.text(font,line,x,y,color,false);y+=font.lineHeight+2;h-=font.lineHeight+2;}}
     private static String icon(ProtocolArmyHeadquarters.Template template){return template.battalions().isEmpty()?"":unitIcon(template.battalions().getFirst());}
     private static String unitIcon(String id){return "officer/hq/units/"+id+"/frame_0";}
-    private String unitDetail(String id){return hq().details()==null?label(id):hq().details().units().getOrDefault(id,label(id));}
-    private static String number(double value){return java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();}
     private String label(String id){return hq()==null?id:hq().labels().getOrDefault(id,id);}
+    private String experienceLabel(String key,int amount){return label(key).replace("$VALUE|H0$","§H"+amount+"§!").replace("$VALUE|Y0$","§Y"+amount+"§!").replace("$VALUE$",Integer.toString(amount));}
 }

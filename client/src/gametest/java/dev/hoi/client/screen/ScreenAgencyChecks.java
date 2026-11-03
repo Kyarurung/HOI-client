@@ -46,14 +46,13 @@ public final class ScreenAgencyChecks {
             });
         }
         var searchItems = new java.util.ArrayList<>(items);
-        searchItems.removeIf(i -> i.id().equals("recruit"));
-        searchItems.add(new Item("recruit", "agents", "정보원 모집", "0/1", "", "agency/operative", "모집", true, -1,
+        searchItems.add(new Item("search_fixture", "operations", "대상 검색", "", "", "agency/cryptology", "선택", true, -1,
                 List.of(new dev.hoi.protocol.ProtocolAgencyView.Parameter("대상 국가", List.of(new dev.hoi.protocol.ProtocolAgencyView.Choice("KOR", "대한민국"), new dev.hoi.protocol.ProtocolAgencyView.Choice("JAP", "일본"))))));
         var searchable = new dev.hoi.protocol.ProtocolAgencyView(view.session(), 1, view.country(), view.name(), "", searchItems, "");
         context.setScreen(() -> new ScreenAgency(null, view.session(), searchable, requests::add));
         context.runOnClient(client -> {
             var screen = (ScreenAgency)client.gui.screen();
-            press(screen, "정보원 모집"); press(screen, "대상 국가: 대한민국");
+            press(screen, "작전"); press(screen, "대상 검색"); press(screen, "대상 국가: 대한민국");
             var input = (net.minecraft.client.gui.components.EditBox)screen.children().stream().filter(c -> c instanceof net.minecraft.client.gui.components.EditBox).findFirst().orElseThrow();
             input.setValue("대한민국"); input.setCursorPosition(1); input.setHighlightPos(3);
             screen.update(new dev.hoi.protocol.ProtocolAgencyView(view.session(), 2, view.country(), view.name(), "", searchItems, ""));

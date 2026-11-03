@@ -46,7 +46,7 @@ final class ScreenFocusDetail {
                 buttonAssets.button(g,close?"focus-close":"focus-start",close?"menu/close":"completion/button",getX(),getY(),getWidth(),getHeight(),UiDiplomacyAssets.Effect.BUTTON_STATE,state);
                 if(!close) {
                     var font=Minecraft.getInstance().font;
-                    drawCentered(g,font,"시작",new Bounds(getX(),getY(),getWidth(),getHeight()),Math.max(dev.hoi.client.ui.UiText.scale(font),1f+1f/font.lineHeight));
+                    drawCentered(g,font,getMessage().getString().equals("중점 취소")?"취소":"시작",new Bounds(getX(),getY(),getWidth(),getHeight()),Math.max(dev.hoi.client.ui.UiText.scale(font),1f+1f/font.lineHeight));
                 }
             }
         };
@@ -124,7 +124,7 @@ final class ScreenFocusDetail {
         UiAssets.draw(g,"focus/detail/top",0,0,b.width()*2-2,220);g.pose().popMatrix();
         int paperTop=description.y()-15;
         paper(g,new Bounds(b.x()+10,paperTop,b.width()-20,b.y()+b.height()-paperTop-6));
-        drawCentered(g,font,detail==null?node.name():detail.name(),new Bounds(b.x()+15,b.y()+6,b.width()-50,15),TEXT_SCALE);
+        drawCentered(g,font,detail==null?node.name():detail.name(),new Bounds(b.x()+15,b.y()+6,b.width()-50,15),TEXT_SCALE,true);
         String art=node.icon().matches("[A-Za-z0-9_]+")?"politics/art/"+node.icon().toLowerCase(Locale.ROOT):"";
         boolean drawn=!art.isEmpty() && UiAssets.draw(g,art,b.x()+10,b.y()+30,85,75);
         if(!drawn && !art.isEmpty() && !node.icon().startsWith("GFX_"))drawn=UiAssets.draw(g,"politics/art/gfx_"+node.icon().toLowerCase(Locale.ROOT),b.x()+10,b.y()+30,85,75);
@@ -132,7 +132,7 @@ final class ScreenFocusDetail {
         Bounds time=new Bounds(b.x()+104,b.y()+29,85,13);
         boolean completed=node.status().equals("완료");
         progress(g,detail,completed);
-        String duration=detail==null || detail.durationHours()==0?"?":days(detail.durationHours())+"일";
+        String duration=detail==null || detail.durationHours()==0?"0":days(detail.durationHours())+"일";
         drawCentered(g,font,completed?"완료됨":duration,time,TEXT_SCALE);
         if(time.contains(mx,my) && detail!=null)UiTooltips.drawExact(g,font,(detail.durationHours()==0?"소요 시간: 알 수 없음":duration+" · "+detail.durationHours()+"시간")+"\n경과: "+detail.elapsedHours()+"시간\n저장된 중점 시간: "+detail.bankedHours()+"시간\n정치력을 지불한 저장 시간: "+detail.paidBankedHours()+"시간\n일일 정치력 소모: "+BigDecimal.valueOf(detail.politicalPowerPerDay()).stripTrailingZeros().toPlainString(),mx,my);
         g.pose().pushMatrix();g.pose().translate(b.x()+102.5f,b.y()+46);g.pose().scale(.5f);
@@ -144,11 +144,6 @@ final class ScreenFocusDetail {
             requirementRows=detail==null?textRows(font,loading?"상세 정보를 불러오는 중…":node.status(),requirements.width(),0):detailRows(font,detail.requirements(),requirements.width());
             descriptionRows=textRows(font,descriptionText,description.width(),0);
             rewardRows=detail==null?List.of():detailRows(font,detail.rewards(),rewards.width());
-            if(detail!=null && !detail.limitation().isEmpty()) {
-                var extended=new ArrayList<>(rewardRows);
-                if(!extended.isEmpty())extended.add(new Row(FormattedCharSequence.EMPTY,0));
-                extended.addAll(textRows(font,detail.limitation(),rewards.width(),0));rewardRows=List.copyOf(extended);
-            }
         }
         requirementMaximum=maximum(font,requirementRows,requirements);descriptionMaximum=maximum(font,descriptionRows,description);rewardMaximum=maximum(font,rewardRows,rewards);
         requirementScroll=Math.clamp(requirementScroll,0,requirementMaximum);descriptionScroll=Math.clamp(descriptionScroll,0,descriptionMaximum);rewardScroll=Math.clamp(rewardScroll,0,rewardMaximum);
@@ -156,7 +151,7 @@ final class ScreenFocusDetail {
         drawRows(g,font,descriptionRows,description,descriptionScroll,descriptionMaximum,true);
         int labelY=rewards.y()-20;
         UiAssets.draw(g,"commander/commands/unit_list_header/frame_0",b.x()+42,labelY,b.width()-79,18);
-        drawCentered(g,font,"효과",new Bounds(b.x()+42,labelY,b.width()-79,18),TEXT_SCALE);
+        drawCentered(g,font,"효과",new Bounds(b.x()+42,labelY,b.width()-79,18),TEXT_SCALE,true);
         drawRows(g,font,rewardRows,rewards,rewardScroll,rewardMaximum,false);
         g.disableScissor();
     }
@@ -230,7 +225,10 @@ final class ScreenFocusDetail {
         }
     }
     private static void drawCentered(GuiGraphicsExtractor g,Font font,String text,Bounds area,float scale) {
-        var value=UiTooltips.officerText(text);
+        drawCentered(g,font,text,area,scale,false);
+    }
+    private static void drawCentered(GuiGraphicsExtractor g,Font font,String text,Bounds area,float scale,boolean bold) {
+        var value=UiTooltips.officerText(text,bold);
         var lines=UiTooltips.split(font,value,Math.max(1,(int)(area.width()/scale)));
         g.enableScissor(area.x(),area.y(),area.x()+area.width(),area.y()+area.height());
         float y=area.y()+Math.max(0,(area.height()-lines.size()*font.lineHeight*scale)/2);

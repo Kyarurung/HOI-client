@@ -19,7 +19,7 @@ public final class UiAssets {
     private static final Map<Identifier, Identifier> GRAYSCALE = new HashMap<>();
     private static com.google.gson.JsonObject eventImageSizes;
     private UiAssets() {}
-    public static void clear() { GRAYSCALE.values().forEach(id -> Minecraft.getInstance().getTextureManager().release(id)); GRAYSCALE.clear(); eventImageSizes = null; UiStoryAssets.clear(); UiCommandLabels.clear(); DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); UiKeywordIcons.clear(); UiMenuBar.clear(); UiEquipmentDesigns.clear(); UiTooltips.clear(); dev.hoi.client.screen.ScreenDecision.resourcesReloaded(); UiDiplomacyAssets.resourcesReloaded(); }
+    public static void clear() { GRAYSCALE.values().forEach(id -> Minecraft.getInstance().getTextureManager().release(id)); GRAYSCALE.clear(); eventImageSizes = null; UiStoryAssets.clear(); UiCommandLabels.clear(); DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); UiKeywordIcons.clear(); UiMenuBar.clear(); UiEquipmentDesigns.clear(); UiTooltips.clear(); dev.hoi.client.screen.ScreenDecision.resourcesReloaded(); dev.hoi.client.screen.ScreenFocus.resourcesReloaded(); UiDiplomacyAssets.resourcesReloaded(); }
     public static int[] eventImageSize(String path) {
         if (eventImageSizes == null) {
             eventImageSizes = new com.google.gson.JsonObject();
@@ -60,6 +60,30 @@ public final class UiAssets {
             draw(g,"commander/commands/empty_paper/frame_0",x,y,w,h);int insetX=Math.round(w*10.5f/49),insetY=Math.round(h*10.5f/49);x+=insetX;y+=insetY;w-=insetX*2;h-=insetY*2;
         }
         if(enabled)draw(g,path,x,y,w,h);else drawGrayscale(g,path,x,y,w,h);
+    }
+    public static int[] drawLeaderControlAnchored(GuiGraphicsExtractor g,String path,int edge,int bottom,int w,int h,boolean right,boolean enabled) {
+        String background=path.startsWith("commander/commands/idea_traits_strip/")?"commander/commands/empty_paper/frame_0":path;
+        var id=Identifier.parse("hoi:textures/gui/"+background+".png");
+        int[] bounds=CONTENT_BOUNDS.computeIfAbsent(id,UiAssets::contentBounds);
+        if(bounds.length==0){int x=right?edge-w:edge;drawLeaderControl(g,path,x,bottom-h,w,h,enabled);return new int[]{x,bottom-h,w,h};}
+        double scale=Math.min((double)w/bounds[0],(double)h/bounds[1]);
+        int fitW=Math.max(1,(int)Math.round(bounds[0]*scale)),fitH=Math.max(1,(int)Math.round(bounds[1]*scale));
+        int insetX=(w-fitW)/2+(int)Math.round(bounds[2]*fitW/(double)bounds[0]),insetY=(h-fitH)/2+(int)Math.round(bounds[3]*fitH/(double)bounds[1]);
+        int visibleW=(int)Math.round(bounds[4]*fitW/(double)bounds[0])-(int)Math.round(bounds[2]*fitW/(double)bounds[0]),visibleH=(int)Math.round(bounds[5]*fitH/(double)bounds[1])-(int)Math.round(bounds[3]*fitH/(double)bounds[1]);
+        int x=right?edge-visibleW:edge,y=bottom-visibleH;
+        drawLeaderControl(g,path,x-insetX,y-insetY,w,h,enabled);
+        return new int[]{x,y,visibleW,visibleH};
+    }
+    public static int[] visibleBounds(String path,int x,int y,int w,int h) {
+        var id=Identifier.parse("hoi:textures/gui/"+path+".png");
+        int[] bounds=CONTENT_BOUNDS.computeIfAbsent(id,UiAssets::contentBounds);
+        if(bounds.length==0)return new int[]{x,y,w,h};
+        double scale=Math.min((double)w/bounds[0],(double)h/bounds[1]);
+        int fitW=Math.max(1,(int)Math.round(bounds[0]*scale)),fitH=Math.max(1,(int)Math.round(bounds[1]*scale));
+        int left=x+(w-fitW)/2,top=y+(h-fitH)/2;
+        int x1=left+(int)Math.round(bounds[2]*fitW/(double)bounds[0]),y1=top+(int)Math.round(bounds[3]*fitH/(double)bounds[1]);
+        int x2=left+(int)Math.round(bounds[4]*fitW/(double)bounds[0]),y2=top+(int)Math.round(bounds[5]*fitH/(double)bounds[1]);
+        return new int[]{x1,y1,x2-x1,y2-y1};
     }
     public static boolean drawGrayscale(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         return draw(g, path, x, y, w, h, 0, 0, 0xFFFFFFFF, true);
@@ -134,6 +158,11 @@ public final class UiAssets {
         int fittedHeight=Math.min(height,imageHeight(path,width));
         return fittedHeight>0&&draw(g,path,x,y+height-fittedHeight,width,fittedHeight);
     }
+    public static int[] contentSize(String path) {
+        var id=Identifier.tryParse("hoi:textures/gui/"+UiCountryDisplay.texture(path)+".png");
+        int[] bounds=id==null?new int[0]:CONTENT_BOUNDS.computeIfAbsent(id,UiAssets::contentBounds);
+        return bounds.length==0?imageSize(path):new int[]{bounds[4]-bounds[2],bounds[5]-bounds[3]};
+    }
     public static boolean drawContent(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
         path = UiCountryDisplay.texture(path);
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
@@ -146,6 +175,17 @@ public final class UiAssets {
         int left = x + (w - fitW) / 2, top = y + (h - fitH) / 2;
         g.blit(id, left, top, left + fitW, top + fitH, (float)bounds[2] / bounds[0], (float)bounds[4] / bounds[0], (float)bounds[3] / bounds[1], (float)bounds[5] / bounds[1]);
         return true;
+    }
+    public static void drawCropped(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,float scale) {
+        int[] size=imageSize(path);
+        if(size[0]<=0 || size[1]<=0 || scale<=0)return;
+        g.enableScissor(x,y,x+w,y+h);
+        g.pose().pushMatrix();
+        g.pose().translate(x+(w-size[0]*scale)/2,y+(h-size[1]*scale)/2);
+        g.pose().scale(scale);
+        draw(g,path,0,0,size[0],size[1]);
+        g.pose().popMatrix();
+        g.disableScissor();
     }
     public static boolean drawAlignedContent(GuiGraphicsExtractor g,String path,String reference,float x,float y,float w,float h) {
         path = UiCountryDisplay.texture(path);

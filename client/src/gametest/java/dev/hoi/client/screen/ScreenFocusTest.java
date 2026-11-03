@@ -23,7 +23,7 @@ public final class ScreenFocusTest {
             context.getInput().resizeWindow(size[0], size[1]);
             context.waitTicks(2);
             context.runOnClient(client -> check(client.getWindow().getGuiScale() == 2, "Focus input checks require the existing GUI2 test setup"));
-            cancelWithoutSelection(context, source);
+            cancelSelectedFocus(context, source);
             repeatedStartAndSameRevision(context, source);
             selectedNodeRemoval(context, source);
             navigationAndGraphUpdates(context, source);
@@ -35,6 +35,7 @@ public final class ScreenFocusTest {
             detailDragging(context, source);
             exactDetailText(context, source, size[0]);
             progressStates(context, source, size[0]);
+            stackedMenu(context, source, size[0]);
             pixelFailures.addAll(ScreenFocusPixelsTest.run(context, size[0]));
         }
         context.setScreen(() -> null);
@@ -42,24 +43,43 @@ public final class ScreenFocusTest {
         context.waitTicks(2);
         check(pixelFailures.isEmpty(), "Focus GPU pixel comparison failed: " + String.join("; ", pixelFailures));
     }
-    private static void cancelWithoutSelection(ClientGameTestContext context, ProtocolFocusPayloads.View source) {
-        var initial = view(source, source.tree(), 7, nodes(source, false), true);
-        var requests = new ArrayList<ProtocolFocusPayloads.Request>();
-        context.setScreen(() -> new ScreenFocus(initial, requests::add));
-        context.runOnClient(client -> {
-            var screen = (ScreenFocus) client.gui.screen();
-            check(screen.selectedId().isEmpty(), "Cancel regression must start without a selected node");
-            var cancel = button(screen, "중점 취소");
-            check(cancel.active, "Authoritative cancelable state must enable cancel");
-            float x = screen.panX(), y = screen.panY();
-            clickButton(screen, cancel);
-            clickButton(screen, button(screen, "중점 취소"));
-            check(count(requests, ProtocolFocusPayloads.Action.CANCEL) == 1, "Actual cancel coordinates must submit once instead of starting a pan");
-            var request = requests.stream().filter(r -> r.action() == ProtocolFocusPayloads.Action.CANCEL).findFirst().orElseThrow();
-            check(request.token().equals(screen.token()) && request.session().equals(initial.session()) && request.revision() == initial.revision() && request.id().isEmpty(), "Cancel must preserve the authoritative request context");
-            check(!button(screen, "중점 취소").active && screen.selectedId().isEmpty(), "Pending cancel must disable repeated clicks without selecting a node");
-            check(screen.panX() == x && screen.panY() == y, "Cancel clicks must not pan the graph");
+    private static void cancelSelectedFocus(ClientGameTestContext context, ProtocolFocusPayloads.View source) {
+        var original=source.nodes().getFirst();
+        var running=new ProtocolFocusPayloads.Node(original.id(),original.name(),original.description(),original.icon(),0,0,List.of(),List.of(),"진행 중",24,false);
+        var initial=view(source,source.tree(),7,List.of(running),true);
+        var requests=new ArrayList<ProtocolFocusPayloads.Request>();
+        context.setScreen(()->new ScreenFocus(initial,requests::add));
+        context.runOnClient(client->{
+            var screen=(ScreenFocus)client.gui.screen();
+            check(screen.children().stream().noneMatch(child->child instanceof Button button && button.getMessage().getString().equals("중점 취소")),"No bottom cancel button may exist without a selected focus");
+            clickNode(screen,running.id());
+            var cancel=button(screen,"중점 취소");
+            check(cancel.active,"The running focus must expose cancellation in its detail action slot");
+            float x=screen.panX(),y=screen.panY();
+            clickButton(screen,cancel);
+            clickButton(screen,button(screen,"중점 취소"));
+            check(count(requests,ProtocolFocusPayloads.Action.CANCEL)==1,"Repeated cancellation must submit once");
+            var request=requests.stream().filter(r->r.action()==ProtocolFocusPayloads.Action.CANCEL).findFirst().orElseThrow();
+            check(request.token().equals(screen.token()) && request.session().equals(initial.session()) && request.revision()==initial.revision() && request.id().equals(running.id()),"Cancel must carry the selected running focus and authoritative context");
+            check(!button(screen,"중점 취소").active && screen.selectedId().equals(running.id()),"Pending cancellation must retain the detail and disable its action");
+            check(screen.panX()==x && screen.panY()==y,"Cancellation must not pan the graph");
         });
+    }
+    private static void stackedMenu(ClientGameTestContext context, ProtocolFocusPayloads.View source, int pixelWidth) {
+        var previous=context.computeOnClient(client->dev.hoi.client.ClientCampaignHud.visible()?dev.hoi.protocol.ProtocolHudPayloads.State.of(dev.hoi.client.ClientCampaignHud.country(),dev.hoi.client.ClientCampaignHud.hud()):dev.hoi.protocol.ProtocolHudPayloads.State.HIDDEN);
+        try {
+            context.runOnClient(client->dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.ProtocolHudPayloads.State.of(source.country(),source.hud())));
+            context.setScreen(()->new ScreenFocus(source,request->{}));
+            context.getInput().setCursorPos(0,200);context.waitTicks(2);
+            var baseline=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-focus-menu-direct-"+pixelWidth+"-gui2").toFile());
+            context.setScreen(()->new ScreenDialogStack(new ScreenFocus(source,request->{})));
+            context.getInput().setCursorPos(0,200);context.waitTicks(2);
+            var stacked=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-focus-menu-stacked-"+pixelWidth+"-gui2").toFile());
+            int menuHeight=context.computeOnClient(client->dev.hoi.client.ui.UiMenuBar.height(client.getWindow().getGuiScaledWidth())*2);
+            int dockWidth=context.computeOnClient(client->dev.hoi.client.ui.UiMenuBar.dockWidth(client.getWindow().getGuiScaledWidth())*2);
+            for(int y=0;y<menuHeight;y++)for(int x=0;x<(y<30?baseline.getWidth():dockWidth);x++)check(baseline.getRGB(x,y)==stacked.getRGB(x,y),"Stacked focus must preserve the menu pixel at "+x+","+y);
+        } catch(IOException error) {throw new java.io.UncheckedIOException(error);}
+        finally {context.setScreen(()->null);context.runOnClient(client->dev.hoi.client.ClientCampaignHud.accept(previous));}
     }
     private static void repeatedStartAndSameRevision(ClientGameTestContext context, ProtocolFocusPayloads.View source) {
         var initial = view(source, source.tree(), 7, nodes(source, true), false);
@@ -92,9 +112,7 @@ public final class ScreenFocusTest {
             screen.update(ProtocolFocusPayloads.Response.of(screen.token(), view(initial, initial.tree(), 8, remaining, true)));
             check(screen.selectedId().isEmpty(), "Removing the selected node must clear the detail selection");
             check(screen.children().stream().noneMatch(child -> child instanceof Button button && button.getMessage().getString().equals("중점 시작")), "Removed node detail must no longer expose a start button");
-            check(button(screen, "중점 취소").active, "Clearing a removed selection must still build the cancel widget");
-            clickButton(screen, button(screen, "중점 취소"));
-            check(count(requests, ProtocolFocusPayloads.Action.CANCEL) == 1, "Cancel must remain clickable after the selected node disappears");
+            check(screen.children().stream().noneMatch(child -> child instanceof Button button && button.getMessage().getString().equals("중점 취소")), "Removed selection must not leave a cancel button");
         });
     }
     private static void navigationAndGraphUpdates(ClientGameTestContext context, ProtocolFocusPayloads.View source) {
@@ -209,6 +227,8 @@ public final class ScreenFocusTest {
         context.setScreen(() -> new ScreenFocus(initial, requests::add));
         context.runOnClient(client -> {
             var screen = (ScreenFocus) client.gui.screen();
+            clickNode(screen, initial.nodes().getFirst().id());
+            requests.clear();
             clickButton(screen, button(screen, "중점 취소"));
             for (int tick = 0; tick < 119; tick++) {
                 screen.tick();
@@ -220,13 +240,13 @@ public final class ScreenFocusTest {
             screen.tick();
             check(requests.size() == 2 && requests.getLast().action() == ProtocolFocusPayloads.Action.REFRESH, "Timeout recovery must query state without resending the mutation");
             var recovery = requests.getLast();
-            check(recovery.session().equals(initial.session()) && recovery.revision() == 7 && recovery.id().isEmpty(), "Recovery must query the current authoritative context and selection");
+            check(recovery.session().equals(initial.session()) && recovery.revision() == 7 && recovery.id().equals(initial.nodes().getFirst().id()), "Recovery must query the current authoritative context and selection");
             check(screen.pendingAction() && !button(screen, "중점 취소").active, "Sending recovery must leave the action locked until its response");
             clickButton(screen, button(screen, "중점 취소"));
             var wrongRevision = new ProtocolFocusPayloads.Ack(recovery.action(), recovery.session(), recovery.revision() - 1, recovery.id());
             screen.update(ProtocolFocusPayloads.Response.of(screen.token(), extended(initial, initial.session(), 7, null, wrongRevision)));
             check(screen.pendingAction(), "A recovery acknowledgement with another request revision must not unlock the action");
-            var wrongId = new ProtocolFocusPayloads.Ack(recovery.action(), recovery.session(), recovery.revision(), initial.nodes().getFirst().id());
+            var wrongId = new ProtocolFocusPayloads.Ack(recovery.action(), recovery.session(), recovery.revision(), "");
             screen.update(ProtocolFocusPayloads.Response.of(screen.token(), extended(initial, initial.session(), 7, null, wrongId)));
             check(screen.pendingAction(), "A recovery acknowledgement for another selection must not unlock the action");
             screen.update(ProtocolFocusPayloads.Response.of(screen.token(), extended(initial, initial.session(), 7, null, ProtocolFocusPayloads.Ack.of(recovery))));
@@ -264,7 +284,7 @@ public final class ScreenFocusTest {
             var removed = view(initial, initial.tree(), 12, List.of(a), true);
             screen.update(ProtocolFocusPayloads.Response.of(screen.token(), extended(removed, removed.session(), 12, null, ackB)));
             check(screen.selectedId().isEmpty() && screen.detailId().isEmpty(), "Removing the selected graph node must discard its cached detail");
-            check(button(screen, "중점 취소").active, "Extended detail removal must preserve the cancel control");
+            check(screen.children().stream().noneMatch(child -> child instanceof Button button && button.getMessage().getString().equals("중점 취소")), "Extended detail removal must remove its cancellation action");
         });
     }
     private static void coalescedDetailQueries(ClientGameTestContext context, ProtocolFocusPayloads.View source) {
@@ -388,7 +408,7 @@ public final class ScreenFocusTest {
                 var query = requests.stream().filter(request -> request.action() == ProtocolFocusPayloads.Action.REFRESH).findFirst().orElseThrow();
                 screen.update(ProtocolFocusPayloads.Response.of(screen.token(), extended(stage, stage.session(), stage.revision(), detail, ProtocolFocusPayloads.Ack.of(query))));
                 check(screen.selectedId().equals(original.id()) && screen.detailId().equals(original.id()), "Progress updates must preserve the selected source focus");
-                check(!button(screen, "중점 시작").active, "An active or completed focus must not expose an enabled start action");
+                check(elapsed < 24 ? button(screen, "중점 취소").active : !button(screen, "중점 시작").active, "Running focus cancels in place; completed focus cannot start");
                 boolean cancelPresent = screen.children().stream().anyMatch(child -> child instanceof Button button && button.getMessage().getString().equals("중점 취소"));
                 check(cancelPresent == (elapsed < 24), "Only an incomplete progress snapshot may expose the cancel action");
                 check(count(requests, ProtocolFocusPayloads.Action.START) == 0 && count(requests, ProtocolFocusPayloads.Action.CANCEL) == 0, "Rendering progress snapshots must not mutate focus state");
@@ -484,7 +504,7 @@ public final class ScreenFocusTest {
         return List.of(node(source.nodes().getFirst(), 0, 0, enabled), node(source.nodes().get(1), 3, 1, false));
     }
     private static ProtocolFocusPayloads.Node node(ProtocolFocusPayloads.Node source, double x, double y, boolean enabled) {
-        return new ProtocolFocusPayloads.Node(source.id(), source.name(), source.description(), source.icon(), x, y, List.of(), List.of(), source.status(), source.remaining(), enabled);
+        return new ProtocolFocusPayloads.Node(source.id(), source.name(), source.description(), source.icon(), x, y, List.of(), List.of(), enabled ? "선택 가능" : source.status(), enabled ? 0 : source.remaining(), enabled);
     }
     private static ProtocolFocusPayloads.View view(ProtocolFocusPayloads.View source, String tree, long revision, List<ProtocolFocusPayloads.Node> nodes, boolean cancelable) {
         return new ProtocolFocusPayloads.View(source.country(), source.name(), tree, source.session(), revision, "", source.hud(), nodes, cancelable);
