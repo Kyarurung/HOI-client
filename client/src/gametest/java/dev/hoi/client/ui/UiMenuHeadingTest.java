@@ -1,6 +1,6 @@
 package dev.hoi.client.ui;
 
-import dev.hoi.protocol.ProtocolMenuView;
+import dev.hoi.protocol.menu.MenuView;
 import java.util.List;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
 
 public final class UiMenuHeadingTest {
     private UiMenuHeadingTest() {}
-    public static void run(ClientGameTestContext context, ProtocolMenuView menu) {
+    public static void run(ClientGameTestContext context, MenuView menu) {
         int previous = context.computeOnClient(client -> client.options.guiScale().get());
         try {
             for (int[] size : List.of(new int[]{2560, 1440}, new int[]{1280, 720})) {

@@ -1,6 +1,6 @@
 package dev.hoi.client.audio;
 
-import dev.hoi.protocol.ProtocolAudioPayloads;
+import dev.hoi.protocol.audio.AudioPayloads;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.Identifier;
@@ -15,7 +15,7 @@ public final class AudioUiSounds {
                 net.minecraft.util.RandomSource.create(), false, 0,
                 net.minecraft.client.resources.sounds.SoundInstance.Attenuation.NONE, 0, 0, 0, true);
     }
-    public static String selection(dev.hoi.protocol.ProtocolCommanderHud.Mode mode) {
+    public static String selection(dev.hoi.protocol.commander.CommanderHudPayloads.Mode mode) {
         return switch(mode) {
             case NAVY_HQ, NAVY_FLEET, NAVAL_MISSION, NAVAL_TASK_FORCES -> "ui.fleet.select";
             case AIR, AIR_MISSION -> "ui.aircraft.select";
@@ -27,11 +27,11 @@ public final class AudioUiSounds {
         var sounds=Minecraft.getInstance().getSoundManager();var id=id(path);
         if(sounds.getSoundEvent(id)!=null)sounds.play(instance(path));
     }
-    public static void receive(ProtocolAudioPayloads.Cue cue) {
+    public static void receive(AudioPayloads.Cue cue) {
         switch(cue) {
-            case SELECT -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.ProtocolHudPayloads.State.HIDDEN); AudioKoreanMusic.select(); }
+            case SELECT -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.hud.HudPayloads.State.HIDDEN); AudioKoreanMusic.select(); }
             case START -> {AudioKoreanMusic.enable();START_SOUNDS.forEach(AudioUiSounds::play);}
-            case STOP -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.ProtocolHudPayloads.State.HIDDEN); reset(); dev.hoi.client.screen.ScreenDialogCoordinator.reset(); }
+            case STOP -> { dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.hud.HudPayloads.State.HIDDEN); reset(); dev.hoi.client.screen.dialog.DialogCoordinator.reset(); }
             default -> play(cue.sound());
         }
     }

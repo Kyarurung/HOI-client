@@ -2,7 +2,7 @@ package dev.hoi.client.research;
 
 import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.ui.UiAssets;
-import dev.hoi.protocol.ProtocolResearchView;
+import dev.hoi.protocol.research.ResearchView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -10,10 +10,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 public final class ResearchSlotButton extends Button {
-    private final ProtocolResearchView.Slot slot;
-    private final ProtocolResearchView.Tech technology;
+    private final ResearchView.Slot slot;
+    private final ResearchView.Tech technology;
     private final String country;
-    ResearchSlotButton(ProtocolResearchView.Slot slot, ProtocolResearchView.Tech technology, String country, int x, int y, int width, int height, Runnable action) {
+    ResearchSlotButton(ResearchView.Slot slot, ResearchView.Tech technology, String country, int x, int y, int width, int height, Runnable action) {
         super(x, y, width, height, Component.literal("슬롯 " + (slot.index() + 1) + " · " + (technology == null ? "연구 선택" : technology.name())),
                 b -> action.run(), DEFAULT_NARRATION);
         this.slot = slot; this.technology = technology; this.country = country;

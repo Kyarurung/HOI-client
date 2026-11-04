@@ -1,17 +1,17 @@
 package dev.hoi.client.research;
 
 import dev.hoi.client.ui.UiAssets;
+import dev.hoi.protocol.research.*;
 
-import dev.hoi.protocol.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public final class ResearchArtChecks {
     public static void run(ClientGameTestContext context) {
-        ProtocolResearchView view;
+        ResearchView view;
         try (var input = ResearchArtChecks.class.getResourceAsStream("/tfr-research-view.json")) {
-            view = new ProtocolResearchPayloads.Response(new String(input.readAllBytes(), StandardCharsets.UTF_8)).view();
+            view = new ResearchPayloads.Response(new String(input.readAllBytes(), StandardCharsets.UTF_8)).view();
         } catch (Exception error) { throw new AssertionError(error); }
         var ids = List.of("antiair2", "advanced_small_airframe", "modern_small_airframe");
         context.runOnClient(client -> {

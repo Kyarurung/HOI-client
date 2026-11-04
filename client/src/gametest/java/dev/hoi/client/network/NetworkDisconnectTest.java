@@ -2,7 +2,8 @@ package dev.hoi.client.network;
 
 import dev.hoi.client.ClientCampaignHud;
 import dev.hoi.client.screen.ScreenMenu;
-import dev.hoi.protocol.*;
+import dev.hoi.protocol.hud.*;
+import dev.hoi.protocol.menu.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -10,17 +11,17 @@ import net.minecraft.client.gui.screens.PauseScreen;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class NetworkDisconnectTest {
-    public static void run(ClientGameTestContext context, ProtocolMenuView view) {
+    public static void run(ClientGameTestContext context, MenuView view) {
         var client = context.computeOnClient(c -> c);
         var handler = context.computeOnClient(c -> c.getConnection());
-        var originalHud = context.computeOnClient(c -> ClientCampaignHud.visible() ? ProtocolHudPayloads.State.of(ClientCampaignHud.country(), ClientCampaignHud.hud()) : ProtocolHudPayloads.State.HIDDEN);
+        var originalHud = context.computeOnClient(c -> ClientCampaignHud.visible() ? HudPayloads.State.of(ClientCampaignHud.country(), ClientCampaignHud.hud()) : HudPayloads.State.HIDDEN);
         try {
             {
                 var removedOnClient = new AtomicReference<Boolean>();
                 String token = context.computeOnClient(c -> {
-                    ClientCampaignHud.accept(ProtocolHudPayloads.State.of(view.country(), view.hud()));
+                    ClientCampaignHud.accept(HudPayloads.State.of(view.country(), view.hud()));
                     c.gui.setScreen(new ScreenMenu(view));
-                    String pending = NetworkScreens.beginMenu(ProtocolMenuTab.TRADE).screen();
+                    String pending = NetworkScreens.beginMenu(MenuTab.TRADE).screen();
                     ScreenEvents.remove(c.gui.screen()).register(screen -> removedOnClient.set(c.isSameThread()));
                     return pending;
                 });
@@ -30,8 +31,8 @@ public final class NetworkDisconnectTest {
                 context.runOnClient(c -> {
                     if (!Boolean.TRUE.equals(removedOnClient.get())) throw new AssertionError("Private screen removal must run on the client thread");
                     if (c.gui.screen() != null || ClientCampaignHud.visible()) throw new AssertionError("Disconnect retained private screen or HUD");
-                    ClientCampaignHud.accept(ProtocolHudPayloads.State.of(view.country(), view.hud()));
-                    NetworkScreens.receiveMenu(new ProtocolMenuPayloads.Update(token, ProtocolMenuPayloads.OpenScreen.of(view).json()));
+                    ClientCampaignHud.accept(HudPayloads.State.of(view.country(), view.hud()));
+                    NetworkScreens.receiveMenu(new MenuPayloads.Update(token, MenuPayloads.OpenScreen.of(view).json()));
                     if (c.gui.screen() != null) throw new AssertionError("Disconnected session response reopened a private screen");
                 });
             }

@@ -1,19 +1,19 @@
 package dev.hoi.client.research;
 
 import dev.hoi.client.ui.UiAssets;
-import dev.hoi.protocol.ProtocolResearchView;
+import dev.hoi.protocol.research.ResearchView;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import java.util.List;
 
 public final class ResearchBackgroundTest {
     private ResearchBackgroundTest() {}
     public static void run(ClientGameTestContext context) {
-        ProtocolResearchView source;
+        ResearchView source;
         try (var input = ResearchBackgroundTest.class.getResourceAsStream("/tfr-research-view.json")) {
-            source = new dev.hoi.protocol.ProtocolResearchPayloads.Response(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).view();
+            source = new dev.hoi.protocol.research.ResearchPayloads.Response(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).view();
         } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
-        var view = new ProtocolResearchView(source.session(), source.revision(), source.country(), source.countryName(), source.day(), source.date(), source.speed(),
-                List.of(new ProtocolResearchView.Slot(0, "", 0)), source.technologies(), source.message(), source.hud(), source.benefits());
+        var view = new ResearchView(source.session(), source.revision(), source.country(), source.countryName(), source.day(), source.date(), source.speed(),
+                List.of(new ResearchView.Slot(0, "", 0)), source.technologies(), source.message(), source.hud(), source.benefits());
         int scale = context.computeOnClient(client -> client.options.guiScale().get());
         try {
             for (int[] size : List.of(new int[]{2560, 1440}, new int[]{1280, 720})) {
@@ -21,7 +21,7 @@ public final class ResearchBackgroundTest {
                 context.runOnClient(client -> client.options.guiScale().set(2));
                 context.waitTicks(5);
                 context.setScreen(() -> new ResearchScreen(view, request -> {
-                    if (request.action() == dev.hoi.protocol.ProtocolResearchPayloads.Action.START || request.action() == dev.hoi.protocol.ProtocolResearchPayloads.Action.CANCEL)
+                    if (request.action() == dev.hoi.protocol.research.ResearchPayloads.Action.START || request.action() == dev.hoi.protocol.research.ResearchPayloads.Action.CANCEL)
                         throw new AssertionError("Background navigation sent a research mutation");
                 }));
                 context.waitTicks(2);

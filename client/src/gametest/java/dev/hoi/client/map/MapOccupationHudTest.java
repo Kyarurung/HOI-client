@@ -1,7 +1,7 @@
 package dev.hoi.client.map;
 
-import dev.hoi.client.screen.ScreenMapCursor;
-import dev.hoi.protocol.ProtocolOccupation;
+import dev.hoi.client.screen.map.MapCursor;
+import dev.hoi.protocol.occupation.OccupationPayloads;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.world.phys.Vec3;
 import java.util.*;
@@ -15,12 +15,12 @@ public final class MapOccupationHudTest {
             context.runOnClient(client->{
                 var camera=client.gameRenderer.mainCamera();
                 var center=camera.position().add(new Vec3(camera.forwardVector()).scale(distance));
-                var rows=new ArrayList<ProtocolOccupation.Row>();
-                for(int i=0;i<3;i++)rows.add(new ProtocolOccupation.Row("test/"+i,"점령지 "+i,"KOR","대한민국",
+                var rows=new ArrayList<OccupationPayloads.Row>();
+                for(int i=0;i<3;i++)rows.add(new OccupationPayloads.Row("test/"+i,"점령지 "+i,"KOR","대한민국",
                         new double[]{0,.125,1}[i],new double[]{1,.3333,0}[i],0,0,"","","저항도","순응도",List.of(),List.of(),center.x,center.y-3.1,center.z));
-                MapOccupationHud.accept(ProtocolOccupation.MapResponse.of(new ProtocolOccupation.MapView(client.level.dimension().identifier().toString(),compliance,rows)).view());
+                MapOccupationHud.accept(OccupationPayloads.MapResponse.of(new OccupationPayloads.MapView(client.level.dimension().identifier().toString(),compliance,rows)).view());
             });
-            context.setScreen(ScreenMapCursor::new);context.waitTicks(3);
+            context.setScreen(MapCursor::new);context.waitTicks(3);
             context.runOnClient(client->{
                 var labels=MapOccupationHud.labels();
                 if(labels.size()!=3)throw new AssertionError("Three visible map percentages required: "+labels);
@@ -30,7 +30,7 @@ public final class MapOccupationHudTest {
             });
             context.takeScreenshot("hoi-map-"+(compliance?"compliance":"resistance")+"-percent-distance-"+(int)distance+"-gui2");
         }
-        context.runOnClient(client->MapOccupationHud.accept(new ProtocolOccupation.MapView(client.level.dimension().identifier().toString(),false,List.of())));
+        context.runOnClient(client->MapOccupationHud.accept(new OccupationPayloads.MapView(client.level.dimension().identifier().toString(),false,List.of())));
         context.waitTicks(2);
         context.runOnClient(client->{if(!MapOccupationHud.labels().isEmpty())throw new AssertionError("Closing occupation map retains stale percentages");MapOccupationHud.reset();});
         context.setScreen(()->null);context.getInput().resizeWindow(1600,1000);

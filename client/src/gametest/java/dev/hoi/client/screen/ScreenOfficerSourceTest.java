@@ -1,7 +1,11 @@
 package dev.hoi.client.screen;
 
 import dev.hoi.client.ui.UiTooltips;
-import dev.hoi.protocol.*;
+import dev.hoi.client.screen.commander.CommanderOfficerComparisonTest;
+import dev.hoi.client.screen.commander.CommanderPreferredTactics;
+import dev.hoi.client.screen.politics.PoliticsChoice;
+import dev.hoi.protocol.dialog.*;
+import dev.hoi.protocol.menu.*;
 import java.nio.file.*;
 import java.util.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -15,7 +19,7 @@ public final class ScreenOfficerSourceTest {
         context.getInput().resizeWindow(2560, 1440);
         context.runOnClient(client -> client.options.guiScale().set(2));
         try {
-            ScreenOfficerComparisonTest.verifySpecialBanner(context,new ProtocolMenuPayloads.OpenScreen(Files.readString(Path.of(directory,"kor-initial.json"))).view());
+            CommanderOfficerComparisonTest.verifySpecialBanner(context,new MenuPayloads.OpenScreen(Files.readString(Path.of(directory,"kor-initial.json"))).view());
             context.getInput().resizeWindow(2560,1440);
             context.runOnClient(client -> {
                 var lines = UiTooltips.sourceLines(client.font,"§H제목§!\n---\n§G+0.01§! £doctrine_mastery\n\n  조건",324);
@@ -32,11 +36,11 @@ public final class ScreenOfficerSourceTest {
                     throw new AssertionError("Original emphasis, benefit color and explicit mastery icon must survive wrapping");
             });
             for (String name : List.of("kor-initial", "prk-initial", "prc-initial", "kor-selected")) {
-                var view = new ProtocolMenuPayloads.OpenScreen(Files.readString(Path.of(directory, name + ".json"))).view();
-                context.setScreen(() -> new ScreenMenu(view, ProtocolMenuTab.OFFICER_CORPS, () -> {}));
+                var view = new MenuPayloads.OpenScreen(Files.readString(Path.of(directory, name + ".json"))).view();
+                context.setScreen(() -> new ScreenMenu(view, MenuTab.OFFICER_CORPS, () -> {}));
                 context.getInput().setCursorPos(2400, 1300);
                 context.waitTicks(3);
-                var stats = view.page(ProtocolMenuTab.OFFICER_CORPS).sections().stream()
+                var stats = view.page(MenuTab.OFFICER_CORPS).sections().stream()
                         .filter(s -> s.icon().endsWith("_stats")).flatMap(s -> s.entries().stream()).toList();
                 if (stats.size() != 47) throw new AssertionError("Incomplete source grid: " + name);
                 context.runOnClient(client -> {
@@ -64,7 +68,7 @@ public final class ScreenOfficerSourceTest {
                         region.setFocused(true);
                         if (region.isFocused()) throw new AssertionError("Statistic hover region acquired keyboard focus");
                     }
-                    long counters = view.page(ProtocolMenuTab.OFFICER_CORPS).sections().stream().filter(section -> section.icon().equals("army_hq")).count();
+                    long counters = view.page(MenuTab.OFFICER_CORPS).sections().stream().filter(section -> section.icon().equals("army_hq")).count();
                     if (counters > 1 || before.stream().filter(child -> child instanceof dev.hoi.client.ui.UiHoverRegion).count() != 47 + counters)
                         throw new AssertionError("All source statistics and the army headquarters counter must be hover-only");
                     var removed = Set.of("지휘관", "장교", "제독", "사령부");
@@ -74,7 +78,7 @@ public final class ScreenOfficerSourceTest {
                 });
                 context.takeScreenshot("hoi-officer-" + name + "-gui2");
                 if (name.equals("kor-initial")) {
-                    var sections = view.page(ProtocolMenuTab.OFFICER_CORPS).sections();
+                    var sections = view.page(MenuTab.OFFICER_CORPS).sections();
                     var armyEntries = sections.stream().filter(s -> s.icon().equals("army")).findFirst().orElseThrow().entries();
                     var command = sections.stream().filter(s -> s.icon().equals("high_command")).findFirst().orElseThrow().entries().getFirst();
                     var counter = sections.stream().filter(s -> s.icon().equals("army_hq")).findFirst().orElseThrow().entries().getFirst();
@@ -134,11 +138,11 @@ public final class ScreenOfficerSourceTest {
                         context.waitTicks(3);
                         context.takeScreenshot("hoi-officer-tooltip-" + key + "-gui2");
                     }
-                    var quote = new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory, "kor-academy-choices.json")), true).view();
-                    var sent=new ArrayList<ProtocolDialogPayloads.Action>();
+                    var quote = new DialogPayloads.Show(Files.readString(Path.of(directory, "kor-academy-choices.json")), true).view();
+                    var sent=new ArrayList<DialogPayloads.Action>();
                     var issued=quote.issued(UUID.randomUUID().toString(),3);
                     var parent = context.computeOnClient(client -> client.gui.screen());
-                    context.setScreen(() -> new ScreenPoliticsChoice(issued, parent, sent::add));
+                    context.setScreen(() -> new PoliticsChoice(issued, parent, sent::add));
                     context.getInput().setCursorPos(2400, 1300);
                     context.waitTicks(3);
                     context.takeScreenshot("hoi-officer-academy-choices-gui2");
@@ -148,7 +152,7 @@ public final class ScreenOfficerSourceTest {
                             .map(AbstractWidget::getX).distinct().count());
                     if (columns != 2) throw new AssertionError("Officer source choice must have two columns");
                     context.runOnClient(client -> {
-                        var screen=(ScreenPoliticsChoice)client.gui.screen();
+                        var screen=(PoliticsChoice)client.gui.screen();
                         var candidate=issued.choices().stream().filter(c->c.id().endsWith("bold_attack_spirit")).findFirst().orElseThrow();
                         var button=screen.children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c)
                                 .filter(c->c.getMessage().getString().equals(candidate.label())).findFirst().orElseThrow();
@@ -165,14 +169,14 @@ public final class ScreenOfficerSourceTest {
                                 .filter(c->c.getMessage().getString().equals(candidate.label())).noneMatch(c->c.active))
                             throw new AssertionError("Server refresh must unlock a rejected officer choice");
                     });
-                    var replacement=new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory,"kor-academy-replacement.json")),true).view();
-                    context.setScreen(() -> new ScreenPoliticsChoice(replacement,parent));
+                    var replacement=new DialogPayloads.Show(Files.readString(Path.of(directory,"kor-academy-replacement.json")),true).view();
+                    context.setScreen(() -> new PoliticsChoice(replacement,parent));
                     context.getInput().setCursorPos(2400,1300);
                     context.waitTicks(3);
                     context.takeScreenshot("hoi-officer-academy-replacement-gui2");
-                    var tacticMenu=new ProtocolMenuPayloads.OpenScreen(Files.readString(Path.of(directory,"kor-tactic-menu.json"))).view();
-                    var requests=new ArrayList<ProtocolDialogPayloads.PoliticsOpen>();
-                    context.setScreen(() -> new ScreenMenu(tacticMenu,ProtocolMenuTab.OFFICER_CORPS,() -> {},requests::add));
+                    var tacticMenu=new MenuPayloads.OpenScreen(Files.readString(Path.of(directory,"kor-tactic-menu.json"))).view();
+                    var requests=new ArrayList<DialogPayloads.PoliticsOpen>();
+                    context.setScreen(() -> new ScreenMenu(tacticMenu,MenuTab.OFFICER_CORPS,() -> {},requests::add));
                     context.runOnClient(client -> {
                         var screen=(ScreenMenu)client.gui.screen();
                         var button=screen.children().stream().filter(c -> c instanceof AbstractWidget).map(c -> (AbstractWidget)c)
@@ -180,30 +184,30 @@ public final class ScreenOfficerSourceTest {
                         var click=new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2.0,button.getY()+button.getHeight()/2.0,
                                 new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));
                         screen.mouseClicked(click,false);
-                        if(requests.size()!=1 || !requests.getFirst().equals(new ProtocolDialogPayloads.PoliticsOpen("officer_preferred_tactic",0)))
+                        if(requests.size()!=1 || !requests.getFirst().equals(new DialogPayloads.PoliticsOpen("officer_preferred_tactic",0)))
                             throw new AssertionError("Preferred tactic button must issue its bounded source request");
                     });
-                    var tacticQuote=new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory,"kor-tactic-choices.json")),true).view();
-                    var tacticActions=new ArrayList<ProtocolDialogPayloads.Action>();var tacticIssued=tacticQuote.issued(UUID.randomUUID().toString(),3);
+                    var tacticQuote=new DialogPayloads.Show(Files.readString(Path.of(directory,"kor-tactic-choices.json")),true).view();
+                    var tacticActions=new ArrayList<DialogPayloads.Action>();var tacticIssued=tacticQuote.issued(UUID.randomUUID().toString(),3);
                     var tacticParent=context.computeOnClient(client -> client.gui.screen());
-                    context.setScreen(() -> new ScreenPreferredTactics(tacticIssued,tacticParent,tacticActions::add));
+                    context.setScreen(() -> new CommanderPreferredTactics(tacticIssued,tacticParent,tacticActions::add));
                     context.getInput().setCursorPos(2400,1300);context.waitTicks(3);context.takeScreenshot("hoi-officer-preferred-tactic-choices-gui2");
                     context.runOnClient(client -> {
-                        var screen=(ScreenPreferredTactics)client.gui.screen();
+                        var screen=(CommanderPreferredTactics)client.gui.screen();
                         var candidate=tacticIssued.choices().stream().filter(c -> c.id().equals("tactic_basic_attack")).findFirst().orElseThrow();
                         var button=screen.choiceButton(candidate.id());
                         var click=new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2.0,button.getY()+button.getHeight()/2.0,
                                 new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));
                         screen.mouseClicked(click,false);screen.mouseClicked(click,true);
-                        if(tacticActions.size()!=1 || !tacticActions.getFirst().equals(new ProtocolDialogPayloads.Action(tacticIssued.token(),3,"tactic_basic_attack")))
+                        if(tacticActions.size()!=1 || !tacticActions.getFirst().equals(new DialogPayloads.Action(tacticIssued.token(),3,"tactic_basic_attack")))
                             throw new AssertionError("Preferred tactic submits exactly one authoritative source choice");
                     });
-                    var selectedTactic=new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory,"kor-tactic-selected.json")),true).view();
-                    context.setScreen(() -> new ScreenPreferredTactics(selectedTactic,tacticParent));
+                    var selectedTactic=new DialogPayloads.Show(Files.readString(Path.of(directory,"kor-tactic-selected.json")),true).view();
+                    context.setScreen(() -> new CommanderPreferredTactics(selectedTactic,tacticParent));
                     context.getInput().setCursorPos(2400,1300);context.waitTicks(3);context.takeScreenshot("hoi-officer-preferred-tactic-selected-gui2");
                     for(int group=0;group<8;group++) {
-                        var groupQuote=new ProtocolDialogPayloads.Show(Files.readString(Path.of(directory,"kor-spirit-choices-"+group+".json")),true).view();
-                        context.setScreen(() -> new ScreenPoliticsChoice(groupQuote,parent));
+                        var groupQuote=new DialogPayloads.Show(Files.readString(Path.of(directory,"kor-spirit-choices-"+group+".json")),true).view();
+                        context.setScreen(() -> new PoliticsChoice(groupQuote,parent));
                         context.getInput().setCursorPos(2400,1300);
                         context.waitTicks(3);
                         context.takeScreenshot("hoi-officer-spirit-group-"+group+"-gui2");
@@ -216,7 +220,7 @@ public final class ScreenOfficerSourceTest {
                             context.getInput().setCursorPos(point[0]*2,point[1]*2);
                             context.waitTicks(6);
                             context.runOnClient(client->{
-                                var screen=(ScreenPoliticsChoice)client.gui.screen();var bounds=screen.tooltipBounds();
+                                var screen=(PoliticsChoice)client.gui.screen();var bounds=screen.tooltipBounds();
                                 if(bounds==null||bounds.x()-4<0||bounds.y()-4<0||bounds.x()+bounds.width()+4>screen.width||bounds.y()+bounds.height()+4>screen.height)
                                     throw new AssertionError("Selected and unavailable officer choices must retain visible source tooltips");
                             });

@@ -1,8 +1,8 @@
 package dev.hoi.client.research;
 
 import dev.hoi.client.ui.UiKeywordIcons;
+import dev.hoi.protocol.research.*;
 
-import dev.hoi.protocol.*;
 import java.util.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.ChatFormatting;
@@ -71,9 +71,9 @@ public final class ResearchTextChecks {
             for (String label : List.of("정비 인력", "조직력", "훈련 시간"))
                 color(ResearchText.effect(label + ": 100"), "100", ChatFormatting.WHITE);
         });
-        ProtocolResearchView source;
+        ResearchView source;
         try (var input = ResearchTextChecks.class.getResourceAsStream("/tfr-research-view.json")) {
-            source = new ProtocolResearchPayloads.Response(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).view();
+            source = new ResearchPayloads.Response(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).view();
         } catch (Exception e) { throw new AssertionError(e); }
         for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(2);
@@ -82,12 +82,12 @@ public final class ResearchTextChecks {
                 String name = id.endsWith("1") ? "K1 기관단총" : "K2 돌격소총";
                 String generic = id.endsWith("1") ? "냉전 이후 보병장비" : "현대 보병장비";
                 var s = original.source();
-                var tech = new ProtocolResearchView.Tech(original.id(), original.category(), name, 2025, original.tier(), original.baseDays(),
-                        0, 1, original.prerequisites(), original.effects(), original.unlocks(), ProtocolResearchView.Status.LOCKED,
-                        new ProtocolResearchView.Source(s.id(), s.folder(), s.x(), s.y(), s.vertical(), s.anyOf(), s.excludes(), s.conditions(),
+                var tech = new ResearchView.Tech(original.id(), original.category(), name, 2025, original.tier(), original.baseDays(),
+                        0, 1, original.prerequisites(), original.effects(), original.unlocks(), ResearchView.Status.LOCKED,
+                        new ResearchView.Source(s.id(), s.folder(), s.x(), s.y(), s.vertical(), s.anyOf(), s.excludes(), s.conditions(),
                                 s.unlockLabels(), s.description(), s.deferredEffects(), Map.of(generic, name)));
                 var techs = source.technologies().stream().map(t -> t.id().equals(tech.id()) ? tech : t).toList();
-                var view = new ProtocolResearchView(source.session(), source.revision(), source.country(), source.countryName(), 0,
+                var view = new ResearchView(source.session(), source.revision(), source.country(), source.countryName(), 0,
                         source.date(), source.speed(), source.slots(), techs, "", source.hud(), source.benefits());
                 context.setScreen(() -> new ResearchScreen(view, request -> {}));
                 context.runOnClient(client -> {
@@ -123,7 +123,7 @@ public final class ResearchTextChecks {
             final int half=index;
             double[] cursor=context.computeOnClient(client -> {
                 var screen=(ResearchScreen)client.gui.screen();
-                int pane=dev.hoi.client.ui.UiPanelLayout.width(dev.hoi.protocol.ProtocolMenuTab.RESEARCH,screen.width);
+                int pane=dev.hoi.client.ui.UiPanelLayout.width(dev.hoi.protocol.menu.MenuTab.RESEARCH,screen.width);
                 int top=dev.hoi.client.ui.UiMenuBar.height(screen.width);
                 int banner=Math.max(1,Math.min((pane-12)*138/532,screen.height-top-80-6*17));
                 return new double[]{(pane*(half==0?.25:.75))*client.getWindow().getGuiScale(),(top+72+banner-16)*client.getWindow().getGuiScale()};
@@ -134,11 +134,11 @@ public final class ResearchTextChecks {
         context.getInput().setCursorPos(1800,1000);
         for(var original:source.technologies()) {
             if(original.source()==null||original.source().parentTechnology().isEmpty())continue;
-            var child=new ProtocolResearchView.Tech(original.id(),original.category(),original.name(),original.year(),original.tier(),original.baseDays(),
-                    original.progress(),original.dailyRate(),original.prerequisites(),original.effects(),original.unlocks(),ProtocolResearchView.Status.AVAILABLE,original.source(),original.tooltipOnlyEffects());
+            var child=new ResearchView.Tech(original.id(),original.category(),original.name(),original.year(),original.tier(),original.baseDays(),
+                    original.progress(),original.dailyRate(),original.prerequisites(),original.effects(),original.unlocks(),ResearchView.Status.AVAILABLE,original.source(),original.tooltipOnlyEffects());
             var technologies=source.technologies().stream().map(t->t.id().equals(child.id())?child:t).toList();
-            var view=new ProtocolResearchView(source.session(),source.revision(),source.country(),source.countryName(),source.day(),source.date(),source.speed(),source.slots(),technologies,"",source.hud(),source.benefits());
-            var requests=new ArrayList<ProtocolResearchPayloads.Request>();
+            var view=new ResearchView(source.session(),source.revision(),source.country(),source.countryName(),source.day(),source.date(),source.speed(),source.slots(),technologies,"",source.hud(),source.benefits());
+            var requests=new ArrayList<ResearchPayloads.Request>();
             context.setScreen(()->new ResearchScreen(view,requests::add));
             context.runOnClient(client->{
                 var screen=(ResearchScreen)client.gui.screen();
@@ -159,7 +159,7 @@ public final class ResearchTextChecks {
                 var button=client.gui.screen().children().stream().filter(c->c instanceof net.minecraft.client.gui.components.Button b&&b.active&&b.getMessage().getString().equals("연구"))
                         .map(c->(net.minecraft.client.gui.components.Button)c).findFirst().orElseThrow();
                 button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
-                check(requests.size()==1&&requests.getFirst().action()==ProtocolResearchPayloads.Action.START&&requests.getFirst().technology().equals(child.id()),"Child button starts its own server research");
+                check(requests.size()==1&&requests.getFirst().action()==ResearchPayloads.Action.START&&requests.getFirst().technology().equals(child.id()),"Child button starts its own server research");
             });
         }
         for (String id : List.of("mechanised_infantry3", "dispersed_industry4", "basic_nanomachines", "tech_10000_qubit_computing")) {

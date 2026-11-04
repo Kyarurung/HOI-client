@@ -1,10 +1,11 @@
 package dev.hoi.client.map;
 
 import dev.hoi.client.input.InputSidebarMovement;
-import dev.hoi.client.screen.ScreenOccupation;
+import dev.hoi.client.screen.occupation.OccupationScreen;
 import dev.hoi.client.ui.*;
-import dev.hoi.protocol.ProtocolOccupation;
-import dev.hoi.protocol.ProtocolOccupation.*;
+import dev.hoi.protocol.occupation.OccupationPayloads;
+import dev.hoi.protocol.occupation.OccupationPayloads.*;
+import dev.hoi.client.map.scene.SceneRenderer;
 import net.fabricmc.fabric.api.client.networking.v1.*;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.*;
@@ -25,14 +26,14 @@ public final class MapOccupationHud {
     static String percentage(double fraction) {
         return java.math.BigDecimal.valueOf(fraction).movePointRight(2).setScale(2,java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()+"%";
     }
-    static void accept(MapView next) {view=next;age=0;hits=List.of();labels=List.of();if(next.rows().isEmpty())MapSceneRenderer.clearOccupation();}
+    static void accept(MapView next) {view=next;age=0;hits=List.of();labels=List.of();if(next.rows().isEmpty())SceneRenderer.clearOccupation();}
     private static MapView view;
     private static List<Hit> hits=List.of();
     private static int age;
     private MapOccupationHud(){}
     public static void register(){
-        ProtocolOccupation.registerPayloadTypes();
-        ClientPlayNetworking.registerGlobalReceiver(Response.TYPE,(p,c)->{if(c.client().gui.screen() instanceof ScreenOccupation screen)screen.update(p.view());});
+        OccupationPayloads.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(Response.TYPE,(p,c)->{if(c.client().gui.screen() instanceof OccupationScreen screen)screen.update(p.view());});
         ClientPlayNetworking.registerGlobalReceiver(MapResponse.TYPE,(p,c)->{accept(p.view());});
         ClientPlayConnectionEvents.DISCONNECT.register((h,c)->c.execute(MapOccupationHud::reset));
         ClientTickEvents.END_CLIENT_TICK.register(c->{if(++age>60&&view!=null)reset();});
@@ -42,9 +43,9 @@ public final class MapOccupationHud {
             ScreenEvents.afterExtract(s).register((a,g,mx,my,d)->{if(mx>=left())tooltip(g,mx,my);});
         }});
     }
-    public static void open(){var screen=new ScreenOccupation();Minecraft.getInstance().gui.setScreen(screen);screen.open();}
+    public static void open(){var screen=new OccupationScreen();Minecraft.getInstance().gui.setScreen(screen);screen.open();}
     private static int left(){return Minecraft.getInstance().gui.screen() instanceof InputSidebarMovement.InputMovementScreen s?s.unitHudLeft():Integer.MAX_VALUE;}
-    static void reset(){MapSceneRenderer.clearOccupation();view=null;hits=List.of();labels=List.of();age=0;}
+    static void reset(){SceneRenderer.clearOccupation();view=null;hits=List.of();labels=List.of();age=0;}
     private static void draw(GuiGraphicsExtractor g,int left){
         hits=List.of();labels=List.of();var c=Minecraft.getInstance();
         if(view==null||c.level==null||c.gui.hud.isHidden()||!view.dimension().equals(c.level.dimension().identifier().toString()))return;
@@ -72,7 +73,7 @@ public final class MapOccupationHud {
             placed.add(position);
             int start=x-effects.size()*9;
             for(int i=0;i<effects.size();i++){var e=effects.get(i);int ex=start+i*18;UiAssets.drawContent(g,e.icon(),ex,y-21,17,17);result.add(new Hit(ex,y-21,17,17,e.tooltip()));}
-            UiText.centered(g,c.font,value,x-numberWidth/2,y-2,numberWidth,12,view.compliance()?ProtocolOccupation.COMPLIANCE_COLOR:ProtocolOccupation.RESISTANCE_COLOR);
+            UiText.centered(g,c.font,value,x-numberWidth/2,y-2,numberWidth,12,view.compliance()?OccupationPayloads.COMPLIANCE_COLOR:OccupationPayloads.RESISTANCE_COLOR);
             result.add(new Hit(x-numberWidth/2,y-3,numberWidth,14,"§e"+row.name()+"§r\n\n"+(view.compliance()?row.complianceTooltip():row.resistanceTooltip())));
         }
         hits=List.copyOf(result);labels=List.copyOf(placed);

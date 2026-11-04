@@ -1,19 +1,19 @@
 ext.hoiRendererFixtureGroups = [
     designTeam: [
         environment: 'HOI_DESIGN_TEAM_PREVIEW', property: 'hoi.commandFixtureOutput',
-        producers: ['dev.hoi.fabric.FabricDesignVariantTeamsTest', 'dev.hoi.fabric.FabricOperativeCandidatesTest', 'dev.hoi.fabric.research.ResearchSlotDesignTeamFixtureTest'],
+        producers: ['dev.hoi.fabric.industry.IndustryDesignVariantTeamsTest', 'dev.hoi.fabric.agency.AgencyOperativeCandidatesTest', 'dev.hoi.fabric.research.ResearchSlotDesignTeamFixtureTest'],
         fixtures: ['kor-designer-mio-unassigned', 'kor-designer-mio-assigned', 'kor-designer-mio-outdated', 'prc-agency-recruit-candidates', 'prc-research-slot-design-team', 'research-year-4-51', 'research-year-4-00'],
         suites: ['all', 'design-team-candidates']
     ],
     leaderEvent: [
         environment: 'HOI_LEADER_EVENT_PREVIEW', property: 'hoiLeaderEventPreview',
-        producers: ['dev.hoi.fabric.FabricPresentationViewsTest'],
+        producers: ['dev.hoi.fabric.dialog.DialogPresentationViewsTest'],
         fixtures: ['china-705', 'china-182', 'event-korea-21', 'event-korea-504', 'event-china-98', 'event-korea-356', 'news-turkey-2'],
         suites: ['all', 'leader-event', 'event-tooltips']
     ],
     politicsChoice: [
         environment: 'HOI_POLITICS_CHOICE_PREVIEW', property: 'hoiPoliticsChoicePreview',
-        producers: ['dev.hoi.fabric.FabricPoliticsChoiceFixturesTest'],
+        producers: ['dev.hoi.fabric.politics.PoliticsChoiceFixturesTest'],
         fixtures: ['prc-menu', 'army_chief-ready', 'army_chief-poor', 'navy_chief-ready', 'navy_chief-poor',
                    'air_chief-ready', 'air_chief-poor', 'high_command-ready', 'high_command-poor',
                    'law-ready', 'law-poor', 'minister-ready', 'minister-poor', 'foreign-ready', 'foreign-poor',
@@ -23,7 +23,7 @@ ext.hoiRendererFixtureGroups = [
     ],
     decisions: [
         environment: 'HOI_DECISION_PREVIEW', property: 'hoiDecisionPreview',
-        producers: ['dev.hoi.fabric.FabricDecisionPresentationTest'],
+        producers: ['dev.hoi.fabric.decision.DecisionPresentationTest'],
         fixtures: [
             'kor-pages', 'kor-metadata', 'jap-pages', 'jap-metadata', 'kor-economic-crisis-pages', 'kor-economic-crisis-metadata',
             'prc-pages', 'prc-metadata', 'prc-active-pages', 'prc-active-metadata',
@@ -37,38 +37,38 @@ ext.hoiRendererFixtureGroups = [
     ],
     diplomacyLease: [
         environment: 'HOI_LEASE_PREVIEW', property: 'hoiLeasePreview',
-        producers: ['dev.hoi.fabric.FabricDiplomacyLeaseRenderFixtureTest'],
+        producers: ['dev.hoi.fabric.diplomacy.DiplomacyLeaseRenderFixtureTest'],
         fixtures: ['empty', 'once', 'monthly', 'multiple', 'fixture-source'],
         suites: ['all', 'diplomacy']
     ],
     diplomacyVolunteers: [
         environment: 'HOI_VOLUNTEER_PREVIEW', property: 'hoiVolunteerPreview',
-        producers: ['dev.hoi.fabric.FabricDiplomacyVolunteerSessionsTest'],
+        producers: ['dev.hoi.fabric.diplomacy.DiplomacyVolunteerSessionsTest'],
         fixtures: ['unselected', 'selected', 'multiple-selected', 'air-disabled'],
         suites: ['all', 'diplomacy']
     ],
     captivity: [
         environment: 'HOI_CAPTIVITY_PREVIEW', property: 'hoiCaptivityPreview',
-        producers: ['dev.hoi.fabric.FabricCommanderCaptivityViewsTest'],
+        producers: ['dev.hoi.fabric.commander.CommanderCaptivityViewsTest'],
         fixtures: ['captivity-empty', 'captivity-ours', 'captivity-search', 'captivity-no-results', 'captivity-theirs', 'captivity-failure'],
         suites: ['all', 'captivity']
     ],
     headquarters: [
         environment: 'HOI_HEADQUARTERS_PREVIEW', property: 'hoiHeadquartersPreview',
-        producers: ['dev.hoi.fabric.FabricArmyHeadquartersDesignsTest'],
+        producers: ['dev.hoi.fabric.army.ArmyHeadquartersDesignsTest'],
         fixtures: ['headquarters-list', 'headquarters-draft', 'headquarters-saved', 'headquarters-preview', 'headquarters-conflict'],
         suites: ['all', 'headquarters', 'captivity']
     ],
     completion: [
         environment: 'HOI_COMPLETION_PREVIEW', property: 'hoi.commandFixtureOutput',
-        producers: ['dev.hoi.fabric.FabricCompletionProgressTest'],
+        producers: ['dev.hoi.fabric.dialog.DialogCompletionProgressTest'],
         fixtures: ['kor-research-complete-design-team', 'kor-research-complete-no-design-team', 'prc-agency-upgrade-complete',
                    'kor-doctrine-reward-notification', 'kor-doctrine-milestone-notification'],
         suites: ['all', 'industry', 'completion-design-team', 'doctrine-notifications']
     ],
     tactics: [
         environment: 'HOI_TACTIC_PREVIEW', property: 'hoiTacticPreview',
-        producers: ['dev.hoi.fabric.FabricLeaderTacticOffersTest'],
+        producers: ['dev.hoi.fabric.commander.CommanderLeaderTacticOffersTest'],
         fixtures: [
             'national-tactic-choices', 'national-tactic-insufficient', 'leader-tactic-choices',
             'leader-tactic-low-skill', 'leader-tactic-low-skill-trait-tree',
@@ -79,8 +79,8 @@ ext.hoiRendererFixtureGroups = [
     doctrine: [
         environment: 'HOI_DOCTRINE_PREVIEW', property: 'hoiDoctrinePreview',
         producers: [
-            'dev.hoi.fabric.FabricDoctrineSessionsTest', 'dev.hoi.fabric.FabricDoctrineNativeMasteryTest',
-            'dev.hoi.fabric.FabricGrandSwitchMasteryResetTest'
+            'dev.hoi.fabric.doctrine.DoctrineSessionsTest', 'dev.hoi.fabric.doctrine.DoctrineNativeMasteryTest',
+            'dev.hoi.fabric.doctrine.DoctrineGrandSwitchMasteryResetTest'
         ],
         fixtures: [
             'doctrine-land-empty', 'doctrine-land-selected', 'doctrine-air-empty',
@@ -92,14 +92,14 @@ ext.hoiRendererFixtureGroups = [
     armyHud: [
         environment: 'HOI_COMMANDER_PREVIEW', property: 'hoi.commandFixtureOutput',
         producers: [
-            'dev.hoi.fabric.FabricLeaderButtonsTest', 'dev.hoi.fabric.FabricCommanderAdvisorSessionsTest', 'dev.hoi.fabric.FabricAdmiralOffersTest',
-            'dev.hoi.fabric.FabricCommanderHudDetailsTest', 'dev.hoi.fabric.FabricCommanderDialogSessionsTest',
-            'dev.hoi.fabric.FabricArmyGroupSessionsTest',
-            'dev.hoi.fabric.FabricAirAdministrationOffersTest', 'dev.hoi.fabric.FabricAirDeterminateStateTest',
-            'dev.hoi.fabric.FabricArmyCohesionOffersTest', 'dev.hoi.fabric.FabricNavalConvoyTargetOffersTest',
-            'dev.hoi.fabric.FabricAirArmyFollowingTest', 'dev.hoi.fabric.FabricCommanderOrderSessionsTest',
-            'dev.hoi.fabric.FabricArmyAbilityOffersTest', 'dev.hoi.fabric.FabricNavalHudTest',
-            'dev.hoi.fabric.FabricNavalAirTheatersTest', 'dev.hoi.fabric.FabricMissionWaitingFixturesTest', 'dev.hoi.fabric.FabricNavalRightClickTest'
+            'dev.hoi.fabric.commander.CommanderLeaderButtonsTest', 'dev.hoi.fabric.commander.CommanderAdvisorSessionsTest', 'dev.hoi.fabric.commander.CommanderAdmiralOffersTest',
+            'dev.hoi.fabric.commander.CommanderHudDetailsTest', 'dev.hoi.fabric.commander.CommanderDialogSessionsTest',
+            'dev.hoi.fabric.army.ArmyGroupSessionsTest',
+            'dev.hoi.fabric.air.AirAdministrationOffersTest', 'dev.hoi.fabric.air.AirDeterminateStateTest',
+            'dev.hoi.fabric.army.ArmyCohesionOffersTest', 'dev.hoi.fabric.naval.NavalConvoyTargetOffersTest',
+            'dev.hoi.fabric.air.AirArmyFollowingTest', 'dev.hoi.fabric.commander.CommanderOrderSessionsTest',
+            'dev.hoi.fabric.army.ArmyAbilityOffersTest', 'dev.hoi.fabric.naval.NavalHudTest',
+            'dev.hoi.fabric.naval.NavalAirTheatersTest', 'dev.hoi.fabric.commander.CommanderMissionWaitingFixturesTest', 'dev.hoi.fabric.naval.NavalRightClickTest'
         ],
         fixtures: [
             'kor-promote-confirm', 'kor-army-appointment-advisors', 'kor-army-group-marshal', 'kor-navy-admirals-source',
@@ -127,13 +127,13 @@ ext.hoiRendererFixtureGroups = [
     ],
     mapOrders: [
         environment: 'HOI_COMMANDER_PREVIEW', property: 'hoi.commandFixtureOutput',
-        producers: ['dev.hoi.fabric.FabricCommanderHudDetailsTest'],
+        producers: ['dev.hoi.fabric.commander.CommanderHudDetailsTest'],
         fixtures: ['kor-command-panel-army', 'kor-command-panel-navy', 'kor-command-panel-air'],
         suites: ['map-orders', 'air-range', 'naval-invasion-map']
     ],
     missionOverlay: [
         environment: 'HOI_MISSION_OVERLAY_FIXTURES', property: 'hoi.missionOverlayFixtureOutput',
-        producers: ['dev.hoi.map.MapMovementOverlayTest', 'dev.hoi.map.MapAirMissionOverlayTest'],
+        producers: ['dev.hoi.map.unit.UnitMovementOverlayTest', 'dev.hoi.map.unit.UnitAirMissionOverlayTest'],
         fixtures: ['army', 'air-arrows', 'navy', 'army-strategic', 'navy-mission', 'air-transfer', 'army-retreat-manual', 'army-retreat-forced', 'army-sea-transfer'],
         suites: ['movement-controls', 'mission-overlays']
     ]

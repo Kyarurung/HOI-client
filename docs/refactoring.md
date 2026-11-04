@@ -4,13 +4,13 @@
 
 ## 책임과 이름
 
-`client`는 초기화와 캠페인 HUD 수명, `network`는 요청·응답과 늦은 응답 폐기, `input`은 입력 소유권, `map`은 장면·메시·부대 표시, `research`는 연구 배치·상세·조회, `screen`은 화면과 해당 화면의 순수 계산, `ui`는 공용 셀·글꼴·툴팁·아트, `audio`는 음악·효과음 수명을 맡는다. 이 경계를 유지하고 타입 이름은 패키지 마지막 부분의 PascalCase 접두어와 책임 단어 최대 두 개로 맞췄다. 테스트는 해당 이름에 `Test` 또는 `Checks`를 붙인다. 예를 들어 `map.MapSceneMesh`, `screen.ScreenIndustry`, `ui.UiFlagStack`이다.
+`client`는 초기화와 캠페인 HUD 수명, `network`는 요청·응답과 늦은 응답 폐기, `input`은 입력 소유권, `map`은 장면·메시·부대 표시, `research`는 연구 배치·상세·조회, `screen`은 화면과 해당 화면의 순수 계산, `ui`는 공용 셀·글꼴·툴팁·아트, `audio`는 음악·효과음 수명을 맡는다. `map`과 `screen`에는 공통 클래스만 두고 기능별 클래스는 하위 패키지에 둔다: `map.agency`, `map.commander`, `map.air`, `map.naval`, `map.scene`과 `screen.agency`, `screen.raid`, `screen.commander`, `screen.army`, `screen.map`, `screen.industry`, `screen.diplomacy`, `screen.occupation`, `screen.politics`, `screen.decision`, `screen.focus`, `screen.doctrine`, `screen.dialog`. 공용 그리기 도구인 `ui`, 연구 화면 하나인 `research`, Mixin 설정이 가리키는 `mixin`은 나누지 않는다. 타입 이름은 패키지 마지막 부분의 PascalCase 접두어와 책임 단어로 맞추고, 접두어만 남는 화면 클래스에는 `Screen`을 붙인다. 테스트는 대상 클래스와 같은 패키지에 두고 해당 이름에 `Test` 또는 `Checks`를 붙인다. 예를 들어 `map.scene.SceneMesh`, `screen.industry.IndustryScreen`, `ui.UiFlagStack`이다. [패키지 분류 대응표](package-split-mapping.tsv)는 이 분류로 바뀐 이름과 경로를 기록한다.
 
-Fabric 초기화 진입점 `HoiClient`는 유지한다. 렌더링 검증 진입점은 `ResearchScreenTest`로 등록하며, GameTest 구현도 클래스명은 Test로 끝난다. `FabricClientGameTest` 인터페이스와 실행 태스크는 유지한다. 공유 `protocol`의 기존 공개 DTO·중첩 타입은 두 배포물의 소스 API이므로 이름을 유지한다. 내부 JSON 해석기는 `ProtocolJsonCodec`, 새 공용 형식은 `ProtocolNumberBounds`와 `ProtocolTextBounds`다. mixin 타입 이름과 JSON 등록을 함께 바꿨으며 Minecraft 대상 메서드·접근자 시그니처는 유지한다. 통신·저장·명령·콘텐츠 ID는 변경하지 않는다.
+Fabric 초기화 진입점 `HoiClient`는 유지한다. 렌더링 검증 진입점은 `ResearchScreenTest`로 등록하며, GameTest 구현도 클래스명은 Test로 끝난다. `FabricClientGameTest` 인터페이스와 실행 태스크는 유지한다. 공유 `protocol`은 HOI와 함께 화면별 하위 패키지로 나누고 최상위 타입 이름을 바꿨다. 중첩 DTO·enum 이름과 페이로드 ID는 유지한다. 내부 JSON 해석기는 `ProtocolJsonCodec`, 새 공용 형식은 `ProtocolNumberBounds`와 `ProtocolTextBounds`다. mixin 타입 이름과 JSON 등록을 함께 바꿨으며 Minecraft 대상 메서드·접근자 시그니처는 유지한다. 통신·저장·명령·콘텐츠 ID는 변경하지 않는다.
 
-[타입·경로 대응표](type-renames.json)는 클라이언트 최상위 타입/파일 95개, 클래스별 내부 이름 대응 및 공용 내부 타입·테스트 4개의 변경을 보관한다. [클래스 검토 목록](code-review.csv)은 파일·타입·책임·의존성·검증 근거·결정·이름 예외를 기록한다. 파일은 main 78개, test 13개, gametest 25개, benchmark 2개이며 내부 선언을 포함한 타입은 각각 116·14·27·4개다. protocol 검토는 HOI의 공유 프로토콜 범위에 속한다.
+패키지 분류 전 기록인 [타입·경로 대응표](type-renames.json)는 클라이언트 최상위 타입/파일 95개, 클래스별 내부 이름 대응 및 공용 내부 타입·테스트 4개의 변경을 보관한다. [클래스 검토 목록](code-review.csv)은 파일·타입·책임·의존성·검증 근거·결정·이름 예외를 기록한다. 파일은 main 78개, test 13개, gametest 25개, benchmark 2개이며 내부 선언을 포함한 타입은 각각 116·14·27·4개다. protocol 검토는 HOI의 공유 프로토콜 범위에 속한다.
 
-main 77개 파일과 모든 JUnit·GameTest·benchmark 파일은 메서드 본문까지 검토했다. `ResearchSourcePlacements`는 데이터 구조와 입출력을 검토했으며 고정 좌표 하나하나를 TFR 원본과 다시 대조하지 않았다. 전체 161개 타입 가운데 160개는 본문을 검토했고 이 좌표 데이터 타입 1개는 데이터 구조 검토로 표시한다. 고정 fixture와 원본 자료의 전체 재대조는 제외한다. `ScreenCountryChecks`의 선택적 정치 원본 분기는 본문 검토와 런타임 실행을 구분하며 이번 검증에서는 실행하지 않았다. CSV의 검토 상태는 테스트 통과 여부와 구분한다.
+main 77개 파일과 모든 JUnit·GameTest·benchmark 파일은 메서드 본문까지 검토했다. `ResearchSourcePlacements`는 데이터 구조와 입출력을 검토했으며 고정 좌표 하나하나를 TFR 원본과 다시 대조하지 않았다. 전체 161개 타입 가운데 160개는 본문을 검토했고 이 좌표 데이터 타입 1개는 데이터 구조 검토로 표시한다. 고정 fixture와 원본 자료의 전체 재대조는 제외한다. `DiplomacyCountryScreenChecks`의 선택적 정치 원본 분기는 본문 검토와 런타임 실행을 구분하며 이번 검증에서는 실행하지 않았다. CSV의 검토 상태는 테스트 통과 여부와 구분한다.
 
 ## 공통화와 계산 경계
 
@@ -18,7 +18,7 @@ main 77개 파일과 모든 JUnit·GameTest·benchmark 파일은 메서드 본�
 
 `UiText.ellipsize`는 기관·국가·대화·메뉴 화면에 중복됐던 픽셀 폭 제한을 처리한다. 기존 네 화면의 9px 말줄임 여백은 유지한다. 연구 화면의 실제 glyph 폭 기준은 별도 계약이다. GUI2의 기존 셀 정렬, 강조색, 툴팁 문단과 원본 아이콘을 유지한다.
 
-`ScreenTradeAmounts`는 산업 화면에서 무역 수량, 공장 단위의 슬라이더 왕복, 수송선 표기를 분리했다. 서버 무역 규칙을 새로 계산하지 않고 기존 UI 계산을 옮겼다. JUnit은 자원량 1..128의 모든 공장 단계, 마지막 부분 수입, 범위 제한, 기존 수입 교체와 값 부재를 검사한다. 산업 화면의 사용처 없는 메서드 세 개를 제거했다. 산업 화면은 여전히 여러 화면 모드와 설계 흐름을 조정한다. 추가 렌더 분리는 개별 동작과 검증 단위를 정해 진행할 유지보수 후보다.
+`IndustryTradeAmounts`는 산업 화면에서 무역 수량, 공장 단위의 슬라이더 왕복, 수송선 표기를 분리했다. 서버 무역 규칙을 새로 계산하지 않고 기존 UI 계산을 옮겼다. JUnit은 자원량 1..128의 모든 공장 단계, 마지막 부분 수입, 범위 제한, 기존 수입 교체와 값 부재를 검사한다. 산업 화면의 사용처 없는 메서드 세 개를 제거했다. 산업 화면은 여전히 여러 화면 모드와 설계 흐름을 조정한다. 추가 렌더 분리는 개별 동작과 검증 단위를 정해 진행할 유지보수 후보다.
 
 ## 반복 비용과 측정
 
@@ -26,7 +26,7 @@ main 77개 파일과 모든 JUnit·GameTest·benchmark 파일은 메서드 본�
 
 `ResearchDetails`는 자원 로딩 시 장비 ID 색인을 만들고 상세 캐시와 함께 폐기한다. 반복 조회는 카드 전체 순회에서 기대 O(1)로 바뀌고 추가 메모리는 카드 수에 비례한다. 첫 항목 우선 규칙, 4 MB 입력 제한, 최대 512개 기술·기술당 64개 카드 제한을 유지한다. 렌더링 검사는 모든 카드 조회와 누락/null 조회, 캐시 재로딩을 검사한다. `ResearchLayout.yearGuides`는 반복하던 방향 판정을 한 번만 한다.
 
-`MapSceneMesh`는 변하지 않는 면 좌표를 공유하고 박스마다 sin/cos를 한 번 계산한다. 메시 크기에 비례하는 시간·공간 복잡도는 동일하며 셀 색인·가시 범위·좌표·UV·법선·면 순서를 보존한다. `MapMeshBaseline`은 변경 전 구현을 benchmark 소스셋에 남겨 모든 재질·회전의 float 배열, 타일 경계, 도시, 셀 색인과 큰 메시를 완전히 비교한다. 일반 배포 JAR에는 benchmark가 포함되지 않는다.
+`SceneMesh`는 변하지 않는 면 좌표를 공유하고 박스마다 sin/cos를 한 번 계산한다. 메시 크기에 비례하는 시간·공간 복잡도는 동일하며 셀 색인·가시 범위·좌표·UV·법선·면 순서를 보존한다. `SceneMeshBaseline`은 변경 전 구현을 benchmark 소스셋에 남겨 모든 재질·회전의 float 배열, 타일 경계, 도시, 셀 색인과 큰 메시를 완전히 비교한다. 일반 배포 JAR에는 benchmark가 포함되지 않는다.
 
 Java 25.0.2, Windows 11 amd64, 1 GB heap, warmup 10회, 교차 실행 15회 중앙값이다. 다른 성능 작업이 끝난 뒤 측정했다. 할당량은 현재 스레드의 `ThreadMXBean` 바이트 수이며 렌더 프레임률이나 전체 프로세스 메모리가 아니다.
 
@@ -64,13 +64,13 @@ $env:JAVA_HOME = 'C:\Program Files\Java\jdk-25.0.2'
 | `0298_hoi-map-detail-3-2560-gui2.png` | (0, 520, 620, 1440) | 0 |
 | `0409_hoi-menu-politics-gui2.png` | (0, 70, 726, 1440) | 0 |
 
-캡처는 `client/build/run/clientGameTest-runs/<실행 ID>/screenshots`에 생성되며 실행별로 보존되는 로컬 산출물이다. 위 픽셀 비교 결과와 검증 범위는 이 문서에 보존한다. 임시 캡처 사본·JUnit XML·로그·해시 목록은 정리했다. 당시 검증한 `build/libs/hoi-client-0.1.0-SNAPSHOT.jar`는 837,034바이트이며 SHA-256은 `fdd3630b04722f125113fffc9b4576e8ea48193ec92e3e8b30b4d933a63f1bbe`다. Fabric 진입점, 이름을 바꾼 mixin 8개와 중첩 protocol JAR를 확인했다. 이전 타입, benchmark 클래스와 정적 텍스처는 배포 JAR에 없다. protocol main 소스는 HOI와 바이트 단위로 같으며, 기존 `ProtocolMenuViewTest`의 저장소별 추가 검사는 그대로 유지한다.
+캡처는 `client/build/run/clientGameTest-runs/<실행 ID>/screenshots`에 생성되며 실행별로 보존되는 로컬 산출물이다. 위 픽셀 비교 결과와 검증 범위는 이 문서에 보존한다. 임시 캡처 사본·JUnit XML·로그·해시 목록은 정리했다. 당시 검증한 `build/libs/hoi-client-0.1.0-SNAPSHOT.jar`는 837,034바이트이며 SHA-256은 `fdd3630b04722f125113fffc9b4576e8ea48193ec92e3e8b30b4d933a63f1bbe`다. Fabric 진입점, 이름을 바꾼 mixin 8개와 중첩 protocol JAR를 확인했다. 이전 타입, benchmark 클래스와 정적 텍스처는 배포 JAR에 없다. protocol main 소스는 HOI와 바이트 단위로 같으며, 기존 `MenuViewTest`의 저장소별 추가 검사는 그대로 유지한다.
 
-CodeGraph는 소스 변경 후 동기화했고 `ScreenTradeAmounts` 관계를 실제 소스와 대조했다. `git diff --check`는 통과했다. RTK 결과의 대량 삭제 표시는 아직 stage하지 않은 파일 이름 변경의 한쪽만 포함하므로 코드 축소량으로 사용하지 않는다.
+CodeGraph는 소스 변경 후 동기화했고 `IndustryTradeAmounts` 관계를 실제 소스와 대조했다. `git diff --check`는 통과했다. RTK 결과의 대량 삭제 표시는 아직 stage하지 않은 파일 이름 변경의 한쪽만 포함하므로 코드 축소량으로 사용하지 않는다.
 
 ## Shared protocol responsibility names
 
-All shared top-level protocol types now use the `Protocol` package prefix followed by their feature and responsibility, such as `ProtocolResearchPayloads` and `ProtocolIndustryView`. The server and client use the same 33 source files. Existing payload channel IDs, JSON fields, enum values, and wire versions remain unchanged; Java consumers must rebuild against the renamed types. Client screen layouts and interaction rules were not changed by this rename.
+All shared top-level protocol types now use the `Protocol` package prefix followed by their feature and responsibility, such as `ResearchPayloads` and `IndustryView`. The server and client use the same 33 source files. Existing payload channel IDs, JSON fields, enum values, and wire versions remain unchanged; Java consumers must rebuild against the renamed types. Client screen layouts and interaction rules were not changed by this rename.
 
 Validation used Java 25.0.2 and `.\gradlew.bat test runGameTest remapJar --console=plain --no-daemon` after rebuilding HOI-resourcepack. The command succeeded in 7m 41s: 58 client unit tests and 39 protocol unit tests passed without skips or failures. The renderer run generated 659 captures, including 422 with GUI2 in their names. These are automated fixture rendering checks, not a live multiplayer synchronization test or a new pixel-by-pixel comparison against every original screenshot.
 

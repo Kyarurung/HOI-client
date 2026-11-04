@@ -1,15 +1,15 @@
 package dev.hoi.client.ui;
 
-import dev.hoi.protocol.ProtocolCountryDisplay;
+import dev.hoi.protocol.country.CountryDisplay;
 import java.util.List;
 
 public final class UiCountryDisplay {
-    private static ProtocolCountryDisplay.Table table = new ProtocolCountryDisplay.Table(List.of());
+    private static CountryDisplay.Table table = new CountryDisplay.Table(List.of());
     private UiCountryDisplay() {}
-    public static void accept(ProtocolCountryDisplay.Table next) { table = next; }
-    public static void clear() { table = new ProtocolCountryDisplay.Table(List.of()); }
+    public static void accept(CountryDisplay.Table next) { table = next; }
+    public static void clear() { table = new CountryDisplay.Table(List.of()); }
     public static String name(String country, String fallback) {
-        return table.country(country).map(ProtocolCountryDisplay.Entry::name).orElse(fallback);
+        return table.country(country).map(CountryDisplay.Entry::name).orElse(fallback);
     }
     public static String flag(String country) {
         if (country == null || country.isBlank()) return "";

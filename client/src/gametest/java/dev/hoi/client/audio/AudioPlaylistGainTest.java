@@ -20,7 +20,7 @@ public final class AudioPlaylistGainTest {
                 client.options.getSoundSourceOptionInstance(SoundSource.MASTER).set(.4);
                 client.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(0.0);
             });
-            dev.hoi.client.screen.ScreenDialogVolumeTest.run(context);
+            dev.hoi.client.screen.dialog.DialogScreenVolumeTest.run(context);
             context.runOnClient(client -> {
                 AudioKoreanMusic.volume(.35);
                 AudioUiSounds.reset();

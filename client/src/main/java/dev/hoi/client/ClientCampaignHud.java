@@ -1,8 +1,8 @@
 package dev.hoi.client;
 
 import dev.hoi.client.ui.UiMenuBar;
-import dev.hoi.protocol.ProtocolCountryHud;
-import dev.hoi.protocol.ProtocolHudPayloads;
+import dev.hoi.protocol.country.CountryHud;
+import dev.hoi.protocol.hud.HudPayloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -12,9 +12,9 @@ import net.minecraft.resources.Identifier;
 
 public final class ClientCampaignHud {
     private static String country = "";
-    private static ProtocolCountryHud hud = ProtocolCountryHud.UNKNOWN;
+    private static CountryHud hud = CountryHud.UNKNOWN;
     private ClientCampaignHud() {}
-    public static void accept(ProtocolHudPayloads.State state) {
+    public static void accept(HudPayloads.State state) {
         var next = state.hud();
         if(!state.country().isEmpty()&&!state.country().equals(country))dev.hoi.client.audio.AudioKoreanMusic.enable();
         country = state.country(); hud = next;
@@ -23,15 +23,15 @@ public final class ClientCampaignHud {
         if (visible()) UiMenuBar.drawPassive(g, g.guiWidth(), hud, country);
     }
     public static String country() { return country; }
-    public static ProtocolCountryHud hud() { return hud; }
+    public static CountryHud hud() { return hud; }
     public static boolean visible() { return !country.isEmpty(); }
     public static void register() {
-        ProtocolHudPayloads.registerPayloadTypes();
-        ClientPlayNetworking.registerGlobalReceiver(ProtocolHudPayloads.State.TYPE, (packet, context) -> {
+        HudPayloads.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(HudPayloads.State.TYPE, (packet, context) -> {
             try { accept(packet); }
-            catch (IllegalArgumentException error) { accept(ProtocolHudPayloads.State.HIDDEN); }
+            catch (IllegalArgumentException error) { accept(HudPayloads.State.HIDDEN); }
         });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> accept(ProtocolHudPayloads.State.HIDDEN)));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> accept(HudPayloads.State.HIDDEN)));
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR, Identifier.fromNamespaceAndPath("hoi", "country_hud"), (g, delta) -> {
             var client = Minecraft.getInstance();
             if (visible() && client.level != null && client.gui.screen() == null)

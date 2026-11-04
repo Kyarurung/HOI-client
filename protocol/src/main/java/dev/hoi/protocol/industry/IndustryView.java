@@ -1,0 +1,420 @@
+package dev.hoi.protocol.industry;
+
+import dev.hoi.protocol.commander.CommanderArmyHeadquarters;
+import dev.hoi.protocol.commander.CommanderCaptivityView;
+import dev.hoi.protocol.country.CountryHud;
+import dev.hoi.protocol.menu.MenuView;
+import java.util.*;
+
+public record IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner, NavalDeployment navalDeployment, CommanderArmyHeadquarters headquarters, CommanderCaptivityView captivity) {
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner, NavalDeployment navalDeployment, CommanderArmyHeadquarters headquarters) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,null);
+    }
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner, NavalDeployment navalDeployment) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,null);
+    }
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,null);
+    }
+    public IndustryView withNavalDeployment(NavalDeployment deployment) {
+        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,deployment,headquarters,captivity);
+    }
+    public IndustryView withHeadquarters(CommanderArmyHeadquarters value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,value,captivity);}
+    public IndustryView withCaptivity(CommanderCaptivityView value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,value);}
+    public IndustryView withEquipment(List<Equipment> value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,value,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity);}
+    public record NavalTarget(String id,String name,String port,int level,int ships) {
+        public NavalTarget {text(id,128);text(name,256);text(port,128);if(level<0||ships<0)throw new IllegalArgumentException("Invalid naval destination");}
+        public boolean fleet(){return id.startsWith("fleet/");}
+    }
+    public record NavalDeployment(List<Choice> ports, Map<String,String> waiting,Map<String,String> destinations,List<NavalTarget> targets) {
+        public NavalDeployment(List<Choice> ports,Map<String,String> waiting,Map<String,String> destinations){this(ports,waiting,destinations,ports.stream().map(p->new NavalTarget(p.id(),p.name(),p.id(),0,0)).toList());}
+        public NavalDeployment {
+            ports=bounded(ports,2048);
+            targets=targets==null?List.of():bounded(targets,4096);
+            waiting=waiting==null?Map.of():Map.copyOf(waiting);
+            destinations=destinations==null?Map.of():Map.copyOf(destinations);
+            if(destinations.size()>512||waiting.size()>512)throw new IllegalArgumentException("Too many naval lines");
+            destinations.forEach((line,port)->{text(line,128);text(port,128);});
+            waiting.forEach((line,reason)->{text(line,128);if(!Set.of("PRODUCTION_CAN_NOT_DEPLOY_MANPOWER","PRODUCTION_NAVAL_DEPLOYMENT_INVALID_BASE","PRODUCTION_CAN_NOT_DEPLOY").contains(reason))throw new IllegalArgumentException("Invalid naval deployment status");});
+        }
+    }
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,null);
+    }
+    public IndustryView withTankDesigner(IndustryTankDesigner designer) {
+        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer,navalDeployment,headquarters,captivity);
+    }
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,null);
+    }
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+            List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+            List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+            List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+            Template draft, String message) {
+        this(session, revision, country, hud, economy, resources, modifiers, equipment, lines, partners, trades,
+                templates, battalions, companies, locations, recruits, deployed, draft, message, null);
+    }
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+            List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+            List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+            List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+            Template draft, String message, NavalRepairs navalRepairs) {
+        this(session, revision, country, hud, economy, resources, modifiers, equipment, lines, partners, trades,
+                templates, battalions, companies, locations, recruits, deployed, draft, message, navalRepairs, null);
+    }
+    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds, Double minimumTraining, Map<String,Double> equipmentRatios, Map<String,String> equipmentTooltips) {
+        public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds,Double minimumTraining,Map<String,Double> equipmentRatios) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,minimumTraining,equipmentRatios,Map.of());}
+        public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds,Double minimumTraining) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,minimumTraining,Map.of());}
+        public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,null);}
+        public RecruitmentPolicy {
+            equipmentRatios=equipmentRatios==null?Map.of():boundedMap(equipmentRatios,6);equipmentTooltips=equipmentTooltips==null?Map.of():boundedMap(equipmentTooltips,6);
+            if(!Set.of("reinforcement","upgrade","supply","operation","garrison","raid").containsAll(equipmentRatios.keySet())
+                    ||!Set.of("reinforcement","upgrade","supply","operation","garrison","raid").containsAll(equipmentTooltips.keySet())
+                    ||equipmentTooltips.values().stream().anyMatch(v->v==null||v.length()>4000)
+                    ||equipmentRatios.values().stream().anyMatch(v->!Double.isFinite(v)||v<0||v>1))throw new IllegalArgumentException("Invalid equipment allocation ratio");
+            if(minimumTraining!=null&&(!Double.isFinite(minimumTraining)||minimumTraining<0||minimumTraining>1)) throw new IllegalArgumentException("Invalid training threshold");
+            retiredTemplates=Set.copyOf(retiredTemplates);priorities=boundedMap(priorities,6);reinforcementNeeds=boundedMap(reinforcementNeeds,512);
+            if(retiredTemplates.size()>256||priorities.values().stream().anyMatch(p->p<0||p>2)
+                    ||reinforcementRatio!=null&&(!Double.isFinite(reinforcementRatio)||reinforcementRatio<0||reinforcementRatio>1))throw new IllegalArgumentException("Invalid recruitment policy");
+        }
+    }
+    public record SpecialForces(int used, int capacity) {
+        public SpecialForces {
+            if (used < 0 || capacity < 0) throw new IllegalArgumentException("Invalid special forces limit");
+        }
+    }
+    public record NavalRepair(String id, String name, String texture, String port, double hp, double maxHp, String status,
+                              Double organization, Double maxOrganization, Long remainingHours) {
+        public NavalRepair(String id,String name,String texture,String port,double hp,double maxHp,String status) {
+            this(id,name,texture,port,hp,maxHp,status,null,null,null);
+        }
+        public NavalRepair {
+            text(id,128); text(name,256); text(texture,160); text(port,256); text(status,128);
+            if (!Double.isFinite(hp) || !Double.isFinite(maxHp) || hp < 0 || maxHp <= 0 || hp > maxHp)
+                throw new IllegalArgumentException("Invalid ship condition");
+            if ((organization==null)!=(maxOrganization==null) || organization!=null &&
+                    (!Double.isFinite(organization)||!Double.isFinite(maxOrganization)||organization<0||maxOrganization<=0||organization>maxOrganization)
+                    || remainingHours!=null && remainingHours<0)
+                throw new IllegalArgumentException("Invalid ship repair progress");
+        }
+    }
+    public record RepairPort(String id, String name, int capacity, int activeShips, List<String> ships, Integer priority, boolean disabled) {
+        public RepairPort(String id,String name,int capacity,int activeShips,List<String> ships) {this(id,name,capacity,activeShips,ships,1,false);}
+        public RepairPort {
+            priority=priority==null?1:priority;
+            if(priority<0||priority>2)throw new IllegalArgumentException("Invalid repair priority");
+            text(id,128); text(name,256); ships=bounded(ships,4096);
+            if(capacity<0||activeShips<0||activeShips>capacity)throw new IllegalArgumentException("Invalid repair port");
+        }
+    }
+    public record NavalRepairs(int availableDockyards, List<NavalRepair> ships, Integer usedDockyards, List<RepairPort> ports,Integer assignedDockyards,Integer maximumDockyards) {
+        public NavalRepairs(int availableDockyards,List<NavalRepair> ships,Integer usedDockyards,List<RepairPort> ports) {this(availableDockyards,ships,usedDockyards,ports,availableDockyards,availableDockyards);}
+        public NavalRepairs(int availableDockyards, List<NavalRepair> ships, Integer usedDockyards) {
+            this(availableDockyards,ships,usedDockyards,List.of());
+        }
+        public NavalRepairs(int availableDockyards, List<NavalRepair> ships) {
+            this(availableDockyards, ships, null);
+        }
+        public NavalRepairs {
+            assignedDockyards=assignedDockyards==null?availableDockyards:assignedDockyards;
+            maximumDockyards=maximumDockyards==null?availableDockyards:maximumDockyards;
+            if(assignedDockyards<0||maximumDockyards<0)throw new IllegalArgumentException("Invalid repair allocation");
+            if (availableDockyards < 0) throw new IllegalArgumentException("Invalid repair dockyards");
+            if (usedDockyards != null && (usedDockyards < 0 || usedDockyards > availableDockyards))
+                throw new IllegalArgumentException("Invalid used repair dockyards");
+            ships = bounded(ships,4096);
+            ports = ports == null ? List.of() : bounded(ports,4096);
+        }
+    }
+    public record Economy(int military, int dockyards, int civilian, int freeCivilian, int consumer,
+            double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand) {}
+    public record Resource(String id, String name, double extracted, double imported, double exported,
+            double available, double demand) {}
+    public record Modifier(String id, String name, double value, String detail) {}
+    public record DesignInfo(String chassis,String role,List<String> missions) {
+        public DesignInfo {text(chassis,128);text(role,128);missions=List.copyOf(missions);if(missions.size()>16)throw new IllegalArgumentException("Too many missions");missions.forEach(id->text(id,128));}
+    }
+    public record Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+            double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+            String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer, List<IndustryTankDesigner.Stat> stats,
+            int manufacturerChoices, List<LineManufacturer> manufacturers, String manufacturerEmpty) {
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer, List<IndustryTankDesigner.Stat> stats) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,designer,stats,0,List.of(),"");
+        }
+        public Equipment withManufacturerChoices(int value) {
+            return new Equipment(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,designer,stats,value,manufacturers,manufacturerEmpty);
+        }
+        public Equipment withManufacturers(List<LineManufacturer> value,String empty) {
+            return new Equipment(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,designer,stats,manufacturerChoices,value,empty);
+        }
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning, DesignInfo designer) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,designer,List.of());
+        }
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment, String designWarning) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,designWarning,null);
+        }
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand, Boolean acquired, String sourceEquipment) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,sourceEquipment,null);
+        }
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand, Boolean acquired) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,acquired,null);
+        }
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName, Long demand) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,demand,null);
+        }
+        public boolean everAcquired() { return Boolean.TRUE.equals(acquired) || stockpile > 0 || reserved > 0 || deployed > 0; }
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family, String familyName) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,familyName,null);
+        }
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit,
+                String replacement, String family) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,replacement,family,null);
+        }
+        public Equipment(String id, String name, String texture, String group, boolean naval, boolean unlocked,
+                double cost, int factoryLimit, Map<String,Double> resources, long stockpile, long reserved, long deployed, long deficit) {
+            this(id,name,texture,group,naval,unlocked,cost,factoryLimit,resources,stockpile,reserved,deployed,deficit,null,null);
+        }
+        public boolean outdated() { return replacement != null && !replacement.isEmpty(); }
+        public Equipment {
+            text(id,128); text(name,128); text(texture,160); text(group,32);
+            if (replacement != null) { text(replacement,128); if (replacement.equals(id)) throw new IllegalArgumentException("Self replacement"); }
+            if (family != null) text(family,128);
+            if (familyName != null) text(familyName,128);
+            if (sourceEquipment != null) text(sourceEquipment,128);
+            resources=boundedMap(resources,8);
+            stats=stats==null?List.of():bounded(stats,64);
+            manufacturers=manufacturers==null?List.of():bounded(manufacturers,64); manufacturerEmpty=manufacturerEmpty==null?"":manufacturerEmpty; text(manufacturerEmpty,240);
+            if (manufacturerChoices < 0 || manufacturerChoices > 64) throw new IllegalArgumentException("Invalid manufacturer choices");
+            if (!Double.isFinite(cost) || cost <= 0 || factoryLimit < 1 || stockpile < 0 || reserved < 0 || deployed < 0 || deficit < 0 || demand != null && demand < 0)
+                throw new IllegalArgumentException("Invalid equipment amounts");
+        }
+    }
+    public record LineManufacturer(String id, String name, String icon, int size, String type, List<MenuView.ManufacturerEquipment> equipment, String tooltip) {
+        public LineManufacturer {
+            text(id,128); text(name,128); icon=icon==null?"":icon; text(icon,160); type=type==null?"":type; text(type,128); equipment=equipment==null?List.of():List.copyOf(equipment); tooltip=tooltip==null?"":tooltip; text(tooltip,3000);
+            if(!id.matches("[A-Za-z0-9_]+")||size<0||size>10000||equipment.size()>32) throw new IllegalArgumentException("Invalid line manufacturer");
+        }
+    }
+    public record Line(String id, String equipment, int factories, int availableFactories, double efficiency,
+            double daily, double progress, double shortage, Conversion conversion, Integer operating, Integer damaged, Double efficiencyGain, Double efficiencyBaseGain, Double efficiencyResourcePenalty, Set<String> missingResources,
+            LineManufacturer manufacturer, List<LineManufacturer> manufacturers, String manufacturerTooltip, String manufacturerEmpty) {
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain,Double efficiencyBaseGain,Double efficiencyResourcePenalty,Set<String> missingResources) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,efficiencyBaseGain,efficiencyResourcePenalty,missingResources,null,List.of(),"","");
+        }
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain,Double efficiencyBaseGain,Double efficiencyResourcePenalty) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,efficiencyBaseGain,efficiencyResourcePenalty,Set.of());
+        }
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,null,null);
+        }
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,null);
+        }
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,null,null);
+        }
+        public int operatingFactories() {return operating==null?factories:operating;}
+        public int damagedFactories() {return damaged==null?0:damaged;}
+        public int reservedFactories() {return factories-operatingFactories()-damagedFactories();}
+        public Line {
+            manufacturers=manufacturers==null?List.of():List.copyOf(manufacturers); manufacturerTooltip=manufacturerTooltip==null?"":manufacturerTooltip; text(manufacturerTooltip,3000); manufacturerEmpty=manufacturerEmpty==null?"":manufacturerEmpty; text(manufacturerEmpty,240);
+            if(manufacturers.size()>64) throw new IllegalArgumentException("Too many line manufacturers");
+            missingResources=missingResources==null?Set.of():Set.copyOf(missingResources);
+            if(missingResources.size()>8)throw new IllegalArgumentException("Too many missing resources");
+            missingResources.forEach(resource->text(resource,32));
+            if(efficiencyGain!=null&&!Double.isFinite(efficiencyGain))throw new IllegalArgumentException("Invalid efficiency gain");
+            if(efficiencyBaseGain!=null&&(!Double.isFinite(efficiencyBaseGain)||efficiencyBaseGain<0)
+                    ||efficiencyResourcePenalty!=null&&(!Double.isFinite(efficiencyResourcePenalty)||efficiencyResourcePenalty<0||efficiencyResourcePenalty>1))
+                throw new IllegalArgumentException("Invalid efficiency growth factors");
+            if(factories<0||availableFactories<0||operating!=null&&(operating<0||operating>factories)||damaged!=null&&(damaged<0||damaged>factories-(operating==null?factories:operating)))
+                throw new IllegalArgumentException("Invalid production factory allocation");
+        }
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,null);
+        }
+    }
+    public record Conversion(String source,List<Choice> choices,long stock,double cost,double speed,Map<String,Double> resources) {
+        public Conversion {
+            if(source!=null)text(source,128);choices=bounded(choices,512);resources=boundedMap(resources,8);
+            if(stock<0||!Double.isFinite(cost)||cost<=0||!Double.isFinite(speed)||speed<0)throw new IllegalArgumentException("Invalid conversion");
+        }
+    }
+    public record Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys, Double influence, Double resourcesPerFactory, Long freeConvoys, List<TradingNation> buyers, TradeDetail detail) {
+        public Partner(String id,String name,Map<String,Double> exports,boolean route,Integer convoys,Double influence,Double resourcesPerFactory,Long freeConvoys,List<TradingNation> buyers) {this(id,name,exports,route,convoys,influence,resourcesPerFactory,freeConvoys,buyers,null);}
+        public Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys, Double influence, Double resourcesPerFactory, Long freeConvoys) {this(id,name,exports,route,convoys,influence,resourcesPerFactory,freeConvoys,List.of());}
+        public Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys) {this(id,name,exports,route,convoys,null,null,null);}
+        public Partner(String id, String name, Map<String,Double> exports, boolean route) { this(id,name,exports,route,null); }
+        public Partner {
+            text(id,32);text(name,128);exports=boundedMap(exports,8);buyers=buyers==null?List.of():bounded(buyers,4096);
+            if(influence!=null&&(!Double.isFinite(influence)||influence<0)||resourcesPerFactory!=null&&(!Double.isFinite(resourcesPerFactory)||resourcesPerFactory<=0)||freeConvoys!=null&&freeConvoys<0)
+                throw new IllegalArgumentException("Invalid trade terms");
+        }
+    }
+    public record TradeDetail(String influence,String law,Map<String,ResourceTrade> resources) {
+        public TradeDetail {text(influence,4096);text(law,8192);resources=boundedMap(resources,8);}
+    }
+    public record ResourceTrade(double remaining,double total,double requested,double allocated,double delivered,long convoyUsed,long convoyNeeded,
+            String status,String exports,String transported,String convoys) {
+        public ResourceTrade {
+            for(double value:new double[]{remaining,total,requested,allocated,delivered})if(!Double.isFinite(value)||value<0)throw new IllegalArgumentException("Invalid trade resource amount");
+            if(convoyUsed<0||convoyNeeded<0||convoyUsed>convoyNeeded)throw new IllegalArgumentException("Invalid trade convoy assignment");
+            for(String value:List.of(status,exports,transported,convoys))text(value,8192);
+        }
+    }
+    public record TradingNation(String id,String name,String resource) {
+        public TradingNation {text(id,32);text(name,128);text(resource,32);}
+    }
+    public record Trade(String id, String partner, String resource, int factories, double delivered, boolean importing) {}
+    public record Choice(String id, String name, String texture) {
+        public Choice { text(id,128); text(name,256); text(texture,160); }
+    }
+    public record Stat(String name, String group, double value, String unit, String id) {
+        public Stat(String name, String group, double value, String unit) { this(name,group,value,unit,null); }
+    }
+    public record NameGroup(String id, String name, List<String> examples, String fallback) {
+        public NameGroup { text(id,128); text(name,256); examples=bounded(examples,15); examples.forEach(v->text(v,256)); text(fallback,256); if(id.isEmpty())throw new IllegalArgumentException("Invalid name group"); }
+    }
+    public record Designer(String baseline, boolean copy, List<NameGroup> nameGroups, boolean paradrop, String paradropTooltip, int specialForces, String specialForcesTooltip,
+            int brigadeRows, int regimentBattalions, String lineLocked, String rowLocked, String regimentLocked, double costMinimum, double costMaximum, List<String> resources,
+            boolean armor, String nicheTooltip, Map<String,Integer> changeCosts) {
+        public Designer(String baseline, boolean copy, List<NameGroup> nameGroups, boolean paradrop, String paradropTooltip, int specialForces, String specialForcesTooltip,
+                int brigadeRows, int regimentBattalions, String lineLocked, String rowLocked, String regimentLocked, double costMinimum, double costMaximum, List<String> resources,
+                boolean armor, String nicheTooltip) {
+            this(baseline,copy,nameGroups,paradrop,paradropTooltip,specialForces,specialForcesTooltip,brigadeRows,regimentBattalions,lineLocked,rowLocked,regimentLocked,costMinimum,costMaximum,resources,armor,nicheTooltip,Map.of());
+        }
+        public Designer {
+            changeCosts=changeCosts==null?Map.of():Map.copyOf(changeCosts);
+            if(changeCosts.size()>4096||changeCosts.values().stream().anyMatch(v->v==null||v<0||v>100_000))throw new IllegalArgumentException("Invalid division designer costs");
+            changeCosts.keySet().forEach(v->text(v,160));
+            text(baseline,128); nameGroups=bounded(nameGroups,256); text(paradropTooltip,4096); text(specialForcesTooltip,4096);
+            text(lineLocked,1024); text(rowLocked,4096); text(regimentLocked,1024); resources=bounded(resources,8); resources.forEach(v->text(v,32)); nicheTooltip=nicheTooltip==null?"":nicheTooltip; text(nicheTooltip,1024);
+            if(specialForces<0||specialForces>25||brigadeRows<4||brigadeRows>5||regimentBattalions<1||regimentBattalions>5||!Double.isFinite(costMinimum)||!Double.isFinite(costMaximum)||costMinimum<0||costMaximum<costMinimum)
+                throw new IllegalArgumentException("Invalid division designer");
+        }
+    }
+    public record Template(String id, String name, List<String> line, List<String> support, List<Stat> stats,
+            Map<String,Long> equipment, double days, long manpower, List<Integer> columns, Map<Integer,String> regimentSupport, Integer experienceCost,
+            List<IndustryTankDesigner.Adjustment> adjustments, Integer priority, String nameGroup, Designer designer) {
+        public Template(String id,String name,List<String> line,List<String> support,List<Stat> stats,Map<String,Long> equipment,double days,long manpower,List<Integer> columns,Map<Integer,String> regimentSupport,Integer experienceCost,List<IndustryTankDesigner.Adjustment> adjustments) {
+            this(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,adjustments,1,"",null);
+        }
+        public Template(String id,String name,List<String> line,List<String> support,List<Stat> stats,Map<String,Long> equipment,double days,long manpower,List<Integer> columns,Map<Integer,String> regimentSupport,Integer experienceCost) {
+            this(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,List.of());
+        }
+        public Template(String id,String name,List<String> line,List<String> support,List<Stat> stats,Map<String,Long> equipment,double days,long manpower,List<Integer> columns,Map<Integer,String> regimentSupport) {
+            this(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,0);
+        }
+        public Template withExperienceCost(int cost) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,cost,adjustments,priority,nameGroup,designer); }
+        public Template withAdjustments(List<IndustryTankDesigner.Adjustment> value) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,value,priority,nameGroup,designer); }
+        public Template withSettings(int value,String group) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,adjustments,value,group,designer); }
+        public Template withDesigner(Designer value) { return new Template(id,name,line,support,stats,equipment,days,manpower,columns,regimentSupport,experienceCost,adjustments,priority,nameGroup,value); }
+        public Template(String id, String name, List<String> line, List<String> support, List<Stat> stats,
+                Map<String,Long> equipment, double days, long manpower) {
+            this(id,name,line,support,stats,equipment,days,manpower,null,null);
+        }
+        public Template {
+            text(id,128); text(name,128);
+            line=bounded(line,25); support=bounded(support,5); stats=bounded(stats,64); equipment=boundedMap(equipment,512);
+            experienceCost = experienceCost == null ? 0 : experienceCost;
+            adjustments = adjustments == null ? List.of() : bounded(adjustments,16);
+            priority = priority == null ? 1 : priority; nameGroup = nameGroup == null ? "" : nameGroup; text(nameGroup,128);
+            if (priority < 0 || priority > 2) throw new IllegalArgumentException("Invalid template priority");
+            if (experienceCost < 0 || line.isEmpty() && !id.equals("draft") || !Double.isFinite(days) || days < 0 || manpower < 0)
+                throw new IllegalArgumentException("Invalid division template");
+            if (columns != null) {
+                columns=List.copyOf(columns);
+                if (columns.size()!=5 || columns.stream().anyMatch(n->n<0||n>5)
+                        || columns.stream().mapToInt(Integer::intValue).sum()!=line.size())
+                    throw new IllegalArgumentException("Invalid regiment columns");
+            }
+            regimentSupport=regimentSupport==null?Map.of():boundedMap(regimentSupport,5);
+            for (var entry:regimentSupport.entrySet()) {
+                int column=entry.getKey(); text(entry.getValue(),128);
+                if (columns==null||column<0||column>=5||columns.get(column)<3||entry.getValue().isEmpty())
+                    throw new IllegalArgumentException("Invalid regiment support");
+            }
+        }
+        public int columnSize(int column) { return columns==null?Math.clamp(line.size()-column*5,0,5):columns.get(column); }
+        public int lineIndex(int cell) {
+            int index=cell%5;
+            for (int column=0;column<cell/5;column++) index+=columnSize(column);
+            return index;
+        }
+        public String lineUnit(int cell) { return cell%5<columnSize(cell/5)?line.get(lineIndex(cell)):""; }
+    }
+    public record Recruit(String id, String template, String location, int priority, double progress,
+            long manpower, Map<String,Long> equipment, Integer seriesLimit, Integer completed) {
+        public Recruit(String id,String template,String location,int priority,double progress,long manpower,Map<String,Long> equipment) {
+            this(id,template,location,priority,progress,manpower,equipment,1,0);
+        }
+        public Recruit {
+            equipment=boundedMap(equipment,512);
+            seriesLimit=seriesLimit==null?1:seriesLimit; completed=completed==null?0:completed;
+            if(seriesLimit<0||seriesLimit>999||completed<0||completed==Integer.MAX_VALUE)throw new IllegalArgumentException("Invalid training series");
+        }
+        public String seriesLabel() {return (completed+1)+"/"+(seriesLimit==0?"∞":seriesLimit); }
+    }
+    public record Deployed(String id, String name, String location, long manpower, Map<String,Long> equipment) {
+        public Deployed { equipment=boundedMap(equipment,512); }
+    }
+    public IndustryView {
+        text(session,36);text(country,32);text(message,512);
+        if(revision<0)throw new IllegalArgumentException("Invalid revision");
+        if(hud==null)hud=CountryHud.UNKNOWN;
+        if(!country.isEmpty()&&economy==null)throw new IllegalArgumentException("Missing country economy");
+        resources=bounded(resources,8);modifiers=bounded(modifiers,32);equipment=bounded(equipment,512);
+        lines=bounded(lines,512);partners=bounded(partners,64);trades=bounded(trades,512);templates=bounded(templates,256);
+        battalions=bounded(battalions,64);companies=bounded(companies,32);locations=bounded(locations,2048);
+        recruits=bounded(recruits,512);deployed=bounded(deployed,4096);
+    }
+    public static void text(String s,int max) {if(s==null||s.length()>max)throw new IllegalArgumentException("Invalid industry text");}
+    private static <T> List<T> bounded(List<T> values,int max) {
+        if(values==null||values.size()>max)throw new IllegalArgumentException("Industry snapshot limit");return List.copyOf(values);
+    }
+    private static <K,V> Map<K,V> boundedMap(Map<K,V> values,int max) {
+        if(values==null||values.size()>max)throw new IllegalArgumentException("Industry snapshot map limit");return Map.copyOf(values);
+    }
+    public static IndustryView revoked(String token,String message) {
+        return new IndustryView(token,0,"",CountryHud.UNKNOWN,null,List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),null,message);
+    }
+}

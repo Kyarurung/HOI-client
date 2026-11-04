@@ -3,9 +3,9 @@ package dev.hoi.protocol;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 
-final class ProtocolJsonCodec {
+public final class ProtocolJsonCodec {
     private ProtocolJsonCodec() {}
-    static <T> T read(Gson json, String source, Class<T> type) {
+    public static <T> T read(Gson json, String source, Class<T> type) {
         try {
             var value = json.fromJson(source, type);
             if (value == null) throw new IllegalArgumentException("Missing " + type.getSimpleName());

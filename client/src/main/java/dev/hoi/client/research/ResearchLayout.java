@@ -1,6 +1,6 @@
 package dev.hoi.client.research;
 
-import dev.hoi.protocol.ProtocolResearchView.Tech;
+import dev.hoi.protocol.research.ResearchView.Tech;
 import java.util.*;
 
 public record ResearchLayout(List<ResearchNode> nodes, List<Integer> years, int width, int height) {

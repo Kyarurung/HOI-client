@@ -3,7 +3,7 @@ package dev.hoi.client.ui;
 import dev.hoi.client.research.ResearchDetails;
 import dev.hoi.client.research.ResearchIcons;
 
-import dev.hoi.protocol.ProtocolResearchView;
+import dev.hoi.protocol.research.ResearchView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
@@ -19,7 +19,7 @@ public final class UiAssets {
     private static final Map<Identifier, Identifier> GRAYSCALE = new HashMap<>();
     private static com.google.gson.JsonObject eventImageSizes;
     private UiAssets() {}
-    public static void clear() { GRAYSCALE.values().forEach(id -> Minecraft.getInstance().getTextureManager().release(id)); GRAYSCALE.clear(); eventImageSizes = null; UiStoryAssets.clear(); UiCommandLabels.clear(); DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); UiKeywordIcons.clear(); UiMenuBar.clear(); UiEquipmentDesigns.clear(); UiTooltips.clear(); dev.hoi.client.screen.ScreenDecision.resourcesReloaded(); dev.hoi.client.screen.ScreenFocus.resourcesReloaded(); UiDiplomacyAssets.resourcesReloaded(); }
+    public static void clear() { GRAYSCALE.values().forEach(id -> Minecraft.getInstance().getTextureManager().release(id)); GRAYSCALE.clear(); eventImageSizes = null; UiStoryAssets.clear(); UiCommandLabels.clear(); DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); UiKeywordIcons.clear(); UiMenuBar.clear(); UiEquipmentDesigns.clear(); UiTooltips.clear(); dev.hoi.client.screen.decision.DecisionScreen.resourcesReloaded(); dev.hoi.client.screen.focus.FocusScreen.resourcesReloaded(); UiDiplomacyAssets.resourcesReloaded(); }
     public static int[] eventImageSize(String path) {
         if (eventImageSizes == null) {
             eventImageSizes = new com.google.gson.JsonObject();
@@ -262,7 +262,7 @@ public final class UiAssets {
         } catch (IOException ignored) { }
         return new int[]{0, 0};
     }
-    public static String technologyPath(String country, ProtocolResearchView.Tech tech) {
+    public static String technologyPath(String country, ResearchView.Tech tech) {
         if (!tech.id().startsWith("hoi:")) return "";
         String common = "technology/" + tech.id().substring(4);
         if (country != null && country.matches("[A-Za-z0-9_]{1,16}")) {
@@ -287,7 +287,7 @@ public final class UiAssets {
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         return id != null && DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions)[0] > 0;
     }
-    public static void technology(GuiGraphicsExtractor g, String country, ProtocolResearchView.Tech tech, int x, int y, int w, int h, int color) {
+    public static void technology(GuiGraphicsExtractor g, String country, ResearchView.Tech tech, int x, int y, int w, int h, int color) {
         String path = technologyPath(country, tech);
         if (!path.isEmpty() && draw(g, path, x, y, w, h)) return;
         if (draw(g, "category/" + tech.category().toLowerCase(Locale.ROOT), x, y, w, h)) return;

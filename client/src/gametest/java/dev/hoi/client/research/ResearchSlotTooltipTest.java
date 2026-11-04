@@ -1,7 +1,7 @@
 package dev.hoi.client.research;
 
-import dev.hoi.protocol.ProtocolResearchPayloads;
-import dev.hoi.protocol.ProtocolResearchView;
+import dev.hoi.protocol.research.ResearchPayloads;
+import dev.hoi.protocol.research.ResearchView;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -13,11 +13,11 @@ import java.util.List;
 public final class ResearchSlotTooltipTest {
     public static void runSource(ClientGameTestContext context) {
         for (String fixture : List.of("prc-research-slot-design-team", "research-year-4-51", "research-year-4-00")) {
-        var source = new ProtocolResearchPayloads.Response(dev.hoi.client.screen.ScreenDesignTeamCandidatesTest.fixture(fixture)).view();
+        var source = new ResearchPayloads.Response(dev.hoi.client.screen.agency.AgencyDesignTeamCandidatesTest.fixture(fixture)).view();
         if (fixture.startsWith("research-year-")) check(source.slots().getFirst().yearTooltip().contains(fixture.endsWith("51") ? "4.51년" : "4.00년"), "Server year formatting retains two places");
         for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
             context.getInput().resizeWindow(size[0],size[1]);context.runOnClient(client->client.options.guiScale().set(2));
-            var requests = new ArrayList<ProtocolResearchPayloads.Request>();overview(context,source,requests);
+            var requests = new ArrayList<ResearchPayloads.Request>();overview(context,source,requests);
             var point = context.computeOnClient(client->{
                 var screen=(ResearchScreen)client.gui.screen();var button=slot(screen,0);
                 int x=button.sourceX(59),y=button.sourceY(62);
@@ -29,22 +29,22 @@ public final class ResearchSlotTooltipTest {
         }
         }
     }
-    public static void run(ClientGameTestContext context, ProtocolResearchView base) {
+    public static void run(ClientGameTestContext context, ResearchView base) {
         var technologies = new ArrayList<>(base.technologies());
         var active = technologies.get(1);
-        var source = new ProtocolResearchView.Source("tooltip_fixture", "infantry", 0, 0, false, List.of(), List.of(), List.of(), List.of(), "시험 설명 첫 줄\n-----\n시험 설명 둘째 줄", List.of(), java.util.Map.of());
-        technologies.set(1, new ProtocolResearchView.Tech(active.id(), active.category(), active.name(), active.year(), active.tier(), active.baseDays(), active.progress(), active.dailyRate(), active.prerequisites(), active.effects(), active.unlocks(), active.status(), source, active.tooltipOnlyEffects(), List.of(), List.of(new ProtocolResearchView.UnitCard("infantry", "보병", List.of(new ProtocolResearchView.StatLine("대인 공격", "+5.00%")), List.of()))));
+        var source = new ResearchView.Source("tooltip_fixture", "infantry", 0, 0, false, List.of(), List.of(), List.of(), List.of(), "시험 설명 첫 줄\n-----\n시험 설명 둘째 줄", List.of(), java.util.Map.of());
+        technologies.set(1, new ResearchView.Tech(active.id(), active.category(), active.name(), active.year(), active.tier(), active.baseDays(), active.progress(), active.dailyRate(), active.prerequisites(), active.effects(), active.unlocks(), active.status(), source, active.tooltipOnlyEffects(), List.of(), List.of(new ResearchView.UnitCard("infantry", "보병", List.of(new ResearchView.StatLine("대인 공격", "+5.00%")), List.of()))));
         var original = technologies.get(2);
-        var completed = new ProtocolResearchView.Tech(original.id(), original.category(), original.name(),
+        var completed = new ResearchView.Tech(original.id(), original.category(), original.name(),
                 original.year(), original.tier(), original.baseDays(), original.baseDays(), original.dailyRate(),
-                original.prerequisites(), original.effects(), original.unlocks(), ProtocolResearchView.Status.COMPLETED,
+                original.prerequisites(), original.effects(), original.unlocks(), ResearchView.Status.COMPLETED,
                 original.source(), original.tooltipOnlyEffects());
         technologies.set(2, completed);
         var slots = new ArrayList<>(base.slots());
-        slots.set(2, new ProtocolResearchView.Slot(2, completed.id(), 0));
-        var view = new ProtocolResearchView(base.session(), base.revision(), base.country(), base.countryName(),
+        slots.set(2, new ResearchView.Slot(2, completed.id(), 0));
+        var view = new ResearchView(base.session(), base.revision(), base.country(), base.countryName(),
                 base.day(), base.date(), base.speed(), slots, technologies, base.message(), base.hud(), base.benefits());
-        var requests = new ArrayList<ProtocolResearchPayloads.Request>();
+        var requests = new ArrayList<ResearchPayloads.Request>();
         for (int[] size : List.of(new int[]{2560,1440},new int[]{1280,720})) {
         context.getInput().resizeWindow(size[0], size[1]);
         context.runOnClient(client -> client.options.guiScale().set(2));
@@ -106,8 +106,8 @@ public final class ResearchSlotTooltipTest {
             var available = view.technologies().getFirst();
             screen.showDetail(available.id());
             click(screen, action(screen, "연구"));
-            check(mutations(requests).equals(List.of(new ProtocolResearchPayloads.Request(
-                    ProtocolResearchPayloads.Action.START, view.session(), view.revision(), 0, available.id()))),
+            check(mutations(requests).equals(List.of(new ResearchPayloads.Request(
+                    ResearchPayloads.Action.START, view.session(), view.revision(), 0, available.id()))),
                     "Empty-slot selection preserves authenticated START");
         });
         overview(context, view, requests);
@@ -116,8 +116,8 @@ public final class ResearchSlotTooltipTest {
             click(screen, slot(screen, 1));
             check(mutations(requests).isEmpty(), "Selecting active research does not cancel it");
             click(screen, action(screen, "연구"));
-            check(mutations(requests).equals(List.of(new ProtocolResearchPayloads.Request(
-                    ProtocolResearchPayloads.Action.CANCEL, view.session(), view.revision(), 1,
+            check(mutations(requests).equals(List.of(new ResearchPayloads.Request(
+                    ResearchPayloads.Action.CANCEL, view.session(), view.revision(), 1,
                     view.slots().get(1).technology()))), "Active-slot selection preserves authenticated CANCEL");
         });
         overview(context, view, requests);
@@ -132,7 +132,7 @@ public final class ResearchSlotTooltipTest {
         });
         }
     }
-    private static void lineStates(ClientGameTestContext context, ProtocolResearchView base, int[] size) {
+    private static void lineStates(ClientGameTestContext context, ResearchView base, int[] size) {
         var gson = new com.google.gson.Gson();
         java.awt.image.BufferedImage plain = null;
         for (int state = 0; state < 4; state++) {
@@ -144,12 +144,12 @@ public final class ResearchSlotTooltipTest {
             var first = json.getAsJsonArray("slots").get(0).getAsJsonObject();
             first.addProperty("savedDays", percent * 30 / 100);
             if (assigned) {
-                var team = new ProtocolResearchView.DesignTeam("slot_visual", "시험 업체", "mio/country/kor/gfx_idea_kor_hdhyundai/frame_0", 1, "시험 유형", List.of(), 0, 0, 0, "", List.of(), List.of(), List.of(), "시험 업체 툴팁");
+                var team = new ResearchView.DesignTeam("slot_visual", "시험 업체", "mio/country/kor/gfx_idea_kor_hdhyundai/frame_0", 1, "시험 유형", List.of(), 0, 0, 0, "", List.of(), List.of(), List.of(), "시험 업체 툴팁");
                 json.add("designTeams", gson.toJsonTree(List.of(team)));
                 json.getAsJsonArray("slots").get(1).getAsJsonObject().addProperty("designTeam", team.id());
             }
-            var view = gson.fromJson(json, ProtocolResearchView.class);
-            var requests = new ArrayList<ProtocolResearchPayloads.Request>();
+            var view = gson.fromJson(json, ResearchView.class);
+            var requests = new ArrayList<ResearchPayloads.Request>();
             overview(context, view, requests);
             context.getInput().setCursorPos(size[0] - 2, size[1] - 2);
             context.waitTicks(3);
@@ -185,8 +185,8 @@ public final class ResearchSlotTooltipTest {
             check(mutations(requests).isEmpty(), "Rendering progress and assignment must not mutate research");
         }
     }
-    private static void overview(ClientGameTestContext context, ProtocolResearchView view,
-            ArrayList<ProtocolResearchPayloads.Request> requests) {
+    private static void overview(ClientGameTestContext context, ResearchView view,
+            ArrayList<ResearchPayloads.Request> requests) {
         context.setScreen(() -> new ResearchScreen(view, requests::add, tab -> {}));
         context.waitTicks(2);
         context.runOnClient(client -> requests.clear());
@@ -205,9 +205,9 @@ public final class ResearchSlotTooltipTest {
                 button.getY() + button.getHeight() / 2.0, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
         check(screen.mouseClicked(event, false), "Mouse selection accepted: " + button.getMessage().getString());
     }
-    private static List<ProtocolResearchPayloads.Request> mutations(List<ProtocolResearchPayloads.Request> requests) {
-        return requests.stream().filter(request -> request.action() == ProtocolResearchPayloads.Action.START
-                || request.action() == ProtocolResearchPayloads.Action.CANCEL).toList();
+    private static List<ResearchPayloads.Request> mutations(List<ResearchPayloads.Request> requests) {
+        return requests.stream().filter(request -> request.action() == ResearchPayloads.Action.START
+                || request.action() == ResearchPayloads.Action.CANCEL).toList();
     }
     private static net.minecraft.client.gui.components.Tooltip tooltip(Button button) {
         try {

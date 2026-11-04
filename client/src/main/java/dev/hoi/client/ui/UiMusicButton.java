@@ -19,7 +19,7 @@ public final class UiMusicButton extends Button {
     }
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play("ui.click"); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-        if (dev.hoi.client.screen.ScreenDialogCoordinator.renderingContent()) return;
+        if (dev.hoi.client.screen.dialog.DialogCoordinator.renderingContent()) return;
         UiAssets.draw(g, "music/toggle", getX(), getY(), getWidth(), getHeight());
     }
     public static void draw(GuiGraphicsExtractor g, int width) {

@@ -1,6 +1,6 @@
 package dev.hoi.client.input;
 
-import dev.hoi.client.screen.ScreenMapCursor;
+import dev.hoi.client.screen.map.MapCursor;
 
 
 import net.minecraft.client.Minecraft;
@@ -21,11 +21,11 @@ public final class InputMenuShortcut {
             return true;
         }
         if (client.player == null || !dev.hoi.client.ClientCampaignHud.visible()
-                || (client.gui.screen() != null && !(client.gui.screen() instanceof ScreenMapCursor))
+                || (client.gui.screen() != null && !(client.gui.screen() instanceof MapCursor))
                 || client.gui.overlay() != null || !client.isWindowActive() || !matches(event)) return false;
         if (action == com.mojang.blaze3d.platform.InputConstants.PRESS) {
             held = true;
-            client.gui.setScreen(client.gui.screen() instanceof ScreenMapCursor ? null : new ScreenMapCursor());
+            client.gui.setScreen(client.gui.screen() instanceof MapCursor ? null : new MapCursor());
             return true;
         }
         return action == com.mojang.blaze3d.platform.InputConstants.REPEAT;

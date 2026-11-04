@@ -43,7 +43,7 @@ tasks.register('benchmarkMesh', JavaExec) {
     group = 'verification'
     description = 'Compares complete Java atlas mesh construction with the retained baseline.'
     classpath = sourceSets.benchmark.runtimeClasspath
-    mainClass = 'dev.hoi.client.map.MapMeshBenchmark'
+    mainClass = 'dev.hoi.client.map.scene.SceneMeshBenchmark'
     jvmArgs '-Xms1g', '-Xmx1g'
 }
 

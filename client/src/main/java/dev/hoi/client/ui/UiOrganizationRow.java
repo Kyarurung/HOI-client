@@ -1,6 +1,6 @@
 package dev.hoi.client.ui;
 
-import dev.hoi.protocol.ProtocolMenuView;
+import dev.hoi.protocol.menu.MenuView;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -10,10 +10,10 @@ public final class UiOrganizationRow {
     public static String art(String name) { return "mio/ui/gfx_" + name + "/frame_0"; }
     public static String equipment(String token) { return art(token.startsWith("mio_cat_") ? token : "military_industrial_organization_" + token); }
     public static void draw(GuiGraphicsExtractor g, String logo, int size, String name, String type,
-            List<ProtocolMenuView.ManufacturerEquipment> equipment, int x, int y, int width) {
+            List<MenuView.ManufacturerEquipment> equipment, int x, int y, int width) {
         draw(g,logo,size,name,type,equipment,x,y,width,"");
     }
-    public static void draw(GuiGraphicsExtractor g,String logo,int size,String name,String type,List<ProtocolMenuView.ManufacturerEquipment> equipment,int x,int y,int width,String cost){
+    public static void draw(GuiGraphicsExtractor g,String logo,int size,String name,String type,List<MenuView.ManufacturerEquipment> equipment,int x,int y,int width,String cost){
         var font = Minecraft.getInstance().font;
         UiAssets.nineSlice(g, art("mio_entry_bg"), x, y, width, 49, 8, .5);
         UiAssets.drawContent(g, logo, x + 3, y + 7, 33, 35);

@@ -4,6 +4,7 @@ import dev.hoi.client.audio.AudioKoreanMusic;
 import dev.hoi.client.audio.AudioPlaylistPlayback;
 import dev.hoi.client.audio.AudioStoryMusic;
 import dev.hoi.client.ui.*;
+import dev.hoi.client.screen.dialog.DialogStack;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -14,7 +15,7 @@ public final class ScreenKoreanMusic extends Screen {
     private final Screen parent;
     private int x,y,w,h,offset,visible,left,top,rowHeight;
     private List<AudioPlaylistPlayback.AudioTrack> tracks;
-    public ScreenKoreanMusic(Screen parent){super(Component.literal("TFR Korea Plus 음악"));this.parent=parent instanceof ScreenDialogStack stack?stack.backdrop():parent;}
+    public ScreenKoreanMusic(Screen parent){super(Component.literal("TFR Korea Plus 음악"));this.parent=parent instanceof DialogStack stack?stack.backdrop():parent;}
     @Override protected void init(){
         w=Math.min(584,width-12);h=Math.min(444,height-12);
         x=(width-w)/2;y=(height-h)/2;

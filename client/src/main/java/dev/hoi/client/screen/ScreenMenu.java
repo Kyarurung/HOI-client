@@ -13,11 +13,19 @@ import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiTooltips;
 
-import dev.hoi.protocol.ProtocolMenuTab;
-import dev.hoi.protocol.ProtocolMenuView;
+import dev.hoi.protocol.menu.MenuTab;
+import dev.hoi.protocol.menu.MenuView;
 import dev.hoi.client.ui.UiPoliticalTooltip;
-import dev.hoi.protocol.ProtocolCountryHud;
-import dev.hoi.protocol.ProtocolMenuPayloads;
+import dev.hoi.protocol.country.CountryHud;
+import dev.hoi.protocol.menu.MenuPayloads;
+import dev.hoi.client.screen.army.ArmyHeadquarters;
+import dev.hoi.client.screen.commander.CommanderCaptivity;
+import dev.hoi.client.screen.dialog.DialogCoordinator;
+import dev.hoi.client.screen.doctrine.DoctrineScreen;
+import dev.hoi.client.screen.focus.FocusScreen;
+import dev.hoi.client.screen.industry.IndustryOrganization;
+import dev.hoi.client.screen.industry.IndustryScreen;
+import dev.hoi.client.screen.politics.PoliticsPartyChart;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -34,17 +42,17 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private Button capturedButton;
     private int[] captivityCounts;
     public void captivityCounts(int missing,int held){captivityCounts=new int[]{missing,held};}
-    private void openCaptivity(boolean ours){var screen=new ScreenCommanderCaptivity(this,ours);ScreenDialogCoordinator.setContent(screen);screen.open();}
-    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&manufacturerScrollbar().contains(event.x(),event.y())){if(manufacturerScrollbar().arrow(event.y())){manufacturerScroll=manufacturerScrollbar().step(event.y(),manufacturerScroll,49);rebuildWidgets();}else{manufacturerDragging=true;dragManufacturer(event.y());}return true;}if(!selectionPreview&&selected==ProtocolMenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
-    private ProtocolMenuView view;
+    private void openCaptivity(boolean ours){var screen=new CommanderCaptivity(this,ours);DialogCoordinator.setContent(screen);screen.open();}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&manufacturerScrollbar().contains(event.x(),event.y())){if(manufacturerScrollbar().arrow(event.y())){manufacturerScroll=manufacturerScrollbar().step(event.y(),manufacturerScroll,49);rebuildWidgets();}else{manufacturerDragging=true;dragManufacturer(event.y());}return true;}if(!selectionPreview&&selected==MenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
+    private MenuView view;
     private boolean selectionPreview;
     private final Runnable researchOpen;
-    private final java.util.function.Consumer<dev.hoi.protocol.ProtocolDialogPayloads.PoliticsOpen> officerOpen;
+    private final java.util.function.Consumer<dev.hoi.protocol.dialog.DialogPayloads.PoliticsOpen> officerOpen;
     private final String token = UUID.randomUUID().toString();
     private int refreshTicks;
-    private ProtocolMenuTab selected = ProtocolMenuTab.POLITICS;
+    private MenuTab selected = MenuTab.POLITICS;
     private final Set<Integer> collapsed = new HashSet<>();
-    private ProtocolMenuView.Entry detail;
+    private MenuView.Entry detail;
     private String focusTarget;
     private String detailIcon;
     private String manufacturerGroup, manufacturerDetailId;
@@ -54,30 +62,30 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private final Map<net.minecraft.client.gui.components.AbstractWidget,String> manufacturerTooltips=new LinkedHashMap<>();
     private int spiritScroll, tooltipScroll;
     private boolean balanceOpen;
-    private ProtocolMenuView.Entry hoveredPolitics;
-    private List<ProtocolMenuView.Entry> spirits = List.of();
-    private record ScreenPolicyHover(UiPoliticsLayout.UiPoliticsBox box, ProtocolMenuView.Entry entry) {}
+    private MenuView.Entry hoveredPolitics;
+    private List<MenuView.Entry> spirits = List.of();
+    private record ScreenPolicyHover(UiPoliticsLayout.UiPoliticsBox box, MenuView.Entry entry) {}
     private final List<ScreenPolicyHover> policies = new ArrayList<>();
     private int pane, top, scroll, total, detailScroll, tradeTab, hudScroll;
-    private List<ProtocolMenuView.Entry> parties = List.of();
+    private List<MenuView.Entry> parties = List.of();
     private final List<int[]> partySpans = new ArrayList<>();
     private static final String[] POLITICS_IDS = {"government", "economic_laws", "military_laws", "social_laws", "development", "military_staff", "research_production"};
     private static final String[] POLITICS_NAMES = {"정부", "경제법", "군법", "사회법", "발전도", "군사 참모", "연구 & 생산"};
-    public ScreenMenu(ProtocolMenuView view) { this(view, ProtocolMenuTab.POLITICS, HoiClient::open); }
-    public static ScreenMenu forFocus(ProtocolMenuView view, String id) {
+    public ScreenMenu(MenuView view) { this(view, MenuTab.POLITICS, HoiClient::open); }
+    public static ScreenMenu forFocus(MenuView view, String id) {
         var screen = new ScreenMenu(view);
         screen.focusTarget = id;
         return screen;
     }
-    public ScreenMenu(ProtocolMenuView view, ProtocolMenuTab selected, Runnable researchOpen) {
+    public ScreenMenu(MenuView view, MenuTab selected, Runnable researchOpen) {
         this(view,selected,researchOpen,null);
     }
-    ScreenMenu(ProtocolMenuView view,ProtocolMenuTab selected,Runnable researchOpen,
-               java.util.function.Consumer<dev.hoi.protocol.ProtocolDialogPayloads.PoliticsOpen> officerOpen) {
+    ScreenMenu(MenuView view,MenuTab selected,Runnable researchOpen,
+               java.util.function.Consumer<dev.hoi.protocol.dialog.DialogPayloads.PoliticsOpen> officerOpen) {
         super(Component.literal("HOI · 국가 메뉴"));
         this.view = Objects.requireNonNull(view); this.selected = selected; this.researchOpen = researchOpen;this.officerOpen=officerOpen;
     }
-    public static ScreenMenu selection(ProtocolMenuView view) {
+    public static ScreenMenu selection(MenuView view) {
         var screen = new ScreenMenu(view);
         screen.selectionPreview = true;
         return screen;
@@ -87,23 +95,23 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     public int selectionTop() { return top; }
     public int selectionHeight() { return politicsLayout().contentTop() - top; }
     public String token() { return token; }
-    public void update(ProtocolMenuView next) {
+    public void update(MenuView next) {
         if (selectionPreview || next.equals(view)) return;
-        if (!view.country().equals(next.country())) { selected = ProtocolMenuTab.POLITICS; collapsed.clear(); manufacturerGroup = null; manufacturerDetailId = null; }
+        if (!view.country().equals(next.country())) { selected = MenuTab.POLITICS; collapsed.clear(); manufacturerGroup = null; manufacturerDetailId = null; }
         var old = detail;
         boolean sameCountry = view.country().equals(next.country());
         view = next;captivityCounts=null;
         if (!sameCountry || next.balance() == null) balanceOpen = false;
         if (old != null) {
             if (!sameCountry) detail = null;
-            else if (manufacturerDetailId != null) detail = next.manufacturers().stream().filter(m -> m.id().equals(manufacturerDetailId)).map(ProtocolMenuView.Manufacturer::entry).findFirst().orElse(null);
+            else if (manufacturerDetailId != null) detail = next.manufacturers().stream().filter(m -> m.id().equals(manufacturerDetailId)).map(MenuView.Manufacturer::entry).findFirst().orElse(null);
             else if (old.name().equals("국가 중점")) detail = politicsFocus();
             else detail = next.page(selected).sections().stream().filter(s -> s.icon().equals(detailIcon))
                     .flatMap(s -> s.entries().stream()).filter(e -> e.name().equals(old.name())).findFirst().orElse(null);
         }
         rebuildWidgets();
     }
-    public ProtocolMenuTab selectedTab() { return selected; }
+    public MenuTab selectedTab() { return selected; }
     public int panelWidth() { return pane; }
     @Override public int unitHudLeft(){return pane;}
     @Override public boolean allowsMovement() { return !selectionPreview && detail == null && manufacturerGroup == null; }
@@ -116,29 +124,29 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             while (pane > 160 && new UiPoliticsLayout(pane, 0).contentTop() > height - 16) pane--;
             top = (height - (new UiPoliticsLayout(pane, 0).contentTop())) / 2;
             preparePartyChart();
-            spirits = view.page(ProtocolMenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 정신"))
+            spirits = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 정신"))
                     .flatMap(s -> s.entries().stream()).filter(e -> !e.name().equals("없음")).toList();
             spiritScroll = Math.clamp(spiritScroll, 0, maximumSpiritScroll());
             addRenderableWidget(new UiMenuButton("×", selectionLeft() + pane - 25, top + 3, 19, 19, this::onClose));
             return;
         }
         UiMenuBar.buttons(width, view.country(), selected, tab -> {
-            if (tab == ProtocolMenuTab.INTELLIGENCE) { HoiClient.openAgency(); return; }
-            if (tab == ProtocolMenuTab.DECISIONS && ClientPlayNetworking.canSend(dev.hoi.protocol.ProtocolDecisionPayloads.Request.TYPE)) { HoiClient.openMenu(tab); return; }
-            if (tab == ProtocolMenuTab.RESEARCH) { researchOpen.run(); return; }
-            if (tab == ProtocolMenuTab.CONSTRUCTION && ClientPlayNetworking.canSend(dev.hoi.protocol.ProtocolConstructionPayloads.Request.TYPE)) { HoiClient.openConstruction(); return; }
-            if (ScreenIndustry.supports(tab) && ClientPlayNetworking.canSend(dev.hoi.protocol.ProtocolIndustryPayloads.Request.TYPE)) { HoiClient.openIndustry(tab); return; }
+            if (tab == MenuTab.INTELLIGENCE) { HoiClient.openAgency(); return; }
+            if (tab == MenuTab.DECISIONS && ClientPlayNetworking.canSend(dev.hoi.protocol.decision.DecisionPayloads.Request.TYPE)) { HoiClient.openMenu(tab); return; }
+            if (tab == MenuTab.RESEARCH) { researchOpen.run(); return; }
+            if (tab == MenuTab.CONSTRUCTION && ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryConstructionPayloads.Request.TYPE)) { HoiClient.openConstruction(); return; }
+            if (IndustryScreen.supports(tab) && ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryPayloads.Request.TYPE)) { HoiClient.openIndustry(tab); return; }
             HoiClient.cancelOpen();
             selected = tab; balanceOpen = false; scroll = 0; collapsed.clear(); detail = null; manufacturerGroup = null; manufacturerDetailId = null; rebuildWidgets();
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new UiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
         if (focusTarget != null) {
-            detail = view.page(ProtocolMenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 중점"))
+            detail = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 중점"))
                     .flatMap(s -> s.entries().stream()).filter(e -> e.detail().lines().findFirst().orElse("").equals(focusTarget))
                     .findFirst().orElse(null);
             detailIcon = "research"; detailScroll = 0; focusTarget = null;
         }
-        if (selected == ProtocolMenuTab.POLITICS) {
+        if (selected == MenuTab.POLITICS) {
             for (int i = 0; i < 2; i++) {
                 var box = politicsLayout().status(i);
                 var entry = politicsEntry(i == 0 ? "점령지" : "협력정부");
@@ -157,14 +165,14 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 }
             }
             preparePartyChart();
-            spirits = view.page(ProtocolMenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 정신"))
+            spirits = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 정신"))
                     .flatMap(s -> s.entries().stream()).filter(e -> !e.name().equals("없음")).toList();
             spiritScroll = Math.clamp(spiritScroll, 0, maximumSpiritScroll());
             var focusBox = politicsLayout().focusTitle();
             addRenderableWidget(new ScreenInvisibleButton("국가 중점", focusBox.x(), focusBox.y(), focusBox.width(), focusBox.height(),
-                    () -> minecraft.gui.setScreen(new ScreenFocus())));
+                    () -> minecraft.gui.setScreen(new FocusScreen())));
         }
-        if (selected == ProtocolMenuTab.TRADE) {
+        if (selected == MenuTab.TRADE) {
             addRenderableWidget(new UiMenuButton("경제", "category/industry", tradeTab == 0, 8, top + 30, (pane - 20) / 2, 24,
                     () -> { tradeTab = 0; scroll = 0; rebuildWidgets(); }));
             addRenderableWidget(new UiMenuButton("무역", "menu/trade", tradeTab == 1, pane / 2, top + 30, (pane - 20) / 2, 24,
@@ -173,7 +181,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         layoutRows(false, null);
         scroll = Math.clamp(scroll, 0, Math.max(0, total - (contentBottom() - contentTop())));
         layoutRows(true, null);
-        if (selected == ProtocolMenuTab.RESEARCH) addRenderableWidget(new UiMenuButton("연구 선택", 8, height - 27, 88, 20, researchOpen));
+        if (selected == MenuTab.RESEARCH) addRenderableWidget(new UiMenuButton("연구 선택", 8, height - 27, 88, 20, researchOpen));
         if (manufacturerGroup != null && detail == null) layoutManufacturers(true, null);
         if (detail != null) {
             InputSidebarMovement.release(minecraft);
@@ -181,20 +189,20 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             addRenderableWidget(new UiMenuButton("×", x + w - 25, top + 3, 19, 19, () -> { detail = null; rebuildWidgets(); }));
         }
     }
-    private int contentTop() { return selected == ProtocolMenuTab.POLITICS ? politicsLayout().contentTop()
-            : top + (selected == ProtocolMenuTab.TRADE ? 62 : selected == ProtocolMenuTab.INTELLIGENCE ? 82 : 32); }
-    private boolean hasFooterActions() { return selected == ProtocolMenuTab.RESEARCH || selected == ProtocolMenuTab.INTELLIGENCE; }
+    private int contentTop() { return selected == MenuTab.POLITICS ? politicsLayout().contentTop()
+            : top + (selected == MenuTab.TRADE ? 62 : selected == MenuTab.INTELLIGENCE ? 82 : 32); }
+    private boolean hasFooterActions() { return selected == MenuTab.RESEARCH || selected == MenuTab.INTELLIGENCE; }
     private int contentBottom() { return height - (hasFooterActions() ? 36 : 8); }
     private int detailX() { return width - pane >= 240 ? pane + 6 : Math.max(8, (width - detailWidth()) / 2); }
     private int detailWidth() { return Math.min(manufacturerGroup!=null?268:310, width - (width - pane >= 240 ? pane + 14 : 16)); }
-    private int rowHeight() { return selected == ProtocolMenuTab.PRODUCTION || selected == ProtocolMenuTab.RECRUITMENT ? 49 : 37; }
+    private int rowHeight() { return selected == MenuTab.PRODUCTION || selected == MenuTab.RECRUITMENT ? 49 : 37; }
     private void layoutRows(boolean widgets, GuiGraphicsExtractor g) {
-        if (selected == ProtocolMenuTab.POLITICS) { layoutPolitics(widgets, g); return; }
-        if (selected == ProtocolMenuTab.OFFICER_CORPS) { layoutOfficers(widgets, g); return; }
+        if (selected == MenuTab.POLITICS) { layoutPolitics(widgets, g); return; }
+        if (selected == MenuTab.OFFICER_CORPS) { layoutOfficers(widgets, g); return; }
         int y = contentTop() - scroll;
         var sections = view.page(selected).sections();
         for (int index = 0; index < sections.size(); index++) {
-            if (selected == ProtocolMenuTab.TRADE && (tradeTab == 0 ? index != 0 : index == 0)) continue;
+            if (selected == MenuTab.TRADE && (tradeTab == 0 ? index != 0 : index == 0)) continue;
             var section = sections.get(index); final int sectionIndex = index;
             if (g != null) {
                 UiMenuStyle.metal(g, 8, y, pane - 16, 21);
@@ -238,7 +246,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     private void layoutOfficers(boolean widgets, GuiGraphicsExtractor g) {
         int y = contentTop() - scroll;
-        var sections = view.page(ProtocolMenuTab.OFFICER_CORPS).sections();
+        var sections = view.page(MenuTab.OFFICER_CORPS).sections();
         var commanders = sections.stream().filter(v -> v.icon().equals("high_command")).flatMap(v -> v.entries().stream()).toList();
         if (g != null) { UiMenuStyle.metal(g, 8, y, pane - 110, 36); UiMenuStyle.metal(g, pane - 98, y, 90, 36); }
         int count = Math.min(3, commanders.size()), cell = Math.min(31, (pane - 65) / 3);
@@ -260,7 +268,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         String capturedTip="§e포획된 지휘관§r\n§a클릭§r하여 우리의 실종된 지휘관 확인\n§a우클릭§r하여 우리가 포획한 지휘관 확인\n\n우리의 실종된 지휘관: §e"+missing+"§r\n우리에게 포획된 지휘관: §e"+held+"§r\n\n"+dev.hoi.client.ui.UiCommandLabels.text("CAPTURED_GENERALS_DELAYED_OPERATIVES","전투 중에 지휘관이 포로로 잡힐 수 있습니다. 포획된 지휘관은 습격이나 첩보 작전을 통해 구출할 수 있습니다.");
         var deployed=sections.stream().filter(v->v.icon().equals("army_hq")).flatMap(v->v.entries().stream()).findFirst().orElse(null);int badgeX=8+(int)Math.round(210*commandScale),badgeY=y+(int)Math.round(19*commandScale),badgeWidth=(int)Math.round(18*commandScale),badgeHeight=(int)Math.round(27*commandScale),counterX=8+(int)Math.round(230*commandScale),counterWidth=Math.max(1,captureX-counterX-1);
         if(g!=null){g.enableScissor(8,y,8+(int)Math.round(523*commandScale),y+(int)Math.round(85*commandScale));UiAssets.draw(g,"officer/hq/ribbon",8,y,(int)Math.round(539*commandScale),(int)Math.round(59*commandScale));g.disableScissor();UiAssets.draw(g,"officer/hq/hq_button",commandX,y+3,hqWidth,(int)Math.round(49*commandScale));UiAssets.draw(g,"officer/hq/captured_button",captureX,y,captureWidth,commandHeight);dev.hoi.client.ui.UiText.centered(g,font,"육군 사령부 편제",commandX+8,y+3,hqWidth-16,(int)Math.round(49*commandScale),TEXT);if(deployed!=null){UiAssets.draw(g,"officer/hq/badge",badgeX,badgeY,badgeWidth,badgeHeight);dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(deployed.value()),counterX,badgeY,counterWidth,badgeHeight,TEXT);}dev.hoi.client.ui.UiText.centered(g,font,"포획된 지휘관",captureX+(int)Math.round(69*commandScale),y+4,captureWidth-(int)Math.round(75*commandScale),commandHeight-7,TEXT);g.pose().pushMatrix();float pixel=(float)(1.0/minecraft.getWindow().getGuiScale());g.pose().translate(pixel,0);dev.hoi.client.ui.UiText.centered(g,font,held,captureX+19,y+19,10,9,GOLD,false);g.pose().popMatrix();}
-        if(widgets){int rowY=y;var headquarters=new UiMenuButton("육군 사령부 편제",commandX,rowY+2,hqWidth,commandHeight,()->{var screen=new ScreenArmyHeadquarters(this);ScreenDialogCoordinator.setContent(screen);screen.open();}).caption("").background("none");headquarters.setTooltip(null);officerTooltips.put(headquarters,dev.hoi.client.ui.UiCommandLabels.text("ARMY_HQ_TEMPLATES_TOGGLE_TOOLTIP","§G클릭§!하여 §Y육군 사령부 편제§! 목록을 전환합니다. 이 목록에서는 육군 사령부 편제를 검토 및 관리할 수 있습니다."));addRenderableWidget(headquarters);if(deployed!=null){var counter=new dev.hoi.client.ui.UiHoverRegion(deployed.name(),badgeX,badgeY,counterX+counterWidth-badgeX,badgeHeight);officerTooltips.put(counter,deployed.detail());counter.active=detail==null;addRenderableWidget(counter);}var button=new UiMenuButton("포획된 지휘관",captureX,rowY,captureWidth,commandHeight,()->openCaptivity(true)).caption("").background("none");button.setTooltip(null);capturedButton=button;officerTooltips.put(button,capturedTip);addRenderableWidget(button);}
+        if(widgets){int rowY=y;var headquarters=new UiMenuButton("육군 사령부 편제",commandX,rowY+2,hqWidth,commandHeight,()->{var screen=new ArmyHeadquarters(this);DialogCoordinator.setContent(screen);screen.open();}).caption("").background("none");headquarters.setTooltip(null);officerTooltips.put(headquarters,dev.hoi.client.ui.UiCommandLabels.text("ARMY_HQ_TEMPLATES_TOGGLE_TOOLTIP","§G클릭§!하여 §Y육군 사령부 편제§! 목록을 전환합니다. 이 목록에서는 육군 사령부 편제를 검토 및 관리할 수 있습니다."));addRenderableWidget(headquarters);if(deployed!=null){var counter=new dev.hoi.client.ui.UiHoverRegion(deployed.name(),badgeX,badgeY,counterX+counterWidth-badgeX,badgeHeight);officerTooltips.put(counter,deployed.detail());counter.active=detail==null;addRenderableWidget(counter);}var button=new UiMenuButton("포획된 지휘관",captureX,rowY,captureWidth,commandHeight,()->openCaptivity(true)).caption("").background("none");button.setTooltip(null);capturedButton=button;officerTooltips.put(button,capturedTip);addRenderableWidget(button);}
         y += (int)Math.round(85*commandScale);
         for (String branch : List.of("army", "navy", "air", "special")) {
             var section = sections.stream().filter(v -> v.icon().equals(branch)).findFirst().orElse(null);
@@ -329,16 +337,16 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
         total = y - contentTop() + scroll;
     }
-    private void officerControl(boolean widgets, ProtocolMenuView.Entry entry, String section, int slot, int x, int y, int w, int h) {
+    private void officerControl(boolean widgets, MenuView.Entry entry, String section, int slot, int x, int y, int w, int h) {
         if (!widgets || y < contentTop() || y + h > contentBottom()) return;
         var button = new ScreenInvisibleButton(entry.name() + " · " + entry.value(), x, y, w, h, () -> {
-            if (slot >= 0 && (officerOpen!=null || ClientPlayNetworking.canSend(dev.hoi.protocol.ProtocolDialogPayloads.PoliticsOpen.TYPE))) {
-                var request=new dev.hoi.protocol.ProtocolDialogPayloads.PoliticsOpen("officer_"+section,slot);
+            if (slot >= 0 && (officerOpen!=null || ClientPlayNetworking.canSend(dev.hoi.protocol.dialog.DialogPayloads.PoliticsOpen.TYPE))) {
+                var request=new dev.hoi.protocol.dialog.DialogPayloads.PoliticsOpen("officer_"+section,slot);
                 if(officerOpen!=null)officerOpen.accept(request);else ClientPlayNetworking.send(request);
             } else if (slot < 0 && java.util.Set.of("army", "navy", "air", "special").contains(section)
-                    && ClientPlayNetworking.canSend(dev.hoi.protocol.ProtocolDoctrinePayloads.Request.TYPE)) {
+                    && ClientPlayNetworking.canSend(dev.hoi.protocol.doctrine.DoctrinePayloads.Request.TYPE)) {
                 String folder = switch (section) { case "army" -> "land"; case "navy" -> "naval"; case "special" -> "special_forces"; default -> "air"; };
-                ScreenDoctrine.open(this, folder);
+                DoctrineScreen.open(this, folder);
             } else showDetail(entry, section);
         });
         boolean vacant = entry.value().equals("미지정") || entry.value().isBlank();
@@ -368,15 +376,15 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         g.pose().pushMatrix(); g.pose().translate(x, y); g.pose().scale(scale);
         g.text(font, lines.getFirst(), 0, 0, color); g.pose().popMatrix();
     }
-    private void showDetail(ProtocolMenuView.Entry entry, String icon) {
+    private void showDetail(MenuView.Entry entry, String icon) {
         detail = entry; detailIcon = icon; detailScroll = 0; manufacturerDetailId = null; rebuildWidgets();
     }
     private String fontSafe(String text) { return dev.hoi.protocol.ProtocolTextBounds.ellipsize(text, 2000); }
-    private ProtocolMenuView.Entry politicsFocus() {
-        var entries = view.page(ProtocolMenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 중점")).flatMap(s -> s.entries().stream()).toList();
+    private MenuView.Entry politicsFocus() {
+        var entries = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 중점")).flatMap(s -> s.entries().stream()).toList();
         var active = entries.stream().filter(e -> e.progress() >= 0 || e.value().contains("진행")).findFirst();
-        String label = active.map(ProtocolMenuView.Entry::name).orElse("국가 중점 선택");
-        return new ProtocolMenuView.Entry("국가 중점", label, fontSafe(entries.stream().map(e -> e.name() + " · " + e.value() + "\n" + e.detail()).collect(java.util.stream.Collectors.joining("\n\n"))), active.map(ProtocolMenuView.Entry::progress).orElse(-1.0), active.map(ProtocolMenuView.Entry::icon).orElse(""));
+        String label = active.map(MenuView.Entry::name).orElse("국가 중점 선택");
+        return new MenuView.Entry("국가 중점", label, fontSafe(entries.stream().map(e -> e.name() + " · " + e.value() + "\n" + e.detail()).collect(java.util.stream.Collectors.joining("\n\n"))), active.map(MenuView.Entry::progress).orElse(-1.0), active.map(MenuView.Entry::icon).orElse(""));
     }
     private void drawPoliticsBanner(GuiGraphicsExtractor g) {
         var layout = politicsLayout(); var leader = layout.leader();
@@ -485,10 +493,10 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private void politicsCell(GuiGraphicsExtractor g, String label, UiPoliticsLayout.UiPoliticsBox box) {
         politicsCell(g, label, box.x(), box.y(), box.width(), box.height());
     }
-    private ProtocolMenuView.Entry politicsEntry(String name) {
-        return view.page(ProtocolMenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 현황"))
+    private MenuView.Entry politicsEntry(String name) {
+        return view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 현황"))
                 .flatMap(s -> s.entries().stream()).filter(e -> e.name().equals(name) || name.equals("세부 이념") && e.name().equals("이념")).findFirst()
-                .orElse(new ProtocolMenuView.Entry(name, "정보 없음", ""));
+                .orElse(new MenuView.Entry(name, "정보 없음", ""));
     }
     private void politicsCell(GuiGraphicsExtractor g, String label, int x, int y, int w, int h) {
         UiMenuStyle.recess(g, x, y, w, h);
@@ -513,7 +521,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         };
     }
     private void preparePartyChart() {
-        parties = view.page(ProtocolMenuTab.POLITICS).sections().stream().flatMap(s -> s.entries().stream())
+        parties = view.page(MenuTab.POLITICS).sections().stream().flatMap(s -> s.entries().stream())
                 .filter(e -> (e.icon().startsWith("politics/ideology/") || e.icon().startsWith("politics/party/")) && e.progress() >= 0).toList();
         partySpans.clear();
         int size = politicsLayout().partyChart().width();
@@ -554,8 +562,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         int y = contentTop() - scroll;
         for (int i = 0; i < POLITICS_IDS.length; i++) {
             final int index = i;
-            var section = view.page(ProtocolMenuTab.POLITICS).sections().stream().filter(s -> s.icon().equals(POLITICS_IDS[index])).findFirst()
-                    .orElse(new ProtocolMenuView.Section(POLITICS_NAMES[i], POLITICS_IDS[i], List.of()));
+            var section = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.icon().equals(POLITICS_IDS[index])).findFirst()
+                    .orElse(new MenuView.Section(POLITICS_NAMES[i], POLITICS_IDS[i], List.of()));
             if (g != null) {
                 UiMenuStyle.metal(g, 9, y, pane - 22, 15);
                 UiAssets.draw(g, "politics/header/" + new int[]{2, 1, 4, 5, 6, 7, 8}[i], 13, y + 1, 21, 13);
@@ -566,7 +574,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             int count = Math.max(1, entries.size());
             for (int j = 0; j < count; j++) {
                 int x = 16 + Math.max(0, columns - count) * cell / 2 + (j % columns) * cell, cy = y + 17 + (j / columns) * (row - 17);
-                var entry = entries.isEmpty() ? new ProtocolMenuView.Entry(section.title(), "정보 없음", "서버가 이 구역의 상태를 제공하지 않습니다.") : entries.get(j);
+                var entry = entries.isEmpty() ? new MenuView.Entry(section.title(), "정보 없음", "서버가 이 구역의 상태를 제공하지 않습니다.") : entries.get(j);
                 if (g != null) {
                     String icon = entry.icon().isEmpty() ? "menu/politics" : entry.icon();
                     UiAssets.draw(g, icon, x, cy, cell - 4, iconSize);
@@ -579,8 +587,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                         if (section.icon().equals("research_production") && position < 4) {
                             manufacturerGroup = List.of("armor", "navy", "air", "materiel").get(position);
                             manufacturerScroll = 0; detail = null; manufacturerDetailId = null; rebuildWidgets();
-                        } else if (index < 6 && ClientPlayNetworking.canSend(dev.hoi.protocol.ProtocolDialogPayloads.PoliticsOpen.TYPE)) {
-                            ClientPlayNetworking.send(new dev.hoi.protocol.ProtocolDialogPayloads.PoliticsOpen(section.icon(), position));
+                        } else if (index < 6 && ClientPlayNetworking.canSend(dev.hoi.protocol.dialog.DialogPayloads.PoliticsOpen.TYPE)) {
+                            ClientPlayNetworking.send(new dev.hoi.protocol.dialog.DialogPayloads.PoliticsOpen(section.icon(), position));
                         } else showDetail(entry, section.icon());
                     });
                     button.setTooltip(null);
@@ -594,7 +602,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         total = y - contentTop() + scroll;
     }
     private void requestRefresh() {
-        if (ClientPlayNetworking.canSend(ProtocolMenuPayloads.Refresh.TYPE)) ClientPlayNetworking.send(new ProtocolMenuPayloads.Refresh(token));
+        if (ClientPlayNetworking.canSend(MenuPayloads.Refresh.TYPE)) ClientPlayNetworking.send(new MenuPayloads.Refresh(token));
     }
     @Override public void tick() {
         if (!selectionPreview && ++refreshTicks % 40 == 0) requestRefresh();
@@ -613,11 +621,11 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
         UiMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
         UiMenuStyle.panel(g, 0, top, pane, height - top);
-        String heading=trim(selected == ProtocolMenuTab.POLITICS ? "정치" : selected.label(),pane-44);int headingX=10;
+        String heading=trim(selected == MenuTab.POLITICS ? "정치" : selected.label(),pane-44);int headingX=10;
 
         UiMenuStyle.heading(g, font, heading, headingX, top + 9, pane - 44, TEXT);
-        if (selected == ProtocolMenuTab.POLITICS) drawPoliticsBanner(g);
-        if (selected == ProtocolMenuTab.INTELLIGENCE) {
+        if (selected == MenuTab.POLITICS) drawPoliticsBanner(g);
+        if (selected == MenuTab.INTELLIGENCE) {
             UiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);
             if (!view.country().equals("KOR") || !UiAssets.draw(g, "country/kor/intelligence", 18, top + 33, 42, 40))
                 UiAssets.draw(g, "menu/intelligence", 18, top + 33, 42, 40);
@@ -636,11 +644,11 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (hasFooterActions()) UiMenuStyle.metal(g, 0, height - 33, pane, 33);
         if (manufacturerGroup != null) layoutManufacturers(false, g);
         if (detail != null) drawDetail(g);
-        if (balanceOpen && selected == ProtocolMenuTab.POLITICS && view.balance() != null) drawBalance(g, mx, my);
+        if (balanceOpen && selected == MenuTab.POLITICS && view.balance() != null) drawBalance(g, mx, my);
         super.extractRenderState(g, mx, my, delta);
         drawPoliticsTooltip(g, mx, my, mx);
         if(manufacturerGroup!=null&&detail==null)manufacturerTooltips.entrySet().stream().filter(e->UiTooltips.contains(e.getKey(),mx,my)).findFirst().ifPresent(e->UiTooltips.drawSourceScrollable(g,font,e.getValue(),mx,my,width,height,0));
-        if (selected == ProtocolMenuTab.OFFICER_CORPS && detail == null) {
+        if (selected == MenuTab.OFFICER_CORPS && detail == null) {
             String text = officerTooltips.entrySet().stream().filter(entry -> entry.getKey().isMouseOver(mx, my))
                     .map(Map.Entry::getValue).findFirst().orElse("");
             if (!text.equals(hoveredOfficer)) { hoveredOfficer = text; tooltipScroll = 0; }
@@ -676,7 +684,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         var layout = politicsLayout(); var first = layout.status(0); var last = layout.status(1);
         return new UiPoliticsLayout.UiPoliticsBox(first.x(), layout.summaryY(), last.x() + last.width() - first.x(), first.y() - layout.summaryY() - 2);
     }
-    private int balancePanelWidth() { return Math.min(UiPanelLayout.width(ProtocolMenuTab.INTELLIGENCE, width), width - 8); }
+    private int balancePanelWidth() { return Math.min(UiPanelLayout.width(MenuTab.INTELLIGENCE, width), width - 8); }
     private int balancePanelX() { return Math.min(pane + 3, width - balancePanelWidth()); }
     private void drawBalance(GuiGraphicsExtractor g, int mx, int my) {
         var balance = view.balance(); int x = balancePanelX(), w = balancePanelWidth(), y = top + 30;
@@ -705,13 +713,13 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             g.setTooltipForNextFrame(font, lines, mx, my);
         }
     }
-    UiPoliticsLayout politicsLayout() { return new UiPoliticsLayout(pane, top); }
-    ProtocolCountryHud hud() { return view.hud(); }
+    public UiPoliticsLayout politicsLayout() { return new UiPoliticsLayout(pane, top); }
+    CountryHud hud() { return view.hud(); }
     int spiritPitch() { return Math.max(18, politicsLayout().spirits().height() - 5); }
     private int maximumSpiritScroll() { return Math.max(0, spirits.size() * spiritPitch() - Math.max(0, politicsLayout().spirits().width() - 8)); }
     private int spiritStart() { return politicsLayout().spirits().x() + 4; }
-    ProtocolMenuView.Entry politicsHover(double x, double y) {
-        if (selected != ProtocolMenuTab.POLITICS || detail != null || manufacturerGroup != null) return null;
+    public MenuView.Entry politicsHover(double x, double y) {
+        if (selected != MenuTab.POLITICS || detail != null || manufacturerGroup != null) return null;
         var layout = politicsLayout();
         if (layout.leader().contains(x, y)) {
             var leader = politicsEntry("지도자");
@@ -727,7 +735,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (layout.government().contains(x, y)) return politicsEntry("정치 체제");
         if (!selectionPreview) for (int i=0;i<2;i++) if (layout.status(i).contains(x,y)) return politicsEntry(i==0?"점령지":"협력정부");
         var chart=layout.partyChart();
-        var party=ScreenPartyChart.at(parties,x-chart.x()-chart.width()/2.0,y-chart.y()-chart.height()/2.0,chart.width()/2.0-3.8);
+        var party=PoliticsPartyChart.at(parties,x-chart.x()-chart.width()/2.0,y-chart.y()-chart.height()/2.0,chart.width()/2.0-3.8);
         if(party!=null)return party;
         var partyList = layout.parties();
         if (partyList.contains(x, y)) {
@@ -766,7 +774,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         var groups = List.of("points", "materiel", "armor", "air", "navy");
         var names = List.of("특성 점수 보유", "군수품", "전차", "비행기", "함선");
         var icons = List.of("mio/ui/gfx_refitting/frame_0", "mio/ui/gfx_inf_art_checkbox/frame_0", "mio/ui/gfx_armour_checkbox/frame_0", "mio/ui/gfx_air_checkbox/frame_0", "mio/ui/gfx_screen_ships_checkbox/frame_0");
-        Comparator<ProtocolMenuView.Manufacturer> order=manufacturerByName?Comparator.comparing(m->m.entry().name()):Comparator.comparingInt(ProtocolMenuView.Manufacturer::size);
+        Comparator<MenuView.Manufacturer> order=manufacturerByName?Comparator.comparing(m->m.entry().name()):Comparator.comparingInt(MenuView.Manufacturer::size);
         if(manufacturerDescending)order=order.reversed();
         var filtered=view.manufacturers().stream().filter(m -> manufacturerGroup.equals("points") ? m.points()>0 : m.groups().contains(manufacturerGroup));
         var rows=(manufacturerSorted?filtered.sorted(order):filtered).toList();
@@ -777,7 +785,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             dev.hoi.client.ui.UiText.centered(g,font,dev.hoi.client.ui.UiTooltips.officerText("군수산업체",true),x+10,top+5,w-35,20,TEXT,false);
         }
         if (widgets) {
-            addRenderableWidget(new UiMenuButton("규모",x+8,top+32,24,18,()->{manufacturerDescending=manufacturerSorted&&!manufacturerByName&&!manufacturerDescending;manufacturerByName=false;manufacturerSorted=true;rebuildWidgets();}).caption("").background(ScreenOrganization.art("sort_skill")));
+            addRenderableWidget(new UiMenuButton("규모",x+8,top+32,24,18,()->{manufacturerDescending=manufacturerSorted&&!manufacturerByName&&!manufacturerDescending;manufacturerByName=false;manufacturerSorted=true;rebuildWidgets();}).caption("").background(IndustryOrganization.art("sort_skill")));
             addRenderableWidget(new UiMenuButton("이름",x+34,top+32,45,18,()->{manufacturerDescending=manufacturerSorted&&manufacturerByName&&!manufacturerDescending;manufacturerByName=true;manufacturerSorted=true;rebuildWidgets();}));
             addRenderableWidget(new UiMenuButton("×", x + w - 25, top + 3, 19, 19, () -> { manufacturerGroup = null; rebuildWidgets(); }));
             for (int i = 0; i < groups.size(); i++) {
@@ -795,7 +803,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             }
             if (widgets && y >= top + 59 && y + 45 <= bottom - 4) {
                 var hover=new dev.hoi.client.ui.UiHoverRegion(entry.name(),x+8,y,w-16,45);manufacturerTooltips.put(hover,entry.detail());
-                addRenderableWidget(new UiMenuButton("세부 사항", x + w - 67, y + 31, 54, 16, () -> dev.hoi.client.map.MapCommanderHud.open(new dev.hoi.protocol.ProtocolCommanderHud.Open(dev.hoi.protocol.ProtocolCommanderHud.Mode.ORGANIZATION,manufacturer.id(),List.of()))).background(ScreenOrganization.art("leader_selection_button")));addRenderableWidget(hover);
+                addRenderableWidget(new UiMenuButton("세부 사항", x + w - 67, y + 31, 54, 16, () -> dev.hoi.client.map.commander.CommanderHud.open(new dev.hoi.protocol.commander.CommanderHudPayloads.Open(dev.hoi.protocol.commander.CommanderHudPayloads.Mode.ORGANIZATION,manufacturer.id(),List.of()))).background(IndustryOrganization.art("leader_selection_button")));addRenderableWidget(hover);
             }
             y += 49;
         }
@@ -807,7 +815,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
         final double hoverX = x, hoverY = y;
-        if (selected == ProtocolMenuTab.OFFICER_CORPS && officerTooltips.keySet().stream().anyMatch(widget -> widget.isMouseOver(hoverX, hoverY))
+        if (selected == MenuTab.OFFICER_CORPS && officerTooltips.keySet().stream().anyMatch(widget -> widget.isMouseOver(hoverX, hoverY))
                 && com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)) {
             tooltipScroll -= (int)(vertical * 30); return true;
         }
@@ -818,14 +826,14 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             } else if (politicsHover(x, y) != null) tooltipScroll -= (int)(vertical * 3);
             return true;
         }
-        if (selected == ProtocolMenuTab.POLITICS && detail == null && manufacturerGroup == null && politicsLayout().parties().contains(x, y)) {
+        if (selected == MenuTab.POLITICS && detail == null && manufacturerGroup == null && politicsLayout().parties().contains(x, y)) {
             return true;
         }
         if (politicsHover(x, y) != null && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
                 || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT))) {
             tooltipScroll -= (int)(vertical * 3); return true;
         }
-        if (selected == ProtocolMenuTab.POLITICS && detail == null && manufacturerGroup == null
+        if (selected == MenuTab.POLITICS && detail == null && manufacturerGroup == null
                 && politicsLayout().spirits().contains(x, y)) {
             spiritScroll = Math.clamp(spiritScroll - (int)((horizontal != 0 ? horizontal : vertical) * spiritPitch()), 0, maximumSpiritScroll());
             return true;
@@ -853,7 +861,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (allowsMovement() && InputSidebarMovement.consumes(minecraft, event)) return true;
         return super.keyReleased(event);
     }
-    @Override public void removed() { InputSidebarMovement.release(minecraft); if (!ScreenDialogCoordinator.suspending()) HoiClient.cancelOpen(); }
+    @Override public void removed() { InputSidebarMovement.release(minecraft); if (!DialogCoordinator.suspending()) HoiClient.cancelOpen(); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private String trim(String text, int max) { return dev.hoi.client.ui.UiText.ellipsize(font, text, max); }

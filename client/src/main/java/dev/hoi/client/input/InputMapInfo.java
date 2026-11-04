@@ -1,6 +1,6 @@
 package dev.hoi.client.input;
 
-import dev.hoi.protocol.ProtocolDialogPayloads;
+import dev.hoi.protocol.dialog.DialogPayloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
@@ -22,36 +22,36 @@ public final class InputMapInfo {
         });
     }
     private static void closeContent(net.minecraft.client.gui.screens.Screen previous) {
-        if (previous != null && !(previous instanceof dev.hoi.client.screen.ScreenMapCursor)
-                && dev.hoi.client.screen.ScreenDialogCoordinator.contentScreen() == previous) {
-            if (previous instanceof dev.hoi.client.screen.ScreenArmyHeadquarters) previous.onClose();
-            dev.hoi.client.screen.ScreenDialogCoordinator.setContent(new dev.hoi.client.screen.ScreenMapCursor());
+        if (previous != null && !(previous instanceof dev.hoi.client.screen.map.MapCursor)
+                && dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen() == previous) {
+            if (previous instanceof dev.hoi.client.screen.army.ArmyHeadquarters) previous.onClose();
+            dev.hoi.client.screen.dialog.DialogCoordinator.setContent(new dev.hoi.client.screen.map.MapCursor());
         }
     }
     public static boolean clickAt(Minecraft client, double x, double y, int width, int height) {
-        var previous = dev.hoi.client.screen.ScreenDialogCoordinator.contentScreen();
-        if(dev.hoi.client.map.MapCommanderHud.clickAt(x,y)){closeContent(previous);return true;}
-        if(dev.hoi.client.map.MapUnitHud.selectAt(x,y)){closeContent(previous);return true;}
-        if(client.player==null||!ClientPlayNetworking.canSend(ProtocolDialogPayloads.MapClick.TYPE)||!client.options.getCameraType().isFirstPerson())return false;
+        var previous = dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen();
+        if(dev.hoi.client.map.commander.CommanderHud.clickAt(x,y)){closeContent(previous);return true;}
+        if(dev.hoi.client.map.commander.CommanderUnitHud.selectAt(x,y)){closeContent(previous);return true;}
+        if(client.player==null||!ClientPlayNetworking.canSend(DialogPayloads.MapClick.TYPE)||!client.options.getCameraType().isFirstPerson())return false;
         var matrix=client.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
         var ray=matrix.transformProject(new org.joml.Vector3f((float)(x/width*2-1),(float)(1-y/height*2),1)).normalize();
         closeContent(previous);
-        ClientPlayNetworking.send(new ProtocolDialogPayloads.MapClick(ray.x,ray.y,ray.z));return true;
+        ClientPlayNetworking.send(new DialogPayloads.MapClick(ray.x,ray.y,ray.z));return true;
     }
     public static boolean click(Minecraft client) {
         if (client.player == null || client.gui.screen() != null) return false;
-        if (dev.hoi.client.map.MapRaidHud.click(new net.minecraft.client.input.MouseButtonEvent(
+        if (dev.hoi.client.map.agency.AgencyRaidHud.click(new net.minecraft.client.input.MouseButtonEvent(
                 client.getWindow().getGuiScaledWidth() / 2.0, client.getWindow().getGuiScaledHeight() / 2.0,
                 new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,
                         client.player.isShiftKeyDown() ? com.mojang.blaze3d.platform.InputConstants.MOD_SHIFT : 0)), false)) {
-            client.gui.setScreen(new dev.hoi.client.screen.ScreenMapCursor()); return true;
+            client.gui.setScreen(new dev.hoi.client.screen.map.MapCursor()); return true;
         }
-        if(dev.hoi.client.map.MapCommanderHud.clickAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
-        if(dev.hoi.client.map.MapUnitHud.selectAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
-        if(!ClientPlayNetworking.canSend(ProtocolDialogPayloads.MapClick.TYPE))return false;
+        if(dev.hoi.client.map.commander.CommanderHud.clickAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
+        if(dev.hoi.client.map.commander.CommanderUnitHud.selectAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
+        if(!ClientPlayNetworking.canSend(DialogPayloads.MapClick.TYPE))return false;
         var item = client.player.getMainHandItem();
         int selector = item.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getIntOr("hoi_atlas_selector", 0);
         if (!item.is(Items.CARROT_ON_A_STICK) || selector < 1 || selector > 9) return false;
-        ClientPlayNetworking.send(ProtocolDialogPayloads.MapClick.INSTANCE); return true;
+        ClientPlayNetworking.send(DialogPayloads.MapClick.INSTANCE); return true;
     }
 }

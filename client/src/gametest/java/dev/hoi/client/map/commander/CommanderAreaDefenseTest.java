@@ -1,0 +1,23 @@
+package dev.hoi.client.map.commander;
+
+import dev.hoi.client.ClientCampaignHud;
+import dev.hoi.client.screen.map.MapCursor;
+import dev.hoi.protocol.commander.CommanderHudPayloads.*;
+import dev.hoi.protocol.commander.CommanderOrderPayloads.*;
+import dev.hoi.protocol.hud.*;
+import dev.hoi.protocol.menu.*;
+import java.nio.file.*;
+import java.util.*;
+import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+
+final class CommanderAreaDefenseTest {
+    private CommanderAreaDefenseTest() {}
+    static void run(ClientGameTestContext game,MenuView menu,String directory)throws java.io.IOException {
+        var source=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-area.json"))).view();var army=source.cards().stream().filter(c->c.panel()!=null&&c.panel().controls().stream().anyMatch(control->control.id().equals("AREA_STATES"))).findFirst().orElseThrow();
+        for(int[] size:List.of(new int[]{1280,720},new int[]{2560,1440})){
+            var commands=new ArrayList<Command>();var context=new Context[1];game.getInput().resizeWindow(size[0],size[1]);game.runOnClient(client->{client.options.guiScale().set(2);CommanderOrders.reset();CommanderHud.reset();CommanderUnitHud.reset();ClientCampaignHud.accept(HudPayloads.State.of("KOR",menu.hud()));CommanderOrders.commandObserver=commands::add;CommanderOrders.selectionObserver=selection->{};CommanderHud.requestObserver=null;CommanderHud.accept(new View(source.country(),client.level.dimension().identifier().toString(),source.branch(),source.cards(),source.wings()));context[0]=new Context(UUID.randomUUID().toString(),0,"KOR",client.level.dimension().identifier().toString(),"");CommanderOrders.accept(context[0]);CommanderPanels.select(army.id(),false);});game.setScreen(MapCursor::new);game.waitTicks(2);
+            game.runOnClient(client->{var screen=client.gui.screen();if(client.options.guiScale().get()!=2||client.getWindow().getGuiScale()!=2)throw new AssertionError("Capture must use actual GUI scale 2");var options=CommanderPanels.hits().stream().filter(h->h.tip().contains("배정 사단:")&&h.tip().contains("선택됨")).toList();if(options.size()!=7)throw new AssertionError("Actual area panel must expose seven authoritative options");for(var hit:options)if(hit.x()<0||hit.y()<0||hit.x()+hit.w()>screen.width||hit.y()+hit.h()>screen.height)throw new AssertionError("Area options must remain inside GUI2 viewport");for(var hit:CommanderPanels.hits().stream().filter(h->h.tip().contains("배정 사단:")).toList())for(var box:CommanderHud.boxes())if(hit.x()<box.x()+box.width()&&hit.x()+hit.w()>box.x()&&hit.y()<box.y()+box.height()&&hit.y()+hit.h()>box.y())throw new AssertionError("Area controls must not overlap army cards or their actions");var option=options.getFirst();CommanderHud.clickAt(option.x()+option.w()/2.,option.y()+option.h()/2.);CommanderHud.clickAt(option.x()+option.w()/2.,option.y()+option.h()/2.);if(commands.size()!=1||!commands.getFirst().action().startsWith("ARMY/AREA_OPTION/")||!commands.getFirst().selection().equals(List.of(army.id()))||client.gui.screen()!=screen)throw new AssertionError("Area option sends one direct owned request without modal");CommanderOrders.accept(new Context(context[0].token(),1,"KOR",context[0].dimension(),""));var edit=CommanderPanels.hits().stream().filter(h->h.tip().contains("배정 사단:")&&!h.tip().contains("선택됨")).findFirst().orElseThrow();CommanderHud.clickAt(edit.x()+edit.w()/2.,edit.y()+edit.h()/2.);if(!commands.getLast().action().equals("LAND/AREA_STATES")||client.gui.screen()!=screen)throw new AssertionError("Area state editing enters map mode without modal");CommanderOrders.accept(new Context(context[0].token(),2,"KOR",context[0].dimension(),"LAND/AREA_STATES"));});game.waitTicks(1);game.takeScreenshot("hoi-area-options-"+size[0]+"x"+size[1]+"-gui2");
+            game.runOnClient(client->{var screen=client.gui.screen();screen.keyPressed(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));if(!commands.getLast().action().equals("CONFIRM")||client.gui.screen()!=screen)throw new AssertionError("Enter commits the area draft without opening a modal");CommanderOrders.accept(new Context(context[0].token(),3,"KOR",context[0].dimension(),"LAND/AREA_STATES"));screen.keyPressed(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE,0,0));if(!commands.getLast().action().equals("CANCEL"))throw new AssertionError("Esc exits area state mode without deleting the plan");CommanderOrders.accept(new Context(context[0].token(),4,"KOR",context[0].dimension(),""));});
+        }
+    }
+}

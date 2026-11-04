@@ -5,7 +5,9 @@ import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.hoi.client.ClientCampaignHud;
 import dev.hoi.client.network.NetworkScreens;
-import dev.hoi.protocol.ProtocolMenuTab;
+import dev.hoi.protocol.menu.MenuTab;
+import dev.hoi.client.screen.dialog.DialogCoordinator;
+import dev.hoi.client.screen.map.MapCursor;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Instant;
@@ -68,13 +70,13 @@ public final class ScreenNetworkCampaignTest {
                         return;
                     }
                     game.runOnClient(client -> {
-                        var screen = ScreenDialogCoordinator.contentScreen();
+                        var screen = DialogCoordinator.contentScreen();
                         switch (operation) {
-                            case "menu" -> NetworkScreens.openMenu(ProtocolMenuTab.valueOf(action.get("tab").getAsString()));
+                            case "menu" -> NetworkScreens.openMenu(MenuTab.valueOf(action.get("tab").getAsString()));
                             case "close" -> { if (screen != null) screen.onClose(); }
-                            case "cursor" -> ScreenDialogCoordinator.setContent(new ScreenMapCursor());
+                            case "cursor" -> DialogCoordinator.setContent(new MapCursor());
                             case "event" -> {
-                                var stack = ScreenDialogCoordinator.eventStack();
+                                var stack = DialogCoordinator.eventStack();
                                 if (stack != null && !stack.views().isEmpty()) {
                                     var view = stack.views().stream().filter(v -> v.completion()).reduce((first, last) -> last).orElse(stack.views().getLast());
                                     if (!view.choices().isEmpty()) {
@@ -122,7 +124,7 @@ public final class ScreenNetworkCampaignTest {
             state.put("at", Instant.now().toString()); state.put("result", result); state.put("country", ClientCampaignHud.country()); state.put("hud", ClientCampaignHud.hud());
             state.put("sounds", sounds);
             state.put("eventChoices", eventChoices);
-            var notifications = ScreenDialogCoordinator.eventStack();
+            var notifications = DialogCoordinator.eventStack();
             if (notifications != null) state.put("events", notifications.views());
             var displays = new ArrayList<Map<String, Object>>();
             if (client.level != null) for (var entity : client.level.entitiesForRendering()) {
@@ -130,11 +132,11 @@ public final class ScreenNetworkCampaignTest {
             }
             state.put("displays", displays);
             if (client.player != null) state.put("position", Map.of("x", client.player.getX(), "y", client.player.getY(), "z", client.player.getZ(), "yaw", client.player.getYRot(), "pitch", client.player.getXRot(), "dimension", client.level.dimension().identifier().toString()));
-            for (var item : Map.of("units", "dev.hoi.client.map.MapUnitHud#groups", "commanders", "dev.hoi.client.map.MapCommanderHud#view", "orders", "dev.hoi.client.map.MapCommanderOrders#context").entrySet()) {
+            for (var item : Map.of("units", "dev.hoi.client.map.commander.CommanderUnitHud#groups", "commanders", "dev.hoi.client.map.commander.CommanderHud#view", "orders", "dev.hoi.client.map.commander.CommanderOrders#context").entrySet()) {
                 try { var parts = item.getValue().split("#"); var field = Class.forName(parts[0]).getDeclaredField(parts[1]); field.setAccessible(true); state.put(item.getKey(), field.get(null)); }
                 catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
             }
-            var screen = ScreenDialogCoordinator.contentScreen();
+            var screen = DialogCoordinator.contentScreen();
             state.put("screen", screen == null ? "none" : screen.getClass().getSimpleName());
             if (screen != null) {
                 state.put("widgets", screen.children().stream().filter(w -> w instanceof AbstractWidget).map(w -> { var b = (AbstractWidget)w; return Map.of("label", b.getMessage().getString(), "active", b.active, "x", b.getX(), "y", b.getY()); }).toList());

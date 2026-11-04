@@ -1,0 +1,94 @@
+package dev.hoi.client.map.commander;
+
+import dev.hoi.client.ClientCampaignHud;
+import dev.hoi.client.screen.map.MapCursor;
+import dev.hoi.protocol.commander.CommanderHudPayloads.*;
+import dev.hoi.protocol.commander.CommanderOrderPayloads.Command;
+import dev.hoi.protocol.commander.CommanderOrderPayloads.Context;
+import dev.hoi.protocol.commander.CommanderOrderPayloads.Selection;
+import dev.hoi.protocol.hud.*;
+import dev.hoi.protocol.menu.*;
+import dev.hoi.protocol.unit.*;
+import java.util.*;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
+
+final class CommanderHierarchySelectionTest {
+    private CommanderHierarchySelectionTest() {}
+    private static Card card(String id,Mode role,String parent,List<String> divisions){
+        var rows=role==Mode.ARMY_GROUP?List.<Member>of():divisions.stream().limit(1).map(d->new Member(d,d,"대기 중","unit_hud/infantry","",1,new Open(Mode.ARMY_UNITS,id))).toList();
+        return new Card(id,id,"","politics/empty/leader","","",divisions.size(),18,"",role,new Panel(parent,"",null,rows,divisions.size(),List.of(),divisions));
+    }
+    private static View view(String dimension,List<String> a,List<String> b){var group=new ArrayList<>(a);group.addAll(b);return new View("KOR",dimension,Mode.ARMY,List.of(card("G",Mode.ARMY_GROUP,"",group),card("A",Mode.ASSIGN_ARMY,"G",a),card("B",Mode.ASSIGN_ARMY,"G",b),card("OTHER",Mode.ASSIGN_ARMY,"",List.of("outside"))));}
+    private static void selected(String... ids){var expected=Arrays.stream(ids).map(id->"unit/"+id).collect(java.util.stream.Collectors.toSet());if(!CommanderUnitHud.selectedKeys().equals(expected)||!new HashSet<>(CommanderPanels.commandSelection()).equals(expected))throw new AssertionError("Counter selection and direct command must exactly match "+expected+" but were "+CommanderPanels.commandSelection());}
+    private static void click(String id){var box=CommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().target().equals(id)&&(b.request().mode()==Mode.ASSIGN_ARMY||b.request().mode()==Mode.ASSIGN_GROUP_MARSHAL)).findFirst().orElseThrow();if(!CommanderHud.clickAt(box.x()+box.width()/2.,box.y()+box.height()/2.))throw new AssertionError("Actual hierarchy portrait must accept click");}
+    private static void move(List<Command> commands,Context issued,long revision,String... ids){
+        var screen=net.minecraft.client.Minecraft.getInstance().gui.screen();double x=screen.width*.92,y=screen.height*.4;int before=commands.size();var event=new MouseButtonEvent(x,y,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_RIGHT,0));screen.mouseClicked(event,false);screen.mouseReleased(event);
+        if(commands.size()!=before+1||!commands.getLast().action().equals("MAP")||!new HashSet<>(commands.getLast().selection()).equals(Arrays.stream(ids).map(id->"unit/"+id).collect(java.util.stream.Collectors.toSet())))throw new AssertionError("Hierarchy right-click must issue exactly its selected division union");
+        CommanderOrders.accept(new Context(issued.token(),revision,"KOR",issued.dimension(),""));
+    }
+    static void run(ClientGameTestContext game,MenuView menu){
+        try{for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})){
+            var commands=new ArrayList<Command>();var selections=new ArrayList<Selection>();var issued=new Context[1];var initial=new View[1];game.getInput().resizeWindow(size[0],size[1]);
+            game.runOnClient(client->{client.options.guiScale().set(2);ClientCampaignHud.accept(HudPayloads.State.of("KOR",menu.hud()));CommanderHud.reset();CommanderUnitHud.reset();CommanderOrders.reset();CommanderHud.requestObserver=null;CommanderOrders.commandObserver=commands::add;CommanderOrders.selectionObserver=selections::add;initial[0]=view(client.level.dimension().identifier().toString(),List.of("a1","a2","a3"),List.of("b1","b2"));CommanderHud.accept(initial[0]);issued[0]=new Context(UUID.randomUUID().toString(),0,"KOR",initial[0].dimension(),"");CommanderOrders.accept(issued[0]);client.player.setXRot(60);client.player.setYRot(0);});
+            game.setScreen(()->new dev.hoi.client.screen.ScreenMenu(menu,MenuTab.OFFICER_CORPS,()->{}));game.waitTicks(3);
+            game.takeScreenshot("hoi-sidebar-selection-before-"+size[0]+"-gui2");
+            game.runOnClient(client->{
+                var screen=client.gui.screen();
+                var body=new MouseButtonEvent(20,100,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
+                var hook=net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.afterMouseClick(screen).invoker();
+                if(hook.afterMouseClick(screen,body,false)||client.gui.screen()!=screen)throw new AssertionError("Empty sidebar body must not click the map");
+                var card=CommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_ARMY&&b.request().target().equals("A")).findFirst().orElseThrow();
+                var event=new MouseButtonEvent(card.x()+card.width()/2.,card.y()+card.height()/2.,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
+                if(!hook.afterMouseClick(screen,event,screen.mouseClicked(event,false))||!(client.gui.screen() instanceof MapCursor))throw new AssertionError("Map card must replace the open sidebar and retain the cursor");
+                selected("a1","a2","a3");
+                if(!commands.isEmpty())throw new AssertionError("Switching a sidebar to a selected army must not issue orders");
+            });game.waitTicks(3);game.takeScreenshot("hoi-sidebar-selection-after-"+size[0]+"-gui2");
+            game.runOnClient(client->{CommanderHud.reset();CommanderUnitHud.reset();CommanderHud.accept(initial[0]);issued[0]=new Context(UUID.randomUUID().toString(),0,"KOR",initial[0].dimension(),"");CommanderOrders.accept(issued[0]);});
+            game.setScreen(MapCursor::new);game.waitTicks(2);game.takeScreenshot("hoi-hierarchy-reset-"+size[0]+"-gui2");
+            game.runOnClient(client->{selected();if(!CommanderHud.groups.expanded("G")||!CommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ASSIGN_ARMY).map(b->b.request().target()).toList().containsAll(List.of("A","B")))throw new AssertionError("Unselected group children must begin expanded");click("G");selected("a1","a2","a3","b1","b2");});game.waitTicks(2);
+            game.takeScreenshot("hoi-hierarchy-group-"+size[0]+"x"+size[1]+"-gui2");
+            game.runOnClient(client->{move(commands,issued[0],1,"a1","a2","a3","b1","b2");click("A");selected("a1","a2","a3");});game.waitTicks(2);
+            game.takeScreenshot("hoi-hierarchy-army-"+size[0]+"x"+size[1]+"-gui2");
+            game.runOnClient(client->{move(commands,issued[0],2,"a1","a2","a3");var row=CommanderPanels.hits().stream().filter(h->h.tip().contains("\n\n§Ya1§!\n")).findFirst().orElseThrow();CommanderHud.clickAt(row.x()+row.w()/2.,row.y()+row.h()/2.);selected("a1");CommanderHud.accept(initial[0]);selected("a1");move(commands,issued[0],3,"a1");});game.waitTicks(2);
+            game.takeScreenshot("hoi-hierarchy-subset-"+size[0]+"x"+size[1]+"-gui2");
+            game.getInput().holdKey(o->o.keyShift);game.runOnClient(client->{click("B");selected("a1","b1","b2");});game.getInput().releaseKey(o->o.keyShift);game.waitTicks(2);game.runOnClient(client->{CommanderHud.accept(initial[0]);selected("a1","b1","b2");if(!new HashSet<>(selections.getLast().keys()).equals(CommanderUnitHud.selectedKeys()))throw new AssertionError("Adding a full Army to a partial selection must publish only that mixed exact union");CommanderPanels.select("B",true);selected("a1");});
+            game.runOnClient(client->{CommanderPanels.select("A",false);CommanderPanels.select("B",true);});game.waitTicks(2);
+            game.runOnClient(client->{var close=CommanderPanels.hits().stream().filter(h->h.tip().equals("닫기")&&h.x()<client.gui.screen().width/3).skip(1).findFirst().orElseThrow();CommanderHud.clickAt(close.x()+close.w()/2.,close.y()+close.h()/2.);selected("b1","b2");CommanderPanels.select("A",false);CommanderPanels.select("B",true);CommanderUnitHud.selectDivisions(List.of("a1","b1"),false);});game.waitTicks(2);
+            game.runOnClient(client->{var close=CommanderPanels.hits().stream().filter(h->h.icon().equals("nv_btn_close")&&h.x()<client.gui.screen().width/3).findFirst().orElseThrow();CommanderHud.clickAt(close.x()+close.w()/2.,close.y()+close.h()/2.);selected();CommanderPanels.select("A",false);});
+            game.runOnClient(client->{
+                CommanderPanels.select("B",true);selected("a1","a2","a3","b1","b2");move(commands,issued[0],4,"a1","a2","a3","b1","b2");CommanderPanels.select("A",true);selected("b1","b2");CommanderPanels.select("B",true);selected();
+                CommanderPanels.select("G",false);CommanderHud.accept(view(initial[0].dimension(),List.of("a2","a3","a4"),List.of("b1")));selected("a2","a3","a4","b1");move(commands,issued[0],5,"a2","a3","a4","b1");
+                CommanderUnitHud.selectDivisions(List.of("a2","a3"),false);CommanderHud.accept(view(initial[0].dimension(),List.of("a2","a4","a5"),List.of("b1","b2")));selected("a2");CommanderUnitHud.clearSelection();CommanderOrders.selectionChanged();CommanderHud.accept(initial[0]);selected();
+                CommanderPanels.select("G",false);CommanderOrders.accept(new Context(issued[0].token(),6,"KOR",issued[0].dimension(),"LAND/FRONT"));int before=commands.size();CommanderUnitHud.selectDivisions(List.of("a1"),false);if(commands.size()!=before+1||!commands.getLast().action().equals("CANCEL"))throw new AssertionError("Manual subset cancels the previous pending hierarchy target once");CommanderOrders.accept(new Context(issued[0].token(),7,"KOR",issued[0].dimension(),""));selected("a1");
+                CommanderPanels.select("G",false);var full=initial[0].cards().getFirst();CommanderHud.accept(new View("KOR",initial[0].dimension(),Mode.ARMY,List.of(full)));selected("a1","a2","a3","b1","b2");move(commands,issued[0],8,"a1","a2","a3","b1","b2");
+                var incomplete=new Card(full.id(),full.name(),full.leader(),full.portrait(),full.marshal(),full.marshalPortrait(),full.count(),full.capacity(),full.detail(),full.role(),new Panel("","",null,List.of(),5,List.of()));CommanderHud.accept(new View("KOR",initial[0].dimension(),Mode.ARMY,List.of(incomplete)));selected();CommanderHud.accept(initial[0]);selected("a1","a2","a3","b1","b2");
+                CommanderUnitHud.selectDivisions(List.of("a1"),false);CommanderHud.accept(new View("KOR",initial[0].dimension(),Mode.ARMY,List.of(incomplete)));selected("a1");CommanderHud.accept(initial[0]);selected("a1");
+                CommanderPanels.select("B",true);selected("a1","b1","b2");var partialCards=new ArrayList<>(initial[0].cards());var b=partialCards.get(2);partialCards.set(2,new Card(b.id(),b.name(),b.leader(),b.portrait(),b.marshal(),b.marshalPortrait(),b.count(),b.capacity(),b.detail(),b.role(),new Panel("G","",null,List.of(),2,List.of())));CommanderHud.accept(new View("KOR",initial[0].dimension(),Mode.ARMY,partialCards));selected("a1");CommanderUnitHud.accept(new UnitHud.Snapshot(initial[0].dimension(),List.of()));selected("a1");CommanderHud.accept(initial[0]);selected("a1","b1","b2");
+                CommanderHud.closeSelection();selected();if(!selections.getLast().keys().isEmpty())throw new AssertionError("Scope clearing must be published to remove private movement arrows");CommanderHud.accept(initial[0]);selected();CommanderPanels.select("A",false);CommanderHud.accept(new View("KOR",initial[0].dimension(),Mode.NAVY_HQ,List.of()));selected();if(CommanderOrders.ready())throw new AssertionError("Branch transition must retire the command context");CommanderHud.accept(initial[0]);selected();
+                CommanderPanels.select("A",false);ClientCampaignHud.accept(HudPayloads.State.of("PRK",menu.hud()));CommanderHud.accept(initial[0]);selected();
+            });
+            formation(game,menu,size);
+        }}finally{game.runOnClient(client->{CommanderOrders.commandObserver=null;CommanderOrders.selectionObserver=null;CommanderOrders.reset();CommanderHud.reset();CommanderUnitHud.reset();ClientCampaignHud.accept(HudPayloads.State.of("KOR",menu.hud()));});}
+    }
+    private static void formation(ClientGameTestContext game,MenuView menu,int[] size){
+        var commands=new ArrayList<Command>();var issued=new Context[1];var source=new View[1];
+        game.runOnClient(client->{ClientCampaignHud.accept(HudPayloads.State.of("KOR",menu.hud()));CommanderHud.reset();CommanderUnitHud.reset();CommanderOrders.reset();CommanderHud.requestObserver=null;CommanderOrders.commandObserver=commands::add;CommanderOrders.selectionObserver=s->{};source[0]=view(client.level.dimension().identifier().toString(),List.of("a1","a2","a3"),List.of("b1","b2"));CommanderHud.accept(source[0]);issued[0]=new Context(UUID.randomUUID().toString(),0,"KOR",source[0].dimension(),"");CommanderOrders.accept(issued[0]);CommanderPanels.select("G",false);CommanderUnitHud.selectDivisions(List.of("a1"),false);});game.waitTicks(2);
+        game.runOnClient(client->{formationClick(Mode.ASSIGN_ARMY,"B",commands,issued[0],"MOVE_DIVISIONS",List.of("target/B","unit/a1"));selected("a1");CommanderHud.accept(source[0]);selected("a1");if(!CommanderHud.countLabel(source[0].cards().get(1)).equals("3"))throw new AssertionError("Unassigned army must show only its actual division count");});
+        game.runOnClient(client->{CommanderPanels.select("A",false);CommanderPanels.select("B",true);});game.waitTicks(2);
+        game.runOnClient(client->{formationClick(Mode.ASSIGN_GROUP_MARSHAL,"G",commands,issued[0],"MOVE_ARMIES",List.of("target/G","A","B"));selected("a1","a2","a3","b1","b2");});game.waitTicks(2);
+        game.takeScreenshot("hoi-direct-existing-group-white-counts-"+size[0]+"x"+size[1]+"-gui2");
+        game.runOnClient(client->{formationClick(Mode.ARMY_GROUPS,"",commands,issued[0],"CREATE_GROUP",List.of("A","B"));CommanderUnitHud.selectDivisions(List.of("a1","b1"),false);});game.waitTicks(2);
+        game.runOnClient(client->{formationClick(Mode.CREATE_ARMY,"",commands,issued[0],"CREATE_ARMY",List.of("unit/a1","unit/b1"));selected("a1","b1");if(!CommanderPanels.selectedDivisionRows().stream().map(Member::id).collect(java.util.stream.Collectors.toSet()).equals(Set.of("a1","b1")))throw new AssertionError("The manual selection panel must contain exactly the selected divisions across armies");var response=new ArrayList<>(source[0].cards());response.add(card("NEW",Mode.ASSIGN_ARMY,"",List.of("b1","a1")));CommanderHud.accept(new View("KOR",source[0].dimension(),Mode.ARMY,response));if(!CommanderPanels.selectedCards().equals(Set.of("NEW")))throw new AssertionError("Created army response must select its matching new card");selected("a1","b1");});game.waitTicks(2);
+        game.takeScreenshot("hoi-created-army-selected-synthetic-"+size[0]+"x"+size[1]+"-gui2");
+        game.runOnClient(client->{if(CommanderPanels.hits().stream().noneMatch(h->h.icon().equals("deploy_hq_button")))throw new AssertionError("Created army must show its regular full detail panel");CommanderHud.closeSelection();});game.waitTicks(2);
+        game.runOnClient(client->{int count=commands.size();var box=CommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.CREATE_ARMY).findFirst().orElseThrow();CommanderHud.clickAt(box.x()+box.width()/2.,box.y()+box.height()/2.,InputConstants.MOUSE_BUTTON_RIGHT,false);if(commands.size()!=count)throw new AssertionError("Empty formation selection must not submit a mutation");CommanderHud.accept(new View("KOR",source[0].dimension(),Mode.AIR,List.of()));if(CommanderOrders.route(new Open(Mode.CREATE_ARMY,"",List.of("unit/a1")))||CommanderOrders.route(new Open(Mode.ARMY_GROUPS,"")))throw new AssertionError("Army direct formation must preserve existing non-army dialog routes");});
+    }
+    private static void formationClick(Mode mode,String target,List<Command> commands,Context issued,String action,List<String> keys){
+        var client=net.minecraft.client.Minecraft.getInstance();var screen=client.gui.screen();var box=CommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==mode&&b.request().target().equals(target)).findFirst().orElseThrow();int before=commands.size();var event=new MouseButtonEvent(box.x()+box.width()/2.,box.y()+box.height()/2.,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_RIGHT,0));screen.mouseClicked(event,false);screen.mouseReleased(event);
+        if(commands.size()!=before+1||!commands.getLast().action().equals("FORMATION/"+action)||!commands.getLast().selection().equals(keys)||client.gui.screen()!=screen)throw new AssertionError("Direct formation must send only "+action+" "+keys+" without an intermediate dialog: "+commands);
+        CommanderOrders.accept(new Context(issued.token(),commands.getLast().revision()+1,"KOR",issued.dimension(),""));
+    }
+}

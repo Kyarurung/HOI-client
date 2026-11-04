@@ -21,9 +21,9 @@ gradle.projectsEvaluated {
     def destination = new File(target)
     def sources = server.fileTree(server.projectDir) {
         include 'core/src/main/**', 'fabric/src/main/**', 'protocol/src/main/**', 'content/**'
-        include 'fabric/src/test/java/dev/hoi/scenario/ScenarioCaptivitySourceTest.java'
-        include 'fabric/src/test/java/dev/hoi/scenario/ScenarioLeaderEventSourceTest.java'
-        include 'fabric/src/test/java/dev/hoi/map/MapMissionOverlayFixtureTest.java'
+        include 'fabric/src/test/java/dev/hoi/scenario/source/SourceCaptivityTest.java'
+        include 'fabric/src/test/java/dev/hoi/scenario/source/SourceLeaderEventTest.java'
+        include 'fabric/src/test/java/dev/hoi/map/unit/UnitMissionOverlayFixtureTest.java'
         include '*.gradle', 'gradle.properties', 'core/*.gradle', 'fabric/*.gradle', 'protocol/*.gradle'
         include 'gradle/wrapper/gradle-wrapper.properties'
         groups.each { group -> specification[group].producers.each { producer ->

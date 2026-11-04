@@ -1,13 +1,13 @@
 package dev.hoi.client.ui;
 
-import dev.hoi.protocol.ProtocolIndustryView;
+import dev.hoi.protocol.industry.IndustryView;
 import org.junit.jupiter.api.Test;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UiProductionDesignTest {
-    private ProtocolIndustryView.Equipment equipment(String id,String group) {
-        return new ProtocolIndustryView.Equipment(id,"장비","",group,group.equals("navy"),true,1,10,Map.of(),0,0,0,0);
+    private IndustryView.Equipment equipment(String id,String group) {
+        return new IndustryView.Equipment(id,"장비","",group,group.equals("navy"),true,1,10,Map.of(),0,0,0,0);
     }
     @Test void ordinaryArmorAndModularTankUseDifferentSourceFrames() {
         var ordinary=UiEquipmentDesigns.productionDesign(equipment("hoi:atgm","armor"));
