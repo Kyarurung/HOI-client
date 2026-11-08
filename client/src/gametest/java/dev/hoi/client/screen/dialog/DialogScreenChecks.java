@@ -49,8 +49,8 @@ public final class DialogScreenChecks {
             var bounds = context.computeOnClient(c -> {
                 double scale = c.getWindow().getGuiScale();
                 return new int[]{(int)(4 * scale), (int)(3 * scale),
-                        (int)(dev.hoi.client.ui.UiMenuBar.flagWidth(c.gui.screen().width) * scale),
-                        (int)((dev.hoi.client.ui.UiMenuBar.height(c.gui.screen().width) - 6) * scale)};
+                        (int)(dev.hoi.client.ui.hud.HudMenuBar.flagWidth(c.gui.screen().width) * scale),
+                        (int)((dev.hoi.client.ui.hud.HudMenuBar.height(c.gui.screen().width) - 6) * scale)};
             });
             for (String image : List.of("map_detail/terrain/plains", "map_detail/sea", "air_detail/background")) {
                 var view = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.STATE, "국기 유지 검증", "", "", "", image, "", List.of(), List.of());
@@ -74,9 +74,9 @@ public final class DialogScreenChecks {
             c.options.guiScale().set(2);
             var rich = net.minecraft.network.chat.Component.literal("효과").withColor(0xEEC923)
                     .append(net.minecraft.network.chat.Component.literal("\n사단 방어: -5.555%\n훈련: 0\n\n\n제거 불가능").withColor(0xDE5646));
-            var formatted = dev.hoi.client.ui.UiTooltips.format(rich);
+            var formatted = dev.hoi.client.ui.tooltip.Tooltips.format(rich);
             if (!formatted.getString().equals("효과\n사단 방어: -5.6%\n\n제거 불가능")) throw new AssertionError(formatted.getString());
-            var party = dev.hoi.client.ui.UiTooltips.format(net.minecraft.network.chat.Component.literal("정당 지지도\n매일 변화: §a+0.0025§r"));
+            var party = dev.hoi.client.ui.tooltip.Tooltips.format(net.minecraft.network.chat.Component.literal("정당 지지도\n매일 변화: §a+0.0025§r"));
             if (!party.getString().contains("+0.0025")) throw new AssertionError("Party precision changed");
         });
         var tiles=List.of(

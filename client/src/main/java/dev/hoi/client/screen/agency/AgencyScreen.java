@@ -2,19 +2,18 @@ package dev.hoi.client.screen.agency;
 
 import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.HoiClient;
-import dev.hoi.client.ui.UiMenuBar;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.hud.HudMenuBar;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.client.ui.UiText;
 import dev.hoi.client.ui.UiPanelButton;
 import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
-import dev.hoi.client.ui.UiCountryFlags;
+import dev.hoi.client.ui.country.CountryFlags;
 import dev.hoi.client.ui.UiScrollBar;
 import dev.hoi.client.ui.UiHoverRegion;
 import dev.hoi.client.ui.UiCommandLabels;
-
 import dev.hoi.protocol.agency.AgencyView.*;
 import dev.hoi.client.screen.commander.CommanderConfirmation;
 import dev.hoi.client.screen.map.MapCursor;
@@ -31,7 +30,7 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public final class AgencyScreen extends Screen implements InputSidebarMovement.InputMovementScreen {
-    private static final int TEXT = 0xFFE0E3DD, GOLD = 0xFFFFAA00, MUTED = 0xFF9AABA8;
+    private static final int TEXT = 0xFFE0E3DD, GOLD = 0xFFFFAA00;
     public static final List<String> UPGRADE_ORDER = List.of("foreign_intelligence", "domestic_intelligence", "military_intelligence", "hidden_front", "planning_and_direction", "collection", "processing_and_exploitation", "analysis", "dissemination", "humint", "sigint", "masint", "osint", "geoint", "cell_system", "communication_security", "support_services", "enhanced_interrogation_techniques", "termination", "elint", "comint", "advanced_cryptoanalytical_attack_models", "cryptosystem_algorithm_upgrade", "quantum_cryptography");
     private static final String[] UPGRADE_GROUPS = {"정보공동체", "정보 순환", "정보 수집 분야", "휴민트", "신호 정보"};
     private final Screen parent;
@@ -49,7 +48,6 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
     private final AgencyCapitalMap capitalMap = new AgencyCapitalMap();
     private final dev.hoi.client.map.agency.AgencyOperations operationMap = new dev.hoi.client.map.agency.AgencyOperations();
     List<AgencyCapitalMap.Hit> capitalHits() { return capitalMap.hits(); }
-    List<dev.hoi.client.map.agency.AgencyOperations.Hit> operationHits() { return operationMap.hits(); }
     public AgencyScreen(Screen parent) {
         this(parent, UUID.randomUUID().toString(), null, request -> {
             if (ClientPlayNetworking.canSend(AgencyPayloads.Request.TYPE)) ClientPlayNetworking.send(request);
@@ -58,7 +56,6 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
     public AgencyScreen(Screen parent, String token, AgencyView fixture, Consumer<AgencyPayloads.Request> transport) {
         super(Component.literal("정보기관")); this.parent = parent; this.token = token; this.view = fixture; this.transport = transport;
     }
-    String session() { return token; }
     public AgencyView snapshot() { return view; }
     public Screen dismissalBackdrop() { return parent instanceof MapCursor ? parent : this; }
     private void closeDismissal() { if (parent instanceof MapCursor) onClose(); else minecraft.gui.setScreen(this); }
@@ -147,8 +144,8 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         overlayStart = 0;
         InputSidebarMovement.release(minecraft);
         pane = UiPanelLayout.width(MenuTab.INTELLIGENCE, width);
-        top = UiMenuBar.height(width);
-        UiMenuBar.buttons(width, view == null ? "" : view.country(), MenuTab.INTELLIGENCE, tab -> {
+        top = HudMenuBar.height(width);
+        HudMenuBar.buttons(width, view == null ? "" : view.country(), MenuTab.INTELLIGENCE, tab -> {
             if (tab == MenuTab.INTELLIGENCE) return;
             if (tab == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
         }).forEach(this::addRenderableWidget);
@@ -278,7 +275,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                         tokenX = bx + 107.5f;
                         for (var token : tokens) if (token.required()) { AgencyOperation.token(g, token, tokenX, by + 25); tokenX += 17; }
                         String target=operation != null ? operation.country() : item.parameters().isEmpty()?"":item.parameters().getFirst().choices().stream().findFirst().map(Choice::value).orElse("");
-                        if(!target.isEmpty())dev.hoi.client.ui.UiCountryFlags.draw(g,"country/"+target.toLowerCase(Locale.ROOT)+"/flag","small",flagX,by+7,16,11);
+                        if(!target.isEmpty())dev.hoi.client.ui.country.CountryFlags.draw(g,"country/"+target.toLowerCase(Locale.ROOT)+"/flag","small",flagX,by+7,16,11);
                         if(offer != null || operation != null) {
                             int requirementY = by + 25;
                             g.pose().pushMatrix(); g.pose().translate(bx, requirementY); g.pose().scale(.5f);
@@ -318,7 +315,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                         g.pose().pushMatrix(); g.pose().translate(bx, by); g.pose().scale(scale);
                         UiAssets.draw(g, AgencyOperation.sprite("GFX_cryptology_country_entry_bg"), 0, 0, 516, 87);
                         String country = item.id().contains(":") ? item.id().split(":", 2)[1] : "";
-                        UiCountryFlags.draw(g, "country/" + country.toLowerCase(Locale.ROOT) + "/flag", "small2", 14, 13, 41, 26);
+                        CountryFlags.draw(g, "country/" + country.toLowerCase(Locale.ROOT) + "/flag", "small2", 14, 13, 41, 26);
                         UiAssets.draw(g, AgencyOperation.sprite("GFX_small_flag_frame_thin"), 11, 11, 47, 32);
                         UiAssets.nineSlice(g, AgencyOperation.sprite("GFX_decrypt_button_bg"), 320, 15, 151, 53, 4, 1);
                         var barBackground = net.minecraft.resources.Identifier.parse("hoi:textures/gui/" + AgencyOperation.sprite("GFX_crypto_bar_bg") + ".png");
@@ -349,7 +346,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                 var complete = new UiMenuButton(item.button(), bx + areaWidth / columns - 73, by + widgetHeight - 25, 62, 18, () -> operationAction(item.id()))
                         .background(AgencyOperation.sprite("GFX_launch_operation_button_anim"));
                 complete.active = item.enabled() && pendingTicks == 0;
-                complete.setTooltip(UiTooltips.create(Component.literal(item.detail())));
+                complete.setTooltip(Tooltips.create(Component.literal(item.detail())));
                 addRenderableWidget(complete);
             }
             if (item.id().startsWith("cipher:")) {
@@ -358,19 +355,18 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                 cipherButton(cipher.activate(), cipher.activateTooltip(), cipher.activateEnabled(), "GFX_crypto_decryption_activate_button_animated", 0, bx, by, 280, 18, 48, 48, y, listBottom);
                 cipherButton(cipher.delete(), cipher.deleteTooltip(), cipher.deleteEnabled(), "GFX_NV_btn_delete", 0, bx, by, 474, 24, 32, 32, y, listBottom);
                 var status = new UiHoverRegion(cipher.status(), bx + Math.round(15 * cryptoScale()), Math.max(y, by + Math.round(49 * cryptoScale())), Math.round(190 * cryptoScale()), Math.max(1, Math.min(listBottom, by + Math.round(67 * cryptoScale())) - Math.max(y, by + Math.round(49 * cryptoScale()))));
-                status.setTooltip(UiTooltips.createExact(cipher.statusTooltip())); addRenderableWidget(status);
+                status.setTooltip(Tooltips.createExact(cipher.statusTooltip())); addRenderableWidget(status);
             }
             if ((item.id().startsWith("decrypt:") || item.id().startsWith("pause:")) && by + Math.round(38 * cryptoScale()) >= y && by + Math.round(74 * cryptoScale()) <= listBottom) {
-                int rowWidth = areaWidth - 4;
                 var toggle = new UiMenuButton(item.button(), bx + Math.round(205 * cryptoScale()), by + Math.round(38 * cryptoScale()), Math.round(36 * cryptoScale()), Math.round(36 * cryptoScale()), () -> selectItem(item));
                 toggle.caption("").background("agency/operations/gfx_crypto_decryption_start_stop_button/frame_" + (item.id().startsWith("pause:") ? 1 : 0));
-                toggle.setTooltip(UiTooltips.create(Component.literal(item.detail())));
+                toggle.setTooltip(Tooltips.create(Component.literal(item.detail())));
                 toggle.active = item.enabled() && pendingTicks == 0; addRenderableWidget(toggle);
                 var reveal = view.items().stream().filter(v -> v.id().equals("reveal:" + item.id().split(":", 2)[1])).findFirst().orElse(null);
                 if (reveal != null) {
                     var action = new UiMenuButton("암호 공개", bx + Math.round(280 * cryptoScale()), by + Math.round(18 * cryptoScale()), Math.round(48 * cryptoScale()), Math.round(48 * cryptoScale()), () -> selectItem(reveal));
                     action.caption("").background(AgencyOperation.sprite("GFX_crypto_decryption_activate_button_animated"));
-                    action.setTooltip(UiTooltips.create(Component.literal(reveal.detail())));
+                    action.setTooltip(Tooltips.create(Component.literal(reveal.detail())));
                     action.active = reveal.enabled() && pendingTicks == 0; addRenderableWidget(action);
                 }
             }
@@ -450,9 +446,6 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         int index = UPGRADE_ORDER.indexOf(item.id().replace("upgrade:", "").toLowerCase(Locale.ROOT));
         return index < 0 ? UPGRADE_ORDER.size() : index;
     }
-    static int upgradeColor(Item item) {
-        return item.progress() >= 1 ? GOLD : item.enabled() ? 0xFF55FF55 : 0xFFB53543;
-    }
     static int upgradeStages(Item item) {
         if (!item.id().startsWith("upgrade:")) return 0;
         int slash = item.value().indexOf('/');
@@ -509,7 +502,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         if (group.equals("operations") && selectedId == null) operationMap.draw(g, view, pane, top);
         else operationMap.clear();
         UiMenuStyle.panel(g, 0, top, pane, height - top);
-        UiMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, 0);
+        HudMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, 0);
         UiMenuStyle.heading(g, font, "정보기관", 10, top + 9, pane - 44, UiMenuStyle.TEXT);
         if (unestablished()) { drawUnestablished(g); super.extractRenderState(g,mx,my,delta); return; }
         String flag = view == null ? "menu/intelligence" : Set.of("KOR", "PRC").contains(view.country()) ? "country/" + view.country().toLowerCase(Locale.ROOT) + "/intelligence" : "menu/intelligence";
@@ -519,7 +512,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         g.pose().translate(56, top + 30);
         g.pose().scale(UiText.scale(font) * 1.15f);
         var agencyName = Component.literal(view == null ? "불러오는 중…" : view.name()).withStyle(net.minecraft.ChatFormatting.BOLD);
-        g.text(font, UiTooltips.split(font,agencyName, (int)((pane - 98) / (UiText.scale(font) * 1.15f))).getFirst(), 0, 0, TEXT);
+        g.text(font, Tooltips.split(font,agencyName, (int)((pane - 98) / (UiText.scale(font) * 1.15f))).getFirst(), 0, 0, TEXT);
         g.pose().popMatrix();
         UiAssets.draw(g, "agency/passive_defense", 56, top + 55, 14, 14);
         UiText.text(g, font, "방첩 활동:", 73, top + 57, TEXT);
@@ -564,14 +557,14 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
             g.pose().scale(1.35f);
             g.centeredText(font, Component.literal("첩보기관 개선").withStyle(net.minecraft.ChatFormatting.BOLD), 0, -font.lineHeight / 2, TEXT);
             g.pose().popMatrix();
-            UiText.centeredAt(g, font, UiTooltips.styled(Component.literal("기관 개선은 §630§r일 후 완료됩니다."), false), ux + uw / 2, upgradeY() + 27, TEXT);
+            UiText.centeredAt(g, font, Tooltips.styled(Component.literal("기관 개선은 §630§r일 후 완료됩니다."), false), ux + uw / 2, upgradeY() + 27, TEXT);
             var items = visibleItems(); int columns = upgradeColumns();
             String[] titles = {"정보공동체", "정보 순환", "정보 수집 분야", "휴민트", "신호 정보"};
             for (int i = 0; i < items.size(); i++) if (i == 0 || upgradeCategory(items.get(i - 1)) != upgradeCategory(items.get(i))) {
                 int by = upgradeY() + 44 + upgradeOffset(items, i, columns) - scroll - 14;
                 if (by < upgradeY() + 34 || by + 14 > upgradeY() + upgradeHeight() - 3) continue;
                 UiAssets.cover(g, "agency/ui/branch", ux + 8, by, uw - 16, 69);
-                UiText.text(g, font, UiTooltips.officerText(titles[upgradeCategory(items.get(i))], true), ux + 13, by + Math.round((14 - font.lineHeight * UiText.scale(font)) / 2f), TEXT);
+                UiText.text(g, font, Tooltips.officerText(titles[upgradeCategory(items.get(i))], true), ux + 13, by + Math.round((14 - font.lineHeight * UiText.scale(font)) / 2f), TEXT);
             }
         }
         var item = selected();
@@ -588,7 +581,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                     for (int i = 0; i < phases.length; i++) UiAssets.draw(g, "agency/" + phases[i], dx + 98 + i * (artWidth + 5), 104, artWidth, 37);
                 }
                 int bottom = height - 82 - item.parameters().size() * 25;
-                var lines = UiTooltips.split(font,Component.literal(item.detail()), dw - 26);
+                var lines = Tooltips.split(font,Component.literal(item.detail()), dw - 26);
                 detailScroll = Math.clamp(detailScroll, 0, Math.max(0, lines.size() * 13 - Math.max(0, bottom - 148)));
                 g.enableScissor(dx + 10, 146, dx + dw - 10, Math.max(146, bottom));
                 int y = 148 - detailScroll;
@@ -661,7 +654,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
             }
         };
         button.active = enabled && pendingTicks == 0;
-        button.setTooltip(UiTooltips.createExact(tooltip)); addRenderableWidget(button);
+        button.setTooltip(Tooltips.createExact(tooltip)); addRenderableWidget(button);
     }
     private UiScrollBar cryptoBar() { return new UiScrollBar(pane - 12, top + 254, height - 5, Math.max(1, height - 5 - top - 254), visibleItems().size() * cryptoPitch()); }
     private float cryptoScale() { return (pane - 16) / 519f; }
@@ -678,7 +671,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         if (view == null || selectedId != null) return;
         if (group.equals("upgrades")) {
             for (var child : children()) if (child instanceof AgencyUpgradeButton button && button.isMouseOver(mx, my)) {
-                UiTooltips.drawExact(g, font, button.item().detail(), mx, my, 175); return;
+                Tooltips.drawExact(g, font, button.item().detail(), mx, my); return;
             }
             return;
         }
@@ -693,7 +686,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         if (sidebar != null) {
             String id = sidebar;
             view.items().stream().filter(i -> i.id().equals(id) && !i.detail().isBlank()).findFirst()
-                    .ifPresent(i -> UiTooltips.drawExact(g, font, i.detail(), mx, my, 175));
+                    .ifPresent(i -> Tooltips.drawExact(g, font, i.detail(), mx, my));
             return;
         }
         for (int category = 0; category < UPGRADE_GROUPS.length; category++) {
@@ -703,14 +696,14 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
             int size = Math.min(10, (pane - 20) / 5 / Math.max(1, upgrades.size()));
             int x = 8 + category * (pane - 16) / 5;
             if (my >= top + 126 && my < top + 126 + size && mx >= x && mx < x + size * upgrades.size()) {
-                UiTooltips.drawExact(g, font, upgrades.get((mx - x) / size).detail(), mx, my, 175); return;
+                Tooltips.drawExact(g, font, upgrades.get((mx - x) / size).detail(), mx, my); return;
             }
         }
         if (mx >= 8 && mx < pane - 8 && my > top + 240) {
             if (group.equals("operations") && visibleItems().isEmpty())
-                UiTooltips.drawExact(g, font, "요원을 모집하여 작전을 활성화", mx, my);
+                Tooltips.drawExact(g, font, "요원을 모집하여 작전을 활성화", mx, my);
             else if (group.equals("cryptology") && cryptologyLocked())
-                UiTooltips.drawExact(g, font, "암호 해독을 활성화하려면 전자정보 업그레이드를\n완료하세요.", mx, my);
+                Tooltips.drawExact(g, font, "암호 해독을 활성화하려면 전자정보 업그레이드를\n완료하세요.", mx, my);
         }
     }
     private boolean cryptologyLocked() {
@@ -721,9 +714,9 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
     private int recruitX() { return Math.round(pane * 284f / 540); }
     private void drawOperationsChrome(GuiGraphicsExtractor g) {
         UiAssets.nineSlice(g,"agency/ui/section",6,top+77,pane-12,17,5,.5);
-        UiText.centered(g,font,UiTooltips.officerText("정보기관",true),12,top+80,(pane-12)*185/530-8,11,TEXT);
+        UiText.centered(g,font,Tooltips.officerText("정보기관",true),12,top+80,(pane-12)*185/530-8,11,TEXT);
         UiAssets.nineSlice(g,"agency/ui/section",6,top+141,pane-12,17,5,.5);
-        UiText.centered(g,font,UiTooltips.officerText("작전",true),12,top+144,(pane-12)*185/530-8,11,TEXT);
+        UiText.centered(g,font,Tooltips.officerText("작전",true),12,top+144,(pane-12)*185/530-8,11,TEXT);
         UiAssets.nineSlice(g,"agency/ui/operatives",6,top+159,pane-12,38,3,.5);
         for (int i = 0; i < 3; i++) {
             g.enableScissor(counterX(i) - 3, top + 179, counterX(i) + counterWidth() + 4, top + 195);
@@ -772,7 +765,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         smallCentered(g,project==null?"기관 창설":"기관 창설 중",pane/2,top+51,TEXT);
         int gaugeLeft=45,gaugeRight=pane-45;
         UiAssets.draw(g,"construction/summary/civilian_factory",gaugeLeft,top+60,13,11);
-        UiText.text(g,font,"5",gaugeLeft+15,top+60,available?0xFFE0E3DD:0xFF000000|UiTooltips.BAD);
+        UiText.text(g,font,"5",gaugeLeft+15,top+60,available?0xFFE0E3DD:0xFF000000|Tooltips.BAD);
         String days=project==null?"30":project.value().substring(project.value().lastIndexOf('·')+1).replace("일 남음", "").trim();
         int daysX=gaugeRight-Math.round(font.width(days+"일")*UiText.scale(font));
         UiText.text(g,font,days,daysX,top+60,GOLD);
@@ -785,7 +778,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         wrappedNotice(g,group.equals("cryptology")?"기관을 창설하면 암호 해독을 시작할 수 있습니다.":"작전은 정보원이 첩보망을 구축하여야\n시행할 수 있습니다.",16,top+274,pane-32);
     }
     private void wrappedNotice(GuiGraphicsExtractor g,String value,int x,int y,int width) {
-        var lines=UiTooltips.split(font,Component.literal(value),Math.max(1,(int)(width/UiText.scale(font))));
+        var lines=Tooltips.split(font,Component.literal(value),Math.max(1,(int)(width/UiText.scale(font))));
         for(int i=0;i<lines.size();i++) UiText.text(g, font,lines.get(i),x+Math.round((width-font.width(lines.get(i))*UiText.scale(font))/2),y+i*(font.lineHeight+2),TEXT);
     }
     private void smallCentered(GuiGraphicsExtractor g,String value,int x,int y,int color) {

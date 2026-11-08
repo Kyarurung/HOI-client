@@ -1,7 +1,7 @@
 package dev.hoi.client.ui;
 
 import dev.hoi.client.audio.AudioUiSounds;
-
+import dev.hoi.client.ui.tooltip.Tooltips;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Font;
@@ -22,13 +22,13 @@ public final class UiMenuButton extends Button {
     public UiMenuButton wrapLabel() { wrapLabel = true; return this; }
     public static int labelHeight(Font font, String label, int width, float scale) {
         float renderedScale = Math.max(UiText.scale(font), scale + 1f / font.lineHeight);
-        int lines = UiTooltips.split(font,Component.literal(label), Math.max(1, (int)((width - 6) / renderedScale))).size();
+        int lines = Tooltips.split(font,Component.literal(label), Math.max(1, (int)((width - 6) / renderedScale))).size();
         return (int)Math.ceil((lines * (font.lineHeight + 1) - 1) * renderedScale) + (lines > 1 ? 6 : 2);
     }
     public UiMenuButton textShadow(boolean value) { textShadow = value; return this; }
     public UiMenuButton sound(String value) { sound = value; return this; }
     public void textScale(float scale) { textScale = scale; }
-    public UiMenuButton caption(String value) { caption = value; if (isClose(value)) setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal("닫기"))); return this; }
+    public UiMenuButton caption(String value) { caption = value; if (isClose(value)) setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal("닫기"))); return this; }
     private static boolean isClose(String value) { return value.equals("×") || value.equals("x") || value.equals("X"); }
     public UiMenuButton background(String value) { background = value; return this; }
     public UiMenuButton(String label, int x, int y, int w, int h, Runnable action) {
@@ -37,7 +37,7 @@ public final class UiMenuButton extends Button {
     public UiMenuButton(String label, String icon, boolean selected, int x, int y, int w, int h, Runnable action) {
         super(x, y, w, h, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
         this.icon = icon; this.selected = selected;
-        setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(isClose(label) ? "닫기" : label)));
+        setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(isClose(label) ? "닫기" : label)));
     }
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play(isClose(caption == null ? getMessage().getString() : caption) ? "ui.close" : sound); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
@@ -56,7 +56,7 @@ public final class UiMenuButton extends Button {
             var captionText = Component.literal(displayed).withStyle(style -> style.withBold(bold));
             float scale = Math.max(UiText.scale(font), textScale + 1f / font.lineHeight);
             if (wrapLabel && font.width(captionText) * scale > w - 6) {
-                var lines = UiTooltips.split(font,captionText, Math.max(1, (int)((w - 6) / scale)));
+                var lines = Tooltips.split(font,captionText, Math.max(1, (int)((w - 6) / scale)));
                 float height = (lines.size() * (font.lineHeight + 1) - 1) * scale;
                 g.pose().pushMatrix(); g.pose().translate(x + w / 2f, y + (h - height) / 2); g.pose().scale(scale);
                 for (int i = 0; i < lines.size(); i++) g.text(font, lines.get(i), -font.width(lines.get(i)) / 2, i * (font.lineHeight + 1), active ? UiMenuStyle.TEXT : UiMenuStyle.MUTED, textShadow);

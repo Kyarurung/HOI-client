@@ -180,6 +180,11 @@ public final class DialogCoordinator {
         }
     }
     public static void choose(DialogView view, String choice) {
+        boolean leaseAnswer = view.presentation().equals("lend_lease_request") && choice.startsWith("answer_lease:");
+        if (leaseAnswer) {
+            var current = find(view.token());
+            if (current == null || !current.view().equals(view) || view.choices().stream().noneMatch(c -> c.id().equals(choice))) return;
+        }
         boolean agencyDetails = view.presentation().equals("agency_upgrade_complete") && choice.equals("details");
         if (agencyDetails) {
             var current = find(view.token());
@@ -187,6 +192,12 @@ public final class DialogCoordinator {
         }
         if (!view.token().isEmpty() && ClientPlayNetworking.canSend(DialogPayloads.Action.TYPE)) {
             ClientPlayNetworking.send(new DialogPayloads.Action(view.token(), view.revision(), choice));
+            if (leaseAnswer) {
+                String[] flag = view.flag().split("/");
+                close(view.token());
+                if (flag.length == 3 && flag[0].equals("country") && flag[2].equals("flag"))
+                    dev.hoi.client.network.NetworkScreens.openLeaseAnswer(flag[1].toUpperCase(Locale.ROOT), choice);
+            }
             if (agencyDetails) {
                 close(view.token());
                 dev.hoi.client.network.NetworkScreens.openAgency();

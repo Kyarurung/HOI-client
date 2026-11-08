@@ -1,8 +1,8 @@
 package dev.hoi.client.screen.dialog;
 
-import dev.hoi.client.research.ResearchScreen;
-import dev.hoi.client.ui.UiMenuBar;
-import dev.hoi.client.ui.UiHudTooltip;
+import dev.hoi.client.screen.research.ResearchScreen;
+import dev.hoi.client.ui.hud.HudMenuBar;
+import dev.hoi.client.ui.hud.HudTooltip;
 import dev.hoi.client.screen.ScreenMenu;
 import dev.hoi.client.screen.agency.AgencyScreen;
 import dev.hoi.client.screen.doctrine.DoctrineNotificationTest;
@@ -12,7 +12,6 @@ import dev.hoi.protocol.dialog.*;
 import dev.hoi.protocol.hud.*;
 import dev.hoi.protocol.menu.*;
 import dev.hoi.protocol.research.*;
-
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.KeyEvent;
@@ -326,24 +325,24 @@ public final class DialogCompletionChecks {
         context.setScreen(() -> new ScreenMenu(new MenuView("KOR", "대한민국", "2020-01-01", "PAUSED", pages, hud)));
         context.getInput().setCursorPos(135, 14); context.waitTicks(3);
         context.runOnClient(c -> {
-            var flag=(Button)c.gui.screen().children().stream().filter(w->w instanceof UiMenuBar.UiTabButton b&&b.getX()==4).findFirst().orElseThrow();
+            var flag=(Button)c.gui.screen().children().stream().filter(w->w instanceof HudMenuBar.HudTabButton b&&b.getX()==4).findFirst().orElseThrow();
             check(flag.getWidth()>flag.getHeight(),"Country flag keeps a wide aspect ratio");
             check(c.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/menu/flag_overlay.png")).isPresent(),"Original TFR flag overlay loads from the split UI pack");
-            var lines = UiHudTooltip.body(c.font, c.gui.screen().width, hud, UiMenuBar.indicators(hud).getFirst());
-            for (var item : UiMenuBar.indicators(hud)) {
+            var lines = HudTooltip.body(c.font, c.gui.screen().width, hud, HudMenuBar.indicators(hud).getFirst());
+            for (var item : HudMenuBar.indicators(hud)) {
                 check(item.value().equals((item.icon().equals("party_support")||item.icon().equals("supplies")) ? "0%" : "0"), "Unknown HUD value displays zero: " + item.icon());
                 var text = new StringBuilder();
-                for (var line : UiHudTooltip.body(c.font, c.gui.screen().width, hud, item))
+                for (var line : HudTooltip.body(c.font, c.gui.screen().width, hud, item))
                     line.accept((index, style, character) -> { text.appendCodePoint(character); return true; });
                 check((item.icon().equals("supplies") || !text.toString().contains("현재: 0")) && text.indexOf("—") < 0, "Zero tooltip rows must be hidden: " + item.icon());
             }
-            var supply = UiMenuBar.indicators(hud).stream().filter(item -> item.icon().equals("supplies")).findFirst().orElseThrow();
+            var supply = HudMenuBar.indicators(hud).stream().filter(item -> item.icon().equals("supplies")).findFirst().orElseThrow();
             var supplyText = new StringBuilder();
-            for (var line : UiHudTooltip.body(c.font, c.gui.screen().width, hud, supply))
+            for (var line : HudTooltip.body(c.font, c.gui.screen().width, hud, supply))
                 line.accept((index, style, character) -> { supplyText.appendCodePoint(character); return true; });
             check(supplyText.toString().startsWith("병참 상황")&&!supplyText.toString().contains("현재:"), "Logistics begins with its original heading without a duplicate percentage");
             check(supplyText.toString().contains("요구: 0") && supplyText.toString().contains("비축 물자: 0 (0%)"), "Supply requirements and empty stockpiles remain visible");
-            check(UiMenuBar.rawNumber(-1.25).equals("-1.25"), "Actual negative effects retain their sign and decimals");
+            check(HudMenuBar.rawNumber(-1.25).equals("-1.25"), "Actual negative effects retain their sign and decimals");
             for (var line : lines) check(c.font.width(line) <= 310, "HUD lines wrap within viewport");
         });
         context.takeScreenshot("hoi-hud-detail-compact");

@@ -1,14 +1,12 @@
 package dev.hoi.client;
 
 import dev.hoi.client.network.NetworkScreens;
-
 import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.map.scene.SceneRenderer;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.screen.raid.RaidScreen;
 import dev.hoi.client.ui.UiAssets;
-
 import dev.hoi.protocol.research.ResearchPayloads;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -39,7 +37,7 @@ public final class HoiClient implements ClientModInitializer {
         SceneRenderer.register();
         dev.hoi.protocol.industry.IndustryConstructionPayloads.registerPayloadTypes();
         dev.hoi.protocol.country.CountryPayloads.registerPayloadTypes();
-        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.country.CountryDisplay.Table.TYPE, (packet, context) -> dev.hoi.client.ui.UiCountryDisplay.accept(packet));
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.country.CountryDisplay.Table.TYPE, (packet, context) -> dev.hoi.client.ui.country.CountryDisplays.accept(packet));
         dev.hoi.protocol.diplomacy.DiplomacyWorldTensionPayloads.registerPayloadTypes();
         net.fabricmc.fabric.api.resource.v1.ResourceLoader.get(net.minecraft.server.packs.PackType.CLIENT_RESOURCES)
                 .registerReloadListener(Identifier.fromNamespaceAndPath("hoi", "ui_image_dimensions"),
@@ -50,8 +48,8 @@ public final class HoiClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> { dev.hoi.client.audio.AudioUnitVoices.tick(); dev.hoi.client.audio.AudioStoryMusic.tick(); dev.hoi.client.audio.AudioKoreanMusic.tick(); });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             dev.hoi.client.screen.industry.IndustryScreen.clearPreferences();
-            dev.hoi.client.ui.UiCountryDisplay.clear(); dev.hoi.client.audio.AudioStorySounds.clear();
-            dev.hoi.client.input.InputMenuShortcut.reset(); AudioUiSounds.reset(); dev.hoi.client.audio.AudioUnitVoices.reset(); dev.hoi.client.audio.AudioStoryMusic.reset(); dev.hoi.client.audio.AudioKoreanMusic.PLAYBACK.stop(); InputSidebarMovement.release(client); dev.hoi.client.ui.UiMenuBar.clear();
+            dev.hoi.client.ui.country.CountryDisplays.clear(); dev.hoi.client.audio.AudioStorySounds.clear();
+            dev.hoi.client.input.InputMenuShortcut.reset(); AudioUiSounds.reset(); dev.hoi.client.audio.AudioUnitVoices.reset(); dev.hoi.client.audio.AudioStoryMusic.reset(); dev.hoi.client.audio.AudioKoreanMusic.PLAYBACK.stop(); InputSidebarMovement.release(client); dev.hoi.client.ui.hud.HudMenuBar.clear();
         }));
     }
     static void registerCommands(com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> dispatcher) {

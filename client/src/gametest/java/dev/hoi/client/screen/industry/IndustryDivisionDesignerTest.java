@@ -28,7 +28,7 @@ public final class IndustryDivisionDesignerTest {
                         new IndustryView.Stat("평균 신뢰도", "BASE", 0.9, "PERCENT", "AVERAGE_RELIABILITY"),
                         new IndustryView.Stat("전선 복귀", "BASE", 0, "PERCENT", "TRICKLEBACK"))) {
                     String expected = switch (sample.id()) { case "SPEED" -> "10.0km/h"; case "HP" -> "151.0"; case "RECOVERY_RATE" -> "0.81"; case "AVERAGE_RELIABILITY" -> "90.0%"; default -> "0.00%"; };
-                    if (!dev.hoi.client.ui.UiEquipmentDesigns.divisionStatValue(sample).equals(expected)) throw new AssertionError("Original division number format: " + sample.id());
+                    if (!dev.hoi.client.ui.industry.IndustryEquipmentDesigns.divisionStatValue(sample).equals(expected)) throw new AssertionError("Original division number format: " + sample.id());
                 }
             });
             for (int[] size : List.of(new int[]{2560,1440}, new int[]{1280,720})) {
@@ -253,7 +253,7 @@ public final class IndustryDivisionDesignerTest {
         game.takeScreenshot("hoi-" + fixture + "-template-dropdown-" + width + "-gui2");
         game.runOnClient(c -> scrollDropdown(screen));
         game.runOnClient(c -> {
-            var option = button(screen, dev.hoi.client.ui.UiEquipmentDesigns.tooltip("DESIGNER_CREATE_NEW_DIVISION"));
+            var option = button(screen, dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("DESIGNER_CREATE_NEW_DIVISION"));
             var right = new MouseButtonEvent(option.getX() + 2, option.getY() + 2, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_RIGHT, 0));
             screen.mouseClicked(right, false); screen.mouseReleased(right);
             if (!requests.isEmpty()) throw new AssertionError("Right-clicking a dropdown must not select an entry");
@@ -283,7 +283,7 @@ public final class IndustryDivisionDesignerTest {
         long revision = view.revision() + 2;
         for (int priority = 0; priority < 3; priority++) {
             int value = priority; long currentRevision = revision++;
-            String name = dev.hoi.client.ui.UiEquipmentDesigns.tooltip("TEMPLATE_PRIO_" + priority);
+            String name = dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("TEMPLATE_PRIO_" + priority);
             var control = game.computeOnClient(c -> button(screen, name));
             game.getInput().setCursorPos((control.getX() + 3) * 2, (control.getY() + 3) * 2); game.waitTicks(4);
             game.takeScreenshot("hoi-" + fixture + "-priority-" + priority + "-tooltip-" + width + "-gui2");

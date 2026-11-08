@@ -3,7 +3,6 @@ package dev.hoi.client.screen.dialog;
 import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiAssets;
-
 import dev.hoi.protocol.dialog.DialogView;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -11,10 +10,6 @@ public final class DialogCompletion extends DialogScreen {
     private final java.util.function.BiConsumer<DialogView, String> send;
     private net.minecraft.client.gui.screens.Screen backdrop;
     private int left, top, pane, panelHeight, bodyTop, bodyBottom, scroll, total;
-    DialogCompletion(DialogView view) { this(view, DialogCoordinator::choose); }
-    DialogCompletion(DialogView view, net.minecraft.client.gui.screens.Screen backdrop) {
-        this(view); this.backdrop = backdrop;
-    }
     net.minecraft.client.gui.screens.Screen backdrop() { return backdrop; }
     void dismiss() {
         if (stacked) { DialogCoordinator.close(view().token()); return; }
@@ -61,7 +56,7 @@ public final class DialogCompletion extends DialogScreen {
         else if (agency) UiAssets.draw(g, "completion/research", left + 7, top + 38, pane - 13, 61);
         else UiAssets.draw(g, "completion/focus", left + 8, innerTop, 235, 69);
         UiAssets.draw(g, "completion/bottom", left + 2, top + panelHeight - 35, pane - 4, 36);
-        dev.hoi.client.ui.UiText.centeredAt(g, font, dev.hoi.client.ui.UiTooltips.officerText(research ? "연구 완료" : agency ? "첩보기관 개선 완료!" : "국가중점 완료", true), left + pane / 2, top + 20 - font.lineHeight / 2 + (research || agency ? 2 : 0), UiMenuStyle.TEXT);
+        dev.hoi.client.ui.UiText.centeredAt(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(research ? "연구 완료" : agency ? "첩보기관 개선 완료!" : "국가중점 완료", true), left + pane / 2, top + 20 - font.lineHeight / 2 + (research || agency ? 2 : 0), UiMenuStyle.TEXT);
         g.enableScissor(left + 8, bodyTop, left + pane - 8, bodyBottom);
         int imageHeight = research ? 38 : 60;
         int imageWidth = research ? 112 : 128;

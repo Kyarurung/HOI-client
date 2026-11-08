@@ -45,7 +45,7 @@ public final class AgencyOperationTest {
                 if (client.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/agency/operations/" + sprite + "/frame_0.png")).isEmpty())
                     throw new AssertionError("Missing operation control source asset: " + sprite);
             }
-            var decorated = dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£text_infiltrate_civilian_token£"), false);
+            var decorated = dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£text_infiltrate_civilian_token£"), false);
             if (decorated.getString().codePoints().noneMatch(value -> value >= 0xe000 && value <= 0xf8ff)) throw new AssertionError("Original reward token must resolve from the bounded runtime keyword catalog");
         });
         try {

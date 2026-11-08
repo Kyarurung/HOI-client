@@ -15,7 +15,7 @@ public final class InputMapInfo {
                 net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.afterMouseClick(screen).register((current, event, consumed) -> {
                     if (consumed || client.gui.screen() != current || !sidebar.allowsMovement()
                             || event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
-                            || event.x() < sidebar.unitHudLeft() || event.y() < dev.hoi.client.ui.UiMenuBar.height(current.width)) return consumed;
+                            || event.x() < sidebar.unitHudLeft() || event.y() < dev.hoi.client.ui.hud.HudMenuBar.height(current.width)) return consumed;
                     return clickAt(client, event.x(), event.y(), current.width, current.height);
                 });
             }

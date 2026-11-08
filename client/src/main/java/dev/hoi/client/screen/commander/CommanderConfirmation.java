@@ -6,6 +6,7 @@ import dev.hoi.client.screen.agency.AgencyScreen;
 import dev.hoi.client.screen.army.ArmyDivisionTemplates;
 import dev.hoi.client.screen.dialog.DialogScreen;
 import dev.hoi.client.screen.map.MapCursor;
+import dev.hoi.client.ui.tooltip.*;
 import java.util.*;
 import java.util.function.BiConsumer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -26,10 +27,10 @@ public final class CommanderConfirmation extends DialogScreen {
     static boolean division(DialogView view){return view.image().isEmpty()&&view.tiles().isEmpty()&&List.of("CONFIRMDELETEUNIT","CONFIRMDELETEUNITS","CONFIRMCHANGE_UNIT_TEMPLATE").stream().anyMatch(key->view.title().equals(UiCommandLabels.text(key,"")));}
     public static boolean matches(DialogView view){return view.kind()==DialogView.Kind.COMMANDER&&(division(view)||Set.of("commander/advisor-confirm","commander/advisor-promote").contains(view.image())||view.tiles().size()==1&&view.tiles().getFirst().section().equals("promote")&&view.choices().stream().anyMatch(c->c.id().equals("cancel")));}
     public AbstractWidget choiceButton(String id){return buttons.get(id);}
-    @Override public net.minecraft.network.chat.Component bodyText(){return UiKeywordIcons.decorateLines(UiTooltips.sourceSpacing(parent instanceof AgencyScreen?UiTooltips.officerText(view().body(),false):confirmationText(view().body())),false);}
+    @Override public net.minecraft.network.chat.Component bodyText(){return TooltipKeywordIcons.decorateLines(Tooltips.sourceSpacing(parent instanceof AgencyScreen?Tooltips.officerText(view().body(),false):confirmationText(view().body())),false);}
     private net.minecraft.network.chat.Component confirmationText(String text){
         var result=net.minecraft.network.chat.Component.empty();
-        UiTooltips.officerText(text,false).visit((style,part)->{result.append(net.minecraft.network.chat.Component.literal(part).withStyle(style.getColor()!=null&&style.getColor().getValue()==UiTooltips.BAD?style.withColor(division(view())?0xE8343F:0xC04040):style));return Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
+        Tooltips.officerText(text,false).visit((style,part)->{result.append(net.minecraft.network.chat.Component.literal(part).withStyle(style.getColor()!=null&&style.getColor().getValue()==Tooltips.BAD?style.withColor(division(view())?0xE8343F:0xC04040):style));return Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
         return result;
     }
     @Override public void update(DialogView next){if(!next.token().equals(view().token())||next.revision()<view().revision()||pending&&next.revision()==view().revision())return;pending=false;super.update(next);}
@@ -41,7 +42,7 @@ public final class CommanderConfirmation extends DialogScreen {
         scroll=Math.clamp(scroll,0,Math.max(0,lines.size()*10-bodyHeight()));
         for(var choice:view().choices()){
             boolean cancel=choice.id().equals("cancel");var button=new UiMenuButton(cancel?choice.label():"OK",left+(cancel?agency?45:43:agency?130:128),top+panelHeight-(agency?28:30),agency?74:70,agency?17:13,()->choose(choice.id())).background("commander/commands/button_148x34/frame_0").textShadow(true).sound(cancel?"ui.close":"ui.click");
-            button.caption("");button.active=!pending;button.setTooltip(UiTooltips.createOfficer(choice.tooltip()));buttons.put(choice.id(),button);addRenderableWidget(button);
+            button.caption("");button.active=!pending;button.setTooltip(Tooltips.createOfficer(choice.tooltip()));buttons.put(choice.id(),button);addRenderableWidget(button);
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
@@ -52,7 +53,7 @@ public final class CommanderConfirmation extends DialogScreen {
             UiAssets.draw(g,"completion/header",left+1,top+4,pane-2,43);
             UiAssets.draw(g,"completion/research",left+7,top+38,pane-13,61);
             UiAssets.draw(g,"completion/bottom",left+2,top+panelHeight-35,pane-4,36);
-            UiText.centered(g,font,UiTooltips.officerText(view().title(),true),left+36,top+14,175,12,UiMenuStyle.TEXT,false);
+            UiText.centered(g,font,Tooltips.officerText(view().title(),true),left+36,top+14,175,12,UiMenuStyle.TEXT,false);
             g.enableScissor(left+12,top+38,left+pane-12,top+99);
             int bodyY=top+60-scroll;
             for(var line:lines){g.text(font,line,left+(pane-font.width(line))/2,bodyY,UiMenuStyle.TEXT,false);bodyY+=10;}
@@ -64,7 +65,7 @@ public final class CommanderConfirmation extends DialogScreen {
         }
         var texture=Identifier.parse("hoi:textures/gui/mio/ui/gfx_tiled_window_pol_goal/frame_0.png");int[] xs={left,left+90,left+pane-90,left+pane},ys={top,top+43,top+panelHeight-43,top+panelHeight};float[] us={0,180f/382,202f/382,1},vs={0,85f/382,297f/382,1};
         for(int row=0;row<3;row++)for(int col=0;col<3;col++)g.blit(texture,xs[col],ys[row],xs[col+1],ys[row+1],us[col],us[col+1],vs[row],vs[row+1]);
-        g.pose().pushMatrix();g.pose().translate(left+pane/2f,top+12);g.pose().scale(1.25f);g.centeredText(font,dev.hoi.client.ui.UiTooltips.officerText(view().title(),true),0,0,0xFFFFFFFF);g.pose().popMatrix();
+        g.pose().pushMatrix();g.pose().translate(left+pane/2f,top+12);g.pose().scale(1.25f);g.centeredText(font,dev.hoi.client.ui.tooltip.Tooltips.officerText(view().title(),true),0,0,0xFFFFFFFF);g.pose().popMatrix();
         g.enableScissor(left+12,top+42,left+pane-12,top+panelHeight-44);
         int y=top+45-scroll;
         for(var line:lines){g.text(font,line,left+(pane-font.width(line))/2,y,UiMenuStyle.TEXT,false);y+=10;}g.disableScissor();

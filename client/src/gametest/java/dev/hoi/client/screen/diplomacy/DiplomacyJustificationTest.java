@@ -18,7 +18,7 @@ public final class DiplomacyJustificationTest {
         context.setScreen(() -> new DiplomacyCountryScreen(pending)); context.waitTicks(3);
         var point = context.computeOnClient(c -> {
             var screen = (DiplomacyCountryScreen)c.gui.screen();
-            int y = DiplomacyHeader.body(dev.hoi.client.ui.UiMenuBar.height(screen.width), screen.panelWidth()) + 8;
+            int y = DiplomacyHeader.body(dev.hoi.client.ui.hud.HudMenuBar.height(screen.width), screen.panelWidth()) + 8;
             if (!screen.relationTooltipAt(15, y).contains("126일 남음")) throw new AssertionError("Saved day134/ready260 justification status missing from visible relation row");
             if (screen.flagAt(40, y) == null || !screen.flagAt(40, y).tag().equals("PRK")) throw new AssertionError("Incoming justification identifies actual initiator flag");
             if (!screen.relationTooltipAt(screen.panelWidth() / 2.0 + 5, y).isEmpty()) throw new AssertionError("Status tooltip leaked into diplomacy action column");
@@ -30,7 +30,7 @@ public final class DiplomacyJustificationTest {
             var screen = (DiplomacyCountryScreen)c.gui.screen();
             var oldToken = screen.token();
             screen.update(CountryPayloads.Response.of(oldToken, fixture(base, "KOR", "timed_wargoal_receiver", "125일 남음")));
-            int y = DiplomacyHeader.body(dev.hoi.client.ui.UiMenuBar.height(screen.width), screen.panelWidth()) + 8;
+            int y = DiplomacyHeader.body(dev.hoi.client.ui.hud.HudMenuBar.height(screen.width), screen.panelWidth()) + 8;
             if (!screen.relationTooltipAt(15, y).contains("125일 남음")) throw new AssertionError("Current server day must refresh remaining justification days");
             screen.select("JAP");
             screen.update(CountryPayloads.Response.of(oldToken, pending));
@@ -64,7 +64,7 @@ public final class DiplomacyJustificationTest {
         context.waitTicks(3); context.takeScreenshot("hoi-diplomacy-outgoing-justification-gui2");
         context.runOnClient(c -> {
             var screen = (DiplomacyCountryScreen)c.gui.screen();
-            int y = DiplomacyHeader.body(dev.hoi.client.ui.UiMenuBar.height(screen.width), screen.panelWidth()) + 8;
+            int y = DiplomacyHeader.body(dev.hoi.client.ui.hud.HudMenuBar.height(screen.width), screen.panelWidth()) + 8;
             if (!screen.flagAt(40, y).tag().equals("KOR")) throw new AssertionError("Outgoing justification flag must name its target");
         });
     }

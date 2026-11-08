@@ -1,6 +1,6 @@
 package dev.hoi.client.map;
 
-import dev.hoi.client.mixin.MixinCountryNameText;
+import dev.hoi.client.mixin.atlas.AtlasCountryNameText;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
@@ -18,7 +18,7 @@ public final class MapCountryNameVisibility {
     }
     public static boolean independent(Entity entity) {
         return atlas(entity.level()) && entity instanceof Display.TextDisplay text
-                && countryFont(((MixinCountryNameText)text).hoi$countryText().getVisualOrderText());
+                && countryFont(((AtlasCountryNameText)text).hoi$countryText().getVisualOrderText());
     }
     private MapCountryNameVisibility() {}
 }

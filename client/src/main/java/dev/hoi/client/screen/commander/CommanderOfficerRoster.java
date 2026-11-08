@@ -5,6 +5,8 @@ import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.screen.dialog.DialogScreen;
 import dev.hoi.protocol.dialog.*;
 import dev.hoi.protocol.menu.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import java.util.*;
 import java.util.function.BiConsumer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -26,7 +28,7 @@ public final class CommanderOfficerRoster extends DialogScreen {
     CommanderOfficerRoster(DialogView view,Screen parent,BiConsumer<DialogView,String> sender){super(view,sender);this.parent=parent;}
     public static boolean matches(DialogView view){return view.kind()==DialogView.Kind.COMMANDER&&Set.of("navy/captains","commander/field_officers").contains(view.image())&&!CommanderConfirmation.matches(view);}
     public Screen backdrop(){return parent;}
-    private void label(GuiGraphicsExtractor g,String value,int x,int y,int width){var text=UiTooltips.officerText(value);var shown=font.width(text)>width?net.minecraft.network.chat.FormattedText.composite(font.substrByWidth(text,Math.max(0,width-font.width("…"))),net.minecraft.network.chat.FormattedText.of("…")):text;g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(shown),x,y,UiMenuStyle.TEXT,false);}
+    private void label(GuiGraphicsExtractor g,String value,int x,int y,int width){var text=Tooltips.officerText(value);var shown=font.width(text)>width?net.minecraft.network.chat.FormattedText.composite(font.substrByWidth(text,Math.max(0,width-font.width("…"))),net.minecraft.network.chat.FormattedText.of("…")):text;g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(shown),x,y,UiMenuStyle.TEXT,false);}
     AbstractWidget choiceButton(String id){return buttons.get(id);}
     public void dismiss(){DialogCoordinator.setContent(parent);}
     @Override public void update(DialogView next){if(!next.token().equals(view().token())||next.revision()<view().revision()||pending&&next.revision()==view().revision())return;pending=false;super.update(next);}
@@ -34,7 +36,7 @@ public final class CommanderOfficerRoster extends DialogScreen {
     private int maximumScroll(){return scrollbar().maximum();}
     private void sorted(int column){descending=sort==column?!descending:column!=1;sort=column;scroll=0;rebuildWidgets();}
     @Override protected void init(){
-        pane=Math.min(275,width-12);left=Math.min(UiPanelLayout.width(MenuTab.OFFICER_CORPS,width)+4,width-pane-6);top=UiMenuBar.height(width);bottom=Math.min(height-8,top+295);buttons.clear();
+        pane=Math.min(275,width-12);left=Math.min(UiPanelLayout.width(MenuTab.OFFICER_CORPS,width)+4,width-pane-6);top=HudMenuBar.height(width);bottom=Math.min(height-8,top+295);buttons.clear();
         addRenderableWidget(new UiMenuButton("×",left+pane-19,top+2,15,14,this::onClose));
         String[] keys={"DIVISION_COMMANDER_EXPERIENCE_SORT","DIVISION_COMMANDER_TYPE_SORT","DIVISION_COMMANDER_MEDALS_SORT","DIVISION_COMMANDER_TOTAL_EXPERIENCE_SORT"};
         int[] xs={7,48,167,219},ws={41,41,52,48};
@@ -60,7 +62,7 @@ public final class CommanderOfficerRoster extends DialogScreen {
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
         UiAssets.draw(g,"commander/officers/gfx_leader_selection_bg/frame_0",left,top,pane,bottom-top);
-        UiText.leftSingleLine(g,font,UiTooltips.officerText(view().title(),true),left+10,top+4,pane-33,14,UiMenuStyle.TEXT);
+        UiText.leftSingleLine(g,font,Tooltips.officerText(view().title(),true),left+10,top+4,pane-33,14,UiMenuStyle.TEXT);
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable renderable&&(!buttons.containsValue(child)||((AbstractWidget)child).getY()>=bottom-14))renderable.extractRenderState(g,mx,my,delta);
         UiAssets.draw(g,"commander/commands/unit_level/frame_0",left+20,top+20,14,14);
         int[] sortX={7,48,167,219};UiText.centered(g,font,descending?"▲":"▼",left+sortX[sort]+30,top+21,8,12,0xFFFFD060,false);
@@ -83,12 +85,12 @@ public final class CommanderOfficerRoster extends DialogScreen {
             if(mx>=left+220&&mx<left+261&&my>=y+5&&my<y+25)tooltip=officer.experienceTooltip();
             for(String prefix:List.of("details/","promote/")){
                 var b=buttons.get(prefix+tile.section());if(b.active)UiAssets.draw(g,"commander/commands/leader_selection_button/frame_0",b.getX(),b.getY(),b.getWidth(),b.getHeight());else UiAssets.drawGrayscale(g,"commander/commands/leader_selection_button/frame_0",b.getX(),b.getY(),b.getWidth(),b.getHeight());b.extractRenderState(g,mx,my,delta);
-                if(UiTooltips.contains(b,mx,my))tooltip=prefix.equals("promote/")?officer.promotion():UiCommandLabels.text("OPEN_LEADER_DETAILS","");
+                if(Tooltips.contains(b,mx,my))tooltip=prefix.equals("promote/")?officer.promotion():UiCommandLabels.text("OPEN_LEADER_DETAILS","");
             }
         }
         g.disableScissor();
         scrollbar().draw(g,scroll);
-        if(my>=top+38&&my<bottom-25&&!tooltip.isEmpty())UiTooltips.drawSourceScrollable(g,font,tooltip,mx,my,width,height,0,202);
+        if(my>=top+38&&my<bottom-25&&!tooltip.isEmpty())Tooltips.drawSourceScrollable(g,font,tooltip,mx,my,width,height,0);
     }
     @Override public boolean mouseScrolled(double x,double y,double h,double v){if(x<left||x>=left+pane)return false;scroll=Math.clamp(scroll-(int)(v*49),0,maximumScroll());rebuildWidgets();return true;}
     private void drag(double y){scroll=scrollbar().offset(y);rebuildWidgets();}

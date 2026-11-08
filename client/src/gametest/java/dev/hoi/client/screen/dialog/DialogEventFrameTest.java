@@ -1,7 +1,6 @@
 package dev.hoi.client.screen.dialog;
 
 import com.google.gson.Gson;
-import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.protocol.dialog.DialogView;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -9,7 +8,6 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
-import net.minecraft.network.chat.Component;
 import com.mojang.blaze3d.platform.InputConstants;
 import java.io.InputStreamReader;
 import java.io.IOException;

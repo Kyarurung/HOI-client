@@ -5,6 +5,7 @@ import dev.hoi.client.audio.AudioPlaylistPlayback;
 import dev.hoi.client.audio.AudioStoryMusic;
 import dev.hoi.client.ui.*;
 import dev.hoi.client.screen.dialog.DialogStack;
+import dev.hoi.client.ui.tooltip.*;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -30,11 +31,11 @@ public final class ScreenKoreanMusic extends Screen {
             }
         };
         station.active=!tracks.isEmpty();
-        station.setTooltip(UiTooltips.create(Component.literal("클릭하여 음악 켜기/끄기")));
+        station.setTooltip(Tooltips.create(Component.literal("클릭하여 음악 켜기/끄기")));
         addRenderableWidget(station);
         int cx=x+left+(w-left)/2,cy=y+top*54/100;
         addRenderableWidget(new net.minecraft.client.gui.components.AbstractSliderButton(x+left+(w-left)*260/594,y+top*37/121,(w-left)*110/594,Math.max(12,top*20/121),Component.literal("음량"),AudioKoreanMusic.volume()){
-            @Override protected void updateMessage(){setMessage(Component.literal("음량 "+Math.round(value*100)+"%"));setTooltip(UiTooltips.create(getMessage()));}
+            @Override protected void updateMessage(){setMessage(Component.literal("음량 "+Math.round(value*100)+"%"));setTooltip(Tooltips.create(getMessage()));}
             @Override protected void applyValue(){AudioKoreanMusic.volume(value);}
             @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) {}
             @Override public void extractWidgetRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
@@ -62,7 +63,7 @@ public final class ScreenKoreanMusic extends Screen {
                     g.text(font,String.format(Locale.ROOT,"%02d:%02d",seconds/60,seconds%60),getRight()-34,getY()+(getHeight()-font.lineHeight)/2+1,0xFFBBBBBB);
                 }
             };
-            button.setTooltip(UiTooltips.create(Component.literal(track.title())));addRenderableWidget(button);
+            button.setTooltip(Tooltips.create(Component.literal(track.title())));addRenderableWidget(button);
         }
     }
     private void playStep(int direction){var p=AudioKoreanMusic.PLAYBACK;if(!tracks.isEmpty())AudioKoreanMusic.play(Math.floorMod(p.selected()+direction,tracks.size()));}
@@ -71,11 +72,11 @@ public final class ScreenKoreanMusic extends Screen {
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){
                 boolean pause=image.equals("play")&&!AudioStoryMusic.active()&&AudioKoreanMusic.PLAYBACK.requested()&&!AudioKoreanMusic.PLAYBACK.paused();
                 String title=pause?"일시정지":label;
-                if(!getMessage().getString().equals(title)){setMessage(Component.literal(title));setTooltip(UiTooltips.create(getMessage()));}
+                if(!getMessage().getString().equals(title)){setMessage(Component.literal(title));setTooltip(Tooltips.create(getMessage()));}
                 UiAssets.draw(g,"music/"+(pause?"pause":image),getX(),getY(),getWidth(),getHeight());
             }
         };
-        button.active=!tracks.isEmpty();button.setTooltip(UiTooltips.create(Component.literal(label)));addRenderableWidget(button);
+        button.active=!tracks.isEmpty();button.setTooltip(Tooltips.create(Component.literal(label)));addRenderableWidget(button);
     }
     @Override public void tick(){if(tracks!=AudioKoreanMusic.PLAYBACK.tracks())rebuildWidgets();}
     @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical){

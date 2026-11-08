@@ -5,7 +5,15 @@ import dev.hoi.protocol.menu.MenuView;
 import java.util.*;
 
 public record CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
-        List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations) {
+        List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations, Opinion opinion, List<Art> art) {
+    public CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
+            List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations, Opinion opinion) {
+        this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, actions, relations, opinion, List.of());
+    }
+    public CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
+            List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations) {
+        this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, actions, relations, null);
+    }
     public CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
             List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions) {
         this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, actions, List.of());
@@ -20,14 +28,29 @@ public record CountryView(String viewer, CountryHud hud, String target, String n
     public record AmountInput(String equipmentName, long stock) {
         public AmountInput {text(equipmentName,128);if(stock<0)throw new IllegalArgumentException("Invalid equipment stock");}
     }
-    public record Action(String id, String name, String detail, boolean enabled, AmountInput amountInput) {
+    public record Action(String id, String name, String detail, boolean enabled, AmountInput amountInput, List<Cost> costs, boolean declined) {
         public Action(String id,String name,String detail,boolean enabled) {this(id,name,detail,enabled,null);}
-        public Action { text(id, 64); text(name, 128); text(detail, 1000); }
+        public Action(String id,String name,String detail,boolean enabled,AmountInput amountInput) {this(id,name,detail,enabled,amountInput,List.of(),false);}
+        public Action { text(id, 64); text(name, 128); text(detail, 1000); costs = costs == null ? List.of() : bounded(costs, 4); }
+    }
+    public record Cost(String icon, String amount) {
+        public static final List<String> ICONS = List.of("political_power", "command_power");
+        public Cost { text(amount, 16); if (!ICONS.contains(icon)) throw new IllegalArgumentException("Invalid action cost"); }
+    }
+    public record Opinion(int ours, int theirs) {
+        public Opinion { if (Math.abs(ours) > 1000 || Math.abs(theirs) > 1000) throw new IllegalArgumentException("Invalid opinion"); }
+    }
+    public record Art(String id, String icon, int x, int y, int width, int height, String title, String tooltip) {
+        public Art {
+            text(id, 64); text(icon, 128); text(title, 256); text(tooltip, 4000);
+            if (!id.matches("[A-Za-z0-9_]+") || !icon.matches("[a-z0-9_/]+") || width <= 0 || height <= 0) throw new IllegalArgumentException("Invalid country art");
+        }
     }
     public CountryView {
         tag(viewer); tag(target); text(name, 128); Objects.requireNonNull(hud);
         countries = bounded(countries, 64); diplomacy = bounded(diplomacy, 64); focuses = bounded(focuses, 64); reports = bounded(reports, 4);
         relations = relations == null ? List.of() : bounded(relations, 24);
+        art = art == null ? List.of() : bounded(art, 8);
         if (reports.size() != 4 || new HashSet<>(reports.stream().map(Report::domain).toList()).size() != 4)
             throw new IllegalArgumentException("Missing intelligence domains");
     }

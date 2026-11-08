@@ -1,7 +1,6 @@
 package dev.hoi.client.screen.politics;
 
 import dev.hoi.protocol.dialog.DialogPayloads;
-import dev.hoi.protocol.dialog.DialogView;
 import dev.hoi.protocol.menu.MenuPayloads;
 import dev.hoi.protocol.menu.MenuTab;
 import dev.hoi.client.screen.ScreenMenu;

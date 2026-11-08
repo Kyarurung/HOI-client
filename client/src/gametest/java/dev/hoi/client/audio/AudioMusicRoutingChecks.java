@@ -1,7 +1,7 @@
 package dev.hoi.client.audio;
 
 import dev.hoi.client.ClientCampaignHud;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.protocol.audio.*;
 import dev.hoi.protocol.country.*;
 import dev.hoi.protocol.hud.*;
@@ -30,7 +30,7 @@ public final class AudioMusicRoutingChecks {
             context.runOnClient(client->{
                 AudioUiSounds.reset();ClientCampaignHud.accept(HudPayloads.State.HIDDEN);
                 ClientCampaignHud.accept(HudPayloads.State.of(country,CountryHud.UNKNOWN));
-                if(UiMenuBar.buttons(800,country,MenuTab.POLITICS,tab->{}).stream().filter(b->b instanceof dev.hoi.client.ui.UiMusicButton).count()!=1)
+                if(HudMenuBar.buttons(800,country,MenuTab.POLITICS,tab->{}).stream().filter(b->b instanceof dev.hoi.client.ui.hud.HudMusicButton).count()!=1)
                     throw new AssertionError("One original music icon below the debt indicator for "+country);
             });
             context.waitTicks(25);
@@ -47,10 +47,10 @@ public final class AudioMusicRoutingChecks {
             boolean paused = transition == 2;
             if (paused) context.runOnClient(client -> AudioKoreanMusic.togglePause());
             context.runOnClient(client -> {
-                var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
+                var engine = ((dev.hoi.client.mixin.audio.AudioManagerAccess)client.getSoundManager()).hoiSoundEngine();
                 before[0] = AudioKoreanMusic.playing();
                 before[1] = AudioKoreanMusic.PLAYBACK.selected();
-                before[2] = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().get(before[0]);
+                before[2] = ((dev.hoi.client.mixin.audio.AudioEngineAccess)engine).hoiChannels().get(before[0]);
                 if (before[0] == null || before[2] == null) throw new AssertionError("Playlist channel must be active before " + cue);
                 before[3] = new net.minecraft.client.resources.sounds.SimpleSoundInstance(AudioUiSounds.id("music.tfr_theme"),
                         SoundSource.MASTER, 1, 1, net.minecraft.util.RandomSource.create(), true, 40,
@@ -62,15 +62,15 @@ public final class AudioMusicRoutingChecks {
             String dimension = transition++ % 2 == 0 ? "minecraft:the_nether" : "minecraft:overworld";
             transfer(context, command, dimension);
             context.runOnClient(client -> {
-                var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
-                var channel = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().get(AudioKoreanMusic.playing());
+                var engine = ((dev.hoi.client.mixin.audio.AudioManagerAccess)client.getSoundManager()).hoiSoundEngine();
+                var channel = ((dev.hoi.client.mixin.audio.AudioEngineAccess)engine).hoiChannels().get(AudioKoreanMusic.playing());
                 if (AudioKoreanMusic.playing() != before[0] || !before[1].equals(AudioKoreanMusic.PLAYBACK.selected())
                         || channel != before[2] || !client.getSoundManager().isActive(AudioKoreanMusic.playing()))
                     throw new AssertionError("Map switch must retain the current track and playing channel: " + cue);
                 if (AudioKoreanMusic.PLAYBACK.paused() != paused) throw new AssertionError("Dimension transfer preserves manual pause");
                 if (client.getSoundManager().isActive((net.minecraft.client.resources.sounds.SoundInstance)before[3]))
                     throw new AssertionError("Previous dimension sound must stop");
-                if (!((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiQueuedSounds().isEmpty())
+                if (!((dev.hoi.client.mixin.audio.AudioEngineAccess)engine).hoiQueuedSounds().isEmpty())
                     throw new AssertionError("Previous dimension delayed sounds must clear");
                 if (paused) AudioKoreanMusic.togglePause();
             });

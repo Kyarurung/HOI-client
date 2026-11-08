@@ -9,7 +9,7 @@ public record DiplomacyView(String session, long revision, String viewer, String
         String subtitle, String currentStatus, String acceptanceText, String acceptanceDetail, boolean submitEnabled,
         String submitReason, List<EquipmentChoice> equipment, List<LeaseLine> lines) {
     public enum Category { INFANTRY, ARMOR, AIR, NAVAL }
-    public enum Mode { ONCE, MONTHLY, PERCENT }
+    public enum Mode { ONCE, MONTHLY, PERCENT, REQUEST }
     public DiplomacyView {
         UUID.fromString(session);
         if (revision < 0) throw new IllegalArgumentException("Invalid diplomacy revision");
@@ -49,7 +49,7 @@ public record DiplomacyView(String session, long revision, String viewer, String
             CountryView.text(label, 128);
             CountryView.text(reason, 1000);
             CountryView.text(unitLabel, 128);
-            if (defaultAmount < 0 || mode == Mode.PERCENT && defaultAmount > 100)
+            if (defaultAmount < 0 || mode == Mode.PERCENT && defaultAmount > 100 || mode == Mode.REQUEST && defaultAmount != 0)
                 throw new IllegalArgumentException("Invalid lease default amount");
         }
     }
@@ -57,7 +57,7 @@ public record DiplomacyView(String session, long revision, String viewer, String
         public LeaseLine {
             CountryView.text(key, 64);
             Objects.requireNonNull(mode);
-            if (amount <= 0 || mode == Mode.PERCENT && amount > 100)
+            if (mode == Mode.REQUEST ? amount != 0 : amount <= 0 || mode == Mode.PERCENT && amount > 100)
                 throw new IllegalArgumentException("Invalid lease quantity");
         }
     }

@@ -17,8 +17,8 @@ public final class MapDetailChecks {
         context.runOnClient(client->{
             client.options.guiScale().set(2);
             var slots=tokyo.tiles().stream().filter(t->t.section().equals("slots")).findFirst().orElseThrow();
-            var styled=dev.hoi.client.ui.UiTooltips.styled(net.minecraft.network.chat.Component.literal(slots.detail()),false);
-            var decorated=dev.hoi.client.ui.UiKeywordIcons.decorateLines(styled,false);
+            var styled=dev.hoi.client.ui.tooltip.Tooltips.styled(net.minecraft.network.chat.Component.literal(slots.detail()),false);
+            var decorated=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(styled,false);
             if(!decorated.getString().contains("경제 침체")||decorated.getString().contains("£"))throw new AssertionError("Slot tooltip must resolve its original spirit icon and name");
             boolean red=decorated.visit((style,part)->part.contains("-20%")&&style.getColor()!=null&&style.getColor().getValue()==0xFF3232?Optional.of(true):Optional.empty(),net.minecraft.network.chat.Style.EMPTY).orElse(false);
             if(!red)throw new AssertionError("Slot reduction must retain the original red effect colour");
@@ -28,12 +28,12 @@ public final class MapDetailChecks {
         var slotPoint=context.computeOnClient(client->{var screen=(MapDetail)client.gui.screen();double scale=screen.panelWidth()/463.0;return new double[]{2*(screen.panelLeft()+250*scale),2*(screen.panelTop()+148*scale)};});
         context.getInput().setCursorPos(slotPoint[0],slotPoint[1]);context.waitTicks(8);context.takeScreenshot("hoi-tokyo-slot-effects-gui2");
         context.runOnClient(client -> {
-            var text=dev.hoi.client.ui.UiTooltips.sentences(net.minecraft.network.chat.Component.literal("§e집권 정당: §#3659D9더불어민주당§r"));
+            var text=dev.hoi.client.ui.tooltip.Tooltips.sentences(net.minecraft.network.chat.Component.literal("§e집권 정당: §#3659D9더불어민주당§r"));
             if(!text.getString().equals("집권 정당: 더불어민주당"))throw new AssertionError("TFR RGB markup leaked into tooltip text");
             boolean blue=text.visit((style,part)->part.equals("더불어민주당")&&style.getColor()!=null&&style.getColor().getValue()==0x3659D9?Optional.of(true):Optional.empty(),net.minecraft.network.chat.Style.EMPTY).orElse(false);
             if(!blue)throw new AssertionError("TFR party name lost its original blue color");
             for(var entry:Map.of("§e서울특별시장:",0xFFBD00,"§f박원순",0xFFFFFF,"§#CD3737국민의힘",0xCD3737,"§#23CEFF조국혁신당",0x23CEFF,"§#FCA97D설명",0xFCA97D,"§#FB607FSeoul, my soul",0xFB607F).entrySet()) {
-                var styled=dev.hoi.client.ui.UiTooltips.styled(net.minecraft.network.chat.Component.literal(entry.getKey()),false);
+                var styled=dev.hoi.client.ui.tooltip.Tooltips.styled(net.minecraft.network.chat.Component.literal(entry.getKey()),false);
                 boolean correct=styled.visit((style,part)->style.getColor()!=null&&style.getColor().getValue()==entry.getValue()?Optional.of(true):Optional.empty(),net.minecraft.network.chat.Style.EMPTY).orElse(false);
                 if(!correct)throw new AssertionError("TFRKP tooltip color mismatch: "+entry.getKey());
             }
@@ -90,14 +90,14 @@ public final class MapDetailChecks {
             String tooltip=t.section().equals("shared")?"레벨 내구도: §e"+(partial?"65.00%":"100.00%")+"§r":"손상 단계: 0/§e"+t.value().split("/")[0]+"§r";
             entries.set(i,new DialogView.Tile(t.section(),t.name(),t.value(),t.icon(),t.detail(),new DialogView.Gauge(partial?.35:0,tooltip)));
         }
-        var stack=new dev.hoi.client.ui.UiFlagStack();
+        var stack=new dev.hoi.client.ui.country.CountryFlagStack();
         if(!stack.update(List.of("PRK","JAP")).equals(List.of("PRK","JAP")))throw new AssertionError("Initial flag order");
         if(!stack.update(List.of("KOR","JAP","PRK")).equals(List.of("PRK","JAP","KOR")))throw new AssertionError("New claimant must be on top at the right");
-        if(dev.hoi.client.ui.UiFlagStack.left(0,1,7,80,30)!=7
-                ||dev.hoi.client.ui.UiFlagStack.left(0,2,7,80,30)!=7
-                ||dev.hoi.client.ui.UiFlagStack.left(1,2,7,80,30)!=37)throw new AssertionError("Flags start on the left without overlap while space remains");
-        int old=dev.hoi.client.ui.UiFlagStack.left(1,2,0,80,30);
-        if(dev.hoi.client.ui.UiFlagStack.left(1,3,0,80,30)>=old||dev.hoi.client.ui.UiFlagStack.left(2,3,0,80,30)!=50)throw new AssertionError("Overflow shifts older flags left and leaves the latest flag on the right");
+        if(dev.hoi.client.ui.country.CountryFlagStack.left(0,1,7,80,30)!=7
+                ||dev.hoi.client.ui.country.CountryFlagStack.left(0,2,7,80,30)!=7
+                ||dev.hoi.client.ui.country.CountryFlagStack.left(1,2,7,80,30)!=37)throw new AssertionError("Flags start on the left without overlap while space remains");
+        int old=dev.hoi.client.ui.country.CountryFlagStack.left(1,2,0,80,30);
+        if(dev.hoi.client.ui.country.CountryFlagStack.left(1,3,0,80,30)>=old||dev.hoi.client.ui.country.CountryFlagStack.left(2,3,0,80,30)!=50)throw new AssertionError("Overflow shifts older flags left and leaves the latest flag on the right");
         own.set(3,new DialogView.Tile("state","기반시설","4/5","construction/infrastructure","",new DialogView.Gauge(0,"손상 단계: 0/4"),"map_detail/constructing"));
         int firstFactory=java.util.stream.IntStream.range(0,own.size()).filter(i->own.get(i).icon().equals("construction/civilian_factory")).findFirst().orElseThrow();
         var factory=own.get(firstFactory);
@@ -141,7 +141,7 @@ public final class MapDetailChecks {
                 context.runOnClient(client -> {
                     var screen = (MapDetail)client.gui.screen();
                     if (screen.panelLeft() != 0 || screen.panelTop() + screen.panelHeight() != screen.height) throw new AssertionError("Map detail anchors to the bottom left");
-                    if (screen.panelTop() < dev.hoi.client.ui.UiMenuBar.height(screen.width)) throw new AssertionError("Detail cannot overlap the top menu");
+                    if (screen.panelTop() < dev.hoi.client.ui.hud.HudMenuBar.height(screen.width)) throw new AssertionError("Detail cannot overlap the top menu");
                     for (var child : screen.children()) if (child instanceof Button b && (b.getX() < 0 || b.getY() < 0 || b.getRight() > screen.width || b.getBottom() > screen.height)) throw new AssertionError("Detail button escaped viewport");
                     if (!screen.allowsMovement()) throw new AssertionError("Map movement remains available");
                 });
@@ -152,8 +152,8 @@ public final class MapDetailChecks {
                     int start=(int)Math.round(20*scale),area=(int)Math.round(120*scale),fw=(int)Math.round(52*scale);
                     String[] countries={"PRK","JAP","KOR"};
                     for(int i=0;i<countries.length;i++) {
-                        int fx=dev.hoi.client.ui.UiFlagStack.left(i,countries.length,start,area,fw);
-                        int visible=dev.hoi.client.ui.UiFlagStack.visibleWidth(i,countries.length,start,area,fw);
+                        int fx=dev.hoi.client.ui.country.CountryFlagStack.left(i,countries.length,start,area,fw);
+                        int visible=dev.hoi.client.ui.country.CountryFlagStack.visibleWidth(i,countries.length,start,area,fw);
                         String picked=screen.flagAt(fx+visible/2.0,screen.panelTop()+Math.round(125*scale));
                         if(!countries[i].equals(picked))throw new AssertionError("Visible claimant area picked "+picked+" instead of "+countries[i]);
                     }
@@ -172,9 +172,9 @@ public final class MapDetailChecks {
                 }
                 if(index==0&&size[0]==2560) {
                     context.runOnClient(client -> {
-                        var decorated=dev.hoi.client.ui.UiKeywordIcons.decorate(net.minecraft.network.chat.Component.literal("이동: 95.0%"));
+                        var decorated=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorate(net.minecraft.network.chat.Component.literal("이동: 95.0%"));
                         if(decorated.getString().charAt(0)<0xe000)throw new AssertionError("Movement requires the original text icon");
-                        var law=dev.hoi.client.ui.UiKeywordIcons.decorateLines(dev.hoi.client.ui.UiTooltips.sentences(net.minecraft.network.chat.Component.literal("£pol_idea 광범위한 징병: §e2.00%§r")));
+                        var law=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(dev.hoi.client.ui.tooltip.Tooltips.sentences(net.minecraft.network.chat.Component.literal("£pol_idea 광범위한 징병: §e2.00%§r")));
                         if(law.getString().charAt(0)<0xe000||law.getString().contains("£"))throw new AssertionError("Population laws retain the original political idea icon");
                     });
                     for(int[] cell:new int[][]{{80,172},{35,302},{35,445},{443,410},{230,530},{419,550},{434,468},{409,185}}) {
@@ -270,7 +270,7 @@ public final class MapDetailChecks {
             context.takeScreenshot("hoi-terrain-"+terrain+"-gui2");
             if(terrain.equals("seoul")) {
                 context.runOnClient(client -> {
-                    var caption=dev.hoi.client.ui.UiTooltips.styled(net.minecraft.network.chat.Component.literal("§f로버트 B. 에이브럼스§r"),false);
+                    var caption=dev.hoi.client.ui.tooltip.Tooltips.styled(net.minecraft.network.chat.Component.literal("§f로버트 B. 에이브럼스§r"),false);
                     if(!caption.getString().equals("로버트 B. 에이브럼스"))throw new AssertionError("Portrait name must preserve initials without linebreaks");
                 });
                 for(int px:new int[]{35,95,230}) {

@@ -7,6 +7,9 @@ import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.protocol.commander.*;
 import dev.hoi.protocol.industry.*;
 import dev.hoi.protocol.menu.*;
+import dev.hoi.client.ui.country.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import java.util.*;
 import java.util.function.Consumer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -23,10 +26,10 @@ public final class CommanderCaptivity extends Screen implements InputSidebarMove
     private final Consumer<IndustryPayloads.Request> transport;
     private IndustryView view;
     private EditBox search;
-    private UiTooltips.ScrolledTooltip tooltip;
+    private Tooltips.ScrolledTooltip tooltip;
     private String tooltipText="";
     private int tooltipScroll;
-    UiTooltips.ScrolledTooltip detailTooltip(){return tooltip;}
+    Tooltips.ScrolledTooltip detailTooltip(){return tooltip;}
     private boolean overTooltip(double x,double y){return tooltip!=null&&x>=tooltip.x()-4&&x<tooltip.x()+tooltip.width()+4&&y>=tooltip.y()-4&&y<tooltip.y()+tooltip.height()+4;}
     private void clearTooltip(){tooltip=null;tooltipText="";tooltipScroll=0;}
     private String query="",sort="name",failure="";
@@ -57,7 +60,7 @@ public final class CommanderCaptivity extends Screen implements InputSidebarMove
     private void order(String key){if(sort.equals(key))descending=!descending;else{sort=key;descending=!key.equals("name");}send(CAPTIVITY_QUERY,0);}
     @Override protected void init(){
         boolean focused=search!=null&&search.isFocused();
-        pane=Math.min(275,Math.max(180,width-8));left=Math.min(width-pane-4,parent==null?4:UiPanelLayout.width(MenuTab.OFFICER_CORPS,width)+3);left=Math.max(4,left);top=UiMenuBar.height(width)+2;bottom=Math.min(height-5,top+306);
+        pane=Math.min(275,Math.max(180,width-8));left=Math.min(width-pane-4,parent==null?4:UiPanelLayout.width(MenuTab.OFFICER_CORPS,width)+3);left=Math.max(4,left);top=HudMenuBar.height(width)+2;bottom=Math.min(height-5,top+306);
         var close=button("×",left+pane-19,top+2,16,17,this::onClose).caption("").background("menu/close").sound("ui.close");close.active=true;
         button("숙련도",left+8,top+20,17,15,()->order("skill")).caption("").background("commander/ui/sort_skill");
         button("이름",left+47,top+20,42,15,()->order("name")).background("commander/ui/sort_text");
@@ -79,19 +82,19 @@ public final class CommanderCaptivity extends Screen implements InputSidebarMove
     @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical){if(overTooltip(mx,my)){tooltipScroll=Math.clamp(tooltipScroll-(int)Math.round(vertical*3*(font.lineHeight+1)),0,tooltip.maxScroll());return true;}if(mx>=left&&mx<left+pane&&my>=top+55&&my<bottom-5&&state()!=null&&!pending&&vertical!=0){clearTooltip();int maximum=Math.max(0,state().rows().size()*49-(bottom-top-60));if(vertical<0&&scroll>=maximum||vertical>0&&scroll<=0)page(state().page()+(vertical<0?1:-1));else{scroll=Math.clamp(scroll-(int)Math.round(vertical*49),0,maximum);refreshWidgets();}}return true;}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
-        UiAssets.draw(g,"commander/ui/panel",left,top,pane,bottom-top);UiText.centered(g,font,UiTooltips.officerText("포획된 지휘관",true),left+7,top+3,pane-36,14,UiMenuStyle.TEXT);
+        UiAssets.draw(g,"commander/ui/panel",left,top,pane,bottom-top);UiText.centered(g,font,Tooltips.officerText("포획된 지휘관",true),left+7,top+3,pane-36,14,UiMenuStyle.TEXT);
         g.fill(left+2,top+54,left+pane-2,bottom-5,0xFF101012);String hovered="";
         if(state()!=null){
             g.enableScissor(left+3,top+55,left+pane-12,bottom-5);
             for(int i=0;i<state().rows().size();i++){
                 var row=state().rows().get(i);var leader=row.leader();int y=top+56+i*49-scroll;
                 UiAssets.draw(g,"officer/hq/captured_row",left+6,y,255,49);var skill=Component.literal(Integer.toString(leader.skill())).withStyle(net.minecraft.ChatFormatting.BOLD);g.pose().pushMatrix();g.pose().translate(left+7+(25-font.width(skill)*2)/2f,y+9);g.pose().scale(2);g.text(font,skill,0,0,0xFF000000,false);g.pose().popMatrix();UiAssets.draw(g,row.portrait(),left+34,y+2,33,44);UiAssets.draw(g,"officer/hq/captured_bars",left+30,y-1,40,53);
-                UiText.leftSingleLine(g,font,UiTooltips.officerText(leader.role(),true),left+70,y+6,75,9,0xFF000000);UiText.leftSingleLine(g,font,UiTooltips.officerText(row.name(),true),left+70,y+15,90,9,0xFF000000);
+                UiText.leftSingleLine(g,font,Tooltips.officerText(leader.role(),true),left+70,y+6,75,9,0xFF000000);UiText.leftSingleLine(g,font,Tooltips.officerText(row.name(),true),left+70,y+15,90,9,0xFF000000);
                 if(mx>=left+6&&mx<left+261&&my>=Math.max(top+55,y)&&my<Math.min(bottom-5,y+49))hovered=row.detail();
                 for(int a=0;a<4;a++){int ax=left+6+List.of(155,168,182,195).get(a);UiAssets.draw(g,"commander/ui/"+List.of("attack","defense","planning","logistics").get(a),ax,y+5,14,13);UiText.centered(g,font,Integer.toString(leader.abilities().get(a)),ax-1,y+15,15,11,0xFF000000);if(mx>=ax&&mx<ax+13&&my>=y+3&&my<y+26&&!leader.abilityTooltips().isEmpty())hovered=leader.abilityTooltips().get(a);}
                 UiText.centered(g,font,Integer.toString(leader.capacity()),left+218,y+8,43,12,0xFF000000);
-                for(int j=0;j<leader.traitDetails().size();j++){var trait=leader.traitDetails().get(j);int x=UiFlagStack.left(j,leader.traitDetails().size(),left+69,78,12),visible=UiFlagStack.visibleWidth(j,leader.traitDetails().size(),left+69,78,12);UiAssets.draw(g,trait.icon(),x,y+30,12,16);if(mx>=x&&mx<x+visible&&my>=y+30&&my<y+46)hovered=trait.tooltip();}
-                UiCountryFlags.draw(g,"country/"+row.originalCountry().toLowerCase(Locale.ROOT)+"/flag","small2",left+10,y+30,21,14);UiAssets.draw(g,"map_detail/flag_frame",left+7,y+28,26,18);UiCountryFlags.draw(g,"country/"+row.captor().toLowerCase(Locale.ROOT)+"/flag","smallest",left+56,y+33,10,7);
+                for(int j=0;j<leader.traitDetails().size();j++){var trait=leader.traitDetails().get(j);int x=CountryFlagStack.left(j,leader.traitDetails().size(),left+69,78,12),visible=CountryFlagStack.visibleWidth(j,leader.traitDetails().size(),left+69,78,12);UiAssets.draw(g,trait.icon(),x,y+30,12,16);if(mx>=x&&mx<x+visible&&my>=y+30&&my<y+46)hovered=trait.tooltip();}
+                CountryFlags.draw(g,"country/"+row.originalCountry().toLowerCase(Locale.ROOT)+"/flag","small2",left+10,y+30,21,14);UiAssets.draw(g,"map_detail/flag_frame",left+7,y+28,26,18);CountryFlags.draw(g,"country/"+row.captor().toLowerCase(Locale.ROOT)+"/flag","smallest",left+56,y+33,10,7);
             }
             if(state().rows().isEmpty())UiText.centered(g,font,query.isEmpty()?"해당 지휘관이 없습니다.":"검색 결과가 없습니다.",left+8,top+64,pane-16,24,UiMenuStyle.MUTED);
             g.disableScissor();scrollbar().draw(g,state().page());
@@ -102,7 +105,7 @@ public final class CommanderCaptivity extends Screen implements InputSidebarMove
         if(overTooltip(mx,my))hovered=tooltipText;
         if(hovered.isEmpty())clearTooltip();else{
             if(!hovered.equals(tooltipText)){tooltipText=hovered;tooltipScroll=0;}
-            tooltip=UiTooltips.drawOfficerScrollable(g,font,tooltipText,mx,my,width,height,tooltipScroll,324);tooltipScroll=tooltip.scroll();
+            tooltip=Tooltips.drawOfficerScrollable(g,font,tooltipText,mx,my,width,height,tooltipScroll);tooltipScroll=tooltip.scroll();
         }
     }
 }

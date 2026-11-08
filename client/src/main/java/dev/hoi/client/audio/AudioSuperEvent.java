@@ -3,8 +3,6 @@ package dev.hoi.client.audio;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.*;
 import net.minecraft.resources.Identifier;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
 
 public final class AudioSuperEvent {
     private static String token = "";

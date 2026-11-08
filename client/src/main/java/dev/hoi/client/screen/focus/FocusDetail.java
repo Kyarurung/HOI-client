@@ -2,9 +2,9 @@ package dev.hoi.client.screen.focus;
 
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiDiplomacyAssets;
-import dev.hoi.client.ui.UiKeywordIcons;
-import dev.hoi.client.ui.UiTooltipText;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.TooltipKeywordIcons;
+import dev.hoi.client.ui.tooltip.TooltipText;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.focus.FocusPayloads;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -39,7 +39,7 @@ final class FocusDetail {
     Button button(boolean close,Runnable action) {
         var area=close?close():start();
         return new Button(area.x(),area.y(),area.width(),area.height(),net.minecraft.network.chat.Component.literal(close?"×":"중점 시작"),button -> action.run(),java.util.function.Supplier::get) {
-            {setTooltip(UiTooltips.create(net.minecraft.network.chat.Component.literal(close?"닫기":"중점 시작")));}
+            {setTooltip(Tooltips.create(net.minecraft.network.chat.Component.literal(close?"닫기":"중점 시작")));}
             @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager){dev.hoi.client.audio.AudioUiSounds.play(close?"ui.close":"ui.focus.select");}
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                 var state=!active?UiDiplomacyAssets.State.DISABLED:isHoveredOrFocused()?UiDiplomacyAssets.State.OVER:UiDiplomacyAssets.State.UP;
@@ -134,7 +134,7 @@ final class FocusDetail {
         progress(g,detail,completed);
         String duration=detail==null || detail.durationHours()==0?"0":days(detail.durationHours())+"일";
         drawCentered(g,font,completed?"완료됨":duration,time,TEXT_SCALE);
-        if(time.contains(mx,my) && detail!=null)UiTooltips.drawExact(g,font,(detail.durationHours()==0?"소요 시간: 알 수 없음":duration+" · "+detail.durationHours()+"시간")+"\n경과: "+detail.elapsedHours()+"시간\n저장된 중점 시간: "+detail.bankedHours()+"시간\n정치력을 지불한 저장 시간: "+detail.paidBankedHours()+"시간\n일일 정치력 소모: "+BigDecimal.valueOf(detail.politicalPowerPerDay()).stripTrailingZeros().toPlainString(),mx,my);
+        if(time.contains(mx,my) && detail!=null)Tooltips.drawExact(g,font,(detail.durationHours()==0?"소요 시간: 알 수 없음":duration+" · "+detail.durationHours()+"시간")+"\n경과: "+detail.elapsedHours()+"시간\n저장된 중점 시간: "+detail.bankedHours()+"시간\n정치력을 지불한 저장 시간: "+detail.paidBankedHours()+"시간\n일일 정치력 소모: "+BigDecimal.valueOf(detail.politicalPowerPerDay()).stripTrailingZeros().toPlainString(),mx,my);
         g.pose().pushMatrix();g.pose().translate(b.x()+102.5f,b.y()+46);g.pose().scale(.5f);
         UiAssets.draw(g,"focus/detail/prerequisites",0,0,307,113);g.pose().popMatrix();
         Object nextSource=detail==null?node:detail;
@@ -166,9 +166,6 @@ final class FocusDetail {
         for(int y=border;y<height-border;y+=64)for(int x=border;x<width-border;x+=64){int w=Math.min(64,width-border-x),h=Math.min(64,height-border-y);g.blit(id,x,y,x+w,y+h,1f/3,(64+w)/192f,1f/3,(64+h)/192f);}
         g.pose().popMatrix();
     }
-    private void progress(GuiGraphicsExtractor g,FocusPayloads.Detail detail) {
-        progress(g,detail,false);
-    }
     private void progress(GuiGraphicsExtractor g,FocusPayloads.Detail detail,boolean completed) {
         var atlas=Identifier.fromNamespaceAndPath("hoi","textures/gui/focus/detail/progress_atlas.png");
         var background=Identifier.fromNamespaceAndPath("hoi","textures/gui/focus/detail/progress_background.png");
@@ -187,19 +184,19 @@ final class FocusDetail {
     private static List<Row> detailRows(Font font,List<FocusPayloads.DetailLine> source,int width) {
         var rows=new ArrayList<Row>();
         for(var line:source)rows.addAll(textRows(font,line.text(),width,Math.min(width/2,line.depth()*7)));
-        return UiTooltipText.collapseBlankLines(rows,row->UiTooltips.blank(row.text()));
+        return TooltipText.collapseBlankLines(rows,row->Tooltips.blank(row.text()));
     }
     private static List<Row> textRows(Font font,String text,int width,int indent) {
         var rows=new ArrayList<Row>();
         int textWidth=Math.max(16,(int)((width-indent-8)/TEXT_SCALE));
-        var component=UiKeywordIcons.decorateLines(UiTooltips.officerText(UiTooltipText.sourceSpacing(text)),false);
+        var component=TooltipKeywordIcons.decorateLines(Tooltips.officerText(TooltipText.sourceSpacing(text)),false);
         var lines=new ArrayList<net.minecraft.network.chat.MutableComponent>();lines.add(net.minecraft.network.chat.Component.empty());
         component.visit((style,part) -> {
             String[] parts=part.split("\\R",-1);
             for(int i=0;i<parts.length;i++){if(i>0)lines.add(net.minecraft.network.chat.Component.empty());lines.getLast().append(net.minecraft.network.chat.Component.literal(parts[i]).withStyle(style));}
             return java.util.Optional.empty();
         },net.minecraft.network.chat.Style.EMPTY);
-        for(var line:lines)for(var wrapped:line.getString().isEmpty()?List.of(FormattedCharSequence.EMPTY):UiTooltips.split(font,line,textWidth))rows.add(new Row(wrapped,indent));
+        for(var line:lines)for(var wrapped:line.getString().isEmpty()?List.of(FormattedCharSequence.EMPTY):Tooltips.split(font,line,textWidth))rows.add(new Row(wrapped,indent));
         if(rows.isEmpty())rows.add(new Row(FormattedCharSequence.EMPTY,indent));
         return List.copyOf(rows);
     }
@@ -228,8 +225,8 @@ final class FocusDetail {
         drawCentered(g,font,text,area,scale,false);
     }
     private static void drawCentered(GuiGraphicsExtractor g,Font font,String text,Bounds area,float scale,boolean bold) {
-        var value=UiTooltips.officerText(text,bold);
-        var lines=UiTooltips.split(font,value,Math.max(1,(int)(area.width()/scale)));
+        var value=Tooltips.officerText(text,bold);
+        var lines=Tooltips.split(font,value,Math.max(1,(int)(area.width()/scale)));
         g.enableScissor(area.x(),area.y(),area.x()+area.width(),area.y()+area.height());
         float y=area.y()+Math.max(0,(area.height()-lines.size()*font.lineHeight*scale)/2);
         for(var line:lines) {

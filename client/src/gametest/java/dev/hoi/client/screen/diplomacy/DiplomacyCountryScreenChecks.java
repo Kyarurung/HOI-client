@@ -19,18 +19,18 @@ public final class DiplomacyCountryScreenChecks {
         context.runOnClient(c -> c.options.guiScale().set(2));
         context.runOnClient(c -> {
             String prose = "첫 문장. 두 번째 문장!\n\n다음 구역: +1.25%. 유지됩니다.";
-            String wrapped = dev.hoi.client.ui.UiTooltips.sentences(prose);
+            String wrapped = dev.hoi.client.ui.tooltip.Tooltips.sentences(prose);
             if (!wrapped.equals("첫 문장.\n두 번째 문장!\n\n다음 구역: +1.25%.\n유지됩니다."))
                 throw new AssertionError("Sentence wrapping changed paragraphs or decimals: " + wrapped);
             var colored = net.minecraft.network.chat.Component.literal("첫 문장. 다음 문장.").withColor(0x55FF55);
-            var rewritten = dev.hoi.client.ui.UiTooltips.sentences(colored);
+            var rewritten = dev.hoi.client.ui.tooltip.Tooltips.sentences(colored);
             if (!rewritten.getString().equals("첫 문장.\n다음 문장.") || !rewritten.visit((style, part) ->
                     style.getColor() != null && style.getColor().getValue() == 0x009F03 ? Optional.of(true) : Optional.empty(),
                     net.minecraft.network.chat.Style.EMPTY).orElse(false)) throw new AssertionError("Sentence wrapping lost style");
             for (String effect : List.of("안정도: §a+4%§r", "저항 활동 확률: §a-20%§r", "월간 인플레이션: §4+0.1%§r", "금리: §e+5%§r", "매일 사회자유주의 지지도: §a+0.01§r")) {
                 var colors = new java.util.HashSet<Integer>();
                 var icons = new java.util.concurrent.atomic.AtomicInteger();
-                for (var line : dev.hoi.client.ui.UiTooltips.lines(c.font, effect, 1280))
+                for (var line : dev.hoi.client.ui.tooltip.Tooltips.lines(c.font, effect, 1280))
                     line.accept((index, style, character) -> {
                         if (character >= 0xe000 && character <= 0xf8ff) icons.incrementAndGet();
                         if (style.getColor() != null) colors.add(style.getColor().getValue());
@@ -50,16 +50,16 @@ public final class DiplomacyCountryScreenChecks {
             for (String key : List.of("supplies", "nuclear", "gdp", "debt")) {
                 var point = context.computeOnClient(c -> {
                     int width = c.gui.screen().width;
-                    var items = dev.hoi.client.ui.UiMenuBar.indicators(menu.hud());
-                    int x = dev.hoi.client.ui.UiMenuBar.flagWidth(width) + 10;
-                    int total = items.stream().mapToInt(dev.hoi.client.ui.UiMenuBar.UiIndicator::width).sum();
+                    var items = dev.hoi.client.ui.hud.HudMenuBar.indicators(menu.hud());
+                    int x = dev.hoi.client.ui.hud.HudMenuBar.flagWidth(width) + 10;
+                    int total = items.stream().mapToInt(dev.hoi.client.ui.hud.HudMenuBar.HudIndicator::width).sum();
                     for (var item : items) {
-                        if (item.icon().equals("gdp")) x += Math.max(0, dev.hoi.client.ui.UiMenuBar.statsRight(width)
-                                - dev.hoi.client.ui.UiMenuBar.flagWidth(width) - 10 - total - 3);
+                        if (item.icon().equals("gdp")) x += Math.max(0, dev.hoi.client.ui.hud.HudMenuBar.statsRight(width)
+                                - dev.hoi.client.ui.hud.HudMenuBar.flagWidth(width) - 10 - total - 3);
                         if (item.icon().equals(key)) {
                             if (item.raw() == null && !item.value().equals(item.icon().equals("supplies")?"0%":"0")) throw new AssertionError("Missing HUD value must display zero: " + key);
                             var text = new StringBuilder();
-                            for (var line : dev.hoi.client.ui.UiHudTooltip.body(c.font, width, menu.hud(), item))
+                            for (var line : dev.hoi.client.ui.hud.HudTooltip.body(c.font, width, menu.hud(), item))
                                 line.accept((index, style, character) -> { text.appendCodePoint(character); return true; });
                             if (text.indexOf("—") >= 0) throw new AssertionError("Obsolete HUD placeholder: " + key);
                             double scale = c.getWindow().getGuiScale();
@@ -135,7 +135,7 @@ public final class DiplomacyCountryScreenChecks {
                 context.setScreen(() -> new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal(country.getKey())) {
                     @Override public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor g, int mx, int my, float delta) {
                         g.fill(0, 0, width, height, 0xFF202226);
-                        dev.hoi.client.ui.UiPoliticalTooltip.draw(g, font, entry, 20, 30, width, height, 0);
+                        dev.hoi.client.ui.politics.PoliticsTooltip.draw(g, font, entry, 20, 30, width, height, 0);
                     }
                 });
                 context.waitTicks(1);
@@ -193,7 +193,7 @@ public final class DiplomacyCountryScreenChecks {
             var partyPoint=context.computeOnClient(c -> {
                 var screen=(ScreenMenu)c.gui.screen();
                 int pane=dev.hoi.client.ui.UiPanelLayout.width(MenuTab.POLITICS,screen.width);
-                var layout=new dev.hoi.client.ui.UiPoliticsLayout(pane,dev.hoi.client.ui.UiMenuBar.height(screen.width));
+                var layout=new dev.hoi.client.ui.politics.PoliticsLayout(pane,dev.hoi.client.ui.hud.HudMenuBar.height(screen.width));
                 var list=layout.parties();
                 for(int i=0;i<20;i++) {
                     int x=list.x()+8,y=list.y()+4+i*11+5;
@@ -230,7 +230,7 @@ public final class DiplomacyCountryScreenChecks {
                 context.getInput().setCursorPos(1800, 1100); context.waitTicks(3);
                 context.takeScreenshot("hoi-government-candidates-" + index + "-gui2");
             }
-            var party=dev.hoi.client.ui.UiMenuBar.indicators(backdrop.hud()).stream().filter(i -> i.icon().equals("party_support")).findFirst().orElseThrow();
+            var party=dev.hoi.client.ui.hud.HudMenuBar.indicators(backdrop.hud()).stream().filter(i -> i.icon().equals("party_support")).findFirst().orElseThrow();
             if(!party.value().matches("[0-9]+%"))throw new AssertionError("HUD party precision: "+party.value());
         } catch(java.io.IOException e) {throw new AssertionError("Cost snapshots unavailable",e);}
         try {
@@ -256,7 +256,7 @@ public final class DiplomacyCountryScreenChecks {
             var spiritPoint = context.computeOnClient(c -> {
                 var screen = (DiplomacyCountryScreen)c.gui.screen();
                 int pane = screen.panelWidth();
-                int top = dev.hoi.client.ui.UiMenuBar.height(screen.width);
+                int top = dev.hoi.client.ui.hud.HudMenuBar.height(screen.width);
                 var header = new DiplomacyHeader(foreign, pane);
                 int y = DiplomacyHeader.spiritsTop(top, pane) + 10;
                 for (int x = 0; x < pane; x++) {
@@ -346,7 +346,7 @@ public final class DiplomacyCountryScreenChecks {
             var effects = screen.politicsHover(policy.getX() + 2, policy.getY() + 2);
             if (effects == null || !effects.detail().contains("+5%")) throw new AssertionError("Government hover exposes current effect values");
             for (int pane : new int[]{248,363,726}) {
-                var sizing = new dev.hoi.client.ui.UiPoliticsLayout(pane, 40);
+                var sizing = new dev.hoi.client.ui.politics.PoliticsLayout(pane, 40);
                 var focusBox = sizing.focus(); var focusImage = sizing.focusImage();
                 if (Math.abs(focusBox.width() - focusBox.height() * 359.0 / 107) > .5
                         || Math.abs(focusBox.x() + focusBox.height() * 49.5 / 107
@@ -421,7 +421,7 @@ public final class DiplomacyCountryScreenChecks {
         context.setScreen(() -> new ScreenMenu(new MenuView(source.country(), source.countryName(), source.date(), source.speed(), singleSpiritPages, source.hud())));
         context.waitTicks(2);
         context.runOnClient(c -> {
-            var screen = (ScreenMenu)c.gui.screen(); int top = dev.hoi.client.ui.UiMenuBar.height(screen.width);
+            var screen = (ScreenMenu)c.gui.screen();
             var spirit = screen.politicsHover(screen.politicsLayout().spirits().x() + 6, screen.politicsLayout().spirits().y() + screen.politicsLayout().spirits().height()/2);
             if (spirit == null || !spirit.name().equals("검증용 정신 0")) throw new AssertionError("A single spirit must start at the left edge");
         });
@@ -454,7 +454,7 @@ public final class DiplomacyCountryScreenChecks {
                     throw new AssertionError("Chart corner must not have a tooltip");
                 var colors = new HashSet<Integer>();
                 var rendered = new StringBuilder();
-                for (var line : dev.hoi.client.ui.UiTooltips.exactLines(c.font, expected.detail(), 1280))
+                for (var line : dev.hoi.client.ui.tooltip.Tooltips.exactLines(c.font, expected.detail(), 1280))
                     line.accept((index, style, character) -> {
                         if (style.getColor() != null) colors.add(style.getColor().getValue());
                         rendered.appendCodePoint(character);
@@ -545,14 +545,15 @@ public final class DiplomacyCountryScreenChecks {
         for (int i = 0; i < 24; i++) diplomacy.add(new MenuView.Entry("보유 국민정신 " + i, "", "국가 정신\n안정도: §a+5%§r", -1, "politics/art/gfx_idea_prc_chinese_communist_party"));
         var fixture = new CountryView("KOR",hud,"PRC","중화인민공화국",false,List.of(new CountryView.Choice("KOR","대한민국"),new CountryView.Choice("PRC","중국")),
                 diplomacy,List.of(new MenuView.Entry("알려지지 않은 중점","민간 첩보 70% 필요","")),reports,null,List.of(
-                    new CountryView.Relation("세력","diplomacy/relations/faction",List.of(new CountryView.Choice("PRK","조선민주주의인민공화국"),new CountryView.Choice("JAP","일본"),new CountryView.Choice("KOR","대한민국"))),
+                    new CountryView.Relation("세력","diplomacy/relations/faction",List.of(new CountryView.Choice("PRK","조선민주주의인민공화국"),new CountryView.Choice("JAP","일본"),new CountryView.Choice("KOR","대한민국"),new CountryView.Choice("RUS","러시아"),new CountryView.Choice("PRC","중국"),new CountryView.Choice("USA","미국"))),
                     new CountryView.Relation("군사 통행권","diplomacy/relations/offer_military_access_initiator",List.of(new CountryView.Choice("KOR","대한민국")))));
         context.setScreen(() -> new DiplomacyCountryScreen(fixture)); context.waitTicks(3); context.takeScreenshot("hoi-country-diplomacy"); dev.hoi.client.ResearchScreenTest.gui2Screenshot(context, "hoi-country-diplomacy");
+        DiplomacyFlagOverlapTest.run(context, fixture);
         var sixSpirits = new CountryView(fixture.viewer(), fixture.hud(), fixture.target(), fixture.name(), fixture.shared(), fixture.countries(),
                 diplomacy.subList(0, diplomacy.size() - 18), fixture.focuses(), fixture.reports(), fixture.actions(), fixture.relations());
         context.setScreen(() -> new DiplomacyCountryScreen(sixSpirits)); context.waitTicks(3);
         context.runOnClient(c -> {
-            int pane = ((DiplomacyCountryScreen)c.gui.screen()).panelWidth(), top = dev.hoi.client.ui.UiMenuBar.height(c.gui.screen().width);
+            int pane = ((DiplomacyCountryScreen)c.gui.screen()).panelWidth(), top = dev.hoi.client.ui.hud.HudMenuBar.height(c.gui.screen().width);
             var header = new DiplomacyHeader(sixSpirits, pane);
             int x = DiplomacyHeader.scaled(140, pane) + 2, y = DiplomacyHeader.spiritsTop(top, pane) + 8;
             var first = header.spiritAt(x, y, pane, top);
@@ -595,14 +596,14 @@ public final class DiplomacyCountryScreenChecks {
                 var screen = (DiplomacyCountryScreen)c.gui.screen();
                 int cell = Math.min(58, (screen.panelWidth() - 76) / 2);
                 return new double[]{(screen.panelWidth() - 30 - cell * 2 + statIndex * cell + cell / 2.0) * c.getWindow().getGuiScale(),
-                        (dev.hoi.client.ui.UiMenuBar.height(screen.width) + 12) * c.getWindow().getGuiScale()};
+                        (dev.hoi.client.ui.hud.HudMenuBar.height(screen.width) + 12) * c.getWindow().getGuiScale()};
             });
             context.getInput().setCursorPos(cursor[0], cursor[1]); context.waitTicks(3);
             context.takeScreenshot("hoi-diplomacy-stat-precision-" + index + "-gui2");
         }
         context.getInput().setCursorPos(1200, 1000);
         context.runOnClient(c -> {
-            int pane = ((DiplomacyCountryScreen)c.gui.screen()).panelWidth(), top = dev.hoi.client.ui.UiMenuBar.height(c.gui.screen().width);
+            int pane = ((DiplomacyCountryScreen)c.gui.screen()).panelWidth(), top = dev.hoi.client.ui.hud.HudMenuBar.height(c.gui.screen().width);
             var header = new DiplomacyHeader(fixture, pane);
             int x = DiplomacyHeader.scaled(140, pane) + 2, y = DiplomacyHeader.spiritsTop(top, pane) + 8;
             var first = header.spiritAt(x, y, pane, top);
@@ -625,16 +626,20 @@ public final class DiplomacyCountryScreenChecks {
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
         context.runOnClient(c -> {
             var screen=(DiplomacyCountryScreen)c.gui.screen();
-            int pane=screen.panelWidth(),top=dev.hoi.client.ui.UiMenuBar.height(screen.width);
+            int pane=screen.panelWidth(),top=dev.hoi.client.ui.hud.HudMenuBar.height(screen.width);
             int y=DiplomacyHeader.body(top,pane)+DiplomacyHeader.scaled(21,pane);
             if(screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(15,y,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false))
                 throw new AssertionError("Diplomacy relation background must not be clickable");
             if(screen.children().stream().anyMatch(w->w instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().startsWith("세력 ·")))
                 throw new AssertionError("Diplomacy relation row must not have hover/click widgets");
-            var selected=screen.flagAt(40,y);
+            int flagLeft=9+DiplomacyHeader.scaled(40,pane),flagWidth=DiplomacyHeader.scaled(47,pane),flagRight=9+DiplomacyHeader.scaled(200,pane);
+            var selected=screen.flagAt(flagLeft+1,y);
             if(selected==null||!selected.tag().equals("PRK"))throw new AssertionError("Visible diplomacy flag target");
+            int second=dev.hoi.client.ui.country.CountryFlagStack.left(1,6,flagLeft,flagRight-flagLeft,flagWidth);
+            if(!screen.flagAt(second-1,y).tag().equals("PRK")||!screen.flagAt(second,y).tag().equals("JAP")||!screen.flagAt(flagRight-1,y).tag().equals("USA")||screen.flagAt(flagRight,y)!=null)
+                throw new AssertionError("Relation flags must overlap in source order and give only exposed regions their hit targets");
             String previous=screen.token();
-            if(!screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(40,y,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false)
+            if(!screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(flagLeft+1,y,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false)
                     ||screen.view()!=null||screen.token().equals(previous))throw new AssertionError("Flag click must open a fresh country request");
             screen.update(CountryPayloads.Response.of(screen.token(),fixture));
             if(screen.view()!=null)throw new AssertionError("Clicked flag must not accept another country's response");

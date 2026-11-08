@@ -31,6 +31,50 @@ public final class CommanderBranchMissionSourceTest {
         if(sent.size()!=1||!sent.getFirst().equals(new DialogPayloads.Action(issued.token(),issued.revision(),choice)))
             throw new AssertionError("Mission choice must send the issued token/revision once: "+sent);
     }
+    public static void runAirNames(ClientGameTestContext context) {
+        String directory=System.getenv("HOI_COMMANDER_PREVIEW");
+        String json;
+        try {
+            json=directory==null?DialogPayloads.Show.of(fixture("air-multiple-regions-draft"),true).json():java.nio.file.Files.readString(java.nio.file.Path.of(directory).resolveSibling("mission-source-fixtures").resolve("air-multiple-regions-draft.json"));
+        } catch(java.io.IOException error){throw new AssertionError(error);}
+        for(int width:List.of(2560,1280)) {
+            context.getInput().resizeWindow(width,width==2560?1440:720);context.runOnClient(client->client.options.guiScale().set(2));
+            var view=new DialogPayloads.Show(json,true).view();var sent=new ArrayList<DialogPayloads.Action>();
+            context.setScreen(()->new CommanderRoster(view,null,sent::add));context.waitTicks(3);
+            var initial=context.takeScreenshot("hoi-air-assignment-initial-"+width+"-gui2");
+            var names=context.computeOnClient(client->view.tiles().stream().filter(t->t.section().startsWith("unit/")).map(t->Map.of("name",t.name(),"textWidth",client.font.width(t.name()),"cellWidth",224)).toList());
+            try{java.nio.file.Files.writeString(java.nio.file.Path.of(initial.toString().replace(".png","-names.json")),new com.google.gson.Gson().toJson(names));}catch(java.io.IOException error){throw new AssertionError(error);}
+            var observed=new HashSet<String>();
+            for(int page=0;page<view.tiles().size();page++) {
+                observed.addAll(context.computeOnClient(client->client.gui.screen().children().stream().filter(c->c instanceof AbstractWidget).map(c->((AbstractWidget)c).getMessage().getString()).toList()));
+                if(page%3==0||page==view.tiles().size()-1)context.takeScreenshot("hoi-air-assignment-page-"+page+"-"+width+"-gui2");
+                context.runOnClient(client->client.gui.screen().mouseScrolled(40,180,0,-1));context.waitTicks(1);
+            }
+            for(var tile:view.tiles())if(tile.section().startsWith("unit/")) {
+                if(!observed.contains(tile.name())||view.choices().stream().noneMatch(c->c.id().equals(tile.section())&&c.label().equals(tile.name())))throw new AssertionError("Air wing name/choice missing: "+tile.name());
+            }
+            if(!sent.isEmpty())throw new AssertionError("Air assignment scrolling issued an action");
+            context.runOnClient(client->client.gui.screen().mouseScrolled(40,180,0,100));context.waitTicks(2);
+            var choice=view.choices().stream().filter(c->c.id().startsWith("unit/")).findFirst().orElseThrow();
+            var at=position(context,choice.label());click(context,at);verifyAction(sent,view,choice.id());
+            context.runOnClient(client->((CommanderRoster)client.gui.screen()).update(view));click(context,at);verifyAction(sent,view,choice.id());
+            var synthetic=com.google.gson.JsonParser.parseString(json).getAsJsonObject();String longName="제1 근접항공지원기 비행단 이름 넘침 확인용 합성 표시 가로 스크롤 마지막 글자";
+            synthetic.getAsJsonArray("tiles").get(1).getAsJsonObject().addProperty("name",longName);
+            synthetic.getAsJsonArray("choices").get(0).getAsJsonObject().addProperty("label",longName);
+            var longView=new DialogPayloads.Show(synthetic.toString(),true).view();
+            context.setScreen(()->new CommanderRoster(longView,null,a->{}));context.getInput().setCursorPos(width-10,10);context.waitTicks(2);
+            for(int frame=0;frame<16;frame++){
+                var capture=context.takeScreenshot("hoi-air-assignment-long-synthetic-"+frame+"-"+width+"-gui2");
+                if(frame==0) {
+                    var bounds=context.computeOnClient(client->{var button=client.gui.screen().children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->c.getMessage().getString().equals(longName)).findFirst().orElseThrow();return Map.of("x",(button.getX()+52)*2,"y",(button.getY()+5)*2,"width",(button.getWidth()-56)*2,"height",46,"textWidth",client.font.width(longName));});
+                    if(bounds.get("textWidth")<=bounds.get("width")/2)throw new AssertionError("Synthetic air wing name must overflow");
+                    try{java.nio.file.Files.writeString(java.nio.file.Path.of(capture.toString().replace(".png","-bounds.json")),new com.google.gson.Gson().toJson(bounds));}catch(java.io.IOException error){throw new AssertionError(error);}
+                }
+                context.waitTicks(30);
+            }
+        }
+        context.setScreen(()->null);context.getInput().resizeWindow(1600,1000);
+    }
     public static void run(ClientGameTestContext context) {
         context.getInput().resizeWindow(2560,1440);context.runOnClient(client->client.options.guiScale().set(2));
         for(String branch:List.of("naval","air")) {
@@ -95,6 +139,7 @@ public final class CommanderBranchMissionSourceTest {
             String label=workflow.choices().stream().filter(c->c.id().equals(choice)).findFirst().orElseThrow().label();int[] at=position(context,label);click(context,at);verifyAction(sent,workflow,choice);
             context.runOnClient(client->((CommanderRoster)client.gui.screen()).update(workflow));click(context,at);verifyAction(sent,workflow,choice);
         }
+        runAirNames(context);
         context.setScreen(()->null);context.getInput().resizeWindow(1600,1000);
     }
 }

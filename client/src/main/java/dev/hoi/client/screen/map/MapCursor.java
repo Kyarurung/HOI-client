@@ -4,7 +4,7 @@ import dev.hoi.client.ClientCampaignHud;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.input.InputMapInfo;
 import dev.hoi.client.input.InputSidebarMovement;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.client.screen.army.ArmyLandPlanGesture;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Renderable;
@@ -29,7 +29,7 @@ public final class MapCursor extends Screen implements InputSidebarMovement.Inpu
         dev.hoi.client.map.commander.CommanderHud.cancelDrag();
         selecting=false;commandGesture.clear();commandContext="";
         country = ClientCampaignHud.country();
-        UiMenuBar.buttons(width, country, null, HoiClient::openMenu).forEach(this::addRenderableWidget);
+        HudMenuBar.buttons(width, country, null, HoiClient::openMenu).forEach(this::addRenderableWidget);
     }
     @Override public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         if(commandGesture.active()&&commandLine)commandGesture.draw(graphics);
@@ -41,14 +41,14 @@ public final class MapCursor extends Screen implements InputSidebarMovement.Inpu
             graphics.fill(left,top,left+1,bottom,0xFFFFFFFF);
             graphics.fill(right-1,top,right,bottom,0xFFFFFFFF);
         }
-        UiMenuBar.draw(graphics, width, ClientCampaignHud.hud(), mouseX, mouseY, hudScroll);
+        HudMenuBar.draw(graphics, width, ClientCampaignHud.hud(), mouseX, mouseY, hudScroll);
         for (var child : children()) if (child instanceof Renderable renderable)
             renderable.extractRenderState(graphics, mouseX, mouseY, delta);
     }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
         if (dev.hoi.client.map.agency.AgencyRaidHud.click(event, twice)) return true;
         if (super.mouseClicked(event, twice)) return true;
-        if(event.y()<UiMenuBar.height(width)||minecraft.level==null)return false;
+        if(event.y()<HudMenuBar.height(width)||minecraft.level==null)return false;
         if(dev.hoi.client.map.commander.CommanderHud.pressAt(event.x(),event.y(),event.button(),twice))return true;
         if(dev.hoi.client.map.naval.NavalInvasionOverlay.click(event.x(),event.y(),event.button()))return true;
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT||event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&(dev.hoi.client.map.commander.CommanderOrders.pointMode()||dev.hoi.client.map.commander.CommanderOrders.clicksBorder()||dev.hoi.client.map.commander.CommanderOrders.editsPoint())){
@@ -65,9 +65,9 @@ public final class MapCursor extends Screen implements InputSidebarMovement.Inpu
     @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {
         if (dev.hoi.client.map.agency.AgencyRaidHud.drag(event, dx, dy)) return true;
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&dev.hoi.client.map.commander.CommanderHud.dragAt(event.x(),event.y()))return true;
-        if(commandGesture.active()&&event.button()==commandButton){if(commandLine)commandGesture.sample(minecraft,Math.clamp(event.x(),0,width),Math.clamp(event.y(),UiMenuBar.height(width),height),width,height,false);return true;}
+        if(commandGesture.active()&&event.button()==commandButton){if(commandLine)commandGesture.sample(minecraft,Math.clamp(event.x(),0,width),Math.clamp(event.y(),HudMenuBar.height(width),height),width,height,false);return true;}
         if(!selecting||event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return super.mouseDragged(event,dx,dy);
-        endX=Math.clamp(event.x(),0,width);endY=Math.clamp(event.y(),UiMenuBar.height(width),height);
+        endX=Math.clamp(event.x(),0,width);endY=Math.clamp(event.y(),HudMenuBar.height(width),height);
         return true;
     }
     @Override public boolean mouseReleased(MouseButtonEvent event) {
@@ -75,7 +75,7 @@ public final class MapCursor extends Screen implements InputSidebarMovement.Inpu
         if(dev.hoi.client.map.commander.CommanderHud.releaseAt(event.x(),event.button()))return true;
         if(commandGesture.active()&&event.button()==commandButton){
             if(!commandContext.equals(dev.hoi.client.map.commander.CommanderOrders.gestureContext())){commandGesture.clear();return true;}
-            commandGesture.sample(minecraft,Math.clamp(event.x(),0,width),Math.clamp(event.y(),UiMenuBar.height(width),height),width,height,true);dev.hoi.client.map.commander.CommanderOrders.map(commandGesture.finish(minecraft),commandButton==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);return true;
+            commandGesture.sample(minecraft,Math.clamp(event.x(),0,width),Math.clamp(event.y(),HudMenuBar.height(width),height),width,height,true);dev.hoi.client.map.commander.CommanderOrders.map(commandGesture.finish(minecraft),commandButton==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);return true;
         }
         if(!selecting||event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return super.mouseReleased(event);
         mouseDragged(event,0,0);selecting=false;
@@ -87,8 +87,8 @@ public final class MapCursor extends Screen implements InputSidebarMovement.Inpu
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
         if (dev.hoi.client.map.agency.AgencyRaidHud.scroll(x, y, horizontal, vertical)) return true;
         if(dev.hoi.client.map.commander.CommanderHud.scrollAt(x,y,vertical))return true;
-        if (y < UiMenuBar.STATS_HEIGHT) {
-            hudScroll = UiMenuBar.scroll(width, ClientCampaignHud.hud(), hudScroll, horizontal, vertical);
+        if (y < HudMenuBar.STATS_HEIGHT) {
+            hudScroll = HudMenuBar.scroll(width, ClientCampaignHud.hud(), hudScroll, horizontal, vertical);
             return true;
         }
         return super.mouseScrolled(x, y, horizontal, vertical);

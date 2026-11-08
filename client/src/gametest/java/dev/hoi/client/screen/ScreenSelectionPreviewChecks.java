@@ -1,7 +1,7 @@
 package dev.hoi.client.screen;
 
 import dev.hoi.protocol.menu.MenuView;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 
 public final class ScreenSelectionPreviewChecks {
@@ -22,10 +22,10 @@ public final class ScreenSelectionPreviewChecks {
                     throw new AssertionError("Selection contains only the dismiss control, with no gameplay actions");
                 for (var child : screen.children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget
                         && !widget.getMessage().getString().equals("×")) throw new AssertionError("Unexpected selection control");
-                var indicators = UiMenuBar.indicators(view.hud());
-                if (indicators != UiMenuBar.indicators(view.hud())) throw new AssertionError("Unchanged HUD must reuse formatted indicators");
-                UiMenuBar.clear();
-                if (indicators == UiMenuBar.indicators(view.hud())) throw new AssertionError("Resource reload must invalidate HUD presentation caches");
+                var indicators = HudMenuBar.indicators(view.hud());
+                if (indicators != HudMenuBar.indicators(view.hud())) throw new AssertionError("Unchanged HUD must reuse formatted indicators");
+                HudMenuBar.clear();
+                if (indicators == HudMenuBar.indicators(view.hud())) throw new AssertionError("Resource reload must invalidate HUD presentation caches");
             });
             context.takeScreenshot("hoi-country-selection-" + size[0] + "-gui" + size[2]);
         }

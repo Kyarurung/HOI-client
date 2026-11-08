@@ -36,7 +36,7 @@ public final class IndustryNavalDeploymentTest {
             var line=view.lines().stream().filter(l->l.id().equals(navalLine)).findFirst().orElseThrow();
             if(line.progress()!=1||line.daily()!=0)throw new AssertionError("Pending hull retains full gauge and suspends construction");
             String tip=IndustryProductionTooltips.navalWaiting(view,line);
-            if(!tip.equals(dev.hoi.client.ui.UiEquipmentDesigns.tooltip("PRODUCTION_CAN_NOT_DEPLOY")+"\n"+dev.hoi.client.ui.UiEquipmentDesigns.tooltip("PRODUCTION_CAN_NOT_DEPLOY_MANPOWER"))||!tip.contains("인력 부족"))throw new AssertionError("Pending hull uses original tooltip data");
+            if(!tip.equals(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_CAN_NOT_DEPLOY")+"\n"+dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_CAN_NOT_DEPLOY_MANPOWER"))||!tip.contains("인력 부족"))throw new AssertionError("Pending hull uses original tooltip data");
         });
         ResearchScreenTest.gui2Screenshot(context,"hoi-navy-production-manpower-wait");
         var point=context.computeOnClient(client->{var b=button((IndustryScreen)client.gui.screen(),ship.name()+" · 장비 교체");double scale=client.getWindow().getGuiScale();return new double[]{(b.getX()+b.getWidth()/2.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};});

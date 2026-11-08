@@ -3,6 +3,9 @@ package dev.hoi.client.screen.agency;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.hoi.client.ui.*;
 import dev.hoi.protocol.agency.AgencyView;
+import dev.hoi.client.ui.country.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -130,10 +133,10 @@ public final class AgencyOperation extends Screen {
     @Override public void tick() { parent.tick(); }
     @Override protected void init() {
         w = Math.min(390, width - 16);
-        h = Math.min(280, height - UiMenuBar.height(width) - 12);
-        if (!positioned) { x = (width - w) / 2; y = Math.max(UiMenuBar.height(width) + 4, (height - h) / 2); positioned = true; }
+        h = Math.min(280, height - HudMenuBar.height(width) - 12);
+        if (!positioned) { x = (width - w) / 2; y = Math.max(HudMenuBar.height(width) + 4, (height - h) / 2); positioned = true; }
         x = Math.clamp(x, 0, Math.max(0, width - w));
-        y = Math.clamp(y, UiMenuBar.height(width), Math.max(UiMenuBar.height(width), height - h));
+        y = Math.clamp(y, HudMenuBar.height(width), Math.max(HudMenuBar.height(width), height - h));
         addRenderableWidget(new UiMenuButton("×", x + w - 21, y + 2, 18, 18, this::onClose).caption("").background("menu/close").sound("ui.close"));
         for (int i = 0; i < item.parameters().size(); i++) {
             if (i == startParameter()) continue;
@@ -156,7 +159,7 @@ public final class AgencyOperation extends Screen {
                 }
             };
             button.active = !submitted && !parameter.choices().isEmpty();
-            button.setTooltip(UiTooltips.create(Component.literal(parameter.label() + "\n" + selected)));
+            button.setTooltip(Tooltips.create(Component.literal(parameter.label() + "\n" + selected)));
             addRenderableWidget(button);
         }
         if (choosing == 0) {
@@ -187,14 +190,14 @@ public final class AgencyOperation extends Screen {
                 var close = new UiMenuButton(UiCommandLabels.text("CLOSE", "닫기"), x + 134, y + h - 24, 111, 18, () -> invoke(item.id()))
                         .background(sprite("GFX_button_221x34_anim")).sound("ui.close");
                 close.active = !submitted && !parent.awaitingResponse() && item.enabled();
-                close.setTooltip(UiTooltips.create(Component.literal(item.detail())));
+                close.setTooltip(Tooltips.create(Component.literal(item.detail())));
                 addRenderableWidget(close);
                 var cancel = action("cancel_operation:" + operation.id());
                 if (cancel != null) {
                     var control = new UiMenuButton(cancel.button(), x + 251, y + h - 22, 14, 14, () -> invoke(cancel.id()))
                             .caption("").background(sprite("GFX_operation_refund_operation"));
                     control.active = !submitted && !parent.awaitingResponse() && cancel.enabled();
-                    control.setTooltip(UiTooltips.create(Component.literal(cancel.detail())));
+                    control.setTooltip(Tooltips.create(Component.literal(cancel.detail())));
                     addRenderableWidget(control);
                 }
                 return;
@@ -206,12 +209,12 @@ public final class AgencyOperation extends Screen {
             var start = new UiMenuButton(caption, x + 134, y + h - 24, 111, 18, () -> invoke("commence_operation:" + operation.id()))
                     .background(sprite("GFX_button_221x34_anim")).sound("ui.close");
             start.active = !submitted && !parent.awaitingResponse() && commence != null && commence.enabled();
-            if (commence != null) start.setTooltip(UiTooltips.create(Component.literal(commence.detail())));
+            if (commence != null) start.setTooltip(Tooltips.create(Component.literal(commence.detail())));
             addRenderableWidget(start);
             var cancel = new UiMenuButton(item.button(), x + 251, y + h - 22, 14, 14, () -> invoke(item.id()))
                     .caption("").background(sprite("GFX_operation_refund_operation")).sound("ui.close");
             cancel.active = !submitted && !parent.awaitingResponse() && item.enabled();
-            cancel.setTooltip(UiTooltips.create(Component.literal(item.detail())));
+            cancel.setTooltip(Tooltips.create(Component.literal(item.detail())));
             addRenderableWidget(cancel);
             return;
         }
@@ -226,7 +229,7 @@ public final class AgencyOperation extends Screen {
             submit.accept(List.copyOf(arguments));
         }).background(sprite("GFX_button_221x34_anim")).sound("ui.close");
         action.active = choosing < 0 && ready();
-        action.setTooltip(UiTooltips.create(Component.literal(item.detail())));
+        action.setTooltip(Tooltips.create(Component.literal(item.detail())));
         addRenderableWidget(action);
     }
     private AgencyView.Item action(String id) {
@@ -269,7 +272,7 @@ public final class AgencyOperation extends Screen {
         };
         button.active = !submitted && !parent.awaitingResponse() && enabled;
         button.sound("ui.decision.track");
-        button.setTooltip(UiTooltips.create(Component.literal(detail)));
+        button.setTooltip(Tooltips.create(Component.literal(detail)));
         addRenderableWidget(button);
     }
     private int right() { return x + 135; }
@@ -293,7 +296,7 @@ public final class AgencyOperation extends Screen {
     private UiScrollBar bar() { return new UiScrollBar(x + w - 12, y + 25, y + h - 61, h - 86, contentHeight); }
     private UiScrollBar rewardBar() { return new UiScrollBar(x + w - 12, y + h - 57, y + h - 29, 28, rewardHeight); }
     private int text(GuiGraphicsExtractor g, String value, int tx, int ty, int width) {
-        var lines = UiTooltips.split(font, UiKeywordIcons.decorateLines(UiTooltips.officerText(value.replaceAll("\\bGFX_(text_infiltrate_(?:civilian|army|navy|air)_token)\\b", "£$1£")), false), Math.max(1, width));
+        var lines = Tooltips.split(font, TooltipKeywordIcons.decorateLines(Tooltips.officerText(value.replaceAll("\\bGFX_(text_infiltrate_(?:civilian|army|navy|air)_token)\\b", "£$1£")), false), Math.max(1, width));
         for (var line : lines) {
             g.text(font, line, tx, ty, UiMenuStyle.TEXT, false); ty += 10;
         }
@@ -310,10 +313,10 @@ public final class AgencyOperation extends Screen {
         UiAssets.draw(g, sprite("GFX_container_target_info_bg"), 0, 0, 254, 94);
         UiAssets.draw(g, texture(item.texture()), 10, 3, 85, 85);
         g.pose().popMatrix();
-        dev.hoi.client.ui.UiCountryFlags.draw(g,"country/" + country().toLowerCase(Locale.ROOT) + "/flag","small2", x + 57, y + 28, 23, 16);
+        dev.hoi.client.ui.country.CountryFlags.draw(g,"country/" + country().toLowerCase(Locale.ROOT) + "/flag","small2", x + 57, y + 28, 23, 16);
         String countryName = parent.snapshot().items().stream().flatMap(value -> value.parameters().stream())
                 .flatMap(parameter -> parameter.choices().stream()).filter(choice -> choice.value().equals(country()))
-                .map(AgencyView.Choice::label).findFirst().orElse(UiCountryDisplay.name(country(), country()));
+                .map(AgencyView.Choice::label).findFirst().orElse(CountryDisplays.name(country(), country()));
         text(g, countryName, x + 57, y + 46, 70);
         int clipboardX = right() - 3, clipboardRight = clipboardX + area() + 5;
         int clipboardTop = y + 23, clipboardBottom = y + h - 60;
@@ -336,7 +339,7 @@ public final class AgencyOperation extends Screen {
                 int px = x + 11 + i % 4 * 30, py = y + 72 + i / 4 * 38;
                 portrait(g, id, px, py);
                 if (operation.resume().contains(id) && mx >= px + 7 && mx < px + 21 && my >= py + 25 && my < py + 39)
-                    g.setTooltipForNextFrame(font, UiTooltips.sourceLines(font, UiCommandLabels.text("OPERATIVE_RESUME_MISSION_AFTER_OPERATION_INDICATOR_TOOLTIP", "이 요원은 작전이 시작했을 때 배정받은 임무를 재개할 것입니다."), Math.min(g.guiWidth(), 244)), mx, my);
+                    g.setTooltipForNextFrame(font, Tooltips.tooltipLines(font, UiCommandLabels.text("OPERATIVE_RESUME_MISSION_AFTER_OPERATION_INDICATOR_TOOLTIP", "이 요원은 작전이 시작했을 때 배정받은 임무를 재개할 것입니다."), g.guiWidth()), mx, my);
             }
         }
         int days = operation != null ? operation.total() - operation.days() : offer != null ? offer.days() : 0;
@@ -353,7 +356,7 @@ public final class AgencyOperation extends Screen {
             UiAssets.draw(g, sprite("GFX_operation_progress_bar_frame"), x + 62, rowY + 2, 65, 13);
             text(g, i == 0 ? UiCommandLabels.text("OPERATION_OUTLOOK_LABEL", "전망") : UiCommandLabels.text("DURATION", "기간"), x + 25, rowY + 5, 36);
             if (i == 1) UiText.centered(g, font, days + "일", x + 63, rowY + 1, 63, 14, 0xFFFFCC33, false);
-            else UiText.centered(g, font, UiTooltips.officerText(outlookLabel, false), x + 63, rowY + 1, 63, 14, UiMenuStyle.TEXT, false);
+            else UiText.centered(g, font, Tooltips.officerText(outlookLabel, false), x + 63, rowY + 1, 63, 14, UiMenuStyle.TEXT, false);
         }
         var preparation = operation != null ? operation.preparation() : offer != null ? offer.preparation() : AgencyView.Preparation.NONE;
         int preparationY = outlookY + 36;
@@ -373,7 +376,7 @@ public final class AgencyOperation extends Screen {
             }
             UiAssets.draw(g, sprite("GFX_efficiency_progressbar_frame"), 110, 13, 99, 15);
             g.pose().popMatrix();
-            var label = UiTooltips.officerText(preparation.label(), false);
+            var label = Tooltips.officerText(preparation.label(), false);
             var labelBounds = font.prepareText(label.getVisualOrderText(), 0, 0, UiMenuStyle.TEXT, false, false, 0).bounds();
             float labelBottom = labelBounds == null ? font.lineHeight : labelBounds.bottom();
             g.pose().pushMatrix();
@@ -430,16 +433,16 @@ public final class AgencyOperation extends Screen {
         UiAssets.draw(g, sprite("GFX_reward_icon"), right() - 3, y + h - 65, 48, 48);
         rewardScroll = Math.clamp(rewardScroll, 0, rewardBar().maximum());
         g.enableScissor(right() + 44, y + h - 57, x + w - 13, y + h - 29);
-        if (!reward.isEmpty() && !country().isEmpty()) UiCountryFlags.draw(g, "country/" + country().toLowerCase(Locale.ROOT) + "/flag", "smallest", right() + 44, y + h - 54 - rewardScroll, 8, 6);
+        if (!reward.isEmpty() && !country().isEmpty()) CountryFlags.draw(g, "country/" + country().toLowerCase(Locale.ROOT) + "/flag", "smallest", right() + 44, y + h - 54 - rewardScroll, 8, 6);
         rewardHeight = text(g, reward, right() + 55, y + h - 55 - rewardScroll, area() - 66) - (y + h - 55 - rewardScroll);
         g.disableScissor();
         rewardBar().draw(g, rewardScroll);
         super.extractRenderState(g, mx, my, delta);
         if (!outlook.isEmpty() && mx >= x + 9 && mx < x + 129 && my >= outlookY && my < outlookY + 18) {
-            g.setTooltipForNextFrame(font, UiTooltips.sourceLines(font, outlook, Math.min(g.guiWidth(), 244)), mx, my);
+            g.setTooltipForNextFrame(font, Tooltips.tooltipLines(font, outlook, g.guiWidth()), mx, my);
         }
         if (!preparation.detail().isEmpty() && mx >= x + 9 && mx < x + 129 && my >= preparationY && my < preparationY + 20)
-            g.setTooltipForNextFrame(font, UiTooltips.sourceLines(font, preparation.detail(), Math.min(g.guiWidth(), 244)), mx, my);
+            g.setTooltipForNextFrame(font, Tooltips.tooltipLines(font, preparation.detail(), g.guiWidth()), mx, my);
     }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return true;

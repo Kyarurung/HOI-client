@@ -3,14 +3,13 @@ package dev.hoi.client.screen.industry;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.ui.UiPanelButton;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiScrollBar;
-
 import dev.hoi.protocol.industry.IndustryConstructionView.*;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.protocol.industry.*;
@@ -66,8 +65,8 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
     int panelWidth(){return pane;}
     @Override protected void init() {
         queueScrollbar=null;paletteScrollbar=null;projectWidgets.clear();
-        pane=UiPanelLayout.width(MenuTab.CONSTRUCTION,width);top=UiMenuBar.height(width);
-        UiMenuBar.buttons(width,view==null?"":view.country(),MenuTab.CONSTRUCTION,t->{
+        pane=UiPanelLayout.width(MenuTab.CONSTRUCTION,width);top=HudMenuBar.height(width);
+        HudMenuBar.buttons(width,view==null?"":view.country(),MenuTab.CONSTRUCTION,t->{
             if(t==MenuTab.CONSTRUCTION)return;
             if(t==MenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(t);
         }).forEach(this::addRenderableWidget);
@@ -103,13 +102,13 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
                 }
             };
             button.active=b.enabled()&&pending==0;
-            button.setTooltip(dev.hoi.client.ui.UiTooltips.createExact(b.tooltip()==null?b.name()+"\n"+b.reason():b.tooltip()));addRenderableWidget(button);
+            button.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.createExact(b.tooltip()==null?b.name()+"\n"+b.reason():b.tooltip()));addRenderableWidget(button);
         }
         int repair=view.summary().repairPriority();
         for(int direction:new int[]{-1,1}) {
             var button=new UiMenuButton(direction<0?"−":"+",direction<0?pane-101:pane-47,top+3,21,19,
                     ()->send(IndustryConstructionPayloads.Action.REPAIR,"",Math.clamp(repair+direction,0,10000),null));
-            button.active=pending==0&&(direction>0||repair>0);button.setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal("건설보다 수리를 우선하는 공장 수")));addRenderableWidget(button);
+            button.active=pending==0&&(direction>0||repair>0);button.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal("건설보다 수리를 우선하는 공장 수")));addRenderableWidget(button);
         }
         queueScrollbar=new UiScrollBar(paletteX()-11,queueY(),height-30,height-queueY()-30,view.projects().size()*rowHeight());
         scroll=Math.clamp(scroll,0,queueScrollbar.maximum());
@@ -127,7 +126,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
                     }
                 };
                 button.active=pending==0&&(action!=0||i>0)&&(action!=1||i<view.projects().size()-1);
-                button.setTooltip(dev.hoi.client.ui.UiTooltips.create(action<2?dev.hoi.client.ui.UiPriorityControls.tooltip(action==0):Component.literal("§a클릭하면 §e건설이 취소§a됩니다.\nCtrl + 클릭하면 §e건설 모두 취소§a됩니다.")));addRenderableWidget(button);widgets.add(button);
+                button.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(action<2?dev.hoi.client.ui.UiPriorityControls.tooltip(action==0):Component.literal("§a클릭하면 §e건설이 취소§a됩니다.\nCtrl + 클릭하면 §e건설 모두 취소§a됩니다.")));addRenderableWidget(button);widgets.add(button);
             }
         }
     }
@@ -137,14 +136,11 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
     private int reservationHeight(){return Math.clamp((height-top-77-30-rowHeight())/IndustryConstructionRows.count(view.summary()),16,27);}
     private int column(int sourceX){return 6+(paletteX()-21)*sourceX/402;}
     private int rowHeight(){return 29;}
-    private String buildingName(String id) {
-        return view.buildings().stream().filter(b->b.id().equals(id)).map(Building::name).findFirst().orElse(id);
-    }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
         UiMenuStyle.panel(g,0,top,pane,height-top);
         UiAssets.nineSlice(g,"construction/ui/header",0,top,pane,25,4,.5);
         UiMenuStyle.heading(g, font,"건설",9,top+8, pane - 44,UiMenuStyle.TEXT);
-        UiMenuBar.draw(g,width,view == null ? dev.hoi.client.ClientCampaignHud.hud() : view.hud(),mx,my,hudScroll);
+        HudMenuBar.draw(g,width,view == null ? dev.hoi.client.ClientCampaignHud.hud() : view.hud(),mx,my,hudScroll);
         if(view!=null) {
             var s=view.summary();int q=paletteX()-15;
             UiAssets.draw(g,"construction/summary/civilian_factory_repair",pane-123,top+5,18,16);
@@ -162,14 +158,14 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
             long speedPercent=Math.round((s.speed()-1)*100);
             dev.hoi.client.ui.UiText.iconText(g,font,"construction/speed",String.format(Locale.ROOT,"%+d%%",speedPercent),6+cell,totalsY+1,cell,totalsHeight,12,speedPercent>=0?0xFF55FF55:0xFFAA0000);
             double energyBalance=s.energy()-s.demand();
-            dev.hoi.client.ui.UiText.iconText(g,font,energyBalance<0?"construction/energy_deficit":"construction/energy",UiMenuBar.rawNumber(energyBalance),6+cell*2,totalsY+1,q-6-cell*2,totalsHeight,12,energyBalance>=0?0xFF55FF55:0xFFAA0000);
+            dev.hoi.client.ui.UiText.iconText(g,font,energyBalance<0?"construction/energy_deficit":"construction/energy",HudMenuBar.rawNumber(energyBalance),6+cell*2,totalsY+1,q-6-cell*2,totalsHeight,12,energyBalance>=0?0xFF55FF55:0xFFAA0000);
             dev.hoi.client.ui.UiText.cell(g,font,"위치",column(20),labelsY+1,column(162)-column(20),labelsHeight,UiMenuStyle.TEXT,false);
             dev.hoi.client.ui.UiText.cell(g,font,"작업",column(172),labelsY+1,23,labelsHeight,UiMenuStyle.TEXT,false);
             UiAssets.draw(g,"construction/summary/civilian_factory",column(249)+1,labelsY+(labelsHeight-13)/2+1,column(310)-column(249),13);
             dev.hoi.client.ui.UiText.cell(g,font,"우선순위",column(318),labelsY+1,column(370)+14-column(318),labelsHeight,UiMenuStyle.TEXT,false);
             if(my>=labelsY&&my<labelsY+labelsHeight&&mx>=6&&mx<q) {
                 String header=mx<column(166)?"location":mx<column(231)?"task":mx<column(314)?"factories":"priority";
-                UiTooltips.drawExact(g,font,Component.translatable("hoi.construction.header."+header).getString(),mx,my);
+                Tooltips.drawExact(g,font,Component.translatable("hoi.construction.header."+header).getString(),mx,my);
             }
             IndustryConstructionRows.draw(g,font,s,6,top+75,q-6,reservationHeight(),mx,my);
             g.enableScissor(paletteX()-2,top+54,pane-4,height-30);
@@ -182,7 +178,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
             for(var group:paletteGroups) {
                 int y=top+54+group.offset()-paletteScroll;
                 if(mx>=paletteX()&&mx<paletteX()+24&&my>=Math.max(top+54,y)&&my<Math.min(height-30,y+24))
-                    UiTooltips.drawExact(g,font,Component.translatable("hoi.construction.group."+group.name()).getString(),mx,my);
+                    Tooltips.drawExact(g,font,Component.translatable("hoi.construction.group."+group.name()).getString(),mx,my);
             }
             for(int i=0;i<view.projects().size();i++) {
                 var p=view.projects().get(i);int y=projectY(p);
@@ -191,11 +187,11 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
             }
             queueScrollbar.draw(g,scroll);
             paletteScrollbar.draw(g,paletteScroll);
-            if(mx>=pane-123&&mx<pane-27&&my>=top+3&&my<top+23)UiTooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
+            if(mx>=pane-123&&mx<pane-27&&my>=top+3&&my<top+23)Tooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
             if(mx>=6&&mx<q&&my>=top+27&&my<top+58) {
                 int column=Math.min(2,(mx-6)/cell);
                 String detail=column==0?calculation(s.factoryCalculation(),"사용 중인 공장"):column==1?calculation(s.speedCalculation(),"건설 속도"):calculation(s.energyCalculation(),"사용 가능한 에너지");
-                UiTooltips.drawExact(g,font,detail,mx,my);
+                Tooltips.drawExact(g,font,detail,mx,my);
             }
         } else dev.hoi.client.ui.UiText.text(g, font,loadingFailed?"서버 응답이 없습니다.":"건설 현황을 불러오는 중…",10,top+40,UiMenuStyle.MUTED);
         drawConversions(g,mx,my);
@@ -241,10 +237,10 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
             g.disableScissor();
         }
         g.pose().popMatrix();
-        if(mx>=column(172)&&mx<column(172)+23&&my>=y+2&&my<y+25&&p.taskTooltip()!=null)UiTooltips.drawExact(g,font,p.taskTooltip(),mx,my);
-        else if(mx>=column(249)&&mx<column(310)&&my>=y&&my<y+rowHeight()-3&&p.tooltip()!=null)UiTooltips.drawExact(g,font,p.tooltip(),mx,my);
+        if(mx>=column(172)&&mx<column(172)+23&&my>=y+2&&my<y+25&&p.taskTooltip()!=null)Tooltips.drawExact(g,font,p.taskTooltip(),mx,my);
+        else if(mx>=column(249)&&mx<column(310)&&my>=y&&my<y+rowHeight()-3&&p.tooltip()!=null)Tooltips.drawExact(g,font,p.tooltip(),mx,my);
         else if(mx>=6&&mx<q&&my>=y&&my<y+rowHeight()-3&&children().stream().noneMatch(child->child instanceof net.minecraft.client.gui.components.AbstractWidget widget&&widget.isMouseOver(mx,my)))
-            UiTooltips.drawExact(g,font,dev.hoi.client.ui.UiEquipmentDesigns.tooltip("PRODUCTION_DRAG_N_DROP"),mx,my);
+            Tooltips.drawExact(g,font,dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_DRAG_N_DROP"),mx,my);
     }
     private void drawConversions(GuiGraphicsExtractor g,int mx,int my) {
         conversionBoxes=List.of();
@@ -258,14 +254,14 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
             var point=matrix.transformProject(relative.toVector3f());
             if(!point.isFinite()||Math.abs(point.x)>1||Math.abs(point.y)>1)continue;
             int x=Math.round((point.x+1)*width/2)-53,y=Math.round((1-point.y)*height/2)-13;
-            if(x<pane||x+106>UiMenuBar.statsRight(width)||y<top+24||y+26>height-24)continue;
+            if(x<pane||x+106>HudMenuBar.statsRight(width)||y<top+24||y+26>height-24)continue;
             boxes.add(new IndustryConversionBox(state,x,y));
             UiAssets.draw(g,"construction/conversion_background",x,y,106,26);
             UiAssets.draw(g,"construction/conversion_civilian",x+6,y+3,20,20);
             dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(state.civilian()),x+26,y+3,18,20,0xFFFFFFFF,false);
             dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(state.military()),x+62,y+3,16,20,0xFFFFFFFF,false);
             UiAssets.draw(g,"construction/conversion_military",x+78,y+3,20,20);
-            if(mx>=x&&mx<x+106&&my>=y&&my<y+26)UiTooltips.draw(g,font,state.name()+"\n민간공장 클릭: 민간공장으로 전환\n군수공장 클릭: 군수공장으로 전환\n반대 방향 예약이 있으면 하나 취소합니다.\n숫자는 전환 예약을 포함합니다.",mx,my);
+            if(mx>=x&&mx<x+106&&my>=y&&my<y+26)Tooltips.draw(g,font,state.name()+"\n민간공장 클릭: 민간공장으로 전환\n군수공장 클릭: 군수공장으로 전환\n반대 방향 예약이 있으면 하나 취소합니다.\n숫자는 전환 예약을 포함합니다.",mx,my);
         }
         conversionBoxes=List.copyOf(boxes);
     }
@@ -313,7 +309,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
             }
             return true;
         }
-        if((event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT||event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT)&&event.x()>=pane&&event.y()>top+22&&event.x()<UiMenuBar.statsRight(width)) {
+        if((event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT||event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT)&&event.x()>=pane&&event.y()>top+22&&event.x()<HudMenuBar.statsRight(width)) {
             if(view!=null&&pending==0&&minecraft.player!=null) {
                 if(!minecraft.options.getCameraType().isFirstPerson()) {
                     return true;
@@ -327,7 +323,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
         return super.mouseClicked(event,twice);
     }
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical) {
-        if(y<top&&view!=null){hudScroll=UiMenuBar.scroll(width,view.hud(),hudScroll,horizontal,vertical);return true;}
+        if(y<top&&view!=null){hudScroll=HudMenuBar.scroll(width,view.hud(),hudScroll,horizontal,vertical);return true;}
         if(x>=paletteX()&&x<pane&&paletteScrollbar!=null&&y>=paletteScrollbar.top()&&y<paletteScrollbar.bottom()) {paletteScroll-=(int)(vertical*(paletteSize()+1));rebuildWidgets();return true;}
         if(x>=0&&x<paletteX()&&queueScrollbar!=null&&y>=queueScrollbar.top()&&y<queueScrollbar.bottom()) {scroll-=(int)(vertical*rowHeight());rebuildWidgets();return true;}
         return super.mouseScrolled(x,y,horizontal,vertical);

@@ -32,7 +32,7 @@ public final class CommanderCaptivityTest {
                 context.getInput().setCursorPos(size[0]-2,size[1]-2);context.waitTicks(2);
                 var after=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-captivity-"+stage+"-"+size[0]+"x"+size[1]+"-gui2").toFile());
                 int pane=dev.hoi.client.ui.UiPanelLayout.width(MenuTab.OFFICER_CORPS,size[0]/2)*2;
-                for(int y=dev.hoi.client.ui.UiMenuBar.height(size[0]/2)*2;y<size[1];y++)for(int x=0;x<pane;x++)if(before.getRGB(x,y)!=after.getRGB(x,y))throw new AssertionError("Opening captivity changed officer backdrop at "+x+","+y);
+                for(int y=dev.hoi.client.ui.hud.HudMenuBar.height(size[0]/2)*2;y<size[1];y++)for(int x=0;x<pane;x++)if(before.getRGB(x,y)!=after.getRGB(x,y))throw new AssertionError("Opening captivity changed officer backdrop at "+x+","+y);
                 if(stage.equals("ours")){
                     int[] cursor=new int[2];context.runOnClient(client->{var screen=client.gui.screen();var tab=button(screen,"우리의 실종된 지휘관");double scale=client.getWindow().getGuiScale();cursor[0]=(int)((tab.getX()+90)*scale);cursor[1]=(int)((tab.getY()+30)*scale);});context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);
                     context.runOnClient(client->{var screen=(CommanderCaptivity)client.gui.screen();var tip=screen.detailTooltip();if(tip==null||tip.x()-4<0||tip.y()-4<0||tip.x()+tip.width()+4>screen.width||tip.y()+tip.height()+4>screen.height)throw new AssertionError("Captive tooltip must remain inside GUI2 bounds");screen.mouseScrolled(tip.x()+tip.width()/2.0,tip.y()+tip.height()/2.0,0,-10000);});context.waitTicks(2);context.takeScreenshot("hoi-captivity-tooltip-"+size[0]+"x"+size[1]+"-gui2");

@@ -7,6 +7,8 @@ import dev.hoi.client.ui.*;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.protocol.doctrine.*;
 import dev.hoi.protocol.menu.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -38,8 +40,8 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
     private final Set<net.minecraft.client.gui.components.AbstractWidget> popupButtons = Collections.newSetFromMap(new IdentityHashMap<>());
     private String hoveredDetail = "";
     private int tooltipScroll;
-    private UiTooltips.ScrolledTooltip tooltipBounds;
-    UiTooltips.ScrolledTooltip tooltipBounds() { return tooltipBounds; }
+    private Tooltips.ScrolledTooltip tooltipBounds;
+    Tooltips.ScrolledTooltip tooltipBounds() { return tooltipBounds; }
     String hoveredDetail() { return hoveredDetail; }
     public DoctrineScreen(Screen parent, String folder) {
         this(parent, folder, UUID.randomUUID().toString(), null, request -> {
@@ -76,10 +78,10 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
     }
     @Override protected void init() {
         scrollableTooltips.clear(); popupButtons.clear(); tooltipBounds = null;
-        InputSidebarMovement.release(minecraft); top = Math.max(41, UiMenuBar.height(width)); tracksTop = top + 100;
-        UiMenuBar.buttons(width, view == null ? "" : view.country(), MenuTab.OFFICER_CORPS, tab -> {
+        InputSidebarMovement.release(minecraft); top = Math.max(41, HudMenuBar.height(width)); tracksTop = top + 100;
+        HudMenuBar.buttons(width, view == null ? "" : view.country(), MenuTab.OFFICER_CORPS, tab -> {
             if (tab == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
-        }).forEach(this::addRenderableWidget);
+        }, top).forEach(this::addRenderableWidget);
         if (view == null) return;
         horizontal = Math.clamp(horizontal, 0, Math.max(0, milestoneSlots().size() * SLOT - width));
         for (int i = 0; i < view.folders().size(); i++) {
@@ -257,6 +259,10 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
+        g.enableScissor(0, 0, width, top);
+        HudMenuBar.drawBackground(g, width, ClientCampaignHud.hud(), 0);
+        g.disableScissor();
+        g.nextStratum();
         g.pose().pushMatrix();
         g.pose().translate(0, top + 20);
         g.pose().scale(.5f);
@@ -264,13 +270,12 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         UiAssets.nineSlice(g, "doctrine/gfx_tiled_window_transparent", 0, 0, width * 2, (height - top - 20) * 2, 1, 1);
         UiAssets.tiledNineSlice(g, "doctrine/gfx_tiled_generic_overlay_bg1", 0, 0, width * 2, (height - top - 20) * 2, 268, 1);
         g.pose().popMatrix();
-        UiMenuBar.draw(g, width, ClientCampaignHud.hud(), mx, my, 0);
-        if (view == null) { UiText.left(g, font, "불러오는 중…", 0, top + 40, width, 30, TEXT); return; }
+        if (view == null) { UiText.left(g, font, "불러오는 중…", 0, top + 40, width, 30, TEXT); HudMenuBar.drawTooltip(g, width, ClientCampaignHud.hud(), my < top ? mx : -1, my, 0); return; }
         int frame = view.folders().stream().filter(f -> f.id().equals(view.folder())).findFirst().orElseThrow().frame();
         for (int i = 0; i < view.folders().size(); i++) {
             var f = view.folders().get(i); int x = 8 + i * 128;
             UiAssets.draw(g, f.texture() + "/frame_" + tabFrame(f.id(), view.folder()), x, top, 128, 31);
-            UiText.centered(g, font, UiTooltips.officerText(f.name(), true), x + 42, top + 7, 77, 17, TEXT);
+            UiText.centered(g, font, Tooltips.officerText(f.name(), true), x + 42, top + 7, 77, 17, TEXT);
         }
         UiAssets.draw(g, "doctrine/gfx_grand_doctrine_frame/frame_" + frame, width / 2 - 112, top + 38, 225, 65);
         var grand = view.grands().stream().filter(DoctrineView.Choice::selected).findFirst();
@@ -280,7 +285,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
             String missing = view.uiText().getOrDefault("NO_GRAND_DOCTRINE_ASSIGNED", "");
             String benefits = view.uiText().getOrDefault("GRAND_DOCTRINE_BENEFIT_DESCRIPTION", "");
             if (!missing.isBlank()) centeredHeading(g, missing, width / 2 - 100, top + 185, 200, 50, 1.35f);
-            if (!benefits.isBlank()) centeredParagraph(g, UiKeywordIcons.decorateLines(UiTooltips.officerText(benefits, true), false), width / 2 - 100, top + 235, 200, 50);
+            if (!benefits.isBlank()) centeredParagraph(g, TooltipKeywordIcons.decorateLines(Tooltips.officerText(benefits, true), false), width / 2 - 100, top + 235, 200, 50);
         }
         g.enableScissor(8, top + 95, width - 8, height - 8);
         var tracks = displayedTracks();
@@ -307,7 +312,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
             UiText.centered(g, font, track.nameplate(), x + 53, tracksTop + 116, 106, 15, TEXT);
             drawTrackAsset(g, "doctrine/gfx_mastery_amount_frame_big", x + 121, tracksTop + 89, 37, 14);
             boolean banking=track.selected().isEmpty()||!track.rewards().isEmpty()&&track.rewards().stream().allMatch(DoctrineView.Reward::unlocked);
-            var masteryIcon=UiKeywordIcons.decorateLines(Component.literal("£doctrine_mastery"),false);
+            var masteryIcon=TooltipKeywordIcons.decorateLines(Component.literal("£doctrine_mastery"),false);
             var masteryIconLine=firstLine(masteryIcon,10);
             String masteryLine=UiText.ellipsize(font,banking?track.bank():track.mastery(),Math.max(1,(int)(22/UiText.scale(font))));
             int masteryIconWidth=Math.round(font.width(masteryIconLine)*UiText.scale(font)),masteryWidth=Math.round(font.width(masteryLine)*UiText.scale(font));
@@ -375,12 +380,13 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         if (!detail.equals(hoveredDetail)) { hoveredDetail = detail; tooltipScroll = 0; }
         boolean overDetails = picking != null && mx >= popupX() + 250 && mx < popupX() + 271 && my >= popupY() + 260 && my < popupY() + 281;
         tooltipBounds = detail.isEmpty() ? null : overDetails
-            ? UiTooltips.drawSourceScrollableAbove(g, font, detail, popupX() + 250, popupY() + 260, width, height, tooltipScroll)
-            : UiTooltips.drawSourceScrollable(g, font, detail, mx, my, width, height, tooltipScroll);
+            ? Tooltips.drawSourceScrollableAbove(g, font, detail, popupX() + 250, popupY() + 260, width, height, tooltipScroll)
+            : Tooltips.drawSourceScrollable(g, font, detail, mx, my, width, height, tooltipScroll);
         if (tooltipBounds != null) tooltipScroll = tooltipBounds.scroll();
+        HudMenuBar.drawTooltip(g, width, ClientCampaignHud.hud(), my < top ? mx : -1, my, 0);
     }
     private net.minecraft.util.FormattedCharSequence firstLine(Component text,int width) {
-        var lines=UiTooltips.split(font,text,Math.max(1,(int)(width/UiText.scale(font))));
+        var lines=Tooltips.split(font,text,Math.max(1,(int)(width/UiText.scale(font))));
         return lines.isEmpty()?Component.empty().getVisualOrderText():lines.getFirst();
     }
     private void drawTrackAsset(GuiGraphicsExtractor g, String path, int x, int y, int width, int height) {
@@ -414,7 +420,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         UiAssets.tiledNineSlice(g, "doctrine/gfx_tiled_paper_bg", x + 15, y + 33, 250, 49, 64, .5);
         UiAssets.tiledNineSlice(g, "doctrine/gfx_tiled_paper_small_bg", x + 10, y + 85, 260, 173, 64, .5);
         String description = preview != null ? preview.description() : view.uiText().getOrDefault(picking.equals("grand") ? "GRAND_DOCTRINE_DESCRIPTION" : "SUBDOCTRINE_DESCRIPTION", "");
-        centeredParagraph(g, UiKeywordIcons.decorateLines(UiTooltips.officerText(description, false), false), x + 25, y + 39, 230, 40);
+        centeredParagraph(g, TooltipKeywordIcons.decorateLines(Tooltips.officerText(description, false), false), x + 25, y + 39, 230, 40);
         g.enableScissor(x + 10, y + 85, x + 270, y + 258);
         for (int i = 0; i < choices.size(); i++) {
             var choice = choices.get(i); int row = i / 2 - popupScroll;
@@ -424,7 +430,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
             if (choice.id().equals(previewId) || previewId == null && choice.selected()) UiAssets.tiledNineSlice(g, "doctrine/gfx_tiled_research_bg", cx - 2, cy - 2, 127, 40, 32, .5);
             if (choice.enabled() || choice.selected()) UiAssets.draw(g, choice.texture(), cx + 5, cy + 2, 31, 31);
             else UiAssets.draw(g, choice.texture() + "/disabled", cx + 5, cy + 2, 31, 31);
-            var name = UiKeywordIcons.decorateLines(Component.literal((choice.requirementsMet() || choice.selected() ? "" : "£trigger_no ") + choice.name()), false);
+            var name = TooltipKeywordIcons.decorateLines(Component.literal((choice.requirementsMet() || choice.selected() ? "" : "£trigger_no ") + choice.name()), false);
             UiText.centered(g, font, name, cx + 36, cy + 3, 63, 24, TEXT);
             if (!choice.selected()) {
                 String currency = "hud/" + view.branch().toLowerCase(Locale.ROOT) + "_experience";
@@ -440,7 +446,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         popupBar().draw(g, popupScroll);
         if (preview != null) {
             UiAssets.draw(g, "commander/commands/button_123x34/frame_0", x + 109, y + 260, 62, 17);
-            var label = UiKeywordIcons.decorateLines(Component.literal("£" + view.branch().toLowerCase(Locale.ROOT) + "_experience " + preview.cost() + " 잠금 해제"), false);
+            var label = TooltipKeywordIcons.decorateLines(Component.literal("£" + view.branch().toLowerCase(Locale.ROOT) + "_experience " + preview.cost() + " 잠금 해제"), false);
             if (view.branch().equalsIgnoreCase("army")) drawArmyUnlockLabel(g, preview, label, x + 111, y + 260);
             else UiText.centeredSingleLine(g, font, label, x + 111, y + 260, 58, 17, preview.enabled() ? TEXT : 0xFF91918E);
         }
@@ -449,7 +455,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         UiMenuStyle.close(g, x + 257, y + 6, 17, 17, TEXT);
     }
     private void drawArmyUnlockLabel(GuiGraphicsExtractor g, DoctrineView.Choice preview, Component label, int x, int y) {
-        var icon = UiKeywordIcons.decorateLines(Component.literal("£army_experience "), false);
+        var icon = TooltipKeywordIcons.decorateLines(Component.literal("£army_experience "), false);
         var caption = Component.literal(preview.cost() + " 잠금 해제");
         float scale = Math.min(UiText.scale(font), Math.min(58f / Math.max(1, font.width(label)), 17f / font.lineHeight));
         var textBounds = font.prepareText(caption.getVisualOrderText(), 0, 0, TEXT, false, false, 0).bounds();
@@ -506,10 +512,10 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
     }
     private void centeredParagraph(GuiGraphicsExtractor g, Component text, int x, int y, int width, int height) {
         float scale = UiText.scale(font);
-        var lines = UiTooltips.split(font, text, Math.round(width / scale));
+        var lines = Tooltips.split(font, text, Math.round(width / scale));
         while (lines.size() * (font.lineHeight + 1) * scale > height && scale > .5f) {
             scale -= .025f;
-            lines = UiTooltips.split(font, text, Math.round(width / scale));
+            lines = Tooltips.split(font, text, Math.round(width / scale));
         }
         g.pose().pushMatrix();
         g.pose().translate(x, y + (height - lines.size() * (font.lineHeight + 1) * scale) / 2);
@@ -519,7 +525,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
     }
     private void centeredHeading(GuiGraphicsExtractor g, String text, int x, int y, int w, int h, float scale) {
         g.pose().pushMatrix(); g.pose().translate(x, y); g.pose().scale(scale);
-        UiText.centered(g, font, UiTooltips.officerText(text, true), 0, 0, Math.round(w / scale), Math.round(h / scale), TEXT);
+        UiText.centered(g, font, Tooltips.officerText(text, true), 0, 0, Math.round(w / scale), Math.round(h / scale), TEXT);
         g.pose().popMatrix();
     }
     @Override public void tick() {

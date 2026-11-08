@@ -4,6 +4,8 @@ import dev.hoi.client.HoiClient;
 import dev.hoi.client.ui.*;
 import dev.hoi.protocol.country.*;
 import dev.hoi.protocol.focus.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -96,8 +98,8 @@ public final class FocusScreen extends Screen {
     }
     @Override protected void init() {
         detailClose=null;detailStart=null;
-        top=UiMenuBar.height(width)+29;
-        UiMenuBar.buttons(width,view==null?"":view.country(),null,HoiClient::openMenu).forEach(this::addRenderableWidget);
+        top=HudMenuBar.height(width)+29;
+        HudMenuBar.buttons(width,view==null?"":view.country(),null,HoiClient::openMenu,HudMenuBar.height(width)).forEach(this::addRenderableWidget);
         addRenderableWidget(new UiMenuButton("×",width-25,top-26,21,21,() -> super.onClose()));
         addRenderableWidget(new UiMenuButton("+",width-51,top-25,21,20,() -> zoom(1.15,width/2.0,(height+top)/2.0)));
         addRenderableWidget(new UiMenuButton("−",width-74,top-25,21,20,() -> zoom(1/1.15,width/2.0,(height+top)/2.0)));
@@ -115,7 +117,7 @@ public final class FocusScreen extends Screen {
             boolean cancel=n.status().equals("진행 중");
             detailStart=detailPanel.button(false,() -> {request(cancel?FocusPayloads.Action.CANCEL:FocusPayloads.Action.START,n.id());rebuildWidgets();});
             detailStart.setMessage(Component.literal(cancel?"중점 취소":"중점 시작"));
-            detailStart.setTooltip(UiTooltips.createOfficer(cancel?view.cancelTooltip():view.startTooltip()));
+            detailStart.setTooltip(Tooltips.createOfficer(cancel?view.cancelTooltip():view.startTooltip()));
             detailStart.active=pending==null && (cancel?view.cancelable():n.enabled() && (!extended || detail!=null && detail.executable()));
             addRenderableWidget(detailStart);
         }
@@ -135,10 +137,15 @@ public final class FocusScreen extends Screen {
     }
     private FocusPayloads.Node selectedNode(){return view==null?null:view.nodes().stream().filter(n -> n.id().equals(selected)).findFirst().orElse(null);}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
-        g.fill(0,UiMenuBar.height(width),width,height,0xFF030804);UiMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
-        UiMenuStyle.panel(g,0,top-29,width,29);
-        var heading=UiTooltips.officerText((view==null?"":view.name()+" ")+"중점 계통도",true);
-        g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(heading,Math.max(30,width-245))),10,top-19,UiMenuStyle.TEXT);
+        g.nextStratum();
+        HudMenuBar.drawBackground(g,width,view==null?CountryHud.UNKNOWN:view.hud(),0);
+        g.nextStratum();
+        UiAssets.tiledNineSlice(g,"research/source/gfx_tiled_plain_bg2/frame_0",0,HudMenuBar.height(width),width,height-HudMenuBar.height(width),64,.5);
+        UiAssets.tiledNineSlice(g,"doctrine/gfx_tiled_bg",0,top-5,width,height-top+5,64,.5);
+        UiAssets.tiledNineSlice(g,"commander/commands/tiled_window_1b_border/frame_0",0,top-5,width,height-top+5,64,.5);
+        g.nextStratum();
+        var heading=Tooltips.officerText((view==null?"":view.name()+" ")+"중점 계통도",true);
+        g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(heading,Math.max(30,width-245))),10,HudMenuBar.height(width)+4,UiMenuStyle.TEXT);
         g.enableScissor(4,top,width-4,height-5);
         if(view!=null) {
             FocusInlays.draw(g,view.inlays(),panX,panY,zoom);
@@ -171,8 +178,9 @@ public final class FocusScreen extends Screen {
             detailPanel.draw(g,font,selectedNode(),detail,extended && detail==null,mx,my);
             detailClose.extractRenderState(g,mx,my,delta);detailStart.extractRenderState(g,mx,my,delta);
         }
-        if(!widgetAt(mx,my) && (selected.isEmpty() || !detailPanel.bounds().contains(mx,my))) {var node=at(mx,my);if(node!=null)g.setTooltipForNextFrame(font,UiTooltips.sourceLines(font,node.name()+"\n"+node.description()+"\n"+node.status()+(node.remaining()>0?" · "+FocusDetail.days(node.remaining())+"일 남음":""),width),mx,my);}
+        if(!widgetAt(mx,my) && (selected.isEmpty() || !detailPanel.bounds().contains(mx,my))) {var node=at(mx,my);if(node!=null)g.setTooltipForNextFrame(font,Tooltips.tooltipLines(font,node.name()+"\n"+node.description()+"\n"+node.status()+(node.remaining()>0?" · "+FocusDetail.days(node.remaining())+"일 남음":""),width),mx,my);}
         if(view!=null && !view.message().isEmpty() && !Set.of("중점 시작","중점 취소").contains(view.message()))g.text(font,font.plainSubstrByWidth(view.message(),width-115),105,height-19,UiMenuStyle.TEXT);
+        HudMenuBar.drawTooltip(g,width,view==null?CountryHud.UNKNOWN:view.hud(),my<HudMenuBar.height(width)?mx:-1,my,0);
     }
     private void link(GuiGraphicsExtractor g,FocusPayloads.Node parent,FocusPayloads.Node child) {
         int px=(int)x(parent),py=(int)(y(parent)+NODE_H*zoom-2*zoom),cx=(int)x(child),cy=(int)y(child),middle=(py+cy)/2;
@@ -199,7 +207,7 @@ public final class FocusScreen extends Screen {
         boolean match=query.isBlank() || n.name().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
         double guiScale=minecraft.getWindow().getGuiScale();
         float textScale=(float)(Math.max(1,Math.round(zoom*guiScale))/guiScale);
-        var lines=UiTooltips.split(font,UiTooltips.officerText(n.name()),Math.max(1,(int)((NODE_W-8)*zoom/textScale)));
+        var lines=Tooltips.split(font,Tooltips.officerText(n.name()),Math.max(1,(int)((NODE_W-8)*zoom/textScale)));
         int count=Math.min(2,lines.size());
         int baseline=(int)Math.round((upper+66.5f*zoom-count*font.lineHeight*textScale/2)*guiScale);
         for(int i=0;i<count;i++) {
@@ -219,7 +227,7 @@ public final class FocusScreen extends Screen {
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
         panning=false;draggingDetail=false;detailPanel.release();
         if(!selected.isEmpty() && detailPanel.bounds().contains(event.x(),event.y())) {
-            for(var button:List.of(detailClose,detailStart))if(UiTooltips.contains(button,event.x(),event.y())){if(button.mouseClicked(event,twice) && children().contains(button))setFocused(button);return true;}
+            for(var button:List.of(detailClose,detailStart))if(Tooltips.contains(button,event.x(),event.y())){if(button.mouseClicked(event,twice) && children().contains(button))setFocused(button);return true;}
             if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && detailPanel.press(event.x(),event.y()))return true;
             draggingDetail=event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && detailPanel.header(event.x(),event.y());return true;
         }
@@ -231,7 +239,7 @@ public final class FocusScreen extends Screen {
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT || event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT || event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_MIDDLE){panning=true;return true;}
         return super.mouseClicked(event,twice);
     }
-    private boolean widgetAt(double x,double y){for(var child:children())if(child instanceof net.minecraft.client.gui.components.AbstractWidget widget && UiTooltips.contains(widget,x,y))return true;return false;}
+    private boolean widgetAt(double x,double y){for(var child:children())if(child instanceof net.minecraft.client.gui.components.AbstractWidget widget && Tooltips.contains(widget,x,y))return true;return false;}
     @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {if(!selected.isEmpty() && detailPanel.drag(event.y()))return true;if(draggingDetail){detailPanel.move(dx,dy,width,height,top);rebuildWidgets();return true;}if(panning){panX+=(float)dx;panY+=(float)dy;return true;}return super.mouseDragged(event,dx,dy);}
     @Override public boolean mouseReleased(MouseButtonEvent event){panning=false;draggingDetail=false;detailPanel.release();return super.mouseReleased(event);}
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical){if(!selected.isEmpty() && detailPanel.scroll(x,y,vertical))return true;if(y>=top){zoom(Math.pow(1.1,vertical),x,y);return true;}return super.mouseScrolled(x,y,horizontal,vertical);}

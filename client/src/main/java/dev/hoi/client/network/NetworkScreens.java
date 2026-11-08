@@ -1,14 +1,13 @@
 package dev.hoi.client.network;
 
 import dev.hoi.client.ClientCampaignHud;
-import dev.hoi.client.research.ResearchScreen;
+import dev.hoi.client.screen.research.ResearchScreen;
 import dev.hoi.client.screen.agency.AgencyScreen;
 import dev.hoi.client.screen.industry.IndustryConstruction;
 import dev.hoi.client.screen.diplomacy.DiplomacyCountryScreen;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.screen.ScreenMenu;
 import dev.hoi.client.screen.industry.IndustryScreen;
-
 import dev.hoi.protocol.research.ResearchPayloads;
 import dev.hoi.protocol.menu.MenuPayloads;
 import dev.hoi.protocol.agency.AgencyPayloads;
@@ -131,6 +130,10 @@ public final class NetworkScreens {
             catch (IllegalArgumentException invalid) { DialogCoordinator.setContent(null); message("교리 화면을 다시 열어주세요."); }
         });
         ClientPlayNetworking.registerGlobalReceiver(AgencyPayloads.Highlight.TYPE, (packet, context) -> dev.hoi.client.map.agency.AgencyHud.accept(packet));
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.raid.RaidPayloads.Highlight.TYPE, (packet, context) -> {
+            if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.raid.RaidScreen raid) raid.accept(packet);
+            else dev.hoi.client.map.agency.AgencyRaidHud.accept(packet);
+        });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.raid.RaidPayloads.Response.TYPE, (packet, context) -> {
             try {
                 if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.raid.RaidScreen raid) raid.update(packet.view());
@@ -254,6 +257,14 @@ public final class NetworkScreens {
         cancelOpen(); DialogCoordinator.setContent(new DiplomacyCountryScreen(target));
         dev.hoi.client.audio.AudioUiSounds.play("ui.menu_tab");
     }
+    public static void openLeaseAnswer(String target, String action) {
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.country.CountryPayloads.Request.TYPE)) return;
+        cancelOpen(); DialogCoordinator.setContent(new DiplomacyCountryScreen(target, action));
+    }
+    public static void openForeignLogistics(String target) {
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryPayloads.Request.TYPE)) return;
+        cancelOpen(); var screen = new IndustryScreen(target); DialogCoordinator.setContent(screen); screen.open();
+    }
     public static void openWorldTension() {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.diplomacy.DiplomacyWorldTensionPayloads.Request.TYPE)) { message("이 서버는 세계 긴장도 이력 UI를 지원하지 않습니다."); return; }
         cancelOpen(); DialogCoordinator.setContent(new dev.hoi.client.screen.diplomacy.DiplomacyWorldTension());
@@ -270,10 +281,6 @@ public final class NetworkScreens {
         dev.hoi.client.map.agency.AgencyHud.reset();
         if (!ClientPlayNetworking.canSend(AgencyPayloads.Request.TYPE)) { message("이 서버는 HOI 정보기관을 지원하지 않습니다."); return; }
         cancelOpen(); var screen = new AgencyScreen(null); DialogCoordinator.setContent(screen); screen.open();
-    }
-    public static void openRaids() {
-        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.raid.RaidPayloads.Request.TYPE)) return;
-        cancelOpen(); var screen = new dev.hoi.client.screen.raid.RaidScreen(); DialogCoordinator.setContent(screen); screen.open();
     }
     public static void openMenu(dev.hoi.protocol.menu.MenuTab tab) {
         if (!ClientCampaignHud.visible()) return;

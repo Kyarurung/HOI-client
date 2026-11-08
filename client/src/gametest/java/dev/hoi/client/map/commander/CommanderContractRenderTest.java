@@ -8,7 +8,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 
 final class CommanderContractRenderTest {
     static void run(ClientGameTestContext game,int[] size,View view){
-        game.runOnClient(client->{String icons=dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£unit_infantry_icon_medium£ £unit_hud_headquarters£"),false).getString();if(icons.chars().filter(c->c>=0xe000&&c<=0xf8ff).count()!=2)throw new AssertionError("Pack must load both source unit tooltip glyphs within its resource bound");});
+        game.runOnClient(client->{String icons=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£unit_infantry_icon_medium£ £unit_hud_headquarters£"),false).getString();if(icons.chars().filter(c->c>=0xe000&&c<=0xf8ff).count()!=2)throw new AssertionError("Pack must load both source unit tooltip glyphs within its resource bound");});
         var commands=new ArrayList<CommanderOrderPayloads.Command>();var requests=new ArrayList<Open>();
         var group=view.cards().stream().filter(c->c.role()==Mode.ARMY_GROUP).findFirst().orElseThrow();var army=view.cards().stream().filter(c->c.role()==Mode.ASSIGN_ARMY).findFirst().orElseThrow();
         game.runOnClient(client->{CommanderHud.reset();CommanderUnitHud.reset();CommanderHud.accept(view);CommanderHud.requestObserver=requests::add;CommanderOrders.commandObserver=commands::add;CommanderOrders.selectionObserver=s->{};revision(view);CommanderPanels.select(group.id(),false);});game.waitTicks(2);

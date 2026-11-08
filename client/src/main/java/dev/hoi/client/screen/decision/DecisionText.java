@@ -2,6 +2,7 @@ package dev.hoi.client.screen.decision;
 
 import com.google.gson.JsonObject;
 import dev.hoi.client.ui.*;
+import dev.hoi.client.ui.tooltip.*;
 import java.util.*;
 import java.util.regex.Pattern;
 import net.minecraft.client.gui.Font;
@@ -58,7 +59,7 @@ public final class DecisionText {
         clear();
     }
     public Component component(String text) {
-        return UiTooltips.sourceSpacing(sourceComponent(text));
+        return Tooltips.sourceSpacing(sourceComponent(text));
     }
     private Component sourceComponent(String text) {
         var result=Component.empty();
@@ -75,7 +76,7 @@ public final class DecisionText {
                     result.append(glyph==null?original:Component.literal(glyph)
                             .withStyle(Style.EMPTY.withFont(FLAG_FONT).withColor(0xFFFFFF).withShadowColor(0)));
                 } else {
-                    var icon=UiKeywordIcons.decorateLines(original,false);
+                    var icon=TooltipKeywordIcons.decorateLines(original,false);
                     result.append(icon.getString().isEmpty() && (images.containsKey(matcher.group(1))
                             || sprites.contains(matcher.group(1)) || sprites.contains("GFX_"+matcher.group(1))) ? original : icon);
                 }
@@ -135,7 +136,7 @@ public final class DecisionText {
         return code=='#'&&index+8<=text.length()&&text.substring(index+2,index+8).matches("[0-9a-fA-F]{6}")?8:0;
     }
     public List<Component> rows(String text) {
-        return UiTooltipText.collapseBlankLines(sourceRows(text),row->UiTooltipText.blank(row.getString()));
+        return TooltipText.collapseBlankLines(sourceRows(text),row->TooltipText.blank(row.getString()));
     }
     List<Component> sourceRows(String text) {
         var cached=sourceRows.get(text);
@@ -150,7 +151,7 @@ public final class DecisionText {
             }
             return Optional.empty();
         },Style.EMPTY);
-        List<Component> result=rows.stream().<Component>map(row->UiTooltipText.blank(row.getString())?Component.empty():row).toList();
+        List<Component> result=rows.stream().<Component>map(row->TooltipText.blank(row.getString())?Component.empty():row).toList();
         if(sourceRows.size()>=256)sourceRows.clear();
         sourceRows.put(text,result);
         return result;
@@ -173,7 +174,7 @@ public final class DecisionText {
         cache.put(key,lines);
         return lines;
     }
-    public UiTooltips.ScrolledTooltip tooltip(GuiGraphicsExtractor graphics,Font font,String text,int mouseX,int mouseY,
+    public Tooltips.ScrolledTooltip tooltip(GuiGraphicsExtractor graphics,Font font,String text,int mouseX,int mouseY,
             int viewportWidth,int viewportHeight,int scroll) {
         int imageWidth=0;
         for(var row:rows(text)) {
@@ -181,7 +182,7 @@ public final class DecisionText {
             var image=matcher.matches()&&matcher.group(1)!=null?images.get(matcher.group(1)):null;
             if(image!=null)imageWidth=Math.max(imageWidth,Math.max(1,(int)Math.round(image.width()/2d)));
         }
-        int limit=Math.max(1,Math.min(imageWidth>0?imageWidth:324,viewportWidth-20));
+        int limit=Math.min(Tooltips.width(viewportWidth,8),imageWidth>0?imageWidth:Integer.MAX_VALUE);
         var blocks=blocks(font,text,limit);
         int width=imageWidth>0?limit:Math.min(limit,Math.max(1,blocks.stream().mapToInt(Block::width).max().orElse(1)));
         int total=blocks.stream().mapToInt(Block::height).sum();
@@ -190,7 +191,7 @@ public final class DecisionText {
         int x=Math.clamp(mouseX+12,5,Math.max(5,viewportWidth-width-5));
         int y=Math.clamp(mouseY-12,5,Math.max(5,viewportHeight-height-5));
         graphics.nextStratum();
-        UiTooltips.background(graphics,x-4,y-4,width+8,height+8);
+        Tooltips.background(graphics,x-4,y-4,width+8,height+8);
         graphics.enableScissor(x,y,x+width,y+height);
         int offset=0;
         for(var block:blocks) {
@@ -208,13 +209,13 @@ public final class DecisionText {
         graphics.disableScissor();
         if(maxScroll>0) {
             int thumb=Math.max(8,height*height/total),thumbY=y+(height-thumb)*scroll/maxScroll;
-            graphics.fill(x+width+1,thumbY,x+width+3,thumbY+thumb,UiTooltips.GOLD|0xFF000000);
+            graphics.fill(x+width+1,thumbY,x+width+3,thumbY+thumb,Tooltips.GOLD|0xFF000000);
         }
-        return new UiTooltips.ScrolledTooltip(x,y,width,height,scroll,maxScroll);
+        return new Tooltips.ScrolledTooltip(x,y,width,height,scroll,maxScroll);
     }
     List<Block> blocks(Font font,String text,int width) {
         var result=new ArrayList<Block>();
-        var rows=UiTooltips.collapseBlankLines(rows(text),value->UiTooltipText.blank(value.getString()));
+        var rows=Tooltips.collapseBlankLines(rows(text),value->TooltipText.blank(value.getString()));
         for(int index=0;index<rows.size();index++) {
             var row=rows.get(index);
             var matcher=TOKENS.matcher(row.getString().strip());
@@ -229,7 +230,7 @@ public final class DecisionText {
                     imageHeight=Math.max(1,(int)Math.round(content[1]*scale));
                 }
                 FormattedCharSequence caption=null;int captionOffset=0,next=index+1;
-                while(next<rows.size()&&UiTooltipText.blank(rows.get(next).getString()))next++;
+                while(next<rows.size()&&TooltipText.blank(rows.get(next).getString()))next++;
                 if(image.namedPortrait()&&next<rows.size()) {
                     var name=rows.get(next);String plain=name.getString(),trimmed=plain.strip();
                     if(!trimmed.isEmpty()&&plain.startsWith(" ")) {
@@ -245,6 +246,6 @@ public final class DecisionText {
                 else for(var line:lines)result.add(new Block(line,null,font.width(line),font.lineHeight+1,0));
             }
         }
-        return UiTooltips.collapseBlankLines(result,block->block.image()==null&&UiTooltips.blank(block.text()));
+        return Tooltips.collapseBlankLines(result,block->block.image()==null&&Tooltips.blank(block.text()));
     }
 }

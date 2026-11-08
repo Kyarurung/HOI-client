@@ -33,7 +33,7 @@ public final class FocusScreenPixelsTest {
             "progress_background","1d082d521145d754eff267ee627ee648e9ce7cf20c395744979f8edae5eaabc0",
             "progress_frame","2854e53eb821a4a75d199e7f81ac80a20a61f6af280a8e8f38cbc327c29203de",
             "paper","790639624396a8ee64b12ec4767580170ed2da9bb9b4ffe4451ce59703ed2447");
-    private static final Method PROGRESS=method("progress",GuiGraphicsExtractor.class,FocusPayloads.Detail.class);
+    private static final Method PROGRESS=method("progress",GuiGraphicsExtractor.class,FocusPayloads.Detail.class,boolean.class);
     private static final Method PAPER=method("paper",GuiGraphicsExtractor.class,FocusDetail.Bounds.class);
     private record State(String name,int elapsed,int duration) {}
     private record Region(int x,int y,int width,int height) {}
@@ -258,7 +258,7 @@ public final class FocusScreenPixelsTest {
             if(paper)invoke(PAPER,null,graphics,paperBounds);
             else {
                 var detail=new FocusPayloads.Detail("pixel_fixture","","",state.duration(),state.elapsed(),0,0,0,"test-fixture/pixels",1,List.of(),List.of(),true,"",true);
-                invoke(PROGRESS,panel,graphics,detail);
+                invoke(PROGRESS,panel,graphics,detail,false);
             }
         }
         private Region region(Minecraft client) {

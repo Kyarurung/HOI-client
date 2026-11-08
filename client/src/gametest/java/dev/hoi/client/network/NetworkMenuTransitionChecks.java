@@ -16,8 +16,8 @@ public final class NetworkMenuTransitionChecks {
         context.setScreen(() -> null);
         context.runOnClient(client -> {
             ClientCampaignHud.accept(HudPayloads.State.of(view.country(), view.hud()));
-            check(dev.hoi.client.ui.UiMenuBar.snapshot(CountryHud.UNKNOWN).equals(view.hud()), "All empty menu snapshots retain the authoritative HUD");
-            check(dev.hoi.client.ui.UiMenuBar.snapshot(null).equals(view.hud()), "Loading panels retain the authoritative HUD");
+            check(dev.hoi.client.ui.hud.HudMenuBar.snapshot(CountryHud.UNKNOWN).equals(view.hud()), "All empty menu snapshots retain the authoritative HUD");
+            check(dev.hoi.client.ui.hud.HudMenuBar.snapshot(null).equals(view.hud()), "Loading panels retain the authoritative HUD");
             token[0] = NetworkScreens.beginMenu(MenuTab.LOGISTICS).screen();
             check(client.gui.screen() == null, "Waiting for menu data must keep the existing HUD without a dummy screen");
         });
@@ -55,7 +55,7 @@ public final class NetworkMenuTransitionChecks {
             client.gui.setScreen(null);
             request = NetworkScreens.beginMenu(MenuTab.POLITICS);
             ClientCampaignHud.accept(HudPayloads.State.HIDDEN);
-            check(dev.hoi.client.ui.UiMenuBar.snapshot(CountryHud.UNKNOWN).equals(CountryHud.UNKNOWN), "Stopping cannot leak cached country statistics");
+            check(dev.hoi.client.ui.hud.HudMenuBar.snapshot(CountryHud.UNKNOWN).equals(CountryHud.UNKNOWN), "Stopping cannot leak cached country statistics");
             NetworkScreens.receiveMenu(new MenuPayloads.Update(request.screen(), json));
             check(client.gui.screen() == null, "Stopped campaign cannot reopen a menu");
             ClientCampaignHud.accept(HudPayloads.State.of(view.country(), view.hud()));
@@ -77,7 +77,7 @@ public final class NetworkMenuTransitionChecks {
             NetworkScreens.receiveResearch(researchResponse(old,view.country()));
             check(client.gui.screen() == null, "Superseded research reply cannot open a screen");
             NetworkScreens.receiveResearch(researchResponse(request.session(),view.country()));
-            check(client.gui.screen() instanceof dev.hoi.client.research.ResearchScreen, "Current research response opens normally");
+            check(client.gui.screen() instanceof dev.hoi.client.screen.research.ResearchScreen, "Current research response opens normally");
             NetworkScreens.cancelOpen();
         });
         context.setScreen(() -> null);

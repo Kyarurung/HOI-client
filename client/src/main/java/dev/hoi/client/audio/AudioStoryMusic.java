@@ -3,7 +3,6 @@ package dev.hoi.client.audio;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.*;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
 
 public final class AudioStoryMusic {
     private static String requested="";
@@ -35,6 +34,5 @@ public final class AudioStoryMusic {
         sound=new AudioPlaylistSound(requested);
         startup=20;client.getSoundManager().play(sound);
     }
-    public static void suspend(){if(sound!=null)Minecraft.getInstance().getSoundManager().stop(sound);sound=null;startup=0;}
     public static void reset() {if(sound!=null)Minecraft.getInstance().getSoundManager().stop(sound);sound=null;requested="";retries=0;startup=0;}
 }

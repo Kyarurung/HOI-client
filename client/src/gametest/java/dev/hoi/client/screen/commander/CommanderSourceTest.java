@@ -98,7 +98,7 @@ public final class CommanderSourceTest {
                 var tile=promotion.tiles().getFirst();var button=client.gui.screen().children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).filter(c->c.getMessage().getString().equals(tile.name())).findFirst().orElseThrow();
                 int index=java.util.stream.IntStream.range(0,tile.leader().traitDetails().size()).filter(i->tile.leader().traitDetails().get(i).name().equals("직업장교")).findFirst().orElseThrow();
                 for(var trait:tile.leader().traitDetails())if(!trait.icon().isEmpty()&&client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+trait.icon()+".png")).isEmpty())throw new AssertionError("Missing declared source trait texture "+trait.icon());
-                int x=dev.hoi.client.ui.UiFlagStack.left(index,tile.leader().traitDetails().size(),button.getX()+65,94,12),visibleWidth=dev.hoi.client.ui.UiFlagStack.visibleWidth(index,tile.leader().traitDetails().size(),button.getX()+65,94,12);
+                int x=dev.hoi.client.ui.country.CountryFlagStack.left(index,tile.leader().traitDetails().size(),button.getX()+65,94,12),visibleWidth=dev.hoi.client.ui.country.CountryFlagStack.visibleWidth(index,tile.leader().traitDetails().size(),button.getX()+65,94,12);
                 return new int[]{x+visibleWidth/2,button.getY()+36};
             });
             context.getInput().setCursorPos(careerTraitPosition[0]*2,careerTraitPosition[1]*2);context.waitTicks(3);context.takeScreenshot("hoi-commander-career-trait-source-tooltip-gui2");

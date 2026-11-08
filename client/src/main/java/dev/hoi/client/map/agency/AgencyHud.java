@@ -5,11 +5,11 @@ import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.screen.agency.AgencyScreen;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.ui.UiAssets;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.client.ui.UiText;
-import dev.hoi.client.ui.UiTooltips;
-import dev.hoi.client.ui.UiCountryFlags;
-import dev.hoi.client.ui.UiCountryDisplay;
+import dev.hoi.client.ui.tooltip.Tooltips;
+import dev.hoi.client.ui.country.CountryFlags;
+import dev.hoi.client.ui.country.CountryDisplays;
 import dev.hoi.client.ui.UiCommandLabels;
 import dev.hoi.protocol.agency.AgencyPayloads;
 import dev.hoi.protocol.agency.AgencyView;
@@ -40,7 +40,7 @@ public final class AgencyHud {
     private static List<Hit> hits = List.of();
     private static int ticks, cooldown, page;
     private static long selectedAt;
-    private static UiTooltips.ScrolledTooltip tooltip;
+    private static Tooltips.ScrolledTooltip tooltip;
     private static String hovered = "";
     private static int tooltipScroll;
     private static String targeting = "", targetRay = "", targetingSession = "", targetingDimension = "";
@@ -170,7 +170,7 @@ public final class AgencyHud {
         String target = current.items().stream().filter(item -> item.id().equals("mission:" + operative.id()))
                 .flatMap(item -> item.parameters().stream().skip(1).limit(1)).flatMap(parameter -> parameter.choices().stream())
                 .filter(choice -> choice.value().equals(operative.country())).map(AgencyView.Choice::label)
-                .findFirst().orElse(UiCountryDisplay.name(operative.country(), operative.country()));
+                .findFirst().orElse(CountryDisplays.name(operative.country(), operative.country()));
         return operative.country().isEmpty() ? text : text + " - " + target;
     }
     private static String detail(AgencyView current, AgencyView.Operative operative) {
@@ -199,7 +199,7 @@ public final class AgencyHud {
         var current = snapshot();
         if (current == null || !current.country().equals(ClientCampaignHud.country())) return;
         if (targetingRevision != current.revision()) { clearTarget(); }
-        if (!(DialogCoordinator.contentScreen() instanceof AgencyScreen)) OPERATIONS.draw(g, current, left, UiMenuBar.height(g.guiWidth()));
+        if (!(DialogCoordinator.contentScreen() instanceof AgencyScreen)) OPERATIONS.draw(g, current, left, HudMenuBar.height(g.guiWidth()));
         else OPERATIONS.clear();
         var regions = new ArrayList<Hit>();
         var recruit = current.items().stream().filter(item -> item.id().equals("recruit")).findFirst().orElse(null);
@@ -299,7 +299,7 @@ public final class AgencyHud {
             }
         }
         if (operative != null && left == 0) {
-            int top = UiMenuBar.height(g.guiWidth()) + 2;
+            int top = HudMenuBar.height(g.guiWidth()) + 2;
             UiAssets.draw(g, sprite("operative_leader_badge") + "/frame_0", 2, top, 219, 55);
             UiAssets.draw(g, "country/" + current.country().toLowerCase(Locale.ROOT) + "/intelligence", 3, top, 48, 48);
             UiAssets.draw(g, art(current, operative.portrait()), 54, top + 7, 25, 34);
@@ -326,7 +326,7 @@ public final class AgencyHud {
             int missionFrame = missionFrame(current, operative);
             if (missionFrame >= 0) UiAssets.draw(g, sprite("operative_mission_icons_small") + "/frame_" + missionFrame, 81, top + 40, 10, 10);
             scrollText(g, status, 93, top + 42, 110);
-            if (!operative.country().isEmpty()) UiCountryFlags.draw(g, "country/" + operative.country().toLowerCase(Locale.ROOT) + "/flag", "smallest", 209, top + 43, 8, 6);
+            if (!operative.country().isEmpty()) CountryFlags.draw(g, "country/" + operative.country().toLowerCase(Locale.ROOT) + "/flag", "smallest", 209, top + 43, 8, 6);
             UiAssets.draw(g, "country/" + current.country().toLowerCase(Locale.ROOT) + "/flag", 202, top + 19, 16, 11);
             regions.add(new Hit(82, top + 39, 135, 15, "", "", status));
             var dismiss = current.items().stream().filter(item -> item.id().equals("dismiss:" + operative.id())).findFirst().orElse(null);
@@ -346,8 +346,8 @@ public final class AgencyHud {
         if (!text.equals(hovered)) { hovered = text; tooltipScroll = 0; }
         if (hit != null) {
             tooltip = hit.y() > g.guiHeight() / 2
-                    ? UiTooltips.drawSourceScrollableAbove(g, Minecraft.getInstance().font, text, mx, hit.y(), g.guiWidth(), g.guiHeight(), tooltipScroll)
-                    : UiTooltips.drawSourceScrollable(g, Minecraft.getInstance().font, text, mx, my, g.guiWidth(), g.guiHeight(), tooltipScroll);
+                    ? Tooltips.drawSourceScrollableAbove(g, Minecraft.getInstance().font, text, mx, hit.y(), g.guiWidth(), g.guiHeight(), tooltipScroll)
+                    : Tooltips.drawSourceScrollable(g, Minecraft.getInstance().font, text, mx, my, g.guiWidth(), g.guiHeight(), tooltipScroll);
             tooltipScroll = tooltip.scroll();
         }
         OPERATIONS.tooltip(g, mx, my);

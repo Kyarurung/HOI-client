@@ -5,6 +5,8 @@ import dev.hoi.client.ui.*;
 import dev.hoi.protocol.dialog.DialogView;
 import dev.hoi.client.screen.dialog.DialogScreen;
 import dev.hoi.client.screen.map.MapCursor;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import java.util.*;
 import java.util.function.BiConsumer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -23,7 +25,7 @@ public final class ArmyDivisionTemplates extends DialogScreen {
     @Override public void update(DialogView next){if(!next.token().equals(view().token())||next.revision()<view().revision()||pending&&next.revision()==view().revision())return;pending=false;super.update(next);}
     @Override protected void init(){
         backdrop.init(width,height);
-        left=18;top=Math.min(height-65,UiMenuBar.height(width)+90);pane=108;rowsVisible=Math.max(1,Math.min(5,(height-top-35)/25));scroll=Math.clamp(scroll,0,Math.max(0,view().tiles().size()-rowsVisible));buttons.clear();
+        left=18;top=Math.min(height-65,HudMenuBar.height(width)+90);pane=108;rowsVisible=Math.max(1,Math.min(5,(height-top-35)/25));scroll=Math.clamp(scroll,0,Math.max(0,view().tiles().size()-rowsVisible));buttons.clear();
         for(int i=scroll;i<Math.min(view().tiles().size(),scroll+rowsVisible);i++){
             var tile=view().tiles().get(i);var button=new UiMenuButton(tile.name(),left+3,top+4+(i-scroll)*25,pane-12,25,()->choose(tile.section())).caption("").background("none");
             button.active=!pending&&view().choices().stream().anyMatch(c->c.id().equals(tile.section()));button.setTooltip(null);buttons.put(tile.section(),button);addRenderableWidget(button);
@@ -36,12 +38,12 @@ public final class ArmyDivisionTemplates extends DialogScreen {
             var b=buttons.get(tile.section());if(b==null)continue;
             UiAssets.nineSlice(g,"commander/commands/mini_tooltip/frame_0",b.getX(),b.getY(),b.getWidth(),25,6,.5);
             UiAssets.drawContent(g,dev.hoi.client.map.commander.CommanderPanels.armyUnitIcon(tile.icon()),b.getX()+1,b.getY()+6,33,13);
-            var lines=font.split(UiTooltips.officerText(tile.name()),b.getWidth()-35);int shown=Math.min(2,lines.size());for(int i=0;i<shown;i++){var line=lines.get(i);if(i==1&&lines.size()>2){var text=new StringBuilder();line.accept((index,style,code)->{text.appendCodePoint(code);return true;});line=net.minecraft.network.chat.Component.literal(font.plainSubstrByWidth(text.toString(),Math.max(1,b.getWidth()-35-font.width("…")))+"…").getVisualOrderText();}g.text(font,line,b.getX()+35,b.getY()+(25-shown*10)/2+i*10,b.active?UiMenuStyle.TEXT:0xFFACAAAD,false);}
+            var lines=font.split(Tooltips.officerText(tile.name()),b.getWidth()-35);int shown=Math.min(2,lines.size());for(int i=0;i<shown;i++){var line=lines.get(i);if(i==1&&lines.size()>2){var text=new StringBuilder();line.accept((index,style,code)->{text.appendCodePoint(code);return true;});line=net.minecraft.network.chat.Component.literal(font.plainSubstrByWidth(text.toString(),Math.max(1,b.getWidth()-35-font.width("…")))+"…").getVisualOrderText();}g.text(font,line,b.getX()+35,b.getY()+(25-shown*10)/2+i*10,b.active?UiMenuStyle.TEXT:0xFFACAAAD,false);}
         }
         scrollbar().draw(g,scroll);
         for(var b:buttons.values())b.extractRenderState(g,mx,my,delta);
 
-        for(var tile:view().tiles()){var b=buttons.get(tile.section());if(b!=null&&UiTooltips.contains(b,mx,my))UiTooltips.drawSourceScrollable(g,font,tile.detail(),left+pane-42,b.getY()-14,width,height,0,184);}
+        for(var tile:view().tiles()){var b=buttons.get(tile.section());if(b!=null&&Tooltips.contains(b,mx,my))Tooltips.drawSourceScrollable(g,font,tile.detail(),left+pane-42,b.getY()-14,width,height,0);}
     }
     @Override protected void choose(String id){if(pending||view().choices().stream().noneMatch(c->c.id().equals(id)))return;pending=true;buttons.values().forEach(b->b.active=false);super.choose(id);}
     @Override public void onClose(){choose("cancel");}

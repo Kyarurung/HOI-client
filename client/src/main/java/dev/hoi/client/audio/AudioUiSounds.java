@@ -40,8 +40,8 @@ public final class AudioUiSounds {
             sounds.stop();
             return;
         }
-        var engine = ((dev.hoi.client.mixin.MixinManagerAccess)sounds).hoiSoundEngine();
-        var access = (dev.hoi.client.mixin.MixinEngineAccess)engine;
+        var engine = ((dev.hoi.client.mixin.audio.AudioManagerAccess)sounds).hoiSoundEngine();
+        var access = (dev.hoi.client.mixin.audio.AudioEngineAccess)engine;
         access.hoiQueuedSounds().clear();
         access.hoiQueuedTickableSounds().clear();
         for (var sound : java.util.List.copyOf(access.hoiChannels().keySet())) {

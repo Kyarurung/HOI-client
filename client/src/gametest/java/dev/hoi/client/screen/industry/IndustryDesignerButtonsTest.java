@@ -1,7 +1,7 @@
 package dev.hoi.client.screen.industry;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.protocol.industry.*;
 import dev.hoi.protocol.menu.*;
 import java.util.*;
@@ -31,7 +31,7 @@ public final class IndustryDesignerButtonsTest {
     private static void validate(ClientGameTestContext context, IndustryView fixture, List<IndustryPayloads.Request> requests, String branch) {
         context.runOnClient(client -> {
             var screen = (IndustryScreen)client.gui.screen();
-            int minY = UiMenuBar.height(screen.width) + client.font.lineHeight + 8;
+            int minY = HudMenuBar.height(screen.width) + client.font.lineHeight + 8;
             int width = Math.min(Math.min(screen.width - 24, Math.max(780, screen.width * 5 / 8)), (screen.height - minY - 12) * 1092 / 553);
             int x = (screen.width - width) / 2, y = Math.max(minY, (screen.height - width * 553 / 1092) / 2);
             var reset = button(screen, "설계 초기화");

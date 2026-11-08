@@ -5,11 +5,11 @@ import com.google.gson.reflect.TypeToken;
 import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiDiplomacyAssets;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiText;
-import dev.hoi.client.ui.UiTooltipText;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.TooltipText;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.diplomacy.DiplomacyPayloads;
 import dev.hoi.protocol.diplomacy.DiplomacyView;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
@@ -37,6 +37,10 @@ import static dev.hoi.protocol.diplomacy.DiplomacyView.*;
 public final class DiplomacyLease extends Screen implements InputSidebarMovement.InputMovementScreen {
     private static final String LABELS = "hoi:ui/diplomacy_labels.json";
     private static final List<Mode> MODE_ORDER = List.of(Mode.MONTHLY, Mode.PERCENT, Mode.ONCE);
+    public enum Presentation { OFFER, REQUEST, ANSWER }
+    private final Presentation presentation;
+    private boolean requesting() { return presentation == Presentation.REQUEST; }
+    private boolean answering() { return presentation == Presentation.ANSWER; }
     private final Screen parent;
     private final UiDiplomacyAssets assets = new UiDiplomacyAssets();
     private final Consumer<DiplomacyPayloads.Request> transport;
@@ -54,20 +58,28 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
     private int left, top, catalogLeft, draftScroll, catalogScroll, editTicks, requestTicks, draggingScroll;
     private double scale;
     private LeaseButton execute;
-    private UiTooltips.ScrolledTooltip tooltip;
+    private Tooltips.ScrolledTooltip tooltip;
     private String tooltipText = "", pressedControl = "";
     private int tooltipScroll;
     public DiplomacyLease(Screen parent, DiplomacyView initial) {
-        this(parent, initial, request -> {
+        this(parent, initial, initial.equipment().stream().anyMatch(choice -> choice.modes().stream().anyMatch(mode -> mode.mode() == Mode.REQUEST)) ? Presentation.REQUEST : Presentation.OFFER);
+    }
+    public DiplomacyLease(Screen parent, DiplomacyView initial, Presentation presentation) {
+        this(parent, initial, presentation, request -> {
             if (ClientPlayNetworking.canSend(DiplomacyPayloads.Request.TYPE)) ClientPlayNetworking.send(request);
         }, () -> dev.hoi.client.ClientCampaignHud.visible() && initial.viewer().equals(dev.hoi.client.ClientCampaignHud.country()));
     }
     public DiplomacyLease(Screen parent, DiplomacyView initial, Consumer<DiplomacyPayloads.Request> transport) {
-        this(parent, initial, transport, () -> true);
+        this(parent, initial, initial.equipment().stream().anyMatch(choice -> choice.modes().stream().anyMatch(mode -> mode.mode() == Mode.REQUEST)) ? Presentation.REQUEST : Presentation.OFFER, transport, () -> true);
     }
-    private DiplomacyLease(Screen parent, DiplomacyView initial, Consumer<DiplomacyPayloads.Request> transport, BooleanSupplier contextValid) {
+    public DiplomacyLease(Screen parent, DiplomacyView initial, Presentation presentation, Consumer<DiplomacyPayloads.Request> transport) {
+        this(parent, initial, presentation, transport, () -> true);
+    }
+    private DiplomacyLease(Screen parent, DiplomacyView initial, Presentation presentation, Consumer<DiplomacyPayloads.Request> transport, BooleanSupplier contextValid) {
         super(Component.literal(Objects.requireNonNull(initial).title()));
         this.parent = parent;
+        this.presentation = Objects.requireNonNull(presentation);
+        if (answering()) initial.equipment().forEach(choice -> amounts.put(choice.key(), "0"));
         this.view = initial;
         this.transport = Objects.requireNonNull(transport);
         this.contextValid = Objects.requireNonNull(contextValid);
@@ -76,13 +88,11 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
             amounts.put(line.key(), Long.toString(line.amount()));
         }
     }
-    public Screen parent() { return parent; }
     public DiplomacyView view() { return view; }
     public List<LeaseLine> draft() { return List.copyOf(draft.values()); }
-    String token() { return token; }
     boolean pending() { return pending != null; }
     boolean canSubmit() {
-        return !closed && pending == null && !dirty && validAmounts() && !draft.isEmpty()
+        return !closed && pending == null && !dirty && validAmounts() && (answering() || !draft.isEmpty())
                 && view.submitEnabled() && view.lines().equals(draft());
     }
     public void update(DiplomacyPayloads.Response packet) {
@@ -106,7 +116,9 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
                 || !view.target().equals(next.target()) || next.revision() <= view.revision()) return;
         view = next;
         draft.keySet().removeIf(key -> equipment(key) == null);
-        amounts.keySet().retainAll(draft.keySet());
+        amounts.keySet().removeIf(key -> equipment(key) == null);
+        if (answering()) next.equipment().forEach(choice -> amounts.putIfAbsent(choice.key(), "0"));
+        else amounts.keySet().retainAll(draft.keySet());
         pending = null;
         requestTicks = 0;
         if (validAmounts() && next.lines().equals(draft())) dirty = false;
@@ -127,6 +139,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
     }
     private boolean editing() { return !closed && pending != SUBMIT; }
     private static long amount(String value, Mode mode) {
+        if (mode == Mode.REQUEST) return "0".equals(value) ? 0 : -1;
         if (value == null || !value.matches("[0-9]+")) return -1;
         try {
             long parsed = Long.parseLong(value);
@@ -136,6 +149,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         }
     }
     private boolean validAmounts() {
+        if (answering() && amounts.entrySet().stream().anyMatch(entry -> !entry.getValue().equals("0") && amount(entry.getValue(), draft.containsKey(entry.getKey()) ? draft.get(entry.getKey()).mode() : Mode.MONTHLY) < 0)) return false;
         return draft.values().stream().allMatch(line -> amount(amounts.get(line.key()), line.mode()) == line.amount());
     }
     private void changed() {
@@ -147,7 +161,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         if (!editing() || draft.containsKey(key) || draft.size() >= 32) return;
         var choice = equipment(key);
         if (choice == null || !choice.available()) return;
-        var initial = choice.modes().stream().filter(value -> value.supported() && value.defaultAmount() > 0).findFirst().orElse(null);
+        var initial = choice.modes().stream().filter(value -> value.supported() && (value.mode() == Mode.REQUEST || value.defaultAmount() > 0)).findFirst().orElse(null);
         if (initial == null) return;
         draft.put(key, new LeaseLine(key, initial.mode(), initial.defaultAmount()));
         amounts.put(key, Long.toString(initial.defaultAmount()));
@@ -169,27 +183,36 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
     }
     void selectMode(String key, Mode selected) {
         if (!editing()) return;
-        var line = draft.get(key);
+        var line = displayedLine(key);
         var choice = mode(equipment(key), selected);
-        if (line == null || choice == null || !choice.supported() || choice.defaultAmount() <= 0 || line.mode() == selected) return;
+        if (line == null || requesting() || choice == null || !choice.supported() || choice.defaultAmount() <= 0 || line.mode() == selected) return;
         draft.put(key, new LeaseLine(key, selected, choice.defaultAmount()));
         amounts.put(key, Long.toString(choice.defaultAmount()));
         changed();
         rebuildWidgets();
     }
     void setAmount(String key, String value) {
-        if (!editing() || !draft.containsKey(key)) return;
+        if (!editing() || requesting() || equipment(key) == null || !answering() && !draft.containsKey(key)) return;
         amounts.put(key, value);
-        var line = draft.get(key);
+        var line = displayedLine(key);
+        if (answering() && value.equals("0")) { draft.remove(key); changed(); return; }
         long parsed = amount(value, line.mode());
         if (parsed > 0) draft.put(key, new LeaseLine(key, line.mode(), parsed));
         changed();
     }
-    private void increment(String key, int direction) {
+    private LeaseLine displayedLine(String key) {
         var line = draft.get(key);
+        if (line != null || !answering()) return line;
+        var choice = equipment(key);
+        var mode = choice.modes().stream().filter(ModeChoice::supported).findFirst().orElseThrow();
+        return new LeaseLine(key, mode.mode(), mode.defaultAmount());
+    }
+    private void increment(String key, int direction) {
+        var line = displayedLine(key);
         if (line == null || !editing()) return;
         long parsed = amount(amounts.get(key), line.mode());
-        if (parsed <= 0 || direction < 0 && parsed <= 1 || direction > 0 && (parsed == Long.MAX_VALUE || line.mode() == Mode.PERCENT && parsed == 100)) return;
+        if (answering() && "0".equals(amounts.get(key))) parsed = 0;
+        if (parsed < 0 || !answering() && parsed == 0 || direction < 0 && parsed <= (answering() ? 0 : 1) || direction > 0 && (parsed == Long.MAX_VALUE || line.mode() == Mode.PERCENT && parsed == 100)) return;
         setAmount(key, Long.toString(parsed + direction));
         rebuildWidgets();
     }
@@ -263,28 +286,41 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         inputs.clear();
         tips.clear();
         tooltip = null;
-        int toolbar = UiMenuBar.height(width);
+        int toolbar = HudMenuBar.height(width);
         scale = Math.max(.1, Math.min(.5, Math.min((width - 12) / 915.0, (height - toolbar - 12) / 612.0)));
-        left = (width - s(527)) / 2;
+        left = (width - s(answering() ? 584 : 527)) / 2;
         if (catalogOpen) left = Math.max(4, Math.min(left, width - s(910) - 4));
-        top = Math.max(toolbar + 4, (height - s(612)) / 2);
+        top = Math.max(toolbar + 4, (height - s(answering() ? 480 : 612)) / 2);
         catalogLeft = x(535);
         if (parent != null) parent.init(width, height);
+        if (answering()) {
+            int index = 0;
+            draftScroll = Math.clamp(draftScroll, 0, maximumScroll(false));
+            for (var choice : view.equipment()) {
+                int row = 83 + index++ * 73 - draftScroll;
+                if (row >= 77 && row + 72 <= 427) draftWidgets(displayedLine(choice.key()), row, previousInputs.get(choice.key()));
+            }
+            execute = button(label("FE_CONFIRM"), "diplomacy/dialog/footer_button/frame_0", x(230), y(431), s(123), s(34), false, this::submit);
+            execute.active = canSubmit();
+            tip(execute, view.submitReason());
+            return;
+        }
         for (var value : Category.values()) {
             String suffix = value.name().toLowerCase(java.util.Locale.ROOT);
             var button = button(label(categoryKey(value)), "diplomacy/lease/add_" + suffix + (catalogOpen && category == value ? "/frame_1" : "/frame_0"),
                     x(87 + value.ordinal() * 81), y(132), s(81), s(41), true,
                     () -> { category = value; catalogOpen = true; catalogScroll = 0; rebuildWidgets(); });
             button.controlKey = "category:" + value;
-            button.active = editing();
-            tip(button, label(categoryKey(value)));
+            boolean available = view.equipment().stream().anyMatch(choice -> choice.category() == value && choice.modes().stream().anyMatch(ModeChoice::supported));
+            button.active = editing() && available;
+            tip(button, label(available ? categoryKey(value) : (requesting() ? "INCOMING_" : "") + categoryKey(value) + "_DISABLED"));
         }
         var clear = button(label("GUI_LEND_LEASE_CLEAR_ALL"), "diplomacy/dialog/clear_button/frame_0", x(410), y(137), s(94), s(31), false, this::clearDraft);
-        clear.active = editing() && !draft.isEmpty();
-        draftScroll = Math.clamp(draftScroll, 0, Math.max(0, draft.size() * 72 - 292));
+        clear.active = editing() && (answering() || !draft.isEmpty());
+        draftScroll = Math.clamp(draftScroll, 0, maximumScroll(false));
         int index = 0;
         for (var line : draft.values()) {
-            int row = 190 + index++ * 72 - draftScroll;
+            int row = 190 + index++ * 70 - draftScroll;
             if (row < 190 || row + 72 > 487) continue;
             draftWidgets(line, row, previousInputs.get(line.key()));
         }
@@ -301,15 +337,21 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         var choice = equipment(line.key());
         if (choice == null) return;
         int rowLeft = x(17), rowTop = y(row);
+        if (requesting()) {
+            removeButton(line, rowLeft, rowTop);
+            return;
+        }
         for (int index = 0; index < MODE_ORDER.size(); index++) {
             var selected = MODE_ORDER.get(index);
             var option = mode(choice, selected);
             if (option == null) continue;
-            var button = button(option.label(), "diplomacy/dialog/mode_button/frame_0", rowLeft + s(180 + index * 77), rowTop + s(7), s(71), s(26), false,
+            var button = button(option.label(), "diplomacy/dialog/mode_button/frame_0", rowLeft + s(answering() ? 183 + index * 74 : 180 + index * 77), rowTop + s(7), s(71), s(26), false,
                     () -> selectMode(line.key(), selected));
             button.active = editing() && option.supported();
+            button.selected = line.mode() == selected;
+            button.modeButton = true;
             button.controlKey = "mode:" + line.key() + ":" + selected;
-            String sourceTip = label("DIPLOMACY_LEND_LEASE_" + switch (selected) { case MONTHLY -> "NUMBER"; case PERCENT -> "PERCENT"; case ONCE -> "ONCE"; } + "_TOOLTIP");
+            String sourceTip = label("DIPLOMACY_LEND_LEASE_" + switch (selected) { case MONTHLY -> "NUMBER"; case PERCENT -> "PERCENT"; case ONCE -> "ONCE"; case REQUEST -> throw new IllegalStateException(); } + "_TOOLTIP");
             tip(button, option.reason().isEmpty() ? sourceTip : option.reason());
         }
         var input = previous == null ? new EditBox(font, rowLeft + s(220), rowTop + s(40), Math.max(14, s(50)), Math.max(8, s(20)), Component.literal(choice.name())) : previous;
@@ -329,11 +371,16 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         inputs.put(line.key(), input);
         var decrease = button("−", "diplomacy/dialog/decrease/frame_0", rowLeft + s(188), rowTop + s(38), s(27 * .9), s(27 * .9), true, () -> increment(line.key(), -1));
         decrease.controlKey = "decrease:" + line.key();
-        decrease.active = editing() && amount(amounts.get(line.key()), line.mode()) > 1;
+        decrease.active = editing() && amount(amounts.get(line.key()), line.mode()) > (answering() ? 0 : 1);
         var increase = button("+", "diplomacy/dialog/increase/frame_0", rowLeft + s(277), rowTop + s(38), s(27 * .9), s(27 * .9), true, () -> increment(line.key(), 1));
         long value = amount(amounts.get(line.key()), line.mode());
         increase.controlKey = "increase:" + line.key();
-        increase.active = editing() && value > 0 && value < (line.mode() == Mode.PERCENT ? 100 : Long.MAX_VALUE);
+        increase.active = editing() && (value > 0 || answering() && "0".equals(amounts.get(line.key()))) && value < (line.mode() == Mode.PERCENT ? 100 : Long.MAX_VALUE);
+        if (answering()) return;
+        removeButton(line, rowLeft, rowTop);
+    }
+    private void removeButton(LeaseLine line, int rowLeft, int rowTop) {
+        var choice = equipment(line.key());
         var remove = button(label("CLOSE") + " · " + choice.name(), "diplomacy/dialog/remove/frame_2", rowLeft + s(453), rowTop + s(5), s(28), s(28), true, () -> remove(line.key()));
         remove.controlKey = "remove:" + line.key();
         remove.sound = "ui.close";
@@ -354,7 +401,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
             var button = button(choice.name(), "", catalogLeft + s(12), y(row), s(336), s(71), true, () -> add(choice.key()));
             button.controlKey = "catalog:" + choice.key();
             button.active = editing() && choice.available() && draft.size() < 32
-                    && choice.modes().stream().anyMatch(value -> value.supported() && value.defaultAmount() > 0);
+                    && choice.modes().stream().anyMatch(value -> value.supported() && (value.mode() == Mode.REQUEST || value.defaultAmount() > 0));
             tip(button, choice.detail().isEmpty() ? choice.reason() : choice.reason().isEmpty() || choice.detail().equals(choice.reason()) ? choice.detail() : choice.detail() + "\n\n" + choice.reason());
         }
     }
@@ -365,16 +412,16 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
     }
     private void tip(AbstractWidget widget, String text) { widget.setTooltip(null); if (!text.isEmpty()) tips.put(widget, text); }
     private void text(GuiGraphicsExtractor g, String text, int x, int y, int width, int height, int color) {
-        UiText.centeredSingleLine(g, font, UiTooltips.officerText(text.replace("§T", "§W")), x, y, width, height, color);
+        UiText.centeredSingleLine(g, font, Tooltips.officerText(text.replace("§T", "§W")), x, y, width, height, color);
     }
     private boolean overTooltip(double x, double y) {
         return tooltip != null && x >= tooltip.x() - 4 && x < tooltip.x() + tooltip.width() + 4
                 && y >= tooltip.y() - 4 && y < tooltip.y() + tooltip.height() + 4;
     }
-    private int maximumScroll(boolean catalog) { return Math.max(0, (catalog ? catalog().size() * 75 - 470 : draft.size() * 72 - 292)); }
-    private int scrollLeft(boolean catalog) { return catalog ? catalogLeft + s(355) : x(507); }
-    private int scrollTop(boolean catalog) { return y(catalog ? 64 : 190); }
-    private int scrollBottom(boolean catalog) { return y(catalog ? 548 : 487); }
+    private int maximumScroll(boolean catalog) { return Math.max(0, (catalog ? catalog().size() * 75 - 470 : answering() ? 6 + view.equipment().size() * 73 - 350 : draft.size() * 70 - 292)); }
+    private int scrollLeft(boolean catalog) { return catalog ? catalogLeft + s(355) : x(answering() ? 566 : 507); }
+    private int scrollTop(boolean catalog) { return y(catalog ? 64 : answering() ? 77 : 190); }
+    private int scrollBottom(boolean catalog) { return y(catalog ? 548 : answering() ? 427 : 487); }
     private void setScroll(boolean catalog, int value) {
         if (catalog) catalogScroll = Math.clamp(value, 0, maximumScroll(true));
         else draftScroll = Math.clamp(value, 0, maximumScroll(false));
@@ -389,7 +436,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
             if (catalog && !catalogOpen || maximumScroll(catalog) == 0) continue;
             if (mouseX < scrollLeft(catalog) || mouseX >= scrollLeft(catalog) + s(18)
                     || mouseY < scrollTop(catalog) || mouseY >= scrollBottom(catalog)) continue;
-            int current = catalog ? catalogScroll : draftScroll, step = catalog ? 75 : 72;
+            int current = catalog ? catalogScroll : draftScroll, step = catalog ? 75 : answering() ? 73 : 70;
             if (mouseY < scrollTop(catalog) + s(18)) setScroll(catalog, current - step);
             else if (mouseY >= scrollBottom(catalog) - s(18)) setScroll(catalog, current + step);
             else { draggingScroll = catalog ? 2 : 1; moveScroll(catalog, mouseY); }
@@ -411,7 +458,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         if (!overTooltip(event.x(), event.y())) {
             if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && scrollClick(event.x(), event.y())) return true;
             if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)
-                for (var child : children()) if (child instanceof LeaseButton button && button.active && UiTooltips.contains(button, event.x(), event.y())) { pressedControl = button.controlKey; break; }
+                for (var child : children()) if (child instanceof LeaseButton button && button.active && Tooltips.contains(button, event.x(), event.y())) { pressedControl = button.controlKey; break; }
             super.mouseClicked(event, twice);
         }
         return true;
@@ -422,8 +469,8 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         } else if (catalogOpen && mx >= catalogLeft && mx < catalogLeft + s(375) && my >= y(64) && my < y(548)) {
             catalogScroll = Math.max(0, catalogScroll - (int)Math.round(vertical * 75));
             rebuildWidgets();
-        } else if (mx >= left && mx < x(527) && my >= y(190) && my < y(487)) {
-            draftScroll = Math.max(0, draftScroll - (int)Math.round(vertical * 72));
+        } else if (mx >= left && mx < x(answering() ? 584 : 527) && my >= y(answering() ? 77 : 190) && my < y(answering() ? 427 : 487)) {
+            draftScroll = Math.max(0, draftScroll - (int)Math.round(vertical * (answering() ? 73 : 70)));
             rebuildWidgets();
         }
         return true;
@@ -431,15 +478,16 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         assets.beginFrame();
         if (parent != null) { parent.extractRenderState(g, -1, -1, delta); g.nextStratum(); }
+        if (answering()) { renderAnswer(g, mx, my, delta); return; }
         UiAssets.draw(g, "diplomacy/lease/background", left, top, s(527), s(612));
         assets.tile(g, "diplomacy/dialog/panel_dark", x(0), y(175), s(527), s(312), 64, 64, scale);
-        UiText.centeredSingleLine(g, font, UiTooltips.officerText(view.title(), true), x(0), y(30), s(530), s(20), UiMenuStyle.TEXT);
+        UiText.centeredSingleLine(g, font, Tooltips.officerText(view.title(), true), x(0), y(30), s(530), s(20), UiMenuStyle.TEXT);
         text(g, view.currentStatus(), x(15), y(82), s(190), s(20), UiMenuStyle.TEXT);
         text(g, view.subtitle(), x(220), y(82), s(230), s(20), UiMenuStyle.TEXT);
         int index = 0;
         String hovered = "";
         for (var line : draft.values()) {
-            int row = 190 + index++ * 72 - draftScroll;
+            int row = 190 + index++ * 70 - draftScroll;
             if (row < 190 || row + 72 > 487) continue;
             var choice = equipment(line.key());
             if (choice == null) continue;
@@ -456,12 +504,42 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         for (var child : children()) if (child instanceof net.minecraft.client.gui.components.Renderable widget)
             widget.extractRenderState(g, over ? -1 : mx, over ? -1 : my, delta);
         if (over) hovered = tooltipText;
-        else for (var entry : tips.entrySet()) if (UiTooltips.contains(entry.getKey(), mx, my)) { hovered = entry.getValue(); break; }
+        else for (var entry : tips.entrySet()) if (Tooltips.contains(entry.getKey(), mx, my)) { hovered = entry.getValue(); break; }
         if (hovered.isEmpty()) { tooltip = null; tooltipText = ""; tooltipScroll = 0; }
         else {
             if (!hovered.equals(tooltipText)) { tooltipText = hovered; tooltipScroll = 0; }
-            tooltip = UiTooltips.drawSourceScrollable(g, font, tooltipText.replace("§T", "§W"), mx, my, width, height, tooltipScroll);
+            tooltip = Tooltips.drawSourceScrollable(g, font, tooltipText.replace("§T", "§W"), mx, my, width, height, tooltipScroll);
             tooltipScroll = tooltip.scroll();
+        }
+    }
+    private void renderAnswer(GuiGraphicsExtractor g, int mx, int my, float delta) {
+        assets.tile(g, "diplomacy/lease/popup_background", left, top, s(584), s(480), 64, 64, scale);
+        UiAssets.draw(g, "diplomacy/lease/popup_header", x(0), y(8), s(584), s(87));
+        UiAssets.draw(g, "country/" + view.target().toLowerCase(java.util.Locale.ROOT) + "/flag", x(24), y(18), s(82), s(52));
+        UiAssets.draw(g, "country/" + view.viewer().toLowerCase(java.util.Locale.ROOT) + "/flag", x(476), y(18), s(82), s(52));
+        UiAssets.draw(g, "diplomacy/lease/flag_frame", x(19), y(16), s(92), s(58));
+        UiAssets.draw(g, "diplomacy/lease/flag_frame", x(472), y(16), s(92), s(58));
+        text(g, view.title(), x(132), y(30), s(320), s(24), UiMenuStyle.TEXT);
+        UiAssets.draw(g, "diplomacy/lease/popup_bottom", x(0), y(418), s(584), s(72));
+        int index = 0;
+        for (var choice : view.equipment()) {
+            int row = 83 + index++ * 73 - draftScroll;
+            if (row < 77 || row + 72 > 427) continue;
+            int rowLeft = x(17), rowTop = y(row);
+            UiAssets.draw(g, "diplomacy/lease/answer_row", rowLeft, rowTop, s(524), s(71));
+            equipmentIcon(g, choice, rowLeft, rowTop, 45);
+            sourceText(g, choice.name(), rowLeft + s(2), rowTop + s(4), s(160), s(32), 0, false);
+            UiAssets.draw(g, "diplomacy/lease/value60", rowLeft + s(215), rowTop + s(36), s(60), s(27));
+            var option = mode(choice, displayedLine(choice.key()).mode());
+            if (option != null) sourceText(g, option.unitLabel(), rowLeft + s(305), rowTop + s(34), s(100), s(32), -1, true);
+            UiAssets.draw(g, "diplomacy/lease/stock", rowLeft + s(486), rowTop + s(39), s(24), s(23));
+            sourceText(g, choice.stockText(), rowLeft + s(402), rowTop + s(42), s(80), s(32), 1, false);
+            sourceText(g, choice.productionText(), rowLeft + s(400), rowTop + s(10), s(120), s(32), 0, false);
+        }
+        drawScrollbar(g, false);
+        for (var child : children()) if (child instanceof net.minecraft.client.gui.components.Renderable widget) widget.extractRenderState(g, mx, my, delta);
+        for (var entry : tips.entrySet()) if (Tooltips.contains(entry.getKey(), mx, my)) {
+            Tooltips.drawSourceScrollable(g, font, entry.getValue(), mx, my, width, height, tooltipScroll); break;
         }
     }
     private void drawScrollbar(GuiGraphicsExtractor g, boolean catalog) {
@@ -479,7 +557,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
     }
     private void paragraph(GuiGraphicsExtractor g, String content, int x, int y, int width, int height) {
         if (content.isEmpty() || width <= 0 || height <= 0) return;
-        var text = UiTooltips.officerText(UiTooltipText.sourceSpacing(content).replace("§T", "§W"));
+        var text = Tooltips.officerText(TooltipText.sourceSpacing(content).replace("§T", "§W"));
         var lines = font.split(text, width);
         if (lines.isEmpty()) return;
         float fitted = 1f;
@@ -508,11 +586,35 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         g.pose().popMatrix();
         g.disableScissor();
     }
+    private void equipmentIcon(GuiGraphicsExtractor g, EquipmentChoice choice, int left, int top, int centerY) {
+        int[] size = UiAssets.imageSize(choice.icon());
+        double factor = choice.category() == Category.NAVAL ? .6 : .8;
+        g.pose().pushMatrix();
+        g.pose().translate(left + s(90), top + s(centerY));
+        g.pose().scale((float)(scale * factor));
+        g.pose().translate(-size[0] / 2f, -size[1] / 2f);
+        UiAssets.draw(g, choice.icon(), 0, 0, size[0], size[1]);
+        g.pose().popMatrix();
+    }
+    private void sourceText(GuiGraphicsExtractor g, String content, int left, int top, int width, int height, int alignment, boolean middle) {
+        var lines = Tooltips.split(font, Tooltips.officerText(content.replace("§T", "§W")), Math.max(1, (int)(width / UiText.scale(font))));
+        int pitch = UiText.MIN_HEIGHT + 1;
+        int y = middle ? top + (height - lines.size() * pitch + 1) / 2 : top;
+        g.enableScissor(left, top, left + width, top + height);
+        for (var line : lines) {
+            if (y + UiText.MIN_HEIGHT > top + height) break;
+            int remaining = width - Math.round(font.width(line) * UiText.scale(font));
+            UiText.text(g, font, line, left + (alignment < 0 ? 0 : alignment > 0 ? remaining : remaining / 2), y, UiMenuStyle.TEXT);
+            y += pitch;
+        }
+        g.disableScissor();
+    }
     private void drawDraft(GuiGraphicsExtractor g, EquipmentChoice choice, LeaseLine line, int row) {
         int rowLeft = x(17), rowTop = y(row);
-        UiAssets.draw(g, "diplomacy/lease/selected_row", rowLeft, rowTop, s(486), s(71));
-        UiAssets.draw(g, choice.icon(), rowLeft + s(8), rowTop + s(24), s(164), s(45));
-        paragraph(g, choice.name(), rowLeft + s(8), rowTop + s(4), s(164), s(32));
+        UiAssets.draw(g, requesting() ? "diplomacy/lease/request_row" : "diplomacy/lease/selected_row", rowLeft, rowTop, s(486), s(71));
+        equipmentIcon(g, choice, rowLeft, rowTop, 48);
+        sourceText(g, choice.name(), rowLeft + s(8), rowTop + s(4), s(160), s(32), 0, false);
+        if (requesting()) return;
         UiAssets.draw(g, "diplomacy/lease/value60", rowLeft + s(215), rowTop + s(36), s(60), s(27));
         var mode = mode(choice, line.mode());
         if (mode != null) text(g, mode.unitLabel(), rowLeft + s(307), rowTop + s(39), s(140), s(22), UiMenuStyle.TEXT);
@@ -532,8 +634,8 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
             if (row < 64 || row + 72 > 548) continue;
             int rowLeft = catalogLeft + s(12), rowTop = y(row);
             UiAssets.draw(g, "diplomacy/lease/catalog_row/frame_0", rowLeft, rowTop, s(336), s(71));
-            UiAssets.draw(g, choice.icon(), rowLeft + s(8), rowTop + s(24), s(164), s(45));
-            paragraph(g, choice.name(), rowLeft + s(8), rowTop + s(4), s(165), s(32));
+            equipmentIcon(g, choice, rowLeft, rowTop, 48);
+            sourceText(g, choice.name(), rowLeft + s(8), rowTop + s(4), s(165), s(32), 0, false);
             UiAssets.draw(g, "diplomacy/lease/value60", rowLeft + s(177), rowTop + s(30), s(60), s(27));
             UiAssets.draw(g, "diplomacy/lease/value88", rowLeft + s(240), rowTop + s(30), s(88), s(27));
             UiAssets.draw(g, "diplomacy/lease/stock", rowLeft + s(194), rowTop + s(7), s(24), s(23));
@@ -545,6 +647,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
     private final class LeaseButton extends Button {
         private final String texture;
         private final boolean icon;
+        private boolean selected, modeButton;
         private String controlKey;
         private String sound = "ui.click";
         LeaseButton(String text, String texture, int x, int y, int width, int height, boolean icon, Runnable action) {
@@ -559,14 +662,14 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
                 var effect = switch (texture) {
                     case "diplomacy/dialog/clear_button/frame_0", "diplomacy/dialog/footer_button/frame_0",
                             "diplomacy/dialog/increase/frame_0", "diplomacy/dialog/decrease/frame_0",
-                            "diplomacy/dialog/remove/frame_2", "diplomacy/dialog/close/frame_0" -> UiDiplomacyAssets.Effect.BUTTON_STATE;
+                            "diplomacy/dialog/remove/frame_2", "diplomacy/dialog/close/frame_0", "diplomacy/dialog/mode_button/frame_0" -> UiDiplomacyAssets.Effect.BUTTON_STATE;
                     default -> UiDiplomacyAssets.Effect.NONE;
                 };
-                var state = !active ? UiDiplomacyAssets.State.DISABLED : controlKey.equals(pressedControl) ? UiDiplomacyAssets.State.DOWN
-                        : UiTooltips.contains(this, mx, my) ? UiDiplomacyAssets.State.OVER : UiDiplomacyAssets.State.UP;
+                var state = !active ? UiDiplomacyAssets.State.DISABLED : selected || controlKey.equals(pressedControl) ? UiDiplomacyAssets.State.DOWN
+                        : Tooltips.contains(this, mx, my) ? UiDiplomacyAssets.State.OVER : UiDiplomacyAssets.State.UP;
                 assets.button(g, controlKey, texture, getX(), getY(), getWidth(), getHeight(), effect, state);
             }
-            if (!icon) text(g, getMessage().getString(), getX() + 2, getY(), getWidth() - 4, getHeight(), active ? UiMenuStyle.TEXT : UiMenuStyle.MUTED);
+            if (!icon) text(g, getMessage().getString(), getX() + 2, getY(), getWidth() - 4, getHeight(), active && (!modeButton || selected) ? UiMenuStyle.TEXT : UiMenuStyle.MUTED);
         }
     }
 }

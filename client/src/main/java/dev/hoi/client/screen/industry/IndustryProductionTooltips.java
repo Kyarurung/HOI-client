@@ -1,14 +1,14 @@
 package dev.hoi.client.screen.industry;
 
 import dev.hoi.protocol.industry.IndustryView;
-import dev.hoi.client.ui.UiEquipmentDesigns;
+import dev.hoi.client.ui.industry.IndustryEquipmentDesigns;
 
 final class IndustryProductionTooltips {
     private static final java.util.List<String> STAT_ORDER=java.util.List.of("manpower","air_range","defense","breakthrough","hardness","soft_attack","hard_attack","air_defence","air_attack","air_agility","air_superiority","naval_strike_attack","naval_strike_targetting","surface_detection","sub_detection","surface_visibility","sub_visibility","lg_attack","lg_armor_piercing","hg_attack","hg_armor_piercing","torpedo_attack","sub_attack","anti_air_attack","maximum_speed","naval_speed","naval_range","max_organisation","max_strength","armor_value","ap_attack","reliability","fuel_consumption","weight","thrust");
     static String navalWaiting(IndustryView view,IndustryView.Line line) {
-        String title=UiEquipmentDesigns.tooltip("PRODUCTION_CAN_NOT_DEPLOY");
+        String title=IndustryEquipmentDesigns.tooltip("PRODUCTION_CAN_NOT_DEPLOY");
         String reason=view.navalDeployment().waiting().get(line.id());
-        return reason.equals("PRODUCTION_CAN_NOT_DEPLOY")?title:title+"\n"+UiEquipmentDesigns.tooltip(reason);
+        return reason.equals("PRODUCTION_CAN_NOT_DEPLOY")?title:title+"\n"+IndustryEquipmentDesigns.tooltip(reason);
     }
     private IndustryProductionTooltips() {}
     static String modifier(IndustryView.Modifier modifier) {
@@ -52,7 +52,7 @@ final class IndustryProductionTooltips {
             String label=view.resources().stream().filter(r->r.id().equals(entry.getKey())).map(IndustryView.Resource::name).findFirst().orElse(entry.getKey());
             text.append("\n").append(label).append(": §e").append(java.math.BigDecimal.valueOf(entry.getValue()).stripTrailingZeros().toPlainString()).append("§r");
         }
-        text.append("\n").append(UiEquipmentDesigns.tooltip(equipment.naval()?"PRODUCTION_LINE_CHANGE_NAVAL":"PRODUCTION_LINE_CHANGE"));
+        text.append("\n").append(IndustryEquipmentDesigns.tooltip(equipment.naval()?"PRODUCTION_LINE_CHANGE_NAVAL":"PRODUCTION_LINE_CHANGE"));
         return text.toString();
     }
     static String equipment(IndustryView view,IndustryView.Equipment equipment) {
@@ -66,7 +66,7 @@ final class IndustryProductionTooltips {
             if(amount>0)text.append("\n  ").append(resource.name()).append(": §e").append(java.math.BigDecimal.valueOf(amount).stripTrailingZeros().toPlainString()).append("§r");
         }
         text.append("\n\n§a클릭§r하여 생산 시작");
-        String description=UiEquipmentDesigns.equipmentDescription(view.country(),equipment.sourceEquipment());
+        String description=IndustryEquipmentDesigns.equipmentDescription(view.country(),equipment.sourceEquipment());
         if(!description.isBlank())text.append("\n\n").append(description);
         return text.toString();
     }
@@ -74,9 +74,9 @@ final class IndustryProductionTooltips {
         if(!equipment.stats().isEmpty())text.append("\n");
         var ordered=equipment.stats().stream().sorted(java.util.Comparator.comparingInt(stat->{int index=STAT_ORDER.indexOf(stat.id());return index<0?STAT_ORDER.size():index;})).toList();
         for(var stat:ordered)if(!stat.id().equals("build_cost_ic")) {
-            String caption=UiEquipmentDesigns.statCaption(stat.id(),stat.name()).strip();
+            String caption=IndustryEquipmentDesigns.statCaption(stat.id(),stat.name()).strip();
             text.append("\n").append(caption).append(caption.endsWith(":")?" ":": ").append("§e")
-                    .append(UiEquipmentDesigns.statValue(stat,stat.value())).append("§r");
+                    .append(IndustryEquipmentDesigns.statValue(stat,stat.value())).append("§r");
         }
     }
     private static String percent(double value,int places) {

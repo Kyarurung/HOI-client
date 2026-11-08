@@ -2,6 +2,8 @@ package dev.hoi.client.screen.agency;
 
 import dev.hoi.client.ui.*;
 import dev.hoi.protocol.agency.AgencyView;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -51,7 +53,7 @@ public final class AgencyCandidates extends Screen {
     @Override protected void init() {
         parent.resize(width,height);
         left = Math.clamp(width / 2 - 112 + offsetX, 4, Math.max(4,width - 279));
-        top = Math.clamp(height / 2 - 112 + offsetY, UiMenuBar.height(width) + 4, Math.max(UiMenuBar.height(width) + 4,height - 308));
+        top = Math.clamp(height / 2 - 112 + offsetY, HudMenuBar.height(width) + 4, Math.max(HudMenuBar.height(width) + 4,height - 308));
         addRenderableWidget(new UiMenuButton("모집 창 닫기",left+256,top+2,16,17,this::onClose).caption("").background("menu/close").sound("ui.close"));
         addRenderableWidget(new UiMenuButton("기술",left+7,top+19,41,15,()->{reverse=sorted&&!byName&&!reverse;byName=false;sorted=true;rebuildWidgets();}).background(sortTexture(sorted&&!byName)).sound("ui.scroll"));
         addRenderableWidget(new UiMenuButton("이름",left+48,top+19,41,15,()->{reverse=sorted&&byName&&!reverse;byName=true;sorted=true;rebuildWidgets();}).background(sortTexture(sorted&&byName)).sound("ui.scroll"));
@@ -85,7 +87,7 @@ public final class AgencyCandidates extends Screen {
                         }
                     }
                     g.pose().pushMatrix();g.pose().translate(getX()+227.5f,getY()+9.25f);
-                    dev.hoi.client.ui.UiCountryFlags.draw(g,"country/"+view.country().toLowerCase(Locale.ROOT)+"/flag","small2",0,0,13,9);g.pose().popMatrix();
+                    dev.hoi.client.ui.country.CountryFlags.draw(g,"country/"+view.country().toLowerCase(Locale.ROOT)+"/flag","small2",0,0,13,9);g.pose().popMatrix();
                     for(int j=0;j<candidate.traits().size();j++)UiAssets.draw(g,art(candidate.traits().get(j).icon()),getX()+65+j*12,getY()+30,12,16);
                 }
             };
@@ -102,7 +104,7 @@ public final class AgencyCandidates extends Screen {
                 }
             };
             checkbox.active = !pending && !parent.awaitingResponse();
-            checkbox.setTooltip(UiTooltips.create(Component.literal(UiCommandLabels.text("OPERATIVE_RESUME_MISSION_AFTER_OPERATION_TOOLTIP", "작전이 시작될 때 맡은 임무를 재개할지의 여부."))));
+            checkbox.setTooltip(Tooltips.create(Component.literal(UiCommandLabels.text("OPERATIVE_RESUME_MISSION_AFTER_OPERATION_TOOLTIP", "작전이 시작될 때 맡은 임무를 재개할지의 여부."))));
             addRenderableWidget(checkbox);
         }
     }
@@ -115,7 +117,7 @@ public final class AgencyCandidates extends Screen {
         if (operation == null) parent.extractRenderState(g,-1,-1,delta); else operation.extractRenderState(g,-1,-1,delta);
         g.nextStratum();
         UiAssets.draw(g,"commander/ui/panel",left,top,275,304);
-        UiText.leftSingleLine(g,font,UiTooltips.officerText(operation == null && !view.candidates().isEmpty()?view.candidates().getFirst().title():getTitle().getString(),true),left+10,top+5,223,10,UiMenuStyle.TEXT);
+        UiText.leftSingleLine(g,font,Tooltips.officerText(operation == null && !view.candidates().isEmpty()?view.candidates().getFirst().title():getTitle().getString(),true),left+10,top+5,223,10,UiMenuStyle.TEXT);
         super.extractRenderState(g,mx,my,delta);
         scrollbar().draw(g, scroll);
         if (operation != null && operation.canResume(parameter)) UiText.leftSingleLine(g, font,
@@ -123,7 +125,7 @@ public final class AgencyCandidates extends Screen {
         var rows=rows();
         for(int i=scroll;i<Math.min(rows.size(),scroll+5);i++) {
             var candidate=rows.get(i);int y=top+38+(i-scroll)*49;
-            for(int j=0;j<candidate.traits().size();j++)if(mx>=left+72+j*12&&mx<left+84+j*12&&my>=y+30&&my<y+46)UiTooltips.drawSourceScrollable(g,font,candidate.traits().get(j).tooltip(),mx,my,width,height,0,260);
+            for(int j=0;j<candidate.traits().size();j++)if(mx>=left+72+j*12&&mx<left+84+j*12&&my>=y+30&&my<y+46)Tooltips.drawSourceScrollable(g,font,candidate.traits().get(j).tooltip(),mx,my,width,height,0);
         }
     }
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical) {

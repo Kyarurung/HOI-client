@@ -2,11 +2,10 @@ package dev.hoi.client.screen.agency;
 
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiText;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.agency.AgencyView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
@@ -54,9 +53,9 @@ final class AgencyCapitalMap {
         var cipher = hit.cipher();
         double progress = cipher != null ? cipher.progress() : item != null ? item.progress() : -1;
         boolean decrypting = cipher != null ? cipher.state().equals("decrypting") : item != null && item.id().startsWith("pause:");
-        dev.hoi.client.ui.UiCountryFlags.draw(g,"country/" + hit.country().toLowerCase(Locale.ROOT) + "/flag","small2", x - 7, y + 1, 15, 10);
+        dev.hoi.client.ui.country.CountryFlags.draw(g,"country/" + hit.country().toLowerCase(Locale.ROOT) + "/flag","small2", x - 7, y + 1, 15, 10);
         UiAssets.draw(g, "agency/map/flag_frame/frame_0", x - 9, y, 17, 11);
-        if (progress >= 0) dev.hoi.client.ui.UiAgencyProgress.draw(g, x + 3, y + 3, progress);
+        if (progress >= 0) dev.hoi.client.ui.agency.AgencyProgress.draw(g, x + 3, y + 3, progress);
         String icon = progress >= 1 ? "done/frame_0" : decrypting
                 ? "animated/frame_" + (int)((net.minecraft.util.Util.getMillis() * 24 / 1000) % 73) : "still/frame_0";
         UiAssets.draw(g, "agency/map/" + icon, x + 6, y + 5, 20, 21);
@@ -75,6 +74,6 @@ final class AgencyCapitalMap {
             hovered = country;
             if (!country.isEmpty()) dev.hoi.client.audio.AudioUiSounds.play("ui.agency.decrypt.hover");
         }
-        if (hit != null) UiTooltips.drawExact(g, Minecraft.getInstance().font, hit.cipher() != null ? hit.cipher().activateTooltip() : !hit.capital().tooltip().isEmpty() ? hit.capital().tooltip() : hit.item().detail(), x, y, 175);
+        if (hit != null) Tooltips.drawExact(g, Minecraft.getInstance().font, hit.cipher() != null ? hit.cipher().activateTooltip() : !hit.capital().tooltip().isEmpty() ? hit.capital().tooltip() : hit.item().detail(), x, y);
     }
 }

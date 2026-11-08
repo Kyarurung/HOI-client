@@ -84,9 +84,9 @@ public final class RaidScreenHudTest {
             });
             context.getInput().setCursorPos(width - 2, 80); context.waitTicks(3);
             context.runOnClient(client -> {
-                if (RaidMap.texture() == null) throw new AssertionError("Original raid arrow mask must load");
+                if (RaidMap.texture("PREPARING") == null) throw new AssertionError("Original raid arrow mask must load");
                 RaidScreen.resourcesReloaded();
-                if (RaidMap.texture() == null) throw new AssertionError("Raid arrow mask must survive resource reload");
+                if (RaidMap.texture("PREPARING") == null) throw new AssertionError("Raid arrow mask must survive resource reload");
             });
             context.takeScreenshot("hoi-raids-operative-source-line-" + width + "-gui2");
         } finally {

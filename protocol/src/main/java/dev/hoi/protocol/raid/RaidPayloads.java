@@ -1,6 +1,7 @@
 package dev.hoi.protocol.raid;
 
 import dev.hoi.protocol.ProtocolJsonCodec;
+import dev.hoi.protocol.map.MapAtlasScene;
 import com.google.gson.Gson;
 import java.util.List;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -38,10 +39,22 @@ public final class RaidPayloads {
         public RaidView view() { return ProtocolJsonCodec.read(JSON, json, RaidView.class); }
         @Override public Type<Response> type() { return TYPE; }
     }
+    public record Highlight(String session, long revision, String state, MapAtlasScene.Page page) implements CustomPacketPayload {
+        public Highlight {
+            if (revision < 0 || page == null) throw new IllegalArgumentException("Invalid raid highlight");
+            RaidView.text(session, 36); RaidView.text(state, 128);
+        }
+        public static final Type<Highlight> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "raid_highlight_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Highlight> CODEC = StreamCodec.of(
+                (b, p) -> { b.writeUtf(p.session, 36); b.writeVarLong(p.revision); b.writeUtf(p.state, 128); MapAtlasScene.Page.CODEC.encode(b, p.page); },
+                b -> new Highlight(b.readUtf(36), b.readVarLong(), b.readUtf(128), MapAtlasScene.Page.CODEC.decode(b)));
+        @Override public Type<Highlight> type() { return TYPE; }
+    }
     public static synchronized void registerPayloadTypes() {
         if (registered) return;
         PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE, Response.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(Highlight.TYPE, Highlight.CODEC);
         registered = true;
     }
 }

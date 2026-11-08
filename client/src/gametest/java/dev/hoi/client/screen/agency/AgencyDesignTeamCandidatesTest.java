@@ -52,7 +52,7 @@ public final class AgencyDesignTeamCandidatesTest {
                             String tooltip = candidate.manufacturer().tooltip();
                             for (String token : List.of("armor_texticon", "attacker_speed_texticon")) {
                                 if (!tooltip.contains("£" + token)) continue;
-                                var rendered = dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£" + token + " "), false);
+                                var rendered = dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£" + token + " "), false);
                                 if (rendered.getString().codePoints().noneMatch(c -> c >= 0xE000 && c <= 0xF8FF)) throw new AssertionError("Missing source manufacturer glyph: " + token);
                             }
                         }

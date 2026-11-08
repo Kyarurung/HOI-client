@@ -3,7 +3,7 @@ package dev.hoi.client.screen.decision;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.protocol.decision.DecisionPayloads;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -47,7 +47,7 @@ public final class DecisionScreenSourceTest {
                 }
                 for(String tag:List.of("pol","raj","aus","egy","tur","chi")) {
                     String token="£GFX_KOR_"+tag+"_texticon";
-                    if(dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal(token),false).getString().contains("£"))
+                    if(dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal(token),false).getString().contains("£"))
                         throw new AssertionError("Unresolved original decision country outline: "+token);
                 }
             } catch(IOException error) {throw new UncheckedIOException(error);}
@@ -153,7 +153,7 @@ public final class DecisionScreenSourceTest {
                         });
                         context.getInput().setCursorPos(hoverPoint[0]*2,hoverPoint[1]*2);context.waitTicks(3);
                         screenshots.put("arms-tooltip",screenshot(context,"hoi-decisions-source-arms-tooltip-"+suffix,size));
-                        context.runOnClient(client->{var screen=(DecisionScreen)client.gui.screen();screen.mouseScrolled(3,UiMenuBar.height(screen.width)+53,0,-10000);});
+                        context.runOnClient(client->{var screen=(DecisionScreen)client.gui.screen();screen.mouseScrolled(3,HudMenuBar.height(screen.width)+53,0,-10000);});
                         margin(context);screenshots.put("arms-icons",screenshot(context,"hoi-decisions-source-arms-icons-"+suffix,size));
                         context.runOnClient(client -> {
                             var screen=(DecisionScreen)client.gui.screen();
@@ -183,7 +183,7 @@ public final class DecisionScreenSourceTest {
                         var screen=(DecisionScreen)client.gui.screen();
                         int maximum=screen.scrollOffset();
                         if(maximum==0)return;
-                        int x=screen.unitHudLeft()-7,top=UiMenuBar.height(screen.width)+26,bottom=screen.height-10;
+                        int x=screen.unitHudLeft()-7,top=HudMenuBar.height(screen.width)+26,bottom=screen.height-10;
                         var right=new net.minecraft.client.input.MouseButtonEvent(x,top+3,
                                 new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT,0));
                         screen.mouseClicked(right,false);
@@ -249,7 +249,7 @@ public final class DecisionScreenSourceTest {
                         });
                         margin(context);
                         screenshots.put(categoryId,screenshot(context,"hoi-decisions-scene-"+categoryId.toLowerCase(Locale.ROOT)+"-"+suffix,size));
-                        context.runOnClient(client->{var screen=(DecisionScreen)client.gui.screen();screen.mouseScrolled(3,UiMenuBar.height(screen.width)+53,0,-10000);});
+                        context.runOnClient(client->{var screen=(DecisionScreen)client.gui.screen();screen.mouseScrolled(3,HudMenuBar.height(screen.width)+53,0,-10000);});
                         margin(context);screenshots.put(categoryId+"-icons",screenshot(context,"hoi-decisions-scene-icons-"+categoryId.toLowerCase(Locale.ROOT)+"-"+suffix,size));
                     }
                     var missing = context.computeOnClient(client -> missingAssets(client, preview, assets));
@@ -389,7 +389,7 @@ public final class DecisionScreenSourceTest {
         var observed = new TreeSet<String>();
         resetScroll(screen);
         for (int step = 0; step < 10_000; step++) {
-            for (var child : screen.children()) if (child instanceof Button button && button.getY() >= UiMenuBar.height(screen.width) + 52) {
+            for (var child : screen.children()) if (child instanceof Button button && button.getY() >= HudMenuBar.height(screen.width) + 52) {
                 if (button.getX() < 0 || button.getRight() > screen.width || button.getBottom() > screen.height - 10)
                     throw new AssertionError("Source decision control exceeds viewport: " + preview.name());
                 if(preview.name().equals("kor") && preview.rows().stream().anyMatch(row -> row.id().equals("KOR_export_to_tur_k9")
@@ -411,7 +411,7 @@ public final class DecisionScreenSourceTest {
         resetScroll(screen);
         for (int step = 0; step < 10_000; step++) {
             for (var child : screen.children()) if (child instanceof Button button && (button.getX() == 7 || button.getX() == 6)
-                    && button.getY() >= UiMenuBar.height(screen.width) + 52 && button.getMessage().getString().equals(label))
+                    && button.getY() >= HudMenuBar.height(screen.width) + 52 && button.getMessage().getString().equals(label))
                 return new int[]{button.getX() + button.getWidth() / 2, button.getY() + button.getHeight() / 2};
             if (!scroll(screen)) break;
         }
@@ -436,7 +436,7 @@ public final class DecisionScreenSourceTest {
     }
     private static boolean scroll(DecisionScreen screen) {
         int before = screen.scrollOffset();
-        int top = UiMenuBar.height(screen.width) + 52;
+        int top = HudMenuBar.height(screen.width) + 52;
         screen.mouseScrolled(3, top + 1, 0, -Math.max(28, screen.height - top - 74) / 28.0);
         return screen.scrollOffset() != before;
     }
@@ -450,11 +450,11 @@ public final class DecisionScreenSourceTest {
         return text;
     }
     private static void resetScroll(DecisionScreen screen) {
-        screen.mouseScrolled(3, UiMenuBar.height(screen.width) + 53, 0, Integer.MAX_VALUE / 28.0);
+        screen.mouseScrolled(3, HudMenuBar.height(screen.width) + 53, 0, Integer.MAX_VALUE / 28.0);
         if (screen.scrollOffset() != 0) throw new AssertionError("Source preview margin scroll was consumed by a tooltip");
     }
     private static void margin(ClientGameTestContext context) {
-        int y = context.computeOnClient(client -> UiMenuBar.height(client.gui.screen().width) + 53);
+        int y = context.computeOnClient(client -> HudMenuBar.height(client.gui.screen().width) + 53);
         context.getInput().setCursorPos(6, y * 2);
         context.waitTicks(2);
     }

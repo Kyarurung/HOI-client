@@ -6,7 +6,6 @@ import dev.hoi.protocol.commander.CommanderHudPayloads.*;
 import dev.hoi.protocol.commander.CommanderOrderPayloads;
 import java.util.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 

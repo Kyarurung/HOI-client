@@ -1,6 +1,6 @@
 package dev.hoi.client;
 
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.protocol.country.CountryHud;
 import dev.hoi.protocol.hud.HudPayloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -20,7 +20,7 @@ public final class ClientCampaignHud {
         country = state.country(); hud = next;
     }
     public static void draw(net.minecraft.client.gui.GuiGraphicsExtractor g) {
-        if (visible()) UiMenuBar.drawPassive(g, g.guiWidth(), hud, country);
+        if (visible()) HudMenuBar.drawPassive(g, g.guiWidth(), hud, country);
     }
     public static String country() { return country; }
     public static CountryHud hud() { return hud; }
@@ -35,7 +35,7 @@ public final class ClientCampaignHud {
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR, Identifier.fromNamespaceAndPath("hoi", "country_hud"), (g, delta) -> {
             var client = Minecraft.getInstance();
             if (visible() && client.level != null && client.gui.screen() == null)
-                UiMenuBar.drawPassive(g, g.guiWidth(), hud, country);
+                HudMenuBar.drawPassive(g, g.guiWidth(), hud, country);
         });
     }
 }

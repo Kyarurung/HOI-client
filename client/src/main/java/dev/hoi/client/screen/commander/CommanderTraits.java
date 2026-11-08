@@ -4,6 +4,8 @@ import dev.hoi.client.ui.*;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.screen.dialog.DialogScreen;
 import dev.hoi.protocol.dialog.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -15,8 +17,8 @@ public final class CommanderTraits extends DialogScreen implements dev.hoi.clien
     private final Screen parent;
     private final Consumer<DialogPayloads.Action> sender;
     private boolean pending;
-    private UiTooltips.ScrolledTooltip tooltipBounds;
-    public UiTooltips.ScrolledTooltip tooltipBounds() {return tooltipBounds;}
+    private Tooltips.ScrolledTooltip tooltipBounds;
+    public Tooltips.ScrolledTooltip tooltipBounds() {return tooltipBounds;}
     private int left,top,scroll,terrainScroll,ownedScroll,ownedMax;
     private int dragging=-1;
     private float scale;
@@ -58,7 +60,7 @@ public final class CommanderTraits extends DialogScreen implements dev.hoi.clien
         var button=new UiMenuButton(text,x(px),y(py),size(w),size(h),()->submit(id)).caption("");if(id.equals("advisor-roles")||id.equals("traits"))button.background("officer/hq/captured_tab/frame_1");button.active=!pending;choices.put(id,button);addRenderableWidget(button);
     }
     @Override protected void init() {
-        scale=Math.min(1,Math.min((width-12)/671.5f,(height-UiMenuBar.height(width)-12)/391.5f));left=(width-size(671.5))/2;top=Math.max(UiMenuBar.height(width)+6,(height-size(391.5))/2);choices.clear();nodeButtons.clear();
+        scale=Math.min(1,Math.min((width-12)/671.5f,(height-HudMenuBar.height(width)-12)/391.5f));left=(width-size(671.5))/2;top=Math.max(HudMenuBar.height(width)+6,(height-size(391.5))/2);choices.clear();nodeButtons.clear();
         addRenderableWidget(new UiMenuButton("×",x(648),y(5.5),size(15),size(15),this::onClose));
         if(confirming()) {
             if(view().choices().stream().anyMatch(c->c.id().equals("confirm")))button("confirm","확인",310,238,60,17);
@@ -87,7 +89,7 @@ public final class CommanderTraits extends DialogScreen implements dev.hoi.clien
         if(pending)children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).forEach(w->w.active=false);
     }
     private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,boolean centered) {
-        var component=UiKeywordIcons.decorateLines(value.startsWith("§l")?UiTooltips.officerText(value,true):UiTooltips.officerText(value),false);boolean clipped=font.width(component)>w;var shown=clipped?net.minecraft.network.chat.FormattedText.composite(font.substrByWidth(component,Math.max(0,w-font.width("…"))),net.minecraft.network.chat.FormattedText.of("…")):component;
+        var component=TooltipKeywordIcons.decorateLines(value.startsWith("§l")?Tooltips.officerText(value,true):Tooltips.officerText(value),false);boolean clipped=font.width(component)>w;var shown=clipped?net.minecraft.network.chat.FormattedText.composite(font.substrByWidth(component,Math.max(0,w-font.width("…"))),net.minecraft.network.chat.FormattedText.of("…")):component;
         g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(shown),px+(centered?(w-font.width(shown))/2:0),py+Math.max(0,(h-font.lineHeight)/2),color,false);
         if(clipped&&mouseX>=px&&mouseX<px+w&&mouseY>=py&&mouseY<py+Math.max(h,font.lineHeight))clippedTooltip=value;
     }
@@ -132,7 +134,7 @@ public final class CommanderTraits extends DialogScreen implements dev.hoi.clien
                     else if(!trait.icon().isEmpty())sourceArt(g,trait.icon(),x(10),y(ownedY),23,33,.5f);
                     ownedLabel(g,"§l"+trait.name(),x(28),y(ownedY),size(104),size(textStep),0xFF000000,false);
                     var lines=trait.detail().split("\n",-1);int rowY=ownedY+textStep;
-                    for(int index=1;index<lines.length;index++) {String effect=lines[index];if(effect.isBlank()){if(rowY==ownedY+textStep)continue;break;}if(effect.contains("역할 해금")||!effect.contains(": "))break;var content=UiKeywordIcons.decorateLines(UiTooltips.officerText(effect.replaceAll("§(?:#[0-9a-fA-F]{6}|.)","")),false);for(var line:font.split(content,size(104))){if(y(rowY)>=y(87.5)&&y(rowY)+font.lineHeight<=y(331.5))g.text(font,line,x(28),y(rowY),0xFF000000,false);rowY+=textStep;}}
+                    for(int index=1;index<lines.length;index++) {String effect=lines[index];if(effect.isBlank()){if(rowY==ownedY+textStep)continue;break;}if(effect.contains("역할 해금")||!effect.contains(": "))break;var content=TooltipKeywordIcons.decorateLines(Tooltips.officerText(effect.replaceAll("§(?:#[0-9a-fA-F]{6}|.)","")),false);for(var line:font.split(content,size(104))){if(y(rowY)>=y(87.5)&&y(rowY)+font.lineHeight<=y(331.5))g.text(font,line,x(28),y(rowY),0xFF000000,false);rowY+=textStep;}}
                     if(mx>=x(8)&&mx<x(135)&&my>=y(87.5)&&my<y(331.5)&&my>=y(ownedY)&&my<y(rowY))hovered=trait.detail();ownedY=Math.max(ownedY+20,rowY+6);
                 }
             }
@@ -145,7 +147,7 @@ public final class CommanderTraits extends DialogScreen implements dev.hoi.clien
         if(preferred!=null) {
             UiAssets.nineSlice(g,"commander/commands/tiled_plain_bg/frame_0",x(5),y(337.5),size(135),size(46.5),4,.5*scale);
             text(g,preferred.name(),10,341,125,12,0xFFFFFFFF);
-            var button=choices.get("preferred-tactic");if(button!=null&&UiTooltips.contains(button,mx,my))hovered=preferred.detail();
+            var button=choices.get("preferred-tactic");if(button!=null&&Tooltips.contains(button,mx,my))hovered=preferred.detail();
         }
         boolean navy=hero!=null?hero.leader().role().equals("제독"):roleTiles().stream().anyMatch(t->t.section().contains("NAVY_CHIEF/"));
         if(advisorRoles()) {
@@ -155,7 +157,7 @@ public final class CommanderTraits extends DialogScreen implements dev.hoi.clien
                 boolean owned=tile.traitNode()!=null?tile.traitNode().owned():tile.section().endsWith("/dismiss"),hover=mx>=px&&mx<px+size(122)&&my>=py&&my<py+size(26);
                 sourceArt(g,"commander/commands/trait_adviser_"+(owned?"picked":"disabled")+"/frame_0",px,py,244,52,.5f);
                 if(!tile.icon().isEmpty())UiAssets.draw(g,tile.icon(),px+size(3),py+size(3),size(20),size(20));
-                String[] lines=dev.hoi.client.ui.UiTooltipText.sourceSpacing(tile.name()).split("\n",-1);int textHeight=Math.max(font.lineHeight,size(10)),textTop=py+size(2);
+                String[] lines=dev.hoi.client.ui.tooltip.TooltipText.sourceSpacing(tile.name()).split("\n",-1);int textHeight=Math.max(font.lineHeight,size(10)),textTop=py+size(2);
                 for(int index=0;index<lines.length;index++)label(g,lines[index],px+size(25),textTop+index*textHeight,size(94),textHeight,0xFFFFFFFF,false);
                 if(hover)hovered=tile.detail();
             }
@@ -172,9 +174,9 @@ public final class CommanderTraits extends DialogScreen implements dev.hoi.clien
         }
         }
         if(!advisorRoles()||maximum(false)>0)scrollbar(g,false);if(maximum(true)>0)scrollbar(g,true);
-        for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget&&!nodeButtons.contains(child)){if(child instanceof AbstractWidget button&&choices.containsValue(button)){if(child==choices.get("preferred-tactic")){button.extractRenderState(g,mx,my,delta);UiAssets.draw(g,preferred.icon(),x(11.5),y(350),size(45),size(25));var preference=font.split(UiTooltips.officerText(preferred.value()),size(75));for(int n=0;n<preference.size();n++)g.text(font,preference.get(n),x(65),y(350)+n*font.lineHeight,0xFFFFFFFF,false);var required=java.util.regex.Pattern.compile("기술 레벨 (\\d+)").matcher(preferred.detail());if(required.find())label(g,"요구 기술 §e"+required.group(1),x(65),y(350)+Math.max(2,preference.size())*font.lineHeight,size(75),size(10),0xFFFFFFFF,false);}else drawButton(g,button,mx,my,delta);}else widget.extractRenderState(g,mx,my,delta);}
+        for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget&&!nodeButtons.contains(child)){if(child instanceof AbstractWidget button&&choices.containsValue(button)){if(child==choices.get("preferred-tactic")){button.extractRenderState(g,mx,my,delta);UiAssets.draw(g,preferred.icon(),x(11.5),y(350),size(45),size(25));var preference=font.split(Tooltips.officerText(preferred.value()),size(75));for(int n=0;n<preference.size();n++)g.text(font,preference.get(n),x(65),y(350)+n*font.lineHeight,0xFFFFFFFF,false);var required=java.util.regex.Pattern.compile("기술 레벨 (\\d+)").matcher(preferred.detail());if(required.find())label(g,"요구 기술 §e"+required.group(1),x(65),y(350)+Math.max(2,preference.size())*font.lineHeight,size(75),size(10),0xFFFFFFFF,false);}else drawButton(g,button,mx,my,delta);}else widget.extractRenderState(g,mx,my,delta);}
         if(confirming()) {UiMenuStyle.panel(g,x(230),y(170),size(225),size(93));text(g,view().title(),238,178,209,19,UiMenuStyle.TEXT);text(g,view().body(),238,202,209,24,UiMenuStyle.TEXT);for(String key:List.of("confirm","cancel")){var button=choices.get(key);if(button!=null)drawButton(g,button,mx,my,delta);}}
-        else if(!hovered.isEmpty()||!clippedTooltip.isEmpty())tooltipBounds=UiTooltips.drawOfficerScrollable(g,font,hovered.isEmpty()?clippedTooltip:hovered,mx,my,width,height,0,Math.max(240,size(240)));
+        else if(!hovered.isEmpty()||!clippedTooltip.isEmpty())tooltipBounds=Tooltips.drawOfficerScrollable(g,font,hovered.isEmpty()?clippedTooltip:hovered,mx,my,width,height,0);
     }
     @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical) {
         if(confirming())return false;

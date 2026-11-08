@@ -2,7 +2,7 @@ package dev.hoi.client.map.commander;
 
 import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.ui.UiAssets;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.client.ui.UiText;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,7 @@ public final class CommanderSelectorHud {
         var font=Minecraft.getInstance().font;int textWidth=entries.stream().mapToInt(e->font.width(e.item().getHoverName())+44).max().orElse(0),rows=entries.size()*18;
         int x=Math.max(3,width-textWidth-6),bottom=height-6;
         for(var box:CommanderHud.boxes())if(x<box.x()+box.width()&&x+textWidth>box.x()&&box.y()+box.height()>bottom-rows)bottom=Math.min(bottom,box.y()-6);
-        return new Bounds(x,Math.max(UiMenuBar.height(width)+8,bottom-rows),textWidth,rows);
+        return new Bounds(x,Math.max(HudMenuBar.height(width)+8,bottom-rows),textWidth,rows);
     }
     static void draw(GuiGraphicsExtractor g,List<Entry> entries){
         var font=Minecraft.getInstance().font;var bounds=bounds(g.guiWidth(),g.guiHeight(),entries);int row=18,key=16,icon=16,x=bounds.x(),y=bounds.y();

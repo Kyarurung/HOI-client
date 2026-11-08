@@ -1,6 +1,6 @@
 package dev.hoi.client.screen.doctrine;
 
-import dev.hoi.client.ui.UiKeywordIcons;
+import dev.hoi.client.ui.tooltip.TooltipKeywordIcons;
 import dev.hoi.protocol.doctrine.*;
 import net.minecraft.network.chat.Component;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -10,6 +10,17 @@ import java.util.*;
 
 public final class DoctrineScreenSourceTest {
     private DoctrineScreenSourceTest() {}
+    public static void runFullscreenHeader(ClientGameTestContext context) {
+        try {
+            var view = fixture("doctrine-land-selected");
+            for (int[] size : List.of(new int[]{1280, 720}, new int[]{2560, 1440})) {
+                context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(3);
+                context.setScreen(() -> new DoctrineScreen(null, "land", view.session(), view, request -> {}));
+                dev.hoi.client.ui.hud.HudFullscreenTest.run(context, "doctrine", size[0]);
+            }
+            context.setScreen(() -> null);
+        } catch (Exception error) { throw new RuntimeException(error); }
+    }
     private static DoctrineView fixture(String name) throws Exception {
         String directory = System.getenv("HOI_DOCTRINE_PREVIEW");
         String json;
@@ -676,7 +687,7 @@ public final class DoctrineScreenSourceTest {
             var alternative=air.grands().stream().filter(c->!c.selected()).findFirst().orElseThrow();
             if(!alternative.detail().contains("대교리를 교체하면 §R모든§! £doctrine_mastery §H통달치§!§R가 초기화됩니다.§!"))throw new AssertionError("Native grand-switch warning must retain its wording, icon and colors");
             context.runOnClient(client -> {
-                var icon = dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£doctrine_mastery"), false).getString();
+                var icon = dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£doctrine_mastery"), false).getString();
                 if (icon.length() != 1 || icon.charAt(0) < 0xe000 || icon.charAt(0) > 0xf8ff) throw new AssertionError("Native mastery token must resolve to an actual resource-pack glyph");
             });
             var grandPosition=position(context,alternative.name());context.getInput().setCursorPos(grandPosition[0]*2,grandPosition[1]*2);context.waitTicks(3);
@@ -723,7 +734,7 @@ public final class DoctrineScreenSourceTest {
                     var bounds=screen.tooltipBounds();
                     if(bounds!=null&&bounds.y()+bounds.height()+4>detail[1]-10)throw new AssertionError("Doctrine details must end above their button");
                     for(String token:List.of("unit_artillery_icon_small","unit_recce_icon_small","unit_category_all_infantry","trigger_no")) {
-                        String glyph=UiKeywordIcons.decorateLines(Component.literal("£"+token),false).getString();
+                        String glyph=TooltipKeywordIcons.decorateLines(Component.literal("£"+token),false).getString();
                         if(glyph.length()!=1||glyph.charAt(0)<0xe000||glyph.charAt(0)>0xf8ff)throw new AssertionError("Original doctrine glyph missing: "+token);
                     }
                 });

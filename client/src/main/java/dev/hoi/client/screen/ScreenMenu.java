@@ -4,19 +4,17 @@ import dev.hoi.client.ui.UiScrollBar;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.input.InputSidebarMovement;
-import dev.hoi.client.ui.UiMenuBar;
-import dev.hoi.client.ui.UiCountryDisplay;
-import dev.hoi.client.ui.UiPoliticsLayout;
+import dev.hoi.client.ui.hud.HudMenuBar;
+import dev.hoi.client.ui.country.CountryDisplays;
+import dev.hoi.client.ui.politics.PoliticsLayout;
 import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
-import dev.hoi.client.ui.UiTooltips;
-
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.menu.MenuTab;
 import dev.hoi.protocol.menu.MenuView;
-import dev.hoi.client.ui.UiPoliticalTooltip;
-import dev.hoi.protocol.country.CountryHud;
+import dev.hoi.client.ui.politics.PoliticsTooltip;
 import dev.hoi.protocol.menu.MenuPayloads;
 import dev.hoi.client.screen.army.ArmyHeadquarters;
 import dev.hoi.client.screen.commander.CommanderCaptivity;
@@ -64,7 +62,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private boolean balanceOpen;
     private MenuView.Entry hoveredPolitics;
     private List<MenuView.Entry> spirits = List.of();
-    private record ScreenPolicyHover(UiPoliticsLayout.UiPoliticsBox box, MenuView.Entry entry) {}
+    private record ScreenPolicyHover(PoliticsLayout.PoliticsBox box, MenuView.Entry entry) {}
     private final List<ScreenPolicyHover> policies = new ArrayList<>();
     private int pane, top, scroll, total, detailScroll, tradeTab, hudScroll;
     private List<MenuView.Entry> parties = List.of();
@@ -118,11 +116,11 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     @Override protected void init() {
         officerTooltips.clear();capturedButton=null;
         pane = UiPanelLayout.width(selected, width);
-        top = UiMenuBar.height(width);
+        top = HudMenuBar.height(width);
         if (selectionPreview) {
             pane = Math.min(width - 16, 726 / Math.max(1, minecraft.getWindow().getGuiScale()));
-            while (pane > 160 && new UiPoliticsLayout(pane, 0).contentTop() > height - 16) pane--;
-            top = (height - (new UiPoliticsLayout(pane, 0).contentTop())) / 2;
+            while (pane > 160 && new PoliticsLayout(pane, 0).contentTop() > height - 16) pane--;
+            top = (height - (new PoliticsLayout(pane, 0).contentTop())) / 2;
             preparePartyChart();
             spirits = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 정신"))
                     .flatMap(s -> s.entries().stream()).filter(e -> !e.name().equals("없음")).toList();
@@ -130,7 +128,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             addRenderableWidget(new UiMenuButton("×", selectionLeft() + pane - 25, top + 3, 19, 19, this::onClose));
             return;
         }
-        UiMenuBar.buttons(width, view.country(), selected, tab -> {
+        HudMenuBar.buttons(width, view.country(), selected, tab -> {
             if (tab == MenuTab.INTELLIGENCE) { HoiClient.openAgency(); return; }
             if (tab == MenuTab.DECISIONS && ClientPlayNetworking.canSend(dev.hoi.protocol.decision.DecisionPayloads.Request.TYPE)) { HoiClient.openMenu(tab); return; }
             if (tab == MenuTab.RESEARCH) { researchOpen.run(); return; }
@@ -207,7 +205,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             if (g != null) {
                 UiMenuStyle.metal(g, 8, y, pane - 16, 21);
                 UiAssets.draw(g, texture(section.icon()), 13, y + 3, 19, 15);
-                dev.hoi.client.ui.UiText.text(g, font, dev.hoi.client.ui.UiTooltips.officerText(trim(section.title(), pane - 68), true), 37, y + 6, TEXT);
+                dev.hoi.client.ui.UiText.text(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(trim(section.title(), pane - 68), true), 37, y + 6, TEXT);
                 dev.hoi.client.ui.UiText.text(g, font, collapsed.contains(index) ? "+" : "−", pane - 25, y + 6, GOLD);
             }
             if (widgets && y >= contentTop() && y + 21 <= contentBottom()) {
@@ -361,7 +359,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         return Math.min(.75f, available / (float)Math.max(1, font.width(styled)));
     }
     private void officerStatText(GuiGraphicsExtractor g, String value, int x, int y, int available) {
-        var styled = UiTooltips.styled(Component.literal(value), false);
+        var styled = Tooltips.styled(Component.literal(value), false);
         float scale = officerStatScale(font, styled, available);
         g.pose().pushMatrix();
         g.pose().translate(x + available - font.width(styled) * scale, y + (15 - font.lineHeight * scale) / 2f);
@@ -370,8 +368,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     private void officerText(GuiGraphicsExtractor g, String value, int x, int y, int available, int color) {
         float scale = dev.hoi.client.ui.UiText.scale(font);
-        var styled = UiTooltips.styled(Component.literal(value), false);
-        var lines = UiTooltips.split(font,styled, Math.max(1, (int)(available / scale)));
+        var styled = Tooltips.styled(Component.literal(value), false);
+        var lines = Tooltips.split(font,styled, Math.max(1, (int)(available / scale)));
         if (lines.isEmpty()) return;
         g.pose().pushMatrix(); g.pose().translate(x, y); g.pose().scale(scale);
         g.text(font, lines.getFirst(), 0, 0, color); g.pose().popMatrix();
@@ -393,7 +391,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 leader.x() + leader.width() * 7 / 172, leader.y() + leader.height() * 6 / 258,
                 leader.width() * 158 / 172, leader.height() * 210 / 258);
         drawPoliticalArt(g, "politics/leader_frame", leader);
-        centeredPoliticsText(g, person.value(), new UiPoliticsLayout.UiPoliticsBox(leader.x() + 4, leader.y() + leader.height() * 218 / 258 + 2,
+        centeredPoliticsText(g, person.value(), new PoliticsLayout.PoliticsBox(leader.x() + 4, leader.y() + leader.height() * 218 / 258 + 2,
                 leader.width() - 8, leader.height() * 34 / 258), TEXT);
         if (!selectionPreview) {
             drawPoliticalArt(g, "politics/focus_background", layout.focus());
@@ -441,8 +439,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (election.equals("선거 없음")) centeredPoliticsText(g, election, electionBox, MUTED);
         else {
             int middle = electionBox.y() + electionBox.height() / 2;
-            centeredPoliticsText(g, "다음 선거", new UiPoliticsLayout.UiPoliticsBox(electionBox.x(), middle - 12, electionBox.width(), 10), TEXT);
-            centeredPoliticsText(g, election, new UiPoliticsLayout.UiPoliticsBox(electionBox.x(), middle + 2, electionBox.width(), 10), GOLD);
+            centeredPoliticsText(g, "다음 선거", new PoliticsLayout.PoliticsBox(electionBox.x(), middle - 12, electionBox.width(), 10), TEXT);
+            centeredPoliticsText(g, election, new PoliticsLayout.PoliticsBox(electionBox.x(), middle + 2, electionBox.width(), 10), GOLD);
         }
         if (!selectionPreview && view.balance() != null) {
             var b = balanceButton(); var balance = view.balance();
@@ -478,10 +476,10 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (parties.isEmpty()) officerText(g, "정보 없음", list.x() + 5, list.y() + 5, list.width() - 10, MUTED);
         g.fill(8, layout.contentTop() - 5, pane - 8, layout.contentTop() - 4, 0xFF68686B);
     }
-    private void drawPoliticalArt(GuiGraphicsExtractor g, String art, UiPoliticsLayout.UiPoliticsBox box) {
+    private void drawPoliticalArt(GuiGraphicsExtractor g, String art, PoliticsLayout.PoliticsBox box) {
         UiAssets.draw(g, art, box.x(), box.y(), box.width(), box.height());
     }
-    private void centeredPoliticsText(GuiGraphicsExtractor g, String text, UiPoliticsLayout.UiPoliticsBox box, int color) {
+    private void centeredPoliticsText(GuiGraphicsExtractor g, String text, PoliticsLayout.PoliticsBox box, int color) {
         if (selectionPreview) {
             float scale = Math.min(dev.hoi.client.ui.UiText.scale(font), (box.width() - 8f) / Math.max(1, font.width(text)));
             scale = Math.min(scale, box.height() / (float)font.lineHeight);
@@ -490,7 +488,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             g.pose().scale(scale); g.text(font, text, 0, 0, color); g.pose().popMatrix();
         } else dev.hoi.client.ui.UiText.centered(g, font, text, box.x() + 4, box.y(), box.width() - 8, Math.max(10, box.height()), color);
     }
-    private void politicsCell(GuiGraphicsExtractor g, String label, UiPoliticsLayout.UiPoliticsBox box) {
+    private void politicsCell(GuiGraphicsExtractor g, String label, PoliticsLayout.PoliticsBox box) {
         politicsCell(g, label, box.x(), box.y(), box.width(), box.height());
     }
     private MenuView.Entry politicsEntry(String name) {
@@ -593,7 +591,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                     });
                     button.setTooltip(null);
                     if (!entry.value().equals("공석") && !entry.value().equals("미지정") && !entry.icon().equals("politics/vacant"))
-                        policies.add(new ScreenPolicyHover(new UiPoliticsLayout.UiPoliticsBox(x, cy, cell - 4, iconSize), entry));
+                        policies.add(new ScreenPolicyHover(new PoliticsLayout.PoliticsBox(x, cy, cell - 4, iconSize), entry));
                     button.active = true; addRenderableWidget(button);
                 }
             }
@@ -612,14 +610,14 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             g.pose().pushMatrix();
             g.pose().translate(selectionLeft(), 0);
             UiMenuStyle.panel(g, 0, top, pane, selectionHeight());
-            UiMenuStyle.heading(g, font, trim(UiCountryDisplay.name(view.country(), view.countryName()), pane - 44), 10, top + 9, pane - 44, TEXT);
+            UiMenuStyle.heading(g, font, trim(CountryDisplays.name(view.country(), view.countryName()), pane - 44), 10, top + 9, pane - 44, TEXT);
             drawPoliticsBanner(g);
             g.pose().popMatrix();
             super.extractRenderState(g, mx, my, delta);
             drawPoliticsTooltip(g, mx - selectionLeft(), my, mx);
             return;
         }
-        UiMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
+        HudMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
         UiMenuStyle.panel(g, 0, top, pane, height - top);
         String heading=trim(selected == MenuTab.POLITICS ? "정치" : selected.label(),pane-44);int headingX=10;
 
@@ -630,7 +628,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             if (!view.country().equals("KOR") || !UiAssets.draw(g, "country/kor/intelligence", 18, top + 33, 42, 40))
                 UiAssets.draw(g, "menu/intelligence", 18, top + 33, 42, 40);
             dev.hoi.client.ui.UiText.text(g, font, trim("정보기관", pane - 86), 76, top + 43, TEXT);
-            dev.hoi.client.ui.UiText.text(g, font, trim(UiCountryDisplay.name(view.country(), view.countryName()), pane - 86), 76, top + 58, MUTED);
+            dev.hoi.client.ui.UiText.text(g, font, trim(CountryDisplays.name(view.country(), view.countryName()), pane - 86), 76, top + 58, MUTED);
         }
         UiMenuStyle.recess(g, 5, contentTop() - 3, pane - 10, Math.max(6, contentBottom() - contentTop() + 5));
         g.enableScissor(6, contentTop(), pane - 6, contentBottom()); layoutRows(false, g); g.disableScissor();
@@ -647,12 +645,12 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (balanceOpen && selected == MenuTab.POLITICS && view.balance() != null) drawBalance(g, mx, my);
         super.extractRenderState(g, mx, my, delta);
         drawPoliticsTooltip(g, mx, my, mx);
-        if(manufacturerGroup!=null&&detail==null)manufacturerTooltips.entrySet().stream().filter(e->UiTooltips.contains(e.getKey(),mx,my)).findFirst().ifPresent(e->UiTooltips.drawSourceScrollable(g,font,e.getValue(),mx,my,width,height,0));
+        if(manufacturerGroup!=null&&detail==null)manufacturerTooltips.entrySet().stream().filter(e->Tooltips.contains(e.getKey(),mx,my)).findFirst().ifPresent(e->Tooltips.drawSourceScrollable(g,font,e.getValue(),mx,my,width,height,0));
         if (selected == MenuTab.OFFICER_CORPS && detail == null) {
             String text = officerTooltips.entrySet().stream().filter(entry -> entry.getKey().isMouseOver(mx, my))
                     .map(Map.Entry::getValue).findFirst().orElse("");
             if (!text.equals(hoveredOfficer)) { hoveredOfficer = text; tooltipScroll = 0; }
-            if (!text.isEmpty()) tooltipScroll = UiTooltips.drawSourceScrollable(g, font, text, mx, my, width, height, tooltipScroll).scroll();
+            if (!text.isEmpty()) tooltipScroll = Tooltips.drawSourceScrollable(g, font, text, mx, my, width, height, tooltipScroll).scroll();
         }
     }
     private void drawPoliticsTooltip(GuiGraphicsExtractor g, int mx, int my, int screenX) {
@@ -660,29 +658,29 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (!Objects.equals(hovered, hoveredPolitics)) tooltipScroll = 0;
         hoveredPolitics = hovered;
         if (hovered != null && hovered.name().equals("지도자")) {
-            tooltipScroll = UiPoliticalTooltip.drawLeader(g, font, hovered, view.country(), UiCountryDisplay.name(view.country(), view.countryName()), screenX, my, width, height, tooltipScroll);
+            tooltipScroll = PoliticsTooltip.drawLeader(g, font, hovered, view.country(), CountryDisplays.name(view.country(), view.countryName()), screenX, my, width, height, tooltipScroll);
         } else if (hovered != null && hovered.name().equals("세력") && hovered.value().equals("미가입")) {
-            tooltipScroll = UiPoliticalTooltip.drawCountryDetail(g, font, hovered, view.country(), screenX, my, width, height, tooltipScroll);
+            tooltipScroll = PoliticsTooltip.drawCountryDetail(g, font, hovered, view.country(), screenX, my, width, height, tooltipScroll);
         } else if (hovered != null && (hovered.name().equals("점령지") || hovered.name().equals("협력정부") || hovered.icon().startsWith("politics/party/") || hovered.icon().startsWith("politics/ideology/"))) {
-            UiTooltips.drawExact(g, font, hovered.detail(), screenX, my);
+            Tooltips.drawExact(g, font, hovered.detail(), screenX, my);
         } else if (hovered != null && hovered.detail().contains("[image:")) {
-            tooltipScroll = UiPoliticalTooltip.draw(g, font, hovered, screenX, my, width, height, tooltipScroll);
+            tooltipScroll = PoliticsTooltip.draw(g, font, hovered, screenX, my, width, height, tooltipScroll);
         } else if (hovered != null) {
             boolean party = hovered.icon().startsWith("politics/party/") || hovered.icon().startsWith("politics/ideology/");
             String title = party || hovered.value().isBlank() ? hovered.name() : hovered.value();
             var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
-            lines.add(Component.literal(title).withColor(UiTooltips.GOLD).getVisualOrderText());
-            if (party) lines.add(Component.literal(hovered.value()).getVisualOrderText());
-            if (!hovered.detail().isBlank()) lines.addAll(spirits.contains(hovered) ? UiTooltips.sourceLines(font, hovered.detail(), width) : UiTooltips.lines(font, hovered.detail(), width));
-            lines=new ArrayList<>(UiTooltips.collapseBlankLines(lines));
+            lines.addAll(font.split(Component.literal(title).withColor(Tooltips.GOLD),Tooltips.width(width,14)));
+            if (party) lines.addAll(font.split(Component.literal(hovered.value()),Tooltips.width(width,14)));
+            if (!hovered.detail().isBlank()) lines.addAll(spirits.contains(hovered) ? Tooltips.tooltipLines(font, hovered.detail(), width) : Tooltips.lines(font, hovered.detail(), Tooltips.width(width,14)+24));
+            lines=new ArrayList<>(Tooltips.collapseBlankLines(lines));
             int count = Math.max(1, (height - 48) / (font.lineHeight + 1));
             tooltipScroll = Math.clamp(tooltipScroll, 0, Math.max(0, lines.size() - count));
             g.setTooltipForNextFrame(font, lines.subList(tooltipScroll, Math.min(lines.size(), tooltipScroll + count)), screenX, my);
         }
     }
-    private UiPoliticsLayout.UiPoliticsBox balanceButton() {
+    private PoliticsLayout.PoliticsBox balanceButton() {
         var layout = politicsLayout(); var first = layout.status(0); var last = layout.status(1);
-        return new UiPoliticsLayout.UiPoliticsBox(first.x(), layout.summaryY(), last.x() + last.width() - first.x(), first.y() - layout.summaryY() - 2);
+        return new PoliticsLayout.PoliticsBox(first.x(), layout.summaryY(), last.x() + last.width() - first.x(), first.y() - layout.summaryY() - 2);
     }
     private int balancePanelWidth() { return Math.min(UiPanelLayout.width(MenuTab.INTELLIGENCE, width), width - 8); }
     private int balancePanelX() { return Math.min(pane + 3, width - balancePanelWidth()); }
@@ -708,13 +706,12 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         officerText(g, active == null ? "" : active.name(), x + 12, y + 66, w - 24, TEXT);
         if (mx >= bx && mx <= bx + bw && my >= by - 14 && my <= by + 16) {
             var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
-            lines.add(Component.literal(balance.left() + " ↔ " + balance.right()).getVisualOrderText());
-            for (var range : balance.ranges()) lines.add(Component.literal(range.name() + " · " + range.value()).getVisualOrderText());
+            lines.addAll(font.split(Component.literal(balance.left() + " ↔ " + balance.right()),Tooltips.width(width,14)));
+            for (var range : balance.ranges()) lines.addAll(font.split(Component.literal(range.name() + " · " + range.value()),Tooltips.width(width,14)));
             g.setTooltipForNextFrame(font, lines, mx, my);
         }
     }
-    public UiPoliticsLayout politicsLayout() { return new UiPoliticsLayout(pane, top); }
-    CountryHud hud() { return view.hud(); }
+    public PoliticsLayout politicsLayout() { return new PoliticsLayout(pane, top); }
     int spiritPitch() { return Math.max(18, politicsLayout().spirits().height() - 5); }
     private int maximumSpiritScroll() { return Math.max(0, spirits.size() * spiritPitch() - Math.max(0, politicsLayout().spirits().width() - 8)); }
     private int spiritStart() { return politicsLayout().spirits().x() + 4; }
@@ -756,7 +753,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         UiAssets.draw(g, detail.icon().isEmpty() ? texture(detailIcon) : detail.icon(), x + 12, top + 36, 34, 26);
         dev.hoi.client.ui.UiText.text(g, font, trim(detail.value(), w - 64), x + 55, top + 44, TEXT);
         g.horizontalLine(x + 10, x + w - 10, top + 74, 0xFF4E4F52);
-        var lines = UiTooltips.split(font,Component.literal(detail.detail().isBlank() ? "추가 정보 없음" : detail.detail()), w - 28);
+        var lines = Tooltips.split(font,Component.literal(detail.detail().isBlank() ? "추가 정보 없음" : detail.detail()), w - 28);
         int visible = Math.max(1, height - top - 128);
         detailScroll = Math.clamp(detailScroll, 0, Math.max(0, lines.size() * 13 - visible));
         g.enableScissor(x + 10, top + 84, x + w - 10, height - 44);
@@ -782,7 +779,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         manufacturerMaximum=Math.max(0,rows.size()*49-available);manufacturerScroll = Math.clamp(manufacturerScroll, 0, manufacturerMaximum);
         if (g != null) {
             g.nextStratum(); UiMenuStyle.panel(g, x, top, w, bottom - top);
-            dev.hoi.client.ui.UiText.centered(g,font,dev.hoi.client.ui.UiTooltips.officerText("군수산업체",true),x+10,top+5,w-35,20,TEXT,false);
+            dev.hoi.client.ui.UiText.centered(g,font,dev.hoi.client.ui.tooltip.Tooltips.officerText("군수산업체",true),x+10,top+5,w-35,20,TEXT,false);
         }
         if (widgets) {
             addRenderableWidget(new UiMenuButton("규모",x+8,top+32,24,18,()->{manufacturerDescending=manufacturerSorted&&!manufacturerByName&&!manufacturerDescending;manufacturerByName=false;manufacturerSorted=true;rebuildWidgets();}).caption("").background(IndustryOrganization.art("sort_skill")));
@@ -799,7 +796,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         for (var manufacturer : rows) {
             var entry = manufacturer.entry();
             if (g != null) {
-                dev.hoi.client.ui.UiOrganizationRow.draw(g,entry.icon(),manufacturer.size(),entry.name(),manufacturer.type(),manufacturer.equipment(),x+8,y,w-16);
+                dev.hoi.client.ui.industry.IndustryOrganizationRow.draw(g,entry.icon(),manufacturer.size(),entry.name(),manufacturer.type(),manufacturer.equipment(),x+8,y,w-16);
             }
             if (widgets && y >= top + 59 && y + 45 <= bottom - 4) {
                 var hover=new dev.hoi.client.ui.UiHoverRegion(entry.name(),x+8,y,w-16,45);manufacturerTooltips.put(hover,entry.detail());
@@ -838,8 +835,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             spiritScroll = Math.clamp(spiritScroll - (int)((horizontal != 0 ? horizontal : vertical) * spiritPitch()), 0, maximumSpiritScroll());
             return true;
         }
-        if (x >= 40 && x < UiMenuBar.statsRight(width) && y >= 0 && y < UiMenuBar.STATS_HEIGHT) {
-            hudScroll = UiMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical);
+        if (x >= 40 && x < HudMenuBar.statsRight(width) && y >= 0 && y < HudMenuBar.STATS_HEIGHT) {
+            hudScroll = HudMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical);
             return true;
         }
         if (detail != null) { detailScroll -= (int)(vertical * 26); return true; }
@@ -887,7 +884,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
         ScreenInvisibleButton(String label, int x, int y, int w, int h, Runnable action) {
             super(x, y, w, h, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
-            setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal(label)));
+            setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(label)));
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
         }

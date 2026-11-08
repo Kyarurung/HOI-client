@@ -10,6 +10,8 @@ import dev.hoi.protocol.country.*;
 import dev.hoi.protocol.decision.*;
 import dev.hoi.protocol.dialog.*;
 import dev.hoi.protocol.menu.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -48,7 +50,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     private Boolean modern;
     private int legacyPage;
     private String hover = "";
-    private UiTooltips.ScrolledTooltip tooltipBounds;
+    private Tooltips.ScrolledTooltip tooltipBounds;
     private record DecisionHit(String id,String tooltip,int x,int y,int width,int height) {
         DecisionHit(String id,String tooltip,int y,int height) { this(id,tooltip,7,y,Integer.MAX_VALUE,height); }
     }
@@ -172,11 +174,11 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     }
     @Override protected void init() {
         eventRows = dialogs() == null ? List.of() : dialogs().events();
-        pane=UiPanelLayout.width(MenuTab.DECISIONS,width);top=UiMenuBar.height(width);
+        pane=UiPanelLayout.width(MenuTab.DECISIONS,width);top=HudMenuBar.height(width);
         assets=loadAssets();text.clear();panels.clear();
         pane=preferredWidth();
         var view=snapshot.view();
-        UiMenuBar.buttons(width,view==null?"":view.country(),MenuTab.DECISIONS,tab -> {
+        HudMenuBar.buttons(width,view==null?"":view.country(),MenuTab.DECISIONS,tab -> {
             if(tab==MenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(tab);
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(new UiMenuButton("×",pane-25,top+3,19,19,this::onClose));
@@ -248,7 +250,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             int eventHeader=36;
             if (g != null) {
                 UiAssets.nineSlice(g, "decision/ui/event_header", 5, y, pane - 10, eventHeader, 5, 1);
-                g.text(font, UiTooltips.officerText("사건",true), 16, y + 6, UiMenuStyle.TEXT,false);
+                g.text(font, Tooltips.officerText("사건",true), 16, y + 6, UiMenuStyle.TEXT,false);
             }
             popup(g,widgets,"minor","중요하지 않은 알림",58,y+5,76,26);
             popup(g,widgets,"events","사건 팝업",139,y+5,Math.max(65,pane-184),12);
@@ -282,7 +284,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         }
         for(var category:categories()) {
             String id=category.id(),name=category.name();
-            int categoryHeight=Math.max(header,UiTooltips.split(font,text.component(name).copy().withStyle(net.minecraft.ChatFormatting.BOLD),pane-header-43).size()*(font.lineHeight+1)+8);
+            int categoryHeight=Math.max(header,Tooltips.split(font,text.component(name).copy().withStyle(net.minecraft.ChatFormatting.BOLD),pane-header-43).size()*(font.lineHeight+1)+8);
             if(g!=null) {
                 UiAssets.nineSlice(g,"decision/category",5,y,pane-10,categoryHeight,5,1);
                 if(!UiAssets.draw(g,asset(category.icon(),"icon"),10,y+(categoryHeight-header+6)/2,header-6,header-6))
@@ -523,7 +525,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         label(g,value,x,y,width,height,color,alignment,false);
     }
     private void label(GuiGraphicsExtractor g,String value,int x,int y,int width,int height,int color,int alignment,boolean bold) {
-        var lines=bold?UiTooltips.split(font,text.component(value).copy().withStyle(net.minecraft.ChatFormatting.BOLD),width):text.lines(font,value,width);
+        var lines=bold?Tooltips.split(font,text.component(value).copy().withStyle(net.minecraft.ChatFormatting.BOLD),width):text.lines(font,value,width);
         int lineHeight=font.lineHeight+1;
         int top=y+(height-lines.size()*lineHeight)/2;
         for(var line:lines) {
@@ -555,13 +557,13 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         var events = dialogs() == null ? List.<DialogView>of() : dialogs().events();
         if (!events.equals(eventRows)) rebuildWidgets();
         var view=snapshot.view();
-        UiMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
+        HudMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
         g.enableScissor(0,top,pane,height);
         UiAssets.tiledNineSlice(g,"diplomacy/dialog/panel_dark",-32,top,pane+32,height-top+32,64,.5);
         g.disableScissor();
         g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/decision/ui/window_header.png"),0,top,pane,top+21,248f/794,1,0,1);
         g.pose().pushMatrix();g.pose().translate(20,top+4);g.pose().scale(1.25f);
-        g.text(font,UiTooltips.officerText("사건과 결정",true),0,0,UiMenuStyle.TEXT,false);g.pose().popMatrix();
+        g.text(font,Tooltips.officerText("사건과 결정",true),0,0,UiMenuStyle.TEXT,false);g.pose().popMatrix();
         g.enableScissor(3,contentTop(),pane-13,contentBottom());layout(g,false);g.disableScissor();
         drawScrollbar(g);
         if(view!=null && categories().isEmpty())g.text(font,"선택 가능한 결정 없음",12,contentTop()+48,UiMenuStyle.MUTED);

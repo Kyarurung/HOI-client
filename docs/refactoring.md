@@ -4,7 +4,7 @@
 
 ## 책임과 이름
 
-`client`는 초기화와 캠페인 HUD 수명, `network`는 요청·응답과 늦은 응답 폐기, `input`은 입력 소유권, `map`은 장면·메시·부대 표시, `research`는 연구 배치·상세·조회, `screen`은 화면과 해당 화면의 순수 계산, `ui`는 공용 셀·글꼴·툴팁·아트, `audio`는 음악·효과음 수명을 맡는다. `map`과 `screen`에는 공통 클래스만 두고 기능별 클래스는 하위 패키지에 둔다: `map.agency`, `map.commander`, `map.air`, `map.naval`, `map.scene`과 `screen.agency`, `screen.raid`, `screen.commander`, `screen.army`, `screen.map`, `screen.industry`, `screen.diplomacy`, `screen.occupation`, `screen.politics`, `screen.decision`, `screen.focus`, `screen.doctrine`, `screen.dialog`. 공용 그리기 도구인 `ui`, 연구 화면 하나인 `research`, Mixin 설정이 가리키는 `mixin`은 나누지 않는다. 타입 이름은 패키지 마지막 부분의 PascalCase 접두어와 책임 단어로 맞추고, 접두어만 남는 화면 클래스에는 `Screen`을 붙인다. 테스트는 대상 클래스와 같은 패키지에 두고 해당 이름에 `Test` 또는 `Checks`를 붙인다. 예를 들어 `map.scene.SceneMesh`, `screen.industry.IndustryScreen`, `ui.UiFlagStack`이다. [패키지 분류 대응표](package-split-mapping.tsv)는 이 분류로 바뀐 이름과 경로를 기록한다.
+`client`는 초기화와 캠페인 HUD 수명, `network`는 요청·응답과 늦은 응답 폐기, `input`은 입력 소유권, `map`은 장면·메시·부대 표시, `screen`은 화면과 해당 화면의 순수 계산, `ui`는 공용 셀·글꼴·툴팁·아트, `mixin`은 Minecraft 렌더·입력·음향 연결, `audio`는 음악·효과음 수명을 맡는다. `map`, `screen`, `ui`, `mixin`에는 공통 클래스만 두고 기능별 클래스는 하위 패키지에 둔다: `map.agency`, `map.commander`, `map.air`, `map.naval`, `map.scene`과 `screen.agency`, `screen.raid`, `screen.commander`, `screen.army`, `screen.map`, `screen.industry`, `screen.diplomacy`, `screen.occupation`, `screen.politics`, `screen.decision`, `screen.focus`, `screen.doctrine`, `screen.dialog`, `screen.research`와 `ui.tooltip`, `ui.hud`, `ui.country`, `ui.politics`, `ui.industry`, `ui.agency`, `mixin.atlas`, `mixin.audio`, `mixin.input`, `mixin.gui`. 연구 화면은 다른 화면처럼 `screen.research`에 둔다. Mixin 클래스는 Mixin 설정의 `dev.hoi.client.mixin` 아래 하위 패키지에만 두고 설정 목록에는 `하위.클래스`로 적는다. 타입 이름은 패키지 마지막 부분의 PascalCase 접두어와 책임 단어로 맞추고, 접두어만 남는 화면 클래스에는 `Screen`을 붙인다. 테스트는 대상 클래스와 같은 패키지에 두고 해당 이름에 `Test` 또는 `Checks`를 붙인다. 예를 들어 `map.scene.SceneMesh`, `screen.industry.IndustryScreen`, `ui.country.CountryFlagStack`, `mixin.atlas.AtlasBorder`이다. [패키지 분류 대응표](package-split-mapping.tsv)는 이 분류로 바뀐 이름과 경로를 기록한다.
 
 Fabric 초기화 진입점 `HoiClient`는 유지한다. 렌더링 검증 진입점은 `ResearchScreenTest`로 등록하며, GameTest 구현도 클래스명은 Test로 끝난다. `FabricClientGameTest` 인터페이스와 실행 태스크는 유지한다. 공유 `protocol`은 HOI와 함께 화면별 하위 패키지로 나누고 최상위 타입 이름을 바꿨다. 중첩 DTO·enum 이름과 페이로드 ID는 유지한다. 내부 JSON 해석기는 `ProtocolJsonCodec`, 새 공용 형식은 `ProtocolNumberBounds`와 `ProtocolTextBounds`다. mixin 타입 이름과 JSON 등록을 함께 바꿨으며 Minecraft 대상 메서드·접근자 시그니처는 유지한다. 통신·저장·명령·콘텐츠 ID는 변경하지 않는다.
 
@@ -22,7 +22,7 @@ main 77개 파일과 모든 JUnit·GameTest·benchmark 파일은 메서드 본�
 
 ## 반복 비용과 측정
 
-`UiFlagStack`은 현재 국기의 기존 순서를 유지하고 새 국기를 입력 순서로 붙인다. 중첩 List 탐색을 한 번의 `LinkedHashSet` 차집합으로 바꿔 기존/입력 길이 n·m에 대한 기대 시간을 O(n+m)으로 낮춘다. 입력 크기 O(m)의 임시 색인을 사용한다. 중복·삭제·재삽입·불변 반환값과 배치 경계를 회귀 검사한다.
+`CountryFlagStack`은 현재 국기의 기존 순서를 유지하고 새 국기를 입력 순서로 붙인다. 중첩 List 탐색을 한 번의 `LinkedHashSet` 차집합으로 바꿔 기존/입력 길이 n·m에 대한 기대 시간을 O(n+m)으로 낮춘다. 입력 크기 O(m)의 임시 색인을 사용한다. 중복·삭제·재삽입·불변 반환값과 배치 경계를 회귀 검사한다.
 
 `ResearchDetails`는 자원 로딩 시 장비 ID 색인을 만들고 상세 캐시와 함께 폐기한다. 반복 조회는 카드 전체 순회에서 기대 O(1)로 바뀌고 추가 메모리는 카드 수에 비례한다. 첫 항목 우선 규칙, 4 MB 입력 제한, 최대 512개 기술·기술당 64개 카드 제한을 유지한다. 렌더링 검사는 모든 카드 조회와 누락/null 조회, 캐시 재로딩을 검사한다. `ResearchLayout.yearGuides`는 반복하던 방향 판정을 한 번만 한다.
 

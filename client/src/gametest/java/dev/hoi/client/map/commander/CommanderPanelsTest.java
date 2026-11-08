@@ -8,6 +8,8 @@ import dev.hoi.protocol.commander.CommanderHudPayloads.*;
 import dev.hoi.protocol.commander.*;
 import dev.hoi.protocol.hud.*;
 import dev.hoi.protocol.menu.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import java.nio.file.*;
 import java.util.*;
@@ -15,10 +17,11 @@ import java.util.*;
 final class CommanderPanelsTest {
     private CommanderPanelsTest() {}
     static void run(ClientGameTestContext context,MenuView menu) {
-        run(context,menu,List.of("army","army-assigned","army-group-assigned","navy","air","air-attached","air-detached","air-groups","air-diagnostics","army-immobile","navy-convoy-excluded"));
+        run(context,menu,List.of("army","army-assigned","army-group-assigned","navy","air","air-long-name","air-attached","air-detached","air-groups","air-diagnostics","army-immobile","navy-convoy-excluded"));
     }
     static void runArmyLayout(ClientGameTestContext context,MenuView menu){run(context,menu,List.of("army","army-assigned","army-group-assigned","army-immobile","navy","air"));}
     static void runNavyLayout(ClientGameTestContext context,MenuView menu){run(context,menu,List.of("navy","navy-convoy-excluded"));}
+    static void runAirLayout(ClientGameTestContext context,MenuView menu){run(context,menu,List.of("air","air-long-name","air-attached","air-detached","air-groups","air-diagnostics"));}
     private static void run(ClientGameTestContext context,MenuView menu,List<String> kinds) {
         String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
         try {
@@ -29,7 +32,9 @@ final class CommanderPanelsTest {
                     var empty=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-army-group-assigned.json"))).view();
                     if(empty.cards().stream().noneMatch(c->c.role()==Mode.ASSIGN_ARMY&&c.count()==0)||CommanderHud.visibleCards(empty).cards().stream().anyMatch(c->c.role()==Mode.ASSIGN_ARMY&&c.count()==0))throw new AssertionError("Empty source armies must be excluded from the rendered group");
                 }
-                var source=new Snapshot(Files.readString(Path.of(directory,"kor-command-panel-"+(kind.equals("army-group-assigned")?"army-trait-skills":kind)+".json"))).view();
+                var input=com.google.gson.JsonParser.parseString(Files.readString(Path.of(directory,"kor-command-panel-"+(kind.equals("army-group-assigned")?"army-trait-skills":kind.equals("air-long-name")?"air":kind)+".json"))).getAsJsonObject();
+                if(kind.equals("air-long-name"))input.getAsJsonArray("wings").get(0).getAsJsonObject().addProperty("name","제1 근접항공지원기 비행단");
+                var source=new Snapshot(input.toString()).view();
                 var initialWings=previewWings(source,kind);
                 for(int[] size:List.of(new int[]{2560,1440},new int[]{2560,1369},new int[]{1280,720})) {
                     var sent=new ArrayList<Open>();context.getInput().resizeWindow(size[0],size[1]);
@@ -49,7 +54,7 @@ final class CommanderPanelsTest {
                     context.runOnClient(client->{
                         for(String asset:List.of("army_bg","army_group_bg","uv_unit_entry_bg","bpt_bg","fleet_bg","task_force_bg","av_base_entry_bg","av_wing_entry_bg","nv_btn_patrol","strategicair_mission_types","unit_level","fuel_strip","unitlist_movement_icon"))if(UiAssets.imageHeight("commander/commands/"+asset+"/frame_0",100)<=0)throw new AssertionError("Native command asset missing: "+asset);
                         if(UiAssets.imageHeight("commander/commands/bpt_order_draw_naval_inv_with_harbor_btn/atlas",71)!=32)throw new AssertionError("Floating harbor must retain the native 71x32 two-frame atlas");
-                        if(source.branch()==Mode.ARMY){for(var card:source.cards())if(card.panel()!=null){String expected=card.role()==Mode.ARMY_GROUP||!card.panel().commander().isEmpty()?card.count()+"/"+card.capacity():Integer.toString(card.count());if(!CommanderHud.countLabel(card).equals(expected))throw new AssertionError("Assigned and unassigned source counts must preserve the original display rule");if(card.role()==Mode.ARMY_GROUP&&card.panel().divisionIds()!=null&&!CommanderHud.divisionCountLabel(card).equals(Integer.toString(card.panel().divisionIds().size())))throw new AssertionError("Group division badge must count actual divisions rather than child armies");}var units=CommanderLayout.units(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight());float textScale=UiText.scale(client.font);if(client.font.split(UiTooltips.officerText(UiCommandLabels.text("CLICK_TO_ASSIGN","")),Math.max(1,(int)(units.size(33)/textScale))).size()*client.font.lineHeight*textScale>units.size(40))throw new AssertionError("Assignment wording must fit inside the portrait frame without shrinking");}
+                        if(source.branch()==Mode.ARMY){for(var card:source.cards())if(card.panel()!=null){String expected=card.role()==Mode.ARMY_GROUP||!card.panel().commander().isEmpty()?card.count()+"/"+card.capacity():Integer.toString(card.count());if(!CommanderHud.countLabel(card).equals(expected))throw new AssertionError("Assigned and unassigned source counts must preserve the original display rule");if(card.role()==Mode.ARMY_GROUP&&card.panel().divisionIds()!=null&&!CommanderHud.divisionCountLabel(card).equals(Integer.toString(card.panel().divisionIds().size())))throw new AssertionError("Group division badge must count actual divisions rather than child armies");}var units=CommanderLayout.units(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight());float textScale=UiText.scale(client.font);if(client.font.split(Tooltips.officerText(UiCommandLabels.text("CLICK_TO_ASSIGN","")),Math.max(1,(int)(units.size(33)/textScale))).size()*client.font.lineHeight*textScale>units.size(40))throw new AssertionError("Assignment wording must fit inside the portrait frame without shrinking");}
                         if(source.branch()==Mode.AIR){if(source.wings().isEmpty())throw new AssertionError("Actual source wings required");CommanderPanels.selectWings(initialWings.stream().map(Member::id).toList());}
                         else {
                             var card=source.cards().stream().filter(c->c.panel()!=null&&(source.branch()!=Mode.ARMY||!kind.equals("army")||c.role()==Mode.ASSIGN_ARMY)&&(source.branch()!=Mode.ARMY||!kind.contains("assigned")||(c.role()==Mode.ARMY_GROUP)==kind.equals("army-group-assigned"))&&(kind.equals("navy-convoy-excluded")?c.panel().members().stream().anyMatch(m->m.data()!=null&&m.data().navy()!=null&&Boolean.TRUE.equals(m.data().navy().convoyExcluded())):kind.equals("army-immobile")?c.panel().controls().stream().anyMatch(control->control.id().equals("COHESION_IMMOBILE")):kind.contains("assigned")?c.panel().leader()!=null:!c.panel().members().isEmpty())).findFirst().orElseThrow();
@@ -66,6 +71,11 @@ final class CommanderPanelsTest {
                     context.runOnClient(client->{var cards=CommanderPanels.selectedCards();var units=CommanderPanels.commandSelection();var mode=CommanderOrders.pending();boolean point=CommanderOrders.pointMode(),draws=CommanderOrders.drawsPlanLine();int before=sent.size();for(int key:new int[]{InputConstants.KEY_Z,InputConstants.KEY_X,InputConstants.KEY_C,InputConstants.KEY_V,InputConstants.KEY_B,InputConstants.KEY_H,InputConstants.KEY_K,InputConstants.KEY_D,InputConstants.KEY_S,InputConstants.KEY_G,InputConstants.KEY_A,InputConstants.KEY_O,InputConstants.KEY_DELETE,InputConstants.KEY_LCONTROL,InputConstants.KEY_LALT})for(int modifiers:new int[]{0,InputConstants.MOD_CONTROL,InputConstants.MOD_SHIFT,InputConstants.MOD_ALT}){var event=new net.minecraft.client.input.KeyEvent(key,0,modifiers);client.gui.screen().keyPressed(event);client.gui.screen().keyReleased(event);}if(sent.size()!=before||!CommanderPanels.selectedCards().equals(cards)||!CommanderPanels.commandSelection().equals(units)||!CommanderOrders.pending().equals(mode)||CommanderOrders.pointMode()!=point||CommanderOrders.drawsPlanLine()!=draws)throw new AssertionError("Removed branch keys cannot request commands, change selection or enter a map mode");if(Arrays.stream(client.options.keyMappings).anyMatch(k->k.getName().startsWith("key.hoi.army.")))throw new AssertionError("Removed army bindings must not be registered");for(var hit:CommanderPanels.hits())if(!CommanderPanels.preservesSourceTooltip(hit.icon())&&!hit.tip().equals(UiCommandLabels.withoutShortcuts(hit.tip())))throw new AssertionError("Branch tooltips must already exclude shortcut instructions");});
                     if(source.branch()==Mode.NAVY_HQ)context.runOnClient(client->{if(source.cards().stream().filter(c->CommanderPanels.selected(c.id())&&c.panel()!=null).flatMap(c->c.panel().members().stream()).anyMatch(m->!m.composition().isEmpty())&&CommanderPanels.hits().stream().noneMatch(hit->hit.tip().contains("유형의 함정 §Y")))throw new AssertionError("Actual selected fleet hull counts must be visible in native tooltip band");});
                     var panelImage=context.takeScreenshot("hoi-native-command-panel-"+kind+"-"+size[0]+"x"+size[1]+"-gui2");if(kind.equals("army"))assertOrganizationPixels(context,panelImage);
+                    if(kind.equals("air")||kind.equals("air-long-name")){
+                        var names=context.computeOnClient(client->{var u=CommanderLayout.units(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight());var rows=new ArrayList<Map<String,Object>>();for(var wing:source.wings())for(var hit:CommanderPanels.hits())if(hit.w()>u.size(200)&&hit.tip().equals("§e"+wing.name()+"§r\n"+wing.detail()))rows.add(Map.of("name",wing.name(),"textWidth",client.font.width(Tooltips.officerText(wing.name())),"x",(hit.x()+u.size(116.5))*2,"y",(hit.y()+u.size(3.5))*2,"width",u.size(60)*2,"height",u.size(9)*2));return rows;});
+                        Files.writeString(Path.of(panelImage.toString().replace(".png","-names.json")),new com.google.gson.Gson().toJson(names));
+                        for(int frame=1;frame<=(kind.equals("air-long-name")?15:5);frame++){context.waitTicks(30);context.takeScreenshot("hoi-native-command-panel-"+kind+"-name-scroll-"+frame+"-"+size[0]+"x"+size[1]+"-gui2");}
+                    }
                     if(kind.equals("army")||kind.equals("army-group-assigned")||kind.equals("air"))nativeTooltips(context,source,kind,size);
                     if(kind.equals("army")){
                         context.runOnClient(client->{var mode=CommanderPanels.hits().stream().filter(hit->hit.tip().startsWith(UiCommandLabels.withoutShortcuts(UiCommandLabels.text("PLAN_EXECUTE_MODE","전투 계획 실행 모드")))).findFirst().orElseThrow();CommanderHud.clickAt(mode.x()+mode.w()/2.,mode.y()+mode.h()/2.);});context.waitTicks(2);
@@ -230,7 +240,7 @@ final class CommanderPanelsTest {
     }
     private static void assertCommandCells(View source,int width,int height) {
         var u=CommanderLayout.units(width,height);boolean navy=source.branch()==Mode.NAVY_HQ;
-        if(source.branch()==Mode.AIR){int top=UiMenuBar.height(width)+u.size(2);var cells=CommanderPanels.hits().stream().filter(h->h.y()>=top&&h.y()+h.h()<=top+u.size(17)).toList();assertSeparate(cells);return;}
+        if(source.branch()==Mode.AIR){int top=HudMenuBar.height(width)+u.size(2);var cells=CommanderPanels.hits().stream().filter(h->h.y()>=top&&h.y()+h.h()<=top+u.size(17)).toList();assertSeparate(cells);return;}
         int w=u.size(navy?266:320.5),x=CommanderLayout.commandLeft(u,navy),y=CommanderPanels.actionbarTop(u,navy);
         if(!navy&&CommanderPanels.hits().stream().anyMatch(h->h.icon().equals("nv_btn_close")&&h.y()>=y&&h.y()<y+u.size(15)))throw new AssertionError("Original army command strip has no close button");
         var row=CommanderPanels.hits().stream().filter(h->h.x()>=x&&h.y()>=y+u.size(15)&&h.y()+h.h()<=y+u.size(navy?50:39.5)).toList();

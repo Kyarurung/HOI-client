@@ -45,7 +45,7 @@ public final class DialogStack extends Screen {
         var old = find(view.token());
         if (old != null) { old.update(view); return; }
         if (windows.size() >= 64) return;
-        var window = DoctrineNotification.matches(view) ? new DoctrineNotification(view,send) : view.completion() ? new DialogCompletion(view,send) : view.leaderEvent() ? new DialogLeaderEvent(view,send) : new DialogScreen(view,send);
+        var window = DialogLeaseNotification.matches(view) ? new DialogLeaseNotification(view, send) : DoctrineNotification.matches(view) ? new DoctrineNotification(view,send) : view.completion() ? new DialogCompletion(view,send) : view.leaderEvent() ? new DialogLeaderEvent(view,send) : new DialogScreen(view,send);
         window.stacked = true;
         window.minimize = () -> minimize(view.token());
         windows.add(window);
@@ -58,7 +58,7 @@ public final class DialogStack extends Screen {
     }
     @Override protected void init() {
         clearWidgets();
-        if (dev.hoi.client.ClientCampaignHud.visible()) for (var button : dev.hoi.client.ui.UiMenuBar.buttons(width, "", null, dev.hoi.client.HoiClient::openMenu)) addRenderableWidget(button);
+        if (dev.hoi.client.ClientCampaignHud.visible()) for (var button : dev.hoi.client.ui.hud.HudMenuBar.buttons(width, "", null, dev.hoi.client.HoiClient::openMenu)) addRenderableWidget(button);
         if (backdrop != null && (backdrop.width != width || backdrop.height != height)) backdrop.resize(width, height);
         for (int i = 0; i < windows.size(); i++) {
             var window = windows.get(i);
@@ -90,7 +90,7 @@ public final class DialogStack extends Screen {
     public Screen inputAt(double x, double y) {
         for (var screen : layers().reversed()) {
             if (screen == backdrop) {
-                if (y < dev.hoi.client.ui.UiMenuBar.height(width)) continue;
+                if (y < dev.hoi.client.ui.hud.HudMenuBar.height(width)) continue;
                 if (!(screen instanceof dev.hoi.client.input.InputSidebarMovement.InputMovementScreen sidebar) || !sidebar.allowsMovement()
                         || x < sidebar.unitHudLeft()) return screen;
             } else if (screen instanceof DialogScreen window && x >= window.panelLeft() && x < window.panelLeft() + window.panelWidth()
@@ -106,9 +106,12 @@ public final class DialogStack extends Screen {
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         var target = inputAt(mx, my);
-        dev.hoi.client.ClientCampaignHud.draw(g);
+        boolean contentOwnsHud = backdrop instanceof dev.hoi.client.screen.focus.FocusScreen
+                || backdrop instanceof dev.hoi.client.screen.doctrine.DoctrineScreen
+                || backdrop instanceof dev.hoi.client.screen.research.ResearchScreen research && !research.allowsMovement();
+        if (!contentOwnsHud) dev.hoi.client.ClientCampaignHud.draw(g);
         g.nextStratum();
-        contentPass = dev.hoi.client.ClientCampaignHud.visible();
+        contentPass = dev.hoi.client.ClientCampaignHud.visible() && !contentOwnsHud;
         try {
             for (var screen : layers()) {
                 if (screen == backdrop) net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.beforeExtract(screen).invoker().beforeExtract(screen,g,screen == target ? mx : -1,screen == target ? my : -1,delta);
@@ -123,7 +126,7 @@ public final class DialogStack extends Screen {
         boolean consumed = pressedTarget == null ? super.mouseClicked(event, twice) : pressedTarget.mouseClicked(event, twice);
         if (!consumed && (pressedTarget == null || pressedTarget == backdrop) && backdrop instanceof dev.hoi.client.input.InputSidebarMovement.InputMovementScreen sidebar
                 && sidebar.allowsMovement() && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
-                && event.x() >= sidebar.unitHudLeft() && event.y() >= dev.hoi.client.ui.UiMenuBar.height(width)) {
+                && event.x() >= sidebar.unitHudLeft() && event.y() >= dev.hoi.client.ui.hud.HudMenuBar.height(width)) {
             return dev.hoi.client.input.InputMapInfo.clickAt(minecraft, event.x(), event.y(), width, height);
         }
         return consumed;

@@ -5,6 +5,8 @@ import dev.hoi.client.ui.*;
 import dev.hoi.protocol.country.*;
 import dev.hoi.protocol.diplomacy.*;
 import dev.hoi.protocol.menu.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -26,7 +28,6 @@ public final class DiplomacyWorldTension extends Screen {
     public DiplomacyWorldTension(DiplomacyWorldTensionView view) { super(Component.literal("세계 긴장도 이력")); this.view = view; fixture = true; pending = false; }
     String token() { return token; }
     DiplomacyWorldTensionView view() { return view; }
-    DiplomacyWorldTensionView.Sort sort() { return sort; }
     String warId() { return warId; }
     void select(DiplomacyWorldTensionView.Sort next) {
         descending = sort == next ? !descending : next != DiplomacyWorldTensionView.Sort.COUNTRY;
@@ -65,10 +66,10 @@ public final class DiplomacyWorldTension extends Screen {
     }
     @Override protected void init() {
         boolean detail = war() != null;
-        scale = Math.min(Math.max(.5f, width / 2560f), Math.min((width-12f)/(detail?1167:527),(height-UiMenuBar.height(width)-12f)/(detail?780:534)));
+        scale = Math.min(Math.max(.5f, width / 2560f), Math.min((width-12f)/(detail?1167:527),(height-HudMenuBar.height(width)-12f)/(detail?780:534)));
         panelWidth = detail ? 1167 : 527; panelHeight = detail ? 780 : 534;
-        x = (width - s(panelWidth))/2; y = Math.max(UiMenuBar.height(width)+5,(height-s(panelHeight))/2);
-        UiMenuBar.buttons(width,view==null?"":view.viewer(),null,tab -> { if (tab==MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab); }).forEach(this::addRenderableWidget);
+        x = (width - s(panelWidth))/2; y = Math.max(HudMenuBar.height(width)+5,(height-s(panelHeight))/2);
+        HudMenuBar.buttons(width,view==null?"":view.viewer(),null,tab -> { if (tab==MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab); }).forEach(this::addRenderableWidget);
         if (!detail) {
             String[] labels = {"날짜","국가","세계 긴장도","현재 전쟁"}; int[] positions = {40,149,258,385};
             for (var tab : DiplomacyWorldTensionView.Sort.values()) button(labels[tab.ordinal()],positions[tab.ordinal()],87,100,29,"tension/sort"+(sort==tab?"_selected":""),() -> select(tab));
@@ -117,13 +118,13 @@ public final class DiplomacyWorldTension extends Screen {
         text(g,value,px,py,w,color,centered,false);
     }
     private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int color,boolean centered,boolean bold) {
-        float fontScale=Math.max(1.6f, 10f / (font.lineHeight * scale)); var line=net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(UiTooltips.officerText(value,bold),Math.max(1,(int)(w/fontScale))));
+        float fontScale=Math.max(1.6f, 10f / (font.lineHeight * scale)); var line=net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(Tooltips.officerText(value,bold),Math.max(1,(int)(w/fontScale))));
         g.pose().pushMatrix(); g.pose().translate(px+(centered?w/2f:0),py); g.pose().scale(fontScale);
         if(centered) g.centeredText(font,line,0,0,color); else g.text(font,line,0,0,color);
         g.pose().popMatrix();
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
-        UiMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
+        HudMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
         begin(g);
         if(war()==null) history(g); else detail(g,war());
         end(g); super.extractRenderState(g,mx,my,delta);
@@ -149,7 +150,7 @@ public final class DiplomacyWorldTension extends Screen {
                 UiAssets.draw(g,"tension/clock",213,py+8,20,25);
                 text(g,percent(e.initial()),244,py+4,49,e.initial()!=null&&e.initial()>0?0xFFCF4545:0xFF6DAD64,false);
                 text(g,percent(e.current()),244,py+22,49,0xFFC5C7BF,false);
-                var lines=UiTooltips.split(font,Component.literal(e.reason()),145);
+                var lines=Tooltips.split(font,Component.literal(e.reason()),145);
                 for(int j=0;j<Math.min(2,lines.size());j++) { g.pose().pushMatrix();g.pose().translate(295,py+4+j*17);g.pose().scale(Math.max(1.25f, 10f / (font.lineHeight * scale)));g.text(font,lines.get(j),0,0,0xFFE0E0DA);g.pose().popMatrix(); }
             }
         }
@@ -190,11 +191,11 @@ public final class DiplomacyWorldTension extends Screen {
     private String sum(List<DiplomacyWorldTensionView.Participant> side) {
         long total=0;
         for(var p:side) if(!p.callable()) { try {total=Math.addExact(total,Long.parseLong(p.manpower()));} catch(NumberFormatException|ArithmeticException e) {return "0";} }
-        return UiMenuBar.number((double)total);
+        return HudMenuBar.number((double)total);
     }
     private static String percent(Double value) { return value==null?"—":String.format(Locale.ROOT,"%.1f%%",value); }
     private void flag(GuiGraphicsExtractor g,String tag,int px,int py,int w,int h) {
-        if(!UiAssets.draw(g,UiMenuBar.flagTexture(tag),px,py,w,h)) text(g,tag,px,py+5,w,0xFFE0E0DA,true);
+        if(!UiAssets.draw(g,HudMenuBar.flagTexture(tag),px,py,w,h)) text(g,tag,px,py+5,w,0xFFE0E0DA,true);
     }
     private void score(GuiGraphicsExtractor g,int px,int py,int w,int h,Double amount) {
         UiAssets.draw(g,"tension/score_blue",px,py,w,h);

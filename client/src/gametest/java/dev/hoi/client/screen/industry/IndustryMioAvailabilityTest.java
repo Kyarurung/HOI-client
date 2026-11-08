@@ -1,7 +1,7 @@
 package dev.hoi.client.screen.industry;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.hoi.client.research.ResearchScreen;
+import dev.hoi.client.screen.research.ResearchScreen;
 import dev.hoi.protocol.industry.*;
 import dev.hoi.protocol.menu.*;
 import dev.hoi.protocol.research.*;

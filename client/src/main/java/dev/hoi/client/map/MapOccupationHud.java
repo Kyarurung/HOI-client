@@ -6,6 +6,8 @@ import dev.hoi.client.ui.*;
 import dev.hoi.protocol.occupation.OccupationPayloads;
 import dev.hoi.protocol.occupation.OccupationPayloads.*;
 import dev.hoi.client.map.scene.SceneRenderer;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.fabricmc.fabric.api.client.networking.v1.*;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.*;
@@ -50,7 +52,7 @@ public final class MapOccupationHud {
         hits=List.of();labels=List.of();var c=Minecraft.getInstance();
         if(view==null||c.level==null||c.gui.hud.isHidden()||!view.dimension().equals(c.level.dimension().identifier().toString()))return;
         var camera=c.gameRenderer.mainCamera();var matrix=camera.getViewRotationProjectionMatrix(new org.joml.Matrix4f());var forward=camera.forwardVector();
-        var result=new ArrayList<Hit>();var placed=new ArrayList<Label>();int top=UiMenuBar.height(g.guiWidth());
+        var result=new ArrayList<Hit>();var placed=new ArrayList<Label>();int top=HudMenuBar.height(g.guiWidth());
         for(var row:view.rows()){
             var relative=new Vec3(row.x(),row.y()+3.1,row.z()).subtract(camera.position());
             if(relative.x*forward.x()+relative.y*forward.y()+relative.z*forward.z()<=0)continue;
@@ -78,5 +80,5 @@ public final class MapOccupationHud {
         }
         hits=List.copyOf(result);labels=List.copyOf(placed);
     }
-    private static void tooltip(GuiGraphicsExtractor g,int x,int y){for(var hit:hits.reversed())if(hit.contains(x,y)){UiTooltips.drawExact(g,Minecraft.getInstance().font,hit.tooltip(),x,y);return;}}
+    private static void tooltip(GuiGraphicsExtractor g,int x,int y){for(var hit:hits.reversed())if(hit.contains(x,y)){Tooltips.drawExact(g,Minecraft.getInstance().font,hit.tooltip(),x,y);return;}}
 }

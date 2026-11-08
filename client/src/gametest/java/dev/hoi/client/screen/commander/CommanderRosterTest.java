@@ -17,7 +17,7 @@ public final class CommanderRosterTest {
             };
             screen.extractRenderState(graphics,-1,-1,0);
             if(!found.containsAll(List.of(hero.name(),hero.leader().role())))throw new AssertionError("Leader header text was not rendered");
-            dev.hoi.client.ui.UiTooltips.officerText("§f장군§r 이름",true).visit((style,part)->{if(!part.isBlank()&&!style.isBold())throw new AssertionError("Source color resets must not clear required bold");return Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
+            dev.hoi.client.ui.tooltip.Tooltips.officerText("§f장군§r 이름",true).visit((style,part)->{if(!part.isBlank()&&!style.isBold())throw new AssertionError("Source color resets must not clear required bold");return Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
         });
     }
     public static void run(ClientGameTestContext game) {
@@ -32,7 +32,7 @@ public final class CommanderRosterTest {
                 game.setScreen(()->new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("Bold glyph comparison")) {
                     @Override public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor graphics,int mouseX,int mouseY,float delta) {
                         graphics.fill(10,40,400,160,0xFF888888);
-                        var plain=dev.hoi.client.ui.UiTooltips.officerText("장군 전동진 제독 안상민",false);var bold=dev.hoi.client.ui.UiTooltips.officerText("장군 전동진 제독 안상민",true);
+                        var plain=dev.hoi.client.ui.tooltip.Tooltips.officerText("장군 전동진 제독 안상민",false);var bold=dev.hoi.client.ui.tooltip.Tooltips.officerText("장군 전동진 제독 안상민",true);
                         if(font.width(bold)<=font.width(plain))throw new AssertionError("Bold header glyphs must have additional advance");
                         graphics.text(font,plain,20,50,0xFFFFFFFF,false);graphics.text(font,bold,20,70,0xFFFFFFFF,false);
                         graphics.text(font,plain,20,100,0xFF000000,false);graphics.text(font,bold,20,120,0xFF000000,false);
@@ -136,7 +136,7 @@ public final class CommanderRosterTest {
                 var actions=new ArrayList<DialogPayloads.Action>();var screen=game.computeOnClient(c->new CommanderRoster(view,null,actions::add));game.setScreen(()->screen);
                 game.runOnClient(c->{var search=screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.EditBox).map(w->(net.minecraft.client.gui.components.EditBox)w).findFirst().orElseThrow();search.setValue(candidate.name());});game.waitTicks(2);
                 game.getInput().setCursorPos(size[0]-5,80);game.waitTicks(2);game.takeScreenshot("hoi-roster-plus-"+file+"-"+size[0]+"x"+size[1]+"-gui2");
-                var point=game.computeOnClient(c->{int left=screen.width/2-113,top=Math.max(dev.hoi.client.ui.UiMenuBar.height(screen.width),screen.height/2-148),count=candidate.leader().traitDetails().size();return new int[]{dev.hoi.client.ui.UiFlagStack.left(count-1,count,left+70,94,12)+2,top+38+30};});
+                var point=game.computeOnClient(c->{int left=screen.width/2-113,top=Math.max(dev.hoi.client.ui.hud.HudMenuBar.height(screen.width),screen.height/2-148),count=candidate.leader().traitDetails().size();return new int[]{dev.hoi.client.ui.country.CountryFlagStack.left(count-1,count,left+70,94,12)+2,top+38+30};});
                 game.getInput().setCursorPos(point[0]*2,point[1]*2);game.waitTicks(2);game.runOnClient(c->{if(!screen.renderedTooltip().equals(detail.tooltip()))throw new AssertionError("Plus must preserve its source tooltip");});game.takeScreenshot("hoi-roster-plus-hover-"+file+"-"+size[0]+"x"+size[1]+"-gui2");
                 game.runOnClient(c->{var expected=screen.choiceButton("traits/"+(candidate.section().startsWith("admiral/")?candidate.section().substring(8):candidate.section()));if(expected==null||!expected.active)throw new AssertionError("Plus requires the issued traits choice");var click=new net.minecraft.client.input.MouseButtonEvent(point[0],point[1],new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(click,false);screen.mouseClicked(click,true);if(actions.size()!=1||!actions.getFirst().choice().startsWith("traits/")||!actions.getFirst().token().equals(view.token())||actions.getFirst().revision()!=7)throw new AssertionError("Plus must send one authenticated traits action");});
             }
@@ -156,7 +156,7 @@ public final class CommanderRosterTest {
                     var screen=game.computeOnClient(c->new CommanderRoster(view,null,a->{}));game.setScreen(()->screen);game.getInput().setCursorPos(size[0]-5,80);game.waitTicks(2);game.takeScreenshot("hoi-roster-traits-"+file+(dense?"-dense-synthetic":"-source")+"-"+size[0]+"x"+size[1]+"-gui2");
                     for(int index:List.of(0,traits.size()-1)) {
                         int n=index;var expected=traits.get(n).tooltip();int count=traits.size();
-                        var point=game.computeOnClient(c->{int left=screen.width/2-113,top=Math.max(dev.hoi.client.ui.UiMenuBar.height(screen.width),screen.height/2-148);return new int[]{dev.hoi.client.ui.UiFlagStack.left(n,count,left+70,94,12)+1,top+38+30};});
+                        var point=game.computeOnClient(c->{int left=screen.width/2-113,top=Math.max(dev.hoi.client.ui.hud.HudMenuBar.height(screen.width),screen.height/2-148);return new int[]{dev.hoi.client.ui.country.CountryFlagStack.left(n,count,left+70,94,12)+1,top+38+30};});
                         game.getInput().setCursorPos(point[0]*2,point[1]*2);game.waitTicks(2);game.runOnClient(c->{if(!screen.renderedTooltip().equals(expected))throw new AssertionError("Overlapped traits must hover the top visible icon");});
                     }
                     game.takeScreenshot("hoi-roster-traits-hover-"+file+(dense?"-dense-synthetic":"-source")+"-"+size[0]+"x"+size[1]+"-gui2");

@@ -3,7 +3,7 @@ package dev.hoi.client.screen.decision;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.protocol.country.CountryHud;
 import dev.hoi.protocol.decision.DecisionPanelView;
 import dev.hoi.protocol.decision.DecisionPayloads;
@@ -90,7 +90,7 @@ public final class DecisionPanelTest {
                                 var image=assets.root().getAsJsonObject("textImages").getAsJsonObject(imageToken.group(1));
                                 if(image!=null)imageWidth=Math.max(imageWidth,(int)Math.round(image.get("width").getAsInt()/2d));
                             }
-                            if(imageWidth>0)require(((dev.hoi.client.ui.UiTooltips.ScrolledTooltip)field(screen,"tooltipBounds")).width()==Math.min(imageWidth,screen.width-20),"Image tooltip must wrap to its configured image width: "+hit.id());
+                            if(imageWidth>0)require(((dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip)field(screen,"tooltipBounds")).width()==Math.min(imageWidth,screen.width-20),"Image tooltip must wrap to its configured image width: "+hit.id());
                         });
                         String hoverImage=screenshot(context, "hoi-decision-panel-hover-" + hit.id().toLowerCase(java.util.Locale.ROOT) + "-" + hitIndex + "-" + suffix, size);
                         screenshots.put(hit.id() + "/" + hitIndex,hoverImage);
@@ -141,7 +141,7 @@ public final class DecisionPanelTest {
         }
     }
     private static void speakerNameplate(ClientGameTestContext context,String screenshot)throws IOException {
-        var bounds=context.computeOnClient(client->(dev.hoi.client.ui.UiTooltips.ScrolledTooltip)field(client.gui.screen(),"tooltipBounds"));
+        var bounds=context.computeOnClient(client->(dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip)field(client.gui.screen(),"tooltipBounds"));
         int lineHeight=context.computeOnClient(client->client.font.lineHeight);
         int centerX=(bounds.x()+bounds.width()/2)*2,centerY=(bounds.y()+2*(lineHeight+1)+118-bounds.scroll())*2;
         var pixels=javax.imageio.ImageIO.read(Path.of(screenshot).toFile());int white=0;
@@ -309,15 +309,15 @@ public final class DecisionPanelTest {
         int target = hit.y() + Math.min(hit.height() / 2, 8);
         for (int step = 0; target - screen.scrollOffset() > screen.height - 20 && step < 30; step++) {
             int before = screen.scrollOffset();
-            screen.mouseScrolled(3, UiMenuBar.height(screen.width) + 53, 0, -3);
+            screen.mouseScrolled(3, HudMenuBar.height(screen.width) + 53, 0, -3);
             if (screen.scrollOffset() == before) break;
         }
         int y = target - screen.scrollOffset();
-        require(y >= UiMenuBar.height(screen.width) + 52 && y < screen.height - 10, "Panel tooltip cannot be reached by scrolling: " + hit.id());
+        require(y >= HudMenuBar.height(screen.width) + 52 && y < screen.height - 10, "Panel tooltip cannot be reached by scrolling: " + hit.id());
         return new int[]{hit.x() + Math.min(hit.width() / 2, 8), y};
     }
     private static void resetScroll(DecisionScreen screen) {
-        screen.mouseScrolled(3, UiMenuBar.height(screen.width) + 53, 0, Integer.MAX_VALUE / 28.0);
+        screen.mouseScrolled(3, HudMenuBar.height(screen.width) + 53, 0, Integer.MAX_VALUE / 28.0);
         require(screen.scrollOffset() == 0, "Panel scroll must reset at the margin");
     }
     private static Map<String, String> textures(DecisionScreen screen) {
@@ -358,7 +358,7 @@ public final class DecisionPanelTest {
             boolean previous=false;
             for(int index=0;index<blocks.size();index++) {
                 var block=blocks.get(index);
-                boolean blank=block.image()==null&&dev.hoi.client.ui.UiTooltips.blank(block.text());
+                boolean blank=block.image()==null&&dev.hoi.client.ui.tooltip.Tooltips.blank(block.text());
                 require(!blank||(!previous&&index>0&&index<blocks.size()-1),"Repeated or outer blank rows remain after source tooltip wrapping");
                 previous=blank;
             }

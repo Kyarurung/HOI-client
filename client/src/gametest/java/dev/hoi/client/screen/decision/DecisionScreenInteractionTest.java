@@ -1,7 +1,7 @@
 package dev.hoi.client.screen.decision;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.country.*;
 import dev.hoi.protocol.decision.*;
 import java.util.*;
@@ -38,7 +38,7 @@ public final class DecisionScreenInteractionTest {
                 var lines=text.rows("§Y첫 줄\n둘째 줄§!\n---\n수량: 0.00\n£unregistered_decision_fixture");
                 var colors=new ArrayList<Integer>();
                 lines.get(1).visit((style,part)->{if(!part.isEmpty())colors.add(style.getColor()==null?-1:style.getColor().getValue());return Optional.empty();},Style.EMPTY);
-                if(colors.isEmpty() || colors.stream().anyMatch(color->color!=UiTooltips.GOLD))throw new AssertionError("Source color must survive a newline");
+                if(colors.isEmpty() || colors.stream().anyMatch(color->color!=Tooltips.GOLD))throw new AssertionError("Source color must survive a newline");
                 if(!lines.get(2).getString().isEmpty() || !lines.get(3).getString().equals("수량: 0.00")
                         || !lines.get(4).getString().isEmpty())throw new AssertionError("Source separators and precision must survive while unknown icons stay hidden");
                 screen.update(DecisionPayloads.Response.of(screen.token(),new DecisionPayloads.View("KOR",session,2,"",0,2,hud,List.of(),categories,2)));

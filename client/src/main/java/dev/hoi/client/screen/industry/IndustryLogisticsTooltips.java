@@ -1,6 +1,6 @@
 package dev.hoi.client.screen.industry;
 
-import dev.hoi.client.ui.UiEquipmentDesigns;
+import dev.hoi.client.ui.industry.IndustryEquipmentDesigns;
 import dev.hoi.protocol.ProtocolNumberBounds;
 import java.util.List;
 
@@ -9,20 +9,20 @@ final class IndustryLogisticsTooltips {
     private IndustryLogisticsTooltips() {}
     static String header(int column) {
         String key = "LOGISTICS_" + KEYS.get(column);
-        String title = "§e" + UiEquipmentDesigns.tooltip(key + "_LABEL") + "§f";
+        String title = "§e" + IndustryEquipmentDesigns.tooltip(key + "_LABEL") + "§f";
         if (column == 1) return title;
-        return title + "\n\n" + UiEquipmentDesigns.tooltip(key + (column == 2 ? "_LABEL_DESC" : "_DESC"));
+        return title + "\n\n" + IndustryEquipmentDesigns.tooltip(key + (column == 2 ? "_LABEL_DESC" : "_DESC"));
     }
     static String row(IndustryLogisticsRows.IndustryLogisticsRow row, int column) {
         var equipment = row.representative();
         String name = equipment.familyName() == null || equipment.familyName().isBlank() ? equipment.name() : equipment.familyName();
         return switch (column) {
             case 0 -> row.efficiency() == null
-                    ? UiEquipmentDesigns.tooltip("LOGISTICS_NO_EQUIPMENT_PRODUCTION").replace("$EQUIPMENT|Y$", "§e" + name + "§f")
-                    : UiEquipmentDesigns.tooltip("LOGISTICS_AVERAGE_EFFICIENCY")
+                    ? IndustryEquipmentDesigns.tooltip("LOGISTICS_NO_EQUIPMENT_PRODUCTION").replace("$EQUIPMENT|Y$", "§e" + name + "§f")
+                    : IndustryEquipmentDesigns.tooltip("LOGISTICS_AVERAGE_EFFICIENCY")
                             .replace("$EQUIPMENT|H$", "§e" + name + "§f")
                             .replace("$EFFICIENCY|Y%$", "§e" + ProtocolNumberBounds.percent(row.efficiency(), 1) + "§f")
-                            + "\n\n" + UiEquipmentDesigns.tooltip("LOGISTICS_AVERAGE_EFFICIENCY_DELAYED");
+                            + "\n\n" + IndustryEquipmentDesigns.tooltip("LOGISTICS_AVERAGE_EFFICIENCY_DELAYED");
             case 1 -> "§e" + name + "§f\n\n" + row.models().stream().map(model -> "§e" + model.name() + "§f"
                     + "\n보관 재고: §e" + model.stockpile() + "§f\n훈련에 지급: §e" + model.reserved()
                     + "§f\n배치 부대 보유: §e" + model.deployed() + "§f").collect(java.util.stream.Collectors.joining("\n\n"));

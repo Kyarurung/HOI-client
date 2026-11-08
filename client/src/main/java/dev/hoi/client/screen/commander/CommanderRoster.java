@@ -7,6 +7,10 @@ import dev.hoi.client.screen.dialog.DialogScreen;
 import dev.hoi.protocol.commander.*;
 import dev.hoi.protocol.dialog.*;
 import dev.hoi.protocol.menu.*;
+import dev.hoi.client.ui.country.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.industry.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -34,9 +38,7 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
     private final Set<String> longDetails=new HashSet<>();
     private String detailText="";
     private int detailRow=-1,detailScroll;
-    private UiTooltips.ScrolledTooltip detailTooltip;
-    UiTooltips.ScrolledTooltip detailTooltip(){return detailTooltip;}
-    String detailText(){return detailText;}
+    private Tooltips.ScrolledTooltip detailTooltip;
     private void clearDetail(){detailText="";detailRow=-1;detailScroll=0;detailTooltip=null;}
     private boolean overDetail(double x,double y){
         if(detailRow<0)return false;
@@ -81,13 +83,13 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
             case "mission/MINESWEEPING" -> "naval_mines_sweeping";
             default -> "";
         };
-        String icon=UiEquipmentDesigns.productionMissionIcon(source);
+        String icon=IndustryEquipmentDesigns.productionMissionIcon(source);
         return icon.isEmpty()?"map_selector/air":icon;
     }
     private void rowButton(String id,String label,String tooltip,int x,int y,int w){
         var button=new UiMenuButton(label,x,y,w,14,()->submit(id)).caption("").background("none").textShadow(false);
         button.active=!pending&&view().choices().stream().anyMatch(c->c.id().equals(id));
-        button.setTooltip(UiTooltips.createOfficer(tooltip));choiceButtons.put(id,button);addRenderableWidget(button);
+        button.setTooltip(Tooltips.createOfficer(tooltip));choiceButtons.put(id,button);addRenderableWidget(button);
     }
     private void sortBy(int column){if(sort==column)descending=!descending;else{sort=column;descending=column!=1;}scroll=0;rebuildWidgets();}
     private void rowButtonText(GuiGraphicsExtractor g,AbstractWidget button){UiAssets.drawTinted(g,"commander/ui/button",button.getX(),button.getY(),button.getWidth(),button.getHeight(),button.getMessage().getString().equals("진급")&&!view().image().equals("commander/group")?(button.active?0xFF6A2B33:0xFF242424):0xFF8E8E8E);float scale=Math.max(UiText.scale(font),1+1f/font.lineHeight);g.pose().pushMatrix();g.pose().translate(button.getX()+(button.getWidth()-font.width(button.getMessage())*scale)/2,button.getY()+(button.getHeight()-font.lineHeight*scale)/2);g.pose().scale(scale);g.text(font,button.getMessage(),0,0,0xFFFFFFFF,false);g.pose().popMatrix();}
@@ -97,13 +99,13 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
     @Override protected void init(){
         choiceButtons.clear();longDetails.clear();clearDetail();
         nativeRows=view().tiles().stream().anyMatch(t->t.leader()!=null);rowHeight=nativeRows?49:62;
-        if(nativeRows){pane=Math.min(275,width-12);left=Math.clamp(width/2-113,6,Math.max(6,width-pane-6));top=Math.max(UiMenuBar.height(width),height/2-148);bottom=Math.min(height-8,top+304);listTop=top+38;}
-        else{left=parent==null?0:UiPanelLayout.width(MenuTab.OFFICER_CORPS,width);top=UiMenuBar.height(width);pane=Math.min(290,width-left-6);if(pane<180){pane=Math.min(290,width-12);left=Math.max(0,width-pane-6);}bottom=Math.min(height-8,top+360);listTop=top+52;}
+        if(nativeRows){pane=Math.min(275,width-12);left=Math.clamp(width/2-113,6,Math.max(6,width-pane-6));top=Math.max(HudMenuBar.height(width),height/2-148);bottom=Math.min(height-8,top+304);listTop=top+38;}
+        else{left=parent==null?0:UiPanelLayout.width(MenuTab.OFFICER_CORPS,width);top=HudMenuBar.height(width);pane=Math.min(290,width-left-6);if(pane<180){pane=Math.min(290,width-12);left=Math.max(0,width-pane-6);}bottom=Math.min(height-8,top+360);listTop=top+52;}
         addRenderableWidget(new UiMenuButton("×",left+pane-18,top+3,14,14,this::onClose));
         rows=view().tiles().stream().filter(t->!t.section().startsWith("configuration/")||!t.detail().isBlank()).toList();
         if(nativeRows&&!promoting()){
             var assigned=new UiMenuButton("임명된 지휘관 보기",left+pane-101,top+3,80,14,()->{showAssigned=!showAssigned;scroll=0;rebuildWidgets();}).caption(view().tiles().stream().anyMatch(t->t.leader()!=null&&t.leader().role().equals("제독"))?"":"임명된 지…").background("none").sound("ui.checkbox");
-            assigned.setTooltip(UiTooltips.createOfficer("임명된 지휘관 보기"));addRenderableWidget(assigned);
+            assigned.setTooltip(Tooltips.createOfficer("임명된 지휘관 보기"));addRenderableWidget(assigned);
             addRenderableWidget(new UiMenuButton("기술 정렬",left+8,top+20,13,14,()->sortBy(0)).caption("").background("commander/ui/sort_skill").sound("ui.scroll"));
             addRenderableWidget(new UiMenuButton("고문 역할 정렬",left+21,top+20,13,14,()->sortBy(7)).caption("").background("commander/ui/sort_adviser").sound("ui.scroll"));
             header("이름",46,46,1);header("수용량",220,43,6);
@@ -119,10 +121,10 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
             }
             rows=view().tiles().stream().filter(t->t.leader()!=null&&(showAssigned||!t.leader().assigned())&&t.name().toLowerCase(Locale.ROOT).contains(lower)).sorted(order).toList();
             var officers=new UiMenuButton(view().image().equals("navy/admirals")?"함선 지휘관 보기":"야전 장교 보기",left+pane-268,bottom-25,131,17,()->submit(view().image().equals("navy/admirals")?"captains":"officers")).background("mio/ui/gfx_button_261x34/frame_0").textShadow(false);officers.active=!pending&&view().choices().stream().anyMatch(c->c.id().equals(view().image().equals("navy/admirals")?"captains":"officers"));choiceButtons.put(view().image().equals("navy/admirals")?"captains":"officers",officers);addRenderableWidget(officers);
-            var remove=new UiMenuButton("배정 해제",left+pane-125,bottom-26,111,17,()->submit("remove")).background("mio/ui/gfx_button_221x34/frame_0").textShadow(false);remove.active=!pending;view().tiles().stream().filter(t->t.section().equals("remove")).findFirst().ifPresent(t->remove.setTooltip(UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(t.detail()))));choiceButtons.put("remove",remove);addRenderableWidget(remove);
+            var remove=new UiMenuButton("배정 해제",left+pane-125,bottom-26,111,17,()->submit("remove")).background("mio/ui/gfx_button_221x34/frame_0").textShadow(false);remove.active=!pending;view().tiles().stream().filter(t->t.section().equals("remove")).findFirst().ifPresent(t->remove.setTooltip(Tooltips.createOfficer(UiCommandLabels.withoutShortcuts(t.detail()))));choiceButtons.put("remove",remove);addRenderableWidget(remove);
         }
         if(promoting()){
-            top=Math.max(UiMenuBar.height(width),height/2-85);bottom=top+170;listTop=top+25;
+            top=Math.max(HudMenuBar.height(width),height/2-85);bottom=top+170;listTop=top+25;
             clearWidgets();addRenderableWidget(new UiMenuButton("×",left+pane-18,top+3,14,14,this::onClose));
             rowButton("promote","진급",view().body(),left+pane/2-65,bottom-23,60);
             rowButton("cancel","취소","",left+pane/2+5,bottom-23,60);
@@ -131,8 +133,8 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
         for(int i=0;i<rows.size();i++){
             var tile=rows.get(i);int y=listTop+i*rowHeight-scroll;if(nativeRows?y+rowHeight<=listTop||y>=end:y<listTop||y+rowHeight-2>end)continue;
             boolean choice=view().choices().stream().anyMatch(c->c.id().equals(tile.section()));
-            if(!nativeRows&&!choice&&UiTooltips.exactLines(font,UiCommandLabels.withoutShortcuts(tile.detail()),204).size()>8)longDetails.add(tile.section());
-            var button=new UiMenuButton(tile.name(),left+5,Math.max(listTop,y),pane-(nativeRows?20:10),Math.min(y+rowHeight-2,end)-Math.max(listTop,y),()->submit(tile.section())).caption("");button.active=!pending&&choice&&!promoting();button.setTooltip(nativeRows||longDetails.contains(tile.section())?null:UiTooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(button);if(choice&&!promoting())choiceButtons.put(tile.section(),button);
+            if(!nativeRows&&!choice&&Tooltips.exactLines(font,UiCommandLabels.withoutShortcuts(tile.detail()),204).size()>8)longDetails.add(tile.section());
+            var button=new UiMenuButton(tile.name(),left+5,Math.max(listTop,y),pane-(nativeRows?20:10),Math.min(y+rowHeight-2,end)-Math.max(listTop,y),()->submit(tile.section())).caption("");button.active=!pending&&choice&&!promoting();button.setTooltip(nativeRows||longDetails.contains(tile.section())?null:Tooltips.createOfficer(UiCommandLabels.withoutShortcuts(tile.detail())));addRenderableWidget(button);if(choice&&!promoting())choiceButtons.put(tile.section(),button);
             if(nativeRows&&!promoting()){
                 String details=leaderChoice("traits/",tile);
                 rowButton(details,"세부 사항",view().choices().stream().filter(c->c.id().equals(details)).map(DialogView.Choice::tooltip).findFirst().orElse("지휘관 세부 사항을 봅니다."),left+165,y+28,48);
@@ -141,7 +143,7 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
                     String advisor=leaderChoice("advisor/",tile);
                     boolean appointed=!tile.leader().advisorIcon().isEmpty();
                     var control=new UiMenuButton("장교단 역할",left+(appointed?8:13),y+(appointed?23:33),appointed?24:14,appointed?24:14,()->submit(advisor)).caption("").background("none");
-                    control.active=!pending&&view().choices().stream().anyMatch(c->c.id().equals(advisor));control.setTooltip(UiTooltips.createOfficer(tile.leader().advisor()));choiceButtons.put(advisor,control);addRenderableWidget(control);
+                    control.active=!pending&&view().choices().stream().anyMatch(c->c.id().equals(advisor));control.setTooltip(Tooltips.createOfficer(tile.leader().advisor()));choiceButtons.put(advisor,control);addRenderableWidget(control);
                 }
             }
         }
@@ -151,7 +153,7 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
-        if(nativeRows&&!promoting())UiAssets.draw(g,"commander/ui/panel",left,top,pane,(int)Math.round(pane*607.0/550));else UiMenuStyle.panel(g,left,top,pane,bottom-top+3);UiText.leftSingleLine(g,font,UiTooltips.officerText(view().title(),true),left+7,top+3,nativeRows&&!promoting()?pane-110:pane-30,nativeRows?14:19,0xFFFFFFFF);
+        if(nativeRows&&!promoting())UiAssets.draw(g,"commander/ui/panel",left,top,pane,(int)Math.round(pane*607.0/550));else UiMenuStyle.panel(g,left,top,pane,bottom-top+3);UiText.leftSingleLine(g,font,Tooltips.officerText(view().title(),true),left+7,top+3,nativeRows&&!promoting()?pane-110:pane-30,nativeRows?14:19,0xFFFFFFFF);
         if(!nativeRows)UiText.centered(g,font,view().body(),left+6,top+27,pane-12,19,UiMenuStyle.MUTED);
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget){if(nativeRows&&!promoting()&&child instanceof AbstractWidget b&&b.getY()>=listTop&&b.getY()<bottom-30){g.enableScissor(left+5,listTop,left+pane-12,bottom-30);widget.extractRenderState(g,my>=listTop&&my<bottom-30?mx:-1,my,delta);g.disableScissor();}else widget.extractRenderState(g,mx,my,delta);}
         if(nativeRows&&!promoting())UiAssets.draw(g,"commander/commands/division_list_column_button/frame_7",left+14,top+20,9,8);
@@ -182,7 +184,7 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
                 if(tile.value().equals("선택 중"))g.fill(left+6,y+1,left+261,y+47,0x303F6D1D);
                 skill(g,leader.skill(),left+9,y+9);
                 UiAssets.draw(g,tile.icon(),left+34,y+3,33,44);
-                label(g,UiTooltips.officerText(leader.role(),true),left+70,y+6,85,9,0xFFFFFFFF);label(g,UiTooltips.officerText(tile.name(),true),left+70,y+15,85,9,0xFFFFFFFF);
+                label(g,Tooltips.officerText(leader.role(),true),left+70,y+6,85,9,0xFFFFFFFF);label(g,Tooltips.officerText(tile.name(),true),left+70,y+15,85,9,0xFFFFFFFF);
                 for(int a=0;a<4;a++){
                     UiAssets.draw(g,"commander/ui/"+List.of("attack","defense",leader.role().equals("제독")?"maneuver":"planning",leader.role().equals("제독")?"coordination":"logistics").get(a),left+161+a*13,y+5,14,13);
                     UiText.centered(g,font,Integer.toString(leader.abilities().get(a)),left+160+a*13,y+15,15,9,0xFFFFFFFF,false);
@@ -192,31 +194,34 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
                 else {g.text(font,capacity,left+245-font.width(capacity),y+10,0xFFFFFFFF,false);g.pose().pushMatrix();g.pose().translate(left+246,y+7);g.pose().scale(.375f);UiAssets.draw(g,"commander/commands/medal_collection/frame_0",0,0,16,28);g.pose().popMatrix();}
                 if(leader.traitDetails().isEmpty())UiText.centered(g,font,String.join(" · ",leader.traits()),left+70,y+28,95,16,UiMenuStyle.MUTED);
                 else for(int traitIndex=0;traitIndex<leader.traitDetails().size();traitIndex++) {
-                    var trait=leader.traitDetails().get(traitIndex);int traitX=UiFlagStack.left(traitIndex,leader.traitDetails().size(),left+70,94,12),visibleWidth=UiFlagStack.visibleWidth(traitIndex,leader.traitDetails().size(),left+70,94,12);
+                    var trait=leader.traitDetails().get(traitIndex);int traitX=CountryFlagStack.left(traitIndex,leader.traitDetails().size(),left+70,94,12),visibleWidth=CountryFlagStack.visibleWidth(traitIndex,leader.traitDetails().size(),left+70,94,12);
                     if(!trait.icon().isEmpty())UiAssets.draw(g,trait.icon(),traitX,y+28,12,16);
                     else UiText.centered(g,font,trait.name(),traitX,y+28,12,16,UiMenuStyle.MUTED);
                     if(mx>=traitX&&mx<traitX+visibleWidth&&my>=y+28&&my<y+44)hovered=trait.tooltip();
                 }
                 if(!promoting())for(String prefix:List.of("traits/","promote/","advisor/")){
                     var control=choiceButtons.get(leaderChoice(prefix,tile));
-                    if(control!=null){control.extractRenderState(g,mx,my,delta);if(prefix.equals("advisor/"))UiAssets.drawLeaderControl(g,leader.advisorIcon().isEmpty()?"commander/commands/give_role_leader_strip/frame_0":leader.advisorIcon(),control.getX(),control.getY(),control.getWidth(),control.getHeight(),true);else rowButtonText(g,control);if(UiTooltips.contains(control,mx,my))hovered=prefix.equals("advisor/")?leader.advisor():prefix.equals("promote/")?leader.promotion():"지휘관 세부 사항을 봅니다.";}
+                    if(control!=null){control.extractRenderState(g,mx,my,delta);if(prefix.equals("advisor/"))UiAssets.drawLeaderControl(g,leader.advisorIcon().isEmpty()?"commander/commands/give_role_leader_strip/frame_0":leader.advisorIcon(),control.getX(),control.getY(),control.getWidth(),control.getHeight(),true);else rowButtonText(g,control);if(Tooltips.contains(control,mx,my))hovered=prefix.equals("advisor/")?leader.advisor():prefix.equals("promote/")?leader.promotion():"지휘관 세부 사항을 봅니다.";}
                 }
             }else{
                 if(detailRow<0&&longDetails.contains(tile.section())&&mx>=left+5&&mx<left+pane-10&&my>=y&&my<y+rowHeight-2){detailText=UiCommandLabels.withoutShortcuts(tile.detail());detailRow=i;}
-                UiAssets.draw(g,rowIcon(tile),left+8,y+3,43,52);UiText.centered(g,font,tile.name(),left+57,y+5,pane-66,23,UiMenuStyle.TEXT);UiText.centered(g,font,tile.value(),left+57,y+30,pane-66,20,tile.value().equals("사용 불가")||tile.value().equals("승진 불가")?0xFFE15B5B:0xFFFFAA00);}
+                UiAssets.draw(g,rowIcon(tile),left+8,y+3,43,52);
+                if(view().image().equals("mission/batch")&&tile.section().startsWith("unit/")&&font.width(tile.name())>pane-66)UiText.scrollingCell(g,font,Component.literal(tile.name()),left+57,y+5,pane-66,23,UiMenuStyle.TEXT,true);
+                else UiText.centered(g,font,tile.name(),left+57,y+5,pane-66,23,UiMenuStyle.TEXT);
+                UiText.centered(g,font,tile.value(),left+57,y+30,pane-66,20,tile.value().equals("사용 불가")||tile.value().equals("승진 불가")?0xFFE15B5B:0xFFFFAA00);}
         }
         if(nativeRows&&!promoting())g.disableScissor();
         if(my<listTop||my>=end)hovered="";
         if(promoting()){
             for(String id:List.of("promote","cancel"))rowButtonText(g,choiceButtons.get(id));
-            var lines=font.split(UiKeywordIcons.decorateLines(UiTooltips.officerText(view().body()),false),pane-22);int lineY=listTop+rowHeight+8;
+            var lines=font.split(TooltipKeywordIcons.decorateLines(Tooltips.officerText(view().body()),false),pane-22);int lineY=listTop+rowHeight+8;
             for(var line:lines){g.text(font,line,left+11,lineY,UiMenuStyle.TEXT,false);lineY+=11;}
         }
         if(nativeRows&&!promoting())scrollbar().draw(g,scroll);
         landGesture.draw(g);
-        if(detailRow>=0){detailTooltip=UiTooltips.drawOfficerScrollable(g,font,detailText,mx,my,width,height,detailScroll,204);detailScroll=detailTooltip.scroll();}
+        if(detailRow>=0){detailTooltip=Tooltips.drawOfficerScrollable(g,font,detailText,mx,my,width,height,detailScroll);detailScroll=detailTooltip.scroll();}
         renderedTooltip=hovered;
-        if(!hovered.isEmpty())UiTooltips.drawExact(g,font,hovered,mx,my,180);
+        if(!hovered.isEmpty())Tooltips.drawExact(g,font,hovered,mx,my);
     }
     private boolean mapPicking(){return view().image().startsWith("mission/land-target/")&&!view().token().isEmpty();}
     private void sendMapPick(boolean toggle) {
@@ -241,7 +246,7 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){
         if(nativeRows&&!promoting()&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&scrollbar().contains(event.x(),event.y())){if(scrollbar().arrow(event.y())){scroll=scrollbar().step(event.y(),scroll,rowHeight);rebuildWidgets();}else{dragging=true;dragScroll(event.y());}return true;}
         if(nativeRows&&!promoting()&&event.y()>=bottom-30&&event.y()<bottom-26)return true;
-        if(nativeRows&&event.y()>=listTop&&event.y()<bottom-30&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)for(var entry:choiceButtons.entrySet())if((entry.getKey().startsWith("traits/")||entry.getKey().startsWith("promote/")||entry.getKey().startsWith("advisor/"))&&UiTooltips.contains(entry.getValue(),event.x(),event.y())){if(entry.getValue().active){entry.getValue().playDownSound(minecraft.getSoundManager());submit(entry.getKey());}return true;}
+        if(nativeRows&&event.y()>=listTop&&event.y()<bottom-30&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)for(var entry:choiceButtons.entrySet())if((entry.getKey().startsWith("traits/")||entry.getKey().startsWith("promote/")||entry.getKey().startsWith("advisor/"))&&Tooltips.contains(entry.getValue(),event.x(),event.y())){if(entry.getValue().active){entry.getValue().playDownSound(minecraft.getSoundManager());submit(entry.getKey());}return true;}
         if(nativeRows&&!pending&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             for(int i=0;i<rows.size();i++) {
                 var tile=rows.get(i);int rowY=listTop+i*rowHeight-scroll;
@@ -251,7 +256,7 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
             }
         }
         if(nativeRows&&!promoting()&&!pending&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&(event.modifiers()&com.mojang.blaze3d.platform.InputConstants.MOD_SHIFT)!=0) {
-            for(var tile:rows){var button=choiceButtons.get(tile.section());String deploy=leaderChoice("deploy/",tile);if(button!=null&&button.active&&UiTooltips.contains(button,event.x(),event.y())&&view().choices().stream().anyMatch(c->c.id().equals(deploy))){button.playDownSound(minecraft.getSoundManager());submit(deploy);return true;}}
+            for(var tile:rows){var button=choiceButtons.get(tile.section());String deploy=leaderChoice("deploy/",tile);if(button!=null&&button.active&&Tooltips.contains(button,event.x(),event.y())&&view().choices().stream().anyMatch(c->c.id().equals(deploy))){button.playDownSound(minecraft.getSoundManager());submit(deploy);return true;}}
         }
         if((event.modifiers()&com.mojang.blaze3d.platform.InputConstants.MOD_SHIFT)!=0
                 &&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT

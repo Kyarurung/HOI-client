@@ -1,9 +1,8 @@
 package dev.hoi.client.screen.industry;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.hoi.client.research.ResearchScreen;
+import dev.hoi.client.screen.research.ResearchScreen;
 import dev.hoi.protocol.industry.*;
 import dev.hoi.protocol.menu.*;
 import dev.hoi.protocol.research.*;
@@ -95,7 +94,7 @@ public final class IndustryOrganizationAssignmentTest {
                 game.takeScreenshot("hoi-production-mio-row-unassigned-after-response-" + size[0] + "-gui2");
                 var requests = new ArrayList<ResearchPayloads.Request>();
                 var screen = game.computeOnClient(c -> new ResearchScreen(research, requests::add)); game.setScreen(() -> screen);
-                game.runOnClient(c -> { screen.showDetail(assignedSlot.technology()); click(screen, dev.hoi.client.ui.UiTooltips.officerText(research.designTeamText().get("header")).getString()); });
+                game.runOnClient(c -> { screen.showDetail(assignedSlot.technology()); click(screen, dev.hoi.client.ui.tooltip.Tooltips.officerText(research.designTeamText().get("header")).getString()); });
                 var row = game.computeOnClient(c -> named(screen, team.name())); game.getInput().setCursorPos((row.getX() + 100) * 2, (row.getY() + 10) * 2); game.waitTicks(4);
                 game.takeScreenshot("hoi-research-design-team-picker-" + size[0] + "-gui2");
                 game.runOnClient(c -> {
@@ -129,7 +128,7 @@ public final class IndustryOrganizationAssignmentTest {
                 var rejectedRequests=new ArrayList<ResearchPayloads.Request>();var rejected=game.computeOnClient(c->new ResearchScreen(available,rejectedRequests::add));game.setScreen(()->rejected);
                 game.runOnClient(c->{rejected.showDetail(assignedSlot.technology());click(rejected,"연구");click(rejected,team.name());rejected.update(revision(available,available.revision()+1));if(rejectedRequests.size()!=1)throw new AssertionError("Rejected START must not assign a design team");});
                 var detachRequests=new ArrayList<ResearchPayloads.Request>();var detach=game.computeOnClient(c->new ResearchScreen(researched,detachRequests::add));game.setScreen(()->detach);
-                game.runOnClient(c->{detach.showDetail(assignedSlot.technology());click(detach,dev.hoi.client.ui.UiTooltips.officerText(research.designTeamText().get("header")).getString());click(detach,"이름");click(detach,"비용");click(detach,dev.hoi.client.ui.UiTooltips.officerText(researched.designTeamText().get("empty")).getString());if(detachRequests.size()!=1||detachRequests.getFirst().action()!=ResearchPayloads.Action.DESIGN_TEAM||!detachRequests.getFirst().technology().isEmpty())throw new AssertionError("Empty row must detach without restarting research");});
+                game.runOnClient(c->{detach.showDetail(assignedSlot.technology());click(detach,dev.hoi.client.ui.tooltip.Tooltips.officerText(research.designTeamText().get("header")).getString());click(detach,"이름");click(detach,"비용");click(detach,dev.hoi.client.ui.tooltip.Tooltips.officerText(researched.designTeamText().get("empty")).getString());if(detachRequests.size()!=1||detachRequests.getFirst().action()!=ResearchPayloads.Action.DESIGN_TEAM||!detachRequests.getFirst().technology().isEmpty())throw new AssertionError("Empty row must detach without restarting research");});
             }
         } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
         finally { game.setScreen(() -> null); game.runOnClient(c -> c.options.guiScale().set(scale)); }

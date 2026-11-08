@@ -1,7 +1,7 @@
 package dev.hoi.client.map.commander;
 
 import dev.hoi.client.input.InputSidebarMovement;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiText;
 import dev.hoi.client.ui.UiUnits;
@@ -84,7 +84,7 @@ public final class CommanderUnitHud {
         selected.clear();
         if(client.level==null||client.gui.hud.isHidden()||!dimension.equals(client.level.dimension().identifier().toString()))return;
         double left=Math.max(Math.min(startX,endX),client.gui.screen()==null?0:worldLeft());
-        double top=Math.max(Math.min(startY,endY),UiMenuBar.height(client.getWindow().getGuiScaledWidth()));
+        double top=Math.max(Math.min(startY,endY),HudMenuBar.height(client.getWindow().getGuiScaledWidth()));
         double right=Math.max(startX,endX),bottom=Math.max(startY,endY);
         for(var box:boxes)if(selectable(box.counter(),dimension)&&box.x()<right&&box.x()+box.width()>left
                 &&box.y()<bottom&&box.y()+box.height()>top)selected.add(box.counter().key());
@@ -103,7 +103,6 @@ public final class CommanderUnitHud {
     static void replaceKeys(Collection<String> keys){var client=Minecraft.getInstance();if(client.level!=null){dimension=client.level.dimension().identifier().toString();age=0;}selected.clear();selected.addAll(keys);}
     static void removeDivisions(Set<String> ids){selected.removeIf(key->key.startsWith("unit/")&&ids.contains(key.substring(5)));}
     static void selectDivisions(Collection<String> ids,boolean toggle){var client=Minecraft.getInstance();if(client.level!=null){dimension=client.level.dimension().identifier().toString();age=0;}if(!toggle)selected.clear();for(String id:ids){String key="unit/"+id;if(!toggle||!selected.remove(key))selected.add(key);}CommanderPanels.mapSelectionChanged();}
-    static void retainDivisions(Set<String> ids){selected.removeIf(key->!key.startsWith("unit/")||!ids.contains(key.substring(5)));}
     static String selected(){return selected.stream().findFirst().orElse("");}
     static Set<String> selectedKeys(){return Set.copyOf(selected);}
     public static List<CommanderHudBox> boxes(){return boxes;}
@@ -122,7 +121,7 @@ public final class CommanderUnitHud {
         var forward=camera.forwardVector();
         var result=new ArrayList<CommanderHudBox>();
         var units=new UiUnits(g.guiWidth(),g.guiHeight());
-        int top=UiMenuBar.height(g.guiWidth())+4;
+        int top=HudMenuBar.height(g.guiWidth())+4;
         g.enableScissor(left,top,g.guiWidth(),g.guiHeight());
         for(var rows:groups) {
             var c=rows.getFirst();
@@ -156,7 +155,7 @@ public final class CommanderUnitHud {
         int barX=c.navy()||c.air()?14:15;
         if(!c.air())bar(g,"organization",barX,flagY,c.organization());
         bar(g,"strength",barX,flagY+4,c.strength());
-        String flag=UiMenuBar.flagTexture(c.country());
+        String flag=HudMenuBar.flagTexture(c.country());
         if(!flag.equals("country/"+c.country().toLowerCase(Locale.ROOT)+"/flag")
                 || !UiAssets.draw(g,"unit_hud/flags/"+c.country().toLowerCase(Locale.ROOT),c.navy()||c.air()?4:5,flagY,10,7))
             UiAssets.draw(g,flag,c.navy()||c.air()?4:5,flagY,10,7);
@@ -200,12 +199,12 @@ public final class CommanderUnitHud {
         int titleCount=Math.min(3,title.size()),columns=Math.max(1,(w-12)/cellWidth);
         int h=12+titleCount*12+40+((c.battalions().size()+columns-1)/columns)*16;
         int x=Math.clamp(mx+12,6,Math.max(6,g.guiWidth()-w-6)),y=Math.clamp(my+12,6,Math.max(6,g.guiHeight()-h-6));
-        g.nextStratum();dev.hoi.client.ui.UiTooltips.background(g,x,y,w,h);
+        g.nextStratum();dev.hoi.client.ui.tooltip.Tooltips.background(g,x,y,w,h);
         for(int i=0;i<titleCount;i++)UiText.text(g,font,title.get(i),x+6,y+6+i*12,0xFFFFFFFF);
         int line=y+8+titleCount*12;
         String[] labels={"평균 조직력","평균 내구도","보급 상황"};
         double[] ratios={c.organization(),c.strength(),c.supply()};
-        for(int i=0;i<labels.length;i++)UiText.text(g,font,Component.literal(labels[i]+": ").append(Component.literal(c.unknown()&&i==2?"0":decimal(ratios[i]*100)+"%").withColor(dev.hoi.client.ui.UiTooltips.GOLD)),x+6,line+i*12,0xFFFFFFFF);
+        for(int i=0;i<labels.length;i++)UiText.text(g,font,Component.literal(labels[i]+": ").append(Component.literal(c.unknown()&&i==2?"0":decimal(ratios[i]*100)+"%").withColor(dev.hoi.client.ui.tooltip.Tooltips.GOLD)),x+6,line+i*12,0xFFFFFFFF);
         int i=0;
         for(var entry:new TreeMap<>(c.battalions()).entrySet()) {
             int bx=x+6+i%columns*cellWidth,by=line+40+i/columns*16;

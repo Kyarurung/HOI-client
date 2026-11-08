@@ -105,14 +105,16 @@ public final class DiplomacyActionsTest {
         if(directory==null)directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
         try {
             var view=new CountryPayloads.Response(UUID.randomUUID().toString(),java.nio.file.Files.readString(java.nio.file.Path.of(directory,"kor-diplomacy-PRK.json"))).view();
-            if(!view.viewer().equals("KOR")||!view.target().equals("PRK")||view.actions().entries().size()!=23||!view.actions().entries().getLast().id().equals("market_access"))throw new AssertionError("Actual KOR to PRK response must end with market access in one list");
+            if(!view.viewer().equals("KOR")||!view.target().equals("PRK")||view.actions().entries().size()!=24||!view.actions().entries().getLast().id().equals("open_logistics"))throw new AssertionError("Actual KOR to PRK response must retain the source action order in one list");
+            DiplomacyInputTest.run(context, view);
             var spirit=view.diplomacy().stream().filter(e->e.name().equals("자립경제")).findFirst().orElseThrow();
             for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
                 context.getInput().resizeWindow(size[0],size[1]);context.runOnClient(c->{c.options.guiScale().set(2);dev.hoi.client.ClientCampaignHud.accept(HudPayloads.State.of(view.viewer(),view.hud()));if(dev.hoi.client.ui.UiAssets.imageHeight(spirit.icon(),30)<=0)throw new AssertionError("Actual self-reliance spirit must resolve to its original image");});
                 context.setScreen(()->new DiplomacyCountryScreen(view,a->{}));context.getInput().setCursorPos(size[0]-5,80);context.waitTicks(3);context.takeScreenshot("hoi-diplomacy-source-PRK-"+size[0]+"x"+size[1]+"-gui2");
                 context.runOnClient(c->{var screen=(DiplomacyCountryScreen)c.gui.screen();if(screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().contains("다음 외교 행동")))throw new AssertionError("Source list must not insert an extra page action");screen.mouseScrolled(screen.panelWidth()-15,screen.height-70,0,-50);});context.waitTicks(3);
-                context.runOnClient(c->{var screen=(DiplomacyCountryScreen)c.gui.screen();var market=view.actions().entries().getLast();var control=button(screen,market.name());if(control.getY()<0||control.getBottom()>screen.height||control.active!=market.enabled())throw new AssertionError("Market access must remain reachable with authoritative availability");});
+                context.runOnClient(c->{var screen=(DiplomacyCountryScreen)c.gui.screen();var market=view.actions().entries().stream().filter(action -> action.id().equals("naval_blockade")).findFirst().orElseThrow();var control=button(screen,market.name());if(control.getY()<0||control.getBottom()>screen.height||control.active!=market.enabled())throw new AssertionError("Market access must remain reachable with authoritative availability");});
                 context.takeScreenshot("hoi-diplomacy-source-market-"+size[0]+"x"+size[1]+"-gui2");
+                DiplomacyArtTest.run(context, view, size[0]);
                 var requests = new ArrayList<CountryPayloads.Action>();
                 context.setScreen(() -> new DiplomacyCountryScreen(view, requests::add));
                 context.runOnClient(c -> press(button((DiplomacyCountryScreen)c.gui.screen(), "첩보 장부")));
@@ -120,6 +122,59 @@ public final class DiplomacyActionsTest {
                     context.runOnClient(c -> press(button((DiplomacyCountryScreen)c.gui.screen(), domain.label + " 정보")));
                     context.getInput().setCursorPos(size[0] - 2, 80); context.waitTicks(2);
                     context.takeScreenshot("hoi-intel-ledger-" + domain.name().toLowerCase(Locale.ROOT) + "-" + size[0] + "-gui2");
+                    if (domain == AgencyIntelDomain.ARMY) {
+                        context.runOnClient(c -> {
+                            var text = view.report(domain).entries().stream().filter(entry -> entry.name().equals("총 사단 수")).findFirst().orElseThrow().value();
+                            var bounds = c.font.prepareText(net.minecraft.network.chat.Component.literal(text).getVisualOrderText(), 0, 0, -1, false, false, 0).bounds();
+                            var metrics = Map.of("value", text, "advance", c.font.width(text), "bounds", String.valueOf(bounds), "cellWidth", Math.round(70 * ((DiplomacyCountryScreen)c.gui.screen()).panelWidth() / 550f));
+                            try { java.nio.file.Files.writeString(java.nio.file.Path.of("army-value-" + size[0] + ".json"), new com.google.gson.Gson().toJson(metrics)); }
+                            catch (java.io.IOException error) { throw new AssertionError(error); }
+                        });
+                        context.waitTicks(35);
+                        context.takeScreenshot("hoi-intel-ledger-army-value-end-" + size[0] + "-gui2");
+                    }
+                    if (domain == AgencyIntelDomain.CIVILIAN) {
+                        if (size[0] == 1280) {
+                            context.waitTicks(30);
+                            context.takeScreenshot("hoi-intel-ledger-civilian-values-end-1280-gui2");
+                        }
+                        context.runOnClient(c -> {
+                            var screen = (DiplomacyCountryScreen)c.gui.screen();
+                            for (var entry : view.report(domain).entries()) {
+                                if (screen.children().stream().noneMatch(child -> child instanceof dev.hoi.client.ui.UiHoverRegion region && region.getMessage().getString().equals(entry.name()))) throw new AssertionError("Issued civilian field is missing: " + entry.name());
+                            }
+                            screen.mouseScrolled(30, screen.height - 90, 0, -100);
+                            var period = button(screen, "3년");
+                            if (!period.visible || period.getY() < 0 || period.getBottom() > screen.height - 33) throw new AssertionError("Civilian graph period is unreachable");
+                            press(period);
+                            if (size[0] == 1280) {
+                                var oil = screen.children().stream().filter(child -> child instanceof dev.hoi.client.ui.UiHoverRegion region && region.getMessage().getString().equals("석유")).map(dev.hoi.client.ui.UiHoverRegion.class::cast).findFirst().orElseThrow();
+                                int oldY = oil.getY(), x = Math.round(screen.panelWidth() * 532f / 550) + 4;
+                                int y = screen.height - 50, targetY = DiplomacyHeader.tabs(dev.hoi.client.ui.hud.HudMenuBar.height(screen.width)) + 67;
+                                var right = new net.minecraft.client.input.MouseButtonEvent(x, y, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT, 0));
+                                screen.mouseClicked(right, false);
+                                screen.mouseDragged(new net.minecraft.client.input.MouseButtonEvent(x, targetY, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT, 0)), 0, targetY - y);
+                                screen.mouseReleased(right);
+                                if (oil.getY() != oldY) throw new AssertionError("Right drag moved the civilian ledger");
+                                var left = new net.minecraft.client.input.MouseButtonEvent(x, y, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0));
+                                screen.mouseClicked(left, false);
+                                screen.mouseDragged(new net.minecraft.client.input.MouseButtonEvent(x, targetY, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), 0, targetY - y);
+                                screen.mouseReleased(left);
+                                if (!oil.visible || oil.getY() <= oldY) throw new AssertionError("Civilian scrollbar drag did not restore the resource row");
+                                screen.mouseScrolled(30, screen.height - 90, 0, -100);
+                            }
+                            for (var section : view.report(domain).sections()) {
+                                if (!section.id().startsWith("graph_")) continue;
+                                var graph = button(screen, section.id());
+                                var click = new net.minecraft.client.input.MouseButtonEvent(graph.getX() + 5, graph.getY() + 5, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0));
+                                screen.mouseClicked(click, false); screen.mouseReleased(click);
+                                if (!screen.ledgerDetailAt(graph.getRight() + 20, graph.getY() + 5).equals(section.tooltip())) throw new AssertionError("Civilian graph selection lost its issued tooltip: " + section.id());
+                            }
+                            press(button(screen, "graph_industry"));
+                        });
+                        context.getInput().setCursorPos(size[0] - 2, 80); context.waitTicks(3);
+                        context.takeScreenshot("hoi-intel-ledger-civilian-bottom-" + size[0] + "-gui2");
+                    }
                     if (domain == AgencyIntelDomain.ARMY && !view.report(domain).sections().isEmpty()) {
                         context.runOnClient(client -> {
                             var screen = (DiplomacyCountryScreen)client.gui.screen();
@@ -131,6 +186,44 @@ public final class DiplomacyActionsTest {
                         });
                         context.getInput().setCursorPos(size[0] - 2, 80); context.waitTicks(2);
                         context.takeScreenshot("hoi-intel-ledger-stockpiles-" + size[0] + "-gui2");
+                    }
+                    if (view.report(domain).sections().stream().anyMatch(section -> section.id().equals("ideas"))) {
+                        context.runOnClient(c -> ((DiplomacyCountryScreen)c.gui.screen()).mouseScrolled(5, c.gui.screen().height - 90, 0, -100));
+                        context.getInput().setCursorPos(size[0] - 2, 80); context.waitTicks(2);
+                        context.takeScreenshot("hoi-intel-ledger-" + domain.name().toLowerCase(Locale.ROOT) + "-footer-" + size[0] + "-gui2");
+                        var ideaPoint = context.computeOnClient(c -> {
+                            var screen = (DiplomacyCountryScreen)c.gui.screen();
+                            float scale = screen.panelWidth() / 550f;
+                            int x = Math.round(45 * scale), y = screen.height - 33 - Math.round((domain == AgencyIntelDomain.CIVILIAN ? 115 : 155) * scale);
+                            var section = view.report(domain).sections().stream().filter(s -> s.id().equals("ideas")).findFirst().orElseThrow();
+                            if (!screen.ledgerDetailAt(x, y).contains(section.rows().getFirst().name()) || !screen.ledgerDetailAt(x, y).contains(section.tooltip())) throw new AssertionError("Advisor tooltip lost source effects or intel thresholds");
+                            return new int[]{x, y};
+                        });
+                        context.getInput().setCursorPos(ideaPoint[0] * 2, ideaPoint[1] * 2); context.waitTicks(15);
+                        context.takeScreenshot("hoi-intel-ledger-" + domain.name().toLowerCase(Locale.ROOT) + "-idea-tooltip-" + size[0] + "-gui2");
+                        if (domain == AgencyIntelDomain.CIVILIAN) {
+                            context.runOnClient(c -> {
+                                var screen = (DiplomacyCountryScreen)c.gui.screen();
+                                screen.mouseScrolled(ideaPoint[0], ideaPoint[1], 0, -100);
+                                float scale = screen.panelWidth() / 550f;
+                                var section = view.report(domain).sections().stream().filter(s -> s.id().equals("ideas")).findFirst().orElseThrow();
+                                if (!screen.ledgerDetailAt(Math.round(480 * scale), ideaPoint[1]).contains(section.rows().getLast().name())) throw new AssertionError("Final civilian advisor is unreachable");
+                            });
+                            context.getInput().setCursorPos(size[0] - 2, 80); context.waitTicks(2);
+                            context.takeScreenshot("hoi-intel-ledger-civilian-ideas-end-" + size[0] + "-gui2");
+                        } else {
+                            var doctrinePoint = context.computeOnClient(c -> {
+                                var screen = (DiplomacyCountryScreen)c.gui.screen();
+                                float scale = screen.panelWidth() / 550f;
+                                int x = Math.round(460 * scale), y = screen.height - 33 - Math.round(120 * scale);
+                                var section = view.report(domain).sections().stream().filter(s -> s.id().equals("doctrine")).findFirst().orElseThrow();
+                                if (!screen.ledgerDetailAt(x, y).equals(section.tooltip())) throw new AssertionError("Doctrine tooltip changed source wording or thresholds");
+                                if (c.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/" + section.rows().getFirst().icon() + ".png")).isEmpty()) throw new AssertionError("Missing original doctrine folder icon");
+                                return new int[]{x, y};
+                            });
+                            context.getInput().setCursorPos(doctrinePoint[0] * 2, doctrinePoint[1] * 2); context.waitTicks(15);
+                            context.takeScreenshot("hoi-intel-ledger-" + domain.name().toLowerCase(Locale.ROOT) + "-doctrine-tooltip-" + size[0] + "-gui2");
+                        }
                     }
                     var point = context.computeOnClient(c -> {
                         var tab = button((DiplomacyCountryScreen)c.gui.screen(), domain.label + " 정보");

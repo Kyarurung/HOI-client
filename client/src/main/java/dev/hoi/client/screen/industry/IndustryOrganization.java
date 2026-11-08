@@ -5,6 +5,8 @@ import dev.hoi.client.ui.*;
 import dev.hoi.protocol.dialog.DialogView;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.screen.dialog.DialogScreen;
+import dev.hoi.client.ui.country.*;
+import dev.hoi.client.ui.tooltip.*;
 import java.util.*;
 import java.util.function.BiConsumer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -27,7 +29,7 @@ public final class IndustryOrganization extends DialogScreen {
     private String confirmation="",dragToken="",moveToken="";
     private int moveTarget=-1,movePrevious=-1,tooltipScroll;
     private String hoveredText="";
-    private UiTooltips.ScrolledTooltip tooltipBounds;
+    private Tooltips.ScrolledTooltip tooltipBounds;
     public IndustryOrganization(DialogView view,Screen parent){this(view,parent,DialogCoordinator::choose);}
     IndustryOrganization(DialogView view,Screen parent,BiConsumer<DialogView,String> send){super(view,send);this.parent=parent;}
     public Screen backdrop(){return parent;}
@@ -79,17 +81,17 @@ public final class IndustryOrganization extends DialogScreen {
         if(policies())buttons.put("back",buttons.get("close"));
         if(policies()){
             var rows=tiles("policy/");scroll=Math.clamp(scroll,0,Math.max(0,rows.size()*48-(panelHeight-70)));
-            for(int i=0;i<rows.size();i++){var t=rows.get(i);int y=top+48+i*48-scroll;if(y<top+48||y+44>top+panelHeight-22)continue;String id="attach/"+t.section().substring(7);button(id,t.name(),left+8,y,pane-16,44,!pending&&offered(id),()->confirm(id));buttons.get(id).setTooltip(UiTooltips.createOfficer(t.detail()));}
+            for(int i=0;i<rows.size();i++){var t=rows.get(i);int y=top+48+i*48-scroll;if(y<top+48||y+44>top+panelHeight-22)continue;String id="attach/"+t.section().substring(7);button(id,t.name(),left+8,y,pane-16,44,!pending&&offered(id),()->confirm(id));buttons.get(id).setTooltip(Tooltips.createOfficer(t.detail()));}
             return;
         }
         button("queue","특성 대기열"+(queued().isEmpty()?"":" ("+queued().size()+")"),left+18,top+85,111,17,true,()->{cacheDetail();queueOpen=true;rebuildWidgets();});((UiMenuButton)buttons.get("queue")).background(art("button_221x34"));
         button("policies","정책",left+10,top+panelHeight-44,136,35,!pending&&offered("policies"),()->send("policies"));
         ((UiMenuButton)buttons.get("policies")).background(art("mio_policy_slot_button"));
         if(tile("policy")!=null&&!tile("policy").name().isEmpty())((UiMenuButton)buttons.get("policies")).caption("");
-        buttons.get("policies").setTooltip(UiTooltips.createOfficer(Optional.ofNullable(tile("policy")).map(DialogView.Tile::detail).orElse("")));
+        buttons.get("policies").setTooltip(Tooltips.createOfficer(Optional.ofNullable(tile("policy")).map(DialogView.Tile::detail).orElse("")));
         var traits=tiles("trait/");int maxRow=traits.stream().map(DialogView.Tile::traitNode).filter(Objects::nonNull).mapToInt(DialogView.TraitNode::row).max().orElse(0);
         scroll=Math.clamp(scroll,0,Math.max(0,maxRow*56+96-(panelHeight-30)));
-        for(var t:traits){if(t.traitNode()==null)continue;String token=t.section().substring(6);nodes.put(token,t);int x=nodeX(t),y=nodeY(t);if(y<top+48||y+40>top+panelHeight-8)continue;button(t.section(),t.name(),x,y,32,40,false,()->{});buttons.get(t.section()).setTooltip(UiTooltips.createOfficer(t.detail()));}
+        for(var t:traits){if(t.traitNode()==null)continue;String token=t.section().substring(6);nodes.put(token,t);int x=nodeX(t),y=nodeY(t);if(y<top+48||y+40>top+panelHeight-8)continue;button(t.section(),t.name(),x,y,32,40,false,()->{});buttons.get(t.section()).setTooltip(Tooltips.createOfficer(t.detail()));}
     }
     private void funds(GuiGraphicsExtractor g,DialogView.Tile summary){
         g.pose().pushMatrix();g.pose().translate(left+68,top+53);g.pose().scale(.5f);
@@ -105,7 +107,7 @@ public final class IndustryOrganization extends DialogScreen {
     }
     private int nodeX(DialogView.Tile t){return left+170+t.traitNode().column()*44;}
     private int nodeY(DialogView.Tile t){return top+56+t.traitNode().row()*56-scroll;}
-    private void text(GuiGraphicsExtractor g,String value,int x,int y,int w,int h,int color){UiText.leftSingleLine(g,font,UiKeywordIcons.decorateLines(UiTooltips.officerText(value),false),x,y,w,h,color);}
+    private void text(GuiGraphicsExtractor g,String value,int x,int y,int w,int h,int color){UiText.leftSingleLine(g,font,TooltipKeywordIcons.decorateLines(Tooltips.officerText(value),false),x,y,w,h,color);}
     private void line(GuiGraphicsExtractor g,int x1,int y1,int x2,int y2,int color,boolean dotted){int steps=Math.max(Math.abs(x2-x1),Math.abs(y2-y1));for(int i=0;i<=steps;i++)if(!dotted||i%4<2){int x=x1+(x2-x1)*i/Math.max(1,steps),y=y1+(y2-y1)*i/Math.max(1,steps);g.fill(x,y,x+(dotted?2:1),y+(dotted?2:1),color);}}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
         if((policies()||queueOpen)&&detailBackdrop!=null){detailBackdrop.extractRenderState(g,-1,-1,delta);g.nextStratum();}else if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
@@ -123,14 +125,14 @@ public final class IndustryOrganization extends DialogScreen {
             int content=sideContentHeight(),visible=sideBottom-sideTop;
             sideScroll=Math.clamp(sideScroll,0,Math.max(0,content-visible));
             g.enableScissor(left+8,sideTop,left+154,sideBottom);int y=sideTop-sideScroll;
-            UiText.centered(g,font,UiTooltips.officerText("속성",true),left+12,y,135,16,UiMenuStyle.TEXT,false);y+=19;
+            UiText.centered(g,font,Tooltips.officerText("속성",true),left+12,y,135,16,UiMenuStyle.TEXT,false);y+=19;
             for(var t:tiles("attribute/")){String value=t.section().endsWith("assign_cost")?"£GFX_pol_power_icon "+t.value()+"/일":t.value();text(g,t.name()+": "+(t.icon().equals("good")?"§G":"§Y")+value,left+12,y,137,14,UiMenuStyle.TEXT);if(mx>=left+8&&mx<left+154&&my>=Math.max(sideTop,y)&&my<Math.min(sideBottom,y+14))hovered=t.detail();y+=15;}
-            UiText.centered(g,font,UiTooltips.officerText("장비 혜택",true),left+12,y,135,16,UiMenuStyle.TEXT,false);y+=18;var type=tile("type");if(type!=null){UiText.left(g,font,type.name(),left+12,y,135,typeHeight()-3,0xFFFFAA00);y+=typeHeight();}
+            UiText.centered(g,font,Tooltips.officerText("장비 혜택",true),left+12,y,135,16,UiMenuStyle.TEXT,false);y+=18;var type=tile("type");if(type!=null){UiText.left(g,font,type.name(),left+12,y,135,typeHeight()-3,0xFFFFAA00);y+=typeHeight();}
             for(var t:tiles("equipment/")){UiAssets.draw(g,equipmentIcon(t.section().substring(10)),left+12,y+5,23,23);text(g,UiText.ellipsize(font,t.name(),110),left+38,y,110,14,UiMenuStyle.TEXT);var counts=t.value().split("/",-1);if(counts.length==2){UiAssets.draw(g,art("design_team_icon"),left+39,y+17,10,10);text(g,counts[0],left+52,y+16,30,12,UiMenuStyle.TEXT);UiAssets.draw(g,art("industrial_manufacturer_icon"),left+83,y+17,10,10);text(g,counts[1],left+96,y+16,30,12,UiMenuStyle.TEXT);}if(mx>=left+8&&mx<left+154&&my>=Math.max(sideTop,y)&&my<Math.min(sideBottom,y+37))hovered=t.detail();y+=37;}
             g.disableScissor();if(content>visible)scrollbar(1).draw(g,sideScroll);g.enableScissor(left+160,top+25,left+pane-6,top+panelHeight-6);
             UiAssets.draw(g,art("mio_details_background"),left+160,top+28,pane-166,panelHeight-34);
                 UiAssets.tiledNineSlice(g,art("mio_header_transparent"),left+160,top+25,pane-166,22,16,.5);
-                for(var t:tiles("header/")){int x=left+186+(int)(Double.parseDouble(t.value())*44);UiText.centeredSingleLine(g,font,UiTooltips.officerText(t.name(),true),x-80,top+31,160,12,UiMenuStyle.TEXT);}
+                for(var t:tiles("header/")){int x=left+186+(int)(Double.parseDouble(t.value())*44);UiText.centeredSingleLine(g,font,Tooltips.officerText(t.name(),true),x-80,top+31,160,12,UiMenuStyle.TEXT);}
                 for(var t:nodes.values()){int x=nodeX(t)+16,y1=nodeY(t);boolean hot=mx>=x-16&&mx<x+16&&my>=y1&&my<y1+40;for(String parentId:t.traitNode().parents()){var p=nodes.get(parentId);if(p==null)continue;int px=nodeX(p)+16,py=nodeY(p)+38,mid=py+10;int color=hot?0xFFFFDD55:0xFFA3A3D7;boolean dot=t.traitNode().needed()!=t.traitNode().parents().size();line(g,px,py,px,mid,color,dot);line(g,px,mid,x,mid,color,dot);line(g,x,mid,x,y1,color,dot);}}
                 var exclusivePairs=new HashSet<Set<String>>();
                 for(var t:nodes.values())for(String exclusive:t.traitNode().exclusive()){
@@ -143,7 +145,7 @@ public final class IndustryOrganization extends DialogScreen {
                     UiAssets.draw(g,"mio/ui/gfx_focus_link_exclusive/frame_2",end-16,linkY,16,16);
                     UiAssets.draw(g,art("focus_link_exclusive"),(x+end)/2-8,linkY,16,16);
                 }
-                for(var t:nodes.values()){int x=nodeX(t),y1=nodeY(t);int frame=t.traitNode().owned()?0:2;String sprite=t.traitNode().kind().equals("mio_special")?"country_spefific_org_trait_button":"industrial_org_trait_button";UiAssets.draw(g,"mio/ui/gfx_"+sprite+"/frame_"+frame,x,y1,32,40);UiAssets.draw(g,t.icon(),x+5,y1+4,22,24);var bonuses=t.traitNode().bonuses();int bonusWidth=Math.min(25,bonuses.size()*10);for(int i=0;i<bonuses.size();i++){String bonus=bonuses.get(i);int bonusX=UiFlagStack.left(i,bonuses.size(),x+16-bonusWidth/2,bonusWidth,10);String image=switch(bonus){case "equipment"->"design_team_icon";case "production"->"industrial_manufacturer_icon";default->"organization_modifier_icon";};UiAssets.draw(g,art(image),bonusX,y1+27,10,12);}if(!t.value().isEmpty()){UiAssets.draw(g,"mio/ui/gfx_topbar_alert_bg/frame_3",x+24,y1+22,13,13);UiText.centered(g,font,t.value(),x+24,y1+22,13,13,UiMenuStyle.TEXT,false);}if(mx>=x&&mx<x+32&&my>=Math.max(top+48,y1)&&my<Math.min(top+panelHeight-8,y1+40)){hovered=t.detail();traitTooltip=true;tipX=x+29;tipY=y1+20;}}
+                for(var t:nodes.values()){int x=nodeX(t),y1=nodeY(t);int frame=t.traitNode().owned()?0:2;String sprite=t.traitNode().kind().equals("mio_special")?"country_spefific_org_trait_button":"industrial_org_trait_button";UiAssets.draw(g,"mio/ui/gfx_"+sprite+"/frame_"+frame,x,y1,32,40);UiAssets.draw(g,t.icon(),x+5,y1+4,22,24);var bonuses=t.traitNode().bonuses();int bonusWidth=Math.min(25,bonuses.size()*10);for(int i=0;i<bonuses.size();i++){String bonus=bonuses.get(i);int bonusX=CountryFlagStack.left(i,bonuses.size(),x+16-bonusWidth/2,bonusWidth,10);String image=switch(bonus){case "equipment"->"design_team_icon";case "production"->"industrial_manufacturer_icon";default->"organization_modifier_icon";};UiAssets.draw(g,art(image),bonusX,y1+27,10,12);}if(!t.value().isEmpty()){UiAssets.draw(g,"mio/ui/gfx_topbar_alert_bg/frame_3",x+24,y1+22,13,13);UiText.centered(g,font,t.value(),x+24,y1+22,13,13,UiMenuStyle.TEXT,false);}if(mx>=x&&mx<x+32&&my>=Math.max(top+48,y1)&&my<Math.min(top+panelHeight-8,y1+40)){hovered=t.detail();traitTooltip=true;tipX=x+29;tipY=y1+20;}}
             g.disableScissor();
         }
         for(var entry:buttons.entrySet())if(!entry.getKey().startsWith("trait/")&&!entry.getKey().startsWith("attach/")&&!entry.getKey().startsWith("queue-row/"))((net.minecraft.client.gui.components.Renderable)entry.getValue()).extractRenderState(g,mx,my,delta);
@@ -152,7 +154,7 @@ public final class IndustryOrganization extends DialogScreen {
         if(queueOpen){
             int x=queueX(),y=queueY();g.nextStratum();g.fill(x,y,x+248,y+queueHeight(),0xFF101114);UiAssets.nineSlice(g,art("tiled_plain_bg"),x,y,248,70,4,.5);
             g.pose().pushMatrix();g.pose().translate(x+124,y+7);g.pose().scale(1.25f);g.centeredText(font,net.minecraft.network.chat.Component.literal("특성 대기열").withStyle(net.minecraft.ChatFormatting.BOLD),0,0,0xFFFFFFFF);g.pose().popMatrix();
-            int instructionY=y+25;for(var line:UiTooltips.sourceLines(font,"이 제조사가 특성 점수를 가지고 있다면, 이 대기열의 사용 가능한 첫 특성이 획득 완료됩니다.\n특성을 §GShift + 클릭§!하여 §Y이 대기열에 추가§!\n§G끌어 놓기§!로 §Y대기열 순서 변경§!",238)){g.text(font,line,x+(248-font.width(line))/2,instructionY,UiMenuStyle.TEXT,false);instructionY+=11;}
+            int instructionY=y+25;for(var line:Tooltips.sourceLines(font,"이 제조사가 특성 점수를 가지고 있다면, 이 대기열의 사용 가능한 첫 특성이 획득 완료됩니다.\n특성을 §GShift + 클릭§!하여 §Y이 대기열에 추가§!\n§G끌어 놓기§!로 §Y대기열 순서 변경§!",238)){g.text(font,line,x+(248-font.width(line))/2,instructionY,UiMenuStyle.TEXT,false);instructionY+=11;}
             hovered="";
             for(var t:queued()){
                 var b=buttons.get("queue-row/"+t.section().substring(6));if(b==null)continue;
@@ -160,14 +162,14 @@ public final class IndustryOrganization extends DialogScreen {
                 if(t.value().equals("1"))UiAssets.draw(g,"mio/ui/gfx_topbar_alert_bg/frame_3",b.getX()+7,b.getY()+8,13,13);
                 else {g.fill(b.getX()+7,b.getY()+13,b.getX()+10,b.getY()+15,0xFF41933D);g.fill(b.getX()+18,b.getY()+13,b.getX()+21,b.getY()+15,0xFF41933D);}
                 UiText.centered(g,font,t.value(),b.getX()+7,b.getY()+8,14,13,UiMenuStyle.TEXT,false);
-                text(g,t.name(),b.getX()+48,b.getY()+7,160,16,UiMenuStyle.TEXT);if(UiTooltips.contains(b,mx,my))hovered=t.detail();
+                text(g,t.name(),b.getX()+48,b.getY()+7,160,16,UiMenuStyle.TEXT);if(Tooltips.contains(b,mx,my))hovered=t.detail();
             }
             for(var entry:buttons.entrySet())if(!entry.getKey().startsWith("queue-row/"))((net.minecraft.client.gui.components.Renderable)entry.getValue()).extractRenderState(g,mx,my,delta);
         }
         if(queueOpen&&scrollbar(2).maximum()>0)scrollbar(2).draw(g,queueScroll);
-        if(!confirmation.isEmpty()){g.nextStratum();int x=width/2-145,y=height/2-90;g.fill(x,y,x+290,y+168,0xFF191B20);UiAssets.nineSlice(g,art("tiled_window_pol_goal"),x,y,290,168,20,.5);var choice=view().choices().stream().filter(c->c.id().equals(confirmation)).findFirst().orElseThrow();text(g,choice.label(),x+10,y+7,270,20,UiMenuStyle.TEXT);var lines=UiTooltips.exactLines(font,choice.tooltip(),264);int row=y+35;g.enableScissor(x+12,row,x+278,y+135);for(var line:lines){g.text(font,line,x+12,row,UiMenuStyle.TEXT,false);row+=11;}g.disableScissor();for(var b:buttons.values())((net.minecraft.client.gui.components.Renderable)b).extractRenderState(g,mx,my,delta);hovered="";}
+        if(!confirmation.isEmpty()){g.nextStratum();int x=width/2-145,y=height/2-90;g.fill(x,y,x+290,y+168,0xFF191B20);UiAssets.nineSlice(g,art("tiled_window_pol_goal"),x,y,290,168,20,.5);var choice=view().choices().stream().filter(c->c.id().equals(confirmation)).findFirst().orElseThrow();text(g,choice.label(),x+10,y+7,270,20,UiMenuStyle.TEXT);var lines=Tooltips.exactLines(font,choice.tooltip(),264);int row=y+35;g.enableScissor(x+12,row,x+278,y+135);for(var line:lines){g.text(font,line,x+12,row,UiMenuStyle.TEXT,false);row+=11;}g.disableScissor();for(var b:buttons.values())((net.minecraft.client.gui.components.Renderable)b).extractRenderState(g,mx,my,delta);hovered="";}
         if(!hovered.equals(hoveredText)){hoveredText=hovered;tooltipScroll=0;}
-        tooltipBounds=hovered.isEmpty()?null:UiTooltips.drawSourceScrollable(g,font,hovered,tipX,tipY,width,height,tooltipScroll,traitTooltip?194:260,traitTooltip);
+        tooltipBounds=hovered.isEmpty()?null:Tooltips.drawSourceScrollable(g,font,hovered,tipX,tipY,width,height,tooltipScroll,traitTooltip);
     }
     private int typeHeight(){var type=tile("type");return type==null?0:Math.max(19,font.split(net.minecraft.network.chat.Component.literal(type.name()),135).size()*(UiText.MIN_HEIGHT+1)+3);}
     private int sideContentHeight(){return tiles("attribute/").size()*15+tiles("equipment/").size()*37+38+typeHeight();}
@@ -185,8 +187,8 @@ public final class IndustryOrganization extends DialogScreen {
         int area=queueOpen?2:policies()?0:1;var bar=scrollbar(area);
         if(event.button()==InputConstants.MOUSE_BUTTON_LEFT&&bar.contains(event.x(),event.y())){int current=area==1?sideScroll:area==2?queueScroll:scroll;if(bar.arrow(event.y()))scrollTo(area,bar.step(event.y(),current,30));else{draggingScroll=area;scrollTo(area,bar.offset(event.y()));}return true;}
         if(event.button()==InputConstants.MOUSE_BUTTON_LEFT&&!pending){
-            if(queueOpen){for(var t:queued()){var b=buttons.get("queue-row/"+t.section().substring(6));if(b!=null&&UiTooltips.contains(b,event.x(),event.y())){dragToken=t.section().substring(6);return true;}}}
-            else for(var t:nodes.values()){var b=buttons.get(t.section());if(b==null||!UiTooltips.contains(b,event.x(),event.y()))continue;String token=t.section().substring(6);if((event.modifiers()&InputConstants.MOD_SHIFT)!=0)send((t.value().isEmpty()?"queue/":"unqueue/")+token);else confirm("unlock/"+token);dev.hoi.client.audio.AudioUiSounds.play("ui.click");return true;}
+            if(queueOpen){for(var t:queued()){var b=buttons.get("queue-row/"+t.section().substring(6));if(b!=null&&Tooltips.contains(b,event.x(),event.y())){dragToken=t.section().substring(6);return true;}}}
+            else for(var t:nodes.values()){var b=buttons.get(t.section());if(b==null||!Tooltips.contains(b,event.x(),event.y()))continue;String token=t.section().substring(6);if((event.modifiers()&InputConstants.MOD_SHIFT)!=0)send((t.value().isEmpty()?"queue/":"unqueue/")+token);else confirm("unlock/"+token);dev.hoi.client.audio.AudioUiSounds.play("ui.click");return true;}
         }
         return super.mouseClicked(event,twice);
     }

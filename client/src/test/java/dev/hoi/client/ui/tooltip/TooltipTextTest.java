@@ -1,0 +1,73 @@
+package dev.hoi.client.ui.tooltip;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class TooltipTextTest {
+    @Test void sourceSpacingPreservesSingleBlankLinesColorsZeroValuesAndDecimalPlaces() {
+        String source="§e보급§r\n\n\n효율: §a+5.00%§r\n§f----§r\n연료: §e0.00§r\n";
+        assertEquals(source.replace("§f----§r","").replace("\n\n\n","\n\n"),TooltipText.sourceSpacing(source));
+    }
+    @Test void sourceSpacingCollapsesOnlyInteriorBlankRuns() {
+        for(String gap:java.util.List.of("\n\n","\n\n\n","\n§r\n","\n---\n","\n \n§r\n§f------§r\n")) {
+            assertEquals("first\n\nlast",TooltipText.sourceSpacing("first\n"+gap+"last"));
+        }
+        assertEquals("first\n\nlast",TooltipText.sourceSpacing("first\n\nlast"));
+        assertEquals("\n\nfirst\n\nlast\n\n\n",TooltipText.sourceSpacing("\n\nfirst\n\n\nlast\n\n\n"));
+        assertEquals("\n\n",TooltipText.sourceSpacing("\n\n"));
+        assertEquals("",TooltipText.sourceSpacing(""));
+        assertEquals("first\n\nlast",TooltipText.sourceSpacing("first\r\n\r\n\r\nlast"));
+    }
+    @Test void terrainColorsContinueAcrossParagraphsUntilReset() {
+        assertEquals(java.util.List.of("§#FCA97D서울 설명", "", "§#FCA97D다음 문단§r", "§#FB607FSeoul, my soul§r", "기본"),
+                TooltipText.colorLines("§#FCA97D서울 설명\n\n다음 문단§r\n§#FB607FSeoul, my soul§r\n기본"));
+        assertEquals(java.util.List.of("§e직함", "[image:portrait]", "[caption:§f박원순§r]", "정당"),
+                TooltipText.colorLines("§e직함\n[image:portrait]\n[caption:§f박원순§r]\n정당"));
+    }
+    @Test void exactTooltipSpacingPreservesZeroAndPrecisionWithoutEmptyMargins() {
+        assertEquals("수송선: 0\n\n효율: §c20.00%§r",TooltipText.spacing("\n§r\n수송선: 0\n\n \n효율: §c20.00%§r\n\n§r"));
+    }
+    @Test void sourceSeparatorsBecomeBlankLinesWithoutChangingHyphenatedValues() {
+        assertEquals("숲\n\n공격: -12.5%",TooltipText.spacing("숲\n§f----§r\n공격: -12.5%"));
+        for(String separator:java.util.List.of("§Y---§!", " ---- ", "§#123456--------------", "ㅡㅡㅡ", "ᅳᅳᅳ", "───", "━━━", "═══", "————", "– – –", "−−−", "___", "=========", "~~~", "～～～", "§f- - -§r", "§Y — ─ - §!", "§#123456————", "—\u00a0─\u2003-")) {
+            assertTrue(TooltipText.blank(separator));
+            assertEquals("숲\n\n공격: -12.5%",TooltipText.spacing("\n"+separator+"\n숲\n"+separator+"\n\n"+separator+"\n공격: -12.5%\n"+separator));
+        }
+        for(String text:java.util.List.of("공격: -12.5%", "2020-01-01", "hoi:air_0", "— 미확인", "--- 설명 ---", "A=B", "ㅡㅡㅡ 설명")) {
+            assertFalse(TooltipText.blank(text));
+            assertEquals(text,TooltipText.spacing(text));
+        }
+        assertFalse(TooltipText.blank("-"));
+        assertFalse(TooltipText.blank("--"));
+        assertFalse(TooltipText.blank("— 미확인"));
+    }
+    @Test void populationPreservesZeroGrowthAndParagraphs() {
+        String text="§e민간인 인구§f: §e3.00M§f/§e3.00M§f\n\n§e일간 성장§f: 0.00% (모병 가능: 0, 민간인: 0)\n\n기본: §e0.00%§f";
+        assertEquals(text,TooltipText.format(text,true));
+    }
+    @Test void rgbColorsDoNotBecomeAmountsAndCaptionsKeepTheirText() {
+        assertEquals("§e집권 정당: §#3659D9더불어민주당§r",TooltipText.format("§e집권 정당: §#3659D9더불어민주당§r"));
+        assertEquals("",TooltipText.format("공격: §#3659D90§r"));
+        assertEquals("[image:map_detail/art/portrait]\n[caption:§f오거돈§r]",TooltipText.format("[image:map_detail/art/portrait]\n[caption:§f오거돈§r]"));
+    }
+    @Test void hidesZeroRowsAndCollapsesRepeatedEmptyLines() {
+        assertEquals("§e현대화된 농업§r\n\n§c제거 불가능",TooltipText.format("§e현대화된 농업§r\n\n  \n§c제거 불가능"));
+        assertEquals("사단 방어: §c-5%§r",TooltipText.format("사단 훈련 시간: 0\n특수부대 수용량: +0.000%\n사단 방어: §c-5%§r\n육군 고문 비용: §a0§r"));
+    }
+    @Test void roundsOrdinaryAmountsAndRemovesRoundedZero() {
+        assertEquals("공격: §c-12.3%§r\n에너지: 2\n손실: 13.5",TooltipText.format("공격: §c-12.345%§r\n에너지: 2.000\n손실: 13.45\n사고: 0.001%"));
+    }
+    @Test void preservesPartyPrecisionAndNonAmountNumbers() {
+        assertEquals("매일 사회자유주의 지지도: §a+0.01§r",TooltipText.format("매일 사회자유주의 지지도: §a+0.01§r"));
+        assertEquals("정당 지지도: 48.1234%\n매일 변화: +0.0025%",TooltipText.format("정당 지지도: 48.1234%\n매일 변화: +0.0025%"));
+        assertEquals("슬롯: 0/5\n2020-01-01\nhoi:air_0\n[image:air_detail/result_0]",TooltipText.format("슬롯: 0/5\n2020-01-01\nhoi:air_0\n[image:air_detail/result_0]"));
+    }
+    @Test void hidesResourceZeroBaseAndPreservesSourceMultipliers() {
+        String text="§e석유§r\n기본: §e0§r £resources_strip|1\n건물: §e-12§r £resources_strip|1\n   기반시설: §ex2.00§r\n   보급 경로: §ex1.10§r";
+        assertEquals(text.replace("기본: §e0§r £resources_strip|1\n",""),TooltipText.format(text));
+    }    @Test void sourceEffectsKeepExactDecimals() {
+        String text="£fuel_texticon 연료 보유량: §a+20.00%§r\n£GFX_dx_yellow 개인 비용 (B): §e+0.125§r";
+        assertEquals(text,TooltipText.format(text));
+        assertEquals("사단 방어: §a+20.00%§r",TooltipText.format("사단 방어: §a+20.00%§r",true));
+    }
+}

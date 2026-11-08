@@ -1,8 +1,6 @@
 package dev.hoi.client.input;
 
 import dev.hoi.client.screen.map.MapCursor;
-
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.KeyEvent;
 

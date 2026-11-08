@@ -15,7 +15,7 @@ public final class CommanderTraitTreeTest {
     private static void hoverTracking(ClientGameTestContext context,DialogView view,String name,int[] resolution) {
         var node=view.tiles().stream().filter(t->t.traitNode()!=null&&!t.traitNode().terrain()&&t.traitNode().column()==0&&t.traitNode().row()>=0).findFirst().orElseThrow().traitNode();
         var cursor=context.computeOnClient(client->{var screen=(CommanderTraits)client.gui.screen();return new int[]{screen.x(180),screen.y(63+27.5*node.row())};});
-        dev.hoi.client.ui.UiTooltips.ScrolledTooltip previous=null;
+        dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip previous=null;
         for(int step=0;step<2;step++) {
             context.getInput().setCursorPos((cursor[0]+step*6)*2,cursor[1]*2);context.waitTicks(3);
             var bounds=context.computeOnClient(client->{var screen=(CommanderTraits)client.gui.screen();var tip=screen.tooltipBounds();if(tip==null||tip.x()<4||tip.y()<4||tip.x()+tip.width()+4>screen.width||tip.y()+tip.height()+4>screen.height)throw new AssertionError("Trait tooltip must fit viewport");return tip;});

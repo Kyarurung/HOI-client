@@ -48,11 +48,11 @@ public final class MapAirDetailChecks {
                 DialogCoordinator.receive(DialogPayloads.Show.of(view,true));
                 if(!(c.gui.screen() instanceof MapAirDetail screen))throw new AssertionError("Air marker must open air details");
                 if(Math.abs(screen.panelLeft()*2+screen.panelWidth()-screen.width)>1)throw new AssertionError("Air detail must be centered");
-                if(screen.panelTop()<dev.hoi.client.ui.UiMenuBar.height(screen.width)||screen.panelTop()+screen.panelHeight()>screen.height)throw new AssertionError("Air panel escaped viewport");
+                if(screen.panelTop()<dev.hoi.client.ui.hud.HudMenuBar.height(screen.width)||screen.panelTop()+screen.panelHeight()>screen.height)throw new AssertionError("Air panel escaped viewport");
                 for(var child:screen.children())if(child instanceof Button b&&(b.getX()<0||b.getY()<0||b.getRight()>screen.width||b.getBottom()>screen.height))throw new AssertionError("Air button escaped viewport");
                 if(size[0]==2560&&screen.panelWidth()!=414)throw new AssertionError("Air panel must grow 50 percent at GUI2");
                 for(var child:screen.children())if(child instanceof Button b&&List.of("아군 임무","세부 사항","적군 임무").contains(b.getMessage().getString()))throw new AssertionError("Removed air buttons remain");
-                for(var line:dev.hoi.client.ui.UiTooltips.lines(c.font,"이동: 95.0%",300,false))line.accept((index,style,code)->{
+                for(var line:dev.hoi.client.ui.tooltip.Tooltips.lines(c.font,"이동: 95.0%",300,false))line.accept((index,style,code)->{
                     if(code>=0xe000&&code<=0xf8ff)throw new AssertionError("Air tooltip must not inject icons");
                     return true;
                 });

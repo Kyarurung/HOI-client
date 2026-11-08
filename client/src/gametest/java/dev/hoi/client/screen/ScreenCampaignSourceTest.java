@@ -1,7 +1,7 @@
 package dev.hoi.client.screen;
 
 import com.google.gson.JsonParser;
-import dev.hoi.client.ui.UiKeywordIcons;
+import dev.hoi.client.ui.tooltip.TooltipKeywordIcons;
 import dev.hoi.client.screen.decision.DecisionScreen;
 import dev.hoi.client.screen.decision.DecisionScreenSourceTest;
 import dev.hoi.client.screen.dialog.DialogCompletion;
@@ -52,7 +52,7 @@ public final class ScreenCampaignSourceTest {
                         for (var tile : view.tiles()) {
                             String source = String.join("\n", PoliticsChoice.traits(tile));
                             if (source.contains("£GFX_KOR_DemocraticParty_texticon")) {
-                                var rendered = UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal(source), false);
+                                var rendered = TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal(source), false);
                                 if (rendered.getString().contains("£") || rendered.getString().codePoints().noneMatch(c -> c >= 0xE000 && c <= 0xF8FF)) throw new AssertionError("Minister source party token must become an inline glyph");
                             }
                         }

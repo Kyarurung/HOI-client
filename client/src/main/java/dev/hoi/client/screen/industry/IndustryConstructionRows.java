@@ -3,7 +3,7 @@ package dev.hoi.client.screen.industry;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiText;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.industry.IndustryConstructionView.Summary;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -28,6 +28,6 @@ final class IndustryConstructionRows {
         int iconSize=Math.min(22,height-4);
         UiAssets.draw(g,icon,x+width*210/402-iconSize/2,y+2,iconSize,iconSize);
         UiText.cell(g,font,Integer.toString(count),x+width*254/402,y+2,width*50/402,height-4,UiMenuStyle.TEXT,false);
-        if(mx>=x&&mx<x+width&&my>=y&&my<y+height)UiTooltips.drawExact(g,font,detail==null?name:detail,mx,my);
+        if(mx>=x&&mx<x+width&&my>=y&&my<y+height)Tooltips.drawExact(g,font,detail==null?name:detail,mx,my);
     }
 }

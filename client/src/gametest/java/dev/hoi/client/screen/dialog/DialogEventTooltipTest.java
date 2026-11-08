@@ -9,7 +9,6 @@ import dev.hoi.protocol.country.CountryHud;
 import dev.hoi.protocol.hud.HudPayloads;
 import dev.hoi.protocol.dialog.DialogPayloads;
 import dev.hoi.protocol.dialog.DialogView;
-import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.screen.decision.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
@@ -59,7 +58,7 @@ public final class DialogEventTooltipTest {
                                 var matcher = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+)").matcher(optionView.tooltip());
                                 while (matcher.find()) {
                                     String token = matcher.group();
-                                    if (dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal(token), false).getString().isEmpty()) missingIcons.add(token);
+                                    if (dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal(token), false).getString().isEmpty()) missingIcons.add(token);
                                 }
                                 measurements.put(key, Map.of("tooltipGui", new int[]{tooltip.x() - 4, tooltip.y() - 4, tooltip.width() + 8, tooltip.height() + 8}, "text", optionView.tooltip(), "choiceGui", box(choice(screen, optionView))));
                             }

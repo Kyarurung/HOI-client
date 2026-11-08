@@ -1,11 +1,11 @@
 package dev.hoi.client.screen.politics;
 
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.UiAssets;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.dialog.DialogView;
 import dev.hoi.protocol.menu.MenuTab;
 import dev.hoi.client.screen.dialog.DialogScreen;
@@ -21,8 +21,8 @@ public final class PoliticsChoice extends DialogScreen {
     private final java.util.function.Consumer<dev.hoi.protocol.dialog.DialogPayloads.Action> sender;
     private final java.util.Map<net.minecraft.client.gui.components.AbstractWidget, String> officerTooltips = new java.util.IdentityHashMap<>();
     private String hoveredOfficer="";
-    private dev.hoi.client.ui.UiTooltips.ScrolledTooltip tooltipBounds;
-    public dev.hoi.client.ui.UiTooltips.ScrolledTooltip tooltipBounds() {return tooltipBounds;}
+    private dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip tooltipBounds;
+    public dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip tooltipBounds() {return tooltipBounds;}
     private int tooltipScroll;
     private boolean pending;
     private int left, top, pane, bottom, scroll;
@@ -75,7 +75,7 @@ public final class PoliticsChoice extends DialogScreen {
         officerTooltips.clear();tooltipBounds=null;
         if (parent != null && (parent.width != width || parent.height != height)) parent.resize(width, height);
         left = spirit() ? UiPanelLayout.width(MenuTab.OFFICER_CORPS, width) : width * 710 / 2560;
-        top = spirit() ? UiMenuBar.height(width) : 40;
+        top = spirit() ? HudMenuBar.height(width) : 40;
         pane = Math.min(250, width - left - 6);
         if (pane < 170) { pane = Math.min(250, width - 12); left = width - pane - 6; }
         bottom = Math.min(height - 10, top + (advisor() ? 295 : spirit() ? 329 : 300));
@@ -93,7 +93,7 @@ public final class PoliticsChoice extends DialogScreen {
             if (sourceTooltips()) {
                 button.setTooltip(null);
                 officerTooltips.put(button, "§e" + tile.name() + "§r\n" + tile.detail());
-            } else button.setTooltip(tile.name().equals("공석") || tile.icon().equals("politics/vacant") ? null : dev.hoi.client.ui.UiTooltips.create(Component.empty().append(Component.literal(tile.name()).withColor(dev.hoi.client.ui.UiTooltips.GOLD)).append(Component.literal("\n"+tile.detail().replace("적용 중\n", "").stripTrailing()))));
+            } else button.setTooltip(tile.name().equals("공석") || tile.icon().equals("politics/vacant") ? null : dev.hoi.client.ui.tooltip.Tooltips.create(Component.empty().append(Component.literal(tile.name()).withColor(dev.hoi.client.ui.tooltip.Tooltips.GOLD)).append(Component.literal("\n"+tile.detail().replace("적용 중\n", "").stripTrailing()))));
             addRenderableWidget(button);
         }
     }
@@ -109,7 +109,7 @@ public final class PoliticsChoice extends DialogScreen {
         int titleY = spirit() ? top + 1 : top + 2, subtitleY = spirit() ? top + 12 : top + 14;
         dev.hoi.client.ui.UiText.centeredSingleLine(g,font,Component.literal(view().title()).withStyle(s->s.withBold(true)),left+12,titleY,pane-24,10,0xFFFFFFFF);
         if (!view().subtitle().isEmpty()) dev.hoi.client.ui.UiText.centeredSingleLine(g,font,
-                dev.hoi.client.ui.UiTooltips.officerText(view().subtitle()),left+24,subtitleY,pane-48,10,UiMenuStyle.TEXT);
+                dev.hoi.client.ui.tooltip.Tooltips.officerText(view().subtitle()),left+24,subtitleY,pane-48,10,UiMenuStyle.TEXT);
         if (advisor()) {
             int frame = switch (view().image().substring(8)) { case "navy_chief" -> 1; case "air_chief" -> 2; case "high_command" -> 3; default -> 0; };
             UiAssets.draw(g,"politics/choice/header/frame_"+frame,left+1,top+22,pane-3,30);
@@ -142,7 +142,7 @@ public final class PoliticsChoice extends DialogScreen {
                 var traits = traits(tile);
                 for (int line = 0; line < traits.size(); line++) {
                     int traitWidth = line==0||current ? textWidth : Math.max(1,textWidth-costWidth-2);
-                    dev.hoi.client.ui.UiText.leftSingleLine(g,font,dev.hoi.client.ui.UiKeywordIcons.decorateLines(UiTooltips.officerText(traits.get(line)),false),
+                    dev.hoi.client.ui.UiText.leftSingleLine(g,font,dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(Tooltips.officerText(traits.get(line)),false),
                             textLeft,y+14+line*9,traitWidth,9,UiMenuStyle.ACCENT);
                 }
                 if (!current) drawCost(g, tile, x + cell - 4 - costWidth, y + 25);
@@ -153,10 +153,10 @@ public final class PoliticsChoice extends DialogScreen {
             }
         }
         if (sourceTooltips()) {
-            String text = officerTooltips.entrySet().stream().filter(entry -> dev.hoi.client.ui.UiTooltips.contains(entry.getKey(),mx,my))
+            String text = officerTooltips.entrySet().stream().filter(entry -> dev.hoi.client.ui.tooltip.Tooltips.contains(entry.getKey(),mx,my))
                     .map(java.util.Map.Entry::getValue).findFirst().orElse("");
             if (!text.equals(hoveredOfficer)) {hoveredOfficer=text;tooltipScroll=0;}
-            tooltipBounds=text.isEmpty()?null:dev.hoi.client.ui.UiTooltips.drawSourceScrollable(g,font,text,mx,my,width,height,tooltipScroll);
+            tooltipBounds=text.isEmpty()?null:dev.hoi.client.ui.tooltip.Tooltips.drawSourceScrollable(g,font,text,mx,my,width,height,tooltipScroll);
             if(tooltipBounds!=null)tooltipScroll=tooltipBounds.scroll();
         }
         if (view().tiles().isEmpty()) {
@@ -170,7 +170,7 @@ public final class PoliticsChoice extends DialogScreen {
     private int costWidth(DialogView.Tile tile) { return (blocked(tile) ? 10 : 0) + 12 + font.width(number(tile)); }
     private void drawCost(GuiGraphicsExtractor g, DialogView.Tile tile, int x, int y) {
         boolean blocked = blocked(tile);
-        int color = blocked ? BLOCKED : 0xFF000000 | (cost(tile).startsWith("§c") ? dev.hoi.client.ui.UiTooltips.BAD : dev.hoi.client.ui.UiTooltips.GOLD);
+        int color = blocked ? BLOCKED : 0xFF000000 | (cost(tile).startsWith("§c") ? dev.hoi.client.ui.tooltip.Tooltips.BAD : dev.hoi.client.ui.tooltip.Tooltips.GOLD);
         if (blocked) { UiAssets.draw(g,"keywords/agency_trigger_no",x,y,8,9); x += 10; }
         UiAssets.draw(g,currencyIcon(),x,y,10,10);
         dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(number(tile)),x+12,y,font.width(number(tile)),10,color);
@@ -187,7 +187,7 @@ public final class PoliticsChoice extends DialogScreen {
         return super.mouseClicked(event, twice);
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
-        if (officerTooltips.keySet().stream().anyMatch(widget->dev.hoi.client.ui.UiTooltips.contains(widget,x,y))
+        if (officerTooltips.keySet().stream().anyMatch(widget->dev.hoi.client.ui.tooltip.Tooltips.contains(widget,x,y))
                 && com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)) {
             tooltipScroll-=(int)(vertical*30);return true;
         }

@@ -1,6 +1,5 @@
 package dev.hoi.client.screen.decision;
 
-import dev.hoi.client.ui.*;
 import dev.hoi.protocol.country.*;
 import dev.hoi.protocol.decision.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;

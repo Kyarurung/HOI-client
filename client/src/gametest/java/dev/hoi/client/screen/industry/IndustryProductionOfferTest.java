@@ -2,7 +2,7 @@ package dev.hoi.client.screen.industry;
 
 import com.google.gson.Gson;
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.hoi.client.research.ResearchScreen;
+import dev.hoi.client.screen.research.ResearchScreen;
 import dev.hoi.client.ui.UiScrollBar;
 import dev.hoi.protocol.industry.*;
 import dev.hoi.protocol.menu.*;
@@ -96,7 +96,7 @@ public final class IndustryProductionOfferTest {
     }
     private static void directProduction(ClientGameTestContext game, IndustryView view, IndustryView.Equipment offered, int width) {
         for (boolean switching : List.of(false, true)) {
-            var equipment = game.computeOnClient(c -> switching ? offered : view.equipment().stream().filter(e -> e.unlocked() && !e.outdated() && e.manufacturerChoices() == 0).filter(e -> { var design = dev.hoi.client.ui.UiEquipmentDesigns.productionDesign(e); return !design.blueprint() && !design.unfinished(); }).findFirst().orElseThrow());
+            var equipment = game.computeOnClient(c -> switching ? offered : view.equipment().stream().filter(e -> e.unlocked() && !e.outdated() && e.manufacturerChoices() == 0).filter(e -> { var design = dev.hoi.client.ui.industry.IndustryEquipmentDesigns.productionDesign(e); return !design.blueprint() && !design.unfinished(); }).findFirst().orElseThrow());
             var line = view.lines().stream().filter(l -> !l.equipment().equals(equipment.id())).findFirst().orElseThrow();
             var requests = new ArrayList<IndustryPayloads.Request>();
             var screen = game.computeOnClient(c -> new IndustryScreen(MenuTab.PRODUCTION, view.session(), view, requests::add)); game.setScreen(() -> screen);

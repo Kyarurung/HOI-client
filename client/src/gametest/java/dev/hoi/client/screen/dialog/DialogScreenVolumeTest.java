@@ -8,7 +8,6 @@ import dev.hoi.protocol.dialog.DialogView;
 import java.util.List;
 import java.util.UUID;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.minecraft.client.resources.sounds.SoundInstance;
 
 public final class DialogScreenVolumeTest {
     private DialogScreenVolumeTest() {}
@@ -25,15 +24,15 @@ public final class DialogScreenVolumeTest {
                 AudioKoreanMusic.volume(volume);
             });
             context.waitFor(client -> {
-                var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
-                return ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().keySet().stream()
+                var engine = ((dev.hoi.client.mixin.audio.AudioManagerAccess)client.getSoundManager()).hoiSoundEngine();
+                return ((dev.hoi.client.mixin.audio.AudioEngineAccess)engine).hoiChannels().keySet().stream()
                         .noneMatch(sound -> sound.getIdentifier().toString().equals("hoi:ui.focus.complete"));
             });
             context.runOnClient(client -> DialogCoordinator.receive(DialogPayloads.Show.of(view, true)));
             context.waitTicks(2);
             var sound = context.computeOnClient(client -> {
-                var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
-                var sounds = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().keySet().stream()
+                var engine = ((dev.hoi.client.mixin.audio.AudioManagerAccess)client.getSoundManager()).hoiSoundEngine();
+                var sounds = ((dev.hoi.client.mixin.audio.AudioEngineAccess)engine).hoiChannels().keySet().stream()
                         .filter(s -> s.getIdentifier().toString().equals("hoi:ui.focus.complete")).toList();
                 if (sounds.size() != 1) throw new AssertionError("Completion must create one audio channel, actual: " + sounds.size());
                 return sounds.getFirst();
@@ -42,8 +41,8 @@ public final class DialogScreenVolumeTest {
             context.runOnClient(client -> {
                 DialogCoordinator.receive(DialogPayloads.Show.of(view, true));
                 DialogCoordinator.receive(DialogPayloads.Show.of(view.issued(view.token(), 2), false));
-                var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
-                long count = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().keySet().stream()
+                var engine = ((dev.hoi.client.mixin.audio.AudioManagerAccess)client.getSoundManager()).hoiSoundEngine();
+                long count = ((dev.hoi.client.mixin.audio.AudioEngineAccess)engine).hoiChannels().keySet().stream()
                         .filter(s -> s.getIdentifier().toString().equals("hoi:ui.focus.complete")).count();
                 if (count != 1) throw new AssertionError("Duplicate/refresh completion replayed its cue");
                 AudioKoreanMusic.volume(.25);

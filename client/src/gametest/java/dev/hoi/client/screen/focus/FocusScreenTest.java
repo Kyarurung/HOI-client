@@ -37,12 +37,55 @@ public final class FocusScreenTest {
             exactDetailText(context, source, size[0]);
             progressStates(context, source, size[0]);
             stackedMenu(context, source, size[0]);
+            selectionPreservesTree(context, source, size[0]);
             pixelFailures.addAll(FocusScreenPixelsTest.run(context, size[0]));
         }
         context.setScreen(() -> null);
         context.getInput().resizeWindow(1600, 1000);
         context.waitTicks(2);
         check(pixelFailures.isEmpty(), "Focus GPU pixel comparison failed: " + String.join("; ", pixelFailures));
+    }
+    private static void selectionPreservesTree(ClientGameTestContext context, FocusPayloads.View source, int width) {
+        String id = source.nodes().stream().filter(node -> node.id().equals("KOR_discussion_of_covid_response_measures")).findFirst().orElseThrow().id();
+        context.setScreen(() -> new FocusScreen(source, request -> {}));
+        dev.hoi.client.ui.hud.HudFullscreenTest.run(context, "focus", width);
+        var position = context.computeOnClient(client -> {
+            var screen = (FocusScreen)client.gui.screen();
+            var bounds = screen.nodeBounds(id);
+            var drag = new MouseButtonEvent(5, 200, new net.minecraft.client.input.MouseButtonInfo(InputConstants.MOUSE_BUTTON_MIDDLE, 0));
+            screen.mouseClicked(drag, false);
+            screen.mouseDragged(drag, 160 - bounds[0] - bounds[2] / 2.0, 120 - bounds[1]); screen.mouseReleased(drag);
+            return new float[]{screen.panX(), screen.panY(), screen.zoomLevel()};
+        });
+        context.getInput().setCursorPos(0, 0); context.waitTicks(2);
+        try {
+            var before = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-focus-tree-before-detail-" + width + "-gui2").toFile());
+            var areas = context.computeOnClient(client -> {
+                var screen = (FocusScreen)client.gui.screen();
+                var node = screen.nodeBounds(id); clickNode(screen, id);
+                check(screen.panX() == position[0] && screen.panY() == position[1] && screen.zoomLevel() == position[2], "Opening focus detail changed pan or zoom");
+                return new int[][]{node, screen.detailBounds()};
+            });
+            context.waitTicks(2);
+            var after = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-focus-tree-under-detail-" + width + "-gui2").toFile());
+            long compared = 0;
+            for (int y = (dev.hoi.client.ui.hud.HudMenuBar.height(before.getWidth() / 2) + 29) * 2; y < before.getHeight() - 10; y++) for (int x = 8; x < before.getWidth() - 8; x++) {
+                boolean covered = false;
+                for (var area : areas) if (x >= (area[0] - 2) * 2 && x < (area[0] + area[2] + 2) * 2 && y >= (area[1] - 2) * 2 && y < (area[1] + area[3] + 2) * 2) covered = true;
+                if (covered) continue;
+                if (before.getRGB(x, y) != after.getRGB(x, y)) throw new AssertionError("Opening focus detail changed the exposed tree at " + x + "," + y);
+                compared++;
+            }
+            context.runOnClient(client -> {
+                var screen = (FocusScreen)client.gui.screen(); screen.keyPressed(new net.minecraft.client.input.KeyEvent(InputConstants.KEY_ESCAPE, 0, 0));
+                check(screen.selectedId().isEmpty() && screen.panX() == position[0] && screen.panY() == position[1] && screen.zoomLevel() == position[2], "Closing focus detail changed pan or zoom");
+            });
+            context.waitTicks(2);
+            var closed = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-focus-tree-after-detail-" + width + "-gui2").toFile());
+            for (int y = (dev.hoi.client.ui.hud.HudMenuBar.height(before.getWidth() / 2) + 29) * 2; y < before.getHeight() - 10; y++) for (int x = 8; x < before.getWidth() - 8; x++)
+                if (before.getRGB(x, y) != closed.getRGB(x, y)) throw new AssertionError("Closing focus detail changed the tree at " + x + "," + y);
+            java.nio.file.Files.writeString(java.nio.file.Path.of("focus-tree-preservation-" + width + ".json"), new com.google.gson.Gson().toJson(java.util.Map.of("comparedPixels", compared, "changedPixels", 0, "panX", position[0], "panY", position[1], "zoom", position[2])));
+        } catch (IOException error) { throw new java.io.UncheckedIOException(error); }
     }
     private static void cancelSelectedFocus(ClientGameTestContext context, FocusPayloads.View source) {
         var original=source.nodes().getFirst();
@@ -76,8 +119,8 @@ public final class FocusScreenTest {
             context.setScreen(()->new DialogStack(new FocusScreen(source,request->{})));
             context.getInput().setCursorPos(0,200);context.waitTicks(2);
             var stacked=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-focus-menu-stacked-"+pixelWidth+"-gui2").toFile());
-            int menuHeight=context.computeOnClient(client->dev.hoi.client.ui.UiMenuBar.height(client.getWindow().getGuiScaledWidth())*2);
-            int dockWidth=context.computeOnClient(client->dev.hoi.client.ui.UiMenuBar.dockWidth(client.getWindow().getGuiScaledWidth())*2);
+            int menuHeight=context.computeOnClient(client->dev.hoi.client.ui.hud.HudMenuBar.height(client.getWindow().getGuiScaledWidth())*2);
+            int dockWidth=context.computeOnClient(client->dev.hoi.client.ui.hud.HudMenuBar.dockWidth(client.getWindow().getGuiScaledWidth())*2);
             for(int y=0;y<menuHeight;y++)for(int x=0;x<(y<30?baseline.getWidth():dockWidth);x++)check(baseline.getRGB(x,y)==stacked.getRGB(x,y),"Stacked focus must preserve the menu pixel at "+x+","+y);
         } catch(IOException error) {throw new java.io.UncheckedIOException(error);}
         finally {context.setScreen(()->null);context.runOnClient(client->dev.hoi.client.ClientCampaignHud.accept(previous));}

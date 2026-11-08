@@ -400,14 +400,14 @@ public final class AgencyPresentationTest {
                     var hit = ((List<?>)field("hits")).stream().filter(value -> item.equals("operative") ? hitText(value, "operative").equals(operative) : hitText(value, "item").equals(item)).findFirst().orElseThrow();
                     String text = hitText(hit, "tooltip");
                     if (item.startsWith(prefix) && !text.contains("§!\n\n")) throw new AssertionError("Mission title must have one blank separator");
-                    dev.hoi.client.ui.UiTooltips.officerText(text).visit((style, part) -> {
+                    dev.hoi.client.ui.tooltip.Tooltips.officerText(text).visit((style, part) -> {
                         if (style.isBold()) throw new AssertionError("Source §L prose must not become Minecraft bold");
                         return java.util.Optional.empty();
                     }, net.minecraft.network.chat.Style.EMPTY);
                     return new int[]{(hitNumber(hit, "x") + hitNumber(hit, "width") / 2) * 2, (hitNumber(hit, "y") + hitNumber(hit, "height") - 3) * 2, hitNumber(hit, "y")};
                 });
                 context.getInput().setCursorPos(point[0], point[1]); context.waitTicks(2);
-                var bounds = context.computeOnClient(client -> (dev.hoi.client.ui.UiTooltips.ScrolledTooltip)field("tooltip"));
+                var bounds = context.computeOnClient(client -> (dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip)field("tooltip"));
                 if (bounds == null || bounds.width() <= 0 || bounds.height() <= 0) throw new AssertionError("Hovered agency tooltip must actually render");
                 if (bounds.y() - 4 < 0 || bounds.y() + bounds.height() + 4 > point[2]) throw new AssertionError("Bottom HUD tooltip must fit above its complete control");
                 var capture = context.takeScreenshot("hoi-agency-tooltip-" + (item.equals("operative") ? item : item.startsWith("dismiss:") ? "dismiss" : item.substring(item.lastIndexOf(':') + 1).toLowerCase(java.util.Locale.ROOT)) + "-" + width + "-gui2");

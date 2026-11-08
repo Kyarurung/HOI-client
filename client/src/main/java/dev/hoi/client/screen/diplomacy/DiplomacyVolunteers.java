@@ -7,9 +7,9 @@ import dev.hoi.client.audio.AudioUiSounds;
 import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiDiplomacyAssets;
-import dev.hoi.client.ui.UiMenuBar;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.client.ui.UiText;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.diplomacy.DiplomacyVolunteerPayloads;
 import dev.hoi.protocol.diplomacy.DiplomacyVolunteerView;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
@@ -47,7 +47,7 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
     private boolean closed, draggingScroll, draggingWindow, refreshRequired;
     private int left, top, scroll, requestTicks, offsetX, offsetY;
     private double scale, dragX, dragY;
-    private UiTooltips.ScrolledTooltip tooltip;
+    private Tooltips.ScrolledTooltip tooltip;
     private String tooltipText = "";
     private int tooltipScroll;
     private VolunteerButton pressed;
@@ -63,9 +63,7 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
         this.view = initial;
         this.transport = Objects.requireNonNull(transport);
     }
-    public Screen parent() { return parent; }
     public DiplomacyVolunteerView view() { return view; }
-    String token() { return token; }
     boolean pending() { return pending != null; }
     int scrollPosition() { return scroll; }
     boolean canSubmit() { return contextValid() && !closed && pending == null && !refreshRequired && view.submitEnabled(); }
@@ -163,7 +161,7 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
         loadLabels();
         tips.clear();
         tooltip = null;
-        int toolbar = UiMenuBar.height(width);
+        int toolbar = HudMenuBar.height(width);
         scale = Math.max(.1, Math.min(.5, Math.min((width - 12) / 527.0, (height - toolbar - 12) / 612.0)));
         int centerX = (width - s(527)) / 2;
         int centerY = Math.max(toolbar + 4, (height - s(612)) / 2);
@@ -226,7 +224,7 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
             return true;
         }
         pressed = children().stream().filter(VolunteerButton.class::isInstance).map(VolunteerButton.class::cast)
-                .filter(button -> button.active && UiTooltips.contains(button, event.x(), event.y())).findFirst().orElse(null);
+                .filter(button -> button.active && Tooltips.contains(button, event.x(), event.y())).findFirst().orElse(null);
         super.mouseClicked(event, twice);
         return true;
     }
@@ -259,11 +257,11 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
         return path.startsWith("hoi:textures/gui/") && path.endsWith(".png") ? path.substring(17, path.length() - 4) : path;
     }
     private void text(GuiGraphicsExtractor g, String text, int x, int y, int width, int height, int color) {
-        UiText.centeredSingleLine(g, font, UiTooltips.officerText(text.replace("§T", "§W")), x, y, width, height, color);
+        UiText.centeredSingleLine(g, font, Tooltips.officerText(text.replace("§T", "§W")), x, y, width, height, color);
     }
     private void paragraph(GuiGraphicsExtractor g, String text, int x, int y, int width, int height) {
         float naturalScale = Math.min(1f, (float)(18 * scale / font.lineHeight));
-        var lines = UiTooltips.sourceLines(font, text.replace("§T", "§W"), Math.max(1, (int)(width / naturalScale)));
+        var lines = Tooltips.sourceLines(font, text.replace("§T", "§W"), Math.max(1, (int)(width / naturalScale)));
         if (lines.isEmpty()) return;
         float fitted = Math.min(naturalScale, height / (float)Math.max(1, lines.size() * (font.lineHeight + 1)));
         g.pose().pushMatrix();
@@ -312,7 +310,7 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
         assets.beginFrame();
         if (parent != null) { parent.extractRenderState(g, -1, -1, delta); g.nextStratum(); }
         UiAssets.draw(g, "diplomacy/volunteers/background", left, top, s(527), s(612));
-        UiText.centeredSingleLine(g, font, UiTooltips.officerText(view.title(), true), x(-3), y(29), s(530), s(20), 0xFFFFFFFF);
+        UiText.centeredSingleLine(g, font, Tooltips.officerText(view.title(), true), x(-3), y(29), s(530), s(20), 0xFFFFFFFF);
         UiAssets.draw(g, "diplomacy/volunteers/time/frame_0", x(60), y(80), s(46), s(46));
         text(g, view.transferText(), x(110), y(91), s(100), s(24), 0xFFFFFFFF);
         text(g, label("AIR_VOLUNTEERS"), x(370), y(91), s(150), s(24), 0xFFFFFFFF);
@@ -337,11 +335,11 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
         boolean over = overTooltip(mx, my);
         for (var child : children()) if (child instanceof net.minecraft.client.gui.components.Renderable widget) widget.extractRenderState(g, over ? -1 : mx, over ? -1 : my, delta);
         if (over) hovered = tooltipText;
-        else if (hovered.isEmpty()) for (var entry : tips.entrySet()) if (UiTooltips.contains(entry.getKey(), mx, my)) { hovered = entry.getValue(); break; }
+        else if (hovered.isEmpty()) for (var entry : tips.entrySet()) if (Tooltips.contains(entry.getKey(), mx, my)) { hovered = entry.getValue(); break; }
         if (hovered.isEmpty()) { tooltip = null; tooltipText = ""; tooltipScroll = 0; }
         else {
             if (!hovered.equals(tooltipText)) { tooltipText = hovered; tooltipScroll = 0; }
-            tooltip = UiTooltips.drawSourceScrollable(g, font, tooltipText.replace("§T", "§W"), mx, my, width, height, tooltipScroll);
+            tooltip = Tooltips.drawSourceScrollable(g, font, tooltipText.replace("§T", "§W"), mx, my, width, height, tooltipScroll);
             tooltipScroll = tooltip.scroll();
         }
     }
@@ -359,7 +357,7 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
             if (!texture.isEmpty()) {
                 var effect = icon ? UiDiplomacyAssets.Effect.NONE : UiDiplomacyAssets.Effect.BUTTON_STATE;
                 var state = !active ? UiDiplomacyAssets.State.DISABLED : pressed == this ? UiDiplomacyAssets.State.DOWN
-                        : UiTooltips.contains(this, mx, my) ? UiDiplomacyAssets.State.OVER : UiDiplomacyAssets.State.UP;
+                        : Tooltips.contains(this, mx, my) ? UiDiplomacyAssets.State.OVER : UiDiplomacyAssets.State.UP;
                 assets.button(g, texture + ":" + getMessage().getString(), texture, getX(), getY(), getWidth(), getHeight(), effect, state);
             }
             if (!icon) text(g, getMessage().getString(), getX() + 1, getY(), getWidth() - 2, getHeight(), 0xFFFFFFFF);

@@ -1,7 +1,6 @@
 package dev.hoi.client.ui;
 
 import dev.hoi.client.audio.AudioUiSounds;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -13,9 +12,8 @@ public class UiPanelButton extends Button {
     public void sound(String value) { clickSound = value; }
     public UiPanelButton(String label, int x, int y, int width, int height, Runnable action) {
         super(x, y, width, height, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
-        if (label.equals("×") || label.equals("x") || label.equals("X")) setTooltip(dev.hoi.client.ui.UiTooltips.create(Component.literal("닫기")));
+        if (label.equals("×") || label.equals("x") || label.equals("X")) setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal("닫기")));
     }
-    public void progress(double value) { progress = value; }
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play(getMessage().getString().equals("×") ? "ui.close" : clickSound); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();

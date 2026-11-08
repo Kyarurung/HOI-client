@@ -78,7 +78,7 @@ public record DialogView(String token,long revision,Kind kind,String title,Strin
     }
     public DialogView {
         presentation=presentation==null?"":presentation;
-        if(!Set.of("","research_complete","focus_complete","agency_upgrade_complete","doctrine_reward_complete","doctrine_milestone_complete","leader_event","minor_flavor").contains(presentation)||Set.of("leader_event","minor_flavor").contains(presentation)&&kind!=Kind.EVENT)throw new IllegalArgumentException("Invalid dialog presentation");
+        if(!Set.of("","research_complete","focus_complete","agency_upgrade_complete","doctrine_reward_complete","doctrine_milestone_complete","leader_event","minor_flavor","lend_lease_request","lend_lease_reply").contains(presentation)||Set.of("leader_event","minor_flavor").contains(presentation)&&kind!=Kind.EVENT||Set.of("lend_lease_request","lend_lease_reply").contains(presentation)&&kind!=Kind.DIPLOMACY)throw new IllegalArgumentException("Invalid dialog presentation");
         if(!token.isEmpty())UUID.fromString(token);
         if(revision<0)throw new IllegalArgumentException("Invalid dialog revision");
         Objects.requireNonNull(kind);text(title,240);text(subtitle,600);text(body,24000);asset(flag);asset(image);asset(sound);

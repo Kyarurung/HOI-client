@@ -5,7 +5,7 @@ import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiScrollBar;
 import dev.hoi.client.ui.UiText;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.dialog.DialogView;
 import dev.hoi.client.screen.dialog.DialogScreen;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -54,8 +54,8 @@ public final class DoctrineNotification extends DialogScreen {
             UiAssets.draw(g, "completion/header", left + 1, top + 4, pane - 2, 43);
             UiAssets.draw(g, "completion/bottom", left + 2, top + panelHeight - 31, pane - 4, 36);
         }
-        UiText.centered(g, font, UiTooltips.officerText(view().title(), true), left + 12, top + (reward() ? 10 : 12), pane - 24, 20, UiMenuStyle.TEXT);
-        var lines = UiTooltips.sourceLines(font, view().body(), Math.max(1, pane - 29));
+        UiText.centered(g, font, Tooltips.officerText(view().title(), true), left + 12, top + (reward() ? 10 : 12), pane - 24, 20, UiMenuStyle.TEXT);
+        var lines = Tooltips.sourceLines(font, view().body(), Math.max(1, pane - 29));
         int lineHeight = font.lineHeight + 2;
         total = lines.size() * lineHeight;
         scroll = Math.clamp(scroll, 0, bar().maximum());

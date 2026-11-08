@@ -10,7 +10,6 @@ final class IndustryLogisticsRows {
         long stockpile() { return models.stream().mapToLong(Equipment::stockpile).sum(); }
         long reserved() { return models.stream().mapToLong(Equipment::reserved).sum(); }
         long deployed() { return models.stream().mapToLong(Equipment::deployed).sum(); }
-        long deficit() { return models.stream().mapToLong(Equipment::deficit).sum(); }
         Long demand() { return models.stream().anyMatch(e -> e.demand() == null) ? null : models.stream().mapToLong(Equipment::demand).sum(); }
         Long balance() { Long demand = demand(); return demand == null ? null : stockpile() - demand; }
         String status() { Long balance = balance(); return balance == null ? "—" : balance >= 0 ? "충족" : daily > 0 ? "생산" : "부족"; }

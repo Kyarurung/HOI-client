@@ -5,6 +5,9 @@ import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.protocol.dialog.DialogView;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.screen.dialog.DialogScreen;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.politics.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -24,16 +27,16 @@ public final class MapAirDetail extends DialogScreen implements InputSidebarMove
     @Override public int panelWidth(){return pane;}
     @Override public int panelHeight(){return tall;}
     @Override protected void init() {
-        scale=Math.min(Math.max(.75,width*1.5/2560.0),(height-UiMenuBar.height(width)-8)/436.0);
+        scale=Math.min(Math.max(.75,width*1.5/2560.0),(height-HudMenuBar.height(width)-8)/436.0);
         scale=Math.min(scale,(width-8)/552.0);
-        pane=n(552);tall=n(436);left=(width-pane)/2;top=Math.max(UiMenuBar.height(width)+2,(height-tall)/2);
+        pane=n(552);tall=n(436);left=(width-pane)/2;top=Math.max(HudMenuBar.height(width)+2,(height-tall)/2);
         button("×",516,3,28,26,this::onClose);
         for(int i=0;i<3;i++) {
             int index=i;
             var b=new UiMenuButton(title("mission_filter_"+i,"임무"),x(207+i*45),y(236),n(43),n(34),()->toggleCategory(index,UiPriorityControls.shifted()));
             b.background("none").caption("").sound("ui.air.filter");b.setTooltip(null);addRenderableWidget(b);
         }
-        if(dev.hoi.client.ClientCampaignHud.visible())UiMenuBar.buttons(width,dev.hoi.client.ClientCampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
+        if(dev.hoi.client.ClientCampaignHud.visible())HudMenuBar.buttons(width,dev.hoi.client.ClientCampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
     }
     void toggleCategory(int index,boolean only) {
         if(only){Arrays.fill(categories,false);categories[index]=true;}else categories[index]=!categories[index];
@@ -60,7 +63,7 @@ public final class MapAirDetail extends DialogScreen implements InputSidebarMove
     }
     private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,boolean center,int size,boolean bold) {
         float factor=(float)Math.max(7,size*scale)/font.lineHeight;
-        var line=font.split(UiTooltips.sentences(Component.literal(value).withStyle(style->style.withBold(bold))),Math.max(1,(int)(n(w)/factor))).stream().findFirst().orElse(null);
+        var line=font.split(Tooltips.sentences(Component.literal(value).withStyle(style->style.withBold(bold))),Math.max(1,(int)(n(w)/factor))).stream().findFirst().orElse(null);
         if(line==null)return;
         float offset=center?(n(w)-font.width(line)*factor)/2:0;
         g.pose().pushMatrix();g.pose().translate(x(px)+offset,y(py)+(n(h)-(font.lineHeight-1)*factor)/2);g.pose().scale(factor);
@@ -148,7 +151,7 @@ public final class MapAirDetail extends DialogScreen implements InputSidebarMove
             String detail=current.detail().isBlank()?current.name():current.detail();
             float factor=(float)Math.max(12,24*Math.min(Math.max(.5,width/2560.0),scale))/font.lineHeight;
             g.pose().pushMatrix();g.pose().scale(factor);
-            tooltipScroll=UiPoliticalTooltip.drawTextDetail(g,font,detail,(int)(mx/factor),(int)(my/factor),(int)(width/factor),(int)(height/factor),tooltipScroll);
+            tooltipScroll=PoliticsTooltip.drawTextDetail(g,font,detail,(int)(mx/factor),(int)(my/factor),(int)(width/factor),(int)(height/factor),tooltipScroll);
             g.pose().popMatrix();
         }
     }
@@ -172,7 +175,7 @@ public final class MapAirDetail extends DialogScreen implements InputSidebarMove
     }
     @Override public boolean mouseClicked(MouseButtonEvent event,boolean twice) {
         if(event.x()<left||event.x()>=left+pane||event.y()<top||event.y()>=top+tall) {
-            if(event.y()<UiMenuBar.height(width))return super.mouseClicked(event,twice);
+            if(event.y()<HudMenuBar.height(width))return super.mouseClicked(event,twice);
             if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);
         }
         super.mouseClicked(event,twice);return true;

@@ -1,9 +1,13 @@
 package dev.hoi.client.ui;
 
-import dev.hoi.client.research.ResearchDetails;
-import dev.hoi.client.research.ResearchIcons;
-
+import dev.hoi.client.screen.research.ResearchDetails;
+import dev.hoi.client.screen.research.ResearchIcons;
 import dev.hoi.protocol.research.ResearchView;
+import dev.hoi.client.ui.country.CountryDisplays;
+import dev.hoi.client.ui.hud.HudMenuBar;
+import dev.hoi.client.ui.industry.IndustryEquipmentDesigns;
+import dev.hoi.client.ui.tooltip.TooltipKeywordIcons;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
@@ -19,7 +23,7 @@ public final class UiAssets {
     private static final Map<Identifier, Identifier> GRAYSCALE = new HashMap<>();
     private static com.google.gson.JsonObject eventImageSizes;
     private UiAssets() {}
-    public static void clear() { GRAYSCALE.values().forEach(id -> Minecraft.getInstance().getTextureManager().release(id)); GRAYSCALE.clear(); eventImageSizes = null; UiStoryAssets.clear(); UiCommandLabels.clear(); DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); UiKeywordIcons.clear(); UiMenuBar.clear(); UiEquipmentDesigns.clear(); UiTooltips.clear(); dev.hoi.client.screen.decision.DecisionScreen.resourcesReloaded(); dev.hoi.client.screen.focus.FocusScreen.resourcesReloaded(); UiDiplomacyAssets.resourcesReloaded(); }
+    public static void clear() { GRAYSCALE.values().forEach(id -> Minecraft.getInstance().getTextureManager().release(id)); GRAYSCALE.clear(); eventImageSizes = null; UiStoryAssets.clear(); UiCommandLabels.clear(); DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); TooltipKeywordIcons.clear(); HudMenuBar.clear(); IndustryEquipmentDesigns.clear(); Tooltips.clear(); dev.hoi.client.screen.decision.DecisionScreen.resourcesReloaded(); dev.hoi.client.screen.focus.FocusScreen.resourcesReloaded(); UiDiplomacyAssets.resourcesReloaded(); }
     public static int[] eventImageSize(String path) {
         if (eventImageSizes == null) {
             eventImageSizes = new com.google.gson.JsonObject();
@@ -41,7 +45,7 @@ public final class UiAssets {
         return cover(g, path, x, y, w, h, false);
     }
     private static boolean cover(GuiGraphicsExtractor g, String path, int x, int y, int w, int h, boolean grayscale) {
-        path = UiCountryDisplay.texture(path);
+        path = CountryDisplays.texture(path);
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         if (id == null || w <= 0 || h <= 0) return false;
         int[] size = DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions);
@@ -101,7 +105,7 @@ public final class UiAssets {
         return draw(g, path, x, y, w, h, trimLeft, trimRight, tint, false);
     }
     private static boolean draw(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,int trimLeft,int trimRight,int tint,boolean grayscale) {
-        path = UiCountryDisplay.texture(path);
+        path = CountryDisplays.texture(path);
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         if (id == null || w <= 0 || h <= 0) return false;
         int[] size = DIMENSIONS.computeIfAbsent(id, UiAssets::dimensions);
@@ -159,12 +163,12 @@ public final class UiAssets {
         return fittedHeight>0&&draw(g,path,x,y+height-fittedHeight,width,fittedHeight);
     }
     public static int[] contentSize(String path) {
-        var id=Identifier.tryParse("hoi:textures/gui/"+UiCountryDisplay.texture(path)+".png");
+        var id=Identifier.tryParse("hoi:textures/gui/"+CountryDisplays.texture(path)+".png");
         int[] bounds=id==null?new int[0]:CONTENT_BOUNDS.computeIfAbsent(id,UiAssets::contentBounds);
         return bounds.length==0?imageSize(path):new int[]{bounds[4]-bounds[2],bounds[5]-bounds[3]};
     }
     public static boolean drawContent(GuiGraphicsExtractor g, String path, int x, int y, int w, int h) {
-        path = UiCountryDisplay.texture(path);
+        path = CountryDisplays.texture(path);
         var id = Identifier.tryParse("hoi:textures/gui/" + path + ".png");
         if (id == null || w <= 0 || h <= 0) return false;
         int[] bounds = CONTENT_BOUNDS.computeIfAbsent(id, UiAssets::contentBounds);
@@ -188,8 +192,8 @@ public final class UiAssets {
         g.disableScissor();
     }
     public static boolean drawAlignedContent(GuiGraphicsExtractor g,String path,String reference,float x,float y,float w,float h) {
-        path = UiCountryDisplay.texture(path);
-        reference = UiCountryDisplay.texture(reference);
+        path = CountryDisplays.texture(path);
+        reference = CountryDisplays.texture(reference);
         var id=Identifier.tryParse("hoi:textures/gui/"+path+".png");
         var anchor=Identifier.tryParse("hoi:textures/gui/"+reference+".png");
         if(id==null||anchor==null||w<=0||h<=0)return false;

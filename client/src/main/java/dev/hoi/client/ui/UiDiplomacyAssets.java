@@ -18,13 +18,15 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
 public final class UiDiplomacyAssets implements AutoCloseable {
-    static final String BUTTON_STATE_SHA256 = "914fa2f451e2fe744d753f266c071b32a7afb5d2866085d14f0ed20ac5bf7f44";
-    static final String NO_DOWN_SHA256 = "13901e2dc58659b84e01a84aedf64e8a9f3d45765dd013f6ff97c133622f1d05";
     private static final Set<UiDiplomacyAssets> INSTANCES = Collections.newSetFromMap(new WeakHashMap<>());
     private final Map<String, BufferedImage> sources = new HashMap<>();
     private final Map<String, Animation> animations = new HashMap<>();
     private final Map<Variant, Cached> textures = new HashMap<>();
+    private final Map<String, Identifier> flags = new HashMap<>();
     private final String namespace = UUID.randomUUID().toString();
+    private Identifier politicalChart;
+    private List<dev.hoi.protocol.menu.MenuView.Entry> politicalParties = List.of();
+    private int politicalPixels;
     private long frame, generation;
     public enum Effect { NONE, BUTTON_STATE, NO_DOWN }
     public enum State { UP, OVER, DOWN, DISABLED }
@@ -47,10 +49,94 @@ public final class UiDiplomacyAssets implements AutoCloseable {
             textures.values().forEach(cached -> manager.release(cached.id));
         }
         textures.clear();
+        if (!flags.isEmpty()) flags.values().forEach(Minecraft.getInstance().getTextureManager()::release);
+        flags.clear();
+        if (politicalChart != null) Minecraft.getInstance().getTextureManager().release(politicalChart);
+        politicalChart = null;
+        politicalParties = List.of();
         animations.clear();
         sources.clear();
     }
     @Override public void close() { clear(); }
+    public void politicalChart(GuiGraphicsExtractor graphics, List<dev.hoi.protocol.menu.MenuView.Entry> parties, float x, float y, int size) {
+        int pixels = Math.max(1, Math.round(size * Minecraft.getInstance().getWindow().getGuiScale()));
+        if (politicalChart == null || politicalPixels != pixels || !politicalParties.equals(parties)) {
+            if (politicalChart != null) Minecraft.getInstance().getTextureManager().release(politicalChart);
+            var raster = new BufferedImage(pixels, pixels, BufferedImage.TYPE_INT_ARGB);
+            var painter = raster.createGraphics();
+            try {
+                painter.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                painter.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                double diameter = pixels * 60.0 / 71, inset = (pixels - diameter) / 2, angle = 0;
+                painter.setColor(new java.awt.Color(0x555555));
+                painter.fill(new java.awt.geom.Ellipse2D.Double(inset, inset, diameter, diameter));
+                for (var party : parties) {
+                    if (party.progress() <= 0) continue;
+                    String icon = party.icon();
+                    int color = icon.matches("politics/party/[0-9a-fA-F]{6}") ? Integer.parseInt(icon.substring(icon.lastIndexOf('/') + 1), 16)
+                        : icon.endsWith("democratic") ? 0x4267CE : icon.endsWith("communist") ? 0xB52C39 : icon.endsWith("fascist") ? 0x97652F : 0x939393;
+                    painter.setColor(new java.awt.Color(color));
+                    painter.fill(new java.awt.geom.Arc2D.Double(inset, inset, diameter, diameter, angle, party.progress() * 360, java.awt.geom.Arc2D.PIE));
+                    angle += party.progress() * 360;
+                }
+                var overlay = source("intel/source/gfx_pol_piechart_overlay/frame_0");
+                if (overlay != null) painter.drawImage(overlay, 0, 0, pixels, pixels, null);
+            } finally { painter.dispose(); }
+            var image = new NativeImage(pixels, pixels, false);
+            for (int row = 0; row < pixels; row++) for (int column = 0; column < pixels; column++) image.setPixel(column, row, raster.getRGB(column, row));
+            DynamicTexture texture;
+            try { texture = new DynamicTexture(() -> "HOI political chart", image); }
+            catch (RuntimeException | Error failure) { image.close(); throw failure; }
+            politicalChart = Identifier.parse("hoi:diplomacy_chart/" + namespace + "/" + generation++);
+            try { Minecraft.getInstance().getTextureManager().register(politicalChart, texture); }
+            catch (RuntimeException | Error failure) { texture.close(); politicalChart = null; throw failure; }
+            politicalPixels = pixels;
+            politicalParties = List.copyOf(parties);
+        }
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x, y);
+        graphics.blit(politicalChart, 0, 0, size, size, 0, 1, 0, 1);
+        graphics.pose().popMatrix();
+    }
+    private Identifier smallFlagTexture(String path) {
+        path = dev.hoi.client.ui.country.CountryDisplays.texture(path);
+        Identifier id = flags.get(path);
+        if (id == null) {
+            BufferedImage flag = source(path), mask = source("flags/small2/mask");
+            if (flag == null || mask == null) return null;
+            var image = new NativeImage(mask.getWidth(), mask.getHeight(), false);
+            for (int row = 0; row < mask.getHeight(); row++) for (int column = 0; column < mask.getWidth(); column++) {
+                int color = flag.getRGB(column * flag.getWidth() / mask.getWidth(), row * flag.getHeight() / mask.getHeight());
+                image.setPixel(column, row, color & 0xFFFFFF | mask.getRGB(column, row) & 0xFF000000);
+            }
+            DynamicTexture texture;
+            try { texture = new DynamicTexture(() -> "HOI relation flag", image); }
+            catch (RuntimeException | Error failure) { image.close(); throw failure; }
+            id = Identifier.parse("hoi:diplomacy_flag/" + namespace + "/" + generation++);
+            try { Minecraft.getInstance().getTextureManager().register(id, texture); }
+            catch (RuntimeException | Error failure) { texture.close(); throw failure; }
+            flags.put(path, id);
+        }
+        return id;
+    }
+    public boolean smallFlag(GuiGraphicsExtractor graphics, String path, float x, float y, int width, int height) {
+        var id = smallFlagTexture(path);
+        if (id == null) return false;
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x, y);
+        graphics.blit(id, 0, 0, width, height, 0, 1, 0, 1);
+        UiAssets.draw(graphics, "flags/small2/overlay", 0, 0, width, height);
+        graphics.pose().popMatrix();
+        return true;
+    }
+    public void relationFlag(GuiGraphicsExtractor graphics, String path, int x, float y, int width, int height) {
+        int flagWidth = Math.round(width * 41f / 47), flagHeight = Math.round(height * 26f / 32);
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x, y);
+        if (smallFlag(graphics, path, (width - flagWidth) / 2f, (height - flagHeight) / 2f, flagWidth, flagHeight))
+            UiAssets.draw(graphics, "map_detail/flag_frame_thin", 0, 0, width, height);
+        graphics.pose().popMatrix();
+    }
     public boolean button(GuiGraphicsExtractor graphics, String controlKey, String path, int x, int y, int width, int height, Effect effect, State state) {
         if (graphics == null || path == null || width <= 0 || height <= 0) return false;
         if (effect == Effect.NONE) return UiAssets.draw(graphics, path, x, y, width, height);

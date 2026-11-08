@@ -5,6 +5,10 @@ import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.protocol.dialog.DialogView;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.screen.dialog.DialogScreen;
+import dev.hoi.client.ui.country.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.politics.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -14,7 +18,7 @@ import java.util.*;
 public final class MapDetail extends DialogScreen implements InputSidebarMovement.InputMovementScreen {
     private int left, top, pane, tall, sharedScroll;
     private double scale;
-    private final UiFlagStack ownerFlags = new UiFlagStack(), claimFlags = new UiFlagStack();
+    private final CountryFlagStack ownerFlags = new CountryFlagStack(), claimFlags = new CountryFlagStack();
     private int tooltipScroll;
     private DialogView.Tile hovered;
     private long accessPendingRevision = -1;
@@ -34,7 +38,7 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
     @Override protected void init() {
         int sourceWidth = sea() ? 433 : 463, sourceHeight = sea() ? 300 : 683;
         pane = Math.min(width - 8, (int)Math.round((sea()?1.20:1.35) * Math.max(sourceWidth / 2.0, width * sourceWidth / 2560.0)));
-        scale = Math.min(pane / (double)sourceWidth, (height - UiMenuBar.height(width) - 4) / (double)sourceHeight);
+        scale = Math.min(pane / (double)sourceWidth, (height - HudMenuBar.height(width) - 4) / (double)sourceHeight);
         pane = (int)Math.round(sourceWidth * scale); tall = (int)Math.round(sourceHeight * scale);
         left = 0; top = height - tall;
         if (sea()) {
@@ -62,7 +66,7 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
             }
         }
         addRenderableWidget(new UiMenuButton("×", x(sea()?398:425), y(sea()?5:9), n(25), n(25), this::onClose));
-        if(dev.hoi.client.ClientCampaignHud.visible())UiMenuBar.buttons(width,dev.hoi.client.ClientCampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
+        if(dev.hoi.client.ClientCampaignHud.visible())HudMenuBar.buttons(width,dev.hoi.client.ClientCampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
     }
     private int x(double n) { return left + (int)Math.round(n * scale); }
     private int y(double n) { return top + (int)Math.round(n * scale); }
@@ -80,9 +84,9 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
     }
     private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,int size,boolean centered,boolean wrap,boolean bold) {
         float textScale=(float)(Math.max(10,size*scale)/font.lineHeight);
-        var text=UiTooltips.sentences(Component.literal(value).withStyle(style->style.withBold(bold)));
+        var text=Tooltips.sentences(Component.literal(value).withStyle(style->style.withBold(bold)));
         if(!wrap)textScale=Math.min(textScale,n(w)/(float)Math.max(1,font.width(text)));
-        var lines=UiTooltips.split(font,text,Math.max(1,(int)(n(w)/textScale)));
+        var lines=Tooltips.split(font,text,Math.max(1,(int)(n(w)/textScale)));
         if(lines.isEmpty())return;
         var line=wrap?lines.getFirst():text.getVisualOrderText();
         float offset=centered?(n(w)-font.width(line)*textScale)/2:0;
@@ -143,14 +147,14 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
         if(parts.length==2&&parts[0].equals(parts[1]))return "§a"+value+"§r";
         return value;
     }
-    private void flags(GuiGraphicsExtractor g,List<DialogView.Tile> values,UiFlagStack stack,int py) {
+    private void flags(GuiGraphicsExtractor g,List<DialogView.Tile> values,CountryFlagStack stack,int py) {
         var order=stack.update(values.stream().map(t->t.section()+":"+t.icon()).toList());
         for(int i=0;i<order.size();i++) {
             String id=order.get(i);
             var tile=values.stream().filter(t->id.equals(t.section()+":"+t.icon())).findFirst().orElseThrow();
-            int px=UiFlagStack.left(i,order.size(),x(20),n(120),n(52));
-            UiFlagStack.draw(g,tile.icon(),px,y(py),n(52),n(38));
-            hovers.add(new MapHover(tile,px,y(py),UiFlagStack.visibleWidth(i,order.size(),x(20),n(120),n(52)),n(38)));
+            int px=CountryFlagStack.left(i,order.size(),x(20),n(120),n(52));
+            CountryFlagStack.draw(g,tile.icon(),px,y(py),n(52),n(38));
+            hovers.add(new MapHover(tile,px,y(py),CountryFlagStack.visibleWidth(i,order.size(),x(20),n(120),n(52)),n(38)));
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
@@ -170,7 +174,7 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
             float textScale=(float)(Math.max(10,16*scale)/font.lineHeight);
             g.pose().pushMatrix();
             g.pose().scale(textScale);
-            tooltipScroll=UiPoliticalTooltip.drawDetail(g,font,detail,(int)(mx/textScale),(int)(my/textScale),
+            tooltipScroll=PoliticsTooltip.drawDetail(g,font,detail,(int)(mx/textScale),(int)(my/textScale),
                     (int)(width/textScale),(int)(height/textScale),tooltipScroll);
             g.pose().popMatrix();
         }
@@ -182,7 +186,7 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
         label(g,"타국의 주장",10,97,140,20,UiMenuStyle.TEXT);
         flags(g,tiles("claims"),claimFlags,109);
         var population=tiles("population");
-        if(!population.isEmpty()){art(g,"map_detail/population",15,154,38,35);g.pose().pushMatrix();g.pose().translate(0,1);label(g,population.getFirst().value(),54,161,82,21,0xFF000000|UiTooltips.GOLD);g.pose().popMatrix();hovers.add(new MapHover(population.getFirst(),x(15),y(154),n(124),n(38)));}
+        if(!population.isEmpty()){art(g,"map_detail/population",15,154,38,35);g.pose().pushMatrix();g.pose().translate(0,1);label(g,population.getFirst().value(),54,161,82,21,0xFF000000|Tooltips.GOLD);g.pose().popMatrix();hovers.add(new MapHover(population.getFirst(),x(15),y(154),n(124),n(38)));}
         for(String section:List.of("resistance","compliance")) {
             var values=tiles(section);if(values.isEmpty())continue;
             var tile=values.getFirst();int py=section.equals("resistance")?198:233;
@@ -216,7 +220,7 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
         var slots=tiles("slots");
         String slotValue=slots.isEmpty()?"0":"§6"+slots.getFirst().value().replace("/","§f/§6");
         float slotScale=(float)(Math.max(10,12*scale)/font.lineHeight);
-        var slotNumber=UiTooltips.sentences(Component.literal(slotValue));
+        var slotNumber=Tooltips.sentences(Component.literal(slotValue));
         int numberX=font.width("열린 슬롯 ");
         g.pose().pushMatrix();
         g.pose().translate(x(165),y(143)+(n(20)-font.lineHeight*slotScale)/2);
@@ -338,7 +342,7 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
             if(!country.isEmpty()){dev.hoi.client.HoiClient.openCountry(country);return true;}
         }
         if(event.y()<top||event.x()>=pane) {
-            if(event.y()<UiMenuBar.height(width))return super.mouseClicked(event,twice);
+            if(event.y()<HudMenuBar.height(width))return super.mouseClicked(event,twice);
             if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return dev.hoi.client.input.InputMapInfo.clickAt(minecraft,event.x(),event.y(),width,height);
         }
         super.mouseClicked(event,twice);return true;

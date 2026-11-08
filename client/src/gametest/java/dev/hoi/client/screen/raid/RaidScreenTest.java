@@ -32,6 +32,38 @@ public final class RaidScreenTest {
         var event = new MouseButtonEvent(b.getX() + b.getWidth() / 2.0, b.getY() + b.getHeight() / 2.0, new MouseButtonInfo(mouse == 0 ? InputConstants.MOUSE_BUTTON_LEFT : InputConstants.MOUSE_BUTTON_RIGHT, 0));
         screen.mouseClicked(event, false); screen.mouseReleased(event);
     }
+    private static void reportScroll(ClientGameTestContext context, String directory, int width) {
+        var json = com.google.gson.JsonParser.parseString(read(directory, "kor-raids-ended")).getAsJsonObject();
+        var feedback = json.getAsJsonObject("window").getAsJsonObject("feedback");
+        feedback.addProperty("actorEffects", "합성 본문: §R95%§!\n".repeat(30) + "왼쪽 마지막 줄");
+        feedback.addProperty("victimEffects", "오른쪽 첫 줄\n" + "합성 본문: §Y5%§!\n".repeat(30) + "오른쪽 마지막 줄");
+        var view = new RaidPayloads.Response(json.toString()).view();
+        var sent = new ArrayList<RaidPayloads.Request>();
+        context.setScreen(() -> new RaidScreen(view.session(), view, sent::add)); context.waitTicks(2);
+        context.runOnClient(client -> {
+            var screen = client.gui.screen(); var close = button(screen, view.window().feedback().dismiss().item());
+            int x = close.getX() - 128, y = close.getY() - 234;
+            screen.mouseScrolled(x + 30, y + 150, 0, -100);
+            var drawn = new ArrayList<String>();
+            var g = new net.minecraft.client.gui.GuiGraphicsExtractor(client, new net.minecraft.client.renderer.state.gui.GuiRenderState(), 0, 0) {
+                @Override public void text(net.minecraft.client.gui.Font font, net.minecraft.util.FormattedCharSequence line, int px, int py, int color, boolean shadow) {
+                    var text = new StringBuilder(); line.accept((index, style, code) -> { text.appendCodePoint(code); return true; }); drawn.add(text.toString());
+                    super.text(font, line, px, py, color, shadow);
+                }
+            };
+            screen.extractRenderState(g, 0, 0, 0);
+            if (!drawn.contains("왼쪽 마지막 줄") || !drawn.contains("오른쪽 첫 줄") || drawn.contains("오른쪽 마지막 줄"))
+                throw new AssertionError("Raid result bodies did not scroll independently: " + drawn);
+            var press = new MouseButtonEvent(x + 120, y + 18, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
+            var drag = new MouseButtonEvent(press.x() + 12, press.y() + 8, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
+            screen.mouseClicked(press, false); screen.mouseDragged(drag, 12, 8); screen.mouseReleased(drag);
+            var moved = button(screen, view.window().feedback().dismiss().item());
+            if (moved.getX() != close.getX() + 12 || moved.getY() != close.getY() + 8) throw new AssertionError("Raid result report drag did not move controls");
+            if (sent.stream().anyMatch(request -> request.kind() == RaidPayloads.Kind.CALL)) throw new AssertionError("Local report scrolling or drag emitted a request");
+        });
+        context.getInput().setCursorPos(width - 2, 80); context.waitTicks(2);
+        context.takeScreenshot("hoi-raids-report-scroll-synthetic-" + width + "-gui2");
+    }
     private static void categories(ClientGameTestContext context, String directory, int width) {
         var json = com.google.gson.JsonParser.parseString(read(directory, "kor-raids-in-progress")).getAsJsonObject();
         json.remove("window"); json.remove("setup");
@@ -120,8 +152,18 @@ public final class RaidScreenTest {
                     var view = new RaidPayloads.Response(read(directory, "kor-raids-" + state)).view();
                     var sent = new ArrayList<RaidPayloads.Request>();
                     context.setScreen(() -> new RaidScreen(view.session(), view, sent::add));
+                    context.runOnClient(client -> {
+                        if (client.gui.screen().children().stream().filter(Button.class::isInstance).map(Button.class::cast)
+                                .anyMatch(b -> b.getMessage().getString().startsWith("show:"))) throw new AssertionError("Removed raid filter control remains");
+                    });
                     context.getInput().setCursorPos(width - 2, 80); context.waitTicks(3);
                     context.takeScreenshot("hoi-raids-" + state + "-" + width + "-gui2");
+                    if (state.equals("create")) {
+                        for (int step = 1; step <= 5; step++) {
+                            context.waitTicks(30);
+                            context.takeScreenshot("hoi-raids-create-name-scroll-" + step + "-" + width + "-gui2");
+                        }
+                    }
                     if (state.equals("setup")) {
                         context.runOnClient(client -> {
                             var screen = client.gui.screen();
@@ -185,16 +227,43 @@ public final class RaidScreenTest {
                         if (!sent.isEmpty()) throw new AssertionError("Disabled raid start emitted request");
                     });
                     if (state.equals("organizing")) {
-                        context.runOnClient(client -> click(client.gui.screen(), "auto-options", 0)); context.waitTicks(2);
+                        var disabledJson = com.google.gson.JsonParser.parseString(read(directory, "kor-raids-organizing")).getAsJsonObject();
+                        var disabledWindow = disabledJson.getAsJsonObject("window");
+                        disabledWindow.addProperty("autoEnabled", false); disabledWindow.addProperty("autoSelected", "");
+                        disabledWindow.getAsJsonObject("auto").addProperty("enabled", false);
+                        var disabled = new RaidPayloads.Response(disabledJson.toString()).view();
+                        context.setScreen(() -> new RaidScreen(disabled.session(), disabled, sent::add));
+                        context.runOnClient(client -> {
+                            sent.clear();
+                            click(client.gui.screen(), "auto-options", 0);
+                            if (client.gui.screen().children().stream().filter(Button.class::isInstance).map(Button.class::cast).anyMatch(b -> b.getMessage().getString().startsWith("auto:"))) throw new AssertionError("Disabled auto dropdown opened");
+                            click(client.gui.screen(), view.window().toggleAuto().item(), 1);
+                            if (!sent.isEmpty()) throw new AssertionError("Right click toggled auto launch");
+                            click(client.gui.screen(), view.window().toggleAuto().item(), 0);
+                            click(client.gui.screen(), view.window().toggleAuto().item(), 0);
+                            if (sent.size() != 1 || !sent.getFirst().item().equals(view.window().toggleAuto().item())) throw new AssertionError("Auto toggle lost request lock");
+                        });
+                        var enabledJson = com.google.gson.JsonParser.parseString(read(directory, "kor-raids-organizing")).getAsJsonObject();
+                        var enabledWindow = enabledJson.getAsJsonObject("window");
+                        enabledWindow.addProperty("autoEnabled", true);
+                        enabledWindow.addProperty("autoSelected", view.window().autoOptions().stream().filter(option -> option.value().equals("HIGH")).findFirst().orElseThrow().value());
+                        enabledWindow.getAsJsonObject("auto").addProperty("enabled", true);
+                        var enabled = new RaidPayloads.Response(enabledJson.toString()).view();
+                        context.setScreen(() -> new RaidScreen(enabled.session(), enabled, sent::add));
+                        context.getInput().setCursorPos(width - 2, 80); context.waitTicks(2);
+                        context.takeScreenshot("hoi-raids-auto-closed-" + width + "-gui2");
+                        context.runOnClient(client -> { sent.clear(); click(client.gui.screen(), "auto-options", 0); }); context.waitTicks(2);
                         context.takeScreenshot("hoi-raids-auto-options-" + width + "-gui2");
                         context.runOnClient(client -> {
-                            client.gui.setScreen(new RaidScreen(view.session(), view, sent::add)); sent.clear();
+                            client.gui.setScreen(new RaidScreen(enabled.session(), enabled, sent::add)); sent.clear();
                             click(client.gui.screen(), "auto-options", 0);
                             var choice = view.window().autoOptions().getFirst(); click(client.gui.screen(), "auto:" + choice.value(), 0);
                             if (sent.size() != 1 || !sent.getFirst().arguments().equals(List.of(choice.value()))) throw new AssertionError("Raid auto option lost server choice");
                         });
                     }
                 }
+                reportScroll(context, directory, width);
+                sourceScenes(context, directory, width);
                 var industry = new IndustryPayloads.Response(read(directory, "kor-industry-raid-priority")).view();
                 context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, industry.session(), industry, request -> {}));
                 context.getInput().setCursorPos(width - 2, 80); context.waitTicks(3);
@@ -237,6 +306,46 @@ public final class RaidScreenTest {
         } finally {
             context.setScreen(() -> null);
             context.runOnClient(client -> { ClientCampaignHud.accept(previous); client.options.guiScale().set(previousScale); });
+        }
+    }
+    private static void sourceScenes(ClientGameTestContext context, String directory, int width) {
+        if (!Files.isRegularFile(Path.of(directory, "prc-raids-create.json"))) return;
+        var previous = context.computeOnClient(client -> HudPayloads.State.of(ClientCampaignHud.country(), ClientCampaignHud.hud()));
+        context.runOnClient(client -> ClientCampaignHud.accept(HudPayloads.State.of("PRC", previous.hud())));
+        try {
+            for (String state : List.of("setup", "create", "organizing", "preparing", "prepared", "launchable", "in-progress", "ended", "ended-success")) {
+                var view = new RaidPayloads.Response(read(directory, "prc-raids-" + state)).view();
+                context.setScreen(() -> new RaidScreen(view.session(), view, request -> {}));
+                context.getInput().setCursorPos(width - 2, 80); context.waitTicks(3);
+                context.takeScreenshot("hoi-raids-prc-" + state + "-" + width + "-gui2");
+                if (state.equals("setup")) {
+                    context.runOnClient(client -> click(client.gui.screen(), "sources", 0)); context.waitTicks(2);
+                    context.takeScreenshot("hoi-raids-prc-sources-" + width + "-gui2");
+                    context.runOnClient(client -> {
+                        var screen = client.gui.screen();
+                        var first = button(screen, view.setup().sources().getFirst().select());
+                        var fifth = button(screen, view.setup().sources().get(4).select());
+                        if (fifth.getY() != first.getY() + 124 || fifth.getHeight() != 21
+                                || fifth.isMouseOver(fifth.getX() + 5, first.getY() + 145)) throw new AssertionError("Partial source row escaped list clipping");
+                        screen.mouseScrolled(40, first.getY() + 30, 0, -1);
+                    });
+                    context.waitTicks(2);
+                    context.takeScreenshot("hoi-raids-prc-sources-scrolled-" + width + "-gui2");
+                }
+                if (state.equals("preparing")) {
+                    var origin = context.computeOnClient(client -> {
+                        var b = button(client.gui.screen(), view.window().cancel().item());
+                        return new int[]{b.getX() - 242, b.getY() - 269};
+                    });
+                    for (var tip : List.of(new Object[]{"chance", 80, 146}, new Object[]{"intel", 230, 249}, new Object[]{"auto", 148, 277})) {
+                        context.getInput().setCursorPos((origin[0] + (int)tip[1]) * 2, (origin[1] + (int)tip[2]) * 2); context.waitTicks(2);
+                        context.takeScreenshot("hoi-raids-prc-" + tip[0] + "-tooltip-" + width + "-gui2");
+                    }
+                }
+            }
+        } finally {
+            context.setScreen(() -> null);
+            context.runOnClient(client -> ClientCampaignHud.accept(previous));
         }
     }
 }

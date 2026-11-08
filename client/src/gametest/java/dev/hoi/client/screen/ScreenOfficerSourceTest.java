@@ -1,6 +1,6 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.client.screen.commander.CommanderOfficerComparisonTest;
 import dev.hoi.client.screen.commander.CommanderPreferredTactics;
 import dev.hoi.client.screen.politics.PoliticsChoice;
@@ -22,7 +22,7 @@ public final class ScreenOfficerSourceTest {
             CommanderOfficerComparisonTest.verifySpecialBanner(context,new MenuPayloads.OpenScreen(Files.readString(Path.of(directory,"kor-initial.json"))).view());
             context.getInput().resizeWindow(2560,1440);
             context.runOnClient(client -> {
-                var lines = UiTooltips.sourceLines(client.font,"§H제목§!\n---\n§G+0.01§! £doctrine_mastery\n\n  조건",324);
+                var lines = Tooltips.sourceLines(client.font,"§H제목§!\n---\n§G+0.01§! £doctrine_mastery\n\n  조건",324);
                 if (lines.size() != 5 || client.font.width(lines.get(1)) != 0 || client.font.width(lines.get(3)) != 0)
                     throw new AssertionError("Officer source separators must retain one empty line without a visible rule");
                 var colors = new HashSet<Integer>(); var glyph = new boolean[1];
@@ -32,7 +32,7 @@ public final class ScreenOfficerSourceTest {
                     if (codepoint == 0x200B) throw new AssertionError("Source separators cannot become synthetic rule markers");
                     return true;
                 });
-                if (!colors.contains(UiTooltips.GOLD) || !colors.contains(UiTooltips.GOOD) || !glyph[0])
+                if (!colors.contains(Tooltips.GOLD) || !colors.contains(Tooltips.GOOD) || !glyph[0])
                     throw new AssertionError("Original emphasis, benefit color and explicit mastery icon must survive wrapping");
             });
             for (String name : List.of("kor-initial", "prk-initial", "prc-initial", "kor-selected")) {
@@ -45,10 +45,10 @@ public final class ScreenOfficerSourceTest {
                 if (stats.size() != 47) throw new AssertionError("Incomplete source grid: " + name);
                 context.runOnClient(client -> {
                     for (var stat : stats) {
-                        var value = UiTooltips.styled(net.minecraft.network.chat.Component.literal(stat.value()), false);
+                        var value = Tooltips.styled(net.minecraft.network.chat.Component.literal(stat.value()), false);
                         if (client.font.width(value) * ScreenMenu.officerStatScale(client.font, value, 22) > 22.001f)
                             throw new AssertionError("Statistic suffix clipped: " + stat.name());
-                        var lines = UiTooltips.exactLines(client.font, stat.detail(), 324);
+                        var lines = Tooltips.exactLines(client.font, stat.detail(), 324);
                         if (lines.isEmpty() || lines.stream().anyMatch(line -> client.font.width(line) > 300))
                             throw new AssertionError("Unrenderable source tooltip: " + stat.name());
                     }
@@ -102,7 +102,7 @@ public final class ScreenOfficerSourceTest {
                         context.runOnClient(client -> {
                             String shown = ((ScreenMenu)client.gui.screen()).hoveredOfficerTooltip();
                             if (!shown.equals(entry.getValue())) throw new AssertionError("Officer tooltip must show the server text without an added title: " + entry.getKey() + " -> " + shown);
-                            var lines = UiTooltips.sourceLines(client.font, shown, 324);
+                            var lines = Tooltips.sourceLines(client.font, shown, 324);
                             for (int index = 1; index < lines.size(); index++)
                                 if (client.font.width(lines.get(index)) == 0 && client.font.width(lines.get(index - 1)) == 0)
                                     throw new AssertionError("Officer tooltip must not stack blank lines: " + entry.getKey());

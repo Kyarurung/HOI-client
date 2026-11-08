@@ -57,7 +57,7 @@ public final class CommanderCursorTooltipTest {
             throw new AssertionError("Member tooltip has no reachable hover area");
         });
         game.getInput().setCursorPos(point[0]*2,point[1]*2);game.waitTicks(3);
-        game.runOnClient(client->{String text=CommanderHud.renderedTooltip();if(!text.contains(member.detail()))throw new AssertionError("Actual row tooltip must preserve complete server detail");for(var line:dev.hoi.client.ui.UiTooltips.sourceLines(client.font,text,client.getWindow().getGuiScaledWidth())){var plain=new StringBuilder();line.accept((i,s,c)->{plain.appendCodePoint(c);return true;});if(plain.toString().contains("---")||plain.toString().contains("£organization_texticon"))throw new AssertionError("Separators and organization icons must not leak as raw tokens");}});
+        game.runOnClient(client->{String text=CommanderHud.renderedTooltip();if(!text.contains(member.detail()))throw new AssertionError("Actual row tooltip must preserve complete server detail");for(var line:dev.hoi.client.ui.tooltip.Tooltips.sourceLines(client.font,text,client.getWindow().getGuiScaledWidth())){var plain=new StringBuilder();line.accept((i,s,c)->{plain.appendCodePoint(c);return true;});if(plain.toString().contains("---")||plain.toString().contains("£organization_texticon"))throw new AssertionError("Separators and organization icons must not leak as raw tokens");}});
         var shot=game.takeScreenshot("hoi-member-tooltip-"+suffix);var bounds=game.computeOnClient(client->CommanderHud.tooltipBounds());Files.writeString(shot.resolveSibling(shot.getFileName()+".json"),new com.google.gson.Gson().toJson(bounds));
     }
 }

@@ -1,6 +1,6 @@
 package dev.hoi.client.screen;
 
-import dev.hoi.client.ui.UiTooltipSpacingTest;
+import dev.hoi.client.ui.tooltip.TooltipSpacingTest;
 import dev.hoi.client.screen.commander.CommanderTraits;
 import dev.hoi.client.screen.diplomacy.DiplomacyCountryScreen;
 import dev.hoi.protocol.country.*;
@@ -42,7 +42,7 @@ public final class ScreenTooltipSpacingTest {
             var tree=new DialogPayloads.Show(Files.readString(directory.resolve("kor-navy-trait-tree.json")),true).view().issued(UUID.randomUUID().toString(),0);
             var guarantee=country.actions().entries().stream().filter(a->a.id().equals("guarantee")).findFirst().orElseThrow();
             var trait=tree.tiles().stream().filter(t->t.section().equals("inshore_fighter")).findFirst().orElseThrow();
-            UiTooltipSpacingTest.components(game);UiTooltipSpacingTest.verify(game,guarantee.detail());UiTooltipSpacingTest.verify(game,trait.detail());
+            TooltipSpacingTest.components(game);TooltipSpacingTest.verify(game,guarantee.detail());TooltipSpacingTest.verify(game,trait.detail());
             for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
                 game.getInput().resizeWindow(size[0],size[1]);game.runOnClient(client->client.options.guiScale().set(2));
                 game.setScreen(()->new DiplomacyCountryScreen(country,a->{}));game.waitTicks(3);

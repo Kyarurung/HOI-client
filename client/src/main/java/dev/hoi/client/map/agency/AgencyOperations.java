@@ -3,7 +3,7 @@ package dev.hoi.client.map.agency;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiText;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.agency.AgencyView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -43,7 +43,7 @@ public final class AgencyOperations {
             if (x - 10 < left || x + 34 >= g.guiWidth() || y - 10 < top || y + 34 >= g.guiHeight()) continue;
             UiAssets.draw(g, "agency/operations/" + operation.mapIcon().toLowerCase(Locale.ROOT) + "/frame_0", x - 10, y - 10, 24, 24);
             if (operation.progress() != null) {
-                dev.hoi.client.ui.UiAgencyProgress.draw(g, x, y - 4, operation.progress().fraction());
+                dev.hoi.client.ui.agency.AgencyProgress.draw(g, x, y - 4, operation.progress().fraction());
                 var phase = operation.phases().get(operation.progress().index());
                 if (!phase.icon().isEmpty()) UiAssets.draw(g, "agency/operations/" + phase.icon().toLowerCase(Locale.ROOT) + "/frame_0", x + 2, y - 2, 21, 21);
             }
@@ -66,6 +66,6 @@ public final class AgencyOperations {
     public void tooltip(GuiGraphicsExtractor g, int x, int y) {
         hits.reversed().stream().filter(hit -> hit.contains(x, y)).findFirst()
             .ifPresent(hit -> g.setTooltipForNextFrame(Minecraft.getInstance().font,
-                UiTooltips.sourceLines(Minecraft.getInstance().font, hit.tooltip(), Math.min(g.guiWidth(), 244)), x, y));
+                Tooltips.tooltipLines(Minecraft.getInstance().font, hit.tooltip(), g.guiWidth()), x, y));
     }
 }

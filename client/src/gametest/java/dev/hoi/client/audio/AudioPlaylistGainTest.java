@@ -46,8 +46,8 @@ public final class AudioPlaylistGainTest {
         var result = new CompletableFuture<Float>();
         context.runOnClient(client -> {
             if (sound == null || sound.getSource() != SoundSource.MASTER) throw new AssertionError("Missing MASTER audio instance");
-            var engine = ((dev.hoi.client.mixin.MixinManagerAccess)client.getSoundManager()).hoiSoundEngine();
-            var channel = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().get(sound);
+            var engine = ((dev.hoi.client.mixin.audio.AudioManagerAccess)client.getSoundManager()).hoiSoundEngine();
+            var channel = ((dev.hoi.client.mixin.audio.AudioEngineAccess)engine).hoiChannels().get(sound);
             if (channel == null) throw new AssertionError("Missing active audio channel: " + sound.getIdentifier());
             channel.execute(value -> {
                 try {

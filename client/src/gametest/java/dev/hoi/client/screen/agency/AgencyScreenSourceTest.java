@@ -3,6 +3,8 @@ package dev.hoi.client.screen.agency;
 import dev.hoi.client.ui.*;
 import dev.hoi.protocol.agency.*;
 import dev.hoi.protocol.menu.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import java.util.*;
 import java.nio.file.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -23,17 +25,17 @@ public final class AgencyScreenSourceTest {
                     if (UiPanelLayout.width(MenuTab.INTELLIGENCE, client.gui.screen().width) != 270)
                         throw new AssertionError("GUI2 agency sidebar must match the original 540 pixels");
                     for (var item : view.items()) if (item.id().startsWith("upgrade:")) {
-                        var decorated = UiKeywordIcons.decorateLines(UiTooltips.styled(net.minecraft.network.chat.Component.literal(item.detail()), false), false);
+                        var decorated = TooltipKeywordIcons.decorateLines(Tooltips.styled(net.minecraft.network.chat.Component.literal(item.detail()), false), false);
                         long expected = item.detail().chars().filter(c -> c == '£').count();
                         long actual = decorated.getString().chars().filter(c -> c >= 0xe000 && c <= 0xf8ff).count();
                         if (actual != expected) throw new AssertionError("Missing original tooltip icons: " + item.id() + " " + actual + "/" + expected);
-                        var lines = UiTooltips.exactLines(client.font, item.detail(), 199);
+                        var lines = Tooltips.exactLines(client.font, item.detail(), 199);
                         if (lines.stream().anyMatch(line -> client.font.width(line) > 175)) throw new AssertionError("Tooltip overflow: " + item.id());
                     }
                 });
                 if (stage == 0) {
                     context.takeScreenshot("hoi-agency-source-sidebar-gui2");
-                    context.getInput().setCursorPos(24, (UiMenuBar.height(1280) + 130) * 2);
+                    context.getInput().setCursorPos(24, (HudMenuBar.height(1280) + 130) * 2);
                     context.waitTicks(3); context.takeScreenshot("hoi-agency-source-indicator-gui2");
                     press(context, "암호학"); context.waitTicks(2);
                     context.takeScreenshot("hoi-agency-source-cryptology-locked-gui2");
@@ -66,10 +68,10 @@ public final class AgencyScreenSourceTest {
                         var item = view.items().stream().filter(v -> v.id().equals(id)).findFirst().orElseThrow();
                         if (item.detail().isBlank()) throw new AssertionError("Missing issued sidebar tooltip: " + id);
                         context.runOnClient(client -> {
-                            var lines = UiTooltips.exactLines(client.font, item.detail(), 199);
+                            var lines = Tooltips.exactLines(client.font, item.detail(), 199);
                             if (lines.stream().anyMatch(line -> client.font.width(line) > 175)) throw new AssertionError("Sidebar tooltip overflow: " + id);
                         });
-                        context.getInput().setCursorPos(xs[i] * 2, (UiMenuBar.height(1280) + ys[i]) * 2);
+                        context.getInput().setCursorPos(xs[i] * 2, (HudMenuBar.height(1280) + ys[i]) * 2);
                         context.waitTicks(3);
                         context.takeScreenshot("hoi-agency-sidebar-" + id + "-gui2");
                     }
@@ -80,12 +82,12 @@ public final class AgencyScreenSourceTest {
                         var item = view.items().stream().filter(v -> v.id().equals(id)).findFirst().orElseThrow();
                         if (item.detail().isBlank() || item.detail().contains("$")) throw new AssertionError("Unresolved cryptology tooltip: " + id);
                         context.runOnClient(client -> {
-                            var decorated = UiKeywordIcons.decorateLines(UiTooltips.styled(net.minecraft.network.chat.Component.literal(item.detail()), false), false);
+                            var decorated = TooltipKeywordIcons.decorateLines(Tooltips.styled(net.minecraft.network.chat.Component.literal(item.detail()), false), false);
                             long expected = java.util.regex.Pattern.compile("£[A-Za-z0-9_]+£?").matcher(item.detail()).results().count();
                             long actual = decorated.getString().chars().filter(c -> c >= 0xe000 && c <= 0xf8ff).count();
                             if (actual != expected) throw new AssertionError("Cryptology icon missing: " + id);
                         });
-                        context.getInput().setCursorPos((id.equals("cipher_level") ? 80 : 246) * 2, (UiMenuBar.height(1280) + 237) * 2);
+                        context.getInput().setCursorPos((id.equals("cipher_level") ? 80 : 246) * 2, (HudMenuBar.height(1280) + 237) * 2);
                         context.waitTicks(3); context.takeScreenshot("hoi-agency-" + id + "-gui2");
                     }
                     press(context, "정보공동체"); context.getInput().setCursorPos(2400, 1300);

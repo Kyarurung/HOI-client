@@ -8,6 +8,8 @@ import dev.hoi.protocol.commander.CommanderHudPayloads;
 import dev.hoi.protocol.commander.CommanderHudPayloads.*;
 import dev.hoi.client.map.agency.AgencyHud;
 import dev.hoi.client.map.naval.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import java.util.*;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.*;
@@ -34,7 +36,7 @@ public final class CommanderHud {
     private static TooltipBounds tooltipBounds;
     public static TooltipBounds tooltipBounds(){return tooltipBounds;}
     private static org.joml.Vector2ic tooltipPosition(int width,int height,int mouseX,int mouseY,int textWidth,int textHeight){
-        var original=UiTooltips.position(width,height,mouseX,mouseY,textWidth,textHeight);
+        var original=Tooltips.position(width,height,mouseX,mouseY,textWidth,textHeight);
         int x=original.x(),y=original.y();
         tooltipBounds=new TooltipBounds(x-7,y-7,textWidth+14,textHeight+14);return new org.joml.Vector2i(x,y);
     }
@@ -206,7 +208,7 @@ public final class CommanderHud {
             if(!naval&&!wing&&card.panel()!=null)CommanderPanels.progress(g,"plan_unit_power",bx+units.size(group?8:5),by+ch-units.size(6.5),units.size(29.5),units.size(3),card.panel().forces(),0xff008000,0xff020305);
             if(!naval&&!wing)UiAssets.draw(g,"commander/commands/plan_frame/frame_0",bx+units.size(group?6.5:3.5),by+ch-units.size(6.5),units.size(32.5),units.size(4.5));
             if(!naval&&!wing&&card.panel()!=null){
-                int sx=bx+units.size(group?.5:1.5),sy=by+units.size(group?19.5:18),sw=units.size(group?42.5:36.5),sh=units.size(group?14.5:11.5);
+                int sx=bx+units.size(group?.5:1.5),sy=by+units.size(group?19.5:18),sh=units.size(group?14.5:11.5);
                 String tip="집단군 색상 · "+(card.panel().color()==null?"미지정":String.format(Locale.ROOT,"#%06X",card.panel().color()));
                 if(group&&CommanderPanels.selected(card.id())&&!card.panel().palette().isEmpty())list.add(new Box(sx,sy,units.size(3.5),sh,null,0,tip+"\n"+UiCommandLabels.text("SELECT_COLOR","지도 색상 선택"),()->{paletteGroup=paletteGroup.equals(card.id())?"":card.id();boxes=List.of();}));
             }
@@ -248,14 +250,14 @@ public final class CommanderHud {
         }
         boxes=List.copyOf(list);
         CommanderPanels.draw(g,sidebar,mx,my,list.stream().mapToInt(Box::y).min().orElse(y));
-        String tooltip=CommanderPanels.tooltipAt(mx,my);int tooltipWidth=160;
-        if(tooltip.isEmpty()){tooltipWidth=160;for(var box:boxes)if(box.contains(mx,my)){tooltip=box.tip();break;}}
-        NavalSeaHover.update(view,mx,my,g.guiWidth(),g.guiHeight(),mx>=sidebar&&my>=UiMenuBar.height(g.guiWidth())&&boxes.stream().noneMatch(b->b.contains(mx,my))&&CommanderPanels.hits().stream().noneMatch(h->h.contains(mx,my)));
+        String tooltip=CommanderPanels.tooltipAt(mx,my);
+        if(tooltip.isEmpty()){for(var box:boxes)if(box.contains(mx,my)){tooltip=box.tip();break;}}
+        NavalSeaHover.update(view,mx,my,g.guiWidth(),g.guiHeight(),mx>=sidebar&&my>=HudMenuBar.height(g.guiWidth())&&boxes.stream().noneMatch(b->b.contains(mx,my))&&CommanderPanels.hits().stream().noneMatch(h->h.contains(mx,my)));
         if(tooltip.isEmpty())tooltip=NavalInvasionOverlay.tooltip(mx,my);
         if(tooltip.isEmpty())tooltip=NavalSeaHover.text();
         if(!tooltip.isEmpty()){
-            var lines=UiTooltips.sourceLines(client.font,tooltip,Math.min(g.guiWidth(),tooltipWidth+24));int textWidth=lines.stream().mapToInt(client.font::width).max().orElse(0),lineHeight=client.font.lineHeight,textHeight=lines.size()*lineHeight;var position=tooltipPosition(g.guiWidth(),g.guiHeight(),mx,my,textWidth,textHeight);
-            g.nextStratum();UiTooltips.background(g,position.x()-7,position.y()-7,textWidth+14,textHeight+14);var attachment=boxes.stream().filter(box->box.contains(mx,my)&&box.request()!=null&&box.request().mode()==Mode.AIR_ATTACH&&box.request().selection().contains("action/detach")).findFirst().orElse(null);var tooltipWings=attachment==null?List.<Member>of():view.wings().stream().filter(wing->attachment.request().selection().contains(wing.id())).toList();int plane=0;for(int n=0;n<lines.size();n++){g.text(client.font,lines.get(n),position.x(),position.y()+n*lineHeight,0xFFE0E0E0);if(plane<tooltipWings.size()){var plain=new StringBuilder();lines.get(n).accept((index,style,codepoint)->{plain.appendCodePoint(codepoint);return true;});if(plain.toString().startsWith("    "))UiAssets.drawContent(g,tooltipWings.get(plane++).icon(),position.x(),position.y()+n*lineHeight,14,lineHeight);}}renderedTooltip=tooltip;
+            var lines=Tooltips.tooltipLines(client.font,tooltip,g.guiWidth());int textWidth=lines.stream().mapToInt(client.font::width).max().orElse(0),lineHeight=client.font.lineHeight,textHeight=lines.size()*lineHeight;var position=tooltipPosition(g.guiWidth(),g.guiHeight(),mx,my,textWidth,textHeight);
+            g.nextStratum();Tooltips.background(g,position.x()-7,position.y()-7,textWidth+14,textHeight+14);var attachment=boxes.stream().filter(box->box.contains(mx,my)&&box.request()!=null&&box.request().mode()==Mode.AIR_ATTACH&&box.request().selection().contains("action/detach")).findFirst().orElse(null);var tooltipWings=attachment==null?List.<Member>of():view.wings().stream().filter(wing->attachment.request().selection().contains(wing.id())).toList();int plane=0;for(int n=0;n<lines.size();n++){g.text(client.font,lines.get(n),position.x(),position.y()+n*lineHeight,0xFFE0E0E0);if(plane<tooltipWings.size()){var plain=new StringBuilder();lines.get(n).accept((index,style,codepoint)->{plain.appendCodePoint(codepoint);return true;});if(plain.toString().startsWith("    "))UiAssets.drawContent(g,tooltipWings.get(plane++).icon(),position.x(),position.y()+n*lineHeight,14,lineHeight);}}renderedTooltip=tooltip;
         }
         String hover=CommanderPanels.hoverKey(mx,my);if(hover.isEmpty())for(var box:boxes)if(box.contains(mx,my)){hover="hud/"+box.x()+"/"+box.y()+"/"+box.width()+"/"+box.height();break;}if(updateHover(hover))dev.hoi.client.audio.AudioUiSounds.play("ui.menu_over");
     }

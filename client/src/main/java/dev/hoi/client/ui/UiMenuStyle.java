@@ -1,5 +1,6 @@
 package dev.hoi.client.ui;
 
+import dev.hoi.client.ui.tooltip.Tooltips;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public final class UiMenuStyle {
@@ -11,7 +12,7 @@ public final class UiMenuStyle {
     public static void heading(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font,
                                String text, int x, int y, int width, int color) {
         float scale = (font.lineHeight + 2f) / font.lineHeight;
-        var label = net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(UiTooltips.officerText(text, true), Math.max(1, (int)(width / scale))));
+        var label = net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(Tooltips.officerText(text, true), Math.max(1, (int)(width / scale))));
         g.pose().pushMatrix(); g.pose().translate(x, y - 1); g.pose().scale(scale);
         g.text(font, label, 0, 0, 0xFFFFFFFF); g.pose().popMatrix();
     }

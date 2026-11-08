@@ -2,10 +2,8 @@ package dev.hoi.client.map.scene;
 
 import dev.hoi.protocol.map.MapAtlasScene.Box;
 import dev.hoi.protocol.map.MapAtlasScene.Material;
-import dev.hoi.protocol.map.MapAtlasVisibility;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import java.util.*;
 
 record SceneMeshBaseline(String dimension, List<SceneMeshBaseline.SceneBaselineTile> tiles, Map<Long,List<Integer>> cells, List<Integer> large) {
@@ -39,18 +37,6 @@ record SceneMeshBaseline(String dimension, List<SceneMeshBaseline.SceneBaselineT
     }
     private static int cell(double value) { return (int)Math.floor(value/16); }
     private static long cellKey(int x,int z) { return ((long)x<<32)|(z&0xffffffffL); }
-    int collect(Vec3 camera,List<SceneBaselineTile> result) {
-        double radius=Math.max(MapAtlasVisibility.BOUNDARY_RANGE,MapAtlasVisibility.DETAIL_RANGE);
-        var seen=new LinkedHashSet<Integer>(large);
-        for(int z=cell(camera.z-radius);z<=cell(camera.z+radius);z++)for(int x=cell(camera.x-radius);x<=cell(camera.x+radius);x++) {
-            var entries=cells.get(cellKey(x,z));if(entries!=null)seen.addAll(entries);
-        }
-        for(int id:seen) {
-            var tile=tiles.get(id);double range=MapAtlasVisibility.range(tile.material());
-            if(tile.bounds().distanceToSqr(camera)<=range*range)result.add(tile);
-        }
-        return seen.size();
-    }
     private static void append(FloatArrayList output, Box box) {
         if (box.material() == Material.FOREST || box.material() == Material.JUNGLE) {
             face(output, box, new float[][]{{0,1,0},{0,0,0},{1,0,1},{1,1,1}}, 0,0,1);

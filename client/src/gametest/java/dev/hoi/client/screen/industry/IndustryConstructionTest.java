@@ -2,11 +2,10 @@ package dev.hoi.client.screen.industry;
 
 import dev.hoi.client.ResearchScreenTest;
 import dev.hoi.client.ui.UiPanelLayout;
-import dev.hoi.client.ui.UiTooltips;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.country.*;
 import dev.hoi.protocol.industry.*;
 import dev.hoi.protocol.menu.*;
-
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.gui.components.Button;
 import java.util.*;
@@ -56,21 +55,21 @@ public final class IndustryConstructionTest {
         context.runOnClient(client->{
             var locked=buildingButton(ref.get(),"refinery");
             if(locked.active)throw new AssertionError("Research-locked building remains disabled");
-            var icon=dev.hoi.client.ui.UiKeywordIcons.decorateLines(UiTooltips.styled(net.minecraft.network.chat.Component.literal("§c£trigger_no 기술 필요§r"),false));
+            var icon=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(Tooltips.styled(net.minecraft.network.chat.Component.literal("§c£trigger_no 기술 필요§r"),false));
             if(icon.getString().codePoints().noneMatch(c->c>=0xe000&&c<=0xf8ff))throw new AssertionError("Research requirement cross must resolve to an original glyph");
             ref.get().mouseClicked(new net.minecraft.client.input.MouseButtonEvent(locked.getX()+2,locked.getY()+2,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
             if(!requests.isEmpty())throw new AssertionError("Disabled building cannot send a selection request");
         });
-        int headerY=2*(dev.hoi.client.ui.UiMenuBar.height(1280)+39);
+        int headerY=2*(dev.hoi.client.ui.hud.HudMenuBar.height(1280)+39);
         for(int column=0;column<3;column++) {
             int x=34+column*66;
             context.getInput().setCursorPos(x*2,headerY);context.waitTicks(3);
             context.takeScreenshot("hoi-construction-header-"+column+"-gui2");
         }
-        context.getInput().setCursorPos(80,2*(dev.hoi.client.ui.UiMenuBar.height(1280)+85));context.waitTicks(3);
+        context.getInput().setCursorPos(80,2*(dev.hoi.client.ui.hud.HudMenuBar.height(1280)+85));context.waitTicks(3);
         context.takeScreenshot("hoi-construction-consumer-source-gui2");
         for(int row=0;row<2;row++) {
-            context.getInput().setCursorPos(80,2*(dev.hoi.client.ui.UiMenuBar.height(1280)+112+27*row));context.waitTicks(3);
+            context.getInput().setCursorPos(80,2*(dev.hoi.client.ui.hud.HudMenuBar.height(1280)+112+27*row));context.waitTicks(3);
             context.takeScreenshot("hoi-construction-reservation-"+row+"-gui2");
         }
         for(String group:List.of("infrastructure","military_factory","hub")) {
@@ -80,7 +79,7 @@ public final class IndustryConstructionTest {
         }
         for(int column=0;column<4;column++) {
             int[] centers={47,103,140,181};
-            context.getInput().setCursorPos(centers[column]*2,2*(dev.hoi.client.ui.UiMenuBar.height(1280)+64));context.waitTicks(3);
+            context.getInput().setCursorPos(centers[column]*2,2*(dev.hoi.client.ui.hud.HudMenuBar.height(1280)+64));context.waitTicks(3);
             context.takeScreenshot("hoi-construction-column-"+column+"-gui2");
         }
         for(String name:List.of("↑","↓")) {
@@ -90,9 +89,9 @@ public final class IndustryConstructionTest {
         }
         var cursor=context.computeOnClient(client->{var b=buildingButton(ref.get(),"refinery");return new int[]{b.getX()+b.getWidth()/2,b.getY()+b.getHeight()/2};});
         context.getInput().setCursorPos(cursor[0]*2,cursor[1]*2);context.waitTicks(8);context.takeScreenshot("hoi-construction-research-locked-gui2");
-        context.getInput().setCursorPos(80,2*(dev.hoi.client.ui.UiMenuBar.height(1280)+162));context.waitTicks(3);context.takeScreenshot("hoi-construction-source-project-tooltip-gui2");
+        context.getInput().setCursorPos(80,2*(dev.hoi.client.ui.hud.HudMenuBar.height(1280)+162));context.waitTicks(3);context.takeScreenshot("hoi-construction-source-project-tooltip-gui2");
         for(int row:new int[]{0,2,3,4}) {
-            context.getInput().setCursorPos(206,2*(dev.hoi.client.ui.UiMenuBar.height(1280)+170+29*row));context.waitTicks(3);
+            context.getInput().setCursorPos(206,2*(dev.hoi.client.ui.hud.HudMenuBar.height(1280)+170+29*row));context.waitTicks(3);
             context.takeScreenshot("hoi-construction-task-"+row+"-gui2");
         }
         context.runOnClient(client->{
@@ -115,7 +114,7 @@ public final class IndustryConstructionTest {
         context.runOnClient(client -> ref.get().update(new IndustryConstructionView(token,5,"KOR",hud,"civilian_factory",summary,buildings,projects,"")));
         context.getInput().setCursorPos(40,190); context.waitTicks(2); context.takeScreenshot("hoi-construction-multiline-tooltip");
         context.runOnClient(client -> {
-            var lines=UiTooltips.lines(client.font,"첫 줄\n사용 가능한 에너지 10 / 필요량 21.86\n긴 설명 "+"읽기 쉬운 설명 ".repeat(40),427);
+            var lines=Tooltips.lines(client.font,"첫 줄\n사용 가능한 에너지 10 / 필요량 21.86\n긴 설명 "+"읽기 쉬운 설명 ".repeat(40),427);
             if(lines.size()<4)throw new AssertionError("Tooltips split explicit lines and wrap long text");
             for(var line:lines) {
                 if(client.font.width(line)>300)throw new AssertionError("Tooltip width is bounded");

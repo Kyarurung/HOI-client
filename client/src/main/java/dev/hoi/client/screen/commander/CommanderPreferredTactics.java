@@ -4,6 +4,8 @@ import dev.hoi.client.ui.*;
 import dev.hoi.client.screen.dialog.DialogScreen;
 import dev.hoi.protocol.dialog.*;
 import dev.hoi.protocol.menu.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -25,8 +27,8 @@ public final class CommanderPreferredTactics extends DialogScreen {
     float bodyTextScale() {return bodyTextScale;}
     int bodyAreaHeight() {return rowsTop-y(33)-3;}
     private String hovered="";
-    private UiTooltips.ScrolledTooltip tooltipBounds;
-    public UiTooltips.ScrolledTooltip tooltipBounds() {return tooltipBounds;}
+    private Tooltips.ScrolledTooltip tooltipBounds;
+    public Tooltips.ScrolledTooltip tooltipBounds() {return tooltipBounds;}
     public CommanderPreferredTactics(DialogView view,Screen parent) {this(view,parent,null);}
     public CommanderPreferredTactics(DialogView view,Screen parent,Consumer<DialogPayloads.Action> sender) {super(view);this.parent=parent;this.sender=sender;}
     public Screen backdrop() {return parent;}
@@ -48,10 +50,10 @@ public final class CommanderPreferredTactics extends DialogScreen {
         if(sender!=null)sender.accept(action);else ClientPlayNetworking.send(action);
     }
     @Override protected void init() {
-        units=new UiUnits(width,height,Math.min(1f,Math.max(.1f,(height-UiMenuBar.height(width)-6)/306.5f)));left=UiPanelLayout.width(MenuTab.OFFICER_CORPS,width);top=UiMenuBar.height(width);
+        units=new UiUnits(width,height,Math.min(1f,Math.max(.1f,(height-HudMenuBar.height(width)-6)/306.5f)));left=UiPanelLayout.width(MenuTab.OFFICER_CORPS,width);top=HudMenuBar.height(width);
         if(left+size(196)>width-size(3))left=Math.max(size(3),width-size(199));
         if(top+size(306.5)>height-size(3))top=Math.max(size(3),height-size(309.5));
-        bodyLineCount=UiTooltips.split(font,UiKeywordIcons.decorateLines(UiTooltips.officerText(view().body()),false),size(174)).size();rowsTop=Math.max(y(62.5),y(33)+bodyLineCount*(font.lineHeight+1)+3);
+        bodyLineCount=Tooltips.split(font,TooltipKeywordIcons.decorateLines(Tooltips.officerText(view().body()),false),size(174)).size();rowsTop=Math.max(y(62.5),y(33)+bodyLineCount*(font.lineHeight+1)+3);
         buttons.clear();tooltipBounds=null;addRenderableWidget(new UiMenuButton("×",x(180.5),y(2.5),size(12),size(12),this::onClose));
         for(int i=0;i<3;i++) {
             int next=i;var tab=new UiMenuButton(List.of("모두","공격","방어").get(i),x(7.5+52.5*i),y(17.5),size(50),size(14.5),()->{filter=next;scroll=0;rebuildWidgets();}).caption("");
@@ -67,26 +69,26 @@ public final class CommanderPreferredTactics extends DialogScreen {
         }
     }
     private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color) {
-        var component=UiKeywordIcons.decorateLines(UiTooltips.officerText(value),false);
+        var component=TooltipKeywordIcons.decorateLines(Tooltips.officerText(value),false);
         if(value.contains("\n"))UiText.left(g,font,component,px,py,w,h,color);
         else UiText.leftSingleLine(g,font,component,px,py,w,h,color);
     }
     private void title(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color) {
-        UiText.centeredSingleLine(g,font,UiKeywordIcons.decorateLines(UiTooltips.officerText(value),false),px,py,w,h,color);
+        UiText.centeredSingleLine(g,font,TooltipKeywordIcons.decorateLines(Tooltips.officerText(value),false),px,py,w,h,color);
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
         if(parent!=null){parent.extractRenderState(g,-1,-1,delta);g.nextStratum();}
         UiMenuStyle.panel(g,left,top,size(196),size(306.5));
-        UiText.centeredSingleLine(g,font,UiTooltips.officerText(view().title(),true),x(2),y(1),size(176),size(14),UiMenuStyle.TEXT);
+        UiText.centeredSingleLine(g,font,Tooltips.officerText(view().title(),true),x(2),y(1),size(176),size(14),UiMenuStyle.TEXT);
         for(var child:children())if(child instanceof AbstractWidget button&&button.getMessage().getString().equals("×"))button.extractRenderState(g,mx,my,delta);
         for(int i=0;i<3;i++) {
             var button=buttons.get("filter/"+i);
             UiAssets.draw(g,"tactic/ui/filter/frame_"+(filter==i?0:1),button.getX(),button.getY(),button.getWidth(),button.getHeight());
             title(g,button.getMessage().getString(),button.getX()+size(9),button.getY(),button.getWidth()-size(18),button.getHeight(),UiMenuStyle.TEXT);
         }
-        var body=UiKeywordIcons.decorateLines(UiTooltips.officerText(view().body()),false);
-        int bodyWidth=size(174),bodyHeight=size(28);float bodyScale=1f;
-        var bodyLines=UiTooltips.split(font,body,bodyWidth);
+        var body=TooltipKeywordIcons.decorateLines(Tooltips.officerText(view().body()),false);
+        int bodyWidth=size(174);float bodyScale=1f;
+        var bodyLines=Tooltips.split(font,body,bodyWidth);
         bodyLineCount=bodyLines.size();bodyTextScale=bodyScale;
         g.enableScissor(x(9),y(32),x(184),rowsTop-3);
         for(int i=0;i<bodyLineCount;i++)g.text(font,bodyLines.get(i),x(10),y(33)+i*(font.lineHeight+1),UiMenuStyle.TEXT,false);
@@ -94,12 +96,12 @@ public final class CommanderPreferredTactics extends DialogScreen {
         String tooltip="";var rows=rows();g.enableScissor(x(6.5),rowsTop,x(181.5),y(299.5));
         for(int i=0;i<rows.size();i++) {
             var row=rows.get(i);var tactic=row.tactic();int py=rowY(i);if(py+size(47)<=rowsTop||py>=y(299.5))continue;
-            var button=buttons.get(row.section());boolean hover=button!=null&&UiTooltips.contains(button,mx,my);
+            var button=buttons.get(row.section());boolean hover=button!=null&&Tooltips.contains(button,mx,my);
             int frame=2;
             UiAssets.draw(g,"tactic/ui/background/frame_"+frame,x(6.5),py,size(175),size(47));
             if(tactic.selected())g.fill(x(7),py+size(.5),x(181),py+size(46.5),0x303A8A42);
             text(g,"§H"+row.name()+"§!",x(13.5),py+size(1),size(tactic.phase().isEmpty()?155:77),size(13),UiMenuStyle.TEXT);
-            if(!tactic.phase().isEmpty()){var phase=UiTooltips.officerText(tactic.phase());g.text(font,phase,x(177)-font.width(phase),py+size(3),UiMenuStyle.TEXT,false);}
+            if(!tactic.phase().isEmpty()){var phase=Tooltips.officerText(tactic.phase());g.text(font,phase,x(177)-font.width(phase),py+size(3),UiMenuStyle.TEXT,false);}
             UiAssets.drawContent(g,row.icon(),x(14),py+size(16.5),size(43),size(23));
             for(int n=0;n<tactic.effects().size();n++) {
                 double px=switch(n){case 0,4->58;case 1->100;case 2->107;case 3->129;case 5->83;default->58;};
@@ -117,7 +119,7 @@ public final class CommanderPreferredTactics extends DialogScreen {
         g.disableScissor();
         scrollbar().draw(g,scroll);
         if(!tooltip.equals(hovered)){hovered=tooltip;tooltipScroll=0;}
-        tooltipBounds=tooltip.isEmpty()?null:UiTooltips.drawSourceScrollable(g,font,tooltip,mx,my,width,height,tooltipScroll,size(250));
+        tooltipBounds=tooltip.isEmpty()?null:Tooltips.drawSourceScrollable(g,font,tooltip,mx,my,width,height,tooltipScroll);
         if(tooltipBounds!=null)tooltipScroll=tooltipBounds.scroll();
     }
     private UiScrollBar scrollbar(){return new UiScrollBar(x(183),rowsTop-size(8),y(307.5),y(299.5)-rowsTop,rows().size()*size(47));}

@@ -10,7 +10,14 @@ public record IndustryView(String session, long revision, String country, Countr
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
         List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner, NavalDeployment navalDeployment, CommanderArmyHeadquarters headquarters, CommanderCaptivityView captivity, Viewing viewing) {
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
         Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner, NavalDeployment navalDeployment, CommanderArmyHeadquarters headquarters, CommanderCaptivityView captivity) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,null);
+    }
     public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
@@ -33,11 +40,14 @@ public record IndustryView(String session, long revision, String country, Countr
         this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,null);
     }
     public IndustryView withNavalDeployment(NavalDeployment deployment) {
-        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,deployment,headquarters,captivity);
+        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,deployment,headquarters,captivity,viewing);
     }
-    public IndustryView withHeadquarters(CommanderArmyHeadquarters value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,value,captivity);}
-    public IndustryView withCaptivity(CommanderCaptivityView value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,value);}
-    public IndustryView withEquipment(List<Equipment> value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,value,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity);}
+    public IndustryView withHeadquarters(CommanderArmyHeadquarters value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,value,captivity,viewing);}
+    public IndustryView withCaptivity(CommanderCaptivityView value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,value,viewing);}
+    public record Viewing(String country,String title) {
+        public Viewing {IndustryView.text(country,32);IndustryView.text(title,600);if(country.isEmpty())throw new IllegalArgumentException("Invalid viewed country");}
+    }
+    public IndustryView withEquipment(List<Equipment> value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,value,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing);}
     public record NavalTarget(String id,String name,String port,int level,int ships) {
         public NavalTarget {text(id,128);text(name,256);text(port,128);if(level<0||ships<0)throw new IllegalArgumentException("Invalid naval destination");}
         public boolean fleet(){return id.startsWith("fleet/");}
@@ -62,7 +72,7 @@ public record IndustryView(String session, long revision, String country, Countr
         this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,null);
     }
     public IndustryView withTankDesigner(IndustryTankDesigner designer) {
-        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer,navalDeployment,headquarters,captivity);
+        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer,navalDeployment,headquarters,captivity,viewing);
     }
     public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
@@ -406,6 +416,7 @@ public record IndustryView(String session, long revision, String country, Countr
         lines=bounded(lines,512);partners=bounded(partners,64);trades=bounded(trades,512);templates=bounded(templates,256);
         battalions=bounded(battalions,64);companies=bounded(companies,32);locations=bounded(locations,2048);
         recruits=bounded(recruits,512);deployed=bounded(deployed,4096);
+        if(viewing!=null&&(country.isEmpty()||viewing.country().equals(country)))throw new IllegalArgumentException("Invalid viewed country");
     }
     public static void text(String s,int max) {if(s==null||s.length()>max)throw new IllegalArgumentException("Invalid industry text");}
     private static <T> List<T> bounded(List<T> values,int max) {

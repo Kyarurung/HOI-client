@@ -61,6 +61,8 @@ public final class AgencyRaidHud {
         screen = null; country = ""; dimension = "";
     }
     public static void accept(RaidView view) { if (current()) screen.update(view); }
+    public static void accept(RaidPayloads.Highlight packet) { if (current()) screen.accept(packet); }
+    public static dev.hoi.client.screen.raid.RaidSources sources() { return visible() && screen.showingSources() ? screen.sources() : null; }
     public static void drawMap(GuiGraphicsExtractor g) { if (visible()) { resize(); screen.extractMapState(g); } }
     public static void draw(GuiGraphicsExtractor g, int mx, int my, float delta) {
         if (visible()) { resize(); screen.extractRenderState(g, mx, my, delta); }

@@ -3,7 +3,6 @@ package dev.hoi.client.screen.commander;
 import dev.hoi.protocol.commander.*;
 import dev.hoi.protocol.dialog.*;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.minecraft.client.gui.components.AbstractWidget;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 

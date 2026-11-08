@@ -3,7 +3,6 @@ package dev.hoi.client.screen.dialog;
 import dev.hoi.client.ui.UiMenuButton;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiAssets;
-
 import dev.hoi.protocol.dialog.DialogView;
 import dev.hoi.client.screen.decision.DecisionText;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -20,7 +19,7 @@ public class DialogScreen extends Screen {
     Runnable minimize;
     private final Map<UiMenuButton, DialogView.Choice> choiceTooltips = new LinkedHashMap<>();
     private final DecisionText tooltipText = new DecisionText();
-    private dev.hoi.client.ui.UiTooltips.ScrolledTooltip tooltipBounds;
+    private dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip tooltipBounds;
     private String hoveredChoice = "";
     private int tooltipScroll;
     private int left, top, pane, panelHeight, bodyTop, bodyBottom, scroll, total, choicePage, quoteViewport;
@@ -32,7 +31,7 @@ public class DialogScreen extends Screen {
     public DialogScreen(DialogView view, java.util.function.BiConsumer<DialogView, String> send) { super(Component.literal(view.title())); this.view = view; this.send = send; }
     public DialogView view() { return view; }
     boolean minimizable() { return !view.choices().isEmpty() && (view.kind() == DialogView.Kind.EVENT || view.kind() == DialogView.Kind.GLOBAL_EVENT); }
-    public dev.hoi.client.ui.UiTooltips.ScrolledTooltip tooltipBounds() { return tooltipBounds; }
+    public dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip tooltipBounds() { return tooltipBounds; }
     void resetChoiceTooltips() { choiceTooltips.clear(); tooltipBounds = null; tooltipText.clear(); }
     void choiceTooltip(UiMenuButton button, DialogView.Choice choice) {
         button.setTooltip(null);
@@ -42,14 +41,14 @@ public class DialogScreen extends Screen {
     void minimizeButton(int x, int y, int size) {
         if (!minimizable()) return;
         var button = new UiMenuButton("최소화", "events/leader/minimize", false, x, y, size, size, this::onClose).background("none");
-        button.setTooltip(dev.hoi.client.ui.UiTooltips.createOfficer("§G클릭§!하여 최소화합니다. 사건은 §H사건과 결정§! 아래 사건 목록에 배치됩니다."));
+        button.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.createOfficer("§G클릭§!하여 최소화합니다. 사건은 §H사건과 결정§! 아래 사건 목록에 배치됩니다."));
         addRenderableWidget(button);
     }
     void renderChoiceTooltip(GuiGraphicsExtractor g, int mx, int my) {
         String id = "", text = "";
         for (var entry : choiceTooltips.entrySet()) {
             var button = entry.getKey();
-            if (!dev.hoi.client.ui.UiTooltips.contains(button, mx, my)) continue;
+            if (!dev.hoi.client.ui.tooltip.Tooltips.contains(button, mx, my)) continue;
             var choice = entry.getValue();
             id = choice.id(); text = choice.tooltip();
             float scale = Math.max(dev.hoi.client.ui.UiText.scale(font), textScale() + 1f / font.lineHeight);
@@ -64,7 +63,7 @@ public class DialogScreen extends Screen {
         if (tooltipBounds == null || tooltipBounds.maxScroll() == 0) return false;
         boolean over = x >= tooltipBounds.x() - 4 && x < tooltipBounds.x() + tooltipBounds.width() + 4
                 && y >= tooltipBounds.y() - 4 && y < tooltipBounds.y() + tooltipBounds.height() + 4;
-        if (!over && choiceTooltips.keySet().stream().noneMatch(b -> dev.hoi.client.ui.UiTooltips.contains(b, x, y))) return false;
+        if (!over && choiceTooltips.keySet().stream().noneMatch(b -> dev.hoi.client.ui.tooltip.Tooltips.contains(b, x, y))) return false;
         tooltipScroll = Math.clamp(tooltipScroll - (int)(vertical * (font.lineHeight + 1) * 3), 0, tooltipBounds.maxScroll());
         return true;
     }
@@ -110,8 +109,8 @@ public class DialogScreen extends Screen {
     }
     public Component bodyText() {
         if (sourceEvent()) return tooltipText.component(view.body());
-        var body=dev.hoi.client.ui.UiTooltips.sourceSpacing(Component.literal(view.body()));
-        return view.kind()==DialogView.Kind.COMMANDER?dev.hoi.client.ui.UiKeywordIcons.decorateLines(body,false):body;
+        var body=dev.hoi.client.ui.tooltip.Tooltips.sourceSpacing(Component.literal(view.body()));
+        return view.kind()==DialogView.Kind.COMMANDER?dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(body,false):body;
     }
     @Override protected void init() {
         resetChoiceTooltips();
@@ -166,13 +165,13 @@ public class DialogScreen extends Screen {
             int titleTop = top + Math.min(32, 48 - (int)Math.ceil(font.lineHeight * eventTitleScale(titleWidth)));
             eventTitle(g, start, titleTop, titleWidth, 18, ink, false);
         }
-        else text(g, net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(dev.hoi.client.ui.UiTooltips.officerText(view.title(), true), (int)((left + pane - 14 - start) / textScale()))), start, top + 35, ink);
+        else text(g, net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(dev.hoi.client.ui.tooltip.Tooltips.officerText(view.title(), true), (int)((left + pane - 14 - start) / textScale()))), start, top + 35, ink);
         text(g, Component.literal(trim(view.subtitle(), (int)((pane - 28) / textScale()))).getVisualOrderText(), left + 12, top + 48, paper() ? 0xff62566a : UiMenuStyle.MUTED);
         g.enableScissor(left + 8, bodyTop, left + pane - 8, bodyBottom);
         int y = bodyTop + 5 - scroll;
         if (view.kind() != DialogView.Kind.EVENT) y = image(g, y);
         if (view.kind() != DialogView.Kind.STATE) {
-            for (var line : dev.hoi.client.ui.UiTooltips.split(font,bodyText(), (int)((pane - 32) / textScale()))) { text(g, line, left + 15, y, ink); y += paper() ? 12 : 13; }
+            for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,bodyText(), (int)((pane - 32) / textScale()))) { text(g, line, left + 15, y, ink); y += paper() ? 12 : 13; }
             if (!view.body().isEmpty()) y += 10;
         }
         if (view.kind() == DialogView.Kind.EVENT) y = image(g, y);
@@ -187,10 +186,10 @@ public class DialogScreen extends Screen {
             }
             y += ((view.tiles().size() + 2) / 3) * 59;
             y += 8;
-            for (var line : dev.hoi.client.ui.UiTooltips.split(font,Component.literal(view.body()), pane - 32)) { g.text(font, line, left + 15, y, ink); y += 13; }
+            for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(view.body()), pane - 32)) { g.text(font, line, left + 15, y, ink); y += 13; }
         } else for (var tile : view.tiles()) {
             text(g, Component.literal(trim(tile.name() + (tile.value().isEmpty() ? "" : " · " + tile.value()), (int)((pane - 32) / textScale()))).getVisualOrderText(), left + 15, y, ink); y += paper() ? 15 : 17;
-            for (var line : dev.hoi.client.ui.UiTooltips.split(font,Component.literal(tile.detail()), (int)((pane - 40) / textScale()))) { text(g, line, left + 19, y, ink); y += paper() ? 12 : 13; }
+            for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(tile.detail()), (int)((pane - 40) / textScale()))) { text(g, line, left + 19, y, ink); y += paper() ? 12 : 13; }
             y += 15;
         }
         total = y + scroll - bodyTop;
@@ -230,7 +229,7 @@ public class DialogScreen extends Screen {
                 Math.min((wide ? 1001.0 : news ? 400.0 : 526.0) / original[0], (wide ? 609.0 : news ? 150.0 : 300.0) / original[1])) : 0;
         int imageWidth = units(original[0] * imageScale), imageHeight = units(original[1] * imageScale);
         bodyWidth = units(wide ? 500 : news ? 560 : 526);
-        total = dev.hoi.client.ui.UiTooltips.split(font,bodyText(), Math.max(1, (int)(bodyWidth / textScale()))).size() * 12;
+        total = dev.hoi.client.ui.tooltip.Tooltips.split(font,bodyText(), Math.max(1, (int)(bodyWidth / textScale()))).size() * 12;
         int optionTop;
         int imageTop;
         if (wide) {
@@ -310,7 +309,7 @@ public class DialogScreen extends Screen {
         eventTitle(g, eventHeading[0], eventHeading[1], eventHeading[2], eventHeading[3], wide ? UiMenuStyle.TEXT : 0xff000000, false);
         g.enableScissor(bodyLeft, bodyTop, bodyLeft + bodyWidth, bodyBottom);
         int y = bodyTop - scroll;
-        for (var line : dev.hoi.client.ui.UiTooltips.split(font,bodyText(), Math.max(1, (int)(bodyWidth / textScale())))) {
+        for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,bodyText(), Math.max(1, (int)(bodyWidth / textScale())))) {
             dev.hoi.client.ui.UiText.text(g, font, line, wide ? bodyLeft + (bodyWidth - (int)(font.width(line) * textScale())) / 2 : bodyLeft,
                     y, wide ? UiMenuStyle.TEXT : 0xff000000, false);
             y += 12;

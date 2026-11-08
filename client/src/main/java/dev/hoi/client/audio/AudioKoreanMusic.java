@@ -6,7 +6,6 @@ import net.minecraft.client.resources.sounds.*;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.RandomSource;
 import java.util.List;
 
 public final class AudioKoreanMusic {
@@ -27,8 +26,8 @@ public final class AudioKoreanMusic {
         }
         public void pause(boolean paused) {
             if (sound == null) return;
-            var engine = ((dev.hoi.client.mixin.MixinManagerAccess)Minecraft.getInstance().getSoundManager()).hoiSoundEngine();
-            var channel = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().get(sound);
+            var engine = ((dev.hoi.client.mixin.audio.AudioManagerAccess)Minecraft.getInstance().getSoundManager()).hoiSoundEngine();
+            var channel = ((dev.hoi.client.mixin.audio.AudioEngineAccess)engine).hoiChannels().get(sound);
             if (channel != null) channel.execute(value -> { if (paused) value.pause(); else value.unpause(); });
         }
         public boolean active() { return sound != null && Minecraft.getInstance().getSoundManager().isActive(sound); }
@@ -79,8 +78,8 @@ public final class AudioKoreanMusic {
     public static void reset(){stop();manuallyStopped=false;selected=false;}
     public static void restorePause() {
         if (!PLAYBACK.paused() || sound == null) return;
-        var engine = ((dev.hoi.client.mixin.MixinManagerAccess)Minecraft.getInstance().getSoundManager()).hoiSoundEngine();
-        var channel = ((dev.hoi.client.mixin.MixinEngineAccess)engine).hoiChannels().get(sound);
+        var engine = ((dev.hoi.client.mixin.audio.AudioManagerAccess)Minecraft.getInstance().getSoundManager()).hoiSoundEngine();
+        var channel = ((dev.hoi.client.mixin.audio.AudioEngineAccess)engine).hoiChannels().get(sound);
         if (channel != null) channel.execute(value -> value.pause());
     }
     public static void suspend(){PLAYBACK.tick(false);}

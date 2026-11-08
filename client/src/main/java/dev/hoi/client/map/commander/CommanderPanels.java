@@ -3,6 +3,8 @@ package dev.hoi.client.map.commander;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.hoi.client.ui.*;
 import dev.hoi.protocol.commander.CommanderHudPayloads.*;
+import dev.hoi.client.ui.hud.*;
+import dev.hoi.client.ui.tooltip.*;
 import java.util.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -257,7 +259,6 @@ public final class CommanderPanels {
     private static List<String> selectedDivisions(){return CommanderUnitHud.selectedKeys().stream().filter(id->id.startsWith("unit/")).sorted().toList();}
     private static void landSettings(String action){if(!CommanderAvailability.allow("ARMY/"+action))return;var ids=selectedDivisions();if(!ids.isEmpty())CommanderHud.open(new Open(Mode.ARMY_TOOLBAR,action,ids));}
     private static void haltSelected(){if(!CommanderAvailability.allow("ARMY/HALT_UNITS"))return;var ids=selectedDivisions();if(!ids.isEmpty())CommanderHud.open(new Open(Mode.ARMY_TOOLBAR,"HALT_UNITS",ids));}
-    private static void missionShortcut(boolean navy,List<String> ids,String mission){if(!CommanderAvailability.allow((navy?"NAVY/":"AIR/")+mission))return;dev.hoi.client.audio.AudioUiSounds.play("ui.click");var values=new ArrayList<String>();values.add("mission/"+mission);values.addAll(ids);CommanderHud.open(new Open(navy?Mode.NAVAL_TOOLBAR:Mode.AIR_TOOLBAR,"",values));}
     private static List<Card> selectedArmies(){return current==null?List.of():current.cards().stream().filter(c->c.panel()!=null&&c.role()!=Mode.ARMY_GROUP&&(selected.contains(c.id())||selected.contains(c.panel().parent()))).toList();}
     private static void openCohesion(){var armies=selectedArmies().stream().map(Card::id).toList();if(!armies.isEmpty())CommanderHud.open(new Open(Mode.ARMY_TOOLBAR,"COHESION_ARMIES",armies));}
     static void openPlans(String army){if(current!=null&&current.cards().stream().anyMatch(c->c.id().equals(army)&&(c.role()==Mode.ASSIGN_ARMY||c.role()==Mode.ARMY_GROUP)))select(army,false);}
@@ -279,11 +280,18 @@ public final class CommanderPanels {
         var font=Minecraft.getInstance().font;String text=Integer.toString(value);float pixel=(float)Minecraft.getInstance().getWindow().getGuiScale(),scale=u.scale()*9f/14f;
         g.pose().pushMatrix();g.pose().translate(Math.round((center-font.width(text)*scale/2)*pixel)/pixel,Math.round(top*pixel)/pixel);g.pose().scale(scale);g.text(font,text,0,0,UiMenuStyle.TEXT,true);g.pose().popMatrix();
     }
-    private static void label(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color){UiText.centeredSingleLine(g,Minecraft.getInstance().font,UiTooltips.officerText(text),x,y,w,h,color);}
+    private static void label(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color){UiText.centeredSingleLine(g,Minecraft.getInstance().font,Tooltips.officerText(text),x,y,w,h,color);}
     private static void leftLabel(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color){leftLabel(g,text,x,y,w,h,color,UiText.scale(Minecraft.getInstance().font));}
-    private static void airLabel(GuiGraphicsExtractor g,UiUnits u,String text,int x,int y,int w,int h){leftLabel(g,text,x,y,w,h,UiMenuStyle.TEXT,u.scale());}
-    private static void leftLabel(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color,float scale){var font=Minecraft.getInstance().font;var value=UiKeywordIcons.decorateLines(UiTooltips.officerText(text),false);if(font.width(value)*scale>w){var clipped=Component.empty();font.substrByWidth(value,Math.max(0,(int)(w/scale)-font.width("…"))).visit((style,part)->{clipped.append(Component.literal(part).setStyle(style));return Optional.empty();},net.minecraft.network.chat.Style.EMPTY);value=clipped.append("…");}g.pose().pushMatrix();g.pose().translate(x,y+(h-font.lineHeight*scale)/2);g.pose().scale(scale);g.text(font,value,0,0,color);g.pose().popMatrix();}
-    private static void wrappedLabel(GuiGraphicsExtractor g,UiUnits u,String text,int x,int y,int w,int h,boolean centered){var font=Minecraft.getInstance().font;float scale=UiText.scale(font),lineHeight=font.lineHeight*scale;var lines=UiTooltips.split(font,UiTooltips.officerText(text),Math.max(1,(int)(w/scale)));float top=y+(h-lines.size()*lineHeight)/2;for(var line:lines){g.pose().pushMatrix();g.pose().translate(centered?x+(w-font.width(line)*scale)/2:x,top);g.pose().scale(scale);g.text(font,line,0,0,UiMenuStyle.TEXT);g.pose().popMatrix();top+=lineHeight;}}
+    private static void airLabel(GuiGraphicsExtractor g,UiUnits u,String text,int x,int y,int w,int h){
+        var value=TooltipKeywordIcons.decorateLines(Tooltips.officerText(text),false);
+        g.pose().pushMatrix();
+        g.pose().translate(x,y);
+        g.pose().scale(u.scale());
+        UiText.scrollingCell(g,Minecraft.getInstance().font,value,0,0,Math.round(w/u.scale()),Math.round(h/u.scale()),UiMenuStyle.TEXT,false);
+        g.pose().popMatrix();
+    }
+    private static void leftLabel(GuiGraphicsExtractor g,String text,int x,int y,int w,int h,int color,float scale){var font=Minecraft.getInstance().font;var value=TooltipKeywordIcons.decorateLines(Tooltips.officerText(text),false);if(font.width(value)*scale>w){var clipped=Component.empty();font.substrByWidth(value,Math.max(0,(int)(w/scale)-font.width("…"))).visit((style,part)->{clipped.append(Component.literal(part).setStyle(style));return Optional.empty();},net.minecraft.network.chat.Style.EMPTY);value=clipped.append("…");}g.pose().pushMatrix();g.pose().translate(x,y+(h-font.lineHeight*scale)/2);g.pose().scale(scale);g.text(font,value,0,0,color);g.pose().popMatrix();}
+    private static void wrappedLabel(GuiGraphicsExtractor g,UiUnits u,String text,int x,int y,int w,int h,boolean centered){var font=Minecraft.getInstance().font;float scale=UiText.scale(font),lineHeight=font.lineHeight*scale;var lines=Tooltips.split(font,Tooltips.officerText(text),Math.max(1,(int)(w/scale)));float top=y+(h-lines.size()*lineHeight)/2;for(var line:lines){g.pose().pushMatrix();g.pose().translate(centered?x+(w-font.width(line)*scale)/2:x,top);g.pose().scale(scale);g.text(font,line,0,0,UiMenuStyle.TEXT);g.pose().popMatrix();top+=lineHeight;}}
     private static void background(GuiGraphicsExtractor g,String id,int x,int y,int w,int h){if(id.equals("tiled_plain_bg_small")){UiAssets.tiledNineSlice(g,source(id),x,y,w,h,16,CommanderLayout.units(g.guiWidth(),g.guiHeight()).scale()*.5);return;}if(id.equals("air_priorities_tiled_bg")){UiAssets.nineSlice(g,source(id),x,y,w,h,32,CommanderLayout.units(g.guiWidth(),g.guiHeight()).scale()*.5);return;}if(!UiAssets.draw(g,source(id),x,y,w,h))UiMenuStyle.control(g,x,y,w,h,false,false);}
     private static void button(GuiGraphicsExtractor g,List<Hit> out,String text,String icon,int x,int y,int w,int h,String tip,Runnable action){button(g,out,text,icon,x,y,w,h,tip,action,false);}
     private static void button(GuiGraphicsExtractor g,List<Hit> out,String text,String icon,int x,int y,int w,int h,String tip,Runnable action,boolean grayscale){UiAssets.nineSlice(g,source("nv_btn_select"),x,y,w,h,4,CommanderLayout.units(g.guiWidth(),g.guiHeight()).scale()*.5);if(icon.isEmpty())label(g,text,x,y,w,h,UiMenuStyle.TEXT);else if(grayscale)UiAssets.drawGrayscale(g,source(icon),x,y,w,h);else UiAssets.draw(g,source(icon),x,y,w,h);out.add(new Hit(x,y,w,h,tip,action,null,grayscale?"":icon.equals("nv_btn_select")?dev.hoi.client.audio.AudioUiSounds.selection(current.branch()):icon.equals("nv_btn_close")?"ui.close":icon.equals("nv_btn_delete")?"ui.disband":icon.startsWith("bpt_order_")||icon.equals("exercise_icon")?"ui.battleplan":"ui.click",icon));}
@@ -318,7 +326,7 @@ public final class CommanderPanels {
     }
     private static void command(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Card> chosen,int bottom) {
         if(current.branch()==Mode.ARMY&&chosen.size()==1&&chosen.getFirst().role()==Mode.ARMY_GROUP&&armyListGroups.contains(chosen.getFirst().id())){armyOverview(g,u,out,chosen.getFirst(),bottom);return;}
-        boolean navy=current.branch()==Mode.NAVY_HQ;if(!navy&&chosen.size()>1){armyStack(g,u,out,chosen,bottom);return;}if(navy&&(dragNavySelection||chosen.size()>1)){navyStack(g,u,out,chosen,bottom);return;}int x=u.size(3),top=UiMenuBar.height(g.guiWidth())+u.size(2),w=u.size(navy?246.5:218.5)+(navy?0:summaryExtra(chosen.getFirst(),u)),header=u.size(navy?83:55);
+        boolean navy=current.branch()==Mode.NAVY_HQ;if(!navy&&chosen.size()>1){armyStack(g,u,out,chosen,bottom);return;}if(navy&&(dragNavySelection||chosen.size()>1)){navyStack(g,u,out,chosen,bottom);return;}int x=u.size(3),top=HudMenuBar.height(g.guiWidth())+u.size(2),w=u.size(navy?246.5:218.5)+(navy?0:summaryExtra(chosen.getFirst(),u)),header=u.size(navy?83:55);
         int visible=Math.max(1,(Math.max(top+header,bottom)-top)/header),start=chosen.size()>1?Math.clamp(scroll,0,Math.max(0,chosen.size()-visible)):0;
         int y=top;
         for(var card:chosen.subList(start,Math.min(chosen.size(),start+visible))) {
@@ -330,7 +338,7 @@ public final class CommanderPanels {
         if(chosen.size()>1){pager(g,u,out,x,y,w,scroll>0,start+visible<chosen.size(),1);out.add(new Hit(x,top,w,y-top,"",()->{},null,""));return;}
         var card=chosen.getFirst();var panel=card.panel();if(panel==null)return;
         int toolbarExtra=w-u.size(218.5),tools=u.size(navy?22:21);if(navy)navalTools(g,u,out,x,y,w);else {int visibleRows=Math.min(CommanderHud.groups.rowsVisible(card.id())?armyRows(card).size():0,Math.max(1,(bottom-y-tools-u.size(13.5))/u.size(16.5)));armyListBackground(g,u,x-u.size(2),y-u.size(1.5),w-u.size(1),tools+u.size(18)+visibleRows*u.size(16.5));selectionBackground(g,u,x,y,w);
-        g.enableScissor(x+u.size(36.5),y,x+toolbarExtra+u.size(103),y+tools);UiText.text(g,Minecraft.getInstance().font,UiTooltips.officerText(UiCommandLabels.text("UNITS_VIEW_SELECTED_DIVISIONS_COUNT","$DIV|G$개 사단 선택됨").replace("$DIV|G$","§G"+selectedDivisions().size()+"§!")),x+u.size(36.5),y+(tools-Minecraft.getInstance().font.lineHeight)/2+u.size(2),UiMenuStyle.TEXT);g.disableScissor();
+        g.enableScissor(x+u.size(36.5),y,x+toolbarExtra+u.size(103),y+tools);UiText.text(g,Minecraft.getInstance().font,Tooltips.officerText(UiCommandLabels.text("UNITS_VIEW_SELECTED_DIVISIONS_COUNT","$DIV|G$개 사단 선택됨").replace("$DIV|G$","§G"+selectedDivisions().size()+"§!")),x+u.size(36.5),y+(tools-Minecraft.getInstance().font.lineHeight)/2+u.size(2),UiMenuStyle.TEXT);g.disableScissor();
         templateButton(g,u,out,x-u.size(4),y);
         var selectedRows=selectedDivisionRows();boolean weightKnown=selectedRows.size()==selectedDivisions().size()&&!selectedRows.isEmpty()&&selectedRows.stream().allMatch(m->m.data()!=null&&m.data().transportWeight()!=null);String weight=weightKnown?Long.toString(Math.round(selectedRows.stream().mapToDouble(m->m.data().transportWeight()).sum())):"0";
         UiAssets.draw(g,source("generic_mini_bg"),x+toolbarExtra+u.size(134.5),y+u.size(5.5),u.size(34),u.size(13));UiAssets.drawContent(g,source("topbar_convoys"),x+toolbarExtra+u.size(135.5),y+u.size(7),u.size(9),u.size(9));leftLabel(g,weight,x+toolbarExtra+u.size(145),y+u.size(6),u.size(18.5),u.size(11.5),UiMenuStyle.TEXT);out.add(new Hit(x+toolbarExtra+u.size(134.5),y+u.size(5.5),u.size(34),u.size(13),UiCommandLabels.text("TRANSPORT_WEIGHT_DESC",""),()->{},null,""));
@@ -368,7 +376,7 @@ public final class CommanderPanels {
         if(panel!=null&&panel.leader()!=null){var leader=panel.leader();leftLabel(g,leader.role(),x+u.size(35),y+u.size(19),u.size(66.5),u.size(9),UiMenuStyle.TEXT);leftLabel(g,card.leader(),x+u.size(35),y+u.size(27),u.size(66.5),u.size(9),UiMenuStyle.TEXT);
             leaderSkill(g,u,leader.skill(),x+u.size(99),y+u.size(18.5));
             for(int n=0;n<4;n++){float sx=x+u.length(new double[]{109,117.5,126.5,135}[n]);g.pose().pushMatrix();g.pose().translate(sx,y+u.size(19.5));UiAssets.draw(g,source("trait_"+List.of("attack","defense","planning","logistics").get(n)),0,0,u.size(13.5),u.size(12.5));g.pose().popMatrix();leaderAbility(g,u,leader.abilities().get(n),sx+u.length(6.75),y+u.length(30));out.add(new Hit((int)sx,y+u.size(19),u.size(9),u.size(20),leader.abilityTooltips().size()>n?leader.abilityTooltips().get(n):card.detail(),()->{},null,""));}
-            int traitsX=x+u.size(150.5),traitsWidth=w-u.size(group?10:12)-u.size(157.5),traitWidth=u.size(10.5);for(int n=0;n<leader.traitDetails().size();n++){var trait=leader.traitDetails().get(n);int tx=dev.hoi.client.ui.UiFlagStack.left(n,leader.traitDetails().size(),traitsX,traitsWidth,traitWidth),visible=dev.hoi.client.ui.UiFlagStack.visibleWidth(n,leader.traitDetails().size(),traitsX,traitsWidth,traitWidth);UiAssets.drawTinted(g,trait.icon(),tx,y+u.size(21),traitWidth,u.size(16),Boolean.FALSE.equals(trait.active())?0xffbf5050:0xffffffff);out.add(new Hit(tx,y+u.size(21),visible,u.size(16),trait.tooltip(),()->CommanderHud.open(new Open(Mode.COMMANDER_TRAITS,"army/"+panel.commander())),null,"ui.click","army_trait"));}
+            int traitsX=x+u.size(150.5),traitsWidth=w-u.size(group?10:12)-u.size(157.5),traitWidth=u.size(10.5);for(int n=0;n<leader.traitDetails().size();n++){var trait=leader.traitDetails().get(n);int tx=dev.hoi.client.ui.country.CountryFlagStack.left(n,leader.traitDetails().size(),traitsX,traitsWidth,traitWidth),visible=dev.hoi.client.ui.country.CountryFlagStack.visibleWidth(n,leader.traitDetails().size(),traitsX,traitsWidth,traitWidth);UiAssets.drawTinted(g,trait.icon(),tx,y+u.size(21),traitWidth,u.size(16),Boolean.FALSE.equals(trait.active())?0xffbf5050:0xffffffff);out.add(new Hit(tx,y+u.size(21),visible,u.size(16),trait.tooltip(),()->CommanderHud.open(new Open(Mode.COMMANDER_TRAITS,"army/"+panel.commander())),null,"ui.click","army_trait"));}
         }else {leftLabel(g,commanderName(card),x+u.size(35),y+u.size(19),u.size(66.5),u.size(19),0xffe15b5b);if(!assign.isEmpty())wrappedLabel(g,u,assign,x+u.size(2.5),y+u.size(13.5),u.size(33),u.size(40),true);}
         UiAssets.draw(g,source("leader_exp_bg"),px,py+ph-u.size(2),pw,u.size(2));
         progress(g,"leader_exp_fg_mid",px,py+ph-u.size(2),pw,u.size(2),panel==null?null:panel.experience(),0xffffffff,0xffffffff);
@@ -393,13 +401,13 @@ public final class CommanderPanels {
     }
     private static List<Map.Entry<String,Integer>> summaryTypes(Card card){return card.panel()==null?List.of():!card.panel().templateSummaries().isEmpty()?card.panel().templateSummaries().stream().limit(11).map(t->Map.entry(t.icon(),t.count())).toList():card.panel().divisionTypes().entrySet().stream().sorted(Map.Entry.<String,Integer>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey())).limit(11).toList();}
     private static void dragStack(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Card> cards,int bottom){
-        int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),top=y,h=u.size(55),step=u.size(52),count=Math.max(1,(bottom-y-u.size(3))/step);scroll=Math.clamp(scroll,0,Math.max(0,cards.size()-count));
+        int x=u.size(3),y=HudMenuBar.height(g.guiWidth())+u.size(2),top=y,h=u.size(55),step=u.size(52),count=Math.max(1,(bottom-y-u.size(3))/step);scroll=Math.clamp(scroll,0,Math.max(0,cards.size()-count));
         for(var card:cards.subList(scroll,Math.min(cards.size(),scroll+count))){int width=u.size(218.5)+summaryExtra(card,u);armyHeader(g,u,out,card,x,y,width,h);y+=step;}
         armyScrollbar(g,u,out,x+u.size(219)+cards.stream().mapToInt(c->summaryExtra(c,u)).max().orElse(0),top,u.size(8),count*step,cards.size(),count);out.add(new Hit(x,top,u.size(218.5),y-top,"",()->{},null,""));
     }
     private static void armyOverview(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,Card group,int bottom){
         var armies=new ArrayList<Card>();armies.add(group);current.cards().stream().filter(c->c.role()==Mode.ASSIGN_ARMY&&c.panel()!=null&&c.panel().parent().equals(group.id())).forEach(armies::add);
-        int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),top=y,h=u.size(55),count=Math.max(1,(bottom-y)/h);scroll=Math.clamp(scroll,0,Math.max(0,armies.size()-count));
+        int x=u.size(3),y=HudMenuBar.height(g.guiWidth())+u.size(2),top=y,h=u.size(55),count=Math.max(1,(bottom-y)/h);scroll=Math.clamp(scroll,0,Math.max(0,armies.size()-count));
         for(var army:armies.subList(scroll,Math.min(armies.size(),scroll+count))){armyHeader(g,u,out,army,x,y,u.size(218.5)+summaryExtra(army,u),h);y+=h;}
         armyScrollbar(g,u,out,x+u.size(219),top,u.size(9),count*h,armies.size(),count);
     }
@@ -412,14 +420,14 @@ public final class CommanderPanels {
         var hq=card.panel()==null?null:card.panel().headquarters();boolean absent=hq==null?card.panel()!=null&&card.panel().commander().isEmpty():hq.state().equals("NO_COMMANDER");
         int bh=u.size(21);var font=Minecraft.getInstance().font;
         String label=hq==null?UiCommandLabels.text("DEPLOY_HQ_BUTTON_LABEL",""):hq.label(),text=hq==null?(absent?UiCommandLabels.text("DEPLOY_HQ_BUTTON_NO_COMMANDER",""):""):hq.text();
-        int textWidth=(int)Math.ceil(font.width(absent?UiTooltips.officerText(text).copy().withStyle(net.minecraft.ChatFormatting.BOLD):UiTooltips.officerText(text))*UiText.scale(font));
+        int textWidth=(int)Math.ceil(font.width(absent?Tooltips.officerText(text).copy().withStyle(net.minecraft.ChatFormatting.BOLD):Tooltips.officerText(text))*UiText.scale(font));
         int bw=Math.max(u.size(155),u.size(absent?60:123)+textWidth);
         int darkLeft=x-u.size(.5)+u.size(2)+(int)Math.round((w-u.size(6))/425.0),darkRight=x-u.size(.5)+u.size(2)+(int)Math.round((w-u.size(6))*393.0/425);
         int bx=darkLeft+(darkRight-darkLeft-bw)/2,by=y+(u.size(22.5)-bh)/2,frameY=by+u.size(2);
         if(absent)UiAssets.drawGrayscale(g,source("deploy_hq_button").replace("frame_0","frame_1"),bx,frameY,bw,bh);
         else{var texture=net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source("deploy_hq_button").replace("frame_0","frame_1")+".png");int left=u.size(55),right=u.size(4);g.blit(texture,bx,frameY,bx+left,frameY+bh,0,110f/310,0,1);g.blit(texture,bx+left,frameY,bx+bw-right,frameY+bh,110f/310,302f/310,0,1);g.blit(texture,bx+bw-right,frameY,bx+bw,frameY+bh,302f/310,1,0,1);}
-        UiText.centeredSingleLine(g,font,UiTooltips.officerText(label).copy().withStyle(net.minecraft.ChatFormatting.BOLD),bx,by,u.size(55),bh,UiMenuStyle.TEXT);
-        if(absent)UiText.centeredSingleLine(g,font,UiTooltips.officerText(text).copy().withStyle(net.minecraft.ChatFormatting.BOLD),bx+u.size(55),by,bw-u.size(55),bh,0xffdf4545);
+        UiText.centeredSingleLine(g,font,Tooltips.officerText(label).copy().withStyle(net.minecraft.ChatFormatting.BOLD),bx,by,u.size(55),bh,UiMenuStyle.TEXT);
+        if(absent)UiText.centeredSingleLine(g,font,Tooltips.officerText(text).copy().withStyle(net.minecraft.ChatFormatting.BOLD),bx+u.size(55),by,bw-u.size(55),bh,0xffdf4545);
         else if(hq!=null){
             String cost=hq.cost()==null?"":java.math.BigDecimal.valueOf(hq.cost()).stripTrailingZeros().toPlainString();
             int costWidth=(int)Math.ceil(font.width(cost)*UiText.scale(font)),contentWidth=u.size(21)+textWidth+(cost.isEmpty()?0:u.size(14)+costWidth),contentX=bx+u.size(55)+(bw-u.size(59)-contentWidth)/2;
@@ -447,7 +455,7 @@ public final class CommanderPanels {
     private record ArmyEntry(Card card,Member member) {}
     private static void armyStack(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Card> chosen,int bottom){
         var entries=new ArrayList<ArmyEntry>();var shown=new HashSet<String>();for(var card:chosen){entries.add(new ArmyEntry(card,null));if(CommanderHud.groups.rowsVisible(card.id()))armyRows(card).stream().filter(m->shown.add(m.id())).forEach(m->entries.add(new ArmyEntry(card,m)));}
-        int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),top=y,w=u.size(218.5),row=u.size(16.5);int count=Math.max(1,(bottom-y-u.size(18))/row);scroll=Math.clamp(scroll,0,Math.max(0,entries.size()-count));
+        int x=u.size(3),y=HudMenuBar.height(g.guiWidth())+u.size(2),top=y,w=u.size(218.5),row=u.size(16.5);int count=Math.max(1,(bottom-y-u.size(18))/row);scroll=Math.clamp(scroll,0,Math.max(0,entries.size()-count));
         for(var entry:entries.subList(scroll,Math.min(entries.size(),scroll+count))){if(entry.member()!=null)member(g,u,out,entry.member(),x,y,w,row,"uv_unit_entry_bg");else{background(g,"army_bg",x,y,w,row);label(g,entry.card().name(),x+u.size(4),y,w-u.size(24),row,UiMenuStyle.TEXT);button(g,out,"×","nv_btn_close",x+w-u.size(15),y,u.size(13),row,"닫기",()->closeCard(entry.card()));}y+=row;}
         pager(g,u,out,x,y,w,scroll>0,scroll+count<entries.size(),count);out.add(new Hit(x,top,w,y-top,"",()->{},null,""));
     }
@@ -463,9 +471,9 @@ public final class CommanderPanels {
         button(g,out,"","hold",x+u.size(180),y+u.size(3.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("HALT_UNIT","선택한 모든 부대 정지"),CommanderPanels::haltSelected);
     }
     private static void armySelection(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int bottom){
-        var rows=selectedDivisionRows();int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),top=y,w=u.size(218.5),row=u.size(16.5);
+        var rows=selectedDivisionRows();int x=u.size(3),y=HudMenuBar.height(g.guiWidth())+u.size(2),top=y,w=u.size(218.5),row=u.size(16.5);
         boolean unassigned=!rows.isEmpty()&&rows.stream().allMatch(m->m.data()!=null&&m.data().attachedArmy().isEmpty());
-        String description=unassigned?UiCommandLabels.text("UNASSIGNED_UNIT_DESCRIPTION",""):"";int footer=description.isEmpty()?0:UiTooltips.split(Minecraft.getInstance().font,UiTooltips.officerText(description),u.size(185)).size()*Minecraft.getInstance().font.lineHeight+u.size(12);
+        String description=unassigned?UiCommandLabels.text("UNASSIGNED_UNIT_DESCRIPTION",""):"";int footer=description.isEmpty()?0:Tooltips.split(Minecraft.getInstance().font,Tooltips.officerText(description),u.size(185)).size()*Minecraft.getInstance().font.lineHeight+u.size(12);
         int count=Math.min(rows.stream().anyMatch(m->m.data()!=null&&m.data().attachedArmy().isEmpty())?11:Integer.MAX_VALUE,Math.max(1,(bottom-y-u.size(34.5)-footer)/row));
         background(g,"air_priorities_tiled_bg",x,y,w,u.size(31.5)+Math.min(count,rows.size())*row+footer+u.size(4));
         if(unassigned){
@@ -486,7 +494,7 @@ public final class CommanderPanels {
     private static void navyStack(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Card> chosen,int bottom) {
         var selection=navalSelection();var rows=chosen.stream().filter(c->c.panel()!=null).flatMap(c->c.panel().members().stream()).filter(m->selection.contains(m.id())).toList();
         if(rows.isEmpty())return;
-        int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),w=u.size(246.5),top=y;
+        int x=u.size(3),y=HudMenuBar.height(g.guiWidth())+u.size(2),w=u.size(246.5),top=y;
         navalTools(g,u,out,x,y,w);y+=u.size(22);
         int row=u.size(62),count=Math.max(1,(bottom-y)/row);scroll=Math.clamp(scroll,0,Math.max(0,rows.size()-count));int listTop=y;
         for(var member:rows.subList(scroll,Math.min(rows.size(),scroll+count))){member(g,u,out,member,x,y,w,row,"task_force_bg");y+=row;}
@@ -539,7 +547,7 @@ public final class CommanderPanels {
         if(member.request().mode()==Mode.ARMY_UNITS){armyMember(g,u,out,member,x,y,w,h,asset);return;}
         boolean naval=member.request().mode()==Mode.NAVAL_MISSION;
         background(g,asset,x,y,w,h);if(member.request().mode()==Mode.NAVAL_MISSION&&selectedForces.contains(member.id()))UiAssets.draw(g,source("task_force_bg_hl"),x,y,w,h);if(member.request().mode()==Mode.AIR_MISSION&&selectedWings.contains(member.id()))UiAssets.draw(g,source(asset).replace("frame_0","frame_1"),x,y,w,h);if(naval)UiAssets.drawTinted(g,member.icon(),x+u.size(4),y+u.size(2),u.size(16.5),u.size(16),fleetColor(fleetFor(member)));else UiAssets.drawContent(g,member.icon(),x+u.size(6),y+u.size(2),u.size(24),Math.min(h-u.size(4),u.size(24)));
-        if(naval){label(g,Integer.toString(shipCount(member)),x+u.size(5),y+u.size(8),u.size(16),u.size(9),UiMenuStyle.TEXT);UiAssets.draw(g,source("task_force_mission_bg"),x+u.size(4),y+u.size(19),u.size(20),u.size(20));var navy=member.data()==null?null:member.data().navy();String activity=navalActivityIcon(member);UiAssets.draw(g,activity,x+u.size(3.5),y+u.size(21),u.size(21.5),u.size(17));}
+        if(naval){label(g,Integer.toString(shipCount(member)),x+u.size(5),y+u.size(8),u.size(16),u.size(9),UiMenuStyle.TEXT);UiAssets.draw(g,source("task_force_mission_bg"),x+u.size(4),y+u.size(19),u.size(20),u.size(20));String activity=navalActivityIcon(member);UiAssets.draw(g,activity,x+u.size(3.5),y+u.size(21),u.size(21.5),u.size(17));}
         if(!naval&&member.strength()>=0)nativeBar(g,"repair_hp",x+u.size(2),y+u.size(2),u.size(3),h-u.size(4),member.strength(),true);
         boolean air=member.request().mode()==Mode.AIR_MISSION;
         if(naval)leftLabel(g,member.name(),x+u.size(35),y+u.size(4),u.size(139),u.size(11.5),UiMenuStyle.TEXT);else label(g,member.name(),x+u.size(33),y+u.size(1),w-u.size(48),Math.min(h,u.size(air?9:14)),UiMenuStyle.TEXT);
@@ -687,7 +695,7 @@ public final class CommanderPanels {
     }
     private static void areaDefense(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y,int w,int popupBottom){
         var armies=selectedArmies();if(armies.size()!=1)return;var controls=armies.getFirst().panel().controls();var area=controls.stream().filter(c->c.id().equals("AREA_STATES")).findFirst();if(area.isEmpty())return;
-        int width=u.size(179),height=u.size(39),left=Math.clamp(x+w-width,0,Math.max(0,g.guiWidth()-width)),top=Math.max(UiMenuBar.height(g.guiWidth())+u.size(2),popupBottom-height-u.size(2));background(g,"air_priorities_tiled_bg",left,top,width,height);
+        int width=u.size(179),height=u.size(39),left=Math.clamp(x+w-width,0,Math.max(0,g.guiWidth()-width)),top=Math.max(HudMenuBar.height(g.guiWidth())+u.size(2),popupBottom-height-u.size(2));background(g,"air_priorities_tiled_bg",left,top,width,height);
         var command=area.get();String caption=command.tooltip().split("\n",2)[0];button(g,out,caption,"",left+u.size(3),top+u.size(2),width-u.size(6),u.size(14),command.tooltip(),()->CommanderHud.open(command.request()));
         int column=0;for(var control:controls)if(control.id().startsWith("AREA_OPTION/")){int bx=left+u.size(4+column++*24);int by=top+u.size(18);boolean on=control.id().endsWith("/ON");if(on)g.fill(bx,by,bx+u.size(21),by+u.size(18),0x9962943F);UiAssets.draw(g,control.icon(),bx+u.size(2),by+u.size(1),u.size(17),u.size(16));out.add(new Hit(bx,by,u.size(21),u.size(18),control.tooltip(),()->CommanderHud.open(control.request())));}
         out.add(new Hit(left,top,width,height,"",()->{},null,""));
@@ -737,7 +745,7 @@ public final class CommanderPanels {
         if(ratio==null)return;int filled=(int)Math.round(width*Math.clamp(ratio,0,1));if(filled>0)g.blit(net.minecraft.resources.Identifier.parse(path+"/fill/frame_0.png"),0,y,filled,y+3,0,(float)filled/width,0,1);
     }
     static String navalActivityIcon(Member member){var state=member.data()==null?null:member.data().navy();String activity=state==null?"":state.activityIcon();boolean mission=activity.isEmpty()||activity.equals("ship_activity_docked")||activity.equals("ship_activity_holding")||activity.startsWith("ship_activity_mission_");return mission?source("nv_all_missions").replace("frame_0","frame_"+navalMissionFrame(activity.equals("ship_activity_docked")?"HOLD":member.mission())):source(activity);}
-    private static void navalActivityLabel(GuiGraphicsExtractor g,UiUnits u,String text,int x,int y,int w,int h,int color){var flag=java.util.regex.Pattern.compile("£flag_([A-Z]{3})£?").matcher(text);if(!flag.find()){leftLabel(g,text,x,y,w,h,color);return;}String before=text.substring(0,flag.start()),after=text.substring(flag.end());var font=Minecraft.getInstance().font;int prefix=(int)Math.ceil(font.width(UiKeywordIcons.decorateLines(UiTooltips.officerText(before),false))*UiText.scale(font));leftLabel(g,before,x,y,Math.min(w,prefix),h,color);int fw=u.size(4.5),fh=u.size(3);UiAssets.draw(g,UiMenuBar.flagTexture(flag.group(1)),x+prefix,y+(h-fh)/2,fw,fh);leftLabel(g,after,x+prefix+fw,y,Math.max(1,w-prefix-fw),h,color);}
+    private static void navalActivityLabel(GuiGraphicsExtractor g,UiUnits u,String text,int x,int y,int w,int h,int color){var flag=java.util.regex.Pattern.compile("£flag_([A-Z]{3})£?").matcher(text);if(!flag.find()){leftLabel(g,text,x,y,w,h,color);return;}String before=text.substring(0,flag.start()),after=text.substring(flag.end());var font=Minecraft.getInstance().font;int prefix=(int)Math.ceil(font.width(TooltipKeywordIcons.decorateLines(Tooltips.officerText(before),false))*UiText.scale(font));leftLabel(g,before,x,y,Math.min(w,prefix),h,color);int fw=u.size(4.5),fh=u.size(3);UiAssets.draw(g,HudMenuBar.flagTexture(flag.group(1)),x+prefix,y+(h-fh)/2,fw,fh);leftLabel(g,after,x+prefix+fw,y,Math.max(1,w-prefix-fw),h,color);}
     static int navalMissionFrame(String mission){return switch(mission){case "PATROL"->1;case "STRIKE_FORCE"->2;case "CONVOY_RAIDING"->3;case "CONVOY_ESCORT"->4;case "MINELAYING"->5;case "MINESWEEPING"->6;case "EXERCISE","EXERCISE_UNTIL_TRAINED"->7;case "NAVAL_INVASION_SUPPORT"->9;default->0;};}
     private static void selectFleetForces(Card card){CommanderUnitHud.clearSelection();specificForces=true;selectedForces.clear();if(card.panel()!=null)card.panel().members().forEach(m->selectedForces.add(m.id()));CommanderOrders.selectionChanged();}
     private static void deselectForce(String id){var retained=new LinkedHashSet<>(navalSelection());retained.remove(id);CommanderUnitHud.clearSelection();specificForces=true;selectedForces.clear();selectedForces.addAll(retained);selected.removeIf(cardId->current.cards().stream().noneMatch(card->card.id().equals(cardId)&&card.panel()!=null&&card.panel().members().stream().anyMatch(member->retained.contains(member.id()))));hits=List.of();CommanderOrders.selectionChanged();}
@@ -778,7 +786,7 @@ public final class CommanderPanels {
         button(g,out,"","nv_btn_base_partial_toggle",x-u.size(1),y-u.size(1),u.size(15.5),u.size(15.5),tip,()->CommanderHud.open(request));if(policies.size()==1)airPolicyIcon(g,policies.getFirst(),x,y,w,h);else label(g,"—",x,y,w,h,UiMenuStyle.TEXT);
     }
     private static void airBaseHeader(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,Member wing,int x,int y,int w,int h) {
-        background(g,"av_base_entry_bg",x,y,w,h);var owner=CommanderAirBases.state(wing);if(owner!=null&&!owner.controller().isEmpty())UiAssets.cover(g,UiMenuBar.flagTexture(owner.controller()),x+u.size(8),y+u.size(8),u.size(9),u.size(7));airLabel(g,u,wing.group(),x+u.size(33.5),y+u.size(5.5),u.size(60),u.size(11.5));
+        background(g,"av_base_entry_bg",x,y,w,h);var owner=CommanderAirBases.state(wing);if(owner!=null&&!owner.controller().isEmpty())UiAssets.cover(g,HudMenuBar.flagTexture(owner.controller()),x+u.size(8),y+u.size(8),u.size(9),u.size(7));airLabel(g,u,wing.group(),x+u.size(33.5),y+u.size(5.5),u.size(60),u.size(11.5));
         UiAssets.draw(g,source("fuel_strip"),x+u.size(19),y+u.size(4.5),u.size(10),u.size(13));out.add(new Hit(x+u.size(19),y+u.size(4.5),u.size(10),u.size(13),CommanderAirBases.fuelTooltip(current.country()),()->{},null,""));
         var base=CommanderAirBases.state(wing);String tip=CommanderAirBases.tooltip(wing),capacity=CommanderAirBases.capacity(wing);if(base!=null)capacity=(base.totalPlanes()>base.capacity()?"§R":"§G")+base.totalPlanes()+"§!"+capacity.substring(Integer.toString(base.totalPlanes()).length());airLabel(g,u,capacity,x+u.size(104),y+u.size(6.5),u.size(70),u.size(11.5));out.add(new Hit(x+u.size(104),y,u.size(70),h,tip,()->{},null,""));
         airOrganizationButton(g,u,out,"CREATE","air_base_create_new_btn","AIRWING_NEW",base==null?List.of():List.of("base/"+base.id()),x+u.size(244.5),y+u.size(4));
@@ -787,9 +795,9 @@ public final class CommanderPanels {
         out.add(new Hit(x,y,w,h,tip,()->{},null,""));
     }
     private static void air(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,List<Member> wings,int bottom) {
-        int x=u.size(3),y=UiMenuBar.height(g.guiWidth())+u.size(2),w=u.size(274),h=u.size(24);
+        int x=u.size(3),y=HudMenuBar.height(g.guiWidth())+u.size(2),w=u.size(274),h=u.size(24);
         background(g,"tiled_plain_bg_small",x,y,u.size(351.5),u.size(26));branchButtons(g,u,out,false,wings.stream().map(Member::id).toList(),x,y);button(g,out,"","air_target_icon",x+u.size(119.5),y+u.size(4),u.size(15.5),u.size(15.5),UiCommandLabels.text("AIR_STRATEGIC_PRIORITIES","전략폭격 우선순위")+"\n\n전략 폭격 목표 우선순위 설정은 아직 지원하지 않습니다.",()->{},true);UiAssets.drawGrayscale(g,source("strategicair_mission_btn_bg").replace("frame_0","frame_1"),x+u.size(164.5),y+u.size(4),u.size(23.5),u.size(17));UiAssets.drawGrayscale(g,"commander/commands/strategicair_mission_types/frame_7",x+u.size(168),y+u.size(6),u.size(21),u.size(14.5));out.add(new Hit(x+u.size(164.5),y+u.size(4),u.size(23.5),u.size(17),UiCommandLabels.text("AIRWING_MISSION_TYPE_NAVAL_KAMIKAZE","")+"\n\n이 임무는 아직 지원하지 않습니다.",()->{},null,"","air_mission_unsupported"));y+=u.size(27.5);
-        int toolbar=u.size(326);background(g,"tiled_plain_bg_small",x,y,toolbar,h);g.pose().pushMatrix();g.pose().translate(x+u.length(13.5),y+u.length(3.5));g.pose().scale(u.scale()*.5f);UiAssets.draw(g,source("unit_list_header_air"),0,0,471,35);g.pose().popMatrix();String selectedText=UiCommandLabels.text("UNITS_VIEW_WINGS_COUNT","$WINGS|G$개 비행단 선택됨").replace("$WINGS|G$","§G"+wings.size()+"§!");int textWidth=(int)Math.ceil(Minecraft.getInstance().font.width(UiTooltips.officerText(selectedText))*u.scale()),leftButtons=x+u.size(23.5)+textWidth+u.size(3);airLabel(g,u,selectedText,x+u.size(23.5),y+u.size(6.5),textWidth,u.size(11.5));out.add(new Hit(x+u.size(23.5),y,textWidth,h,selectedText,()->{},null,"","air_selected_count"));
+        int toolbar=u.size(326);background(g,"tiled_plain_bg_small",x,y,toolbar,h);g.pose().pushMatrix();g.pose().translate(x+u.length(13.5),y+u.length(3.5));g.pose().scale(u.scale()*.5f);UiAssets.draw(g,source("unit_list_header_air"),0,0,471,35);g.pose().popMatrix();String selectedText=UiCommandLabels.text("UNITS_VIEW_WINGS_COUNT","$WINGS|G$개 비행단 선택됨").replace("$WINGS|G$","§G"+wings.size()+"§!");int textWidth=(int)Math.ceil(Minecraft.getInstance().font.width(Tooltips.officerText(selectedText))*u.scale()),leftButtons=x+u.size(23.5)+textWidth+u.size(3);airLabel(g,u,selectedText,x+u.size(23.5),y+u.size(6.5),textWidth,u.size(11.5));out.add(new Hit(x+u.size(23.5),y,textWidth,h,selectedText,()->{},null,"","air_selected_count"));
         var ids=wings.stream().map(Member::id).toList();
         airOrganizationButton(g,u,out,"DISBAND","nv_btn_delete","AIRWING_DISBAND",ids,x+u.size(3.5),y+u.size(4));
         button(g,out,"","add_to_air_group",leftButtons,y+u.size(4),u.size(14.5),u.size(14.5),UiCommandLabels.text("CREATE_AIR_GROUP",""),()->airGroups("create",wings));

@@ -11,8 +11,8 @@ public final class OccupationScreenTest {
     public static void run(ClientGameTestContext context) {
         context.runOnClient(client->{
             var oil=net.minecraft.network.chat.Component.literal("석유 자원 사보타주: 15%");
-            if(!dev.hoi.client.ui.UiKeywordIcons.decorateLines(oil).getString().equals(oil.getString()))throw new AssertionError("Sabotage resources must not infer icons");
-            var victory=dev.hoi.client.ui.UiKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("주 승점 £victory_points£: +10%"),false).getString();
+            if(!dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(oil).getString().equals(oil.getString()))throw new AssertionError("Sabotage resources must not infer icons");
+            var victory=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("주 승점 £victory_points£: +10%"),false).getString();
             if(victory.contains("£")||victory.codePoints().noneMatch(c->c>=0xe000&&c<=0xf8ff))throw new AssertionError("Victory point source token must resolve without trailing markers");
         });
         String token=UUID.randomUUID().toString();var requests=new ArrayList<Request>();

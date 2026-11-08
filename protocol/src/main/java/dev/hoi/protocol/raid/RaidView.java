@@ -5,21 +5,25 @@ import java.util.stream.Stream;
 
 public record RaidView(String session, long revision, String country, String message, String title, String filterTooltip,
         String expandTooltip, String collapseTooltip, String emptyTooltip, List<Category> categories, List<Target> targets, Setup setup, Window window,
-        String listTitle, List<Entry> raids, List<Line> lines) {
+        String listTitle, List<Entry> raids, List<Line> lines, String planTitle, List<Plan> plans, List<Marker> markers) {
     public static final List<String> PHASES = List.of("CREATE", "ASSEMBLING", "PREPARING", "PREPARED", "IN_PROGRESS", "ENDED");
     public static final List<String> RISKS = List.of("LOW", "MEDIUM", "HIGH");
     public static final List<String> OUTCOMES = List.of("", "FAILURE", "LIMITED_SUCCESS", "SUCCESS", "CRITICAL_SUCCESS");
     public static final List<String> TERRAINS = List.of("urban", "plains", "mountain", "marsh", "jungle", "hills", "forest", "desert", "shallow_sea");
+    public static final List<String> LINE_STATES = List.of("PREPARING", "BLOCKED", "READY", "ACTIVE");
     public RaidView {
-        text(session, 36); text(country, 64); text(message, 512); text(title, 128); text(filterTooltip, 2000); text(expandTooltip, 256); text(collapseTooltip, 256); text(emptyTooltip, 256); text(listTitle, 128);
+        text(session, 36); text(country, 64); text(message, 512); text(title, 128); text(filterTooltip, 2000); text(expandTooltip, 256); text(collapseTooltip, 256); text(emptyTooltip, 256); text(listTitle, 128); text(planTitle, 128);
         if (revision < 0) throw new IllegalArgumentException("Invalid raid revision");
         categories = categories == null ? List.of() : List.copyOf(categories); targets = targets == null ? List.of() : List.copyOf(targets);
         raids = raids == null ? List.of() : List.copyOf(raids); lines = lines == null ? List.of() : List.copyOf(lines);
+        plans = plans == null ? List.of() : List.copyOf(plans); markers = markers == null ? List.of() : List.copyOf(markers);
         if (categories.size() > 16 || categories.stream().map(Category::id).distinct().count() != categories.size()
                 || targets.size() > 512 || targets.stream().map(Target::id).distinct().count() != targets.size()
                 || raids.size() > 256 || raids.stream().map(Entry::id).distinct().count() != raids.size() || lines.size() > 256
                 || !categories.stream().map(Category::id).toList().containsAll(targets.stream().map(Target::category).toList())
-                || !categories.stream().map(Category::id).toList().containsAll(raids.stream().map(Entry::category).toList()))
+                || !categories.stream().map(Category::id).toList().containsAll(raids.stream().map(Entry::category).toList())
+                || plans.size() > 512 || plans.stream().map(Plan::id).distinct().count() != plans.size() || markers.size() > 256
+                || !targets.stream().map(Target::id).toList().containsAll(plans.stream().flatMap(p -> p.rows().stream()).flatMap(r -> r.targets().stream()).toList()))
             throw new IllegalArgumentException("Invalid raid catalog");
         if (setup != null && targets.stream().noneMatch(t -> t.id().equals(setup.target()))) throw new IllegalArgumentException("Invalid raid setup target");
     }
@@ -30,6 +34,8 @@ public record RaidView(String session, long revision, String country, String mes
         if (window != null) window.actions().forEach(a -> result.add(a.item()));
         categories.forEach(c -> result.add(c.launchAll().item()));
         raids.forEach(r -> result.add(r.open()));
+        lines.forEach(l -> { result.add(l.open()); result.add(l.locate()); });
+        markers.forEach(m -> { result.add(m.open()); result.add(m.dismiss()); });
         return result.stream().filter(id -> !id.isEmpty()).distinct().toList();
     }
     public record Action(String item, String label, String tooltip, boolean enabled) {
@@ -60,8 +66,11 @@ public record RaidView(String session, long revision, String country, String mes
     public record Unit(String id, String name, boolean air, String icon, int level, String modifier, String tooltip, String select) {
         public Unit { text(id, 128); text(name, 128); text(icon, 160); text(modifier, 64); text(tooltip, 2000); text(select, 128); if (level < 0 || level > 6) throw new IllegalArgumentException("Invalid raid unit level"); }
     }
-    public record Source(String province, String name, String distance, String tooltip, String select) {
-        public Source { text(province, 128); text(name, 128); text(distance, 64); text(tooltip, 1000); text(select, 128); }
+    public record Source(String province, String state, double x, double z, String name, String distance, String tooltip, String select) {
+        public Source {
+            text(province, 128); key(state); text(name, 128); text(distance, 64); text(tooltip, 1000); text(select, 128);
+            if (!Double.isFinite(x) || !Double.isFinite(z)) throw new IllegalArgumentException("Invalid raid source");
+        }
     }
     public record Equipment(String id, String name, String collected, String required, boolean complete) {
         public Equipment { text(id, 128); text(name, 128); text(collected, 32); text(required, 32); }
@@ -72,10 +81,10 @@ public record RaidView(String session, long revision, String country, String mes
     public record Risk(String id, String label, String tooltip, Action select) {
         public Risk { if (!RISKS.contains(id)) throw new IllegalArgumentException("Invalid raid risk"); text(label, 64); text(tooltip, 1000); Objects.requireNonNull(select); }
     }
-    public record Feedback(String title, String outcome, String actor, String victim, String name, String unit, String target,
+    public record Feedback(String title, String header, String outcome, String actor, String victim, String name, String unit, String target,
             String actorEffects, String victimEffects, String tooltip, Action dismiss) {
         public Feedback {
-            text(title, 128); if (!OUTCOMES.contains(outcome) || outcome.isEmpty()) throw new IllegalArgumentException("Invalid raid outcome");
+            text(title, 128); text(header, 256); if (!OUTCOMES.contains(outcome) || outcome.isEmpty()) throw new IllegalArgumentException("Invalid raid outcome");
             text(actor, 8); text(victim, 8); text(name, 256); text(unit, 256); text(target, 256); text(actorEffects, 2000); text(victimEffects, 2000); text(tooltip, 1000); Objects.requireNonNull(dismiss);
         }
     }
@@ -83,8 +92,8 @@ public record RaidView(String session, long revision, String country, String mes
             String chanceHeader, String chanceLevel, String chance, String chanceTooltip, String disaster, String disasterTooltip,
             String equipmentHeader, List<String> equipmentColumns, List<Equipment> equipment, String equipmentTooltip,
             String riskHeader, String risk, List<Risk> risks, String preparationHeader, String preparation, String status, String intel, String intelTooltip,
-            double progress, String progressText, String remaining, Action create, Action start, Action cancel, Action close,
-            Action auto, String autoLabel, List<Choice> autoOptions, String autoSelected, Feedback feedback) {
+            double progress, String progressText, String remaining, int keys, Action create, Action start, Action cancel, Action close,
+            Action auto, String autoLabel, List<Choice> autoOptions, String autoSelected, boolean autoEnabled, String autoDisabled, Action toggleAuto, Feedback feedback) {
         public Window {
             text(raid, 128); if (!PHASES.contains(phase) || phase.equals("CREATE") != raid.isEmpty()) throw new IllegalArgumentException("Invalid raid window phase");
             text(title, 128); text(type, 128); text(unit, 256); text(unitIcon, 160); text(target, 256); text(targetIcon, 160);
@@ -94,14 +103,15 @@ public record RaidView(String session, long revision, String country, String mes
             text(riskHeader, 64); if (!RISKS.contains(risk)) throw new IllegalArgumentException("Invalid raid risk"); risks = List.copyOf(risks);
             text(preparationHeader, 64); text(preparation, 128); text(status, 128); text(intel, 64); text(intelTooltip, 2000);
             if (!Double.isFinite(progress) || progress < 0 || progress > 1) throw new IllegalArgumentException("Invalid raid progress");
-            text(progressText, 128); text(remaining, 128); Stream.of(create, start, cancel, close, auto).forEach(Objects::requireNonNull);
-            text(autoLabel, 64); autoOptions = List.copyOf(autoOptions); text(autoSelected, 64);
+            text(progressText, 128); text(remaining, 128); Stream.of(create, start, cancel, close, auto, toggleAuto).forEach(Objects::requireNonNull);
+            text(autoLabel, 64); autoOptions = List.copyOf(autoOptions); text(autoSelected, 64); text(autoDisabled, 64);
+            if (keys < 0 || keys > 2) throw new IllegalArgumentException("Invalid raid keys");
             if (equipmentColumns.size() != 3 || equipment.size() > 32 || risks.size() != 3 || autoOptions.size() > 8
                     || !autoSelected.isEmpty() && autoOptions.stream().noneMatch(o -> o.value().equals(autoSelected)) || phase.equals("ENDED") != (feedback != null))
                 throw new IllegalArgumentException("Invalid raid window");
         }
         public List<Action> actions() {
-            var result = new ArrayList<>(List.of(create, start, cancel, close, auto));
+            var result = new ArrayList<>(List.of(create, start, cancel, close, auto, toggleAuto));
             risks.forEach(r -> result.add(r.select()));
             if (feedback != null) result.add(feedback.dismiss());
             return result;
@@ -114,11 +124,27 @@ public record RaidView(String session, long revision, String country, String mes
             if (!Double.isFinite(progress) || progress < 0 || progress > 1) throw new IllegalArgumentException("Invalid raid entry progress");
         }
     }
-    public record Line(String raid, String arrow, double fromX, double fromZ, double toX, double toZ, double progress) {
+    public record Line(String raid, String arrow, String state, double fromX, double fromZ, double toX, double toZ, double progress, String tooltip, String open, String locate) {
         public Line {
-            text(raid, 128); if (!Set.of("air", "land", "sea").contains(arrow) || !Stream.of(fromX, fromZ, toX, toZ, progress).allMatch(Double::isFinite) || progress < 0 || progress > 1)
+            text(raid, 128); text(tooltip, 2000); text(open, 128); text(locate, 128);
+            if (!Set.of("air", "land", "sea").contains(arrow) || !LINE_STATES.contains(state) || !Stream.of(fromX, fromZ, toX, toZ, progress).allMatch(Double::isFinite) || progress < 0 || progress > 1)
                 throw new IllegalArgumentException("Invalid raid line");
         }
+    }
+    public record Marker(String raid, double x, double z, String tooltip, String open, String dismiss) {
+        public Marker {
+            text(raid, 128); text(tooltip, 2000); text(open, 128); text(dismiss, 128);
+            if (!Double.isFinite(x) || !Double.isFinite(z)) throw new IllegalArgumentException("Invalid raid marker");
+        }
+    }
+    public record Plan(String id, double x, double z, List<PlanRow> rows) {
+        public Plan {
+            key(id); rows = List.copyOf(rows);
+            if (!Double.isFinite(x) || !Double.isFinite(z) || rows.isEmpty() || rows.size() > 16) throw new IllegalArgumentException("Invalid raid plan");
+        }
+    }
+    public record PlanRow(String title, List<String> targets) {
+        public PlanRow { text(title, 256); targets = List.copyOf(targets); if (targets.isEmpty() || targets.size() > 16) throw new IllegalArgumentException("Invalid raid plan row"); }
     }
     private static void key(String value) { if (value == null || !value.matches("[A-Za-z0-9_:/|.-]{1,128}")) throw new IllegalArgumentException("Invalid raid key"); }
     static void text(String value, int limit) { if (value == null || value.length() > limit) throw new IllegalArgumentException("Raid data limit exceeded"); }

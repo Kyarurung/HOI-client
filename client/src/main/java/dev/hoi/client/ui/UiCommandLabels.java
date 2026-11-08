@@ -1,5 +1,6 @@
 package dev.hoi.client.ui;
 
+import dev.hoi.client.ui.tooltip.TooltipText;
 import com.google.gson.JsonParser;
 import java.util.*;
 import net.minecraft.client.Minecraft;
@@ -24,10 +25,10 @@ public final class UiCommandLabels {
         for(String line:text.split("\\R",-1)) {
             String visible=line.replaceAll("§(?:#[0-9a-fA-F]{6}|.)","").strip();
             if(visible.matches("(?i)^(?:단축키|키 설정|shortcut|hotkey)\\s*[:：].*")||visible.startsWith("£ctrl + £b로 ")) {
-                while(!lines.isEmpty()&&UiTooltipText.blank(lines.getLast()))lines.removeLast();
+                while(!lines.isEmpty()&&TooltipText.blank(lines.getLast()))lines.removeLast();
                 removedTail=true;continue;
             }
-            if(removedTail&&UiTooltipText.blank(line))continue;
+            if(removedTail&&TooltipText.blank(line))continue;
             lines.add(line.replaceAll(" 또는 £(?:ctrl\\s*\\+\\s*£)?[a-zA-Z]+\\s*$",""));removedTail=false;
         }
         return String.join("\n",lines);

@@ -1,5 +1,6 @@
 package dev.hoi.client.ui;
 
+import dev.hoi.client.ui.tooltip.Tooltips;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -84,10 +85,6 @@ public final class UiText {
         g.text(font, text, 0, 0, color);
         g.pose().popMatrix();
     }
-    public static void scrollingLeft(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
-        g.textRenderer().acceptScrolling(text.copy().withStyle(style -> style.withColor(color)),
-            x + Math.min(width, font.width(text)) / 2, x, x + width, y - 1, y + height - 1);
-    }
     public static void scrollingCell(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color, boolean centered) {
         var styled = text.copy().withStyle(style -> style.withColor(color).withShadowColor(0));
         var bounds = font.prepareText(styled.getVisualOrderText(), 0, 0, color, false, false, 0).bounds();
@@ -100,17 +97,19 @@ public final class UiText {
         left(g, font, Component.literal(text), x, y, width, height, color);
     }
     public static void scrollingCell(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color, boolean centered, long elapsedMillis) {
-        int textWidth = font.width(text), overflow = Math.max(0, textWidth - width);
+        var bounds = font.prepareText(text.getVisualOrderText(), 0, 0, color, false, false, 0).bounds();
+        int inset = bounds == null ? 0 : Math.min(0, bounds.left());
+        int textWidth = Math.max(font.width(text), bounds == null ? 0 : bounds.right()) - inset, overflow = Math.max(0, textWidth - width);
         double travel = overflow / 24.0, phase = Math.max(0, elapsedMillis) / 1000.0 % (2 * travel + 2);
         int offset = (int)Math.round(24 * Math.clamp(phase <= travel + 1 ? phase - 1 : 2 * travel + 2 - phase, 0, travel));
         int left = overflow > 0 ? x - offset : centered ? x + (width - textWidth) / 2 : x;
         var styled = text.copy().withStyle(style -> style.withColor(color).withShadowColor(0));
         g.enableScissor(x, y, x + width, y + height);
-        g.text(font, styled, left, Math.round(centeredY(font, styled.getVisualOrderText(), y, height, 1)), color, false);
+        g.text(font, styled, left - inset, Math.round(centeredY(font, styled.getVisualOrderText(), y, height, 1)), color, false);
         g.disableScissor();
     }
     public static void left(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
-        var lines = UiTooltips.split(font,text, Math.max(1, (int)(width / scale(font))));
+        var lines = Tooltips.split(font,text, Math.max(1, (int)(width / scale(font))));
         int count = Math.min(lines.size(), Math.max(1, height / (MIN_HEIGHT + 1)));
         int top = y + (height - count * (MIN_HEIGHT + 1) + 1) / 2;
         for (int i = 0; i < count; i++) text(g, font, lines.get(i), x, top + i * (MIN_HEIGHT + 1), color);
@@ -134,7 +133,7 @@ public final class UiText {
     }
     public static void centered(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color, boolean shadow) {
         float scale = scale(font);
-        var lines = UiTooltips.split(font,text, Math.max(1, (int)(width / scale)));
+        var lines = Tooltips.split(font,text, Math.max(1, (int)(width / scale)));
         int count = Math.min(lines.size(), Math.max(1, height / (MIN_HEIGHT + 1)));
         int top = y + (height - count * (MIN_HEIGHT + 1) + 1) / 2;
         if (count == 1 && numeric(lines.getFirst())) {
