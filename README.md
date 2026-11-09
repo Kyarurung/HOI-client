@@ -55,7 +55,18 @@ Minecraft 26.3, Java 25, Fabric Loader 0.20.1과 Fabric API 0.164.0+26.3을 사�
 
 GameTest는 실행마다 `client/build/run/clientGameTest-runs/<실행 ID>/`를 새로 사용하며 이전 월드·로그·캡처를 삭제하지 않습니다. 실행 경로와 Gradle PID·시작 시각·결과는 각 폴더의 `hoi-run.json`과 `client/build/run/clientGameTest-latest.json`에 기록합니다. 일반 실패도 원래 종료 코드를 유지하고 기록을 보존합니다. Gradle을 강제 종료하면 상태가 `running`으로 남을 수 있으므로 실제 PID·생성 시각·명령줄을 확인하세요. 자동으로 프로세스나 `session.lock`을 삭제하지 않습니다. 같은 체크아웃의 Gradle 빌드는 순차 실행하세요. 실행 폴더 격리는 중단된 테스트의 잠금 충돌을 막으며 빌드 산출물의 동시 수정까지 허용하는 기능은 아닙니다. 구성 캐시는 이 실행 작업에서 지원하지 않습니다. 격리·자식 종료 회귀 검사는 python scripts/verify_gametest_isolation.py로 별도 실행합니다. 이 검사는 임시 JavaExec 프로브를 사용하며 실제 Minecraft GameTest를 대체하지 않습니다.
 
-지휘관·장교단·육군 계획·임무 오버레이까지 포함한 전체 검증에는 `HOI_COMMANDER_PREVIEW`, `HOI_OFFICER_PREVIEW`, `HOI_LAND_PLAN_PREVIEW`, `HOI_MISSION_OVERLAY_FIXTURES` 네 수동 입력도 필요합니다. 경로가 없으면 관련 검사가 건너뛰어지므로 명령의 성공만으로 같은 전체 범위를 확인했다고 판단하지 않습니다. 네 입력의 위치는 `HOI_COMMANDER_PREVIEW=C:\HOI\fabric\build\commander-source-fixtures`, `HOI_OFFICER_PREVIEW=<성공한 서버 실행의 runDirectory>\officer-source-fixtures`, `HOI_LAND_PLAN_PREVIEW=C:\HOI\fabric\build\land-plan-overlay.json`, `HOI_MISSION_OVERLAY_FIXTURES=C:\HOI\fabric\build\mission-overlay-source-fixtures`입니다.
+필터 없는 전체 검증에는 서버 fixture와 고정 입력을 미리 지정해야 합니다. `HOI_COMMANDER_PREVIEW`·`HOI_CAMPAIGN_PREVIEW`가 없으면 `NullPointerException`으로, `HOI_AGENCY_OPERATION_PREVIEW`·`HOI_MISSION_OVERLAY_FIXTURES`나 레이드 강조 입력이 없으면 검증 실패로 그 검사에서 실행이 멈춥니다. `HOI_OFFICER_PREVIEW`·`HOI_LAND_PLAN_PREVIEW`·`HOI_FOCUS_PREVIEW`는 없으면 관련 검사를 건너뛰므로 명령의 성공만으로 같은 전체 범위를 확인했다고 판단하지 않습니다.
+
+1. 인접한 HOI에서 `test runGameTest`를 먼저 실행합니다.
+2. `C:\HOI\fabric\build`의 `*-fixtures` 폴더와 그 서버 실행 폴더(`C:\HOI\fabric\build\run\gameTest-runs\<실행 ID>`)의 `raid-highlight-source-fixtures`·`agency-highlight-source-fixtures`를 한 폴더(`<fixtures>`)에 모읍니다. 레이드 검사는 지휘관 입력 폴더 옆의 `raid-highlight-source-fixtures`를 읽습니다.
+3. 다음과 같이 지정합니다.
+   - `HOI_COMMANDER_PREVIEW`, `HOI_AGENCY_OPERATION_PREVIEW`, `HOI_DOCTRINE_MILESTONE_PREVIEW`: `<fixtures>\commander-source-fixtures`
+   - `HOI_MISSION_OVERLAY_FIXTURES`: `<fixtures>\mission-overlay-source-fixtures`
+   - `HOI_OFFICER_PREVIEW`: `<서버 실행 폴더>\officer-source-fixtures`
+   - `HOI_LAND_PLAN_PREVIEW`: `C:\HOI\fabric\build\land-plan-overlay.json`
+   - `HOI_CAMPAIGN_PREVIEW`: `cmp82` 또는 `cmp80-6` 하위 폴더가 있는 캠페인 고정 입력 폴더(이 PC: `%LOCALAPPDATA%\claude-hoi\v24\client-fixtures\campaign-input`)
+   - `HOI_FOCUS_PREVIEW`: 서버가 export한 중점 상세 fixture 폴더(이 PC: `%LOCALAPPDATA%\claude-hoi\cmp50-server\focus-ui`)
+4. `HOI_UI_REVIEW_PREVIEW`, `HOI_DOCTRINE_GRAND_PREVIEW`, `HOI_DECISION_PREVIEW`, `HOI_CAPTURE_BEFORE`는 별도 검토 모드를 켜므로 비웁니다.
 
 HQ·포획·전술·교리 입력은 Gradle이 최신 서버 검사로 자동 생성한다. `-PhoiTestSuite=missions`와 `-PhoiTestSuite=movement-controls`에서는 `armyHud` 그룹이 지휘 패널 입력 31개를, `movement-controls`에서는 `missionOverlay` 그룹이 육·해·공 임무 오버레이 입력 3개를 같은 방식으로 생성하고 `HOI_COMMANDER_PREVIEW`·`HOI_MISSION_OVERLAY_FIXTURES`를 그 출력으로 지정한다. 필터 없는 전체 검사는 지휘관 임명·제독·에이스·특성 화면 입력이 이 그룹에 없으므로 위 수동 경로를 계속 사용한다. 2026-10-11에 소유자 요청으로 육군 모델 렌더링 검사(`MapArmyRenderChecks`: 모델 큐브 수·텍스처 존재·대기/이동/전투 캡처)와 한국 음악 플레이리스트 화면 검사를 클라이언트 GameTest에서 제거했다. 모델·플레이리스트 자산을 바꾸면 리소스팩의 `test_army_models.py`·`test_korean_playlist.py`와 직접 확인으로 검증한다.
 
