@@ -13,6 +13,8 @@ final class DialogLeaderEvent extends DialogScreen {
     private int left, top, pane, panelHeight, middleHeight, optionsHeight, bodyTop, bodyBottom, scroll, total, page, capacity;
     private double scale;
     private boolean pending;
+    private boolean dragging;
+    private int offsetX, offsetY;
     DialogLeaderEvent(DialogView view, BiConsumer<DialogView, String> send) { super(view); this.send = send; }
     @Override public int panelLeft() { return left; }
     @Override public int panelTop() { return top; }
@@ -51,8 +53,9 @@ final class DialogLeaderEvent extends DialogScreen {
         optionsHeight = (wrapped ? units(10) + shown * slotHeight : units(10 + shown * 47)) + (pages > 1 ? 24 : 0);
         middleHeight = Math.min(Math.max(units(235), total), Math.max(1, available - optionsHeight));
         panelHeight = units(121 + 68) + middleHeight + optionsHeight;
-        left = Math.clamp(width / 2 - units(282), 8, Math.max(8, width - pane - 8));
-        top = Math.clamp(height / 2 - units(310), 8, Math.max(8, height - panelHeight - 8));
+        left = Math.clamp(width / 2 - units(282) + offsetX, 8, Math.max(8, width - pane - 8));
+        top = Math.clamp(height / 2 - units(310) + offsetY, 8, Math.max(8, height - panelHeight - 8));
+        dragging = false;
         bodyTop = top + units(121);
         bodyBottom = bodyTop + middleHeight;
         scroll = Math.clamp(scroll, 0, Math.max(0, total - bodyViewportHeight()));
@@ -118,5 +121,37 @@ final class DialogLeaderEvent extends DialogScreen {
             return true;
         }
         return false;
+    }
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean twice) {
+        if (super.mouseClicked(event, twice)) return true;
+        dragging = event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
+            && event.x() >= left && event.x() < left + pane && event.y() >= top && event.y() < bodyTop;
+        return dragging;
+    }
+    @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dx, double dy) {
+        if (!dragging || event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) return super.mouseDragged(event, dx, dy);
+        int nextLeft = Math.clamp(left + (int)Math.round(dx), 8, Math.max(8, width - pane - 8));
+        int nextTop = Math.clamp(top + (int)Math.round(dy), 8, Math.max(8, height - panelHeight - 8));
+        int moveX = nextLeft - left, moveY = nextTop - top;
+        left = nextLeft; top = nextTop; bodyTop += moveY; bodyBottom += moveY;
+        offsetX += moveX; offsetY += moveY;
+        for (var child : children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget)
+            widget.setPosition(widget.getX() + moveX, widget.getY() + moveY);
+        return true;
+    }
+    @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
+        if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && dragging) { dragging = false; return true; }
+        return super.mouseReleased(event);
+    }
+    @Override public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        int maximum = Math.max(0, total - bodyViewportHeight());
+        switch (event.key()) {
+            case com.mojang.blaze3d.platform.InputConstants.KEY_PAGEUP -> scroll = Math.max(0, scroll - bodyViewportHeight());
+            case com.mojang.blaze3d.platform.InputConstants.KEY_PAGEDOWN -> scroll = Math.min(maximum, scroll + bodyViewportHeight());
+            case com.mojang.blaze3d.platform.InputConstants.KEY_HOME -> scroll = 0;
+            case com.mojang.blaze3d.platform.InputConstants.KEY_END -> scroll = maximum;
+            default -> { return super.keyPressed(event); }
+        }
+        return true;
     }
 }

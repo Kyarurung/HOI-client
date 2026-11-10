@@ -34,11 +34,11 @@
 
 슈퍼 이벤트 음악은 팝업이 일시 정지 메뉴 뒤에서 대기하더라도 즉시 시작합니다. 수동 곡 선택·지도 변경·새 국가 중점 음악은 재생 중인 슈퍼 이벤트를 끊지 않습니다. 국가 중점 음악은 해당 국가에 할당된 각 플레이어에게만 전달하고 슈퍼 이벤트 중에는 대기합니다. 일반 플레이리스트의 선택·정지·음량은 클라이언트별 상태이며 다른 플레이어에게 전송하지 않습니다. 음량 슬라이더는 클릭·드래그 시 조작음을 재생하지 않습니다. 메뉴 버튼 표기는 플레이리스트 목록입니다.
 
-MusicRoutingChecks와 DialogScreenChecks는 실제 Minecraft SoundManager의 중단·복귀 및 팝업이 대기하는 경우를 검사합니다. 서버의 SourceMusicProgressTest는 두 명의 한국 플레이어와 다른 국가의 전달 상태를 분리하여 검사합니다. 운영 서버의 실제 다중 접속 검사는 수행하지 않았습니다.
+현행 AudioMusicRoutingChecks와 DialogScreenChecks는 실제 Minecraft SoundManager의 중단·복귀 및 팝업이 대기하는 경우를 검사합니다. 서버의 SourceMusicProgressTest는 두 명의 한국 플레이어와 다른 국가의 전달 상태를 분리하여 검사합니다. 운영 서버의 실제 다중 접속 검사는 수행하지 않았습니다.
 
-플레이리스트 재생 버튼은 TFR의 GFX_musicplayer_play_pause_button 두 프레임을 사용합니다. 재생 요청 중에는 일시정지, 정지·일시정지 상태에서는 재생 아이콘과 툴팁을 표시합니다. 일시정지는 선택 곡의 OpenAL 채널만 멈추고 재개하므로 다른 효과음을 멈추지 않습니다. 일시정지 중에는 자동으로 다음 곡으로 넘어가지 않습니다. 본문 재생 표시는 기존 위치에서 2GUI 왼쪽에 배치합니다. PlaylistPlaybackTest와 KoreanMusicChecks는 같은 스트림의 일시정지·재개 및 아이콘 전환을 검사합니다.
+플레이리스트 재생 버튼은 TFR의 GFX_musicplayer_play_pause_button 두 프레임을 사용합니다. 재생 요청 중에는 일시정지, 정지·일시정지 상태에서는 재생 아이콘과 툴팁을 표시합니다. 일시정지는 선택 곡의 OpenAL 채널만 멈추고 재개하므로 다른 효과음을 멈추지 않습니다. 일시정지 중에는 자동으로 다음 곡으로 넘어가지 않습니다. 본문 재생 표시는 기존 위치에서 2GUI 왼쪽에 배치합니다. PlaylistPlaybackTest는 재생 상태를 검사합니다. 과거 KoreanMusicChecks의 전용 화면·아이콘 검사는 제거되었으며, 현행 AudioMusicRoutingChecks의 실제 스트림·지도 전환 검사와 구분합니다.
 
-수동 일시정지·정지는 음악 창을 닫거나 지도 모드·HUD가 갱신되어도 유지한다. Minecraft의 전체 소리 재개 뒤에도 일시정지한 플레이리스트 채널은 다시 멈춘다. 곡 선택·재생·방송국 켜기는 명시적으로 재생을 다시 시작하며, 월드 이탈 시 수동 상태를 초기화한다. KoreanMusicChecks는 화면 종료와 SoundManager.resume 이후 실제 오디오 채널이 재생되지 않는지 검사한다.
+수동 일시정지·정지는 음악 창을 닫거나 지도 모드·HUD가 갱신되어도 유지한다. Minecraft의 전체 소리 재개 뒤에도 일시정지한 플레이리스트 채널은 다시 멈춘다. 곡 선택·재생·방송국 켜기는 명시적으로 재생을 다시 시작하며, 월드 이탈 시 수동 상태를 초기화한다. 화면 종료와 SoundManager.resume 뒤 채널 정지를 검사하던 전용 KoreanMusicChecks는 제거되었다. 현행 AudioMusicRoutingChecks의 지도 전환·수동 일시정지/정지·방송국 OFF 검사는 유지한다.
 
 국가 중점 음악 재생 중에는 플레이리스트의 재생 버튼도 선택된 곡으로 전환한다. 이때 버튼은 일시정지가 아닌 재생으로 표시한다. 곡 직접 선택·이전 곡·다음 곡도 중점 음악을 중단하고 선택한 곡을 재생한다. 슈퍼 이벤트 음악의 우선순위는 유지한다. AudioMusicRoutingChecks는 실제 음악 창의 재생·곡 선택 버튼과 SoundManager의 전환을 검사한다. 플레이리스트 기본 음량은 기존 100%를 유지한다.
 
@@ -49,7 +49,7 @@ MusicRoutingChecks와 DialogScreenChecks는 실제 Minecraft SoundManager의 중
 
 The playlist slider persists in the client `config/hoi-audio.properties` and applies to playlist tracks, national theme/story music, focus completion cues and super-event music. Its default is 100%; invalid or nonfinite persisted values fall back to the default. Every active routed sound reads the live gain, including silent-start and unmute, while Minecraft's Master gain is applied once by the native sound engine. Ordinary interface clicks and research effects keep their existing gains. Reopening menus and reconnecting do not reset this local preference.
 
-`AudioPlaylistVolumeTest`, `AudioPlaylistGainTest` and `DialogScreenVolumeTest` check playlist volume persistence, unrelated UI effect gains and the actual OpenAL channel/listener gains of the focus completion cue at zero, 35% and full volume, including live changes and repeated packets. The Korean playlist screen check (`AudioKoreanMusicChecks`) and the super-event and story-music gain loop of `AudioPlaylistGainTest` were removed on 2026-10-11 at the owner's request as already verified; track loading, album art, playlist controls, mismatched cancellation and stopped-channel cleanup are no longer covered by the client GameTest. These are local automated playback checks; they do not replace listening on the user's audio device.
+`AudioPlaylistVolumeTest`, `AudioPlaylistGainTest` and `DialogScreenVolumeTest` check playlist volume persistence, unrelated UI effect gains and the actual OpenAL channel/listener gains of the focus completion cue at zero, 35% and full volume, including live changes and repeated packets. The Korean playlist screen check (`AudioKoreanMusicChecks`) and the super-event and story-music gain loop of `AudioPlaylistGainTest` were removed on 2026-10-11 at the owner's request as already verified; the removed standalone check no longer covers track loading, album art, playlist controls, mismatched cancellation or stopped-channel cleanup. AudioMusicRoutingChecks remains registered in the audio and all suites and still checks automatic playlist startup, map-transition channel retention, manual playback replacement and pause/stop/OFF routing; removal of the standalone screen check does not remove that separate coverage. These are local automated playback checks; they do not replace listening on the user's audio device.
 
 지도 부대의 좌클릭·드래그 선택, 카드·전구·상세 목록은 병과별 원본 선택음을 입력당 한 번 재생한다. 육군은 `ui.division.select` → `select_army`, 함대·태스크포스는 `ui.fleet.select` → `select_fleet`, 비행단은 `ui.aircraft.select` → `select_aircraft`를 사용한다. 공군 지도에서 군·집단군 카드 자체를 선택하는 경우에는 카드의 육군 역할을 유지한다. 원본 `select_aircraft`의 음원은 이름이 비슷한 `select_aircraft_*`가 아니라 해당 effect에 선언된 `order_airwing_01..06`이며, 함대는 `select_fleet01..04`다. TFR의 정의 우선순위를 적용하고 정의가 없는 항목은 기본 게임의 원본을 계승한다. 경로·해시·원본 음량은 팩의 sound-provenance에 보존한다.
 
@@ -61,7 +61,7 @@ The playlist slider persists in the client `config/hoi-audio.properties` and app
 
 리소스팩의 `audit_story_audio.py --music-addon <3350892196-directory> --configure-effects`는 93개 원본 `sound_effect`/`scoped_sound_effect` 리터럴을 감사하되 국가별 파일/트리로 34개국과 연결되는 항목만 등록한다. TFR 문맥은 TFRKP 정의를 제외하고, KOR/PRK 문맥은 TFR 뒤 지정 TFRKP 정의를 적용한다. 서로 다른 파일명에 같은 효과 ID가 있어도 이 계층 순서가 파일명 정렬보다 우선한다. 공유 파일의 정적 소속은 동적 도달성 증거가 아니다.
 
-실파일을 확인해 추가한 항목은 `TFR_se_chinese_empire`, `TFR_se_invasion_of_taiwan`, `TFR_se_xi_imper_won`, `siren_sound_effect`, `time_travel_sound`의 5개다. 팩 `ui/story_audio.json`의 `effects.tfr`가 raw ID를 `hoi:ui.story.tfr.*`에 연결한다. 기존 음악 16곡 추가를 포함한 203이벤트/246음원 provenance 행을 보존하며, 결과는 208이벤트/251행이다. 기존 한국 재생 목록과 이미 쓰던 효과음 매핑은 바꾸지 않았다. 이 목록을 소비하는 서버 원본 ID 전달·클라이언트 재생 연결은 다음 UI 작업이다.
+실파일을 확인해 추가한 항목은 `TFR_se_chinese_empire`, `TFR_se_invasion_of_taiwan`, `TFR_se_xi_imper_won`, `siren_sound_effect`, `time_travel_sound`의 5개다. 팩 `ui/story_audio.json`의 `effects.tfr`가 raw ID를 `hoi:ui.story.tfr.*`에 연결한다. 기존 음악 16곡 추가를 포함한 203이벤트/246음원 provenance 행을 보존하며, 결과는 208이벤트/251행이다. 기존 한국 재생 목록과 이미 쓰던 효과음 매핑은 바꾸지 않았다. 이 목록의 서버 원본 ID 전달과 클라이언트 재생 연결은 아래 [서버 스토리 신호 소비](#서버-스토리-신호-소비)에 구현되어 있다. 원본 효과 실행 범위와 재접속 억제는 서버 검증과 구분한다.
 
 `TFR_se_christian_patriot`와 `TFR_se_patriot_rock`는 정의가 있지만 각각 `sound/Super_Events/TFR_se_christian_patriot.wav`, `sound/Super_Events/TFR_se_patriot_rock.wav` 실파일이 없어 등록하지 않는다. 추가로 TFR 전용 문맥의 `HOI4_ui_award_tier_02`, `HOI4_ui_award_tier_03`, `tno_page_flip`은 TFRKP 쪽에서만 정의가 확인되며 일반 국가용 정의로 대체하지 않는다. `enemy_declare_war`와 `join_faction`의 유효 정의는 두 문맥 모두 TFR `sound/gui/gui_sound_effects.asset`이며 각각 `sound/menu/enemy_declare_war_01.wav`, `sound/menu/diplo_action_faction_01.wav`로 확인했다. 공유 파일이라는 이유만으로 이번 34개국용 raw SFX 등록에 추가하지 않는다.
 
@@ -81,3 +81,5 @@ TFR 원본 `one_minute_of_silence`는 음량 0.0과 전부 0인 60초 PCM을 가
 팩을 먼저 빌드한 뒤 Java 25에서 `.\gradlew.bat test runGameTest remapJar -PhoiTestSuite=story-signals --console=plain --no-daemon`으로 집중 재현한다. 전체 검사도 같은 검사를 포함한다. 서버 전체 검증과 클라이언트 전체 검증은 담당 이슈에서 슬롯을 합의한 뒤 순차 실행한다.
 
 수도 암호학 지도 단추는 TFR `mapicons.gui/cryptology_map_icon/state_icon`의 `Spy_Agency_Cryptology_Decipher_Pointer_Over_Target`와 `Spy_Agency_Cryptology_Decipher_Select_Target_Province`를 외부 팩 `ui.agency.decrypt.hover/select`로 재생한다. 단추에 진입할 때 호버를 한 번, 서버가 활성화한 현재 항목을 좌클릭할 때 선택음을 한 번 재생한다. 우클릭·대기·비활성은 선택음을 내지 않는다. 테스트 월드 입력 검사는 직접 청취를 대신하지 않는다.
+
+생산·건설 대기열 드롭 전용 음원은 **근거 대기**다. TFR `interface/countryproductionlineview.gui`·`countryconstructionsview.gui`의 drag/drop 대상과 `sound/gui/*.asset`의 유효 효과를 조사했으나 드롭에 연결된 전용 effect를 확인하지 못했다. 일반 버튼의 click_default·click_checkbox를 드롭 전용 원본 근거로 확대하지 않으며 현재의 유효 이동 드롭 1회 클릭음을 유지한다. 원작에서 같은 이동·취소·동일 위치 드롭의 effect 연결 또는 소리 관측이 필요하다.

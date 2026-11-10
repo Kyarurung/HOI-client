@@ -101,11 +101,13 @@ public final class DiplomacyActionsTest {
                 new CountryView.Actions(session, revision, "", actions), List.of());
     }
     private static void source(ClientGameTestContext context) {
-        String directory=System.getenv("HOI_AGENCY_OPERATION_PREVIEW");
+        String directory=System.getenv("HOI_DIPLOMACY_ACTION_PREVIEW");
+        if(directory==null)directory=System.getenv("HOI_AGENCY_OPERATION_PREVIEW");
         if(directory==null)directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
         try {
             var view=new CountryPayloads.Response(UUID.randomUUID().toString(),java.nio.file.Files.readString(java.nio.file.Path.of(directory,"kor-diplomacy-PRK.json"))).view();
             if(!view.viewer().equals("KOR")||!view.target().equals("PRK")||view.actions().entries().size()!=24||!view.actions().entries().getLast().id().equals("open_logistics"))throw new AssertionError("Actual KOR to PRK response must retain the source action order in one list");
+            DiplomacyVolunteerActionsTest.run(context, view);
             DiplomacyInputTest.run(context, view);
             var spirit=view.diplomacy().stream().filter(e->e.name().equals("자립경제")).findFirst().orElseThrow();
             for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {

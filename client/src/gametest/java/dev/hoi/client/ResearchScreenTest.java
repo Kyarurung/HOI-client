@@ -64,6 +64,12 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         loadPack(context);
+        if (System.getProperty("hoi.testSuite", "all").equals("air-scales")) {
+            try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.map.commander.CommanderAirBasePanelsTest.run(context, fixtureMenu());
+            }
+            return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("research-catalog")) {
             try (var world = context.worldBuilder().create()) {
                 fullTfrCatalog(context);

@@ -172,6 +172,9 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
     int milestonePreviewAlpha() {
         return Math.round(Math.clamp((clock.getAsLong() - grandPreviewStarted) / 400f, 0, 1) * 255);
     }
+    int masteryAnimationFrame() {
+        return (int)(Math.floorMod(clock.getAsLong(), 1000L) * 24 / 1000);
+    }
     boolean grandPreview() {
         var grand = previewGrand();
         return grand != null && !grand.selected();
@@ -328,7 +331,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
                 int fill=preview()!=null && track.id().equals(picking) && !preview().selected()?0:Math.round(36*rewardProgress(track,j));
                 if(fill>0) {
                     g.enableScissor(x+98,ry,x+114,ry+fill);
-                    UiAssets.draw(g,"doctrine/gfx_mastery_progress_bar_animated_" + view.folder() + "/frame_0",x+98,ry,16,36);
+                    UiAssets.draw(g,"doctrine/gfx_mastery_progress_bar_animated_" + view.folder() + "/frame_" + masteryAnimationFrame(),x+98,ry,16,36);
                     g.disableScissor();
                 }
                 drawTrackAsset(g,"doctrine/gfx_mastery_amount_frame/frame_" + (reward.unlocked() ? frame + 1 : 0),x+92,ry+32,28,13);

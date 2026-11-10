@@ -121,6 +121,7 @@ public final class DialogLeaderEventTest {
                 }
             }
             var view = new DialogPayloads.Show(Files.readString(Path.of(directory, "china-182.json")), true).view();
+            dragging(context, view);
             titleComparisons(context, view);
             var missing = new DialogView(view.token(), view.revision(), view.kind(), view.title(), view.subtitle(), view.body(), view.flag(), "commander/tfr/missing/army", view.sound(), view.tiles(), view.choices(), view.presentation());
             context.setScreen(() -> new DialogLeaderEvent(missing, (v, choice) -> {}));
@@ -148,6 +149,15 @@ public final class DialogLeaderEventTest {
                 int[] body = screen.bounds(198, 121, 350, 1);
                 screen.mouseScrolled(body[0] + 1, body[1] + 1, 0, -100);
                 if (screen.scrollOffset() <= 0) throw new AssertionError("Long reports must scroll without covering the portrait or choices");
+                screen.keyPressed(new net.minecraft.client.input.KeyEvent(InputConstants.KEY_HOME, 0, 0));
+                if (screen.scrollOffset() != 0) throw new AssertionError("Home must reach the report beginning");
+                screen.keyPressed(new net.minecraft.client.input.KeyEvent(InputConstants.KEY_END, 0, 0));
+                int end = screen.scrollOffset();
+                if (end <= 0) throw new AssertionError("End must reach the report ending");
+                screen.keyPressed(new net.minecraft.client.input.KeyEvent(InputConstants.KEY_PAGEUP, 0, 0));
+                if (screen.scrollOffset() != Math.max(0, end - screen.bodyViewportHeight())) throw new AssertionError("PageUp must scroll the report viewport");
+                screen.keyPressed(new net.minecraft.client.input.KeyEvent(InputConstants.KEY_PAGEDOWN, 0, 0));
+                if (screen.scrollOffset() != end) throw new AssertionError("PageDown must restore the report ending");
             });
             context.waitTicks(4);
             context.takeScreenshot("hoi-leader-event-synthetic-paged-long-report-gui2");
@@ -155,6 +165,41 @@ public final class DialogLeaderEventTest {
             Files.writeString(output, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(measurements), StandardCharsets.UTF_8);
         } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
         finally { context.setScreen(() -> null); context.getInput().resizeWindow(1600, 1000); context.waitTicks(3); }
+    }
+    private static void dragging(ClientGameTestContext context, DialogView view) {
+        for (int[] size : new int[][]{{2560, 1440, 2}, {1280, 720, 2}, {1920, 1080, 3}}) {
+            context.getInput().resizeWindow(size[0], size[1]);
+            context.runOnClient(c -> c.options.guiScale().set(size[2]));
+            var sent = new ArrayList<String>();
+            context.setScreen(() -> { var stack = new DialogStack(null, (v, choice) -> sent.add(choice)); stack.add(view); return stack; });
+            context.runOnClient(c -> {
+                var stack = (DialogStack)c.gui.screen();
+                var screen = (DialogLeaderEvent)stack.find(view.token());
+                int left = screen.panelLeft(), top = screen.panelTop();
+                int[] header = screen.bounds(300, 30, 1, 1);
+                var right = new MouseButtonEvent(header[0], header[1], new MouseButtonInfo(InputConstants.MOUSE_BUTTON_RIGHT, 0));
+                stack.mouseClicked(right, false); stack.mouseDragged(right, 25, 10); stack.mouseReleased(right);
+                if (screen.panelLeft() != left || screen.panelTop() != top) throw new AssertionError("Right drag must not move an event");
+                var press = new MouseButtonEvent(header[0], header[1], new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
+                if (!stack.mouseClicked(press, false) || !stack.mouseDragged(press, 25, 10)) throw new AssertionError("Stack must route header dragging");
+                stack.mouseReleased(press);
+                if (screen.panelLeft() != Math.min(left + 25, screen.width - screen.panelWidth() - 8)) throw new AssertionError("Header drag must move the event and its buttons");
+                int movedLeft = screen.panelLeft(), movedTop = screen.panelTop();
+                screen.update(view.issued(view.token(), view.revision() + 1));
+                if (screen.panelLeft() != movedLeft || screen.panelTop() != movedTop) throw new AssertionError("Revision refresh must preserve the dragged location");
+                stack.minimize(view.token()); stack.reopen(view.token());
+                if (screen.panelLeft() != movedLeft || screen.panelTop() != movedTop) throw new AssertionError("Minimize and reopen must preserve the dragged location");
+                header = screen.bounds(300, 30, 1, 1);
+                press = new MouseButtonEvent(header[0], header[1], new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
+                stack.mouseClicked(press, false); stack.mouseDragged(press, -100000, -100000); stack.mouseReleased(press);
+                if (screen.panelLeft() != 8 || screen.panelTop() != 8) throw new AssertionError("Dragging must stop at the viewport boundary");
+                for (var child : screen.children()) if (child instanceof Button button && (button.getX() < screen.panelLeft() || button.getY() < screen.panelTop() || button.getRight() > screen.panelLeft() + screen.panelWidth() || button.getBottom() > screen.panelTop() + screen.panelHeight())) throw new AssertionError("Dragged buttons must follow the event");
+                if (!sent.isEmpty()) throw new AssertionError("Dragging and minimizing must not issue a choice");
+            });
+            context.waitTicks(2);
+            context.takeScreenshot("hoi-leader-event-dragged-" + size[0] + "-gui" + size[2]);
+        }
+        context.runOnClient(c -> c.options.guiScale().set(2));
     }
     private static void assertChoiceLabels(net.minecraft.client.gui.Font font, DialogScreen screen, DialogView view) {
         float scale = Math.max(dev.hoi.client.ui.UiText.scale(font), screen.textScale() + 1f / font.lineHeight);

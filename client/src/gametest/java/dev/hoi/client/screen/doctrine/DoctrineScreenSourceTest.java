@@ -566,6 +566,7 @@ public final class DoctrineScreenSourceTest {
                         || DoctrineScreen.rewardFrame(branch, false) != originalRewardFrames[branch][1])
                     throw new AssertionError("Original reward backgrounds interleave each branch unlocked and locked art");
             var empty = fixture("doctrine-land-empty"); var selected = fixture("doctrine-land-selected"); var air = fixture("doctrine-air-empty");
+            masteryAnimation(context, selected);
             if (!empty.session().equals(selected.session()) || !empty.experience().equals("300") || !selected.experience().equals("200"))
                 throw new AssertionError("Original server-issued XP300→200 selection pair required");
             var infantry = empty.tracks().stream().filter(t -> t.id().equals("infantry")).findFirst().orElseThrow();
@@ -704,6 +705,46 @@ public final class DoctrineScreenSourceTest {
             grandReview(context);
             authoritativeMilestoneReview(context);
         } catch (Exception failure) { throw new AssertionError("Server doctrine screen fixture failed", failure); }
+    }
+    private static void masteryAnimation(ClientGameTestContext context, DoctrineView view) {
+        var clock = new java.util.concurrent.atomic.AtomicLong();
+        var json = new com.google.gson.Gson().toJsonTree(view).getAsJsonObject();
+        json.getAsJsonArray("tracks").get(0).getAsJsonObject().addProperty("mastery", Double.parseDouble(view.tracks().getFirst().rewards().getFirst().mastery()) / 2);
+        var progress = new com.google.gson.Gson().fromJson(json, DoctrineView.class);
+        context.getInput().resizeWindow(2560, 1440);
+        context.runOnClient(client -> client.options.guiScale().set(2));
+        context.setScreen(() -> new DoctrineScreen(null, "land", progress.session(), progress, request -> { throw new AssertionError("Animation cannot issue requests"); }, clock::get));
+        context.runOnClient(client -> {
+            var screen = (DoctrineScreen)client.gui.screen();
+            for (String branch : List.of("land", "naval", "air", "special_forces")) for (int frame = 0; frame < 24; frame++) {
+                clock.set((frame * 1000L + 23) / 24);
+                if (screen.masteryAnimationFrame() != frame) throw new AssertionError("Mastery animation must use all 24 source frames at 24fps");
+                var id = net.minecraft.resources.Identifier.parse("hoi:textures/gui/doctrine/gfx_mastery_progress_bar_animated_" + branch + "/frame_" + frame + ".png");
+                if (client.getResourceManager().getResource(id).isEmpty()) throw new AssertionError("Missing original mastery animation frame " + id);
+            }
+            clock.set(1000);
+            if (screen.masteryAnimationFrame() != 0) throw new AssertionError("Mastery animation must loop after one second");
+        });
+        int[] bounds = context.computeOnClient(client -> {
+            var counter = client.gui.screen().children().stream().filter(AbstractWidget.class::isInstance).map(AbstractWidget.class::cast)
+                .filter(widget -> widget.getMessage().getString().equals(progress.tracks().getFirst().name() + " mastery")).findFirst().orElseThrow();
+            return new int[]{(counter.getX() - 23) * 2, (counter.getY() + 41) * 2, 32, 36};
+        });
+        java.awt.image.BufferedImage before = null;
+        for (long time : new long[]{0, 500}) {
+            clock.set(time); context.waitTicks(2);
+            var path = context.takeScreenshot("hoi-doctrine-mastery-animation-synthetic-" + time + "-gui2");
+            try {
+                var image = javax.imageio.ImageIO.read(path.toFile());
+                if (before != null) {
+                    int changed = 0;
+                    for (int y = bounds[1]; y < bounds[1] + bounds[3]; y++) for (int x = bounds[0]; x < bounds[0] + bounds[2]; x++)
+                        if (before.getRGB(x, y) != image.getRGB(x, y)) changed++;
+                    if (changed == 0) throw new AssertionError("Source animation frames must change the actually rendered half-filled gauge");
+                }
+                before = image;
+            } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
+        }
     }
     private static void sourceReview(ClientGameTestContext context) throws Exception {
         String directory=System.getenv("HOI_UI_REVIEW_PREVIEW");

@@ -68,7 +68,7 @@ GameTest는 실행마다 `client/build/run/clientGameTest-runs/<실행 ID>/`를 
    - `HOI_FOCUS_PREVIEW`: 서버가 export한 중점 상세 fixture 폴더(이 PC: `%LOCALAPPDATA%\claude-hoi\cmp50-server\focus-ui`)
 4. `HOI_UI_REVIEW_PREVIEW`, `HOI_DOCTRINE_GRAND_PREVIEW`, `HOI_DECISION_PREVIEW`, `HOI_CAPTURE_BEFORE`는 별도 검토 모드를 켜므로 비웁니다.
 
-HQ·포획·전술·교리 입력은 Gradle이 최신 서버 검사로 자동 생성한다. `-PhoiTestSuite=missions`와 `-PhoiTestSuite=movement-controls`에서는 `armyHud` 그룹이 지휘 패널 입력 31개를, `movement-controls`에서는 `missionOverlay` 그룹이 육·해·공 임무 오버레이 입력 3개를 같은 방식으로 생성하고 `HOI_COMMANDER_PREVIEW`·`HOI_MISSION_OVERLAY_FIXTURES`를 그 출력으로 지정한다. 필터 없는 전체 검사는 지휘관 임명·제독·에이스·특성 화면 입력이 이 그룹에 없으므로 위 수동 경로를 계속 사용한다. 2026-10-11에 소유자 요청으로 육군 모델 렌더링 검사(`MapArmyRenderChecks`: 모델 큐브 수·텍스처 존재·대기/이동/전투 캡처)와 한국 음악 플레이리스트 화면 검사를 클라이언트 GameTest에서 제거했다. 모델·플레이리스트 자산을 바꾸면 리소스팩의 `test_army_models.py`·`test_korean_playlist.py`와 직접 확인으로 검증한다.
+HQ·포획·전술·교리 입력은 Gradle이 최신 서버 검사로 자동 생성한다. `-PhoiTestSuite=missions`와 `-PhoiTestSuite=movement-controls`에서는 `armyHud` 그룹이 지휘 패널 입력 31개를, `movement-controls`에서는 `missionOverlay` 그룹이 육·해·공 임무 오버레이 입력 3개를 같은 방식으로 생성하고 `HOI_COMMANDER_PREVIEW`·`HOI_MISSION_OVERLAY_FIXTURES`를 그 출력으로 지정한다. 필터 없는 전체 검사는 지휘관 임명·제독·에이스·특성 화면 입력이 이 그룹에 없으므로 위 수동 경로를 계속 사용한다. 2026-10-11에 소유자 요청으로 육군 모델 렌더링 검사(`MapArmyRenderChecks`: 모델 큐브 수·텍스처 존재·대기/이동/전투 캡처)와 한국 음악 전용 플레이리스트 화면 검사를 클라이언트 GameTest에서 제거했다. 별도 `AudioMusicRoutingChecks`의 자동 재생·지도 전환·채널/수동 상태 검사는 `audio`와 전체 묶음에 유지한다. 모델·플레이리스트 자산을 바꾸면 리소스팩의 `test_army_models.py`·`test_korean_playlist.py`와 직접 확인으로 검증한다.
 
 최신 실행 폴더는 PowerShell에서 `(Get-Content .\client\build\run\clientGameTest-latest.json -Raw | ConvertFrom-Json).runDirectory`로 확인합니다. 클라이언트 스크린샷은 해당 폴더의 `screenshots/`에 있습니다. 디스크 정리는 테스트가 끝난 뒤 필요한 증거를 보존하고 별도로 수행합니다.
 

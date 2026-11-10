@@ -35,6 +35,12 @@ ext.hoiRendererFixtureGroups = [
         ],
         suites: ['all', 'decisions']
     ],
+    diplomacyActions: [
+        environment: 'HOI_DIPLOMACY_ACTION_PREVIEW', property: 'hoi.commandFixtureOutput',
+        producers: ['dev.hoi.fabric.FabricCountryActionsTest', 'dev.hoi.fabric.diplomacy.DiplomacyActionsPresentationTest'],
+        fixtures: ['kor-diplomacy-PRK', 'kor-diplomacy-JAP'],
+        suites: ['all', 'diplomacy', 'diplomacy-actions']
+    ],
     diplomacyLease: [
         environment: 'HOI_LEASE_PREVIEW', property: 'hoiLeasePreview',
         producers: ['dev.hoi.fabric.diplomacy.DiplomacyLeaseRenderFixtureTest'],

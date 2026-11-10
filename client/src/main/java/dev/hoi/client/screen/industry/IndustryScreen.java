@@ -419,7 +419,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (graphics != null) {
                 graphics.pose().pushMatrix(); graphics.pose().translate(6, y); graphics.pose().scale(scale);
                 UiAssets.draw(graphics, "production/line/efficiency", 225, 4, 24, 21);
-                productionBar(graphics, "efficiency", 251, 10, 93, 9, line.efficiency());
+                IndustryProductionRender.bar(graphics, "efficiency", 251, 10, 93, 9, line.efficiency());
                 graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/efficiency_frame.png"), 248, 7, 347, 22, 0, 1, 0, 1);
                 graphics.pose().popMatrix();
             }
@@ -450,7 +450,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 x.applyAsInt(354) + 2, y + 2, x.applyAsInt(379) - x.applyAsInt(354), header);
         originalButton("공장 줄이기", "production/line/minus", x.applyAsInt(379) + 1, y + 2, header, header, line.factories() > 0,
                 () -> send(ASSIGN, line.id(), "", Math.max(0, line.factories() - factoryStep())));
-        productionText(graphics, (collapsed || line.reservedFactories() > 0 ? (line.operatingFactories() + line.damagedFactories()) + "/" : "") + line.factories(), x.applyAsInt(403) + 1, y + 2, x.applyAsInt(453) - x.applyAsInt(403), header, TEXT);
+        IndustryProductionRender.text(graphics,font, (collapsed || line.reservedFactories() > 0 ? (line.operatingFactories() + line.damagedFactories()) + "/" : "") + line.factories(), x.applyAsInt(403) + 1, y + 2, x.applyAsInt(453) - x.applyAsInt(403), header, TEXT);
         originalButton("공장 늘리기 · 부족분 예약", "production/line/plus", x.applyAsInt(453) + 1, y + 2, header, header, line.factories() < limit,
                 () -> send(ASSIGN, line.id(), "", Math.min(limit, line.factories() + factoryStep())));
         originalButton("생산 라인 삭제", "production/line/delete", x.applyAsInt(481), y + 2, header, header, true, () -> send(REMOVE, line.id(), "", 0));
@@ -518,8 +518,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             addRenderableWidget(button);
         }
         if (graphics != null) {
-            productionBar(graphics,"progress",6+Math.round(157*scale),y+Math.round(34*scale),Math.round(118*scale),Math.round(21*scale),line.progress());
-            productionText(graphics,equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),6+Math.round(157*scale),y+Math.round(34*scale),Math.round(118*scale),Math.round(21*scale),TEXT);
+            IndustryProductionRender.bar(graphics,"progress",6+Math.round(157*scale),y+Math.round(34*scale),Math.round(118*scale),Math.round(21*scale),line.progress());
+            IndustryProductionRender.text(graphics,font,equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),6+Math.round(157*scale),y+Math.round(34*scale),Math.round(118*scale),Math.round(21*scale),TEXT);
         }
         if (!equipment.naval()) {
             productionStock(equipment,6+Math.round(281*scale),y+Math.round(34*scale),Math.round(39*scale),Math.round(23*scale));
@@ -531,14 +531,6 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             boolean missing=line.missingResources().contains(resource.getKey());
             productionResource(resourceArt((missing?"missing/":"")+resource.getKey()),integer(resource.getValue()*line.operatingFactories()),6+Math.round((360+index++*46)*scale),y+Math.round(32*scale),scale,missing?BAD:TEXT);
         }
-    }
-    private static void productionBar(GuiGraphicsExtractor g, String name, int x, int y, int w, int h, double value) {
-        float ratio=(float)Math.clamp(value,0,1);
-        var background=net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/"+name+"_bg.png");
-        var fill=net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/"+name+"_fill.png");
-        g.blit(background,x,y,x+w,y+h,0,1,0,1);
-        int filled=Math.round(w*ratio);
-        if(filled>0)g.blit(fill,x,y,x+filled,y+h,0,ratio,1f/3,2f/3);
     }
     private static String productionDaily(double daily) {
         return IndustryEquipmentDesigns.tooltip("PRODUCTION_PRODUCING_DAILY").replace("$AMOUNT$", String.format(Locale.ROOT, "%.2f", daily));
@@ -565,16 +557,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if (graphics == null) return;
         int size=Math.round(27*.7f*scale);
         UiAssets.draw(graphics,texture,x+Math.round(5*scale),y+Math.round(4*scale),size,size);
-        productionText(graphics,value,x+Math.round(18*scale),y+Math.round(5*scale),Math.round(30*scale),Math.round(17*scale),color);
-    }
-    private void productionText(GuiGraphicsExtractor g, String value, int x, int y, int w, int h, int color) {
-        if (g == null) return;
-        int textWidth=font.width(value);
-        float scale=Math.min(UiText.scale(font),Math.min((w-2f)/Math.max(1,textWidth),h/(float)font.lineHeight));
-        g.pose().pushMatrix();
-        g.pose().translate(x+(w-textWidth*scale)/2,UiText.centeredY(font,value,y,h,scale));
-        g.pose().scale(scale);g.text(font,value,0,0,color);
-        g.pose().popMatrix();
+        IndustryProductionRender.text(graphics,font,value,x+Math.round(18*scale),y+Math.round(5*scale),Math.round(30*scale),Math.round(17*scale),color);
     }
     private int productionEquipment(Line line, Equipment equipment, int slotX, int y, int bottom, float scale) {
         int slotWidth=Math.round(201*scale);
@@ -597,10 +580,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 if(!role.isEmpty())UiAssets.draw(g,role,x+w-Math.round(36*scale)-left,y+Math.round(25*scale)+down,Math.round(36*scale),Math.round(35*scale));
                 if(equipment.outdated())UiAssets.draw(g,"production/outdated_overlay",x,y+down,w,h);
                 g.fill(x,labelY,x+w,bottom,0x88000000);
-                productionText(g,familyName(equipment),x+2,labelY,w-4,bottom-labelY,TEXT);
+                IndustryProductionRender.text(g,font,familyName(equipment),x+2,labelY,w-4,bottom-labelY,TEXT);
                 int rateX=slotX+Math.round(155*scale),rateY=y+Math.round(scale),rateWidth=Math.round(118*scale),rateHeight=Math.round(21*scale);
-                productionBar(g,"progress",rateX,rateY-1,rateWidth,rateHeight,line.progress());
-                productionText(g,waiting?dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOYMENT_NOT_DEPLOYABLE"):equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),rateX,rateY-1,rateWidth,rateHeight,!waiting&&line.daily()>0?TEXT:BAD);
+                IndustryProductionRender.bar(g,"progress",rateX,rateY-1,rateWidth,rateHeight,line.progress());
+                IndustryProductionRender.text(g,font,waiting?dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOYMENT_NOT_DEPLOYABLE"):equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),rateX,rateY-1,rateWidth,rateHeight,!waiting&&line.daily()>0?TEXT:BAD);
             }
         };
         button.active=pending==0;button.setTooltip(Tooltips.createExact(waiting?IndustryProductionTooltips.navalWaiting(view,line):IndustryProductionTooltips.equipment(view,line,equipment,productionShortages.get(equipment.id()))));addRenderableWidget(button);
@@ -2396,9 +2379,9 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                             UiAssets.draw(g,"production/picker/repair_state"+(port.disabled()?"_disabled":port.priority()==0?"_low":port.priority()==2?"_high":""),getX()+Math.round(getWidth()*35f/400),py+2,Math.round(getWidth()*22f/400),getHeight()-4);
                             UiText.text(g,font,font.plainSubstrByWidth(port.name(),Math.max(1,(int)((getWidth()*140f/400)/UiText.scale(font)))),getX()+Math.round(getWidth()*60f/400),py+4,TEXT);
                             UiAssets.draw(g,"production/picker/ships",getX()+getWidth()/2,py+3,15,10);
-                            productionText(g,Long.toString(waiting),getX()+getWidth()*59/100,py,w*9/100,row-2,TEXT);
+                            IndustryProductionRender.text(g,font,Long.toString(waiting),getX()+getWidth()*59/100,py,w*9/100,row-2,TEXT);
                             UiAssets.draw(g,"production/summary/dockyard_icon",getX()+getWidth()*68/100,py+2,12,12);
-                            productionText(g,port.capacity()==0?"—":port.activeShips()+" / "+port.capacity(),getX()+getWidth()*75/100,py,w*18/100,row-2,TEXT);
+                            IndustryProductionRender.text(g,font,port.capacity()==0?"—":port.activeShips()+" / "+port.capacity(),getX()+getWidth()*75/100,py,w*18/100,row-2,TEXT);
                         }
                     };
                     button.setTooltip(listTip);addRenderableWidget(button);
