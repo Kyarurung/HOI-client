@@ -27,8 +27,17 @@ public record DiplomacyView(String session, long revision, String viewer, String
             throw new IllegalArgumentException("Duplicate diplomacy equipment choice");
     }
     public record EquipmentChoice(String key, String name, String icon, Category category, String stockText,
-            String productionText, String detail, boolean available, String reason, List<ModeChoice> modes) {
+            String productionText, String detail, boolean available, String reason, List<ModeChoice> modes,
+            String typeName, String producer, Boolean carrier) {
+        public EquipmentChoice(String key, String name, String icon, Category category, String stockText,
+                String productionText, String detail, boolean available, String reason, List<ModeChoice> modes) {
+            this(key, name, icon, category, stockText, productionText, detail, available, reason, modes, "", "", null);
+        }
         public EquipmentChoice {
+            typeName = typeName == null ? "" : typeName;
+            CountryView.text(typeName, 128);
+            producer = producer == null ? "" : producer;
+            if (!producer.isEmpty() && !producer.matches("[A-Z][A-Z0-9]{2}")) throw new IllegalArgumentException("Invalid equipment producer");
             CountryView.text(key, 64);
             CountryView.text(name, 128);
             CountryView.text(icon, 160);

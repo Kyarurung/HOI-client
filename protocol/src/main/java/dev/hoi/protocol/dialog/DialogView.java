@@ -3,7 +3,11 @@ package dev.hoi.protocol.dialog;
 import java.util.*;
 
 public record DialogView(String token,long revision,Kind kind,String title,String subtitle,String body,
-        String flag,String image,String sound,List<Tile> tiles,List<Choice> choices,String presentation) {
+        String flag,String image,String sound,List<Tile> tiles,List<Choice> choices,String presentation,Integer remainingDays) {
+    public DialogView(String token,long revision,Kind kind,String title,String subtitle,String body,
+            String flag,String image,String sound,List<Tile> tiles,List<Choice> choices,String presentation) {
+        this(token,revision,kind,title,subtitle,body,flag,image,sound,tiles,choices,presentation,null);
+    }
     public DialogView(String token,long revision,Kind kind,String title,String subtitle,String body,
             String flag,String image,String sound,List<Tile> tiles,List<Choice> choices) {
         this(token,revision,kind,title,subtitle,body,flag,image,sound,tiles,choices,"");
@@ -85,8 +89,10 @@ public record DialogView(String token,long revision,Kind kind,String title,Strin
         tiles=List.copyOf(tiles);choices=List.copyOf(choices);
         if(tiles.size()>160||choices.size()>(kind==Kind.COMMANDER?480:kind==Kind.POLITICS?160:24))throw new IllegalArgumentException("Dialog limit exceeded");
         if(choices.stream().map(Choice::id).distinct().count()!=choices.size())throw new IllegalArgumentException("Duplicate dialog choice");
+        if(remainingDays!=null&&(remainingDays<0||remainingDays>36500))throw new IllegalArgumentException("Invalid dialog remaining days");
     }
-    public DialogView issued(String id,long version) {return new DialogView(id,version,kind,title,subtitle,body,flag,image,sound,tiles,choices,presentation);}
+    public DialogView issued(String id,long version) {return new DialogView(id,version,kind,title,subtitle,body,flag,image,sound,tiles,choices,presentation,remainingDays);}
+    public DialogView withRemainingDays(Integer days) {return new DialogView(token,revision,kind,title,subtitle,body,flag,image,sound,tiles,choices,presentation,days);}
     public boolean completion() {return presentation.equals("research_complete")||presentation.equals("focus_complete")||presentation.equals("agency_upgrade_complete")||presentation.startsWith("doctrine_");}
     public boolean leaderEvent() {return presentation.equals("leader_event");}
     public boolean minorFlavor() {return presentation.equals("minor_flavor");}

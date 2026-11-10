@@ -423,7 +423,9 @@ public record IndustryView(String session, long revision, String country, Countr
         if(values==null||values.size()>max)throw new IllegalArgumentException("Industry snapshot limit");return List.copyOf(values);
     }
     private static <K,V> Map<K,V> boundedMap(Map<K,V> values,int max) {
-        if(values==null||values.size()>max)throw new IllegalArgumentException("Industry snapshot map limit");return Map.copyOf(values);
+        if(values==null||values.size()>max)throw new IllegalArgumentException("Industry snapshot map limit");
+        var copy=new LinkedHashMap<K,V>();values.forEach((key,value)->copy.put(Objects.requireNonNull(key),Objects.requireNonNull(value)));
+        return Collections.unmodifiableMap(copy);
     }
     public static IndustryView revoked(String token,String message) {
         return new IndustryView(token,0,"",CountryHud.UNKNOWN,null,List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),null,message);

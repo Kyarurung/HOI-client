@@ -40,8 +40,15 @@ public record DiplomacyVolunteerView(String session, long revision, String viewe
     }
     public record ArmyRow(String key, String name, String icon, String divisionText, String commanderName,
             String commanderPortrait, String commanderSkillText, String commanderTooltip,
-            List<UnitCount> unitCounts, boolean allowed, String reason) {
+            List<UnitCount> unitCounts, boolean allowed, String reason, Integer insignia, Integer color) {
+        public ArmyRow(String key, String name, String icon, String divisionText, String commanderName,
+                String commanderPortrait, String commanderSkillText, String commanderTooltip,
+                List<UnitCount> unitCounts, boolean allowed, String reason) {
+            this(key, name, icon, divisionText, commanderName, commanderPortrait, commanderSkillText, commanderTooltip, unitCounts, allowed, reason, null, null);
+        }
         public ArmyRow {
+            if (insignia != null && (insignia < 0 || insignia > 255)) throw new IllegalArgumentException("Invalid army insignia");
+            if (color != null && (color < 0 || color > 0xFFFFFF)) throw new IllegalArgumentException("Invalid army color");
             DiplomacyVolunteerView.key(key);
             CountryView.text(name, 128);
             texture(icon);
