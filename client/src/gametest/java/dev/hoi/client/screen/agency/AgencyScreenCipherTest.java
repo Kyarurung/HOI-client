@@ -75,8 +75,13 @@ public final class AgencyScreenCipherTest {
                     context.waitTicks(2);
                     context.takeScreenshot("hoi-cipher-" + id.replace(':', '-') + "-confirm-" + width + "-gui2");
                     context.runOnClient(client -> {
+                        var confirmation=(CommanderConfirmation)client.gui.screen();
+                        var agency=(AgencyScreen)confirmation.backdrop();
+                        var dated=new dev.hoi.protocol.agency.AgencyView(view.session(),view.revision()+1,view.country(),view.name(),view.status(),view.items(),view.message(),view.candidates(),view.capitals(),view.operatives(),view.operations(),view.networks(),view.offers(),view.operativeCapacity(),view.confirms(),view.ciphers());
+                        agency.update(dated);
+                        if(client.gui.screen()!=confirmation)throw new AssertionError("Date-only agency update must preserve the issued confirmation");
                         click(client.gui.screen(), "OK", MOUSE_BUTTON_LEFT);
-                        if (sent.size() != 1 || !sent.getFirst().item().equals(id)) throw new AssertionError("Cipher confirmation did not send exact action");
+                        if (sent.size() != 1 || !sent.getFirst().item().equals(id) || sent.getFirst().revision()!=dated.revision()) throw new AssertionError("Cipher confirmation did not send exact action with the latest received revision");
                     });
                 }
             }

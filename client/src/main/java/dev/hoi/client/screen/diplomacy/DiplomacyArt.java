@@ -50,6 +50,7 @@ final class DiplomacyArt {
         return true;
     }
     void tooltip(GuiGraphicsExtractor g, Font font, CountryView view, int pane, int top, int mx, int my) {
+        if(dev.hoi.client.ui.tooltip.TooltipLayer.defer(g,()->tooltip(g,font,view,pane,top,mx,my)))return;
         var art = at(view, pane, top, mx, my);
         if (!Objects.equals(hovered, art)) {
             hovered = art;

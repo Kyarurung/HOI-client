@@ -100,13 +100,16 @@ public final class UiText {
         var bounds = font.prepareText(text.getVisualOrderText(), 0, 0, color, false, false, 0).bounds();
         int inset = bounds == null ? 0 : Math.min(0, bounds.left());
         int textWidth = Math.max(font.width(text), bounds == null ? 0 : bounds.right()) - inset, overflow = Math.max(0, textWidth - width);
-        double travel = overflow / 24.0, phase = Math.max(0, elapsedMillis) / 1000.0 % (2 * travel + 2);
-        int offset = (int)Math.round(24 * Math.clamp(phase <= travel + 1 ? phase - 1 : 2 * travel + 2 - phase, 0, travel));
+        int offset = scrollingOffset(overflow,elapsedMillis);
         int left = overflow > 0 ? x - offset : centered ? x + (width - textWidth) / 2 : x;
         var styled = text.copy().withStyle(style -> style.withColor(color).withShadowColor(0));
         g.enableScissor(x, y, x + width, y + height);
         g.text(font, styled, left - inset, Math.round(centeredY(font, styled.getVisualOrderText(), y, height, 1)), color, false);
         g.disableScissor();
+    }
+    public static int scrollingOffset(int overflow,long elapsedMillis) {
+        double travel = overflow / 24.0, phase = Math.max(0, elapsedMillis) / 1000.0 % (2 * travel + 2);
+        return (int)Math.round(24 * Math.clamp(phase <= travel + 1 ? phase - 1 : 2 * travel + 2 - phase, 0, travel));
     }
     public static void left(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
         var lines = Tooltips.split(font,text, Math.max(1, (int)(width / scale(font))));

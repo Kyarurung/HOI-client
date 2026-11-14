@@ -112,6 +112,8 @@ public final class Tooltips {
         scroll = Math.clamp(scroll, 0, maxScroll);
         int x = Math.clamp(mouseX + (above ? 4 : 11), 5, Math.max(5, viewportWidth - width - 5));
         int y = Math.clamp(above ? mouseY - height - 4 : mouseY + 14, 5, Math.max(5, viewportHeight - height - 5));
+        int offset=scroll;
+        if(TooltipLayer.defer(graphics,()->drawLinesScrollable(graphics,font,lines,mouseX,mouseY,viewportWidth,viewportHeight,offset,gradient,above)))return new ScrolledTooltip(x,y,width,height,scroll,maxScroll);
         graphics.nextStratum();
         if(gradient)graphics.fillGradient(x-4,y-4,x+width+4,y+height+4,0xFF754CB3,0xFFD147A5);else graphics.fill(x - 4, y - 4, x + width + 4, y + height + 4, 0xFF9A45AB);
         graphics.fill(x - 3, y - 3, x + width + 3, y + height + 3, 0xF0100914);

@@ -90,7 +90,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                         List.of(new DialogView.Choice("cancel", dev.hoi.client.ui.UiCommandLabels.text("PDXO_CANCEL", "취소"), ""), new DialogView.Choice("ok", "OK", "")));
                 var screen = new CommanderConfirmation(dialog, (ignored, choice) -> {
                     if (!view.country().equals(dev.hoi.client.ClientCampaignHud.country())) { minecraft.gui.setScreen(null); return; }
-                    if (choice.equals("ok") && view.revision() == revision && pendingTicks == 0
+                    if (choice.equals("ok") && view.confirms().contains(confirm) && pendingTicks == 0
                             && view.items().stream().anyMatch(value -> value.id().equals(id) && value.enabled())) {
                         send(AgencyPayloads.Kind.CALL, id, List.of());
                         dev.hoi.client.audio.AudioUiSounds.play("ui.disband");
@@ -109,8 +109,9 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         if (view != null && next.revision() <= view.revision()) return;
         capitalMap.clear();
         operationMap.clear();
+        boolean confirmsChanged = view != null && !view.confirms().equals(next.confirms());
         view = next;
-        if (minecraft.gui.screen() instanceof CommanderConfirmation confirmation && confirmation.backdrop() == this) closeDismissal();
+        if (confirmsChanged && minecraft.gui.screen() instanceof CommanderConfirmation confirmation && confirmation.backdrop() == this) closeDismissal();
         pendingTicks = 0;
         pendingKind = null;
         if (minecraft.gui.screen() instanceof AgencyOperation operation && operation.backdrop() == this) operation.update(next);
@@ -300,7 +301,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                             g.disableScissor();
                         } else UiText.text(g,font,trim(item.value(),(int)((actionX-textX-6)/UiText.scale(font))),textX,actionY+4,GOLD);
                         UiAssets.draw(g, AgencyOperation.sprite("GFX_launch_operation_button_anim"), actionX, actionY, 62, 18);
-                        String caption = operation == null ? item.id().startsWith("network:") ? "정보망" : "준비하기"
+                        String caption = operation == null ? "준비하기"
                                 : completed ? item.button()
                                 : operation.stage().equals("RUNNING") ? dev.hoi.client.ui.UiCommandLabels.text("OPERATION_VIEW_PROGRESS", "작전 중...")
                                 : operation.stage().equals("PREPARED") ? dev.hoi.client.ui.UiCommandLabels.text("PREPARED", "준비됨")
@@ -634,7 +635,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                 List.of(new DialogView.Choice("cancel", UiCommandLabels.text("PDXO_CANCEL", "취소"), ""), new DialogView.Choice("ok", "OK", "")));
         var screen = new CommanderConfirmation(dialog, (ignored, choice) -> {
             if (!country.equals(dev.hoi.client.ClientCampaignHud.country())) { minecraft.gui.setScreen(null); return; }
-            if (choice.equals("ok") && view.revision() == revision && pendingTicks == 0 && cipherActionEnabled(id)) send(AgencyPayloads.Kind.CALL, id, List.of());
+            if (choice.equals("ok") && view.confirms().contains(confirm) && pendingTicks == 0 && cipherActionEnabled(id)) send(AgencyPayloads.Kind.CALL, id, List.of());
             minecraft.gui.setScreen(this);
         });
         screen.backdrop(this); minecraft.gui.setScreen(screen);

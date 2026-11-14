@@ -93,6 +93,9 @@ public final class PoliticsTooltip {
         scroll = Math.clamp(scroll, 0, Math.max(0, (total - height + 9) / 10));
         int x = Math.clamp(mouseX + 12, 5, Math.max(5, viewportWidth - width - 10));
         int y = Math.clamp(mouseY - 12, 5, Math.max(5, viewportHeight - height - 10));
+        var source=entry;
+        int offset=scroll;
+        if(TooltipLayer.defer(g,()->draw(g,font,source,flag,countryName,mouseX,mouseY,viewportWidth,viewportHeight,offset,compact,icons)))return scroll;
         g.nextStratum();
         g.fill(x-4, y-4, x+width+4, y+height+4, 0xFF9A45AB);
         g.fill(x-3, y-3, x+width+3, y+height+3, 0xF0100914);

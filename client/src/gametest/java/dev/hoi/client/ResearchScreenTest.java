@@ -69,6 +69,15 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         loadPack(context);
+        if(Set.of("all","d2b").contains(System.getProperty("hoi.testSuite","all"))) {
+            try(var world=context.worldBuilder().create()) {
+                dev.hoi.client.screen.research.ResearchInteractionTest.run(context,fixtureResearch());
+                dev.hoi.client.screen.decision.DecisionMarqueeTest.run(context,fixtureMenu().hud());
+                dev.hoi.client.ui.hud.HudTooltipLayerTest.run(context,fixtureMenu());
+                dev.hoi.client.screen.focus.FocusHoverTest.run(context);
+            }
+            if(System.getProperty("hoi.testSuite","all").equals("d2b"))return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("air-scales")) {
             try (var world = context.worldBuilder().create()) {
                 dev.hoi.client.map.commander.CommanderAirBasePanelsTest.run(context, fixtureMenu());
@@ -970,7 +979,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         context.getInput().resizeWindow(1600,1000); context.waitTicks(3); click(context,"공학"); context.waitTicks(2);
         context.runOnClient(client->{var screen=(ResearchScreen)client.gui.screen();screen.clearFocus();screen.keyPressed(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT,0,0));screen.keyPressed(ENTER);});
         context.waitTicks(2);context.takeScreenshot("hoi-tfr-source-detail");click(context,"연구");
-        check(requests.size()==1&&requests.getFirst().slot()==1,"Occupied slot zero falls back to the first free slot without cancellation");
+        check(requests.size()==1,"Starting from an occupied slot sends exactly one request without cancellation");
+        var start=requests.getFirst();
+        check(start.action()==ResearchPayloads.Action.START&&start.slot()==0&&start.session().equals(view.session())&&start.revision()==view.revision(),"Keep the selected occupied slot in the authenticated START request; the server chooses its free destination");
+        check(!view.slots().getFirst().technology().isEmpty()&&view.slots().get(1).technology().isEmpty()&&view.technology(start.technology()).status()==ResearchView.Status.AVAILABLE,"The client leaves existing assignments unchanged and requests an available technology");
         for (String id : List.of("advanced_ship_hull_light", "artillery2", "concentrated_industry", "tech_engineers4")) {
             context.runOnClient(client -> {
                 var screen = (ResearchScreen)client.gui.screen(); screen.showDetail("hoi:tfr/technology/" + id);

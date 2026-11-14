@@ -30,6 +30,7 @@ public final class TooltipCursorTest extends Screen {
                 var positions=new ArrayList<Integer>();
                 var aligned=new GuiGraphicsExtractor(client,new GuiRenderState(),80,90){@Override public void text(Font font,net.minecraft.util.FormattedCharSequence line,int x,int y,int color,boolean shadow){positions.add(x);super.text(font,line,x,y,color,shadow);}};
                 var tooltip=Tooltips.drawOfficerScrollable(aligned,client.font,"긴 툴팁 제목\n짧음\n서로 길이가 다른 본문",80,90,screen.width,screen.height,0);
+                TooltipLayer.flush();
                 if(positions.size()!=3||positions.stream().anyMatch(x->x!=tooltip.x()))throw new AssertionError("Every officer tooltip line must share the left edge: "+positions);
             });
         }
@@ -47,7 +48,7 @@ public final class TooltipCursorTest extends Screen {
                 super.tooltip(font,observed,x,y,positioner,style,focused);
             }
         };
-        screen.extractRenderState(g,mx,my,0);g.extractDeferredElements(mx,my,0);
+        screen.extractRenderState(g,mx,my,0);g.extractDeferredElements(mx,my,0);TooltipLayer.flush();
         if(result[2]==0)throw new AssertionError("Native widget tooltip was not rendered");return result;
     }
 }

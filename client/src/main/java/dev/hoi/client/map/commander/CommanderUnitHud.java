@@ -192,6 +192,7 @@ public final class CommanderUnitHud {
         Counter hovered=null;
         for(var box:boxes)if(box.contains(mx,my))hovered=box.counter();
         if(hovered==null||hovered.navy()||hovered.air())return;
+        if(dev.hoi.client.ui.tooltip.TooltipLayer.defer(g,()->tooltip(g,mx,my)))return;
         var c=hovered;var font=Minecraft.getInstance().font;
         int w=Math.min(286,g.guiWidth()-12);
         var title=font.split(Component.literal(c.countryName()+" · "+(c.unknown()?"?":c.name()+" "+c.count()+"개")),Math.max(1,(int)((w-12)/UiText.scale(font))));

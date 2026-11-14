@@ -10,9 +10,9 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(GuiGraphicsExtractor.class)
 public abstract class GuiMenuTooltip {
-    @org.spongepowered.asm.mixin.injection.Inject(method = "extractDeferredElements", at = @At("TAIL"))
+    @org.spongepowered.asm.mixin.injection.Inject(method = "extractDeferredElements", at = @At("HEAD"), cancellable = true)
     private void hoiHudTooltip(int mouseX, int mouseY, float delta, org.spongepowered.asm.mixin.injection.callback.CallbackInfo callback) {
-        dev.hoi.client.ui.hud.HudTooltip.extractDeferred((GuiGraphicsExtractor)(Object)this);
+        if(hoiText() && dev.hoi.client.ui.tooltip.TooltipLayer.deferVanilla((GuiGraphicsExtractor)(Object)this,mouseX,mouseY,delta))callback.cancel();
     }
     private static boolean hoiText() {
         var screen = Minecraft.getInstance().gui.screen();

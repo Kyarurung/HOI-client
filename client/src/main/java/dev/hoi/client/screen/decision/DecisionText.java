@@ -88,6 +88,16 @@ public final class DecisionText {
         });
         if(!parts.isEmpty())graphics.text(font,FormattedCharSequence.composite(parts),left[0],y,color,shadow);
     }
+    void scrollingCell(GuiGraphicsExtractor graphics,Font font,Component value,int x,int y,int width,int height,int color,boolean centered,long elapsedMillis) {
+        var sequence=value.getVisualOrderText();
+        var bounds=font.prepareText(sequence,0,0,color,false,false,0).bounds();
+        int inset=bounds==null?0:Math.min(0,bounds.left());
+        int textWidth=Math.max(font.width(value),bounds==null?0:bounds.right())-inset,overflow=Math.max(0,textWidth-width);
+        int left=overflow>0?x-UiText.scrollingOffset(overflow,elapsedMillis):centered?x+(width-textWidth)/2:x;
+        graphics.enableScissor(x,y,x+width,y+height);
+        draw(graphics,font,sequence,left-inset,Math.round(UiText.centeredY(font,sequence,y,height,1)),color,false);
+        graphics.disableScissor();
+    }
     private Component sourceComponent(String text) {
         var result=Component.empty();
         for(var run:sourceRuns(text)) {
@@ -217,6 +227,8 @@ public final class DecisionText {
         scroll=Math.clamp(scroll,0,maxScroll);
         int x=Math.clamp(mouseX+12,5,Math.max(5,viewportWidth-width-5));
         int y=Math.clamp(mouseY-12,5,Math.max(5,viewportHeight-height-5));
+        int requestedScroll=scroll;
+        if(TooltipLayer.defer(graphics,()->tooltip(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,requestedScroll)))return new Tooltips.ScrolledTooltip(x,y,width,height,scroll,maxScroll);
         graphics.nextStratum();
         Tooltips.background(graphics,x-4,y-4,width+8,height+8);
         graphics.enableScissor(x,y,x+width,y+height);

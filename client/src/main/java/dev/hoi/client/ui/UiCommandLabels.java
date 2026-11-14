@@ -16,7 +16,8 @@ public final class UiCommandLabels {
             if(resource.isPresent())try(var reader=resource.orElseThrow().openAsReader()){JsonParser.parseReader(reader).getAsJsonObject().entrySet().forEach(e->result.put(e.getKey(),e.getValue().getAsString()));}catch(java.io.IOException|IllegalArgumentException ignored){}
             labels=Map.copyOf(result);
         }
-        return withoutShortcuts(labels.getOrDefault(key,fallback).replaceAll("(?m)^-{3,}$",""));
+        String text=labels.getOrDefault(key,fallback);
+        return withoutShortcuts(key.equals("SEPARATION_LINE")?text:text.replaceAll("(?m)^-{3,}$",""));
     }
     public static String withoutShortcuts(String text) {
         if(text==null||text.isEmpty())return text;

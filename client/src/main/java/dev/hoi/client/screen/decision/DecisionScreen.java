@@ -43,6 +43,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     private final DecisionPanel panels = new DecisionPanel();
     private Map<String,String> assets = Map.of();
     private int pane, top, scroll, total, ticks = 99, tooltipScroll;
+    private long marqueeTicks;
     private long pendingRevision = -1;
     private boolean legacy;
     private boolean draggingScroll;
@@ -155,6 +156,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         ticks=0;
     }
     @Override public void tick() {
+        marqueeTicks++;
         if(fixture)return;
         mapTick();
         if(snapshot.authority()!=null && !snapshot.authority().country().equals(dev.hoi.client.ClientCampaignHud.country())) {
@@ -176,7 +178,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         eventRows = dialogs() == null ? List.of() : dialogs().events();
         pane=UiPanelLayout.width(MenuTab.DECISIONS,width);top=HudMenuBar.height(width);
         assets=loadAssets();text.clear();panels.clear();
-        pane=preferredWidth();
+        pane=Math.max(1,Math.min(275,width-16));
         var view=snapshot.view();
         HudMenuBar.buttons(width,view==null?"":view.country(),MenuTab.DECISIONS,tab -> {
             if(tab==MenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(tab);
@@ -222,17 +224,6 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     }
     private int contentTop() { return top + 26; }
     private int contentBottom() { return height-(legacy?32:10); }
-    private int preferredWidth() {
-        int required=pane;
-        for(var category:categories())required=Math.max(required,font.width(text.component(category.name()))+76);
-        for(var row:snapshot.rows()) {
-            int nameWidth=text.rows(rowLabel(row)).stream().mapToInt(font::width).max().orElse(0);
-            int costWidth=text.rows(rowCost(row)).stream().mapToInt(font::width).max().orElse(0);
-            required=Math.max(required,nameWidth+costWidth+110+(political(row)?14:0)+(row.highlightStates().isEmpty()?0:14)
-                    +(row.target()!=null && row.target().kind().equals("country")?24:0)+outlineWidth(row));
-        }
-        return Math.max(1,Math.min(width-16,required));
-    }
     private List<DecisionPayloads.Category> categories() {
         var groups=new LinkedHashMap<String,DecisionPayloads.Category>();
         for(var category:snapshot.categories())groups.put(category.id(),category);
@@ -263,7 +254,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                     UiAssets.nineSlice(g, "decision/ui/event_row", 7, y, pane - 14, eventHeight, 4, 1);
                     UiAssets.draw(g, "decision/ui/event_type/frame_1", 7 + (int)Math.round(15 * eventScale), y + (int)Math.round(3 * eventScale), (int)Math.round(30 * eventScale), (int)Math.round(26 * eventScale));
                     int textLeft = 7 + (int)Math.round(50 * eventScale);
-                    g.text(font, UiText.ellipsize(font, event.title(), pane - textLeft - 80), textLeft, y + (eventHeight - font.lineHeight) / 2, UiMenuStyle.TEXT, false);
+                    UiText.scrollingCell(g,font,Component.literal(event.title()),textLeft,y,pane-textLeft-80,eventHeight,UiMenuStyle.TEXT,false,marqueeTicks*50);
                     if (event.remainingDays() != null) {
                         String remaining = event.remainingDays() + "일";
                         int right = 7 + (int)Math.round(500 * eventScale);
@@ -289,7 +280,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         }
         for(var category:categories()) {
             String id=category.id(),name=category.name();
-            int categoryHeight=Math.max(header,Tooltips.split(font,text.component(name).copy().withStyle(net.minecraft.ChatFormatting.BOLD),pane-header-43).size()*(font.lineHeight+1)+8);
+            int categoryHeight=Math.max(header,text.rows(name).size()*(font.lineHeight+1)+8);
             if(g!=null) {
                 UiAssets.nineSlice(g,"decision/category",5,y,pane-10,categoryHeight,5,1);
                 if(!UiAssets.draw(g,asset(category.icon(),"icon"),10,y+(categoryHeight-header+6)/2,header-6,header-6))
@@ -446,9 +437,20 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             UiAssets.draw(g,"menu/decisions",10,y+3,20,height-6);
         String cost=rowCost(row);
         int costWidth=costWidth(row);
-        boolean political=political(row);
         int right=pane-49,costLeft=right-costWidth;
-        label(g,cost,costLeft,y,costWidth,height,political?(Boolean.FALSE.equals(row.costMet())?0xFFFF3232:0xFFFFBD00):0xFFFFFFFF,1);
+        int costColor=row.remainingHours()>0?0xFFFFFF:Boolean.FALSE.equals(row.costMet())?Tooltips.BAD:Tooltips.GOLD;
+        var costRows=text.rows(cost);
+        int costTop=y+(height-costRows.size()*(font.lineHeight+1))/2;
+        for(var line:costRows) {
+            var coloredCost=Component.empty();
+            line.visit((style,part)->{
+                part.codePoints().forEach(character->coloredCost.append(Component.literal(new String(Character.toChars(character))).withStyle(Character.isDigit(character)||".,%+-".indexOf(character)>=0?style.withColor(costColor):style)));
+                return Optional.empty();
+            },net.minecraft.network.chat.Style.EMPTY);
+            int padding=Math.max(0,costWidth-font.width(coloredCost));
+            text.scrollingCell(g,font,coloredCost,costLeft+padding,costTop,costWidth-padding,font.lineHeight+1,0xFFFFFFFF,false,marqueeTicks*50);
+            costTop+=font.lineHeight+1;
+        }
         int nameLeft=34;
         if(row.target()!=null && row.target().kind().equals("country")) {
             UiAssets.draw(g,UiStoryAssets.flag(row.target().id(),row.target().flag()),34,y+(height-14)/2,20,14);
@@ -502,9 +504,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         return Math.min((pane-10)/2,Math.max(22,text.rows(rowCost(row)).stream().mapToInt(font::width).max().orElse(0)+6));
     }
     private int rowHeight(DecisionPayloads.Row row) {
-        int nameLeft=row.target()!=null && row.target().kind().equals("country")?58:34;
-        int nameWidth=Math.max(10,pane-59-costWidth(row)-nameLeft-4-outlineWidth(row));
-        int lines=Math.max(text.lines(font,rowLabel(row),nameWidth).size(),text.lines(font,rowCost(row),costWidth(row)).size());
+        int lines=Math.max(text.rows(rowLabel(row)).size(),text.rows(rowCost(row)).size());
         return Math.max(rowOutline(row).isEmpty()?20:font.lineHeight*2+4,lines*(font.lineHeight+1)+8);
     }
     private String tooltip(DecisionPayloads.Row row) {
@@ -530,12 +530,11 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         label(g,value,x,y,width,height,color,alignment,false);
     }
     private void label(GuiGraphicsExtractor g,String value,int x,int y,int width,int height,int color,int alignment,boolean bold) {
-        var lines=bold?Tooltips.split(font,text.component(value).copy().withStyle(net.minecraft.ChatFormatting.BOLD),width):text.lines(font,value,width);
+        var lines=text.rows(value);
         int lineHeight=font.lineHeight+1;
         int top=y+(height-lines.size()*lineHeight)/2;
         for(var line:lines) {
-            int offset=alignment<0?0:alignment==0?(width-font.width(line))/2:width-font.width(line);
-            text.draw(g,font,line,x+offset,top,color,false);
+            text.scrollingCell(g,font,bold?line.copy().withStyle(net.minecraft.ChatFormatting.BOLD):line,x,top,width,lineHeight,color,alignment==0,marqueeTicks*50);
             top+=lineHeight;
         }
     }

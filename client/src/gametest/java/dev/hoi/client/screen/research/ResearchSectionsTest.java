@@ -107,7 +107,7 @@ public final class ResearchSectionsTest {
                 var layoutField=ResearchScreen.class.getDeclaredField("layout");layoutField.setAccessible(true);
                 var layout=(ResearchLayout)layoutField.get(screen);var node=layout.nodes().stream().filter(n->n.tech().id().equals(tech.id())).findFirst().orElseThrow();
                 var sx=ResearchScreen.class.getDeclaredField("scrollX");sx.setAccessible(true);var sy=ResearchScreen.class.getDeclaredField("scrollY");sy.setAccessible(true);var top=ResearchScreen.class.getDeclaredField("treeTop");top.setAccessible(true);
-                return new int[]{(int)(node.x()+node.width()-Math.round(10*node.scale())-sx.getDouble(screen)),(int)(top.getInt(screen)+node.y()+node.height()-Math.round(10*node.scale())-sy.getDouble(screen)),Math.max(1,(int)Math.round(10*node.scale()))};
+                return new int[]{(int)(node.x()-sx.getDouble(screen)),(int)(top.getInt(screen)+node.y()+node.height()-Math.round(10*node.scale())-sy.getDouble(screen)),Math.max(1,(int)Math.round(10*node.scale()))};
             }catch(ReflectiveOperationException e){throw new AssertionError(e);}
         });
         game.getInput().setCursorPos(width-10,10);game.waitTicks(3);

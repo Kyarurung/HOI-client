@@ -7,6 +7,7 @@
     "input.InputConstructionClick",
     "input.InputKeyboardShortcut",
     "gui.GuiMenuTooltip",
+    "gui.GuiTooltipLayer",
     "gui.GuiTooltip",
     "gui.GuiFontBaseline",
     "gui.GuiMenuBackground",

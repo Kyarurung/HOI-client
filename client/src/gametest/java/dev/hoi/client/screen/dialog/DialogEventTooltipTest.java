@@ -110,7 +110,16 @@ public final class DialogEventTooltipTest {
         context.takeScreenshot(prefix + "-before-gui2");
         context.runOnClient(c -> {
             var stack = (DialogStack)c.gui.screen();
-            var minimize = stack.find(view.token()).children().stream().filter(Button.class::isInstance).map(Button.class::cast).filter(b -> b.getMessage().getString().equals("최소화")).findFirst().orElseThrow();
+            var window = stack.find(view.token());
+            var minimize = window.children().stream().filter(Button.class::isInstance).map(Button.class::cast).filter(b -> b.getMessage().getString().equals("최소화")).findFirst().orElseThrow();
+            var point = mouse(minimize, InputConstants.MOUSE_BUTTON_LEFT);
+            if (stack.inputAt(point.x(), point.y()) != window) {
+                if (stack.inputAt(point.x(), point.y()) != stack.backdrop()) throw new AssertionError("Unexpected layer above the event minimize control");
+                var panel = (DecisionScreen)stack.backdrop();
+                var eventRow = panel.children().stream().filter(Button.class::isInstance).map(Button.class::cast).filter(button -> button.getMessage().getString().equals(view.title())).findFirst().orElseThrow();
+                stack.mouseClicked(mouse(eventRow, InputConstants.MOUSE_BUTTON_LEFT), false); stack.mouseReleased(mouse(eventRow, InputConstants.MOUSE_BUTTON_LEFT));
+                if (stack.inputAt(point.x(), point.y()) != window || !sent.isEmpty()) throw new AssertionError("The event row must expose its minimize control without a request");
+            }
             stack.mouseClicked(mouse(minimize, InputConstants.MOUSE_BUTTON_RIGHT), false);
             stack.mouseDragged(mouse(minimize, InputConstants.MOUSE_BUTTON_LEFT), 10, 10);
             if (!stack.hasVisibleWindows()) throw new AssertionError("Right click or dragging minimized an event");

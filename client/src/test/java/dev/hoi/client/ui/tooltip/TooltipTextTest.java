@@ -29,7 +29,7 @@ class TooltipTextTest {
     }
     @Test void sourceSeparatorsBecomeBlankLinesWithoutChangingHyphenatedValues() {
         assertEquals("숲\n\n공격: -12.5%",TooltipText.spacing("숲\n§f----§r\n공격: -12.5%"));
-        for(String separator:java.util.List.of("§Y---§!", " ---- ", "§#123456--------------", "ㅡㅡㅡ", "ᅳᅳᅳ", "───", "━━━", "═══", "————", "– – –", "−−−", "___", "=========", "~~~", "～～～", "§f- - -§r", "§Y — ─ - §!", "§#123456————", "—\u00a0─\u2003-")) {
+        for(String separator:java.util.List.of("§Y---§!", " ---- ", "ㅡㅡㅡ", "ᅳᅳᅳ", "───", "━━━", "═══", "————", "– – –", "−−−", "___", "=========", "~~~", "～～～", "§f- - -§r", "§Y — ─ - §!", "§#123456————", "—\u00a0─\u2003-")) {
             assertTrue(TooltipText.blank(separator));
             assertEquals("숲\n\n공격: -12.5%",TooltipText.spacing("\n"+separator+"\n숲\n"+separator+"\n\n"+separator+"\n공격: -12.5%\n"+separator));
         }
@@ -40,6 +40,15 @@ class TooltipTextTest {
         assertFalse(TooltipText.blank("-"));
         assertFalse(TooltipText.blank("--"));
         assertFalse(TooltipText.blank("— 미확인"));
+    }
+    @Test void sourceSeparationLineKeepsAllFourteenDashesWithoutAddingBlankLines() {
+        for(String separator:java.util.List.of("--------------","§r--------------","§#123456--------------")) {
+            assertFalse(TooltipText.blank(separator));
+            assertEquals("효과\n"+separator+"\n클릭",TooltipText.sourceSpacing("효과\n"+separator+"\n클릭"));
+            assertEquals("효과\n"+separator+"\n클릭",TooltipText.spacing("효과\n"+separator+"\n클릭"));
+        }
+        assertTrue(TooltipText.blank("-------------"));
+        assertTrue(TooltipText.blank("---------------"));
     }
     @Test void populationPreservesZeroGrowthAndParagraphs() {
         String text="§e민간인 인구§f: §e3.00M§f/§e3.00M§f\n\n§e일간 성장§f: 0.00% (모병 가능: 0, 민간인: 0)\n\n기본: §e0.00%§f";

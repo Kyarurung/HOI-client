@@ -42,6 +42,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     private boolean panning, overview = true, teamDragging, teamPicker, teamCostSort, teamDescending, teamSorted;
     private int teamScroll, teamX, teamY, teamWidth, teamHeight, waitingTeamSlot = -1;
     private String waitingTeam = "", waitingTechnology = "", hoveredTeam = "";
+    private boolean selectNextSlot;
     private final List<net.minecraft.client.gui.components.AbstractWidget> teamBackdrop = new ArrayList<>(), teamDetails = new ArrayList<>();
     private final Map<Button, String> teamRows = new LinkedHashMap<>();
     private final java.util.function.Consumer<ResearchPayloads.Request> requests;
@@ -59,15 +60,23 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (!next.session().equals(view.session())) return;
         if (!next.country().equals(view.country())) { minecraft.gui.setScreen(null); return; }
         if (next.revision() <= view.revision()) return;
+        int previousPending=pending;
         view = next; pending = 0;
         if (waitingTeamSlot >= 0) {
-            int slot = waitingTeamSlot; String team = waitingTeam, technology = waitingTechnology;
-            waitingTeamSlot = -1; waitingTeam = ""; waitingTechnology = "";
-            if (slot < view.slots().size() && view.slots().get(slot).technology().equals(technology)
-                    && view.designTeams().stream().anyMatch(t -> t.id().equals(team) && t.technologies().contains(technology))) {
-                pending = 100;
-                requests.accept(new ResearchPayloads.Request(ResearchPayloads.Action.DESIGN_TEAM, view.session(), view.revision(), slot, team));
-            }
+            String team = waitingTeam, technology = waitingTechnology;
+            int slot = view.slots().stream().filter(s -> s.technology().equals(technology)).mapToInt(ResearchView.Slot::index).findFirst().orElse(-1);
+            if (slot >= 0) {
+                waitingTeamSlot = -1; waitingTeam = ""; waitingTechnology = "";
+                if(!team.isEmpty() && view.designTeams().stream().anyMatch(t -> t.id().equals(team) && t.technologies().contains(technology))) {
+                    pending = 100;
+                    requests.accept(new ResearchPayloads.Request(ResearchPayloads.Action.DESIGN_TEAM, view.session(), view.revision(), slot, team));
+                }
+            } else pending = previousPending;
+        }
+        if (selectNextSlot && (waitingTeamSlot < 0 || view.slots().stream().anyMatch(slot -> slot.technology().equals(waitingTechnology)))) {
+            selectedSlot = view.availableSlot(selectedSlot);
+            if (selectedSlot < 0) selectedSlot = 0;
+            selectNextSlot = false;
         }
         selectedSlot = Math.min(selectedSlot, view.slots().size() - 1);
         if (detail != null && view.technology(detail) == null) detail = null;
@@ -217,8 +226,6 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         boolean keepTree = !overview && category.equals(ResearchLayout.category(target));
         overview = false; category = ResearchLayout.category(target);
         AudioUiSounds.play("ui.research.select");
-        var chosen=view.technology(id); int free=view.availableSlot(selectedSlot);
-        if(chosen!=null&&chosen.status()==ResearchView.Status.AVAILABLE&&free>=0) selectedSlot=free;
         detail = id; focusedTech = id; detailScroll = 0; descriptionScroll = 0; descriptionDragging = false; detailDragging = false; rebuildWidgets();
         if (!keepTree) layout.nodes().stream().filter(n -> n.tech().id().equals(id)).findFirst().ifPresent(n -> {
             scrollX = n.x() - (width - n.width()) / 2.0;
@@ -280,6 +287,40 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     private List<ResearchView.DesignTeam> eligibleTeams(String technology) {
         return view.designTeams().stream().filter(t -> t.technologies().contains(technology)).toList();
     }
+    ResearchView.DesignTeam preferredTeam(String technology) {
+        ResearchView.DesignTeam best = null;
+        for (var team : eligibleTeams(technology)) {
+            double rate = team.rates().get(team.technologies().indexOf(technology));
+            double bestRate = best == null ? Double.NEGATIVE_INFINITY : best.rates().get(best.technologies().indexOf(technology));
+            if (best == null || rate > bestRate || rate == bestRate && team.size() > best.size()) best = team;
+        }
+        return best;
+    }
+    private boolean technologyClick(Tech tech, boolean shift, boolean alt) {
+        if (!shift && !alt) { showDetail(tech.id()); return true; }
+        if (pending > 0 || tech.status() != ResearchView.Status.AVAILABLE || view.availableSlot(selectedSlot) < 0) return true;
+        var team = preferredTeam(tech.id());
+        int slot = selectedSlot;
+        waitingTeamSlot = slot; waitingTeam = team == null ? "" : team.id(); waitingTechnology = tech.id();
+        selectNextSlot = shift && alt;
+        detail = null; teamPicker = false; overview = !alt; pending = 100;
+        requests.accept(new ResearchPayloads.Request(ResearchPayloads.Action.START, view.session(), view.revision(), slot, tech.id()));
+        AudioUiSounds.play("ui.click"); rebuildWidgets(); return true;
+    }
+    private List<Component> interactionTooltip(Tech tech) {
+        var team = preferredTeam(tech.id());
+        var lines = new ArrayList<Component>();
+        lines.add(Tooltips.officerText(UiCommandLabels.text("CLICK_DETAILS_CLICK", "§G클릭§!하여 세부 사항 보기")));
+        String[] keys = {"SHIFT", "ALT", "SHIFT_ALT"};
+        String[] plain = {"§GShift+클릭§!하여 연구", "§GAlt+클릭§!하여 연구하고 이 창을 열린 상태로 유지", "§GShift+Alt+클릭§!하여 연구하고 다음 빈 슬롯 선택"};
+        String[] mio = {"§GShift+클릭§!하여 $ORG|H$(을)를 이용해 연구(규모 $SIZE|H$)", "§GAlt+클릭§!하여 $ORG|H$(을)를 이용해 연구하고 현재 창 유지", "§GShift+Alt+클릭§!하여 $ORG|H$(을)를 이용해 연구하고 다음 빈 연구 슬롯 선택"};
+        for (int i = 0; i < keys.length; i++) {
+            String text = UiCommandLabels.text("CLICK_DETAILS_" + keys[i] + "_RESEARCH" + (team == null ? "" : "_WITH_MIO"), team == null ? plain[i] : mio[i]);
+            if (team != null) text = text.replace("$ORG|H$", "§H" + team.name() + "§!").replace("$SIZE|H$", "§H" + team.size() + "§!");
+            lines.add(Tooltips.officerText(text));
+        }
+        return lines;
+    }
     String availableTeamsTooltip(String technology) {
         var rows = eligibleTeams(technology);
         if (rows.isEmpty()) return "";
@@ -324,8 +365,8 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     private void selectTeam(String team) {
         if (pending > 0 || detail == null || !team.isEmpty() && eligibleTeams().stream().noneMatch(t -> t.id().equals(team))) return;
         var active = view.slots().stream().filter(slot -> slot.technology().equals(detail)).findFirst();
-        int slot = active.map(ResearchView.Slot::index).orElse(view.availableSlot(selectedSlot));
-        if (slot < 0) return;
+        int slot = active.map(ResearchView.Slot::index).orElse(selectedSlot);
+        if (active.isEmpty() && view.availableSlot(selectedSlot) < 0) return;
         teamPicker = false; pending = 100;
         if (active.isEmpty()) {
             if (!team.isEmpty()) { waitingTeamSlot = slot; waitingTeam = team; waitingTechnology = detail; }
@@ -373,7 +414,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         UiAssets.draw(g, "mio/ui/gfx_land_battle_leader_skill_bg/frame_0", teamX + 10, teamY + 28, 17, 18);
         teamScrollbar().draw(g,teamScroll);
     }
-    @Override public void tick() { if (pending > 0 && --pending == 0) { waitingTeamSlot = -1; waitingTeam = ""; waitingTechnology = ""; rebuildWidgets(); } }
+    @Override public void tick() { if (pending > 0 && --pending == 0) { waitingTeamSlot = -1; waitingTeam = ""; waitingTechnology = ""; selectNextSlot = false; rebuildWidgets(); } }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         g.nextStratum();
         if (overview) { drawOverview(g); HudMenuBar.draw(g, width, view.hud(), mouseX, mouseY, hudScroll); super.extractRenderState(g, mouseX, mouseY, delta); overviewTooltip(g,mouseX,mouseY); return; }
@@ -485,8 +526,8 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             }
             if (!eligibleTeams(tech.id()).isEmpty()) {
                 int iconWidth = Math.max(1, (int)Math.round(10 * n.scale())), iconHeight = iconWidth;
-                UiAssets.draw(g, "mio/ui/gfx_design_team_icon/frame_0", x + cardW - iconWidth, y + cardH - iconHeight, iconWidth, iconHeight);
-                if (hover && mx >= x + cardW - iconWidth && my >= y + cardH - iconHeight) hoveredTeams = availableTeamsTooltip(tech.id());
+                UiAssets.draw(g, "mio/ui/gfx_design_team_icon/frame_0", x, y + cardH - iconHeight, iconWidth, iconHeight);
+                if (hover && mx < x + iconWidth && my >= y + cardH - iconHeight) hoveredTeams = availableTeamsTooltip(tech.id());
             }
         }
         for (var label : referenceLabels) {
@@ -502,7 +543,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             var t = hovered.tech();
             var child=subTechnologyAt(mx,my);
             if(child!=null)t=child;
-            var lines = tooltipLines(t).stream().map(dev.hoi.client.ui.tooltip.Tooltips::format).filter(line -> !line.getString().isBlank()).flatMap(line -> dev.hoi.client.ui.tooltip.Tooltips.split(font,dev.hoi.client.ui.tooltip.Tooltips.sentences(ResearchText.decorateEffect(line)), Tooltips.width(width, 14)).stream()).toList();
+            var lines = tooltipLines(t).stream().map(dev.hoi.client.ui.tooltip.Tooltips::format).flatMap(line -> line.getString().isBlank()?java.util.stream.Stream.of(net.minecraft.util.FormattedCharSequence.EMPTY):dev.hoi.client.ui.tooltip.Tooltips.split(font,dev.hoi.client.ui.tooltip.Tooltips.sentences(ResearchText.decorateEffect(line)), Tooltips.width(width, 14)).stream()).toList();
             g.setTooltipForNextFrame(font, dev.hoi.client.ui.tooltip.Tooltips.collapseBlankLines(lines), mx, my);
         }
     }
@@ -827,6 +868,8 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             lines.add(Component.literal("원본 추가 효과 · 적용 대기").withStyle(net.minecraft.ChatFormatting.GRAY));
             tech.source().deferredEffects().stream().map(ResearchText::effect).forEach(lines::add);
         }
+        lines.add(Component.literal(UiCommandLabels.text("SEPARATION_LINE","--------------\n").stripTrailing()));
+        lines.addAll(interactionTooltip(tech));
         return lines;
     }
     private boolean completed(String id) { var tech = view.technology(id); return tech != null && tech.status() == ResearchView.Status.COMPLETED; }
@@ -855,9 +898,11 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT || event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_MIDDLE) { panning = detail == null; return true; }
             if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
                 var child=subTechnologyAt(event.x(),event.y());
-                if(child!=null){showDetail(child.id());return true;}
+                boolean shift = event.hasShiftDown();
+                boolean alt = event.hasAltDown();
+                if(child!=null)return technologyClick(child,shift,alt);
                 var node = layout.at(event.x() + scrollX, event.y() - treeTop + scrollY);
-                if (node != null) { showDetail(node.tech().id()); return true; }
+                if (node != null) return technologyClick(node.tech(),shift,alt);
             }
         }
         if (detail != null && (event.x() < panelX || event.x() > panelX + panelW || event.y() < panelY || event.y() > panelY + panelH)) return true;

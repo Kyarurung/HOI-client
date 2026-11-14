@@ -511,6 +511,7 @@ public final class FocusScreenTest {
         screen.extractRenderState(graphics, mouseX, mouseY, 0);
         check(scissorDepth[0] == 0, "Extracting the focus screen must balance all detail scissors");
         graphics.extractDeferredElements(mouseX, mouseY, 0);
+        dev.hoi.client.ui.tooltip.TooltipLayer.flush();
         String text = String.join("\n", lines);
         check(text.contains("1일 · 24시간") && text.contains("경과: " + elapsed + "시간"), "The rendered tooltip must preserve the exact duration and elapsed hours for progress " + elapsed);
         check(tooltipBounds.size() == 1, "Hovering the progress strip must render exactly one deferred tooltip");

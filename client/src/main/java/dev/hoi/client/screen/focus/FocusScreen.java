@@ -25,6 +25,8 @@ public final class FocusScreen extends Screen {
     private final FocusDetail detailPanel=new FocusDetail();
     private FocusPayloads.View view;
     private FocusPayloads.Detail detail;
+    private final Map<String,FocusPayloads.Detail> hoverDetails=new HashMap<>();
+    private String hoverTarget="",hoverQuery="";
     private EditBox search;
     private Button detailClose,detailStart;
     private String query="",selected="",completionTarget="";
@@ -67,6 +69,8 @@ public final class FocusScreen extends Screen {
         if(acknowledged || recovered || pending!=null && !extended && (newSession || next.revision()>pending.revision())){pending=null;recoveryRequest=null;}
         if(newSession){queryRequest=null;recoveryRequest=null;}
         extended|=next.ack()!=null || next.detail()!=null;
+        if(view==null || newSession || next.revision()!=view.revision()){hoverDetails.clear();hoverQuery="";}
+        if(next.detail()!=null){hoverDetails.put(next.detail().id(),next.detail());hoverQuery="";}
         view=next;
         if(!completionTarget.isEmpty()){
             selected=completionTarget;completionTarget="";detailDirty=true;
@@ -90,7 +94,7 @@ public final class FocusScreen extends Screen {
         else {queryRequest=packet;detailDirty=false;if(pending!=null && pendingTicks>=120)recoveryRequest=packet;}
         ticks=0;sender.accept(packet);
     }
-    @Override public void tick(){ticks++;if(pending!=null)pendingTicks++;queryDetail();if((!fixture || pending!=null) && ticks>=120)request(view==null?FocusPayloads.Action.OPEN:FocusPayloads.Action.REFRESH,completionTarget.isEmpty()?selected:completionTarget);}
+    @Override public void tick(){ticks++;if(pending!=null)pendingTicks++;queryDetail();if(view!=null && pending==null && !detailDirty && !hoverTarget.isEmpty() && !hoverDetails.containsKey(hoverTarget) && ticks>=20 && (!hoverQuery.equals(hoverTarget)||ticks>=120)){hoverQuery=hoverTarget;request(FocusPayloads.Action.REFRESH,hoverTarget);}if((!fixture || pending!=null) && ticks>=120)request(view==null?FocusPayloads.Action.OPEN:FocusPayloads.Action.REFRESH,completionTarget.isEmpty()?selected:completionTarget);}
     @Override protected void rebuildWidgets() {
         var focused=getFocused();
         super.rebuildWidgets();
@@ -178,9 +182,28 @@ public final class FocusScreen extends Screen {
             detailPanel.draw(g,font,selectedNode(),detail,extended && detail==null,mx,my);
             detailClose.extractRenderState(g,mx,my,delta);detailStart.extractRenderState(g,mx,my,delta);
         }
-        if(!widgetAt(mx,my) && (selected.isEmpty() || !detailPanel.bounds().contains(mx,my))) {var node=at(mx,my);if(node!=null)g.setTooltipForNextFrame(font,Tooltips.tooltipLines(font,node.name()+"\n"+node.description()+"\n"+node.status()+(node.remaining()>0?" · "+FocusDetail.days(node.remaining())+"일 남음":""),width),mx,my);}
+        hoverTarget="";
+        if(!widgetAt(mx,my) && (selected.isEmpty() || !detailPanel.bounds().contains(mx,my))) {var node=at(mx,my);if(node!=null){hoverTarget=node.id();g.setTooltipForNextFrame(font,Tooltips.tooltipLines(font,hoverTooltip(node),width),mx,my);}}
         if(view!=null && !view.message().isEmpty() && !Set.of("중점 시작","중점 취소").contains(view.message()))g.text(font,font.plainSubstrByWidth(view.message(),width-115),105,height-19,UiMenuStyle.TEXT);
         HudMenuBar.drawTooltip(g,width,view==null?CountryHud.UNKNOWN:view.hud(),my<HudMenuBar.height(width)?mx:-1,my,0);
+    }
+    String hoverTooltip(FocusPayloads.Node node) {
+        var result=new StringBuilder("§Y").append(node.name()).append("§!");
+        var source=hoverDetails.get(node.id());
+        if(source!=null) {
+            String status=node.status().equals("완료")||source.complete()?UiCommandLabels.text("FOCUS_STATUS_COMPLETED_TOOLTIP","§G완료됨§!"):node.remaining()>0?UiCommandLabels.text("FOCUS_STATUS_INPROGRESS_TOOLTIP","완료 시간: $DAYS|0H$일. ($LEFT|0H$일 남음)"):UiCommandLabels.text("FOCUS_STATUS_TOOLTIP","완료 시간: $DAYS|0H$일");
+            result.append("\n\n").append(status.replace("$DAYS|0H$","§H"+FocusDetail.days(source.durationHours())+"§!").replace("$LEFT|0H$","§H"+FocusDetail.days(node.remaining())+"§!"));
+            if(!source.requirements().isEmpty())result.append('\n');
+            for(var row:source.requirements())result.append('\n').append(" ".repeat(row.depth()*2)).append(row.text());
+            if(!source.rewards().isEmpty()) {
+                result.append("\n\n").append(UiCommandLabels.text("FOCUS_REWARD_TOOLTIP","§H효과§!:"));
+                for(var row:source.rewards())result.append('\n').append(" ".repeat(row.depth()*2)).append(row.text());
+            }
+        }
+        result.append("\n§!").append(UiCommandLabels.text("SEPARATION_LINE","--------------\n").stripTrailing());
+        result.append('\n').append(UiCommandLabels.text("CLICK_DETAILS_CLICK","§G클릭§!하여 세부 사항 보기"));
+        result.append('\n').append(UiCommandLabels.text("CLICK_DETAILS_CTRL","§GCtrl+클릭§!하여 다른 창을 열어 놓은 채로 세부 사항 보기"));
+        return result.toString();
     }
     private void link(GuiGraphicsExtractor g,FocusPayloads.Node parent,FocusPayloads.Node child) {
         int px=(int)x(parent),py=(int)(y(parent)+NODE_H*zoom-2*zoom),cx=(int)x(child),cy=(int)y(child),middle=(py+cy)/2;

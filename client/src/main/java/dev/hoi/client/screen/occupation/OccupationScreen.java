@@ -29,7 +29,6 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
     private String target;
     private Row returnTarget;
     private int returnScroll;
-    private long returnRevision;
     private List<net.minecraft.util.FormattedCharSequence> returnLines=List.of();
     public OccupationScreen(){this(UUID.randomUUID().toString(),null,r->{if(ClientPlayNetworking.canSend(Request.TYPE))ClientPlayNetworking.send(r);});}
     OccupationScreen(String token,View view,Consumer<Request> transport){super(Component.literal("점령지"));this.token=token;this.view=view;this.transport=transport;}
@@ -37,7 +36,8 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
     public void update(View next){
         if(!token.equals(next.token())||view!=null&&next.revision()<=view.revision())return;
         if(next.country().isEmpty()||view!=null&&!view.country().equals(next.country())){minecraft.gui.setScreen(null);return;}
-        view=next;pending=0;returnTarget=null;rebuildWidgets();
+        if(returnTarget!=null && next.rows().stream().noneMatch(row->row.state().equals(returnTarget.state()) && row.country().equals(returnTarget.country()) && Objects.equals(row.administration(),returnTarget.administration())))returnTarget=null;
+        view=next;pending=0;rebuildWidgets();
     }
     private int s(int value){return Math.round(value*pane/550f);}
     private float textScale(){return Math.max(1f,pane/550f*2);}
@@ -116,7 +116,7 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
         if(pending>0)return;
         returnTarget=view.rows().stream().filter(r->r.country().equals(country)&&r.administration()!=null&&r.administration().returnTerritory()&&r.administration().enabled()).findFirst().orElse(null);
         if(returnTarget==null)return;
-        returnRevision=view.revision();returnScroll=0;target=null;rebuildWidgets();
+        returnScroll=0;target=null;rebuildWidgets();
     }
     private void buildReturn(){
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.AbstractWidget widget)widget.active=false;
@@ -126,7 +126,7 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
         addRenderableWidget(new UiMenuButton("OK",x+128,y+124,70,13,this::confirmReturn).background("commander/commands/button_148x34/frame_0"));
     }
     private void confirmReturn(){
-        if(returnTarget==null||pending>0||view.revision()!=returnRevision)return;
+        if(returnTarget==null||pending>0)return;
         var selected=returnTarget;returnTarget=null;send(Action.RETURN,selected.state(),selected.country());
     }
     private void drawReturn(GuiGraphicsExtractor g){
