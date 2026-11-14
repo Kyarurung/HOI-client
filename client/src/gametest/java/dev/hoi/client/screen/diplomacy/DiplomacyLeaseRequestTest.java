@@ -40,7 +40,7 @@ public final class DiplomacyLeaseRequestTest {
             });
             context.takeScreenshot("hoi-lease-request-synthetic-" + width + "-gui2");
             requests.clear();
-            var offerChoice = new EquipmentChoice("fixture", "응답 검증 장비", "", Category.INFANTRY, "12", "0", "", true, "", List.of(new ModeChoice(Mode.MONTHLY, "매월", true, "", 1, "개/매월"), new ModeChoice(Mode.PERCENT, "%", false, "미지원", 100, "%"), new ModeChoice(Mode.ONCE, "일회성", true, "", 1, "개")));
+            var offerChoice = new EquipmentChoice("fixture", "응답 검증 장비", "", Category.INFANTRY, "12", "0", "", true, "", List.of(new ModeChoice(Mode.MONTHLY, "매월", true, "", 1, "개/매월"), new ModeChoice(Mode.PERCENT, "%", false, "미지원", 100, "%"), new ModeChoice(Mode.ONCE, "일회성", true, "", 1, "개")), "검증 장비 종류", "KOR", true);
             var answer = fixture(List.of(offerChoice), List.of(), true);
             context.setScreen(() -> new DiplomacyLease(null, answer, DiplomacyLease.Presentation.ANSWER, requests::add));
             context.runOnClient(client -> {

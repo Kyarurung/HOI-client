@@ -610,7 +610,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             g.pose().pushMatrix();
             g.pose().translate(selectionLeft(), 0);
             UiMenuStyle.panel(g, 0, top, pane, selectionHeight());
-            UiMenuStyle.heading(g, font, trim(CountryDisplays.name(view.country(), view.countryName()), pane - 44), 10, top + 9, pane - 44, TEXT);
+            UiMenuStyle.heading(g, font, CountryDisplays.name(view.country(), view.countryName()), view.date(), 10, top + 9, pane - 44, TEXT);
             drawPoliticsBanner(g);
             g.pose().popMatrix();
             super.extractRenderState(g, mx, my, delta);
@@ -621,7 +621,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         UiMenuStyle.panel(g, 0, top, pane, height - top);
         String heading=trim(selected == MenuTab.POLITICS ? "정치" : selected.label(),pane-44);int headingX=10;
 
-        UiMenuStyle.heading(g, font, heading, headingX, top + 9, pane - 44, TEXT);
+        UiMenuStyle.heading(g, font, heading, view.date(), headingX, top + 9, pane - 44, TEXT);
         if (selected == MenuTab.POLITICS) drawPoliticsBanner(g);
         if (selected == MenuTab.INTELLIGENCE) {
             UiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);

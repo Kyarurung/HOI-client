@@ -3,13 +3,13 @@ ext.hoiRendererFixtureGroups = [
         environment: 'HOI_DESIGN_TEAM_PREVIEW', property: 'hoi.commandFixtureOutput',
         producers: ['dev.hoi.fabric.industry.IndustryDesignVariantTeamsTest', 'dev.hoi.fabric.agency.AgencyOperativeCandidatesTest', 'dev.hoi.fabric.research.ResearchSlotDesignTeamFixtureTest'],
         fixtures: ['kor-designer-mio-unassigned', 'kor-designer-mio-assigned', 'kor-designer-mio-outdated', 'prc-agency-recruit-candidates', 'prc-research-slot-design-team', 'research-year-4-51', 'research-year-4-00'],
-        suites: ['all', 'design-team-candidates']
+        suites: ['all', 'design-team-candidates', 'authoritative-fields']
     ],
     leaderEvent: [
         environment: 'HOI_LEADER_EVENT_PREVIEW', property: 'hoiLeaderEventPreview',
         producers: ['dev.hoi.fabric.dialog.DialogPresentationViewsTest'],
         fixtures: ['china-705', 'china-182', 'event-korea-21', 'event-korea-504', 'event-china-98', 'event-korea-356', 'news-turkey-2'],
-        suites: ['all', 'leader-event', 'event-tooltips']
+        suites: ['all', 'leader-event', 'event-tooltips', 'authoritative-fields']
     ],
     politicsChoice: [
         environment: 'HOI_POLITICS_CHOICE_PREVIEW', property: 'hoiPoliticsChoicePreview',
@@ -47,11 +47,17 @@ ext.hoiRendererFixtureGroups = [
         fixtures: ['empty', 'once', 'monthly', 'multiple', 'fixture-source'],
         suites: ['all', 'diplomacy']
     ],
+    diplomacyLeaseRequest: [
+        environment: 'HOI_LEASE_REQUEST_FIELDS', property: 'hoi.commandFixtureOutput',
+        producers: ['dev.hoi.fabric.diplomacy.DiplomacyLendLeaseFixturesTest'],
+        fixtures: ['jap-lease-answer-empty', 'jap-lease-answer-selected'],
+        suites: ['all', 'diplomacy', 'authoritative-fields']
+    ],
     diplomacyVolunteers: [
         environment: 'HOI_VOLUNTEER_PREVIEW', property: 'hoiVolunteerPreview',
         producers: ['dev.hoi.fabric.diplomacy.DiplomacyVolunteerSessionsTest'],
         fixtures: ['unselected', 'selected', 'multiple-selected', 'air-disabled'],
-        suites: ['all', 'diplomacy']
+        suites: ['all', 'diplomacy', 'authoritative-fields']
     ],
     captivity: [
         environment: 'HOI_CAPTIVITY_PREVIEW', property: 'hoiCaptivityPreview',
@@ -130,6 +136,12 @@ ext.hoiRendererFixtureGroups = [
             'army-ability-tactic_gas_bombardment-source-kor-dialog', 'army-ability-ALL-source-kor-dialog'
         ],
         suites: ['missions', 'movement-controls', 'direct-movement', 'army-layout', 'navy-layout']
+    ],
+    hudTooltipFields: [
+        environment: 'HOI_HUD_TOOLTIP_FIELDS', property: 'hoi.commandFixtureOutput',
+        producers: ['dev.hoi.fabric.commander.CommanderHudDetailsTest'],
+        fixtures: ['kor-command-panel-army-probing-active', 'kor-command-panel-navy'],
+        suites: ['all', 'authoritative-fields']
     ],
     mapOrders: [
         environment: 'HOI_COMMANDER_PREVIEW', property: 'hoi.commandFixtureOutput',

@@ -528,7 +528,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
             int rowLeft = x(17), rowTop = y(row);
             UiAssets.draw(g, "diplomacy/lease/answer_row", rowLeft, rowTop, s(524), s(71));
             equipmentIcon(g, choice, rowLeft, rowTop, 45);
-            sourceText(g, choice.name(), rowLeft + s(2), rowTop + s(4), s(160), s(32), 0, false);
+            sourceText(g, choice.name(), rowLeft + s(90) - s(160) / 2, rowTop + s(4), s(160), s(32), 0, false);
             UiAssets.draw(g, "diplomacy/lease/value60", rowLeft + s(215), rowTop + s(36), s(60), s(27));
             var option = mode(choice, displayedLine(choice.key()).mode());
             if (option != null) sourceText(g, option.unitLabel(), rowLeft + s(305), rowTop + s(34), s(100), s(32), -1, true);
@@ -595,6 +595,12 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         g.pose().translate(-size[0] / 2f, -size[1] / 2f);
         UiAssets.draw(g, choice.icon(), 0, 0, size[0], size[1]);
         g.pose().popMatrix();
+        if (!choice.producer().isEmpty()) UiAssets.draw(g, "country/" + choice.producer().toLowerCase(java.util.Locale.ROOT) + "/flag", left + s(148), top + s(45), s(27), s(17));
+        if (Boolean.TRUE.equals(choice.carrier())) {
+            String badge = "commander/commands/airwing_carrier_icon/frame_0";
+            int[] badgeSize = UiAssets.imageSize(badge);
+            UiAssets.draw(g, badge, left + s(146), top + s(47), s(badgeSize[0]), s(badgeSize[1]));
+        }
     }
     private void sourceText(GuiGraphicsExtractor g, String content, int left, int top, int width, int height, int alignment, boolean middle) {
         var lines = Tooltips.split(font, Tooltips.officerText(content.replace("§T", "§W")), Math.max(1, (int)(width / UiText.scale(font))));
@@ -613,7 +619,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         int rowLeft = x(17), rowTop = y(row);
         UiAssets.draw(g, requesting() ? "diplomacy/lease/request_row" : "diplomacy/lease/selected_row", rowLeft, rowTop, s(486), s(71));
         equipmentIcon(g, choice, rowLeft, rowTop, 48);
-        sourceText(g, choice.name(), rowLeft + s(8), rowTop + s(4), s(160), s(32), 0, false);
+        sourceText(g, choice.name(), rowLeft + s(90) - s(160) / 2, rowTop + s(4), s(160), s(32), 0, false);
         if (requesting()) return;
         UiAssets.draw(g, "diplomacy/lease/value60", rowLeft + s(215), rowTop + s(36), s(60), s(27));
         var mode = mode(choice, line.mode());
@@ -635,7 +641,7 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
             int rowLeft = catalogLeft + s(12), rowTop = y(row);
             UiAssets.draw(g, "diplomacy/lease/catalog_row/frame_0", rowLeft, rowTop, s(336), s(71));
             equipmentIcon(g, choice, rowLeft, rowTop, 48);
-            sourceText(g, choice.name(), rowLeft + s(8), rowTop + s(4), s(165), s(32), 0, false);
+            sourceText(g, choice.name(), rowLeft + s(90) - s(160) / 2, rowTop + s(4), s(160), s(32), 0, false);
             UiAssets.draw(g, "diplomacy/lease/value60", rowLeft + s(177), rowTop + s(30), s(60), s(27));
             UiAssets.draw(g, "diplomacy/lease/value88", rowLeft + s(240), rowTop + s(30), s(88), s(27));
             UiAssets.draw(g, "diplomacy/lease/stock", rowLeft + s(194), rowTop + s(7), s(24), s(23));

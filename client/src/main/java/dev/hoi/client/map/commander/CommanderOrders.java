@@ -109,6 +109,12 @@ public final class CommanderOrders {
         if(changed){NavalInvasionOrders.cancel();resume=null;heldMap=null;queuedMove=null;}
         if(changed&&(!context.pending().isEmpty()||waitingRevision>=0)){if(waitingRevision>=0)cancelQueued=true;else send("CANCEL",List.of(),List.of());}
     }
+    static boolean currentHud(dev.hoi.protocol.commander.CommanderHudPayloads.View view){
+        return ready()&&view.orderToken()!=null&&view.orderToken().equals(context.token())&&view.orderRevision()==context.revision();
+    }
+    static boolean sendFromHud(dev.hoi.protocol.commander.CommanderHudPayloads.View view,String action,List<String> selection){
+        return currentHud(view)&&send(action,selection,List.of());
+    }
     public static boolean send(String action,List<String> selection,List<Ray> rays){
         if(!valid()){message("현재 지도의 명령 정보를 기다리고 있습니다.");return false;}
         if(waitingRevision>=0)return false;

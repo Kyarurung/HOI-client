@@ -113,7 +113,7 @@ final class DecisionPanel {
                         case "right" -> available-font.width(line);
                         default -> 0;
                     };
-                    graphics.text(font,line,(int)Math.round(textLeft),(int)Math.round(row*draw.lineHeight()/draw.fontScale()),UiMenuStyle.TEXT);
+                    text.draw(graphics,font,line,(int)Math.round(textLeft),(int)Math.round(row*draw.lineHeight()/draw.fontScale()),UiMenuStyle.TEXT,true);
                 }
             } else if(progress.containsKey(element.sprite())) {
                 var bar=progress.get(element.sprite());

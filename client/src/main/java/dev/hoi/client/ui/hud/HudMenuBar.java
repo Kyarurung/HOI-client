@@ -53,6 +53,8 @@ public final class HudMenuBar {
         }
     }
     public static CountryHud snapshot(CountryHud supplied) {
+        var current = dev.hoi.client.ClientCampaignHud.hud();
+        if (dev.hoi.client.ClientCampaignHud.visible() && !current.equals(CountryHud.UNKNOWN)) return current;
         return supplied == null || supplied.equals(CountryHud.UNKNOWN) ? dev.hoi.client.ClientCampaignHud.hud() : supplied;
     }
     public static List<HudIndicator> indicators(CountryHud hud) {

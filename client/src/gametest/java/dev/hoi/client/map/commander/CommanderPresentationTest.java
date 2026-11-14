@@ -16,6 +16,7 @@ public final class CommanderPresentationTest {
     private CommanderPresentationTest() {}
     private static boolean before(){return "1".equals(System.getenv("HOI_CAPTURE_BEFORE"));}
     private static MouseButtonEvent mouse(double x,double y){return new MouseButtonEvent(x,y,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));}
+    private static View view(Card card){var context=CommanderOrders.currentContext();return new View(context.country(),context.dimension(),Mode.ARMY,List.of(card),List.of(),null,null,null,context.token(),context.revision());}
     public static void run(ClientGameTestContext game,MenuView menu) {
         int previous=game.computeOnClient(c->c.options.guiScale().get());
         var gson=new com.google.gson.Gson();
@@ -28,7 +29,7 @@ public final class CommanderPresentationTest {
             for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
                 game.getInput().resizeWindow(size[0],size[1]);
                 var commands=new ArrayList<CommanderOrderPayloads.Command>();var requests=new ArrayList<Open>();
-                game.runOnClient(c->{c.options.guiScale().set(2);ClientCampaignHud.accept(HudPayloads.State.of("KOR",menu.hud()));CommanderHud.reset();CommanderUnitHud.reset();CommanderHud.accept(new View("KOR",c.level.dimension().identifier().toString(),Mode.ARMY,List.of(unassigned)));CommanderHud.requestObserver=requests::add;CommanderOrders.commandObserver=commands::add;CommanderOrders.selectionObserver=s->{};CommanderOrders.accept(new CommanderOrderPayloads.Context(UUID.randomUUID().toString(),0,"KOR",c.level.dimension().identifier().toString(),""));});
+                game.runOnClient(c->{c.options.guiScale().set(2);ClientCampaignHud.accept(HudPayloads.State.of("KOR",menu.hud()));CommanderHud.reset();CommanderUnitHud.reset();CommanderHud.requestObserver=requests::add;CommanderOrders.commandObserver=commands::add;CommanderOrders.selectionObserver=s->{};CommanderOrders.accept(new CommanderOrderPayloads.Context(UUID.randomUUID().toString(),0,"KOR",c.level.dimension().identifier().toString(),""));CommanderHud.accept(view(unassigned));});
                 game.setScreen(MapCursor::new);game.getInput().setCursorPos(size[0]-4,80);game.waitTicks(2);
                 game.runOnClient(c->{
                     var portrait=CommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().target().equals(unassigned.id())&&b.request().mode()==Mode.ASSIGN_ARMY).findFirst().orElseThrow();
@@ -40,9 +41,9 @@ public final class CommanderPresentationTest {
                 game.runOnClient(c->CommanderPanels.select(unassigned.id(),false));game.waitTicks(2);
                 game.runOnClient(c->{if(!before()&&CommanderPanels.hits().stream().anyMatch(h->h.icon().equals("army_leader_details")||h.icon().equals("army_leader_advisor")))throw new AssertionError("An unassigned army panel cannot expose commander controls from a stale panel");});
                 game.takeScreenshot("hoi-presentation-unassigned-panel-synthetic-"+size[0]+"-gui2");
-                game.runOnClient(c->CommanderHud.accept(new View("KOR",c.level.dimension().identifier().toString(),Mode.ARMY,List.of(assigned))));
+                game.runOnClient(c->CommanderHud.accept(view(assigned)));
                 game.waitTicks(2);game.takeScreenshot("hoi-presentation-assigned-border-"+size[0]+"-gui2");
-                game.runOnClient(c->CommanderHud.accept(new View("KOR",c.level.dimension().identifier().toString(),Mode.ARMY,List.of(unassigned))));
+                game.runOnClient(c->CommanderHud.accept(view(unassigned)));
                 game.waitTicks(2);
                 var origin=new double[3];
                 game.runOnClient(c->{var card=CommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().target().equals(unassigned.id())&&b.request().mode()==Mode.ASSIGN_ARMY).findFirst().orElseThrow();origin[0]=card.x();origin[1]=card.width();origin[2]=card.y()+card.height()/2.;var from=mouse(card.x()+card.width()/2.,origin[2]);c.gui.screen().mouseClicked(from,false);c.gui.screen().mouseDragged(mouse(from.x()+1000,from.y()),1000,0);});game.waitTicks(2);
@@ -51,7 +52,7 @@ public final class CommanderPresentationTest {
                 game.runOnClient(c->{c.gui.screen().mouseReleased(mouse(origin[0]+1000,origin[2]));if(!commands.isEmpty()||!requests.isEmpty())throw new AssertionError("Last army dropped on plus must not create or reparent an army");CommanderOrders.message("Campaign overlay probe");});game.waitTicks(2);
                 game.takeScreenshot("hoi-presentation-messages-hidden-synthetic-"+size[0]+"-gui2");
                 var groupJson=gson.toJsonTree(unassigned).getAsJsonObject();groupJson.addProperty("role","ARMY_GROUP");groupJson.addProperty("count",0);var groupPanel=groupJson.getAsJsonObject("panel");groupPanel.addProperty("total",0);groupPanel.add("members",new com.google.gson.JsonArray());groupPanel.add("divisionIds",new com.google.gson.JsonArray());var emptyGroup=gson.fromJson(groupJson,Card.class);
-                game.runOnClient(c->{CommanderHud.accept(new View("KOR",c.level.dimension().identifier().toString(),Mode.ARMY,List.of(emptyGroup)));CommanderPanels.select(emptyGroup.id(),false);});game.waitTicks(2);
+                game.runOnClient(c->{CommanderHud.accept(view(emptyGroup));CommanderPanels.select(emptyGroup.id(),false);});game.waitTicks(2);
                 game.runOnClient(c->{if(!CommanderUnitHud.selectedKeys().isEmpty())throw new AssertionError("Empty group fixture has selected divisions");if(!before()&&CommanderPanels.hits().stream().anyMatch(h->h.icon().equals("army_portrait")))throw new AssertionError("Zero selected divisions must close the upper-left army panel");});
                 game.takeScreenshot("hoi-presentation-zero-divisions-synthetic-"+size[0]+"-gui2");
             }

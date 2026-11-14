@@ -264,6 +264,11 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                     UiAssets.draw(g, "decision/ui/event_type/frame_1", 7 + (int)Math.round(15 * eventScale), y + (int)Math.round(3 * eventScale), (int)Math.round(30 * eventScale), (int)Math.round(26 * eventScale));
                     int textLeft = 7 + (int)Math.round(50 * eventScale);
                     g.text(font, UiText.ellipsize(font, event.title(), pane - textLeft - 80), textLeft, y + (eventHeight - font.lineHeight) / 2, UiMenuStyle.TEXT, false);
+                    if (event.remainingDays() != null) {
+                        String remaining = event.remainingDays() + "일";
+                        int right = 7 + (int)Math.round(500 * eventScale);
+                        g.text(font, remaining, right - font.width(remaining), y + (eventHeight - font.lineHeight) / 2, UiMenuStyle.TEXT, false);
+                    }
                 }
                 if (widgets && visible(y, eventHeight)) control(event.title(), 7, y, pane - 14, eventHeight, true, "ui.click", () -> {
                     var stack = dialogs(); if (stack != null) stack.reopen(event.token());
@@ -277,7 +282,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         if(!notice.isEmpty()) {
             var lines=text.lines(font,notice,pane-24);
             for(var line:lines) {
-                if(g!=null)g.text(font,line,12,y,UiMenuStyle.MUTED,false);
+                if(g!=null)text.draw(g,font,line,12,y,UiMenuStyle.MUTED,false);
                 y+=font.lineHeight+1;
             }
             y+=4;
@@ -402,7 +407,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                     if(g!=null)UiAssets.draw(g,path,11+(bodyWidth-imageWidth)/2,y,imageWidth,imageHeight);
                     y+=imageHeight+3;
                 } else for(var part:font.split(line,bodyWidth).isEmpty()?List.of(net.minecraft.util.FormattedCharSequence.EMPTY):font.split(line,bodyWidth)) {
-                    if(g!=null)g.text(font,part,11,y,UiMenuStyle.TEXT,false);
+                    if(g!=null)text.draw(g,font,part,11,y,UiMenuStyle.TEXT,false);
                     y+=lineHeight;
                 }
             }
@@ -455,7 +460,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         if(!outline.isEmpty()) {
             int labelWidth=text.lines(font,rowLabel(row),nameWidth).stream().mapToInt(font::width).max().orElse(0);
             g.pose().pushMatrix();g.pose().translate(nameLeft+labelWidth+2,y+(height-font.lineHeight*2)/2);
-            g.pose().scale(2f);g.text(font,text.component(outline),0,0,0xFFFFFFFF,false);g.pose().popMatrix();
+            g.pose().scale(2f);text.draw(g,font,text.component(outline).getVisualOrderText(),0,0,0xFFFFFFFF,false);g.pose().popMatrix();
         }
         String action=row.remainingHours()>0?"decision/timer":"decision/select";
         int actionHeight=UiAssets.imageHeight(action,20);
@@ -530,7 +535,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         int top=y+(height-lines.size()*lineHeight)/2;
         for(var line:lines) {
             int offset=alignment<0?0:alignment==0?(width-font.width(line))/2:width-font.width(line);
-            g.text(font,line,x+offset,top,color,false);
+            text.draw(g,font,line,x+offset,top,color,false);
             top+=lineHeight;
         }
     }

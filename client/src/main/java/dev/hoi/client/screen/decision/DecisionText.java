@@ -28,6 +28,7 @@ public final class DecisionText {
     private static final Pattern TOKENS = Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)£?|\\[([A-Z]{3})\\.GetFlag\\]");
     private static final FontDescription FLAG_FONT = new FontDescription.Resource(Identifier.parse("hoi:decision_flags"));
     private Map<String,String> flags=Map.of();
+    private Map<Integer,String> flagCountries=Map.of();
     private final Map<String,List<FormattedCharSequence>> cache = new LinkedHashMap<>();
     private final Map<String,List<Component>> sourceRows = new LinkedHashMap<>();
     private Map<String,Image> images=Map.of();
@@ -43,7 +44,10 @@ public final class DecisionText {
             if(entry.getKey().matches("[A-Z]{3}") && glyph.length()==1 && glyph.charAt(0)>=0xe000 && glyph.charAt(0)<=0xf8ff)
                 next.put(entry.getKey(),glyph);
         }
-        flags=Map.copyOf(next);clear();
+        flags=Map.copyOf(next);
+        var countries=new HashMap<Integer,String>();
+        next.forEach((country,glyph)->countries.put((int)glyph.charAt(0),country));
+        flagCountries=Map.copyOf(countries);clear();
     }
     public void assets(JsonObject root) {
         var next=new HashMap<String,Image>();
@@ -60,6 +64,29 @@ public final class DecisionText {
     }
     public Component component(String text) {
         return Tooltips.sourceSpacing(sourceComponent(text));
+    }
+    public void draw(GuiGraphicsExtractor graphics,Font font,FormattedCharSequence line,int x,int y,int color,boolean shadow) {
+        boolean plain=line.accept((index,style,codepoint)->!FLAG_FONT.equals(style.getFont())||!flagCountries.containsKey(codepoint));
+        if(plain){graphics.text(font,line,x,y,color,shadow);return;}
+        var parts=new ArrayList<FormattedCharSequence>();
+        int[] left={x};
+        line.accept((index,style,codepoint)->{
+            var glyph=FormattedCharSequence.codepoint(codepoint,style);
+            String country=FLAG_FONT.equals(style.getFont())?flagCountries.get(codepoint):null;
+            if(country==null)parts.add(glyph);
+            else {
+                if(!parts.isEmpty()) {
+                    var text=FormattedCharSequence.composite(List.copyOf(parts));
+                    graphics.text(font,text,left[0],y,color,shadow);left[0]+=font.width(text);parts.clear();
+                }
+                String flag=dev.hoi.client.ui.country.CountryDisplays.flag(country);
+                if(flag.equals("country/"+country.toLowerCase(Locale.ROOT)+"/flag"))graphics.text(font,glyph,left[0],y,0xFFFFFFFF,false);
+                else UiAssets.draw(graphics,flag,left[0],y+1,10,7);
+                left[0]+=font.width(glyph);
+            }
+            return true;
+        });
+        if(!parts.isEmpty())graphics.text(font,FormattedCharSequence.composite(parts),left[0],y,color,shadow);
     }
     private Component sourceComponent(String text) {
         var result=Component.empty();
@@ -198,12 +225,12 @@ public final class DecisionText {
             int top=y+offset-scroll;offset+=block.height();
             if(top>=y+height)break;
             if(top+block.height()<=y)continue;
-            if(block.image()==null)graphics.text(font,block.text(),x,top,0xFFE0E0E0);
+            if(block.image()==null)draw(graphics,font,block.text(),x,top,0xFFE0E0E0,true);
             else {
                 int imageX=x+(width-block.width())/2;
                 if(block.image().banner())UiAssets.drawContent(graphics,block.image().path(),imageX,top,block.width(),block.height());
                 else UiAssets.draw(graphics,block.image().path(),imageX,top,block.width(),block.height());
-                if(block.text()!=null)graphics.text(font,block.text(),imageX+block.captionOffset(),top+(int)Math.round(block.height()*235.0/258)-font.lineHeight/2,0xFFFFFFFF);
+                if(block.text()!=null)draw(graphics,font,block.text(),imageX+block.captionOffset(),top+(int)Math.round(block.height()*235.0/258)-font.lineHeight/2,0xFFFFFFFF,true);
             }
         }
         graphics.disableScissor();

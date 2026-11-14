@@ -59,6 +59,11 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             check(dispatcher.getRoot().getChild("준비") == null && dispatcher.getRoot().getChild("시작") == null, "Lobby commands belong to the server");
             ResearchPayloads.registerPayloadTypes(); ResearchPayloads.registerPayloadTypes();
         });
+        if(System.getProperty("hoi.testSuite","all").equals("authoritative-fields")) {
+            loadPack(context);
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenAuthoritativeFieldsTest.run(context,fixtureMenu());}
+            return;
+        }
         if(System.getProperty("hoi.testSuite","all").equals("network-campaign")) {
             dev.hoi.client.screen.ScreenNetworkCampaignTest.run(context);
             return;
@@ -364,7 +369,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         if(System.getProperty("hoi.testSuite","all").equals("army-layout")){
-            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.commander.CommanderRosterTest.run(context);dev.hoi.client.map.commander.CommanderHudTest.runArmyLayout(context,fixtureMenu());}
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.commander.CommanderPresentationTest.run(context,fixtureMenu());dev.hoi.client.screen.commander.CommanderRosterTest.run(context);dev.hoi.client.map.commander.CommanderHudTest.runArmyLayout(context,fixtureMenu());}
             return;
         }
         if(System.getProperty("hoi.testSuite","all").equals("air-layout")){
@@ -679,6 +684,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             dev.hoi.client.screen.occupation.OccupationScreenTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu()); dev.hoi.client.map.MapOccupationHudTest.run(context);
             DiplomacyCountryScreenChecks.run(context,menu.hud());
             dev.hoi.client.screen.diplomacy.DiplomacyActionsTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseInputTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.runSource(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseRequestTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyVolunteersTest.run(context);
+            dev.hoi.client.screen.ScreenAuthoritativeFieldsTest.run(context,menu);
             dev.hoi.client.screen.decision.DecisionScreenChecks.run(context,menu.hud());
             dev.hoi.client.screen.focus.FocusScreenChecks.run(context);
             dev.hoi.client.screen.diplomacy.DiplomacyWorldTensionChecks.run(context,menu.hud());

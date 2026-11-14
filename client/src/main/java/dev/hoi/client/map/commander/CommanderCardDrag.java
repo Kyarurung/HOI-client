@@ -17,7 +17,6 @@ final class CommanderCardDrag {
     private static long queuedRevision;
     private static View queuedView;
     private static Set<String> queuedSelection=Set.of();
-    private static boolean queuedHud;
     private static int ticks;
     private CommanderCardDrag() {}
     static String parent(Card card){return card.panel()==null?"":card.panel().parent();}
@@ -47,7 +46,7 @@ final class CommanderCardDrag {
         return new Drop(parent,order);
     }
     static boolean begin(View view,List<CommanderHud.Box> boxes,double x,double y){
-        if(!CommanderOrders.ready()||queued!=null||!CommanderOrders.pending().isEmpty())return false;
+        if(!CommanderOrders.currentHud(view)||queued!=null||!CommanderOrders.pending().isEmpty())return false;
         var box=boxes.stream().filter(b->b.contains(x,y)).findFirst().orElse(null);
         if(box==null||box.request()==null||!Set.of(Mode.ASSIGN_ARMY,Mode.ASSIGN_GROUP_MARSHAL,Mode.NAVY_FLEET).contains(box.request().mode()))return false;
         var card=view.cards().stream().filter(c->c.id().equals(box.request().target())&&movable(view,c)).findFirst().orElse(null);if(card==null)return false;
@@ -89,7 +88,7 @@ final class CommanderCardDrag {
         if(!dragging||!moves(card))return normal;return slots.stream().filter(s->s.card().id().equals(card.id())).map(s->s.x()+(int)Math.round(position-start)).findFirst().orElse(normal);
     }
     static List<Integer> drawOrder(List<Card> cards){var indices=new ArrayList<Integer>();for(int i=0;i<cards.size();i++)indices.add(i);if(dragging)indices.sort(Comparator.comparing(i->moves(cards.get(i))));return indices;}
-    static void accept(View next){if(source!=null&&(!source.country().equals(next.country())||!source.dimension().equals(next.dimension())||source.branch()!=next.branch()||!source.cards().stream().map(c->c.id()+"/"+parent(c)).toList().equals(next.cards().stream().map(c->c.id()+"/"+parent(c)).toList())))cancel();if(queued!=null)queuedHud=true;reconcile(next);}
+    static void accept(View next){if(source!=null&&(!source.country().equals(next.country())||!source.dimension().equals(next.dimension())||source.branch()!=next.branch()||!source.cards().stream().map(c->c.id()+"/"+parent(c)).toList().equals(next.cards().stream().map(c->c.id()+"/"+parent(c)).toList())))cancel();reconcile(next);}
     static boolean release(double x){
         if(id.isEmpty())return false;move(x);if(id.isEmpty())return true;
         String moved=id;var view=source;boolean dragged=dragging;Drop drop=dragged?destinationDrop():null;cancel();
@@ -97,22 +96,23 @@ final class CommanderCardDrag {
         var card=view.cards().stream().filter(c->c.id().equals(moved)).findFirst().orElseThrow();
         if(card.role()==Mode.ASSIGN_ARMY&&!parent(card).equals(drop.parent())){
             if(view.branch()!=Mode.ARMY){CommanderOrders.message("군 소속은 육군 지도에서 변경하세요.");return true;}
-            var context=CommanderOrders.currentContext();var values=new ArrayList<String>();if(!drop.parent().isEmpty())values.add("target/"+drop.parent());values.add(moved);
-            if(CommanderOrders.send("FORMATION/"+(drop.parent().isEmpty()?"DETACH_ARMIES":"MOVE_ARMIES"),values,List.of())){dev.hoi.client.audio.AudioUiSounds.play("ui.click");queued=drop;queuedId=moved;queuedToken=context.token();queuedRevision=context.revision();queuedView=view;queuedSelection=Set.copyOf(CommanderPanels.selectedCards());queuedHud=false;ticks=100;}
-        }else if(!siblings(view,card,drop.parent()).stream().map(Card::id).toList().equals(drop.order())&&CommanderOrders.send("CARD_ORDER",drop.order(),List.of()))dev.hoi.client.audio.AudioUiSounds.play("ui.click");
+            var values=new ArrayList<String>();if(!drop.parent().isEmpty())values.add("target/"+drop.parent());values.add(moved);
+            if(CommanderOrders.sendFromHud(view,"FORMATION/"+(drop.parent().isEmpty()?"DETACH_ARMIES":"MOVE_ARMIES"),values)){dev.hoi.client.audio.AudioUiSounds.play("ui.click");queued=drop;queuedId=moved;queuedToken=view.orderToken();queuedRevision=view.orderRevision();queuedView=view;queuedSelection=Set.copyOf(CommanderPanels.selectedCards());ticks=100;}
+        }else if(!siblings(view,card,drop.parent()).stream().map(Card::id).toList().equals(drop.order())&&CommanderOrders.sendFromHud(view,"CARD_ORDER",drop.order()))dev.hoi.client.audio.AudioUiSounds.play("ui.click");
         return true;
     }
     static void reconcile(View view){
         if(queued==null)return;var context=CommanderOrders.currentContext();
         if(context==null||!context.token().equals(queuedToken)||!queuedView.country().equals(view.country())||!queuedView.dimension().equals(view.dimension())||queuedView.branch()!=view.branch()||!queuedSelection.equals(CommanderPanels.selectedCards())){clearQueue();return;}
-        if(!queuedHud||!CommanderOrders.ready()||context.revision()<=queuedRevision)return;
+        if(!applied(view,queuedToken,queuedRevision)||!CommanderOrders.currentHud(view))return;
         var card=view.cards().stream().filter(c->c.id().equals(queuedId)).findFirst().orElse(null);
         if(card==null||!parent(card).equals(queued.parent())){clearQueue();return;}
         var actual=siblings(view,card,queued.parent()).stream().map(Card::id).toList();var order=queued.order();clearQueue();
-        if(new HashSet<>(actual).equals(new HashSet<>(order))&&!actual.equals(order))CommanderOrders.send("CARD_ORDER",order,List.of());
+        if(new HashSet<>(actual).equals(new HashSet<>(order))&&!actual.equals(order))CommanderOrders.sendFromHud(view,"CARD_ORDER",order);
     }
+    static boolean applied(View view,String token,long revision){return view.orderToken()!=null&&token.equals(view.orderToken())&&view.orderRevision()>=revision;}
     static void tick(){if(queued!=null&&--ticks<=0){clearQueue();CommanderOrders.message("소속 변경이 확인되지 않아 카드 순서 요청을 취소했습니다.");}}
     static void cancel(){id="";source=null;slots=List.of();dragging=false;gesture="";}
-    private static void clearQueue(){queued=null;queuedId="";queuedToken="";queuedView=null;queuedSelection=Set.of();queuedHud=false;ticks=0;}
+    private static void clearQueue(){queued=null;queuedId="";queuedToken="";queuedView=null;queuedSelection=Set.of();ticks=0;}
     static void reset(){cancel();clearQueue();}
 }

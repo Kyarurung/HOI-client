@@ -16,6 +16,14 @@ public final class UiMenuStyle {
         g.pose().pushMatrix(); g.pose().translate(x, y - 1); g.pose().scale(scale);
         g.text(font, label, 0, 0, 0xFFFFFFFF); g.pose().popMatrix();
     }
+    public static void heading(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font,
+                               String text, String date, int x, int y, int width, int color) {
+        if (date == null || date.isBlank()) { heading(g,font,text,x,y,width,color); return; }
+        String label = UiText.ellipsize(font,date,Math.max(1,width * 2 / 3));
+        int dateWidth = font.width(label);
+        heading(g,font,text,x,y,Math.max(1,width-dateWidth-12),color);
+        g.text(font,label,x+width-dateWidth,y+1,color,false);
+    }
     public static boolean symbol(GuiGraphicsExtractor g, String label, int x, int y, int w, int h, int color) {
         if (label.equals("×") || label.equals("X")) { close(g, x, y, w, h, color); return true; }
         if (!java.util.Set.of("−", "-", "+", "↑", "↓").contains(label)) return false;

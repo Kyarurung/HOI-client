@@ -11,6 +11,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ResearchSlotTooltipTest {
+    public static void empty(ClientGameTestContext context) {
+        context.runOnClient(client->{
+            var screen=(ResearchScreen)client.gui.screen();int empty=0;
+            for(var child:screen.children())if(child instanceof ResearchSlotButton button&&button.getMessage().getString().contains("연구 선택")) {
+                empty++;check(screen.slotTooltipAt(button.getX()+button.getWidth()/2.,button.getY()+button.getHeight()/2.).isEmpty(),"Empty-slot saved-day tooltip requires an original binding, not only a localisation key");
+            }
+            check(empty>0,"Source research fixture must contain an empty slot");
+        });
+    }
     public static void runSource(ClientGameTestContext context) {
         for (String fixture : List.of("prc-research-slot-design-team", "research-year-4-51", "research-year-4-00")) {
         var source = new ResearchPayloads.Response(dev.hoi.client.screen.agency.AgencyDesignTeamCandidatesTest.fixture(fixture)).view();

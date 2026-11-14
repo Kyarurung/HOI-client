@@ -6,6 +6,17 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CommanderCardDragTest {
+    @Test void processedHudRevisionAcknowledgesEqualityAndNewerValuesOnlyWithinItsSession(){
+        String token=java.util.UUID.randomUUID().toString();
+        for(long revision:new long[]{6,7,8}){
+            var view=new View("KOR","hoi:atlas_army",Mode.ARMY,List.of(),List.of(),false,List.of(),List.of(),token,revision);
+            assertEquals(revision>=7,CommanderCardDrag.applied(view,token,7));
+            assertFalse(CommanderCardDrag.applied(view,java.util.UUID.randomUUID().toString(),7));
+            assertEquals(token,CommanderHud.visibleCards(view).orderToken());
+            assertEquals(revision,CommanderHud.visibleCards(view).orderRevision());
+        }
+        assertFalse(CommanderCardDrag.applied(new View("KOR","hoi:atlas_army",Mode.ARMY,List.of()),token,7));
+    }
     private static Card card(String id,Mode role,String parent){return new Card(id,id,"","politics/empty/leader","","",1,24,"",role,new Panel(parent,"",null,List.of(),0,List.of(),List.of()));}
     private static final List<Card> CARDS=List.of(card("G1",Mode.ARMY_GROUP,""),card("A",Mode.ASSIGN_ARMY,"G1"),card("B",Mode.ASSIGN_ARMY,"G1"),card("G2",Mode.ARMY_GROUP,""),card("C",Mode.ASSIGN_ARMY,"G2"),card("D",Mode.ASSIGN_ARMY,""),card("E",Mode.ASSIGN_ARMY,""));
     private static final View VIEW=new View("KOR","hoi:atlas_army",Mode.ARMY,CARDS);

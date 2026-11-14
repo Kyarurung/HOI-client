@@ -254,9 +254,10 @@ final class CommanderPanelsTest {
             if(kind.equals("air"))expected.add(UiCommandLabels.text("HOLD_WINGS","missing"));
             else {
                 boolean group=source.cards().stream().anyMatch(card->CommanderPanels.selected(card.id())&&card.role()==Mode.ARMY_GROUP);
+                var controls=source.cards().stream().filter(card->card.panel()!=null&&(CommanderPanels.selected(card.id())||CommanderPanels.selected(card.panel().parent()))).flatMap(card->card.panel().controls().stream()).toList();
                 if(kind.equals("army-group-assigned")&&!group)throw new AssertionError("Group frontline fixture must select an Army Group");
-                expected.add(UiCommandLabels.text(group?"UNITS_VIEW_BTN_DRAW_DEFENCE_ARMY_GROUP":"UNITS_VIEW_BTN_DRAW_DEFENCE","missing"));
-                expected.add(UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_NAVAL_INV","missing"));
+                expected.add(group?UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_DEFENCE_ARMY_GROUP","missing"):controls.stream().filter(c->c.id().equals("FRONT")).map(c->c.tooltip()).findFirst().orElseGet(()->UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_DEFENCE","missing")));
+                expected.add(controls.stream().filter(c->c.id().equals("INVASION")).map(c->c.tooltip()).findFirst().orElseGet(()->UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_NAVAL_INV","missing")));
                 expected.add(UiCommandLabels.text("UNITS_VIEW_BTN_UNITS_ASSIGN","missing"));
                 expected.add(UiCommandLabels.text("UNITS_VIEW_BTN_RESHAPE","missing"));
                 expected.add(UiCommandLabels.text(CommanderUnitHud.selectedKeys().stream().filter(id->id.startsWith("unit/")).count()==1?"CONFIRMUNASSIGNUNIT":"CONFIRMUNASSIGNUNITS","missing"));
