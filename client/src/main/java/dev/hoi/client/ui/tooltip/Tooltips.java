@@ -58,7 +58,7 @@ public final class Tooltips {
             if (start < prose.length()) result.append(Component.literal(prose.substring(start)).withStyle(sourceColor(current)));
             return java.util.Optional.empty();
         }, net.minecraft.network.chat.Style.EMPTY);
-        return result;
+        return result.getString().contains("£")?TooltipKeywordIcons.decorateLines(result,false):result;
     }
     public static net.minecraft.client.gui.components.Tooltip create(Component text) {
         return net.minecraft.client.gui.components.Tooltip.create(TooltipKeywordIcons.decorateLines(styled(format(sourceSpacing(text,true)),false)));
@@ -137,7 +137,7 @@ public final class Tooltips {
     }
     public static Component officerText(String text,boolean bold) {
         var result=Component.empty();
-        officerText(text).visit((style,part)->{result.append(Component.literal(part).withStyle(style.withBold(bold)));return java.util.Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
+        officerText(text).visit((style,part)->{result.append(Component.literal(part).withStyle(style.withBold(bold&&!TooltipKeywordIcons.FONT.equals(style.getFont()))));return java.util.Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
         return result;
     }
     private static String officerCodes(String text) {
@@ -201,7 +201,7 @@ public final class Tooltips {
         return result;
     }
     public static List<FormattedCharSequence> split(Font font,net.minecraft.network.chat.FormattedText text,int width) {
-        return collapseBlankLines(font.split(sourceSpacing(text),width));
+        return collapseBlankLines(font.split(TooltipKeywordIcons.decorateLines(sourceSpacing(text),false),width));
     }
     public static boolean blank(FormattedCharSequence line) {
         var text=new StringBuilder();

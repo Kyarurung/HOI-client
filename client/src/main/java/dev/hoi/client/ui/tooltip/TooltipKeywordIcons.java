@@ -8,11 +8,11 @@ import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
 
 public final class TooltipKeywordIcons {
-    private static final FontDescription FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("hoi", "keywords"));
+    static final FontDescription FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("hoi", "keywords"));
     private record TooltipIconBinding(String label, String glyph) {}
     private static List<TooltipIconBinding> bindings;
     private static Map<String,String> tokens=Map.of();
-    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)[^\\r\\n]?");
+    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)£?");
     private TooltipKeywordIcons() {}
     public static void clear() { bindings = null; tokens=Map.of(); }
     public static Component decorateLines(Component text) {
@@ -44,7 +44,7 @@ public final class TooltipKeywordIcons {
             appendRange(result,text,start,matcher.start());
             String token=matcher.group(1).replaceFirst("^GFX_","");
             String glyph=tokens.get(token.equals("pol_power_icon")?"pol_power":token);
-            if(glyph!=null)result.append(Component.literal(glyph).withStyle(s->s.withFont(FONT).withColor(0xFFFFFF)));
+            if(glyph!=null)result.append(Component.literal(glyph).withStyle(s->s.withFont(FONT).withColor(0xFFFFFF).withBold(false).withItalic(false)));
             start=matcher.end();
         }
         appendRange(result,text,start,text.getString().length());
@@ -60,6 +60,7 @@ public final class TooltipKeywordIcons {
         },net.minecraft.network.chat.Style.EMPTY);
     }
     public static Component decorate(Component text) {
+        if(text.visit((style,part)->FONT.equals(style.getFont())?Optional.of(true):Optional.empty(),net.minecraft.network.chat.Style.EMPTY).isPresent())return text;
         if (bindings == null) bindings = load();
         String label = text.getString().replaceAll("§.", "").stripLeading();
         if (label.matches("에너지 농장[:：]?") || label.contains("자원 사보타주:")) return text;
@@ -75,7 +76,7 @@ public final class TooltipKeywordIcons {
                 trimmed.append(Component.literal(value).withStyle(style));
                 return Optional.empty();
             }, net.minecraft.network.chat.Style.EMPTY);
-            return Component.empty().append(Component.literal(binding.glyph()).withStyle(s -> s.withFont(FONT).withColor(0xFFFFFF)))
+            return Component.empty().append(Component.literal(binding.glyph()).withStyle(s -> s.withFont(FONT).withColor(0xFFFFFF).withBold(false).withItalic(false)))
                     .append(Component.literal(" ")).append(trimmed);
         }
         return text;
@@ -84,8 +85,8 @@ public final class TooltipKeywordIcons {
         var resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "ui/keyword_icons.json"));
         if (resource.isEmpty()) return List.of();
         try (var input = resource.get().open()) {
-            byte[] data = input.readNBytes(524289);
-            if (data.length > 524288) return List.of();
+            byte[] data = input.readNBytes(1048577);
+            if (data.length > 1048576) return List.of();
             var root = JsonParser.parseString(new String(data, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
             if (root.get("version").getAsInt() != 1) return List.of();
             var result = new ArrayList<TooltipIconBinding>();

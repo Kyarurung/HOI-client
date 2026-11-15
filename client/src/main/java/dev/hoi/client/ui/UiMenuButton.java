@@ -53,7 +53,7 @@ public final class UiMenuButton extends Button {
             if (!UiAssets.draw(g, icon, x + 5, y + 3, w - 10, h - 7))
                 g.centeredText(font, "◇", x + w / 2, y + (h - 8) / 2, UiMenuStyle.ACCENT);
         } else {
-            var captionText = Component.literal(displayed).withStyle(style -> style.withBold(bold));
+            var captionText = Tooltips.officerText(displayed,bold);
             float scale = Math.max(UiText.scale(font), textScale + 1f / font.lineHeight);
             if (wrapLabel && font.width(captionText) * scale > w - 6) {
                 var lines = Tooltips.split(font,captionText, Math.max(1, (int)((w - 6) / scale)));

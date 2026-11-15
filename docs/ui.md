@@ -1,5 +1,17 @@
 # 화면과 표시 기준
 
+## 원본 문구의 £ 텍스트 아이콘
+
+서버의 결정·분류·이벤트·중점·정치 문구는 기존 `TooltipKeywordIcons`로 `hoi:ui/keyword_icons.json`을 조회한다. `GFX_` 접두어가 있는 토큰과 없는 토큰, 1부터 시작하는 `|N` 프레임을 같은 글꼴로 처리한다. 알 수 없는 토큰은 숨기고, 뒤의 공백·한글 조사·구두점·색·정밀도는 유지한다. 실제 원본이 없는 토큰과 출처는 HOI-resourcepack의 `keyword-icons-import-report.json`에서 확인한다.
+
+공통 스타일·줄바꿈·단일행 표시·단추 문구는 너비 측정과 잘라내기 전에 아이콘으로 변환한다. 이벤트 제목도 글꼴 스타일을 유지한 채 말줄임한다. 결정 비용과 행 이름에는 원시 £ 토큰을 남기지 않는다. 독립된 큰 배너·초상은 기존 `DecisionText.sourceRows`와 이미지 블록 경로를 유지하고, 실제로 글자를 그리는 경로에서 남은 미등록 토큰을 제거한다. 글꼴 그림은 외부 팩에서 공급하며 JAR에 포함하지 않는다.
+
+팩을 먼저 빌드하고 `runGameTest -PhoiTestSuite=decisions`로 결정 경로를 검사한다. `HOI_TEXT_ICON_PREVIEW=<서버가 export한 prk-pages.json·prk-metadata.json·prk-details.json 폴더>`가 있으면 같은 원본 응답 검사에 PRK 방역 분류·비용·효과 툴팁의 GUI2 2560×1440·1280×720 캡처를 추가한다. 서버 fixture의 시험용 상태와 실제 운영 플레이는 구분한다. 전체 검증은 README의 고정 입력을 설정한 뒤 필터 없는 `test runGameTest remapJar`로 실행한다.
+
+결정 행과 분류는 원본 그림이 없으면 그림을 그리지 않으며, 상단 `menu/decisions` 버튼이나 다른 분류 그림으로 대체하지 않는다. TFR `common/decisions/TFR_decisions_PRK.txt:714`의 `prk_proclaim_reunification_of_korea`는 `icon = democracy`지만 설치 원본에 `GFX_decision_democracy`가 없다. 미확정 그림은 결정 렌더 증거의 `missingSourceAssets`에 `omitted`로 남긴다. 그림이 없는 이름의 시작점은 기존34GUI를 유지한다. 원본 `countrydecisionview.gui/decision_item/name_text`가 아이콘 존재와 무관한 고정 x=55를 사용하기 때문이다.
+
+원본 그림→대상 국가의 국기→이름 순서로 한 행의 스크롤 영역에 놓고 사이 간격4GUI와 세로 중심을 유지한다. 이는 원본 `targeted_decision_item`의 아이콘 x=15, 국기 x=30, 이름 x=62의 좌우 순서다. 원본 그림과 이름은 함께 이동하며 비용 칸·추적/실행 단추·진행 막대·기존 행 높이는 유지한다. 이름 끝의 £ 그림도 별도 고정 그림으로 떼지 않고 글꼴 안에서 함께 이동한다. 이름/비용의 글자 그림은 각 칸의 경계에서 잘린다. `DecisionMarqueeTest`는 원본 그림의 유무·긴 이름 중간 위치·inline £·비용 색을 GUI2 두 해상도에서 검사하고, PRK source 재현은 정치국과 방역 분류를 함께 캡처한다.
+
 ## 외교와 첩보 장부 원본 배치
 
 외교 행동은 서버 `CountryView.actions.entries`를 발급 순서대로 한 번씩 표시한다. `send_volunteers`는 원본 GUI의 파병 창 이름이며 클라이언트 목록 슬롯이 아니다. 목록의 `volunteers`는 `DIPLOMACY_SEND_VOLUNTEERS_TITLE`(의용군 파병), `recall_volunteers`는 `RECALL_VOLUNTEERS_TITLE`(의용군 소환)에 대응한다. 소환을 별도 고정 슬롯에 추가하거나 클라이언트에서 정렬하지 않는다. 사용자 지정 순서는 서버가 파병 바로 다음에 소환을 발급하는 방식으로 적용한다. `open_logistics`만 기존 하단 단추로 분리한다.
@@ -2043,3 +2055,5 @@ TFR `interface/core.gui`의 `ToolTip` 선언은 `maxWidth=400`, `borderSize={18,
 `-PhoiTestSuite=air-scales`는 서버 fixture 없이 합성 비행단 두 기지의 실제 입력·렌더를 GUI2 2560×1440·1280×720, GUI3 1920×1080, GUI1 2560×1440에서 검사한다. 기지 수용량·CAS/요격 순서, 기지별 창설·선택 해제, 개별 비행단 출격 시간·에이스/보충 정책 요청과 툴팁의 화면 경계를 확인하고 검사 전 배율을 복원한다. 원작 결과 행·상태 색 임계값·항모 함재기 위젯의 사진 일치를 증명하는 검사는 아니다.
 
 교리 `doctrine` 묶음의 애니메이션 회귀는 원본 24프레임의 존재와 1초 반복을 확인하고, 서버 형식 입력의 통달치만 절반으로 바꾼 **합성** 게이지를 고정 시각0/500ms에 실제 렌더해 채움 영역의 픽셀 변화를 비교한다. 이 표시 검사는 서버 통달치 획득·보상 실행·FPS/MSPT 개선을 뜻하지 않는다.
+
+Decision country images share the name marquee and clipping rectangle. Country-outline text icons retain their original glow and pixels; per-icon bitmap height/ascent matches the visible core to the adjacent cap height. Country target flags fit their visible bounds to `font.lineHeight` and reserve their aspect-correct width plus four pixels. Inline `[TAG.GetFlag]` text uses the original medium country flags at the same height, including tooltip and detail rendering, with cosmetic flags fitted to the glyph advance. Styling an explicit bitmap icon again preserves its source position and does not infer an extra leading keyword icon; label-only text retains inference.

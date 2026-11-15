@@ -25,7 +25,8 @@ public final class DecisionScreenSourceTest {
     private static final List<String> HOVER_IDS = List.of("PRC_advocate_for_militarization", "PRC_hold_pro_government_rally",
             "KOR_second_imf_crisis",
             "KOR_kfxx_fighter_project_mission", "KOR_export_to_tur_k9", "PRC_declare_our_neutrality_in_europe", "PRC_invite_nepal_eadi",
-            "KOR_export_to_pol_k2","KOR_export_to_pol_k2a1","KOR_export_to_raj_k9","KOR_export_to_ast_k9","KOR_export_to_egy_k9","KOR_export_to_chi_k1A1","KOR_arms_factory_ulsan","KOR_arms_factory_gyungnam","KOR_coronavirus_infection_mission","KOR_export_to_pol_k9_plus");
+            "KOR_export_to_pol_k2","KOR_export_to_pol_k2a1","KOR_export_to_raj_k9","KOR_export_to_ast_k9","KOR_export_to_egy_k9","KOR_export_to_chi_k1A1","KOR_arms_factory_ulsan","KOR_arms_factory_gyungnam","KOR_coronavirus_infection_mission","KOR_export_to_pol_k9_plus",
+            "PRK_quarantine_self_reporting_period","PRK_prioritize_high_risk_vaccination");
     private static final Pattern BODY_IMAGE = Pattern.compile("£([A-Za-z0-9_]+)£?");
     private record Preview(String name, List<String> pages, List<DecisionPayloads.Row> rows,
             List<DecisionPayloads.Category> categories, JsonObject metadata, String sha256) {}
@@ -46,12 +47,19 @@ public final class DecisionScreenSourceTest {
                         throw new AssertionError("Missing original reference decision art: "+symbol);
                 }
                 for(String tag:List.of("pol","raj","aus","egy","tur","chi")) {
+                    try(var original=client.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/keywords/kor_"+tag+"_texticon.png")).orElseThrow().open()) {
+                        var image=javax.imageio.ImageIO.read(original);
+                        boolean top=false,bottom=false;
+                        for(int x=0;x<image.getWidth();x++) {top|=(image.getRGB(x,0)>>>24)>0;bottom|=(image.getRGB(x,image.getHeight()-1)>>>24)>0;}
+                        if(!top||!bottom)throw new AssertionError("Country outlines must use their visible bounds at text height: "+tag);
+                    }
                     String token="£GFX_KOR_"+tag+"_texticon";
                     if(dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal(token),false).getString().contains("£"))
                         throw new AssertionError("Unresolved original decision country outline: "+token);
                 }
             } catch(IOException error) {throw new UncheckedIOException(error);}
         });
+        dev.hoi.client.ui.tooltip.TooltipSpacingTest.components(context);
         String directory = System.getenv("HOI_DECISION_PREVIEW");
         if (directory == null || directory.isBlank())
             throw new AssertionError("HOI_DECISION_PREVIEW is required for server-exported decision source fixtures");
@@ -61,9 +69,23 @@ public final class DecisionScreenSourceTest {
         try {
             var previews = new ArrayList<Preview>();
             for (String name : System.getProperty("hoi.testSuite", "all").equals("economic-captivity") ? List.of("kor-economic-crisis") : FIXTURES) previews.add(read(Path.of(directory), name));
+            String textIconDirectory=System.getenv("HOI_TEXT_ICON_PREVIEW");
+            if(textIconDirectory!=null&&!textIconDirectory.isBlank())previews.add(read(Path.of(textIconDirectory),"prk"));
             var assets = context.computeOnClient(DecisionScreenSourceTest::assets);
             context.runOnClient(client -> {
                 var text=sourceText();
+                String supply=text.component("£GFX_PRK_epidemic_supplies_texticon").getString();
+                if(supply.length()!=1||supply.charAt(0)<0xe000||!text.component("£PRK_epidemic_supplies_texticon").getString().equals(supply))
+                    throw new AssertionError("Original PRK supply icon must resolve with both native token names");
+                for(String value:List.of("£GFX_PRK_epidemic_supplies_texticon §Y방역물자 4§!", "£resources_strip|2 0.000", "£not_a_source_icon 문구")) {
+                    if(text.component(value).getString().contains("£")||text.rows(value).stream().anyMatch(row->row.getString().contains("£"))
+                            ||dev.hoi.client.ui.tooltip.Tooltips.officerText(value).getString().contains("£"))
+                        throw new AssertionError("Server text icon token leaked into a common display path: "+value);
+                }
+                if(!text.component("£not_a_source_icon 문구").getString().equals(" 문구"))
+                    throw new AssertionError("Unknown icons must hide only the token and preserve the source wording");
+                if(!text.component("£command_power의 지휘력").getString().endsWith("의 지휘력"))
+                    throw new AssertionError("Native icon parsing must preserve adjacent Korean particles");
                 String wrappedPadding="§Y제목§!\n\n\n"+" ".repeat(400)+"§G효과: +0.00%§!\n\n§!\n끝\n\n\n";
                 DecisionPanelTest.verifyTooltipSpacing(client.font,text,wrappedPadding);
                 String padded="앞\n\n§r\n---\n[KOR.GetFlag]\n\n\n\n뒤";
@@ -72,8 +94,8 @@ public final class DecisionScreenSourceTest {
                     throw new AssertionError("Source layout padding must remain available before paragraph spacing is collapsed");
                 for(String tag:List.of("KOR","PRC","JAP","NEP","BHU","SRL")) {
                     var flag=text.component("["+tag+".GetFlag]");
-                    if(flag.getString().length()!=1 || client.font.width(flag)!=11)
-                        throw new AssertionError("Small decision flag must occupy 10 pixels plus one advance: "+tag);
+                    if(flag.getString().length()!=1 || client.font.width(flag)!=15)
+                        throw new AssertionError("Decision flag must match text height and its original 82:52 aspect ratio: "+tag);
                     var lines=text.lines(client.font,"§Y앞§!["+tag+".GetFlag]§C뒤§!\n\n끝",22);
                     if(lines.stream().anyMatch(line->client.font.width(line)>22) || lines.stream().noneMatch(line->line==net.minecraft.util.FormattedCharSequence.EMPTY))
                         throw new AssertionError("Flag wrapping must preserve paragraph breaks and bounded width");
@@ -85,6 +107,7 @@ public final class DecisionScreenSourceTest {
                 context.getInput().resizeWindow(size[0], size[1]);
                 context.runOnClient(client -> client.options.guiScale().set(2));
                 context.waitTicks(3);
+                countryOutlinePreview(context,size);
                 for (var preview : previews) {
                     var requests = new ArrayList<DecisionPayloads.Request>();
                     context.setScreen(() -> new DecisionScreen(null, requests::add));
@@ -103,6 +126,37 @@ public final class DecisionScreenSourceTest {
                     var screenshots = new LinkedHashMap<String, String>();
                     String suffix = preview.name() + "-" + size[0] + "x" + size[1] + "-gui2";
                     screenshots.put("top", screenshot(context, "hoi-decisions-source-" + suffix, size));
+                    if(preview.name().equals("prk")) {
+                        var category=preview.categories().stream().filter(value->value.id().equals("PRK_fight_malignant_virus_category")).findFirst().orElseThrow();
+                        context.runOnClient(client->locate((DecisionScreen)client.gui.screen(),category.name()));
+                        margin(context);
+                        screenshots.put("epidemic-category",screenshot(context,"hoi-decisions-prk-epidemic-category-"+suffix,size));
+                        int[] point=context.computeOnClient(client->headerTooltip((DecisionScreen)client.gui.screen(),category));
+                        context.getInput().setCursorPos(point[0]*2,point[1]*2);context.waitTicks(3);
+                        screenshots.put("epidemic-category-tooltip",screenshot(context,"hoi-decisions-prk-epidemic-category-tooltip-"+suffix,size));
+                        context.runOnClient(client->{
+                            var screen=(DecisionScreen)client.gui.screen();locate(screen,category.name());
+                            var button=(Button)screen.children().stream().filter(child->child instanceof Button control&&control.getMessage().getString().equals(sourceText().component(category.name()).getString())).findFirst().orElseThrow();
+                            button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
+                            var politics=preview.categories().stream().filter(value->value.id().equals("PRK_politburo_of_wpk")).findFirst().orElseThrow();
+                            locate(screen,politics.name());
+                        });
+                        margin(context);
+                        screenshots.put("politburo",screenshot(context,"hoi-decisions-prk-politburo-"+suffix,size));
+                        context.runOnClient(client->{
+                            var screen=(DecisionScreen)client.gui.screen();
+                            var row=preview.rows().stream().filter(value->value.id().equals("prk_proclaim_reunification_of_korea")).findFirst().orElseThrow();
+                            locate(screen,row.name());
+                        });
+                        margin(context);
+                        screenshots.put("politburo-row",screenshot(context,"hoi-decisions-prk-politburo-row-"+suffix,size));
+                        context.runOnClient(client->{
+                            var screen=(DecisionScreen)client.gui.screen();
+                            locate(screen,category.name());
+                            var button=(Button)screen.children().stream().filter(child->child instanceof Button control&&control.getMessage().getString().equals(sourceText().component(category.name()).getString())).findFirst().orElseThrow();
+                            button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
+                        });
+                    }
                     if (preview.name().equals("kor-economic-crisis")) {
                         var crisis = preview.categories().stream().filter(category -> category.id().equals("KOR_new_econimic_crisis_category")).findFirst().orElseThrow();
                         if (!preview.categories().getFirst().id().equals("KOR_national_assembly_category") || preview.categories().indexOf(crisis) != 1)
@@ -210,9 +264,19 @@ public final class DecisionScreenSourceTest {
                             throw new AssertionError("Source tooltip row name is ambiguous: " + id);
                         margin(context);
                         int[] point = context.computeOnClient(client -> locate((DecisionScreen) client.gui.screen(), row.get().name()));
+                        if(preview.name().equals("kor-scene")&&List.of("KOR_export_to_tur_k9","KOR_export_to_pol_k2").contains(id)) {
+                            margin(context);
+                            screenshots.put(id+"-country-a",screenshot(context,"hoi-decisions-country-a-"+id.toLowerCase(Locale.ROOT)+"-"+suffix,size));
+                            context.waitTicks(38);
+                            screenshots.put(id+"-country-b",screenshot(context,"hoi-decisions-country-b-"+id.toLowerCase(Locale.ROOT)+"-"+suffix,size));
+                        }
                         if(preview.name().equals("kor-scene")) {
                             var exported=JsonParser.parseString(Files.readString(Path.of(directory,"kor-scene-details.json"))).getAsJsonObject();
                             if(exported.has(id))context.runOnClient(client->acceptDetail((DecisionScreen)client.gui.screen(),id,exported.getAsJsonObject(id)));
+                        }
+                        if(preview.name().equals("prk")) {
+                            var exported=JsonParser.parseString(Files.readString(Path.of(textIconDirectory,"prk-details.json"))).getAsJsonObject();
+                            context.runOnClient(client->acceptDetail((DecisionScreen)client.gui.screen(),id,exported.getAsJsonObject(id)));
                         }
                         context.getInput().setCursorPos(point[0] * 2, point[1] * 2);
                         context.waitTicks(3);
@@ -281,8 +345,12 @@ public final class DecisionScreenSourceTest {
             if(hit==null)throw new AssertionError("Missing visible decision detail hit: "+id);
             var render=DecisionScreen.class.getDeclaredMethod("detailText",hit.getClass());render.setAccessible(true);String text=(String)render.invoke(screen,hit);
             for(var section:response.view().sections())for(var line:section.lines())if(!text.contains(line.text()))throw new AssertionError("Decision rendering changed a server source line: "+id);
-            int complete=text.indexOf("선택 시 효과:"),modifier=text.indexOf("30일 동안:"),remove=text.indexOf("제거 시 효과:");
-            if(complete<0||modifier<=complete||remove<=modifier||text.contains("else_if")||text.contains("조건부 원본 효과"))throw new AssertionError("Export detail requires complete, timed modifier and selected remove effects in source order: "+id);
+            if(id.startsWith("PRK_")) {
+                if(!response.view().complete()||response.view().sections().isEmpty()||!text.contains("제거 시 효과:"))throw new AssertionError("PRK detail must preserve the complete original delayed decision effects: "+id);
+            } else {
+                int complete=text.indexOf("선택 시 효과:"),modifier=text.indexOf("30일 동안:"),remove=text.indexOf("제거 시 효과:");
+                if(complete<0||modifier<=complete||remove<=modifier||text.contains("else_if")||text.contains("조건부 원본 효과"))throw new AssertionError("Export detail requires complete, timed modifier and selected remove effects in source order: "+id);
+            }
             if(id.equals("KOR_export_to_pol_k2")&&!text.contains("구형이 먼저 제공됩니다."))throw new AssertionError("K2 export must preserve the source old-equipment sentence");
         }catch(ReflectiveOperationException error){throw new AssertionError(error);}
     }
@@ -342,8 +410,8 @@ public final class DecisionScreenSourceTest {
             }
             if (result.isEmpty()) throw new AssertionError("Empty decision source asset manifest");
             for (String path : List.of("decision/category", "decision/row", "decision/row_disabled", "decision/timer",
-                    "decision/select", "decision/category_generic", "menu/decisions"))
-                if (!exists(client, path)) throw new AssertionError("Missing decision renderer fallback: " + path);
+                    "decision/select"))
+                if (!exists(client, path)) throw new AssertionError("Missing original decision control art: " + path);
             return Map.copyOf(result);
         } catch (IOException error) {
             throw new UncheckedIOException(error);
@@ -352,7 +420,7 @@ public final class DecisionScreenSourceTest {
     private static List<MissingSourceAsset> missingAssets(Minecraft client, Preview preview, Map<String, String> assets) {
         var result = new ArrayList<MissingSourceAsset>();
         for (var category : preview.categories()) {
-            missingAsset(client, assets, result, category.id(), "icon", category.icon(), "decision/category_generic");
+            missingAsset(client, assets, result, category.id(), "icon", category.icon(), "omitted");
             missingAsset(client, assets, result, category.id(), "picture", category.picture(), "omitted");
             for (var line : new DecisionText().rows(category.description())) {
                 var match = BODY_IMAGE.matcher(line.getString());
@@ -362,9 +430,9 @@ public final class DecisionScreenSourceTest {
             }
         }
         for (var row : preview.rows()) {
-            missingAsset(client, assets, result, row.id(), "icon", row.icon(), "menu/decisions");
+            missingAsset(client, assets, result, row.id(), "icon", row.icon(), "omitted");
             if (preview.categories().stream().noneMatch(category -> category.id().equals(row.category())))
-                missingAsset(client, assets, result, row.category(), "icon", row.categoryIcon(), "decision/category_generic");
+                missingAsset(client, assets, result, row.category(), "icon", row.categoryIcon(), "omitted");
         }
         return List.copyOf(result);
     }
@@ -452,6 +520,35 @@ public final class DecisionScreenSourceTest {
     private static void resetScroll(DecisionScreen screen) {
         screen.mouseScrolled(3, HudMenuBar.height(screen.width) + 53, 0, Integer.MAX_VALUE / 28.0);
         if (screen.scrollOffset() != 0) throw new AssertionError("Source preview margin scroll was consumed by a tooltip");
+    }
+    private static void countryOutlinePreview(ClientGameTestContext context,int[] size) throws IOException {
+        var tags=List.of("pol","tur","raj","aus","egy","chi");
+        String multiline=tags.stream().map(tag->"K2 £GFX_KOR_"+tag+"_texticon "+tag).collect(java.util.stream.Collectors.joining("\n"));
+        var metrics=context.computeOnClient(client->{
+            var result=new LinkedHashMap<String,int[]>();
+            for(String value:java.util.stream.Stream.concat(java.util.stream.Stream.of("K2"),tags.stream().map(tag->"£GFX_KOR_"+tag+"_texticon")).toList()) {
+                var text=dev.hoi.client.ui.tooltip.Tooltips.officerText(value);
+                var bounds=client.font.prepareText(text.getVisualOrderText(),0,0,0xFFFFFFFF,false,false,0).bounds();
+                result.put(value,new int[]{client.font.width(text),bounds.left(),bounds.top(),bounds.width(),bounds.height(),client.font.width("K2 ")});
+            }
+            if(dev.hoi.client.ui.tooltip.Tooltips.sourceLines(client.font,multiline,300).size()!=6)
+                throw new AssertionError("Native country outlines must preserve six source text lines");
+            return result;
+        });
+        context.setScreen(()->new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("Original country outline metrics")) {
+            @Override public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor g,int mx,int my,float partial) {
+                g.fill(0,0,300,230,0xFF101010);
+                for(int index=0;index<tags.size();index++) {
+                    String label="K2 £GFX_KOR_"+tags.get(index)+"_texticon "+tags.get(index);
+                    g.text(font,dev.hoi.client.ui.tooltip.Tooltips.officerText(label),10,10+index*20,0xFFFFFFFF,false);
+                }
+                var lines=dev.hoi.client.ui.tooltip.Tooltips.sourceLines(font,multiline,300);
+                for(int index=0;index<lines.size();index++)g.text(font,lines.get(index),10,150+index*(font.lineHeight+1),0xFFFFFFFF,false);
+            }
+        });
+        context.waitTicks(3);
+        Path shot=context.takeScreenshot("hoi-decisions-outline-metrics-"+size[0]+"x"+size[1]+"-gui2");
+        Files.writeString(shot.resolveSibling("hoi-decisions-outline-metrics-"+size[0]+".json"),new Gson().toJson(metrics));
     }
     private static void margin(ClientGameTestContext context) {
         int y = context.computeOnClient(client -> HudMenuBar.height(client.gui.screen().width) + 53);

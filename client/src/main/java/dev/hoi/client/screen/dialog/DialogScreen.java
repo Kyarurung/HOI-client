@@ -89,17 +89,17 @@ public class DialogScreen extends Screen {
     float textScale() { return dev.hoi.client.ui.UiText.scale(font); }
     float eventTitleRatio() { return EVENT_TITLE_SCALE; }
     float eventTitleScale(int width) {
-        var title = Component.literal(view().title()).withStyle(net.minecraft.ChatFormatting.BOLD);
+        var title = tooltipText.component(view().title()).copy().withStyle(net.minecraft.ChatFormatting.BOLD);
         float enlarged = textScale() * eventTitleRatio();
         return font.width(title) * enlarged <= width ? enlarged : textScale();
     }
     void eventTitle(GuiGraphicsExtractor g, int x, int y, int width, int height, int color, boolean shadow) {
         float scale = eventTitleScale(width);
-        var title = Component.literal(view().title()).withStyle(net.minecraft.ChatFormatting.BOLD);
+        var title = tooltipText.component(view().title()).copy().withStyle(net.minecraft.ChatFormatting.BOLD);
         int available = Math.max(1, (int)(width / scale));
         if (font.width(title) > available) {
             var marker = Component.literal("…").withStyle(net.minecraft.ChatFormatting.BOLD);
-            title = Component.literal(font.substrByWidth(title, Math.max(0, available - font.width(marker))).getString()).withStyle(net.minecraft.ChatFormatting.BOLD).append(marker);
+            title = dev.hoi.client.ui.tooltip.Tooltips.sourceSpacing(font.substrByWidth(title, Math.max(0, available - font.width(marker)))).copy().append(marker);
         }
         g.pose().pushMatrix();
         g.pose().translate(Math.round(x + (width - font.width(title) * scale) / 2), Math.round(y + (height - font.lineHeight * scale) / 2));
@@ -110,7 +110,7 @@ public class DialogScreen extends Screen {
     public Component bodyText() {
         if (sourceEvent()) return tooltipText.component(view.body());
         var body=dev.hoi.client.ui.tooltip.Tooltips.sourceSpacing(Component.literal(view.body()));
-        return view.kind()==DialogView.Kind.COMMANDER?dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(body,false):body;
+        return dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(body,false);
     }
     @Override protected void init() {
         resetChoiceTooltips();
@@ -166,7 +166,7 @@ public class DialogScreen extends Screen {
             eventTitle(g, start, titleTop, titleWidth, 18, ink, false);
         }
         else text(g, net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(dev.hoi.client.ui.tooltip.Tooltips.officerText(view.title(), true), (int)((left + pane - 14 - start) / textScale()))), start, top + 35, ink);
-        text(g, Component.literal(trim(view.subtitle(), (int)((pane - 28) / textScale()))).getVisualOrderText(), left + 12, top + 48, paper() ? 0xff62566a : UiMenuStyle.MUTED);
+        text(g, trim(view.subtitle(), (int)((pane - 28) / textScale())).getVisualOrderText(), left + 12, top + 48, paper() ? 0xff62566a : UiMenuStyle.MUTED);
         g.enableScissor(left + 8, bodyTop, left + pane - 8, bodyBottom);
         int y = bodyTop + 5 - scroll;
         if (view.kind() != DialogView.Kind.EVENT) y = image(g, y);
@@ -188,7 +188,7 @@ public class DialogScreen extends Screen {
             y += 8;
             for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(view.body()), pane - 32)) { g.text(font, line, left + 15, y, ink); y += 13; }
         } else for (var tile : view.tiles()) {
-            text(g, Component.literal(trim(tile.name() + (tile.value().isEmpty() ? "" : " · " + tile.value()), (int)((pane - 32) / textScale()))).getVisualOrderText(), left + 15, y, ink); y += paper() ? 15 : 17;
+            text(g, trim(tile.name() + (tile.value().isEmpty() ? "" : " · " + tile.value()), (int)((pane - 32) / textScale())).getVisualOrderText(), left + 15, y, ink); y += paper() ? 15 : 17;
             for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(tile.detail()), (int)((pane - 40) / textScale()))) { text(g, line, left + 19, y, ink); y += paper() ? 12 : 13; }
             y += 15;
         }
@@ -344,7 +344,7 @@ public class DialogScreen extends Screen {
         if (UiAssets.draw(g, view.image(), left + (pane - imageWidth) / 2, y, imageWidth, imageHeight)) return y + imageHeight + 12;
         return y;
     }
-    private String trim(String text, int space) { return dev.hoi.client.ui.UiText.ellipsize(font, text, space); }
+    private Component trim(String text, int space) { return dev.hoi.client.ui.UiText.ellipsize(font, tooltipText.component(text), space); }
     private void text(GuiGraphicsExtractor g, net.minecraft.util.FormattedCharSequence text, int x, int y, int color) {
         g.pose().pushMatrix(); g.pose().translate(x, y); g.pose().scale(textScale());
         g.text(font, text, 0, 0, color, !paper()); g.pose().popMatrix();

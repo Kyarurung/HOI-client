@@ -58,8 +58,8 @@ public final class PoliticsTooltip {
         }
         String detail = flag.isEmpty() ? entry.detail() : entry.detail().strip();
         var rows = new ArrayList<PoliticsTooltipRow>();
-        if (!compact) for (var line : font.split(Component.literal(entry.value().isBlank() ? entry.name() : entry.value())
-                .withColor(Tooltips.GOLD), width)) rows.add(new PoliticsTooltipRow(line, "", font.lineHeight + 3));
+        if (!compact) for (var line : font.split(Tooltips.officerText(entry.value().isBlank() ? entry.name() : entry.value())
+                .copy().withColor(Tooltips.GOLD), width)) rows.add(new PoliticsTooltipRow(line, "", font.lineHeight + 3));
         if (!flag.isEmpty() && compact) {
             var lines = Tooltips.split(font,Component.literal(detail), width - 15);
             for (int i = 0; i < lines.size(); i++) rows.add(new PoliticsTooltipRow(lines.get(i), i == 0 ? flag : "", font.lineHeight + 1));

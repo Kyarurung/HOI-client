@@ -184,11 +184,12 @@ public final class ScreenAuthoritativeFieldsTest {
         });
         var line=game.computeOnClient(c->text.component("[KOR.GetFlag]§Y 대한민국§!").getVisualOrderText());
         String[] key={"KOR"};
+        int flagWidth=game.computeOnClient(c->Math.max(1,c.font.width(text.component("[KOR.GetFlag]"))-1)),lineHeight=game.computeOnClient(c->c.font.lineHeight);
         game.setScreen(()->new Screen(Component.literal("현재 국가 표시 국기")) {
             @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
                 g.fill(0,0,width,height,0xFF101010);
                 text.draw(g,font,line,10,10,0xFFFFFFFF,false);
-                if(key[0].equals("KOR_empire"))UiAssets.draw(g,UiStoryAssets.flag("KOR",key[0]),10,31,10,7);
+                if(key[0].equals("KOR_empire"))UiAssets.drawContent(g,UiStoryAssets.flag("KOR",key[0]),10,30,flagWidth,lineHeight);
                 else g.text(font,text.component("[KOR.GetFlag]").getVisualOrderText(),10,30,0xFFFFFFFF,false);
             }
         });
@@ -200,7 +201,7 @@ public final class ScreenAuthoritativeFieldsTest {
             var file=game.takeScreenshot("hoi-k1-decision-flag-"+(stage++)+"-"+flag+"-"+size[0]+"-gui"+size[2]);
             var image=javax.imageio.ImageIO.read(file.toFile());
             double scale=game.computeOnClient(c->c.getWindow().getGuiScale());
-            int x=(int)Math.round(10*scale),y=(int)Math.round(11*scale),reference=(int)Math.round(31*scale),w=(int)Math.round(10*scale),h=(int)Math.round(7*scale);
+            int x=(int)Math.round(10*scale),y=(int)Math.round(10*scale),reference=(int)Math.round(30*scale),w=(int)Math.round(flagWidth*scale),h=(int)Math.round(lineHeight*scale);
             for(int row=0;row<h;row++)for(int col=0;col<w;col++)if(image.getRGB(x+col,y+row)!=image.getRGB(x+col,reference+row))throw new AssertionError("Cached decision flag differs from current display: "+flag+" "+col+","+row);
         }
     }

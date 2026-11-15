@@ -254,7 +254,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                     UiAssets.nineSlice(g, "decision/ui/event_row", 7, y, pane - 14, eventHeight, 4, 1);
                     UiAssets.draw(g, "decision/ui/event_type/frame_1", 7 + (int)Math.round(15 * eventScale), y + (int)Math.round(3 * eventScale), (int)Math.round(30 * eventScale), (int)Math.round(26 * eventScale));
                     int textLeft = 7 + (int)Math.round(50 * eventScale);
-                    UiText.scrollingCell(g,font,Component.literal(event.title()),textLeft,y,pane-textLeft-80,eventHeight,UiMenuStyle.TEXT,false,marqueeTicks*50);
+                    UiText.scrollingCell(g,font,text.component(event.title()),textLeft,y,pane-textLeft-80,eventHeight,UiMenuStyle.TEXT,false,marqueeTicks*50);
                     if (event.remainingDays() != null) {
                         String remaining = event.remainingDays() + "일";
                         int right = 7 + (int)Math.round(500 * eventScale);
@@ -283,8 +283,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             int categoryHeight=Math.max(header,text.rows(name).size()*(font.lineHeight+1)+8);
             if(g!=null) {
                 UiAssets.nineSlice(g,"decision/category",5,y,pane-10,categoryHeight,5,1);
-                if(!UiAssets.draw(g,asset(category.icon(),"icon"),10,y+(categoryHeight-header+6)/2,header-6,header-6))
-                    UiAssets.draw(g,"decision/category_generic",10,y+(categoryHeight-header+6)/2,header-6,header-6);
+                UiAssets.draw(g,asset(category.icon(),"icon"),10,y+(categoryHeight-header+6)/2,header-6,header-6);
                 label(g,name,header+8,y,pane-header-43,categoryHeight,UiMenuStyle.TEXT,0,true);
                 UiAssets.draw(g,collapsed.contains(id)?"recruitment/expand":"recruitment/collapse",pane-27,y+(categoryHeight-12)/2,12,12);
                 if(!groups.getOrDefault(id,List.of()).isEmpty())UiAssets.draw(g,"decision/ui/track_category/frame_"+categoryTracking(groups.get(id)),pane-42,y+(categoryHeight-10)/2,10,10);
@@ -397,7 +396,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                     imageHeight=Math.min(imageHeight,pane);
                     if(g!=null)UiAssets.draw(g,path,11+(bodyWidth-imageWidth)/2,y,imageWidth,imageHeight);
                     y+=imageHeight+3;
-                } else for(var part:font.split(line,bodyWidth).isEmpty()?List.of(net.minecraft.util.FormattedCharSequence.EMPTY):font.split(line,bodyWidth)) {
+                } else for(var part:font.split(TooltipKeywordIcons.decorateLines(line,false),bodyWidth).isEmpty()?List.of(net.minecraft.util.FormattedCharSequence.EMPTY):font.split(TooltipKeywordIcons.decorateLines(line,false),bodyWidth)) {
                     if(g!=null)text.draw(g,font,part,11,y,UiMenuStyle.TEXT,false);
                     y+=lineHeight;
                 }
@@ -433,13 +432,11 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         String background="decision/ui/row/frame_"+(row.phase().equals("ACTIVE")?0:1);
         if(UiAssets.imageHeight(background,100)==0)background=row.enabled()?"decision/row":"decision/row_disabled";
         UiAssets.nineSlice(g,background,7,y,pane-14,height,4,1);
-        if(!UiAssets.draw(g,asset(row.icon(),"icon"),10,y+3,20,height-6))
-            UiAssets.draw(g,"menu/decisions",10,y+3,20,height-6);
         String cost=rowCost(row);
         int costWidth=costWidth(row);
         int right=pane-49,costLeft=right-costWidth;
         int costColor=row.remainingHours()>0?0xFFFFFF:Boolean.FALSE.equals(row.costMet())?Tooltips.BAD:Tooltips.GOLD;
-        var costRows=text.rows(cost);
+        var costRows=text.rows(cost).stream().map(line->TooltipKeywordIcons.decorateLines(line,false)).toList();
         int costTop=y+(height-costRows.size()*(font.lineHeight+1))/2;
         for(var line:costRows) {
             var coloredCost=Component.empty();
@@ -451,19 +448,25 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             text.scrollingCell(g,font,coloredCost,costLeft+padding,costTop,costWidth-padding,font.lineHeight+1,0xFFFFFFFF,false,marqueeTicks*50);
             costTop+=font.lineHeight+1;
         }
-        int nameLeft=34;
-        if(row.target()!=null && row.target().kind().equals("country")) {
-            UiAssets.draw(g,UiStoryAssets.flag(row.target().id(),row.target().flag()),34,y+(height-14)/2,20,14);
-            nameLeft+=24;
+        String image=asset(row.icon(),"icon");
+        boolean hasImage=UiAssets.imageHeight(image,20)>0;
+        String flag=row.target()!=null&&row.target().kind().equals("country")?UiStoryAssets.flag(row.target().id(),row.target().flag()):"";
+        int[] flagSize=flag.isEmpty()?new int[]{0,0}:UiAssets.contentSize(flag);
+        int flagHeight=flagSize[1]>0?font.lineHeight:0,flagWidth=flagHeight==0?0:Math.max(1,Math.round((float)flagSize[0]*flagHeight/flagSize[1]));
+        int nameLeft=hasImage?10:34,prefix=(hasImage?24:0)+(flagWidth==0?0:flagWidth+4),nameWidth=Math.max(10,costLeft-nameLeft-4);
+        var nameRows=text.rows(rowName(row)).stream().map(line->TooltipKeywordIcons.decorateLines(line,false)).toList();
+        int contentWidth=prefix+nameRows.stream().mapToInt(font::width).max().orElse(0);
+        int nameX=nameLeft-UiText.scrollingOffset(Math.max(0,contentWidth-nameWidth),marqueeTicks*50);
+        g.enableScissor(nameLeft,y,nameLeft+nameWidth,y+height);
+        if(hasImage)UiAssets.draw(g,image,nameX,y+3,20,height-6);
+        if(flagWidth>0)UiAssets.drawContent(g,flag,nameX+(hasImage?24:0),y+(height-flagHeight)/2,flagWidth,flagHeight);
+        int nameTop=y+(height-nameRows.size()*(font.lineHeight+1))/2;
+        for(var line:nameRows) {
+            var sequence=line.getVisualOrderText();
+            text.draw(g,font,sequence,nameX+prefix,Math.round(UiText.centeredY(font,sequence,nameTop,font.lineHeight+1,1)),0xFFFFFFFF,false);
+            nameTop+=font.lineHeight+1;
         }
-        int nameWidth=Math.max(10,costLeft-nameLeft-4-outlineWidth(row));
-        label(g,rowLabel(row),nameLeft,y,nameWidth,height,0xFFFFFFFF,-1);
-        String outline=rowOutline(row);
-        if(!outline.isEmpty()) {
-            int labelWidth=text.lines(font,rowLabel(row),nameWidth).stream().mapToInt(font::width).max().orElse(0);
-            g.pose().pushMatrix();g.pose().translate(nameLeft+labelWidth+2,y+(height-font.lineHeight*2)/2);
-            g.pose().scale(2f);text.draw(g,font,text.component(outline).getVisualOrderText(),0,0,0xFFFFFFFF,false);g.pose().popMatrix();
-        }
+        g.disableScissor();
         String action=row.remainingHours()>0?"decision/timer":"decision/select";
         int actionHeight=UiAssets.imageHeight(action,20);
         UiAssets.draw(g,action,pane-30,y+(height-actionHeight)/2,20,actionHeight);
@@ -489,10 +492,6 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         String name=rowName(row);
         return outline.isEmpty()?name:name.substring(0,name.lastIndexOf(outline)).stripTrailing();
     }
-    private int outlineWidth(DecisionPayloads.Row row) {
-        String outline=rowOutline(row);
-        return outline.isEmpty()?0:font.width(text.component(outline))*2+4;
-    }
     private String rowCost(DecisionPayloads.Row row) {
         String cost=row.remainingHours()>0?(row.remainingHours()+23)/24+"일":row.costText().isEmpty()?format(row.cost()):row.costText();
         return political(row)?"£pol_power "+cost:cost;
@@ -501,7 +500,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         return row.remainingHours()==0 && (row.costText().isEmpty() || row.costText().matches("[0-9]+(?:\\.[0-9]+)?"));
     }
     private int costWidth(DecisionPayloads.Row row) {
-        return Math.min((pane-10)/2,Math.max(22,text.rows(rowCost(row)).stream().mapToInt(font::width).max().orElse(0)+6));
+        return Math.min((pane-10)/2,Math.max(22,text.rows(rowCost(row)).stream().mapToInt(line->font.width(TooltipKeywordIcons.decorateLines(line,false))).max().orElse(0)+6));
     }
     private int rowHeight(DecisionPayloads.Row row) {
         int lines=Math.max(text.rows(rowLabel(row)).size(),text.rows(rowCost(row)).size());
@@ -554,7 +553,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     private String asset(String name,String kind) {
         if(name.isEmpty())return "";
         String mapped=assets.get(name);
-        return mapped!=null?mapped:name.matches("[A-Za-z0-9_]+")?"decision/"+kind+"/"+name.toLowerCase(Locale.ROOT):"";
+        return mapped!=null?(mapped.equals("menu/decisions")?"":mapped):name.matches("[A-Za-z0-9_]+")?"decision/"+kind+"/"+name.toLowerCase(Locale.ROOT):"";
     }
     private static String format(Double value) { return value==null?"0":java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString(); }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {

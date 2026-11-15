@@ -95,6 +95,7 @@ public final class DialogEventTooltipTest {
         if (!colors.equals(List.of(new DecisionText.Run("보수", 0xCD3737), new DecisionText.Run("무소속", 0xB0B0B0), new DecisionText.Run("의석", 0xCCA333), new DecisionText.Run("파랑", 0x518FDC)))) throw new AssertionError("TFR event colors changed");
         text.assets(com.google.gson.JsonParser.parseString("{\"textImages\":{\"GFX_test_banner\":{\"path\":\"decision/test_banner\",\"width\":80,\"height\":20}}}").getAsJsonObject());
         if (!text.rows("£GFX_test_banner").getFirst().getString().equals("£GFX_test_banner")) throw new AssertionError("Registered image blocks must survive token decoration");
+        if(!text.rows("£GFX_test_banner §Y본문§!").getFirst().getString().equals(" 본문"))throw new AssertionError("A source style boundary must not turn an inline icon into a standalone image block");
     }
     private static int[] box(Button button) { return new int[]{button.getX(), button.getY(), button.getWidth(), button.getHeight()}; }
     private static MouseButtonEvent mouse(Button button, int key) { return new MouseButtonEvent(button.getX() + button.getWidth() / 2.0, button.getY() + button.getHeight() / 2.0, new MouseButtonInfo(key, 0)); }

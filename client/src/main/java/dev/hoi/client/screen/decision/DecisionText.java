@@ -63,7 +63,7 @@ public final class DecisionText {
         clear();
     }
     public Component component(String text) {
-        return Tooltips.sourceSpacing(sourceComponent(text));
+        return Tooltips.sourceSpacing(sourceComponent(text,false));
     }
     public void draw(GuiGraphicsExtractor graphics,Font font,FormattedCharSequence line,int x,int y,int color,boolean shadow) {
         boolean plain=line.accept((index,style,codepoint)->!FLAG_FONT.equals(style.getFont())||!flagCountries.containsKey(codepoint));
@@ -81,7 +81,7 @@ public final class DecisionText {
                 }
                 String flag=dev.hoi.client.ui.country.CountryDisplays.flag(country);
                 if(flag.equals("country/"+country.toLowerCase(Locale.ROOT)+"/flag"))graphics.text(font,glyph,left[0],y,0xFFFFFFFF,false);
-                else UiAssets.draw(graphics,flag,left[0],y+1,10,7);
+                else UiAssets.drawContent(graphics,flag,left[0],y,Math.max(1,font.width(glyph)-1),font.lineHeight);
                 left[0]+=font.width(glyph);
             }
             return true;
@@ -89,6 +89,7 @@ public final class DecisionText {
         if(!parts.isEmpty())graphics.text(font,FormattedCharSequence.composite(parts),left[0],y,color,shadow);
     }
     void scrollingCell(GuiGraphicsExtractor graphics,Font font,Component value,int x,int y,int width,int height,int color,boolean centered,long elapsedMillis) {
+        value=TooltipKeywordIcons.decorateLines(value,false);
         var sequence=value.getVisualOrderText();
         var bounds=font.prepareText(sequence,0,0,color,false,false,0).bounds();
         int inset=bounds==null?0:Math.min(0,bounds.left());
@@ -98,9 +99,12 @@ public final class DecisionText {
         draw(graphics,font,sequence,left-inset,Math.round(UiText.centeredY(font,sequence,y,height,1)),color,false);
         graphics.disableScissor();
     }
-    private Component sourceComponent(String text) {
+    private Component sourceComponent(String text,boolean preserveImages) {
         var result=Component.empty();
-        for(var run:sourceRuns(text)) {
+        var runs=sourceRuns(text);
+        String[] lines=preserveImages?runs.stream().map(Run::text).collect(java.util.stream.Collectors.joining()).split("\n",-1):new String[0];
+        int lineIndex=0;
+        for(var run:runs) {
             var style=run.color()==null?Style.EMPTY:Style.EMPTY.withColor(run.color());
             String part=run.text();
             var matcher=TOKENS.matcher(part);
@@ -113,13 +117,14 @@ public final class DecisionText {
                     result.append(glyph==null?original:Component.literal(glyph)
                             .withStyle(Style.EMPTY.withFont(FLAG_FONT).withColor(0xFFFFFF).withShadowColor(0)));
                 } else {
-                    var icon=TooltipKeywordIcons.decorateLines(original,false);
-                    result.append(icon.getString().isEmpty() && (images.containsKey(matcher.group(1))
-                            || sprites.contains(matcher.group(1)) || sprites.contains("GFX_"+matcher.group(1))) ? original : icon);
+                    boolean image=preserveImages && lines[lineIndex].strip().equals(matcher.group()) && (images.containsKey(matcher.group(1))
+                            || sprites.contains(matcher.group(1)) || sprites.contains("GFX_"+matcher.group(1)));
+                    result.append(image?original:TooltipKeywordIcons.decorateLines(original,false));
                 }
                 start=matcher.end();
             }
             result.append(Component.literal(part.substring(start)).withStyle(style));
+            if(part.equals("\n"))lineIndex++;
         }
         return result;
     }
@@ -180,7 +185,7 @@ public final class DecisionText {
         if(cached!=null)return cached;
         var rows=new ArrayList<net.minecraft.network.chat.MutableComponent>();
         rows.add(Component.empty());
-        sourceComponent(text).visit((style,part)->{
+        sourceComponent(text,true).visit((style,part)->{
             String[] lines=part.split("\\R",-1);
             for(int i=0;i<lines.length;i++) {
                 if(i>0)rows.add(Component.empty());
@@ -202,7 +207,8 @@ public final class DecisionText {
         if(cached!=null)return cached;
         var result=new ArrayList<FormattedCharSequence>();
         for(var line:rows(text)) {
-            var wrapped=font.split(bold?line.copy().withStyle(net.minecraft.ChatFormatting.BOLD):line,Math.max(1,width));
+            var value=TooltipKeywordIcons.decorateLines(line,false);
+            var wrapped=font.split(bold?value.copy().withStyle(net.minecraft.ChatFormatting.BOLD):value,Math.max(1,width));
             if(wrapped.isEmpty())result.add(FormattedCharSequence.EMPTY);
             else result.addAll(wrapped);
         }
@@ -214,7 +220,7 @@ public final class DecisionText {
     public Tooltips.ScrolledTooltip tooltip(GuiGraphicsExtractor graphics,Font font,String text,int mouseX,int mouseY,
             int viewportWidth,int viewportHeight,int scroll) {
         int imageWidth=0;
-        for(var row:rows(text)) {
+        for(var row:sourceRows(text)) {
             var matcher=TOKENS.matcher(row.getString().strip());
             var image=matcher.matches()&&matcher.group(1)!=null?images.get(matcher.group(1)):null;
             if(image!=null)imageWidth=Math.max(imageWidth,Math.max(1,(int)Math.round(image.width()/2d)));
@@ -254,7 +260,7 @@ public final class DecisionText {
     }
     List<Block> blocks(Font font,String text,int width) {
         var result=new ArrayList<Block>();
-        var rows=Tooltips.collapseBlankLines(rows(text),value->TooltipText.blank(value.getString()));
+        var rows=Tooltips.collapseBlankLines(sourceRows(text),value->TooltipText.blank(value.getString()));
         for(int index=0;index<rows.size();index++) {
             var row=rows.get(index);
             var matcher=TOKENS.matcher(row.getString().strip());
@@ -280,7 +286,7 @@ public final class DecisionText {
                 }
                 result.add(new Block(caption,image,imageWidth,imageHeight,captionOffset));
             } else {
-                var lines=font.split(row,width);
+                var lines=font.split(TooltipKeywordIcons.decorateLines(row,false),width);
                 if(lines.isEmpty())result.add(new Block(FormattedCharSequence.EMPTY,null,0,font.lineHeight+1,0));
                 else for(var line:lines)result.add(new Block(line,null,font.width(line),font.lineHeight+1,0));
             }

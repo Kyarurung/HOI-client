@@ -2770,16 +2770,16 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private void heading(String value, int x, int y, int max, int color) { if (graphics != null) UiMenuStyle.heading(graphics, font, value, x, y, max, color); }
     private void leftText(String value, int x, int y, int max, int color) {
         if (graphics == null) return;
-        String display = font.plainSubstrByWidth(value, Math.max(1, (int)(max / UiText.scale(font))));
-        UiText.text(graphics, font, display, x, y, color);
-        if (!display.equals(value)) tip(value, x, y - 1, max, 11);
+        var source=Tooltips.officerText(value);
+        var display=font.substrByWidth(source,Math.max(1,(int)(max/UiText.scale(font))));
+        UiText.text(graphics,font,net.minecraft.locale.Language.getInstance().getVisualOrder(display),x,y,color);
+        if(!display.getString().equals(source.getString()))tip(value,x,y-1,max,11);
     }
     private void text(String value, int x, int y, int max, int color) {
         if (graphics == null) return;
         float scale=dev.hoi.client.ui.UiText.scale(font);
-        String display=font.plainSubstrByWidth(value,Math.max(1,(int)(max/scale)));
-        UiText.cell(graphics, font, display, x, y, max, UiText.MIN_HEIGHT, color, false);
-        if(!display.equals(value))tip(value,x,y-1,max,11);
+        UiText.cell(graphics, font, value, x, y, max, UiText.MIN_HEIGHT, color, false);
+        if(font.width(Tooltips.officerText(value))*scale>max)tip(value,x,y-1,max,11);
     }
     private void productionTip(String value,int x,int y,int w,int h) {
         if(graphics!=null&&!background&&!designerManufacturer&&mouseX>=x&&mouseX<x+w&&mouseY>=y&&mouseY<y+h)

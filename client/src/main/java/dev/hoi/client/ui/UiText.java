@@ -17,12 +17,19 @@ public final class UiText {
         int suffix=font.width(marker);
         return width<suffix?"":font.plainSubstrByWidth(value,width-suffix)+marker;
     }
+    public static Component ellipsize(Font font, Component value, int width) {
+        if(value.getString().contains("£"))value=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(value,false);
+        if(font.width(value)<=width)return value;
+        var marker=Component.literal("…").withStyle(value.getStyle());
+        if(width<font.width(marker))return Component.empty();
+        return Tooltips.sourceSpacing(font.substrByWidth(value,width-font.width(marker))).copy().append(marker);
+    }
     public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right) {
         cell(g, font, value, x, y, width, height, color, right, true);
     }
     public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right, boolean shadow) {
         float scale = scale(font);
-        String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)(width / scale)));
+        var clipped = net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(Tooltips.officerText(value), Math.max(1, (int)(width / scale))));
         float remaining = width - font.width(clipped) * scale;
         g.pose().pushMatrix();
         g.pose().translate(x + (right ? remaining : remaining / 2), centeredY(font, clipped, y, height, scale));
@@ -33,11 +40,11 @@ public final class UiText {
     public static void iconText(GuiGraphicsExtractor g, Font font, String icon, String value, int x, int y, int width, int height, int iconSize, int color) {
         float scale = scale(font);
         int size = Math.min(iconSize, Math.min(height, Math.max(1, width - 4)));
-        String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)((width - size - 3) / scale)));
+        var clipped = font.substrByWidth(Tooltips.officerText(value), Math.max(1, (int)((width - size - 3) / scale)));
         int textWidth = Math.round(font.width(clipped) * scale);
         int left = x + (width - size - 3 - textWidth) / 2;
         UiAssets.draw(g, icon, left, y + (height - size) / 2, size, size);
-        cell(g, font, clipped, left + size + 3, y, textWidth, height, color, false);
+        cell(g, font, value, left + size + 3, y, textWidth, height, color, false);
     }
     private static boolean numeric(FormattedCharSequence text) {
         boolean[] numeric = {true, false};
@@ -59,7 +66,7 @@ public final class UiText {
     }
     public static float scale(Font font) { return Math.max(1f, MIN_HEIGHT / (float)font.lineHeight); }
     public static void text(GuiGraphicsExtractor g, Font font, String text, int x, int y, int color) {
-        text(g, font, Component.literal(text).getVisualOrderText(), x, y, color);
+        text(g, font, Tooltips.officerText(text).getVisualOrderText(), x, y, color);
     }
     public static void text(GuiGraphicsExtractor g, Font font, FormattedCharSequence text, int x, int y, int color) {
         text(g, font, text, x, y, color, true);
@@ -69,15 +76,18 @@ public final class UiText {
         g.text(font, text, 0, 0, color, shadow); g.pose().popMatrix();
     }
     public static void text(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int color) {
+        if(text.getString().contains("£"))text=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(text,false);
         text(g, font, text.getVisualOrderText(), x, y, color);
     }
     public static void centeredAt(GuiGraphicsExtractor g, Font font, String text, int x, int y, int color) {
-        text(g, font, text, x - Math.round(font.width(text) * scale(font) / 2), y, color);
+        centeredAt(g, font, Tooltips.officerText(text), x, y, color);
     }
     public static void centeredAt(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int color) {
+        if(text.getString().contains("£"))text=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(text,false);
         text(g, font, text, x - Math.round(font.width(text) * scale(font) / 2), y, color);
     }
     public static void leftSingleLine(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
+        if(text.getString().contains("£"))text=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(text,false);
         float fitted = Math.min(scale(font), Math.min(width / (float)Math.max(1, font.width(text)), height / (float)font.lineHeight));
         g.pose().pushMatrix();
         g.pose().translate(x, centeredY(font, text.getVisualOrderText(), y, height, fitted));
@@ -86,6 +96,7 @@ public final class UiText {
         g.pose().popMatrix();
     }
     public static void scrollingCell(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color, boolean centered) {
+        if(text.getString().contains("£"))text=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(text,false);
         var styled = text.copy().withStyle(style -> style.withColor(color).withShadowColor(0));
         var bounds = font.prepareText(styled.getVisualOrderText(), 0, 0, color, false, false, 0).bounds();
         int lineHeight = bounds == null ? font.lineHeight : bounds.top() * 2 + bounds.height() + 2;
@@ -97,6 +108,7 @@ public final class UiText {
         left(g, font, Component.literal(text), x, y, width, height, color);
     }
     public static void scrollingCell(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color, boolean centered, long elapsedMillis) {
+        if(text.getString().contains("£"))text=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(text,false);
         var bounds = font.prepareText(text.getVisualOrderText(), 0, 0, color, false, false, 0).bounds();
         int inset = bounds == null ? 0 : Math.min(0, bounds.left());
         int textWidth = Math.max(font.width(text), bounds == null ? 0 : bounds.right()) - inset, overflow = Math.max(0, textWidth - width);
@@ -118,6 +130,7 @@ public final class UiText {
         for (int i = 0; i < count; i++) text(g, font, lines.get(i), x, top + i * (MIN_HEIGHT + 1), color);
     }
     public static void centeredSingleLine(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
+        if(text.getString().contains("£"))text=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(text,false);
         float fitted = Math.min(scale(font), Math.min(width / (float)Math.max(1, font.width(text)), height / (float)font.lineHeight));
         g.pose().pushMatrix();
         g.pose().translate(x + (width - font.width(text) * fitted) / 2, centeredY(font, text.getVisualOrderText(), y, height, fitted));

@@ -452,6 +452,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         }
         if (System.getProperty("hoi.testSuite", "all").equals("decisions")) {
             try (var world = context.worldBuilder().create()) {
+                dev.hoi.client.screen.decision.DecisionMarqueeTest.run(context, fixtureMenu().hud());
                 dev.hoi.client.screen.decision.DecisionScreenChecks.run(context, fixtureMenu().hud());
             }
             return;

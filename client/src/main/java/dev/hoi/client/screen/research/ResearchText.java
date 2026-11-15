@@ -14,8 +14,8 @@ final class ResearchText {
             "사고 확률", "치명타 입을 확률", "치명타 지속 효과", "상륙 준비 시간", "발각 확률", "손실",
             "보급품 고갈", "수송선 필요량", "적의 공중 지원", "대공 폭격 피해 감소");
     private ResearchText() {}
-    static MutableComponent white(String text) { return Component.literal(text).withStyle(ChatFormatting.WHITE); }
-    static MutableComponent gold(String text) { return Component.literal(text).withStyle(ChatFormatting.GOLD); }
+    static MutableComponent white(String text) { return dev.hoi.client.ui.tooltip.Tooltips.officerText(text).copy().withStyle(ChatFormatting.WHITE); }
+    static MutableComponent gold(String text) { return dev.hoi.client.ui.tooltip.Tooltips.officerText(text).copy().withStyle(ChatFormatting.GOLD); }
     static Component keywords(String text) {
         var result = white(""); var matcher = KEYWORDS.matcher(text); int end = 0;
         while (matcher.find()) {

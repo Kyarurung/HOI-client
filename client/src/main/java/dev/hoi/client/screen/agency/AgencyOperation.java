@@ -308,7 +308,7 @@ public final class AgencyOperation extends Screen {
         UiAssets.nineSlice(g, sprite("GFX_tiled_window"), x, y, w, h, 6, .5);
         UiAssets.nineSlice(g, sprite("GFX_tiled_header"), x + 2, y + 2, w - 4, 20, 6, .5);
         g.pose().pushMatrix(); g.pose().translate(x + 23, y + 3); g.pose().scale(1.5f);
-        g.text(font, item.title(), 0, 0, UiMenuStyle.TEXT, false); g.pose().popMatrix();
+        g.text(font, Tooltips.officerText(item.title()), 0, 0, UiMenuStyle.TEXT, false); g.pose().popMatrix();
         g.pose().pushMatrix(); g.pose().translate(x + 7.5f, y + 23); g.pose().scale(.5f);
         UiAssets.draw(g, sprite("GFX_container_target_info_bg"), 0, 0, 254, 94);
         UiAssets.draw(g, texture(item.texture()), 10, 3, 85, 85);

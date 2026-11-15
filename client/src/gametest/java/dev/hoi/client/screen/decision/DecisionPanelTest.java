@@ -273,9 +273,17 @@ public final class DecisionPanelTest {
             case "inner_circle" -> {
                 require(fixture.panel().elements().getFirst().layout().width().value() == 480, "Inner circle source width must remain 480");
                 require(probe.result().height() >= probe.width(), "Inner circle declared 480 by 480 canvas must survive");
-                require(probe.result().hits().size() == 3, "All three original advisor trait tooltips are required");
+                require(probe.result().hits().size() == 1, "Only the nonempty original advisor trait tooltip may create a hover target");
                 for (int index = 1; index <= 3; index++) {
-                    var hit = hit(probe, "TFR_KOR_ascended_advisor_" + index + "_trait");
+                    String name="TFR_KOR_ascended_advisor_"+index+"_trait";
+                    var element=elements(fixture.panel()).filter(value->value.name().equals(name)).findFirst().orElseThrow();
+                    String value=element.tooltip().immediate().value();
+                    require(element.tooltip().immediate().complete() && (index==1?!value.isBlank():value.isEmpty()), "Source advisor trait selection must be resolved and preserve empty unmatched text: "+name);
+                    if(index>1) {
+                        require(probe.result().hits().stream().noneMatch(hit->hit.id().equals(name)), "Empty source tooltips must not create hover targets: "+name);
+                        continue;
+                    }
+                    var hit = hit(probe, name);
                     require(hit.x() == 11 + (int)Math.floor((6 + (index - 1) * 160) * probe.width() / 480.0), "Nested advisor anchor shifted: " + index);
                     require(hit.y() == probe.top() + (int)Math.floor(462 * probe.width() / 480.0), "Nested advisor vertical anchor shifted: " + index);
                 }
