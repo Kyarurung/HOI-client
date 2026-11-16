@@ -149,6 +149,7 @@ public final class DecisionPanelTest {
                     context.runOnClient(client -> require(textures(closed).isEmpty(), "Closed panel must release its radial cache"));
                 }
             }
+            allKoreanPanels(context, hud);
         } catch (IOException error) {
             throw new UncheckedIOException(error);
         } finally {
@@ -156,6 +157,46 @@ public final class DecisionPanelTest {
             context.runOnClient(client -> client.options.guiScale().set(original[0]));
             context.getInput().resizeWindow(original[1], original[2]);
             context.waitTicks(3);
+        }
+    }
+    private static void allKoreanPanels(ClientGameTestContext context, CountryHud hud) throws IOException {
+        String directory = System.getenv("HOI_DECISION_PREVIEW");
+        var root = JsonParser.parseString(Files.readString(Path.of(directory).resolve("decision-kor-panels.json"), StandardCharsets.UTF_8)).getAsJsonObject();
+        var missing = new ArrayList<String>();
+        for (int[] size : List.of(new int[]{2560, 1440}, new int[]{1280, 720})) {
+            context.getInput().resizeWindow(size[0], size[1]);
+            context.runOnClient(client -> client.options.guiScale().set(2));
+            context.waitTicks(3);
+            var assets = context.computeOnClient(DecisionPanelTest::assets);
+            var excluded = assets.root().has("excludedSprites") ? assets.root().getAsJsonObject("excludedSprites").keySet() : Set.<String>of();
+            var bars = assets.root().has("progressBars") ? assets.root().getAsJsonObject("progressBars").keySet() : Set.<String>of();
+            for (var value : root.getAsJsonArray("panels")) {
+                var item = value.getAsJsonObject();
+                var fixture = new Fixture(item.get("id").getAsString(), item.get("country").getAsString(), JSON.fromJson(item.get("panel"), DecisionPanelView.class));
+                if (size[0] == 2560) visibleSprites(fixture.panel().elements(), sprite -> {
+                    if (!sprite.contains("easter_egg") && !excluded.contains(sprite) && !bars.contains(sprite)) {
+                        String path = assets.sprites().get(sprite);
+                        boolean present = path != null && context.computeOnClient(client -> client.getResourceManager()
+                                .getResource(Identifier.parse("hoi:textures/gui/" + path + ".png")).isPresent());
+                        if (!present) missing.add(fixture.id() + "/" + sprite);
+                    }
+                });
+                var requests = new ArrayList<DecisionPayloads.Request>();
+                context.setScreen(() -> new DecisionScreen(view(fixture, fixture.panel(), UUID.randomUUID().toString(), 1, hud), requests::add));
+                context.getInput().setCursorPos(2, 2);
+                context.waitTicks(3);
+                screenshot(context, "hoi-decision-kor-panel-" + fixture.id().toLowerCase(java.util.Locale.ROOT) + "-" + size[0] + "x" + size[1] + "-gui2", size);
+                require(requests.isEmpty(), "Panel rendering must not issue gameplay requests: " + fixture.id());
+                context.setScreen(() -> null);
+            }
+        }
+        require(missing.isEmpty(), "Visible source panel sprites without pack art: " + missing);
+    }
+    private static void visibleSprites(List<DecisionPanelView.Element> elements, java.util.function.Consumer<String> consumer) {
+        for (var element : elements) {
+            if (!Boolean.TRUE.equals(element.visible())) continue;
+            if (element.sprite() != null && !element.kind().equals("radial") && (element.frameVariable() == null || element.frame() != null)) consumer.accept(element.sprite());
+            visibleSprites(element.children(), consumer);
         }
     }
     private static void speakerNameplate(ClientGameTestContext context,String screenshot)throws IOException {

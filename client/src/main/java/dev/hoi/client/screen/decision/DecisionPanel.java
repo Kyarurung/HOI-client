@@ -80,6 +80,15 @@ final class DecisionPanel {
         var canvas=new Rect(left,top,right-left,bottom-top);
         if(canvas.width()<=0 || canvas.height()<=0)return new Result(0,List.of());
         double scale=width/canvas.width();
+        for(var draw:draws) {
+            var element=draw.element();
+            if(!element.kind().equals("text") || element.text()==null)continue;
+            double crisp=crisp(scale,draw.fontScale());
+            int available=Math.max(1,(int)Math.floor(draw.bounds().width()/crisp));
+            var lines=text.lines(font,element.text().value(),available,Objects.requireNonNullElse(element.layout().font(),"").endsWith("header"));
+            bottom=Math.max(bottom,draw.bounds().y()+lines.size()*draw.lineHeight()*crisp/draw.fontScale());
+        }
+        canvas=new Rect(left,top,right-left,bottom-top);
         var hits=new ArrayList<Hit>();
         var hitNames=new HashMap<String,Integer>();
         for(var draw:draws) {
@@ -105,8 +114,9 @@ final class DecisionPanel {
             graphics.pose().translate((float)(x+(rectangle.x()-canvas.x())*scale),(float)(y+(rectangle.y()-canvas.y())*scale));
             graphics.pose().scale((float)scale);
             if(element.kind().equals("text") && element.text()!=null) {
-                graphics.pose().scale((float)draw.fontScale());
-                int available=Math.max(1,(int)Math.floor(rectangle.width()/draw.fontScale()));
+                double crisp=crisp(scale,draw.fontScale());
+                graphics.pose().scale((float)crisp);
+                int available=Math.max(1,(int)Math.floor(rectangle.width()/crisp));
                 var lines=text.lines(font,element.text().value(),available,Objects.requireNonNullElse(element.layout().font(),"").endsWith("header"));
                 for(int row=0;row<lines.size();row++) {
                     var line=lines.get(row);
@@ -147,10 +157,11 @@ final class DecisionPanel {
                 graphics.text(font,"?",Math.max(0,(int)(rectangle.width()-font.width("?"))/2),Math.max(0,(int)(rectangle.height()-font.lineHeight)/2),UiMenuStyle.MUTED);
             }
             if(element.kind().equals("button") && element.text()!=null && !element.text().value().isEmpty()) {
-                graphics.pose().scale((float)draw.fontScale());
-                int available=Math.max(1,(int)Math.floor(rectangle.width()/draw.fontScale()));
+                double crisp=crisp(scale,draw.fontScale());
+                graphics.pose().scale((float)crisp);
+                int available=Math.max(1,(int)Math.floor(rectangle.width()/crisp));
                 var lines=text.lines(font,element.text().value(),available,Objects.requireNonNullElse(element.layout().font(),"").endsWith("header"));
-                double block=lines.size()*draw.lineHeight()/draw.fontScale(),textTop=(rectangle.height()/draw.fontScale()-block)/2;
+                double block=lines.size()*draw.lineHeight()/draw.fontScale(),textTop=(rectangle.height()/crisp-block)/2;
                 for(int row=0;row<lines.size();row++)
                     text.draw(graphics,font,lines.get(row),(int)Math.round((available-font.width(lines.get(row)))/2.0),(int)Math.round(textTop+row*draw.lineHeight()/draw.fontScale()),UiMenuStyle.TEXT,true);
             }
@@ -158,6 +169,11 @@ final class DecisionPanel {
             graphics.disableScissor();
         }
         return new Result((int)Math.ceil(canvas.height()*scale),List.copyOf(hits));
+    }
+    static double crisp(double panelScale,double fontScale) {
+        double gui=Math.max(1,Minecraft.getInstance().getWindow().getGuiScale());
+        double physical=Math.max(gui,Math.ceil(panelScale*fontScale*gui-1e-6));
+        return physical/gui/panelScale;
     }
     private static boolean painted(DecisionPanelView.Element element) {
         return element.kind().equals("text") || element.kind().equals("radial") || element.sprite()!=null;

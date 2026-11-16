@@ -29,7 +29,7 @@ ext.hoiRendererFixtureGroups = [
             'prc-pages', 'prc-metadata', 'prc-active-pages', 'prc-active-metadata',
             'prc-restored-pages', 'prc-restored-metadata', 'prc-completed-pages', 'prc-completed-metadata',
             'kor-kfxx-pages', 'kor-kfxx-metadata', 'prc-eadi-pages', 'prc-eadi-metadata',
-            'decision-panels', 'kor-scene-pages', 'kor-scene-metadata', 'kor-scene-details', 'kor-scene-active-pages', 'kor-scene-active-metadata',
+            'decision-panels', 'decision-kor-panels', 'kor-scene-pages', 'kor-scene-metadata', 'kor-scene-details', 'kor-scene-active-pages', 'kor-scene-active-metadata',
             'kor-scene-ownership-lost-pages', 'kor-scene-ownership-lost-metadata', 'kor-scene-mission-timeout-pages',
             'kor-scene-mission-timeout-metadata', 'kor-scene-target-active-pages', 'kor-scene-target-active-metadata'
         ],

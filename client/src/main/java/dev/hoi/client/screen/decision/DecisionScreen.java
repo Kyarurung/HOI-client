@@ -204,8 +204,8 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         var resource=minecraft.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:ui/decision_assets.json"));
         if(resource.isEmpty())return Map.of();
         try(var input=resource.get().open()) {
-            byte[] bytes=input.readNBytes(262145);
-            if(bytes.length>262144)return Map.of();
+            byte[] bytes=input.readNBytes(1048577);
+            if(bytes.length>1048576)return Map.of();
             var root=JsonParser.parseString(new String(bytes,java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
             if(root.get("version").getAsInt()!=1)return Map.of();
             text.assets(root);
