@@ -150,6 +150,8 @@ HQ 설계 하단에는 원본 `GFX_button_221x34` 저장 단추만 둔다(x487/y
 
 ## 지휘관 임명과 상세 화면
 
+능력 ID는 원본 대소문자를 보존한다. PRC_force_attack의 그림은 원본 GFX_ability_chi_force_attack, super_force_attack의 그림은 GFX_onmap_unit_counter_active_ability이며 팩의 소문자 경로에 따로 연결한다. 일반 능력 이름으로 그림 키를 추정해 이 두 원본을 기본 그림으로 바꾸지 않는다. 서버의 빈 이벤트 제목·본문·선택 문구는 빈 상태로 표시하고 번역 키나 대체 문구를 만들지 않는다.
+
 `advisor-politics`는 `HOI_COMMANDER_PREVIEW`의 `kor-advisor-roles-{before,after}-promote`, `kor-politics-staff-{before,after}-promote`, `kor-army-roster-tooltips`, `ins-menu-open-screen`을 사용한다. 정치 후보의 추가·유효 선택지·반복 클릭 잠금, 두 방향 고문 정렬, 원문 국민정신 툴팁을 GUI2 두 해상도로 검사한다. 시험 입력은 `InputConstants.MOUSE_BUTTON_LEFT`를 사용한다. SDL 입력의 버튼 번호를 GLFW 숫자로 가정하지 않는다.
 
 그림 없는 국민정신 툴팁은 기존 `sourceLines`로 원본 `§G`·`§!` 색 코드와 필드별 소수 자릿수를 보존한다. 원문에 없는 아이콘을 추정해 끼우지 않는다. 정치의 다른 항목은 기존 표시 경로를 유지한다.

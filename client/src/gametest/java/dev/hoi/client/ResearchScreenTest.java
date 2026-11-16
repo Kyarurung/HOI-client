@@ -69,6 +69,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         loadPack(context);
+        if(Set.of("all","v34").contains(System.getProperty("hoi.testSuite","all"))&&System.getenv("HOI_V34_PREVIEW")!=null){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.ScreenServerChangesTest.run(context,fixtureMenu());}
+            if(System.getProperty("hoi.testSuite","all").equals("v34"))return;
+        }
         if(Set.of("all","d2b").contains(System.getProperty("hoi.testSuite","all"))) {
             try(var world=context.worldBuilder().create()) {
                 dev.hoi.client.screen.research.ResearchInteractionTest.run(context,fixtureResearch());

@@ -200,7 +200,7 @@ public final class CommanderPanels {
         if(span>2*end)UiAssets.draw(g,source("ability_list_mid"),left+end,top,span-2*end,u.size(22.5));
         UiAssets.draw(g,source("ability_list_end"),left+span-end,top,end,u.size(22.5));
         for(int n=0;n<ids.size();n++){
-            String id=ids.get(n),key="ABILITY_"+id.toUpperCase(Locale.ROOT),icon="ability_"+id;var size=UiAssets.imageSize(source(icon));if(size[0]<=0||size[1]<=0){icon="ability_icon_default";size=UiAssets.imageSize(source(icon));}int width=size[0],height=size[1];
+            String id=ids.get(n),key="ABILITY_"+id.toUpperCase(Locale.ROOT),icon=switch(id){case "PRC_force_attack"->"ability_chi_force_attack";case "super_force_attack"->"onmap_unit_counter_active_ability";default->"ability_"+id;};var size=UiAssets.imageSize(source(icon));if(size[0]<=0||size[1]<=0){icon="ability_icon_default";size=UiAssets.imageSize(source(icon));}int width=size[0],height=size[1];
             var details=selectedAbilityDetails(id);String original=details.stream().map(AbilityDetail::tooltip).filter(t->!t.isEmpty()).findFirst().orElseGet(()->CommanderAvailability.tooltip(abilityAction(id),UiCommandLabels.text(key,id)+"\n\n"+UiCommandLabels.text(key+"_DESC","")));
             String reason=CommanderAvailability.reason(abilityAction(id));if(!reason.isEmpty()&&!original.contains(reason))original=CommanderAvailability.explain(original,reason);
             nativeButton(g,out,icon,left+u.size(14.5+n*18),top+u.size(4),u.size(width/2.0),u.size(height/2.0),original,()->armyAbility(id),details.stream().anyMatch(CommanderPanels::abilityGrayscale));
