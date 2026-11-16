@@ -3,6 +3,15 @@ package dev.hoi.protocol.industry;
 import dev.hoi.protocol.ProtocolJsonCodec;
 import dev.hoi.protocol.map.MapAtlasScene;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.TypeAdapterFactory;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
+import java.io.IOException;
+import java.util.List;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -10,7 +19,42 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 public final class IndustryPayloads {
-    private static final Gson JSON=new Gson();
+    private static final Gson JSON=new GsonBuilder().registerTypeAdapterFactory(new CompactStats()).create();
+    private static final class CompactStats implements TypeAdapterFactory {
+        @SuppressWarnings("unchecked")
+        @Override public <T> TypeAdapter<T> create(Gson gson,TypeToken<T> type) {
+            if(type.getRawType()!=IndustryTankDesigner.Stat.class)return null;
+            var contributions=gson.getAdapter(new TypeToken<List<IndustryTankDesigner.Contribution>>(){});
+            return (TypeAdapter<T>)new TypeAdapter<IndustryTankDesigner.Stat>() {
+                @Override public void write(JsonWriter out,IndustryTankDesigner.Stat stat) throws IOException {
+                    if(stat==null){out.nullValue();return;}
+                    out.beginObject();out.name("id").value(stat.id());out.name("name").value(stat.name());out.name("value").value(stat.value());
+                    if(stat.percent())out.name("percent").value(true);
+                    if(!stat.contributions().isEmpty()){out.name("contributions");contributions.write(out,stat.contributions());}
+                    if(Double.doubleToRawLongBits(stat.change())!=0)out.name("change").value(stat.change());
+                    if(stat.averaged())out.name("averaged").value(true);
+                    out.endObject();
+                }
+                @Override public IndustryTankDesigner.Stat read(JsonReader in) throws IOException {
+                    if(in.peek()==JsonToken.NULL){in.nextNull();return null;}
+                    String id=null,name=null;double value=0,change=0;boolean percent=false,averaged=false;List<IndustryTankDesigner.Contribution> parts=null;
+                    in.beginObject();
+                    while(in.hasNext())switch(in.nextName()) {
+                        case "id"->id=in.nextString();
+                        case "name"->name=in.nextString();
+                        case "value"->value=in.nextDouble();
+                        case "percent"->percent=in.nextBoolean();
+                        case "contributions"->parts=contributions.read(in);
+                        case "change"->change=in.nextDouble();
+                        case "averaged"->averaged=in.nextBoolean();
+                        default->in.skipValue();
+                    }
+                    in.endObject();
+                    return new IndustryTankDesigner.Stat(id,name,value,percent,parts,change,averaged);
+                }
+            };
+        }
+    }
     private static boolean registered;
     private IndustryPayloads() {}
     public enum Action { OPEN, REFRESH, CLOSE, ADD, ASSIGN, SWITCH, REMOVE, FIRST, TRADE, CANCEL_TRADE,
