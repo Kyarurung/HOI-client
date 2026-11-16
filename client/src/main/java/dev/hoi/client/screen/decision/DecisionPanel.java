@@ -23,18 +23,21 @@ final class DecisionPanel {
     private record FontMetrics(double size,double lineHeight) {}
     private final Map<String,int[]> dimensions=new HashMap<>();
     private final Map<String,FontMetrics> fonts=new HashMap<>();
-    private record Progress(String foreground,String background,int width,int height,boolean horizontal,double scale) {}
+    private record Progress(String foreground,String background,int width,int height,boolean horizontal,double scale,String effect) {}
     private final Map<String,Progress> progress=new HashMap<>();
+    private final Map<String,int[]> lineRuns=new HashMap<>();
     private final DecisionRadial radial=new DecisionRadial();
     void assets(com.google.gson.JsonObject root) {
-        radial.configure(root);dimensions.clear();fonts.clear();progress.clear();
+        radial.configure(root);dimensions.clear();fonts.clear();progress.clear();lineRuns.clear();
         if(root.get("progressBars") instanceof com.google.gson.JsonObject bars)for(var entry:bars.entrySet()) {
             var value=entry.getValue().getAsJsonObject();var textures=value.getAsJsonArray("textures");
             String foreground=textures.get(0).getAsJsonObject().get("path").getAsString(),background=textures.get(1).getAsJsonObject().get("path").getAsString();
             int width=value.get("width").getAsInt(),height=value.get("height").getAsInt();
             double scale=value.get("scale").getAsDouble();
-            if(foreground.matches("[a-z0-9_/]+") && background.matches("[a-z0-9_/]+") && width>0 && height>0 && width<=4096 && height<=4096 && Double.isFinite(scale) && scale>0)
-                progress.put(entry.getKey(),new Progress(foreground,background,width,height,value.get("horizontal").getAsBoolean(),scale));
+            String effect=value.has("effect")?value.get("effect").getAsString():"";
+            if(foreground.matches("[a-z0-9_/]+") && background.matches("[a-z0-9_/]+") && width>0 && height>0 && width<=4096 && height<=4096 && Double.isFinite(scale) && scale>0
+                    && Set.of("progress","top_down","line_graph").contains(effect) && (effect.equals("progress") || value.get("horizontal").getAsBoolean()))
+                progress.put(entry.getKey(),new Progress(foreground,background,width,height,value.get("horizontal").getAsBoolean(),scale,effect));
         }
         if(root.get("fonts") instanceof com.google.gson.JsonObject entries)for(var entry:entries.entrySet()) {
             var value=entry.getValue().getAsJsonObject();
@@ -43,8 +46,8 @@ final class DecisionPanel {
                 fonts.put(entry.getKey(),new FontMetrics(size,lineHeight));
         }
     }
-    void clear() { dimensions.clear(); }
-    void close() { radial.close();dimensions.clear();fonts.clear();progress.clear(); }
+    void clear() { dimensions.clear();lineRuns.clear(); }
+    void close() { radial.close();dimensions.clear();fonts.clear();progress.clear();lineRuns.clear(); }
     Result render(GuiGraphicsExtractor graphics,Font font,DecisionPanelView panel,Map<String,String> assets,
             DecisionText text,int x,int y,int width) {
         if(panel==null || panel.elements().isEmpty())return new Result(0,List.of());
@@ -127,6 +130,24 @@ final class DecisionPanel {
                     };
                     text.draw(graphics,font,line,(int)Math.round(textLeft),(int)Math.round(row*draw.lineHeight()/draw.fontScale()),UiMenuStyle.TEXT,true);
                 }
+            } else if(progress.containsKey(element.sprite()) && !progress.get(element.sprite()).effect().equals("progress")) {
+                var bar=progress.get(element.sprite());
+                if(element.frame()==null)graphics.text(font,"?",((int)Math.round(rectangle.width())-font.width("?"))/2,((int)Math.round(rectangle.height())-font.lineHeight)/2,UiMenuStyle.MUTED);
+                else if(bar.effect().equals("top_down")) {
+                    int w=Math.max(1,(int)Math.round(rectangle.width())),h=Math.max(1,(int)Math.round(rectangle.height()));
+                    int fill=(int)Math.round(h*Math.clamp(element.frame()/bar.scale(),0,1));
+                    if(fill>0)graphics.blit(Identifier.parse("hoi:textures/gui/"+bar.foreground()+".png"),0,0,w,fill,0,1,0,(float)fill/h);
+                    if(fill<h)graphics.blit(Identifier.parse("hoi:textures/gui/"+bar.background()+".png"),0,fill,w,h,0,1,(float)fill/h,1);
+                } else {
+                    graphics.pose().pushMatrix();
+                    graphics.pose().scale((float)(rectangle.width()/bar.width()),(float)(rectangle.height()/bar.height()));
+                    var line=Identifier.parse("hoi:textures/gui/"+bar.foreground()+".png");
+                    int[] runs=lineRuns(bar,element.frame());
+                    for(int index=0;index<runs.length;index+=3)
+                        graphics.blit(line,runs[index],runs[index+1],runs[index]+1,runs[index+2],
+                                (runs[index]+.5f)/bar.width(),(runs[index]+.5f)/bar.width(),(float)runs[index+1]/bar.height(),(float)runs[index+2]/bar.height());
+                    graphics.pose().popMatrix();
+                }
             } else if(progress.containsKey(element.sprite())) {
                 var bar=progress.get(element.sprite());
                 int w=Math.max(1,(int)Math.round(rectangle.width())),h=Math.max(1,(int)Math.round(rectangle.height()));
@@ -170,6 +191,28 @@ final class DecisionPanel {
         }
         return new Result((int)Math.ceil(canvas.height()*scale),List.copyOf(hits));
     }
+    private int[] lineRuns(Progress bar,double frame) {
+        if(lineRuns.size()>4096)lineRuns.clear();
+        return lineRuns.computeIfAbsent(bar.foreground()+"/"+bar.width()+"x"+bar.height()+"/"+Double.doubleToLongBits(frame/bar.scale()),
+                ignored -> lineRuns(bar.width(),bar.height(),(float)(frame/bar.scale())));
+    }
+    static int[] lineRuns(int width,int height,float state) {
+        float y1=.5f/20f,y2=state/20f,slope=y2-y1,norm=(float)Math.sqrt(slope*slope+1f);
+        var runs=new ArrayList<Integer>();
+        for(int column=0;column<width;column++) {
+            float u=(column+.5f)/width;int start=-1;
+            for(int row=0;row<=height;row++) {
+                boolean on=false;
+                if(row<height) {
+                    float y=(1f-(row+.5f)/height)/20f;
+                    for(float x:new float[]{u-.04f,u,u+.04f,u+.08f})if(Math.abs(slope*x-y+y1)/norm<.0004f) {on=true;break;}
+                }
+                if(on&&start<0)start=row;
+                else if(!on&&start>=0) {runs.add(column);runs.add(start);runs.add(row);start=-1;}
+            }
+        }
+        return runs.stream().mapToInt(Integer::intValue).toArray();
+    }
     static double crisp(double panelScale,double fontScale) {
         double gui=Math.max(1,Minecraft.getInstance().getWindow().getGuiScale());
         double physical=Math.max(gui,Math.ceil(panelScale*fontScale*gui-1e-6));
@@ -205,6 +248,11 @@ final class DecisionPanel {
             else if(anchor.contains("down") || anchor.contains("lower"))top+=parent.height();
             left+=Objects.requireNonNullElse(layout.x(),0.0);top+=Objects.requireNonNullElse(layout.y(),0.0);
             if(Boolean.TRUE.equals(layout.centerPosition())) {left-=width/2;top-=height/2;}
+            String origo=Objects.requireNonNullElse(layout.origo(),"upper_left");
+            if(Set.of("center","center_up","center_down").contains(origo))left-=width/2;
+            else if(origo.contains("right"))left-=width;
+            if(Set.of("center","center_left","center_right").contains(origo))top-=height/2;
+            else if(origo.contains("down") || origo.contains("lower"))top-=height;
         }
         var rectangle=new Rect(left,top,width,height);
         Rect clip=Boolean.TRUE.equals(layout.clipping())?inheritedClip.intersect(rectangle):inheritedClip;

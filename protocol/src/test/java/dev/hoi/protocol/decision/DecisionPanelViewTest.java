@@ -70,6 +70,19 @@ class DecisionPanelViewTest {
         assertTrue(expected.elements().getFirst().children().isEmpty());
         assertThrows(IllegalArgumentException.class,() -> element("grid","grid",null,null,true,List.of()));
         assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Element("icon","icon",SOURCE,2,layout(),null,null,null,null,null,true,grid,List.of()));
+        var indexOnly = new DecisionPanelView.Grid(new DecisionPanelView.Measure(10.0,false),new DecisionPanelView.Measure(200.0,false),null,true,
+                new DecisionPanelView.Repeat("KMS_ECON_graph_offsets","segment_idx",null,"KMS_ECON_line_graph_line_segment"));
+        var segments = panel(List.of(new DecisionPanelView.Element("line_segments","grid",SOURCE,13,layout(),null,null,null,null,null,true,indexOnly,List.of())));
+        assertEquals(segments,response(segments).view().categories().getFirst().panel());
+        assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Repeat("array","idx","1 bad","entry"));
+        var segment = new DecisionPanelView.Element("segment","icon",SOURCE,9,layout(),"GFX_KMS_ECON_line_segment",57.0,"KMS_ECON_graph_slopes^segment_idx",null,null,true,null,List.of());
+        assertEquals("KMS_ECON_graph_slopes^segment_idx",segment.frameVariable());
+        assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Element("segment","icon",SOURCE,9,layout(),null,null,"a^b^c",null,null,true,null,List.of()));
+        var centered = new DecisionPanelView.Layout(0.0,-20.0,null,null,"center",null,null,null,null,false,null,null,"center");
+        var graph = panel(List.of(new DecisionPanelView.Element("line_graph_ljs_gui","container",SOURCE,8,centered,null,null,null,null,null,true,null,List.of())));
+        assertEquals("center",response(graph).view().categories().getFirst().panel().elements().getFirst().layout().origo());
+        assertNull(layout().origo());
+        assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Layout(null,null,null,null,null,null,null,null,null,null,null,null,"middle"));
     }
     @Test void mutableCollectionsAreCopiedAndMissingRequiredFieldsFailClosed() {
         var children = new ArrayList<>(List.of(element("child","icon",null,null,null,List.of())));

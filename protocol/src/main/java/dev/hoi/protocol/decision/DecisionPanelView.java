@@ -18,7 +18,7 @@ public record DecisionPanelView(String scriptedGui, String windowName, String so
     private static final Set<String> KINDS = Set.of("container","icon","background","text","grid","radial","button");
     private static final Set<String> ORIENTATIONS = Set.of("upper_left","upper_right","lower_left","lower_right",
             "center","center_up","center_down","center_left","center_right");
-    private static final Set<String> STRING_FIELDS = Set.of("scriptedGui","windowName","source","name","kind","orientation",
+    private static final Set<String> STRING_FIELDS = Set.of("scriptedGui","windowName","source","name","kind","orientation","origo",
             "alignment","font","sprite","frameVariable","array","index","entryContainer");
     private static final Set<String> BOOLEAN_FIELDS = Set.of("relative","complete","visible","centerPosition","clipping",
             "fixedSize","alwaysTransparent","addHorizontal","enabled","clickable");
@@ -44,11 +44,15 @@ public record DecisionPanelView(String scriptedGui, String windowName, String so
         }
     }
     public record Layout(Double x, Double y, Measure width, Measure height, String orientation, Boolean centerPosition,
-            Double scale, String alignment, String font, Boolean clipping, Boolean fixedSize, Boolean alwaysTransparent) {
+            Double scale, String alignment, String font, Boolean clipping, Boolean fixedSize, Boolean alwaysTransparent, String origo) {
+        public Layout(Double x, Double y, Measure width, Measure height, String orientation, Boolean centerPosition,
+                Double scale, String alignment, String font, Boolean clipping, Boolean fixedSize, Boolean alwaysTransparent) {
+            this(x,y,width,height,orientation,centerPosition,scale,alignment,font,clipping,fixedSize,alwaysTransparent,null);
+        }
         public Layout {
             number(x,-MAX_COORDINATE,MAX_COORDINATE); number(y,-MAX_COORDINATE,MAX_COORDINATE);
             number(scale,0,MAX_SCALE);
-            if (scale != null && scale == 0 || orientation != null && !ORIENTATIONS.contains(orientation)
+            if (scale != null && scale == 0 || orientation != null && !ORIENTATIONS.contains(orientation) || origo != null && !ORIENTATIONS.contains(origo)
                     || alignment != null && !Set.of("left","center","right").contains(alignment)) invalid();
             if (font != null) identifier(font);
         }
@@ -63,7 +67,7 @@ public record DecisionPanelView(String scriptedGui, String windowName, String so
         public Tooltip { if (immediate == null && delayed == null) invalid(); }
     }
     public record Repeat(String array, String index, String value, String entryContainer) {
-        public Repeat { identifier(array); identifier(index); identifier(value); identifier(entryContainer); }
+        public Repeat { identifier(array); identifier(index); if (value != null) identifier(value); identifier(entryContainer); }
     }
     public record Grid(Measure slotWidth, Measure slotHeight, Integer maxSlotsVertical, Boolean addHorizontal, Repeat repeat) {
         public Grid { if (maxSlotsVertical != null && (maxSlotsVertical < 0 || maxSlotsVertical > MAX_ELEMENTS)) invalid(); }
@@ -79,7 +83,7 @@ public record DecisionPanelView(String scriptedGui, String windowName, String so
             identifier(name); provenance(source,line);
             if (kind == null || !KINDS.contains(kind) || layout == null) invalid();
             if (sprite != null) identifier(sprite);
-            if (frameVariable != null) identifier(frameVariable);
+            if (frameVariable != null && !frameVariable.matches("[A-Za-z0-9_][A-Za-z0-9_.:@-]{0,127}(?:\\^[A-Za-z0-9_][A-Za-z0-9_.:@-]{0,127})?")) invalid();
             number(frame,0,MAX_FRAME);
             children = copy(children);
             if (kind.equals("grid") != (grid != null) || !children.isEmpty() && !Set.of("container","grid").contains(kind)) invalid();
