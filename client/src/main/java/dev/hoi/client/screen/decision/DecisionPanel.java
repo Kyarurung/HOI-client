@@ -11,7 +11,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 
 final class DecisionPanel {
-    record Hit(String id,String immediate,String delayed,int x,int y,int width,int height) {}
+    record Hit(String id,String immediate,String delayed,int x,int y,int width,int height,String button,boolean enabled) {}
     record Result(int height,List<Hit> hits) {}
     private record Rect(double x,double y,double width,double height) {
         Rect intersect(Rect other) {
@@ -86,14 +86,16 @@ final class DecisionPanel {
             var element=draw.element();var rectangle=draw.bounds();var clipped=rectangle.intersect(draw.clip()).intersect(canvas);
             if(clipped.width()<=0 || clipped.height()<=0)continue;
             var tooltip=element.tooltip();
-            if(tooltip!=null && !Boolean.TRUE.equals(element.layout().alwaysTransparent())) {
-                String immediate=tooltip.immediate()==null?"":tooltip.immediate().value();
-                String delayed=tooltip.delayed()==null?"":tooltip.delayed().value();
+            boolean button=element.kind().equals("button") && Boolean.TRUE.equals(element.clickable());
+            if((tooltip!=null || button) && !Boolean.TRUE.equals(element.layout().alwaysTransparent())) {
+                String immediate=tooltip==null || tooltip.immediate()==null?"":tooltip.immediate().value();
+                String delayed=tooltip==null || tooltip.delayed()==null?"":tooltip.delayed().value();
                 int instance=hitNames.merge(element.name(),1,Integer::sum)-1;
                 String hitId=element.name()+(instance==0?"":"#"+instance);
-                if(!immediate.isEmpty() || !delayed.isEmpty())hits.add(new Hit(hitId,immediate,delayed,
+                if(!immediate.isEmpty() || !delayed.isEmpty() || button)hits.add(new Hit(hitId,immediate,delayed,
                         x+(int)Math.floor((clipped.x()-canvas.x())*scale),y+(int)Math.floor((clipped.y()-canvas.y())*scale),
-                        Math.max(1,(int)Math.ceil(clipped.width()*scale)),Math.max(1,(int)Math.ceil(clipped.height()*scale))));
+                        Math.max(1,(int)Math.ceil(clipped.width()*scale)),Math.max(1,(int)Math.ceil(clipped.height()*scale)),
+                        button?element.name():"",Boolean.TRUE.equals(element.enabled())));
             }
             if(graphics==null)continue;
             var clip=draw.clip().intersect(canvas);
@@ -138,9 +140,19 @@ final class DecisionPanel {
             } else if(element.kind().equals("background") && "GFX_tiled_window_transparent".equals(element.sprite())) {
                 UiAssets.nineSlice(graphics,draw.path(),0,0,Math.max(1,(int)Math.round(rectangle.width())),Math.max(1,(int)Math.round(rectangle.height())),32,3.0/95);
             } else if(!draw.path().isEmpty()) {
-                UiAssets.draw(graphics,draw.path(),0,0,Math.max(1,(int)Math.round(rectangle.width())),Math.max(1,(int)Math.round(rectangle.height())));
+                int w=Math.max(1,(int)Math.round(rectangle.width())),h=Math.max(1,(int)Math.round(rectangle.height()));
+                if(element.kind().equals("button") && Boolean.FALSE.equals(element.enabled()))UiAssets.drawGrayscale(graphics,draw.path(),0,0,w,h);
+                else UiAssets.draw(graphics,draw.path(),0,0,w,h);
             } else if(element.kind().equals("radial") || element.frameVariable()!=null && element.frame()==null) {
                 graphics.text(font,"?",Math.max(0,(int)(rectangle.width()-font.width("?"))/2),Math.max(0,(int)(rectangle.height()-font.lineHeight)/2),UiMenuStyle.MUTED);
+            }
+            if(element.kind().equals("button") && element.text()!=null && !element.text().value().isEmpty()) {
+                graphics.pose().scale((float)draw.fontScale());
+                int available=Math.max(1,(int)Math.floor(rectangle.width()/draw.fontScale()));
+                var lines=text.lines(font,element.text().value(),available,Objects.requireNonNullElse(element.layout().font(),"").endsWith("header"));
+                double block=lines.size()*draw.lineHeight()/draw.fontScale(),textTop=(rectangle.height()/draw.fontScale()-block)/2;
+                for(int row=0;row<lines.size();row++)
+                    text.draw(graphics,font,lines.get(row),(int)Math.round((available-font.width(lines.get(row)))/2.0),(int)Math.round(textTop+row*draw.lineHeight()/draw.fontScale()),UiMenuStyle.TEXT,true);
             }
             graphics.pose().popMatrix();
             graphics.disableScissor();

@@ -15,13 +15,13 @@ public record DecisionPanelView(String scriptedGui, String windowName, String so
         List<Element> elements, List<String> unresolved) {
     public static final int MAX_ELEMENTS = 128, MAX_DEPTH = 8, MAX_TEXT = 4_096, MAX_PANEL_TEXT = 32_768;
     public static final double MAX_COORDINATE = 16_384, MAX_SCALE = 16, MAX_FRAME = 1_000_000;
-    private static final Set<String> KINDS = Set.of("container","icon","background","text","grid","radial");
+    private static final Set<String> KINDS = Set.of("container","icon","background","text","grid","radial","button");
     private static final Set<String> ORIENTATIONS = Set.of("upper_left","upper_right","lower_left","lower_right",
             "center","center_up","center_down","center_left","center_right");
     private static final Set<String> STRING_FIELDS = Set.of("scriptedGui","windowName","source","name","kind","orientation",
             "alignment","font","sprite","frameVariable","array","index","entryContainer");
     private static final Set<String> BOOLEAN_FIELDS = Set.of("relative","complete","visible","centerPosition","clipping",
-            "fixedSize","alwaysTransparent","addHorizontal");
+            "fixedSize","alwaysTransparent","addHorizontal","enabled","clickable");
     private static final Set<String> NUMBER_FIELDS = Set.of("line","x","y","scale","frame","maxSlotsVertical");
     public DecisionPanelView {
         identifier(scriptedGui); identifier(windowName); provenance(source,line);
@@ -69,8 +69,13 @@ public record DecisionPanelView(String scriptedGui, String windowName, String so
         public Grid { if (maxSlotsVertical != null && (maxSlotsVertical < 0 || maxSlotsVertical > MAX_ELEMENTS)) invalid(); }
     }
     public record Element(String name, String kind, String source, Integer line, Layout layout, String sprite, Double frame,
-            String frameVariable, Text text, Tooltip tooltip, Boolean visible, Grid grid, List<Element> children) {
+            String frameVariable, Text text, Tooltip tooltip, Boolean visible, Grid grid, List<Element> children, Boolean enabled, Boolean clickable) {
+        public Element(String name, String kind, String source, Integer line, Layout layout, String sprite, Double frame,
+                String frameVariable, Text text, Tooltip tooltip, Boolean visible, Grid grid, List<Element> children) {
+            this(name,kind,source,line,layout,sprite,frame,frameVariable,text,tooltip,visible,grid,children,null,null);
+        }
         public Element {
+            if (!"button".equals(kind) && (enabled != null || clickable != null)) invalid();
             identifier(name); provenance(source,line);
             if (kind == null || !KINDS.contains(kind) || layout == null) invalid();
             if (sprite != null) identifier(sprite);
@@ -100,7 +105,7 @@ public record DecisionPanelView(String scriptedGui, String windowName, String so
         return List.copyOf(values);
     }
     private static void identifier(String value) {
-        if (value == null || !value.matches("[A-Za-z_][A-Za-z0-9_.:@-]{0,255}")) invalid();
+        if (value == null || !value.matches("[A-Za-z0-9_][A-Za-z0-9_.:@-]{0,255}")) invalid();
     }
     private static void provenance(String source, Integer line) {
         CountryView.text(source,512);

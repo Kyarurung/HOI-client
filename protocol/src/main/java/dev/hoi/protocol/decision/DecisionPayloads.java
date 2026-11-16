@@ -26,7 +26,7 @@ public final class DecisionPayloads {
         PayloadTypeRegistry.clientboundPlay().register(Highlight.TYPE, Highlight.CODEC);
         registered = true;
     }
-    public enum Action { OPEN, REFRESH, TAKE, HIGHLIGHT, GOTO }
+    public enum Action { OPEN, REFRESH, TAKE, HIGHLIGHT, GOTO, PANEL_CLICK }
     public record Request(Action action, String token, String session, long revision, String id, int page) implements CustomPacketPayload {
         public Request {
             Objects.requireNonNull(action); UUID.fromString(token);
@@ -35,6 +35,8 @@ public final class DecisionPayloads {
             if (revision < 0 || page < 0 || page > 256) throw new IllegalArgumentException("Invalid decision request");
             if ((action == Action.HIGHLIGHT || action == Action.GOTO) && (session.isEmpty() || id.isEmpty() || page != 0))
                 throw new IllegalArgumentException("Invalid decision map request");
+            if (action == Action.PANEL_CLICK && (session.isEmpty() || page != 0 || !id.matches("[A-Za-z0-9_][A-Za-z0-9_.:@-]{0,127}/[A-Za-z0-9_][A-Za-z0-9_.:@-]{0,127}")))
+                throw new IllegalArgumentException("Invalid decision panel click");
         }
         public static final Type<Request> TYPE = new Type<>(Identifier.parse("hoi:decision_request_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Request> CODEC = StreamCodec.of(

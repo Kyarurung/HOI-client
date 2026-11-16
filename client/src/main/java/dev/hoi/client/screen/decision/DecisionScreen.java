@@ -142,7 +142,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     private void request(DecisionPayloads.Action action,String id,int page) {
         if(!fixture && !ClientPlayNetworking.canSend(DecisionPayloads.Request.TYPE))return;
         var authority=snapshot.authority();
-        if(action==DecisionPayloads.Action.TAKE) {
+        if(action==DecisionPayloads.Action.TAKE || action==DecisionPayloads.Action.PANEL_CLICK) {
             if(pending() || snapshot.loading() || authority==null)return;
             pendingRevision=authority.revision();
             clearMap();
@@ -413,7 +413,14 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             var result=panels.render(g,font,category.panel(),assets,text,11,y,bodyWidth);
             if(widgets)for(var hit:result.hits()) {
                 String tooltip=hit.immediate()+hit.delayed();
-                hits.add(new DecisionHit("panel/"+category.id()+"/"+hit.id(),tooltip,hit.x(),hit.y(),hit.width(),hit.height()));
+                if(!tooltip.isEmpty())hits.add(new DecisionHit("panel/"+category.id()+"/"+hit.id(),tooltip,hit.x(),hit.y(),hit.width(),hit.height()));
+            }
+            if(widgets)for(var hit:result.hits().reversed()) {
+                if(!hit.button().isEmpty()) {
+                    String click=category.panel().scriptedGui()+"/"+hit.button();
+                    control(hit.button(),hit.x(),hit.y(),hit.width(),hit.height(),hit.enabled() && !pending() && !snapshot.loading(),"ui.click",
+                            () -> {request(DecisionPayloads.Action.PANEL_CLICK,click,0);rebuildWidgets();});
+                }
             }
             y+=result.height();
         }

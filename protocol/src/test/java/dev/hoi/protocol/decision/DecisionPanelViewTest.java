@@ -98,11 +98,16 @@ class DecisionPanelViewTest {
         for (double value : new double[]{Double.NaN,Double.POSITIVE_INFINITY,-1,16_385})
             assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Measure(value,false));
         assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Measure(101.0,true));
-        assertThrows(IllegalArgumentException.class,() -> element("button","button",null,null,null,List.of()));
+        assertThrows(IllegalArgumentException.class,() -> element("checkbox","checkbox",null,null,null,List.of()));
+        var icon=element("icon","icon",null,null,null,List.of());
+        assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Element(icon.name(),icon.kind(),icon.source(),icon.line(),icon.layout(),null,null,null,null,null,true,null,List.of(),true,null));
+        var button=new DecisionPanelView.Element("KOR_riot_busan_button_reds","button",icon.source(),icon.line(),icon.layout(),"GFX_KOR_riot_reds_busan",null,null,null,null,true,null,List.of(),true,true);
+        assertEquals(Boolean.TRUE,button.clickable());
         assertThrows(IllegalArgumentException.class,() -> element("leaf","icon",null,null,null,List.of(element("child","icon",null,null,null,List.of()))));
         for (String source : List.of("../panel.gui","korea/interface/../panel.gui","file:///panel.gui","korea//panel.gui","korea/interface/panel.exe"))
             assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView("gui","window",source,1,sample().elements(),List.of()));
-        rejects(json -> element(json).addProperty("kind","button"));
+        rejects(json -> element(json).addProperty("kind","checkbox"));
+        rejects(json -> element(json).addProperty("clickable",true));
         rejects(json -> element(json).addProperty("frame","NaN"));
         rejects(json -> element(json).addProperty("frame","Infinity"));
         rejects(json -> element(json).addProperty("frame",-1));

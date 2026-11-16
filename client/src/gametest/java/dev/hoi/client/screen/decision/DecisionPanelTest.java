@@ -48,7 +48,7 @@ public final class DecisionPanelTest {
                     JSON.fromJson(item.get("panel"), DecisionPanelView.class)));
         }
         require(fixtures.stream().map(Fixture::id).collect(java.util.stream.Collectors.toSet())
-                .equals(Set.of("inner_circle", "national_assembly", "ldp")), "Three original panel fixtures are required");
+                .equals(Set.of("inner_circle", "national_assembly", "ldp", "riot_suppression")), "Four original panel fixtures are required");
         String fixtureHash = source.sha256();
         var evidence = new ArrayList<Evidence>();
         try {
@@ -76,7 +76,9 @@ public final class DecisionPanelTest {
                         context.waitTicks(2);
                         context.runOnClient(client -> {
                             var screen = (DecisionScreen)client.gui.screen();
-                            require(field(screen, "hover").equals("panel/" + fixture.id() + "/" + hit.id()), "Source panel hover missing: " + hit.id());
+                            var expected = topmost(probe, hit, point);
+                        require(field(screen, "hover").equals(expected == null ? "" : "panel/" + fixture.id() + "/" + expected.id()), "Source panel hover missing: " + hit.id());
+                        if (expected == null || expected != hit) return;
                             require(field(screen, "tooltipBounds") != null, "Source panel tooltip not rendered: " + hit.id());
                             verifyTooltipSpacing(client.font,(DecisionText)field(screen,"text"),hit.immediate()+hit.delayed());
                             if(fixture.id().equals("ldp")) {
@@ -123,6 +125,22 @@ public final class DecisionPanelTest {
                                 "Unknown radial frames must replace the previously visible source layers");
                     }
                     require(requests.isEmpty(), "Panel rendering and hover must not issue gameplay requests");
+                    if (fixture.id().equals("riot_suppression")) {
+                        var reds = hit(probe, "KOR_riot_busan_button_reds");
+                        int[] point = context.computeOnClient(client -> clickPoint((DecisionScreen)client.gui.screen(), probe, reds));
+                        context.getInput().setCursorPos(point[0] * 2, point[1] * 2);
+                        context.waitTicks(2);
+                        context.getInput().pressMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);context.waitTicks(2);context.getInput().releaseMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);
+                        context.waitTicks(2);
+                        require(requests.size() == 1 && requests.getFirst().action() == DecisionPayloads.Action.PANEL_CLICK
+                                && requests.getFirst().id().equals("KOR_riot_suppression_gui/KOR_riot_busan_button_reds")
+                                && requests.getFirst().session().equals(session), "Visible source button must send its panel click: " + requests);
+                        context.getInput().pressMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);context.waitTicks(2);context.getInput().releaseMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);
+                        context.waitTicks(2);
+                        require(requests.size() == 1, "A pending panel click must not repeat before the server answers");
+                        screenshots.put("clicked", screenshot(context, "hoi-decision-panel-clicked-" + suffix, size));
+                        requests.clear();
+                    }
                     evidence.add(new Evidence(fixture.id(), size[0], size[1], fixtureHash, probe.result().height(), probe.result().hits(), Map.copyOf(screenshots)));
                     Path report = Path.of(screenshots.get("panel")).getParent().resolve("hoi-decision-panels-evidence.json");
                     Files.writeString(report, JSON.toJson(evidence), StandardCharsets.UTF_8);
@@ -295,6 +313,15 @@ public final class DecisionPanelTest {
                 assertHit(hit(probe, "NatAsm_logo"), probe, 490, 201, 159, 91, 91);
                 require(elements(fixture.panel()).filter(value -> value.kind().equals("radial") && value.frame() != null).count() == 5, "Known source frame fixture must exercise all five original shaders");
             }
+            case "riot_suppression" -> {
+                var reds = hit(probe, "KOR_riot_busan_button_reds");
+                require(reds.button().equals("KOR_riot_busan_button_reds") && reds.enabled(), "Visible enabled source button must be clickable");
+                require(probe.result().hits().stream().noneMatch(hit -> hit.id().equals("KOR_riot_busan_button_army")), "Hidden source button must not create a hit");
+                var element = elements(fixture.panel()).filter(value -> value.name().equals("KOR_riot_busan_button_reds")).findFirst().orElseThrow();
+                double scale = probe.width() / 500.0;
+                require(fixture.panel().elements().getFirst().layout().width().value() == 500, "Riot suppression source width must remain 500");
+                require(reds.x() == 11 + (int)Math.floor(element.layout().x() * scale) && reds.y() == probe.top() + (int)Math.floor(element.layout().y() * scale), "Source button anchor shifted: " + reds);
+            }
             default -> throw new AssertionError("Unknown panel fixture " + fixture.id());
         }
     }
@@ -323,6 +350,32 @@ public final class DecisionPanelTest {
         int y = target - screen.scrollOffset();
         require(y >= HudMenuBar.height(screen.width) + 52 && y < screen.height - 10, "Panel tooltip cannot be reached by scrolling: " + hit.id());
         return new int[]{hit.x() + Math.min(hit.width() / 2, 8), y};
+    }
+    private static DecisionPanel.Hit topmost(Probe probe, DecisionPanel.Hit hit, int[] point) {
+        DecisionPanel.Hit found = null;
+        int x = point[0], y = hit.y() + Math.min(hit.height() / 2, 8);
+        for (var value : probe.result().hits())
+            if (!(value.immediate() + value.delayed()).isEmpty() && x >= value.x() && x < value.x() + value.width() && y >= value.y() && y < value.y() + value.height()) found = value;
+        return found;
+    }
+    private static int[] clickPoint(DecisionScreen screen, Probe probe, DecisionPanel.Hit hit) {
+        resetScroll(screen);
+        for (int dy = 0; dy < hit.height(); dy++) for (int dx = 0; dx < hit.width(); dx++) {
+            int x = hit.x() + dx, y = hit.y() + dy;
+            DecisionPanel.Hit top = null;
+            for (var value : probe.result().hits())
+                if (!value.button().isEmpty() && x >= value.x() && x < value.x() + value.width() && y >= value.y() && y < value.y() + value.height()) top = value;
+            if (top != hit) continue;
+            for (int step = 0; y - screen.scrollOffset() > screen.height - 20 && step < 30; step++) {
+                int before = screen.scrollOffset();
+                screen.mouseScrolled(3, HudMenuBar.height(screen.width) + 53, 0, -3);
+                if (screen.scrollOffset() == before) break;
+            }
+            int shown = y - screen.scrollOffset();
+            require(shown >= HudMenuBar.height(screen.width) + 52 && shown < screen.height - 10, "Source button cannot be reached by scrolling: " + hit.id());
+            return new int[]{x, shown};
+        }
+        throw new AssertionError("No point where the source button is on top: " + hit.id());
     }
     private static void resetScroll(DecisionScreen screen) {
         screen.mouseScrolled(3, HudMenuBar.height(screen.width) + 53, 0, Integer.MAX_VALUE / 28.0);

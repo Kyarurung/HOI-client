@@ -128,7 +128,12 @@ class DecisionDetailPayloadsTest {
     @Test void dedicatedChannelsRegisterIdempotentlyWithoutChangingDecisionActions() {
         assertEquals("hoi:decision_detail_request_v1",Request.TYPE.id().toString());
         assertEquals("hoi:decision_detail_response_v1",Response.TYPE.id().toString());
-        assertEquals(List.of("OPEN","REFRESH","TAKE","HIGHLIGHT","GOTO"),Arrays.stream(DecisionPayloads.Action.values()).map(Enum::name).toList());
+        assertEquals(List.of("OPEN","REFRESH","TAKE","HIGHLIGHT","GOTO","PANEL_CLICK"),Arrays.stream(DecisionPayloads.Action.values()).map(Enum::name).toList());
         assertDoesNotThrow(()->{registerPayloadTypes();registerPayloadTypes();});
+        String token=java.util.UUID.randomUUID().toString(),session=java.util.UUID.randomUUID().toString();
+        assertDoesNotThrow(()->new DecisionPayloads.Request(DecisionPayloads.Action.PANEL_CLICK,token,session,3,"KOR_riot_suppression_gui/KOR_riot_busan_button_reds",0));
+        for(String id:List.of("KOR_riot_suppression_gui","/KOR_riot_busan_button_reds","KOR_riot_suppression_gui/a/b","KOR riot/x"))
+            assertThrows(IllegalArgumentException.class,()->new DecisionPayloads.Request(DecisionPayloads.Action.PANEL_CLICK,token,session,3,id,0),id);
+        assertThrows(IllegalArgumentException.class,()->new DecisionPayloads.Request(DecisionPayloads.Action.PANEL_CLICK,token,"",3,"KOR_riot_suppression_gui/KOR_riot_busan_button_reds",0));
     }
 }
