@@ -850,13 +850,23 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     List<Component> tooltipLines(Tech tech) {
         var lines = new ArrayList<Component>();
         lines.add(ResearchText.gold(tech.name()));
-        var missing = new ArrayList<String>();
-        for (String id : tech.prerequisites()) if (!completed(id)) missing.add(technologyName(id));
+        var missing = new ArrayList<List<String>>();
+        for (String id : tech.prerequisites()) if (!completed(id)) missing.add(List.of(technologyName(id)));
         if (tech.source() != null && !tech.source().anyOf().isEmpty()
                 && tech.source().anyOf().stream().noneMatch(this::completed))
-            missing.add(String.join(" 또는 ", tech.source().anyOf().stream().map(this::technologyName).toList()));
-        if (tech.status() != ResearchView.Status.COMPLETED && !missing.isEmpty())
-            lines.add(Component.literal("기술 필요 (" + String.join(", ", missing) + ")").withStyle(net.minecraft.ChatFormatting.DARK_RED));
+            missing.add(tech.source().anyOf().stream().map(this::technologyName).toList());
+        if (tech.status() != ResearchView.Status.COMPLETED && !missing.isEmpty()) {
+            var requirement = Component.literal("기술 필요 (").withColor(Tooltips.BAD);
+            for (int index = 0; index < missing.size(); index++) {
+                if (index > 0) requirement.append(Component.literal(", ").withColor(Tooltips.BAD));
+                var names = missing.get(index);
+                for (int name = 0; name < names.size(); name++) {
+                    if (name > 0) requirement.append(Component.literal(" 또는 ").withColor(Tooltips.BAD));
+                    requirement.append(Component.literal(names.get(name)).withColor(Tooltips.GOLD));
+                }
+            }
+            lines.add(requirement.append(Component.literal(")").withColor(Tooltips.BAD)));
+        }
         if (tech.status() == ResearchView.Status.COMPLETED) lines.add(Component.literal("연구됨").withStyle(net.minecraft.ChatFormatting.GREEN));
         else {
             int bank = view.slots().stream().filter(s -> s.technology().equals(tech.id())).findFirst()

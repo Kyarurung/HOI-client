@@ -101,7 +101,15 @@ public final class ResearchTextChecks {
                     var unlock = lines.stream().filter(c -> c.getString().equals("사용 가능 " + name)).findFirst().orElseThrow();
                     color(unlock, name, ChatFormatting.GOLD);
                     check(ResearchDetails.cards(tech, "KOR").stream().anyMatch(c -> c.name().equals(name)), "Equipment card uses country translation");
-                    if (id.endsWith("2")) check(lines.stream().anyMatch(c -> c.getString().startsWith("기술 필요 (")), "Missing source prerequisites are shown");
+                    if (id.endsWith("2")) {
+                        var requirement = lines.stream().filter(c -> c.getString().startsWith("기술 필요 (")).findFirst().orElseThrow(() -> new AssertionError("Missing source prerequisites are shown"));
+                        requirement.visit((style, part) -> {
+                            boolean frame = part.equals("기술 필요 (") || part.equals(", ") || part.equals(" 또는 ") || part.equals(")");
+                            int expected = frame ? dev.hoi.client.ui.tooltip.Tooltips.BAD : dev.hoi.client.ui.tooltip.Tooltips.GOLD;
+                            check(style.getColor() != null && style.getColor().getValue() == expected, "Requirement text stays TFR red while technology names use TFR yellow: " + part);
+                            return Optional.empty();
+                        }, Style.EMPTY);
+                    }
                     for (String unit : List.of("경보병", "민병")) lines.stream().filter(c -> c.getString().equals("사용 가능 " + unit))
                             .forEach(c -> color(c, unit, ChatFormatting.WHITE));
                 });
