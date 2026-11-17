@@ -340,14 +340,12 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (!rows.isEmpty()) { result.add(""); result.add(teamText("task_info")); }
         return String.join("\n", result);
     }
-    private String teamTooltip(ResearchView.DesignTeam team, String technology, boolean assign) {
+    String teamTooltip(ResearchView.DesignTeam team, String technology, boolean assign) {
         int index = team.technologies().indexOf(technology);
         String result = team.tooltip();
         if (index >= 0) result += "\n" + teamText("funds").replace("$VALUE$", Integer.toString(team.funds().get(index)));
-        if (!team.technology().isEmpty() && !team.technology().equals(technology)) {
-            var busy = view.technology(team.technology());
-            result += "\n\n" + teamText("busy").replace("$NAME$", team.name()) + "\n" + (busy == null ? team.technology() : busy.name());
-        }
+        var busy = view.slots().stream().filter(slot -> slot.designTeam().equals(team.id()) && !slot.technology().equals(technology)).map(slot -> technologyName(slot.technology())).toList();
+        if (!busy.isEmpty()) result += "\n\n" + teamText("busy").replace("$NAME$", team.name()) + "\n" + String.join("\n", busy);
         return assign ? result + "\n\n" + teamText("assign") : result;
     }
     long teamDays(Tech tech,int savedDays){
@@ -444,7 +442,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     private void drawOverview(GuiGraphicsExtractor g) {
         int pane = overviewWidth(), top = menuBottom(), bannerY = top + 39;
         UiMenuStyle.panel(g, 0, top, pane, height - top);
-        UiMenuStyle.heading(g, font, "연구", view.date(), 12, top + 9, pane - 44, UiMenuStyle.TEXT);
+        UiMenuStyle.heading(g, font, "연구", 12, top + 9, pane - 44, UiMenuStyle.TEXT);
         g.fillGradient(6, bannerY, pane - 6, bannerY + bannerHeight(), 0xFF4E315E, 0xFF172731);
         if (!UiAssets.cover(g, "panel/research_banner", 6, bannerY, pane - 12, bannerHeight())) {
             ResearchIcons.fallback(g, "ENGINEERING", pane / 2 - 10, bannerY + bannerHeight() / 2 - 8, 0xFFBB98CD, 2);
@@ -543,9 +541,18 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             var t = hovered.tech();
             var child=subTechnologyAt(mx,my);
             if(child!=null)t=child;
-            var lines = tooltipLines(t).stream().map(dev.hoi.client.ui.tooltip.Tooltips::format).flatMap(line -> line.getString().isBlank()?java.util.stream.Stream.of(net.minecraft.util.FormattedCharSequence.EMPTY):dev.hoi.client.ui.tooltip.Tooltips.split(font,dev.hoi.client.ui.tooltip.Tooltips.sentences(ResearchText.decorateEffect(line)), Tooltips.width(width, 14)).stream()).toList();
-            g.setTooltipForNextFrame(font, dev.hoi.client.ui.tooltip.Tooltips.collapseBlankLines(lines), mx, my);
+            g.setTooltipForNextFrame(font, hoverLines(t), mx, my);
         }
+    }
+    List<net.minecraft.util.FormattedCharSequence> hoverLines(Tech tech) {
+        var source = tooltipLines(tech); int instructions = source.size() - interactionTooltip(tech).size();
+        var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
+        for (int i = 0; i < source.size(); i++) {
+            var line = i < instructions ? Tooltips.format(source.get(i)) : source.get(i);
+            if (line.getString().isBlank()) lines.add(net.minecraft.util.FormattedCharSequence.EMPTY);
+            else lines.addAll(Tooltips.split(font, Tooltips.sentences(ResearchText.decorateEffect(line)), Tooltips.width(width, 14)));
+        }
+        return Tooltips.collapseBlankLines(lines);
     }
     public Tech subTechnology(Tech parent) {
         return view.technologies().stream().filter(t -> t.source()!=null && t.source().parentTechnology().equals(parent.id())).findFirst().orElse(null);

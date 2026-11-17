@@ -73,6 +73,34 @@ public class DialogScreen extends Screen {
     public int panelHeight() { return panelHeight; }
     int bodyViewportHeight() { return bodyBottom - bodyTop; }
     public int scrollOffset() { return scroll; }
+    public int bodyContentHeight() { return total; }
+    record BodyRow(net.minecraft.util.FormattedCharSequence line, String image, int width, int height) {
+        int rowHeight() { return image == null ? 12 : (height + 11) / 12 * 12; }
+    }
+    private static final java.util.regex.Pattern EVENT_TEXTICON = java.util.regex.Pattern.compile("(?:§.)*\\h*£(?:GFX_)?([A-Za-z0-9_]+_event_texticon(?:_[0-9]+)?)£?\\h*(?:§.)*");
+    List<BodyRow> bodyRows() {
+        int wrap = Math.max(1, (int)(bodyWidth / textScale()));
+        var rows = new ArrayList<BodyRow>(); var text = new ArrayList<String>();
+        for (String line : view.body().split("\\R", -1)) {
+            var match = EVENT_TEXTICON.matcher(line);
+            String image = match.matches() ? "keywords/source/" + match.group(1).toLowerCase(java.util.Locale.ROOT) : null;
+            int[] size = image == null ? new int[2] : UiAssets.imageSize(image);
+            if (size[0] <= 0 || size[1] <= 0) { text.add(line); continue; }
+            addBodyText(rows, text, wrap);
+            if (!rows.isEmpty()) rows.add(new BodyRow(net.minecraft.util.FormattedCharSequence.EMPTY, null, 0, 0));
+            int width = Math.min(bodyWidth, units(size[0]));
+            rows.add(new BodyRow(null, image, width, Math.max(1, Math.round(width * (float)size[1] / size[0]))));
+        }
+        addBodyText(rows, text, wrap);
+        return rows;
+    }
+    private void addBodyText(List<BodyRow> rows, List<String> text, int wrap) {
+        var lines = dev.hoi.client.ui.tooltip.Tooltips.split(font, tooltipText.component(String.join("\n", text)), wrap);
+        text.clear();
+        if (lines.isEmpty()) return;
+        if (!rows.isEmpty() && rows.getLast().image() != null) rows.add(new BodyRow(net.minecraft.util.FormattedCharSequence.EMPTY, null, 0, 0));
+        for (var line : lines) rows.add(new BodyRow(line, null, 0, 0));
+    }
     public void update(DialogView next) {
         if (!view.token().equals(next.token()) || next.revision() < view.revision()) return;
         if (next.revision() > view.revision()) pending = false;
@@ -212,7 +240,6 @@ public class DialogScreen extends Screen {
                 (height - 16.0 - (wide || news ? 0 : 48)) / nativeHeight);
         frameScale = Math.max(.05, frameScale);
         pane = units(nativeWidth);
-        int fixedTop = Math.max(8, height / 2 + units(-452));
         int choiceWidth = units(wide ? 300 : 352);
         int choiceHeight = Math.max(units(wide ? 35 : 48), view.choices().stream()
                 .mapToInt(c -> UiMenuButton.labelHeight(font, c.label(), choiceWidth, textScale())).max().orElse(0));
@@ -229,7 +256,7 @@ public class DialogScreen extends Screen {
                 Math.min((wide ? 1001.0 : news ? 400.0 : 526.0) / original[0], (wide ? 609.0 : news ? 150.0 : 300.0) / original[1])) : 0;
         int imageWidth = units(original[0] * imageScale), imageHeight = units(original[1] * imageScale);
         bodyWidth = units(wide ? 500 : news ? 560 : 526);
-        total = dev.hoi.client.ui.tooltip.Tooltips.split(font,bodyText(), Math.max(1, (int)(bodyWidth / textScale()))).size() * 12;
+        total = bodyRows().stream().mapToInt(BodyRow::rowHeight).sum();
         int optionTop;
         int imageTop;
         if (wide) {
@@ -249,7 +276,7 @@ public class DialogScreen extends Screen {
             int bottomHeight = Math.max(units(450), imageTop + Math.max(imageHeight, units(250)) + units(70));
             bodyTop = units(110);
             int bodyHeight = Math.max(12, Math.min((Math.max(units(70), total) + 11) / 12 * 12,
-                    (height - 8 - fixedTop - bodyTop - units(43) - bottomHeight) / 12 * 12));
+                    (height - 16 - bodyTop - units(43) - bottomHeight) / 12 * 12));
             bodyBottom = bodyTop + bodyHeight;
             bottomTop = bodyBottom + units(43);
             middleHeight = bottomTop - units(123);
@@ -259,7 +286,7 @@ public class DialogScreen extends Screen {
         }
         int[] superOffset = wide ? UiAssets.eventSuperOffset(view.image()) : new int[2];
         left = Math.clamp(width / 2 + units(wide ? superOffset[0] : news ? -385 : -360), 8, Math.max(8, width - pane - 8));
-        top = wide || news ? Math.clamp(height / 2 + units(wide ? superOffset[1] : -400), 8, Math.max(8, height - panelHeight - 8)) : fixedTop;
+        top = Math.clamp(wide ? height / 2 + units(superOffset[1]) : (height - panelHeight) / 2, 8, Math.max(8, height - panelHeight - 8));
         bodyLeft = left + units(wide ? 250 : news ? 75 : 40);
         bodyTop += top;
         bodyBottom += top;
@@ -309,10 +336,11 @@ public class DialogScreen extends Screen {
         eventTitle(g, eventHeading[0], eventHeading[1], eventHeading[2], eventHeading[3], wide ? UiMenuStyle.TEXT : 0xff000000, false);
         g.enableScissor(bodyLeft, bodyTop, bodyLeft + bodyWidth, bodyBottom);
         int y = bodyTop - scroll;
-        for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,bodyText(), Math.max(1, (int)(bodyWidth / textScale())))) {
-            dev.hoi.client.ui.UiText.text(g, font, line, wide ? bodyLeft + (bodyWidth - (int)(font.width(line) * textScale())) / 2 : bodyLeft,
+        for (var row : bodyRows()) {
+            if (row.image() != null) UiAssets.draw(g, row.image(), bodyLeft + (bodyWidth - row.width()) / 2, y, row.width(), row.height());
+            else dev.hoi.client.ui.UiText.text(g, font, row.line(), wide ? bodyLeft + (bodyWidth - (int)(font.width(row.line()) * textScale())) / 2 : bodyLeft,
                     y, wide ? UiMenuStyle.TEXT : 0xff000000, false);
-            y += 12;
+            y += row.rowHeight();
         }
         g.disableScissor();
         if (total > bodyViewportHeight()) {

@@ -58,7 +58,7 @@ public final class TooltipText {
             return java.util.regex.Matcher.quoteReplacement(result);
         });
     }
-    public static boolean blank(String line) { String plain=CODES.matcher(line).replaceAll("").replaceAll("(?U)\\s","");return plain.isEmpty()||!plain.equals("--------------")&&SEPARATOR.matcher(plain).matches(); }
+    public static boolean blank(String line) { String plain=CODES.matcher(line).replaceAll("").replaceAll("(?U)\\s","");return plain.isEmpty()||SEPARATOR.matcher(plain).matches(); }
     public static boolean visible(String line) {
         String plain=CODES.matcher(line).replaceAll("").strip();
         if(plain.isEmpty())return false;

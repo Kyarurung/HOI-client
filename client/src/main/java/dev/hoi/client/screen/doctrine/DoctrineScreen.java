@@ -449,29 +449,22 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         popupBar().draw(g, popupScroll);
         if (preview != null) {
             UiAssets.draw(g, "commander/commands/button_123x34/frame_0", x + 109, y + 260, 62, 17);
-            var label = TooltipKeywordIcons.decorateLines(Component.literal("£" + view.branch().toLowerCase(Locale.ROOT) + "_experience " + preview.cost() + " 잠금 해제"), false);
-            if (view.branch().equalsIgnoreCase("army")) drawArmyUnlockLabel(g, preview, label, x + 111, y + 260);
-            else UiText.centeredSingleLine(g, font, label, x + 111, y + 260, 58, 17, preview.enabled() ? TEXT : 0xFF91918E);
+            drawUnlockLabel(g, preview, x + 111, y + 260);
         }
         UiAssets.draw(g, "doctrine/gfx_focus_filter_icon_bg", x + 250, y + 260, 21, 21);
         UiAssets.draw(g, "doctrine/gfx_focus_filter_historical", x + 254, y + 264, 14, 14);
         UiMenuStyle.close(g, x + 257, y + 6, 17, 17, TEXT);
     }
-    private void drawArmyUnlockLabel(GuiGraphicsExtractor g, DoctrineView.Choice preview, Component label, int x, int y) {
-        var icon = TooltipKeywordIcons.decorateLines(Component.literal("£army_experience "), false);
+    private void drawUnlockLabel(GuiGraphicsExtractor g, DoctrineView.Choice preview, int x, int y) {
         var caption = Component.literal(preview.cost() + " 잠금 해제");
-        float scale = Math.min(UiText.scale(font), Math.min(58f / Math.max(1, font.width(label)), 17f / font.lineHeight));
-        var textBounds = font.prepareText(caption.getVisualOrderText(), 0, 0, TEXT, false, false, 0).bounds();
-        var iconBounds = font.prepareText(icon.getVisualOrderText(), 0, 0, TEXT, false, false, 0).bounds();
-        float offset = textBounds == null || iconBounds == null ? 0
-            : (textBounds.top() + textBounds.bottom() - iconBounds.top() - iconBounds.bottom()) / 2;
-        int color = preview.enabled() ? TEXT : 0xFF91918E;
+        int icon = 10, gap = 2;
+        float scale = Math.min(UiText.scale(font), (58f - icon - gap) / Math.max(1, font.width(caption)));
+        int textWidth = Math.round(font.width(caption) * scale), left = x + (58 - icon - gap - textWidth) / 2;
+        UiAssets.draw(g, "hud/" + view.branch().toLowerCase(Locale.ROOT) + "_experience", left, y + (17 - icon) / 2, icon, icon);
         g.pose().pushMatrix();
-        g.pose().translate(x + (58 - font.width(label) * scale) / 2, UiText.centeredY(font, label.getVisualOrderText(), y, 17, scale));
+        g.pose().translate(left + icon + gap, UiText.centeredY(font, caption.getVisualOrderText(), y, 17, scale));
         g.pose().scale(scale);
-        g.text(font, caption, font.width(icon), 0, color);
-        g.pose().translate(0, offset);
-        g.text(font, icon, 0, 0, color);
+        g.text(font, caption, 0, 0, preview.enabled() ? TEXT : 0xFF91918E);
         g.pose().popMatrix();
     }
     private boolean canAfford(DoctrineView.Choice choice) {

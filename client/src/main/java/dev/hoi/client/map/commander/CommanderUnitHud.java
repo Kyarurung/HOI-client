@@ -60,7 +60,7 @@ public final class CommanderUnitHud {
         reset();
         var client=Minecraft.getInstance();
         if(client.level==null||!snapshot.dimension().equals(client.level.dimension().identifier().toString()))return;
-        snapshot.counters().stream().filter(c->previous.contains(c.key())&&selectable(c,snapshot.dimension())).forEach(c->selected.add(c.key()));
+        snapshot.counters().stream().filter(c->previous.contains(c.key())&&selectable(c,snapshot.dimension())&&own(c)).forEach(c->selected.add(c.key()));
         previous.stream().filter(key->key.startsWith("unit/")).forEach(selected::add);
         dimension=snapshot.dimension();
         var grouped=new LinkedHashMap<String,List<Counter>>();
@@ -75,7 +75,7 @@ public final class CommanderUnitHud {
         if(!CommanderPanels.shift())selected.clear();
         for(int i=boxes.size()-1;i>=0;i--) {
             var box=boxes.get(i);
-            if(box.contains(x,y)&&selectable(box.counter(),dimension)){if(!selected.remove(box.counter().key()))selected.add(box.counter().key());dev.hoi.client.audio.AudioUiSounds.play(selectionSound(box.counter()));CommanderPanels.mapSelectionChanged();return true;}
+            if(box.contains(x,y)&&selectable(box.counter(),dimension)&&own(box.counter())){if(!selected.remove(box.counter().key()))selected.add(box.counter().key());dev.hoi.client.audio.AudioUiSounds.play(selectionSound(box.counter()));CommanderPanels.mapSelectionChanged();return true;}
         }
         CommanderPanels.mapSelectionChanged();return false;
     }
@@ -86,12 +86,13 @@ public final class CommanderUnitHud {
         double left=Math.max(Math.min(startX,endX),client.gui.screen()==null?0:worldLeft());
         double top=Math.max(Math.min(startY,endY),HudMenuBar.height(client.getWindow().getGuiScaledWidth()));
         double right=Math.max(startX,endX),bottom=Math.max(startY,endY);
-        for(var box:boxes)if(selectable(box.counter(),dimension)&&box.x()<right&&box.x()+box.width()>left
+        for(var box:boxes)if(selectable(box.counter(),dimension)&&own(box.counter())&&box.x()<right&&box.x()+box.width()>left
                 &&box.y()<bottom&&box.y()+box.height()>top)selected.add(box.counter().key());
         boxes.stream().map(CommanderHudBox::counter).filter(c->selected.contains(c.key())).findFirst().ifPresent(c->dev.hoi.client.audio.AudioUiSounds.play(selectionSound(c)));
         CommanderPanels.mapSelectionChanged(true);
     }
     private static String selectionSound(Counter counter){return counter.navy()?"ui.fleet.select":counter.air()?"ui.aircraft.select":"ui.division.select";}
+    private static boolean own(Counter counter){return counter.country().equals(dev.hoi.client.ClientCampaignHud.country());}
     static boolean selectable(Counter counter,String dimension) {
         if(dimension.startsWith("hoi:atlas_army_"))return !counter.navy()&&!counter.air();
         if(dimension.startsWith("hoi:atlas_navy_"))return counter.navy();

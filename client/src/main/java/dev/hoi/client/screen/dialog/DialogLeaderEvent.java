@@ -54,7 +54,7 @@ final class DialogLeaderEvent extends DialogScreen {
         middleHeight = Math.min(Math.max(units(235), total), Math.max(1, available - optionsHeight));
         panelHeight = units(121 + 68) + middleHeight + optionsHeight;
         left = Math.clamp(width / 2 - units(282) + offsetX, 8, Math.max(8, width - pane - 8));
-        top = Math.clamp(height / 2 - units(310) + offsetY, 8, Math.max(8, height - panelHeight - 8));
+        top = Math.clamp((height - panelHeight) / 2 + offsetY, 8, Math.max(8, height - panelHeight - 8));
         dragging = false;
         bodyTop = top + units(121);
         bodyBottom = bodyTop + middleHeight;

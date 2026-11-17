@@ -307,7 +307,7 @@ public final class CommanderPanels {
         hits=List.of();scrollbar=null;if(current==null)return;var u=CommanderLayout.units(g.guiWidth(),g.guiHeight());var out=new ArrayList<Hit>();
         var chosen=current.cards().stream().filter(c->templateCard.isEmpty()?selected.contains(c.id()):c.id().equals(templateCard)).toList();
         int bottom=CommanderLayout.popupBottom(u,current.branch()==Mode.NAVY_HQ);
-        var selectedRows=selectedDivisionRows();boolean unassignedSelection=current.branch()==Mode.ARMY&&selectedRows.stream().anyMatch(m->m.data()!=null&&m.data().attachedArmy().isEmpty());
+        var selectedRows=selectedDivisionRows();boolean unassignedSelection=current.branch()==Mode.ARMY&&selectedRows.stream().anyMatch(m->m.data()!=null&&m.data().attachedArmy().isEmpty())&&dragPanels(current.cards(),CommanderUnitHud.selectedKeys()).isEmpty();
         int panelBottom=!unassignedSelection&&(current.branch()!=Mode.ARMY||armyCommandVisible())?actionbarTop(u,current.branch()==Mode.NAVY_HQ)-u.size(armyAbilityIds().isEmpty()?2:26):portraitsTop-u.size(4);
         if(current.branch()==Mode.NAVY_HQ&&u.size(250)<CommanderLayout.commandLeft(u,true))panelBottom=portraitsTop-u.size(4);
         if(current.branch()==Mode.ARMY&&!wingList&&attachmentWings().isEmpty()){int panelRight=u.size(221.5)+chosen.stream().mapToInt(c->summaryExtra(c,u)).max().orElse(0);if(panelRight<CommanderLayout.commandLeft(u,false))panelBottom=Math.min(portraitsTop-u.size(4),g.guiHeight()-u.size(85));}
@@ -355,7 +355,7 @@ public final class CommanderPanels {
         Integer color=card.role()==Mode.ARMY_GROUP?Integer.valueOf(0x806000):card.panel()==null?null:card.panel().armyColor();if(color!=null)UiAssets.drawTinted(g,source("group_marker3"),x+w-u.size(15),y+u.size(5),u.size(22),u.size(44),0xff000000|color);
         boolean group=card.role()==Mode.ARMY_GROUP;var panel=card.panel();int extra=summaryExtra(card,u);var headerTexture=net.minecraft.resources.Identifier.parse("hoi:textures/gui/commander/commands/"+(group?"army_group_bg":"army_bg")+"/frame_0.png");int sourceWidth=(group?436:437),sourceHeight=(group?110:109);g.blit(headerTexture,x-u.size(2.5),y,x+u.size(148.5),y+h,0,297f/sourceWidth,0,1);g.blit(headerTexture,x+u.size(148.5),y,x+w-u.size(group?3:2),y+h,297f/sourceWidth,(sourceWidth-4f)/sourceWidth,0,1);g.blit(headerTexture,x+w-u.size(group?3:2),y,x+w-u.size(group?1:0),y+h,(sourceWidth-4f)/sourceWidth,1,0,1);g.blit(headerTexture,x+u.size(99),y+u.size(17.5),x+u.size(153),y+u.size(38),300f/sourceWidth,408f/sourceWidth,35f/sourceHeight,76f/sourceHeight);g.blit(headerTexture,x+u.size(99),y+u.size(18.5),x+u.size(148),y+u.size(36),220f/sourceWidth,297f/sourceWidth,37f/sourceHeight,72f/sourceHeight);
         UiAssets.drawTinted(g,source(group?"theatre_army_group_shield":"theatre_army_shield").replace("frame_0","frame_"+(group||panel==null||panel.insignia()==null?0:panel.insignia())),x+u.size(7.5),y,u.size(16.5),u.size(16),group?0xffb29854:panel==null||panel.armyColor()==null?0xffffffff:0xff000000|panel.armyColor());label(g,Integer.toString(card.count()),x+u.size(12.5),y+u.size(4.5),u.size(14),u.size(11.5),UiMenuStyle.TEXT);
-        if(!group&&panel!=null&&!panel.palette().isEmpty())out.add(new Hit(x+w-u.size(15),y+u.size(5),u.size(12.5),u.size(12.5),UiCommandLabels.text("CHOOSE_INSIGNIA",""),()->CommanderHud.togglePalette(card.id()),null,"ui.click","army_color_button"));
+        if(!group&&panel!=null&&!panel.palette().isEmpty())out.add(new Hit(x+w,y+u.size(5),u.size(7),u.size(44),UiCommandLabels.text("CHOOSE_INSIGNIA",""),()->CommanderHud.togglePalette(card.id()),null,"ui.click","army_color_button"));
         leftLabel(g,card.name(),x+u.size(33),y+u.size(group?5:4),u.size(67.5),u.size(11.5),UiMenuStyle.TEXT);
         UiAssets.drawContent(g,source("supply_strip"),x+u.size(98),y+u.size(3.5),u.size(11),u.size(11));UiAssets.drawContent(g,source("fuel_strip"),x+u.size(110),y+u.size(5),u.size(10),u.size(11));
         out.add(new Hit(x+u.size(98),y+u.size(3.5),u.size(11),u.size(11),panelTooltip(panel,"supply"),()->{},null,"","army_supply"));
@@ -435,7 +435,11 @@ public final class CommanderPanels {
             leftLabel(g,text,contentX+u.size(21),by,textWidth,bh,UiMenuStyle.TEXT);
             if(hq.cost()!=null){int cx=contentX+u.size(24)+textWidth;UiAssets.drawTinted(g,"hud/command_power",cx,by+u.size(5),u.size(11),u.size(11),Boolean.FALSE.equals(hq.affordable())?0xffdf4545:0xffffffff);leftLabel(g,cost,cx+u.size(11),by,costWidth,bh,Boolean.FALSE.equals(hq.affordable())?0xffdf4545:UiMenuStyle.TEXT);}
         }
-        out.add(new Hit(bx,frameY,bw,bh,hq==null?(absent?text:"육군 사령부 배치 정보를 기다리고 있습니다."):hq.tooltip(),()->{},null,"","deploy_hq_button"));
+        java.util.function.BiConsumer<Integer,Boolean> gesture=absent?(button,twice)->{if(button==InputConstants.MOUSE_BUTTON_LEFT)CommanderHud.open(new Open(Mode.ASSIGN_ARMY,card.id()));}:hq==null||!hq.state().equals("READY")?null:(button,twice)->{
+            if(button==InputConstants.MOUSE_BUTTON_LEFT&&shift())CommanderOrders.send("ARMY/DEPLOY_HQ",List.of(card.id()),List.of());
+            else if(button==InputConstants.MOUSE_BUTTON_LEFT||button==InputConstants.MOUSE_BUTTON_RIGHT){var screen=new dev.hoi.client.screen.army.ArmyHeadquarters(Minecraft.getInstance().gui.screen());dev.hoi.client.screen.dialog.DialogCoordinator.setContent(screen);screen.open();}
+        };
+        out.add(new Hit(bx,frameY,bw,bh,hq==null?(absent?text:"육군 사령부 배치 정보를 기다리고 있습니다."):hq.tooltip(),()->{},gesture,"ui.click","deploy_hq_button"));
     }
     private static void templateButton(GuiGraphicsExtractor g,UiUnits u,List<Hit> out,int x,int y){
         int bx=x+u.size(18.5),by=y+u.size(3.5),size=u.size(15.5);var selection=selectedDivisions();String tip=UiCommandLabels.text("CHANGE_TEMPLATE_UNIT","");
@@ -476,15 +480,13 @@ public final class CommanderPanels {
         String description=unassigned?UiCommandLabels.text("UNASSIGNED_UNIT_DESCRIPTION",""):"";int footer=description.isEmpty()?0:Tooltips.split(Minecraft.getInstance().font,Tooltips.officerText(description),u.size(185)).size()*Minecraft.getInstance().font.lineHeight+u.size(12);
         int count=Math.min(rows.stream().anyMatch(m->m.data()!=null&&m.data().attachedArmy().isEmpty())?11:Integer.MAX_VALUE,Math.max(1,(bottom-y-u.size(34.5)-footer)/row));
         background(g,"air_priorities_tiled_bg",x,y,w,u.size(31.5)+Math.min(count,rows.size())*row+footer+u.size(4));
-        if(unassigned){
-            selectionBackground(g,u,x,y,w);
-            leftLabel(g,UiCommandLabels.text("UNITS_VIEW_DIVISIONS_COUNT","").replace("$DIV|G$","§G"+rows.size()+"§!"),x+u.size(37.5),y,u.size(65),u.size(21),UiMenuStyle.TEXT);
-            disbandButton(g,u,out,x-u.size(4),y);
-            templateButton(g,u,out,x-u.size(4),y);
-            String weight=rows.stream().allMatch(m->m.data()!=null&&m.data().transportWeight()!=null)?Long.toString(Math.round(rows.stream().mapToDouble(m->m.data().transportWeight()).sum())):"0";
-            UiAssets.draw(g,source("generic_mini_bg"),x+u.size(134.5),y+u.size(5.5),u.size(34),u.size(13));UiAssets.drawContent(g,source("topbar_convoys"),x+u.size(135.5),y+u.size(7),u.size(9),u.size(9));leftLabel(g,weight,x+u.size(145),y+u.size(6),u.size(18.5),u.size(11.5),UiMenuStyle.TEXT);
-            nativeButton(g,out,"nv_btn_close",x+w-u.size(18),y+u.size(3.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("CLOSE","닫기"),CommanderPanels::close);
-        }
+        selectionBackground(g,u,x,y,w);
+        leftLabel(g,UiCommandLabels.text("UNITS_VIEW_DIVISIONS_COUNT","").replace("$DIV|G$","§G"+rows.size()+"§!"),x+u.size(37.5),y,u.size(65),u.size(21),UiMenuStyle.TEXT);
+        disbandButton(g,u,out,x-u.size(4),y);
+        templateButton(g,u,out,x-u.size(4),y);
+        String weight=rows.stream().allMatch(m->m.data()!=null&&m.data().transportWeight()!=null)?Long.toString(Math.round(rows.stream().mapToDouble(m->m.data().transportWeight()).sum())):"0";
+        UiAssets.draw(g,source("generic_mini_bg"),x+u.size(134.5),y+u.size(5.5),u.size(34),u.size(13));UiAssets.drawContent(g,source("topbar_convoys"),x+u.size(135.5),y+u.size(7),u.size(9),u.size(9));leftLabel(g,weight,x+u.size(145),y+u.size(6),u.size(18.5),u.size(11.5),UiMenuStyle.TEXT);
+        nativeButton(g,out,"nv_btn_close",x+w-u.size(18),y+u.size(3.5),u.size(15.5),u.size(15.5),UiCommandLabels.text("CLOSE","닫기"),CommanderPanels::close);
         divisionActions(g,u,out,x+w-u.size(218.5),y);y+=u.size(21);armyColumns(g,u,x,y,w);y+=u.size(10.5);
         int listTop=y;scroll=Math.clamp(scroll,0,Math.max(0,rows.size()-count));for(var member:rows.subList(scroll,Math.min(rows.size(),scroll+count))){member(g,u,out,member,x,y,w-u.size(15),row,"uv_unit_entry_bg");y+=row;}armyScrollbar(g,u,out,x+w-u.size(14),listTop,u.size(9),count*row,rows.size(),count);
         g.pose().pushMatrix();g.pose().translate(0,-u.length(.5));g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source("tiled_window_1b_thin_border")+".png"),x+u.size(1),y,x+w-u.size(2),y+u.size(3),95/190f,96/190f,179/190f,185/190f);g.pose().popMatrix();y+=u.size(3);
@@ -764,8 +766,8 @@ public final class CommanderPanels {
         int index=0;for(var mission:navy?NAVAL:AIR) {
             int offset=navy?Map.of("PATROL",10,"STRIKE_FORCE",60,"CONVOY_RAIDING",110,"EXERCISE",185,"CONVOY_ESCORT",235,"MINELAYING",285,"MINESWEEPING",335,"NAVAL_INVASION_SUPPORT",385,"HOLD",466).get(mission[0]):0;int slot=index++;if(!navy&&slot>=5)slot+=slot==5?1:2;int bx=x+u.size(navy?offset/2.0:7+slot*22.5),by=y+(navy?u.size(mission[0].equals("HOLD")?27:24):u.size(4)),w=navy?u.size(mission[0].equals("HOLD")?13.5:24):u.size(23.5),h=u.size(navy?(mission[0].equals("HOLD")?13.5:20):17);String key=(navy?"NAVAL_MISSION_NAME_":"AIRWING_MISSION_TYPE_")+mission[2];String name=UiCommandLabels.text(key,mission[0]);if(!navy&&mission[0].equals("HOLD"))name=UiCommandLabels.text("AIRWING_MISSION_NONE","임무 없음");
             String detail=UiCommandLabels.text(key+"_DESC","");if(navy&&mission[0].equals("STRIKE_FORCE"))detail=current.cards().stream().filter(c->selected.contains(c.id())&&c.panel()!=null).flatMap(c->c.panel().controls().stream()).filter(c->c.id().equals("STRIKE_FORCE")).map(Control::tooltip).findFirst().orElse(detail);if(mission[0].equals("EXERCISE"))detail+=navy?"":"\n\n"+UiCommandLabels.text("AIRWING_MISSION_TYPE_TRAINING_DESC_SHIFT_CLICK","");
-            boolean active=!currentMembers.isEmpty()&&currentMembers.stream().allMatch(m->m.mission().equals(mission[0]));
-            String icon=navy?source("nv_btn_"+mission[1]).replace("frame_0",currentMembers.stream().anyMatch(m->m.mission().equals(mission[0]))?"frame_2":"frame_0"):mission[0].equals("HOLD")?source("uv_btn_unassign"):"commander/commands/strategicair_mission_types/frame_"+mission[1];
+            boolean waiting=CommanderOrders.pending().startsWith((navy?"NAVY/":"AIR/")+mission[0]),active=waiting||!currentMembers.isEmpty()&&currentMembers.stream().allMatch(m->m.mission().equals(mission[0]));
+            String icon=navy?source("nv_btn_"+mission[1]).replace("frame_0",waiting||currentMembers.stream().anyMatch(m->m.mission().equals(mission[0]))?"frame_2":"frame_0"):mission[0].equals("HOLD")?source("uv_btn_unassign"):"commander/commands/strategicair_mission_types/frame_"+mission[1];
             String chosen=navy&&mission[0].equals("HOLD")&&control()?"HOLD_IN_PLACE":mission[0].equals("EXERCISE")&&shift()?"EXERCISE_UNTIL_TRAINED":mission[0];String command=(navy?"NAVY/":"AIR/")+chosen;boolean disabled=!CommanderAvailability.reason(command).isEmpty();
             if(navy){if(disabled)UiAssets.drawGrayscale(g,source("nv_btn_"+mission[1]),bx,by,w,h);else UiAssets.draw(g,icon,bx,by,w,h);if(!disabled&&CommanderAvailability.warning(command))UiAssets.draw(g,source("btn_yellow_glow"),bx,by,w,h);}else {String background=source(Set.of("CLOSE_AIR_SUPPORT","STRATEGIC_BOMBING","NAVAL_STRIKE","PORT_STRIKE","LOGISTICS_STRIKE","AIR_SUPPLY","RECON","NAVAL_PATROL","MINELAYING","MINESWEEPING").contains(mission[0])?"strategicair_mission_btn_checkbox_bg":"strategicair_mission_btn_bg").replace("frame_0",active?"frame_0":"frame_1");if(disabled){UiAssets.drawGrayscale(g,background,bx,by,w,h);g.pose().pushMatrix();g.pose().translate(bx,by);g.pose().scale(u.scale()*.5f);UiAssets.drawGrayscale(g,icon,1,4,42,29);g.pose().popMatrix();}else{UiAssets.draw(g,background,bx,by,w,h);g.pose().pushMatrix();g.pose().translate(bx,by);g.pose().scale(u.scale()*.5f);UiAssets.draw(g,icon,1,4,42,29);g.pose().popMatrix();}}
             String tip=CommanderAvailability.tooltip(command,name+"\n\n"+detail);out.add(new Hit(bx,by,w,h,tip,()->{if(ids.isEmpty()||!CommanderAvailability.allow(command))return;var values=new ArrayList<String>();values.add("mission/"+chosen);values.addAll(ids);CommanderHud.open(new Open(navy?Mode.NAVAL_TOOLBAR:Mode.AIR_TOOLBAR,"",values));},null,"ui.click",navy?"naval_mission_"+chosen:"air_mission_"+chosen));
@@ -817,7 +819,10 @@ public final class CommanderPanels {
         var bases=wings.stream().map(CommanderAirBases::identity).collect(java.util.stream.Collectors.toSet());
         var rows=current.wings().stream().filter(wing->bases.contains(CommanderAirBases.identity(wing))).sorted(Comparator.comparing(CommanderAirBases::identity).thenComparing(Member::id)).toList();
         y+=h+u.size(10);int count=Math.max(1,(bottom-y-u.size(15))/h);scroll=Math.clamp(scroll,0,Math.max(0,rows.size()-1));
-        int shown=0;String group="";for(var wing:rows.subList(scroll,Math.min(rows.size(),scroll+count))){String base=CommanderAirBases.identity(wing);boolean header=!group.equals(base);if(y+h*(header?2:1)>bottom)break;if(header){group=base;airBaseHeader(g,u,out,wing,x,y,w,h);y+=h;}member(g,u,out,wing,x,y,w,h,"av_wing_entry_bg");y+=h;shown++;}
-        pager(g,u,out,x,y,w,scroll>0,scroll+shown<rows.size(),Math.max(1,shown));
+        int top=y,end=y,shown=0;String group="";for(var wing:rows.subList(scroll,Math.min(rows.size(),scroll+count))){String base=CommanderAirBases.identity(wing);int need=h*(group.equals(base)?1:2);if(end+need>bottom-u.size(6))break;group=base;end+=need;shown++;}
+        if(shown>0)UiAssets.tiledNineSlice(g,source("tiled_window_1b_thin_border"),x-u.size(4),y-u.size(4.5),u.size(290),end-y+u.size(11),64,u.scale()*.5);
+        group="";for(var wing:rows.subList(scroll,scroll+shown)){String base=CommanderAirBases.identity(wing);if(!group.equals(base)){group=base;airBaseHeader(g,u,out,wing,x,y,w,h);y+=h;}member(g,u,out,wing,x,y,w,h,"av_wing_entry_bg");y+=h;}
+        pager(g,u,out,x,end+u.size(6),w,scroll>0,scroll+shown<rows.size(),Math.max(1,shown));
+        if(shown>0)out.add(new Hit(x-u.size(1),top-u.size(2),u.size(285),end-top+u.size(5),"",()->{},null,""));
     }
 }

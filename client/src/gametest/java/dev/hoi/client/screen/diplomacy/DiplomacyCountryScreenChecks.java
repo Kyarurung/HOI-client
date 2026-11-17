@@ -37,8 +37,8 @@ public final class DiplomacyCountryScreenChecks {
                         return true;
                     });
                 int expected = effect.contains("§a") ? 0x009F03 : effect.contains("§4") ? 0xFF3232 : 0xFFBD00;
-                if (icons.get() != 1 || !colors.contains(expected))
-                    throw new AssertionError("Tooltip keyword or value color missing: " + effect + " " + colors);
+                if (icons.get() != 0 || !colors.contains(expected))
+                    throw new AssertionError("Non-stat effects keep their value color without an inferred icon: " + effect + " " + colors);
             }
         });
         try {

@@ -39,8 +39,9 @@ public final class TooltipSpacingTest {
             if(nativeParty.getString().codePoints().filter(point->point>=0xe000&&point<=0xf8ff).count()!=1
                     ||!visible(List.of(nativeParty.getVisualOrderText())).equals(visible(List.of(repeatedParty.getVisualOrderText()))))
                 throw new AssertionError("Original inline party icons must retain their source position and styles without inferred duplicates");
-            if(TooltipKeywordIcons.decorateLines(Component.literal("녹색당 인기도")).getString().codePoints().filter(point->point>=0xe000&&point<=0xf8ff).count()!=1)
-                throw new AssertionError("Labels without native icons must retain keyword inference");
+            java.util.function.ToLongFunction<String> inferred=line->TooltipKeywordIcons.decorateLines(Component.literal(line)).getString().codePoints().filter(point->point>=0xe000&&point<=0xf8ff).count();
+            if(inferred.applyAsLong("방어: 5")!=1||inferred.applyAsLong("녹색당 인기도")!=0||inferred.applyAsLong("인력: 100")!=0||inferred.applyAsLong("연구 속도: +5%")!=0)
+                throw new AssertionError("Only stat labels receive an inferred icon");
             for(var sample:Map.of("£command_power 35.00 만큼"," 35.00 만큼","£command_power의 지휘력이","의 지휘력이","£command_power. 지휘력을",". 지휘력을","£command_power만큼의","만큼의","£command_power£ 끝"," 끝").entrySet())if(!TooltipKeywordIcons.decorateLines(Component.literal(sample.getKey()),false).getString().equals(glyph+sample.getValue()))throw new AssertionError("Source icon delimiter: "+sample.getKey());
             var styled=Component.literal("£command_").append(Component.literal("power ").withColor(0xFFBD00)).append(Component.literal("35.00 만큼").withColor(0xA2B9CF));
             var decorated=TooltipKeywordIcons.decorateLines(styled,false);

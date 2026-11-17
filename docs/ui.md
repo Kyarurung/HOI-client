@@ -68,7 +68,7 @@
 
 ## 결정 폭·호버 계층·연구 조합 입력
 
-사건과 결정 사이드바는 TFR `interface/countrydecisionview.gui/countrydecisionview`의 폭550px를 GUI2의275GUI로 사용한다. 화면이 더 좁을 때만 가용 폭으로 제한한다. 제목 길이로 창을 넓히지 않으며 사건 제목·분류·결정 이름은 기존 글자 크기와 원문을 유지한 가로 마키로 읽는다. 명시적 줄바꿈과 설명 본문의 기존 줄바꿈·스크롤은 보존한다. 이전의 긴 이름에 맞춘 창 확장·자동 줄바꿈 행 높이 규칙은 대체한다. 비용 숫자는 정치력·사용자 정의 비용 모두 `Row.costMet=false`일 때만 빨강이며 그 밖에는 노랑이다. TFR `interface/core.gfx` 기본 `textcolors`의 `R={255 50 50}`·`Y={255 189 0}`을 사용하며 비용의 원본 아이콘·이름 서식은 보존한다.
+사건과 결정 사이드바는 TFR `interface/countrydecisionview.gui/countrydecisionview`의 폭550px를 GUI2의275GUI로 사용한다. 화면이 더 좁을 때만 가용 폭으로 제한한다. 제목 길이로 창을 넓히지 않으며 사건 제목·분류·결정 이름은 기존 글자 크기와 원문을 유지한 가로 마키로 읽는다. 결정 행에서는 이름 글자만 흐르고 왼쪽 결정 그림·대상 국기와 오른쪽 비용 아이콘·값은 고정한다. 명시적 줄바꿈과 설명 본문의 기존 줄바꿈·스크롤은 보존한다. 이전의 긴 이름에 맞춘 창 확장·자동 줄바꿈 행 높이 규칙은 대체한다. 비용 숫자는 정치력·사용자 정의 비용 모두 `Row.costMet=false`일 때만 빨강이며 그 밖에는 노랑이다. TFR `interface/core.gfx` 기본 `textcolors`의 `R={255 50 50}`·`Y={255 189 0}`을 사용하며 비용의 원본 아이콘·이름 서식은 보존한다.
 
 Fabric26.3의 `ScreenEvents.afterExtract`는 Minecraft의 기본 툴팁 추출 뒤에 호출된다. 기본 툴팁과 공통 스크롤·정치·결정 툴팁을 최종 `Gui.extractRenderState` 끝에 그리므로 전구 카드·군 패널·지도 모드 같은 후속 HUD가 가리지 않는다. 스크롤 범위는 요청 시점에 계산하고 그림만 늦추며 위치 변환·휠 상태를 보존한다. 캠페인과 무관한 바닐라 툴팁의 추출 순서는 유지한다. 독립 `GuiGraphicsExtractor`로 그림을 관찰하는 테스트는 `extractDeferredElements` 뒤에 최종 GUI 단계와 같은 `TooltipLayer.flush()`를 호출한다.
 
@@ -224,6 +224,8 @@ HQ 설계 하단에는 원본 `GFX_button_221x34` 저장 단추만 둔다(x487/y
 
 ## 국가 메뉴와 HUD
 
+정치·연구 패널 제목 줄에는 날짜를 표시하지 않는다(날짜는 HUD에만 둔다). 메뉴의 보이지 않는 클릭 영역은 자기 이름(`이름 · 값`)을 툴팁으로 띄우지 않고, 원본 툴팁이 있는 항목만 툴팁을 보인다. `세부 사항` 단추는 닫기 단추처럼 "세부 사항" 툴팁을 띄우며, 행 전체 툴팁보다 앞에 그린다.
+
 메뉴 순서는 국가 정보·결정·정보기관·연구·무역과 경제·건설·생산·모병 및 배치·군수·장교단입니다. 군종 경험치는 육군·해군·공군 순서입니다. 날짜·배속은 서버의 게임 시간을 한국어로 표시합니다.
 
 정치 화면은 원본 프레임 안에 지도자 사진과 이름판을 배치하고 국민정신은 왼쪽부터 가로 스크롤합니다. 국가 중점은 제목 영역을 눌러 선택합니다. 정부·장관·군사참모는 소형 철제 프레임 초상화를 우선하며 원본이 없으면 빈 프레임을 사용합니다. 국민정신·지도자 설명은 서버가 제공한 현재 상태만 표시합니다.
@@ -249,6 +251,8 @@ HQ 설계 하단에는 원본 `GFX_button_221x34` 저장 단추만 둔다(x487/y
 군수는 계열별 생산량·수요·균형·비축량을 표시합니다. 충원 수요가 0이면 충족률은 100%이며 수요 정보가 없는 구버전 응답은 빈 게이지로 남깁니다. 무역·모병·편제 조작은 서버가 발급한 선택지와 비용만 사용합니다. 미등록 대대나 참고 표의 내구도부터 장비까지의 수치를 임의로 추가하지 않습니다.
 
 ## 기갑·해군·공군 설계
+
+전차·함선·함체·비행기 설계 하단의 경험치·자원·생산 비용은 TFR `tank_designer_view.gui`의 초기화 단추(y502, 높이 34)와 같은 세로 중앙선에 둔다. 저장 단추는 원본 그림 전체를 보존해 원본 사각형(x400, y502, 123×36)을 유지한다. 교리 상세 맨 아래 잠금 해제 단추는 육해공 모두 같은 경로로 `hud/<군종>_experience` 그림과 "N 잠금 해제" 글자를 단추 세로 중앙에 두고, 글자가 넘치면 크기를 줄인다.
 
 해군 설계창은 이름 바로 아래 분류칸을 표시하지 않으며 닫기 버튼은 기존 위치에서 왼쪽으로 1 GUI 이동합니다. 기갑·공군 종류 칸과 모든 설계도면 내부 종류 라벨은 유지합니다. 장비 사진 옆과 저장된 설계의 생산 선택 이미지에는 작은 설계도 배지를 표시하지 않습니다. 새 차체·함체·기체와 미완성 장비의 배지는 유지합니다. 설계도면 자체와 장착 부품의 강조 레이어는 그대로 표시합니다.
 
@@ -369,7 +373,7 @@ $env:HOI_MISSION_OVERLAY_FIXTURES = 'C:/HOI-client/client/build/generated/cmp11-
 
 서버에서 온 `china.705.d`와 미지원 대괄호 함수는 그대로 표시한다. `[GetDateText]` 날짜 확장은 서버에서 처리하며 기본 `2020년 1월 1일 00시`, 최장 `2022년 12월 31일 23시`처럼 분을 쓰지 않는다. 클라이언트는 발급된 문구를 바꾸지 않는다.
 
-지휘관 창은 원본 CENTER(-282,-310)를 적용해 2560×1440 GUI2에서 왼쪽 위를 (998,410) 화면 픽셀에 고정한다. 본문 길이는 루트 위치를 바꾸지 않으며 작은 화면에서는 창 전체가 화면 안에 들어오도록 위치를 보정한다. 일반 국가 이벤트의 과거 전체 창 중앙정렬은 아래 세 이벤트 창의 원본 프레임 규칙으로 교체했다. 스택은 종류별 마지막 이벤트·슈퍼 이벤트·완료 창을 선택하고 메뉴와 함께 표시하며 위치에 의존하지 않는다. Minecraft 버튼 영역은 정수 GUI 좌표이므로 원본 47px 간격의 23.5 GUI 단위를 표현하지 못한다. 2560×1440에서는 두 선택지 간격이 48 화면 픽셀로 반올림된다.
+지휘관 창은 원본 CENTER(-282,…)의 가로 위치를 적용해 2560×1440 GUI2에서 왼쪽을 998 화면 픽셀에 둔다. 사용자 지시(2026-11-17)에 따라 세로는 본문 길이로 정해진 창 높이 기준으로 화면 중앙에 두며, 작은 화면에서는 창 전체가 화면 안에 들어오도록 위치를 보정한다. 국가·뉴스 이벤트 창도 같은 지시로 실제 창 높이 기준 세로 중앙에 두고, 슈퍼 이벤트는 원본 982×594 중심과 TFRKP 표시 오프셋을 유지한다. 일반 국가 이벤트의 과거 전체 창 중앙정렬은 아래 세 이벤트 창의 원본 프레임 규칙으로 교체했다. 스택은 종류별 마지막 이벤트·슈퍼 이벤트·완료 창을 선택하고 메뉴와 함께 표시하며 위치에 의존하지 않는다. Minecraft 버튼 영역은 정수 GUI 좌표이므로 원본 47px 간격의 23.5 GUI 단위를 표현하지 못한다. 2560×1440에서는 두 선택지 간격이 48 화면 픽셀로 반올림된다.
 
 지휘관 제목·본문·선택지는 그림자 없이 그린다. Minecraft 26.3의 text/centeredText 기본 호출은 shadow=true여서 밝은 패널의 어두운 영문·숫자가 두 겹으로 보였다. 같은 경로의 종이 배경인 일반 국가 이벤트(EVENT)와 국제 뉴스(GLOBAL_EVENT)의 제목·부제·본문·타일 글자도 그림자 없이 그린다. 어두운 STATE/DIPLOMACY/POLITICS/COMMANDER 패널과 슈퍼 이벤트의 띠·인용문, 완료 창의 기존 그림자 설정은 유지한다. 제목은 core.gfx의 hoi4_typewriter22 색 0xff000000, 본문은 fonts.gfx의 Electro 흰색 tint와 Electro_0.dds의 알파>0 글자 픽셀 15,438개가 모두 RGB(0,0,0)인 근거로 검정색을 사용한다. 선택지의 기존 글자 색상은 유지한다. 일반 이벤트 그림자 수정 대조에는 비교 명령에 `--allow-event-text-change`를 추가한다. 이 옵션은 제목 변경 전의 일반 이벤트 그림자 비교용이며 나머지 세 창은0픽셀을 요구한다. 현재 볼드 제목 변경과 국제 뉴스 그림자 제거를 포함하는 비교에는 그대로 사용할 수 없다.
 
@@ -476,6 +480,8 @@ $env:HOI_MISSION_OVERLAY_FIXTURES='C:/HOI/fabric/build/mission-overlay-source-fi
 전체 실행 ID는 `2026-10-15T21-00-41.052385600Z-4e46dd07-d273-4b25-ac78-8deee8df5da9`다. JUnit은 클라이언트117개·protocol119개(실패·오류·건너뜀0)의 기존 성공 결과를 UP-TO-DATE로 재사용했고 실제 렌더링을 새로 실행했다. 실제 GPU PNG2007장과 별도 CPU 기대 PNG32장을 생성했으며 원본16장×GUI2 두 해상도의 새 실제 캡처32장이 포함된다. 중점 게이지·종이 GPU 비교는 해상도별18개씩 실패0이며 원작 framebuffer 전체의 픽셀 동일성을 뜻하지 않는다. 실행 중 채취한 클라이언트 소스·빌드 정의434개는 종료 시점과 해시가 같았고, 런타임에 복사한 외부 팩6개의 크기·SHA-1도 manifest와 일치했다. client 전용 JAR은 SHA-256 `f373850eb862f4d14a343f051fa00fe89c8fcfc323c549dc37411dfacb08a6c3`이며 내장 이미지·음원은 허용된 `hoi-client-icon.png` 하나다. 서버 문구 차이와 미지원 효과의 보완은 별도 서버 작업이며, 이 화면은 전송된 줄을 그대로 그린다. 전체2039장의 직접 열람·원작 모든 장면의 픽셀 동등성·운영 멀티플레이·실제 소켓 재접속·장치 청취는 확인하지 않았다.
 
 ### 결정 개인 설정과 지도 요청
+
+사건 머리의 "중요하지 않은 알림" 체크 상자는 글자가 잘리지 않도록 폭 90GUI를 쓰고, 사건 팝업·뉴스 팝업 체크 상자는 x152부터 같은 오른쪽 끝까지 둔다. 체크 칸과 라벨은 사용자 지정대로 체크 칸을 1GUI 아래로, 라벨을 1GUI 위로 옮겨 맞춘다. 사건 팝업·뉴스 팝업은 칸 위쪽과 라벨 줄 위쪽이 모두 영역 y+1이고, 중요하지 않은 알림은 같은 관계로 26GUI 영역의 라벨 줄(가운데에서 1GUI 위)에 칸을 맞춘다. 같은 규칙으로 점령지 "저항하지 않는 국가 보기"는 칸 원본 y161·글자 y167, 첩보 후보 "임무 재개"는 칸 top+280·글자 top+281이다. 작전 "자동 반복"은 "자동 시작"과 칸 위치를 같이 쓰고 "자동 시작"이 이미 가운데이므로 칸은 두고 글자만 1GUI 올린다(y+h−20). `DecisionMarqueeTest`는 두 해상도에서 세 체크 표시와 라벨 글자의 세로 가운데 차이가 1.5px 이하인지 촬영 화소로 확인한다.
 
 `config/hoi-decisions.properties`는 클라이언트 개인 설정이다. 추적 점은 접속 서버 주소(통합 서버는 월드 경로)·나라 TAG·기본 결정 ID로 저장한다. `@c:`/`@s:` 접미사는 빼므로 같은 결정의 대상 행은 설정을 공유한다. 기본은 켜짐이며 범주 점은 그 범주의 결정을 함께 전환한다. 세션·리비전·재접속으로 초기화하지 않는다. 임시 파일 뒤 atomic move로 저장하며 실패 시 원본을 보존하고 로그를 남긴다. 상단 결정 경보 feed는 미구현이므로 점은 개인 설정이며 경보 효과를 주장하지 않는다.
 
@@ -808,6 +814,10 @@ PRC 선택창 집중 검증은 `./gradlew.bat test runGameTest remapJar -PhoiTes
 
 ### 공군 기지별 선택 패널
 
+기지 머리 줄과 비행단 줄 전체 뒤에는 원본 `GFX_tiled_window_1b_thin_border`(테두리 64, 가운데 타일) 검은 칸을 하나 깐다. 지정 Steam 화면(20261006163945~20261006164033)처럼 줄 왼쪽 2px·위 4px·아래 약 7px 여백과 오른쪽 약 19px 여백을 두며, 칸이 들어갈 자리를 남기고 보이는 줄 수를 정한다. 칸의 빈 여백 클릭은 지도로 넘기지 않는다. `CommanderAirBasePanelsTest`는 네 해상도·배율에서 줄 오른쪽 여백이 이 검은 칸인지 촬영 화소로 확인한다.
+
+다른 나라 비행단은 선택할 수 없고 목록에 줄로 나타내지 않는다. 사용자 지정에 따라 그 비행기는 기지 머리 줄의 수용량(전체 주둔 기체/수용량)과 기지 툴팁의 전체 기체 수에만 포함하며, 나라별 `AIRWING_COUNTRY_HIDDEN` 문구("… 측은 이 공군 기지에 약 N기의 비행기가 있습니다")는 표시하지 않는다.
+
 공군 임무 줄은 원본 `airselectionview.gui`와 지정 Steam 화면의 공중 우세 → 근접항공지원 → 요격 순서를 사용한다. 기지 헤더는 원본 배경·국기·기지 이름·수용량·창설·닫기 배치를 연결한다. `CommanderAirBases`는 서버의 기지 ID로 묶고 `AIRBASE_CAPACITY`, `AIRBASE_AIRPLANES_KNOWN`, `AIRBASE_CAPACITY_COUNTS_DESCRIPTION` 원문에 전체 주둔 기체 수와 실제 수용량을 넣는다. 구형 응답의 누락 값은 0으로 만들지 않고 미확인으로 표시한다. 이름이 같아도 다른 기지를 합치지 않는다.
 
 기지의 창설 버튼은 해당 기지 ID를 보내며 X는 해당 기지에서 선택한 비행단만 선택 해제한다. 다른 기지의 선택과 모든 임무·기체 상태는 유지한다. `CommanderAirBasePanelsTest`는 GUI2의 2560×1440 및 1280×720에서 서로 이름이 같은 두 기지의 독립 헤더, 선택 수와 다른 실제 수용량, 근접항공지원 버튼 요청, 기지 지정 창설 요청과 선택 해제 후 갱신을 실제 클라이언트 입력·렌더 경로로 검사한다. 수용량 호버는 자국·전체 수량의 구분, 원본 색상·문장·빈줄, 치환되지 않은 변수 없음과 실제 툴팁의 화면 경계를 검사한다. 요청 관측기를 사용하는 패널 검증은 운영 서버의 다중 사용자 접속 검증과 구분한다.
@@ -1027,7 +1037,7 @@ python scripts/compare_event_tooltips.py --run <성공한 전체 실행 폴더> 
 
 이름은 Minecraft 기본 글자 크기로 왼쪽 정렬하고 긴 이름만 말줄임한다. 선택 문구는 숫자만 초록색인 한 줄이며 원본처럼 오른쪽 전략적 재배치 버튼 경계에서 가린다. 초상 위 `CLICK_TO_ASSIGN`은 33×40 GUI 프레임 안에서 중앙 줄바꿈하며 크기를 줄이지 않는다. 집단군에 속한 군은 머리줄에 월계수와 해제 버튼을 표시한다. 부모 이름이 숫자로 시작할 때 그 숫자를 표시하고 임의 번호를 만들지 않는다. 해제는 `FORMATION/DETACH_ARMIES`, 선택 `[군 id]`, 빈 rays로 보낸다.
 
-군 지휘관 아래 HQ 행은 `unitview.gui`의 `hq_window/empty_slot/deploy_dropdown`과 원본 `army_hq_bg`·`deploy_hq_button`을 사용한다. `DEPLOY_HQ_BUTTON_LABEL`·`DEPLOY_HQ_BUTTON_NO_COMMANDER`·`DEPLOY_HQ_BUTTON_COST`는 기본 한국어 core_l_korean.yml이며 설치 한글패치에 같은 키가 없다. 서버 `Panel.headquarters`의 state·label·text·cost·affordable·tooltip을 표시한다. `NO_COMMANDER`는 회색 틀과 어두운 회색 바탕에 굵은 배치/미배정 문구, `READY`는 금색 틀·철모·편제명·지휘력 비용을 사용한다. 최신 사용자 지정에 따라 배치 버튼의 배경·테두리와 호버 영역만 2GUI 아래로 옮긴다. 아이콘·텍스트와 바깥 HQ 행은 이동하지 않는다. 부족 비용은 빨강이며 서버 원문 툴팁을 보존한다. 배치 실행 컨트롤은 후속 계약 대기다. 레거시 null과 지휘관 없는 경우만 기존 commander 값으로 미배정 문구를 표시하며, 지휘관 보유 null은 자료 대기를 알린다. 비용 7이나 사령부 이름을 임의로 채우지 않는다.
+군 지휘관 아래 HQ 행은 `unitview.gui`의 `hq_window/empty_slot/deploy_dropdown`과 원본 `army_hq_bg`·`deploy_hq_button`을 사용한다. `DEPLOY_HQ_BUTTON_LABEL`·`DEPLOY_HQ_BUTTON_NO_COMMANDER`·`DEPLOY_HQ_BUTTON_COST`는 기본 한국어 core_l_korean.yml이며 설치 한글패치에 같은 키가 없다. 서버 `Panel.headquarters`의 state·label·text·cost·affordable·tooltip을 표시한다. `NO_COMMANDER`는 회색 틀과 어두운 회색 바탕에 굵은 배치/미배정 문구, `READY`는 금색 틀·철모·편제명·지휘력 비용을 사용한다. 최신 사용자 지정에 따라 배치 버튼의 배경·테두리와 호버 영역만 2GUI 아래로 옮긴다. 아이콘·텍스트와 바깥 HQ 행은 이동하지 않는다. 부족 비용은 빨강이며 서버 원문 툴팁을 보존한다. 원본 툴팁의 네 입력을 연결한다: `READY`에서 Shift+클릭은 `ARMY/DEPLOY_HQ`로 표시된 편제를 바로 배치하고, 클릭·Ctrl+클릭은 육군 사령부 편제 목록, 우클릭은 HQ 설계 화면(같은 `ArmyHeadquarters` 화면)을 연다. `NO_COMMANDER`의 클릭은 지휘관 배정 창을 연다. 레거시 null과 지휘관 없는 경우만 기존 commander 값으로 미배정 문구를 표시하며, 지휘관 보유 null은 자료 대기를 알린다. 비용 7이나 사령부 이름을 임의로 채우지 않는다.
 
 최신 사용자 정렬 지시에 따라 사단 행의 조직력은 행 기준 x+1.5GUI, 내구도는 x+5.5GUI에 놓고 좁은 첫 ▼칸 하나를 함께 사용한다. 경고 열을 별도로 복원해 정렬 칸은 9개다. 원본 TFR unitview.gui의 column_heads 시작점 0/19/38/95/121/141/171/333/357px와 폭을 사용하며, 행 테두리 바로 오른쪽에 첫 칸을 맞추고 추가 패널 폭은 이름 열에만 배분한다. 경고 아이콘과 호버 영역은 x+12GUI에 놓는다. 숙련 휘장·진행 막대·명령 그림·이름·보급 통·군 표시는 대응 열에 맞추며 기존 그림 크기를 유지한다. 군·집단군·미지정 사단이 같은 행 렌더러를 사용한다. HQ 철모는 배치 라벨 끝과 편제명 시작 사이의 중심에 기존 38×21GUI 크기로 놓으며 위쪽 -3GUI 오프셋을 제거한다. 배경 특성은 서버가 상단 HUD용 traitDetails에서 제외한다. 클라이언트는 LeaderTrait의 icon/name/tooltip으로 종류를 추정하지 않고 받은 목록을 그대로 그린다. 지휘관 배경은 원본 그림의 오른쪽 밝은 영역만 늘리고, 어두운 능력치 칸은 레벨 상자부터 보급 아이콘 끝+3GUI까지만 유지한다. 특성 훈장은 그 오른쪽 밝은 바탕에서 서버 순서(장군→원수→기타)를 유지한다. 외교 국기 줄의 CountryFlagStack.left/visibleWidth를 재사용해 넘치면 간격만 줄이며, 나중에 그려진 오른쪽 훈장의 툴팁이 겹침 영역을 소유한다. 크기를 줄이거나 끝 특성을 생략하지 않는다. 합성 특성12개 장면은 실제 지휘관 보유 상태와 구분한다.
 
@@ -1212,6 +1222,8 @@ GUI2 두 해상도에서 회색 배치 행, 색 띠 없는 집단군 카드·펼
 계약4판 집중 검증은 같은 `navy-layout` 명령에 고정 서버 `C:/Users/Kiruy/AppData/Local/claude-hoi/cmp40-server/HOI`와 고정 팩 `C:/Users/Kiruy/AppData/Local/codex-hoi/cmp41-r4/pack/resources.zip`을 지정해 5분38초에 통과했다. 클라이언트137·protocol124·입력 생산자57개에서 실패/오류/건너뜀0이며 변경 없는 protocol 결과는 재사용했다. 입력39개·공유 protocol48개를 검증하고 실제 GUI2 두 해상도26장을 생성했다. 단위 검사는 태세 다수값·동률 순서·항모 없는 기동부대의 `stance/none` 보존을 확인한다. 렌더 검사는 1st Fleet의 수리 취소·항모 선택의 태세 전환·서버 원문 툴팁, 좌우 클릭·revision 전 반복 무전송을 확인한다. 개별 수리 검사는 실제 서버 fixture의 기본 `policy/0`에서 시작한다. 직접 열람한 두 해상도 함대/항모 장면에는 함종별 막대·수리 취소·균형 저울·비활성 회색조·수리0 프레임이 표시된다. 긴 항모 함대/기동부대 이름은 기존 칸 안에서 말줄임된다. staged JAR는 client 진입점이며 내장 protocol을 포함해 게임 그림/음원은 없다. 이 결과는 서버 응답 주입과 요청 관찰자를 이용한 검증이며 실제 항모 전투 효과·수리 취소 상태 변화·저장/재접속·운영 소켓·멀티플레이·직접 음향 청취와 필터 없는 전체 검증을 대신하지 않는다.
 
 ### 지도 모드의 카드별 부대 선택
+
+지도 선택은 플레이어 국가의 사단·함대·비행단만 받는다(클릭·드래그·스냅숏 갱신 모두 `Counter.country`로 거른다). 미배정 사단과 군 소속 사단을 함께 고르면 그 군의 카드 화면을 보여 준다. 그릴 군 카드가 없을 때만 미배정 목록을 쓰며, 이 목록은 항상 머리 줄(사단 수·해산·편제·무게·닫기)을 갖는다. 군 카드 색 선택 영역은 보이는 색 띠(오른쪽 7GUI, 높이 44GUI)뿐이라 닫기 단추와 겹치지 않는다.
 
 해군의 임무 막대·기동부대 띠와 해당 입력 영역만 기존 위치에서 1GUI 위로 이동한다. 함대 카드 본체·클릭 영역은 이동 전 위치를 유지해 카드와 위 띠 사이를 넓힌다. 이미 원본 중심에 맞춘 카드 숫자의 세로 위치는 별도로 유지한다. 지도 지휘 UI의 최소 배율1 때문에 GUI2의2560×1440·1280×720 모두 위 두 칸의 이동량은2px다. 함대 카드를 누르면 해당 함대의 기동부대만 목록·띠·임무 대상에 포함되고 미선택 때는 숨긴다. Shift를 이용한 명시적인 여러 카드 선택은 유지한다.
 
@@ -2058,4 +2070,4 @@ TFR `interface/core.gui`의 `ToolTip` 선언은 `maxWidth=400`, `borderSize={18,
 
 교리 `doctrine` 묶음의 애니메이션 회귀는 원본 24프레임의 존재와 1초 반복을 확인하고, 서버 형식 입력의 통달치만 절반으로 바꾼 **합성** 게이지를 고정 시각0/500ms에 실제 렌더해 채움 영역의 픽셀 변화를 비교한다. 이 표시 검사는 서버 통달치 획득·보상 실행·FPS/MSPT 개선을 뜻하지 않는다.
 
-Decision country images share the name marquee and clipping rectangle. Country-outline text icons retain their original glow and pixels; per-icon bitmap height/ascent matches the visible core to the adjacent cap height. Country target flags fit their visible bounds to `font.lineHeight` and reserve their aspect-correct width plus four pixels. Inline `[TAG.GetFlag]` text uses the original medium country flags at the same height, including tooltip and detail rendering, with cosmetic flags fitted to the glyph advance. Styling an explicit bitmap icon again preserves its source position and does not infer an extra leading keyword icon; label-only text retains inference.
+Decision images and target flags stay at the row's left edge; only the name text scrolls, clipped after them. The cost icon and value are right-aligned in their own clipped cell and never scroll. Country-outline text icons retain their original glow and pixels; per-icon bitmap height/ascent matches the visible core to the adjacent cap height. Country target flags fit their visible bounds to `font.lineHeight` and reserve their aspect-correct width plus four pixels. Inline `[TAG.GetFlag]` text uses the original medium country flags at the same height, including tooltip and detail rendering, with cosmetic flags fitted to the glyph advance. Styling an explicit bitmap icon again preserves its source position and does not infer an extra leading keyword icon; label-only text retains inference.

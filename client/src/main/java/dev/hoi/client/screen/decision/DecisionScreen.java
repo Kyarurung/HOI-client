@@ -243,9 +243,9 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                 UiAssets.nineSlice(g, "decision/ui/event_header", 5, y, pane - 10, eventHeader, 5, 1);
                 g.text(font, Tooltips.officerText("사건",true), 16, y + 6, UiMenuStyle.TEXT,false);
             }
-            popup(g,widgets,"minor","중요하지 않은 알림",58,y+5,76,26);
-            popup(g,widgets,"events","사건 팝업",139,y+5,Math.max(65,pane-184),12);
-            popup(g,widgets,"news","뉴스 팝업",139,y+19,Math.max(65,pane-184),12);
+            popup(g,widgets,"minor","중요하지 않은 알림",58,y+5,90,26);
+            popup(g,widgets,"events","사건 팝업",152,y+5,Math.max(65,pane-197),12);
+            popup(g,widgets,"news","뉴스 팝업",152,y+19,Math.max(65,pane-197),12);
             y += eventHeader + 3;
             double eventScale = (pane - 14) / 512.0;
             int eventHeight = Math.max(12, (int)Math.round(33 * eventScale));
@@ -333,8 +333,8 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     }
     private void popup(GuiGraphicsExtractor g,boolean widgets,String id,String label,int x,int y,int width,int height) {
         if(g!=null) {
-            UiAssets.draw(g,"decision/ui/checkbox/frame_"+(preferences.popup(id)?1:0),x,y,11,11);
-            label(g,label,x+14,y,width-14,height,UiMenuStyle.TEXT,-1);
+            UiAssets.draw(g,"decision/ui/checkbox/frame_"+(preferences.popup(id)?1:0),x,y+(height-10)/2,11,11);
+            label(g,label,x+14,y-1,width-14,height,UiMenuStyle.TEXT,-1);
         }
         if(widgets && visible(y,height)) {
             control(label,x,y,width,height,true,"ui.decision.tab",()->{preferences.popup(id,!preferences.popup(id));rebuildWidgets();});
@@ -445,32 +445,33 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         int costColor=row.remainingHours()>0?0xFFFFFF:Boolean.FALSE.equals(row.costMet())?Tooltips.BAD:Tooltips.GOLD;
         var costRows=text.rows(cost).stream().map(line->TooltipKeywordIcons.decorateLines(line,false)).toList();
         int costTop=y+(height-costRows.size()*(font.lineHeight+1))/2;
+        g.enableScissor(costLeft,y,pane-44,y+height);
         for(var line:costRows) {
             var coloredCost=Component.empty();
             line.visit((style,part)->{
                 part.codePoints().forEach(character->coloredCost.append(Component.literal(new String(Character.toChars(character))).withStyle(Character.isDigit(character)||".,%+-".indexOf(character)>=0?style.withColor(costColor):style)));
                 return Optional.empty();
             },net.minecraft.network.chat.Style.EMPTY);
-            int padding=Math.max(0,costWidth-font.width(coloredCost));
-            text.scrollingCell(g,font,coloredCost,costLeft+padding,costTop,costWidth-padding,font.lineHeight+1,0xFFFFFFFF,false,marqueeTicks*50);
+            var sequence=coloredCost.getVisualOrderText();
+            text.draw(g,font,sequence,right-font.width(coloredCost),Math.round(UiText.centeredY(font,sequence,costTop,font.lineHeight+1,1)),0xFFFFFFFF,false);
             costTop+=font.lineHeight+1;
         }
+        g.disableScissor();
         String image=asset(row.icon(),"icon");
         boolean hasImage=UiAssets.imageHeight(image,20)>0;
         String flag=row.target()!=null&&row.target().kind().equals("country")?UiStoryAssets.flag(row.target().id(),row.target().flag()):"";
         int[] flagSize=flag.isEmpty()?new int[]{0,0}:UiAssets.contentSize(flag);
         int flagHeight=flagSize[1]>0?font.lineHeight:0,flagWidth=flagHeight==0?0:Math.max(1,Math.round((float)flagSize[0]*flagHeight/flagSize[1]));
-        int nameLeft=hasImage?10:34,prefix=(hasImage?24:0)+(flagWidth==0?0:flagWidth+4),nameWidth=Math.max(10,costLeft-nameLeft-4);
+        int nameLeft=hasImage?10:34,textLeft=nameLeft+(hasImage?24:0)+(flagWidth==0?0:flagWidth+4),textWidth=Math.max(10,costLeft-4-textLeft);
         var nameRows=text.rows(rowName(row)).stream().map(line->TooltipKeywordIcons.decorateLines(line,false)).toList();
-        int contentWidth=prefix+nameRows.stream().mapToInt(font::width).max().orElse(0);
-        int nameX=nameLeft-UiText.scrollingOffset(Math.max(0,contentWidth-nameWidth),marqueeTicks*50);
-        g.enableScissor(nameLeft,y,nameLeft+nameWidth,y+height);
-        if(hasImage)UiAssets.draw(g,image,nameX,y+3,20,height-6);
-        if(flagWidth>0)UiAssets.drawContent(g,flag,nameX+(hasImage?24:0),y+(height-flagHeight)/2,flagWidth,flagHeight);
+        int nameX=textLeft-UiText.scrollingOffset(Math.max(0,nameRows.stream().mapToInt(font::width).max().orElse(0)-textWidth),marqueeTicks*50);
+        if(hasImage)UiAssets.draw(g,image,nameLeft,y+3,20,height-6);
+        if(flagWidth>0)UiAssets.drawContent(g,flag,nameLeft+(hasImage?24:0),y+(height-flagHeight)/2,flagWidth,flagHeight);
+        g.enableScissor(textLeft,y,textLeft+textWidth,y+height);
         int nameTop=y+(height-nameRows.size()*(font.lineHeight+1))/2;
         for(var line:nameRows) {
             var sequence=line.getVisualOrderText();
-            text.draw(g,font,sequence,nameX+prefix,Math.round(UiText.centeredY(font,sequence,nameTop,font.lineHeight+1,1)),0xFFFFFFFF,false);
+            text.draw(g,font,sequence,nameX,Math.round(UiText.centeredY(font,sequence,nameTop,font.lineHeight+1,1)),0xFFFFFFFF,false);
             nameTop+=font.lineHeight+1;
         }
         g.disableScissor();

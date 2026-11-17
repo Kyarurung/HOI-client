@@ -112,9 +112,7 @@ public final class HudTooltip {
         var content = body(font, width, hud, item);
         var visible = new ArrayList<FormattedCharSequence>();
         if (!item.icon().equals("supplies") && !(hud.details().containsKey(item.icon()) && hud.details().get(item.icon()).sourceText() != null && List.of("gdp", "debt").contains(item.icon()))) {
-            Component title = Component.literal(item.label()).withColor(Tooltips.GOLD);
-            if (item.icon().equals("manpower")) title = TooltipKeywordIcons.decorateLines(Component.literal("£manpower_texticon ").append(title));
-            visible.addAll(font.split(title, Tooltips.width(width,14)));
+            visible.addAll(font.split(Component.literal(item.label()).withColor(Tooltips.GOLD), Tooltips.width(width,14)));
         }
         visible.addAll(content);
         var lines = Tooltips.collapseBlankLines(visible);

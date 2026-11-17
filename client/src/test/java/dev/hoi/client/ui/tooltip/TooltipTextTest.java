@@ -41,11 +41,12 @@ class TooltipTextTest {
         assertFalse(TooltipText.blank("--"));
         assertFalse(TooltipText.blank("— 미확인"));
     }
-    @Test void sourceSeparationLineKeepsAllFourteenDashesWithoutAddingBlankLines() {
+    @Test void sourceSeparationLineBecomesOneBlankLine() {
         for(String separator:java.util.List.of("--------------","§r--------------","§#123456--------------")) {
-            assertFalse(TooltipText.blank(separator));
-            assertEquals("효과\n"+separator+"\n클릭",TooltipText.sourceSpacing("효과\n"+separator+"\n클릭"));
-            assertEquals("효과\n"+separator+"\n클릭",TooltipText.spacing("효과\n"+separator+"\n클릭"));
+            assertTrue(TooltipText.blank(separator));
+            assertEquals("효과\n\n클릭",TooltipText.sourceSpacing("효과\n"+separator+"\n클릭"));
+            assertEquals("효과\n\n클릭",TooltipText.sourceSpacing("효과\n\n"+separator+"\n\n클릭"));
+            assertEquals("효과\n\n클릭",TooltipText.spacing("효과\n"+separator+"\n\n클릭"));
         }
         assertTrue(TooltipText.blank("-------------"));
         assertTrue(TooltipText.blank("---------------"));

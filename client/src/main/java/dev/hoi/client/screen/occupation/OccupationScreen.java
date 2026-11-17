@@ -190,8 +190,8 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
             int supportTextHeight=Math.round(font.lineHeight*textScale());
             int supportY=headerControlsY()+(s(31)-supportTextHeight)/2;
             UiAssets.drawContent(g,"hud/manpower",s(293),supportY,s(27),supportTextHeight);text(g,"0",s(324),supportY,s(75),UiMenuStyle.TEXT,true);
-            art(g,showPeaceful?"occupation/checkbox_checked":"occupation/checkbox",17,159,30,30);
-            text(g,"저항하지 않는 국가 보기 ("+view.rows().stream().filter(r->r.resistance()==0).map(Row::country).distinct().count()+")",s(53),top+s(169),s(450),UiMenuStyle.TEXT,false);
+            art(g,showPeaceful?"occupation/checkbox_checked":"occupation/checkbox",17,161,30,30);
+            text(g,"저항하지 않는 국가 보기 ("+view.rows().stream().filter(r->r.resistance()==0).map(Row::country).distinct().count()+")",s(53),top+s(167),s(450),UiMenuStyle.TEXT,false);
             for(var entry:entries){int y=rowY(entry);if(visible(entry,y))drawRow(g,entry,y);}
             if(entries.isEmpty())text(g,"관리 중인 비핵심 점령지가 없습니다.",s(20),top+s(207),pane-s(35),UiMenuStyle.MUTED,false);
             if(target!=null){int x=popupX(),y=popupY(),w=popupWidth();UiMenuStyle.panel(g,x,y,w,popupHeight());UiAssets.draw(g,"occupation/select_header",x+s(7),y+s(5),w-s(14),s(40));String title=target.equals("*")?(templates?label("OCCUPATION_PRIMARY_GARRISON_TITLE"):"기본 법률"):entries.stream().filter(e->e.row().state().equals(target)).map(e->e.row().name()).findFirst().orElse("");text(g,title,x+s(25),y+s(13),w-s(75),UiMenuStyle.TEXT,false);}

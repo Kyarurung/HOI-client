@@ -49,8 +49,8 @@ public final class DialogEventFrameTest {
                     check(screen.panelLeft() >= 0 && screen.panelTop() >= 0 && screen.panelLeft() + screen.panelWidth() <= screen.width
                             && screen.panelTop() + screen.panelHeight() <= screen.height, "Entire source frame must fit on screen: " + example.id());
                     check(screen.textScale() == dev.hoi.client.ui.UiText.scale(c.font), "Retain body font size");
-                    if (size[0] == 2560 && view.kind() == DialogView.Kind.EVENT)
-                        check(screen.panelTop() == 134, "National event top stays fixed at native CENTER(-355,-450) plus top sprite offset");
+                    if (view.kind() != DialogView.Kind.SUPER_EVENT && screen.panelHeight() + 16 <= screen.height)
+                        check(screen.panelTop() == (screen.height - screen.panelHeight()) / 2, "National and news events are vertically centred: " + example.id());
                     if (size[0] == 2560 && view.kind() == DialogView.Kind.SUPER_EVENT) {
                         int[] offset = UiAssets.eventSuperOffset(view.image());
                         check(screen.panelLeft() == screen.width / 2 + (int)Math.round(offset[0] * .5)
@@ -110,15 +110,14 @@ public final class DialogEventFrameTest {
                     int[] body = screen.eventBodyBounds(), picture = screen.eventPictureBounds();
                     var choices = boxes(choiceButtons(screen, view));
                     check(!screen.mouseScrolled(picture[0], picture[1], 0, -100), "Picture does not scroll the body");
-                    int lines = c.font.split(screen.bodyText(), Math.max(1, (int)(body[2] / screen.textScale()))).size();
-                    int maximum = Math.max(0, lines * 12 - body[3]);
+                    int maximum = Math.max(0, screen.bodyContentHeight() - body[3]);
                     check(body[3] % 12 == 0, "Body viewport contains complete lines");
                     screen.mouseScrolled(body[0] + 1, body[1] + 1, 0, -1);
                     check(screen.scrollOffset() % 12 == 0, "Wheel scrolling cannot clip a partial first line");
                     if (maximum > 0) {
                         check(screen.keyPressed(new KeyEvent(InputConstants.KEY_END, 0, 0)) && screen.scrollOffset() == maximum, "End exposes the last complete source line");
-                        check(body[1] + (lines - 1) * 12 - screen.scrollOffset() >= body[1]
-                                && body[1] + (lines - 1) * 12 - screen.scrollOffset() + c.font.lineHeight * screen.textScale() <= body[1] + body[3], "Final glyph row clears scissor bounds");
+                        check(body[1] + screen.bodyContentHeight() - 12 - screen.scrollOffset() >= body[1]
+                                && body[1] + screen.bodyContentHeight() - 12 - screen.scrollOffset() + c.font.lineHeight * screen.textScale() <= body[1] + body[3], "Final glyph row clears scissor bounds");
                         check(screen.keyPressed(new KeyEvent(InputConstants.KEY_HOME, 0, 0)) && screen.scrollOffset() == 0, "Home returns to the first line");
                         screen.keyPressed(new KeyEvent(InputConstants.KEY_PAGEDOWN, 0, 0));
                         check(screen.scrollOffset() == Math.min(maximum, body[3]), "PageDown advances by a complete viewport");
@@ -160,6 +159,20 @@ public final class DialogEventFrameTest {
         }
         try { Files.writeString(Path.of("event-frame-measurements.json"), new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(measurements), StandardCharsets.UTF_8); }
         catch (IOException error) { throw new UncheckedIOException(error); }
+        var json = new Gson().toJsonTree(examples.stream().map(Example::view).filter(v -> v.kind() == DialogView.Kind.EVENT).findFirst().orElseThrow()).getAsJsonObject();
+        json.addProperty("body", "§Y동지께,§!\n\n\n£MSS_event_texticon\n\n\n\n\n국가안전부 보고서 본문입니다.");
+        var imageView = new Gson().fromJson(json, DialogView.class).issued(UUID.randomUUID().toString(), 7);
+        context.getInput().resizeWindow(2560, 1440);
+        context.setScreen(() -> new DialogScreen(imageView, (v, choice) -> {}));
+        context.waitTicks(4);
+        context.runOnClient(c -> {
+            var rows = ((DialogScreen)c.gui.screen()).bodyRows();
+            var images = rows.stream().filter(r -> r.image() != null).toList();
+            check(images.size() == 1 && images.getFirst().image().equals("keywords/source/mss_event_texticon") && images.getFirst().width() >= 100, "A body line holding only an event image is drawn as that image at its source size");
+            int index = rows.indexOf(images.getFirst());
+            check(index == 2 && rows.get(1).image() == null && rows.size() == 5, "The image is one paragraph separated from the text by one blank line: " + rows.size());
+        });
+        context.takeScreenshot("hoi-event-inline-image-2560-gui2");
         context.setScreen(() -> null);
         context.getInput().resizeWindow(1600, 1000);
         context.waitTicks(3);

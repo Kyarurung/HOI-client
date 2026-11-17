@@ -390,10 +390,10 @@ public final class AgencyOperation extends Screen {
             var autoCommence = action("auto_commence:" + operation.id());
             var autoRepeat = action("auto_repeat:" + operation.id());
             if (autoCommence != null) UiText.cell(g, font, autoCommence.title(), x + 18, y + h - 22, 93, 13, UiMenuStyle.TEXT, true, false);
-            if (autoRepeat != null) text(g, autoRepeat.title(), x + 289, y + h - 19, 90);
+            if (autoRepeat != null) text(g, autoRepeat.title(), x + 289, y + h - 20, 90);
         } else if (startParameter() >= 0) {
             UiText.cell(g, font, draftLabel("auto_commence"), x + 18, y + h - 22, 93, 13, UiMenuStyle.TEXT, true, false);
-            text(g, draftLabel("auto_repeat"), x + 289, y + h - 19, 90);
+            text(g, draftLabel("auto_repeat"), x + 289, y + h - 20, 90);
             UiAssets.draw(g, sprite("GFX_operation_refund_operation"), x + 251, y + h - 22, 14, 14);
         }
         int origin = y + 27;

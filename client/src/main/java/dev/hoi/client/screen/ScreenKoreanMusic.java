@@ -15,14 +15,15 @@ import java.util.List;
 public final class ScreenKoreanMusic extends Screen {
     private final Screen parent;
     private int x,y,w,h,offset,visible,left,top,rowHeight;
-    private List<AudioPlaylistPlayback.AudioTrack> tracks;
+    private List<AudioPlaylistPlayback.AudioTrack> source,tracks;
+    private boolean stationShown;
     public ScreenKoreanMusic(Screen parent){super(Component.literal("TFR Korea Plus 음악"));this.parent=parent instanceof DialogStack stack?stack.backdrop():parent;}
     @Override protected void init(){
         w=Math.min(584,width-12);h=Math.min(444,height-12);
         x=(width-w)/2;y=(height-h)/2;
         left=Math.max(78,w*184/780);top=(w-left)*121/594;rowHeight=18;
         visible=Math.max(1,(h-top-12)/rowHeight);
-        var p=AudioKoreanMusic.PLAYBACK;tracks=p.tracks();
+        var p=AudioKoreanMusic.PLAYBACK;source=p.tracks();stationShown=AudioKoreanMusic.stationEnabled();tracks=stationShown?source:List.of();
         offset=Math.clamp(offset,0,Math.max(0,tracks.size()-visible));
         addRenderableWidget(new UiPanelButton("×",x+w-19,y+3,16,16,this::onClose));
         var station=new UiPanelButton("TFR Korea Plus ON/OFF",x+7,y+top+6,left-14,(left-14)*130/162,AudioKoreanMusic::toggleStation){
@@ -30,7 +31,7 @@ public final class ScreenKoreanMusic extends Screen {
                 UiAssets.draw(g,AudioKoreanMusic.stationEnabled()?"music/station_on":"music/station",getX(),getY(),getWidth(),getHeight());
             }
         };
-        station.active=!tracks.isEmpty();
+        station.active=!source.isEmpty();
         station.setTooltip(Tooltips.create(Component.literal("클릭하여 음악 켜기/끄기")));
         addRenderableWidget(station);
         int cx=x+left+(w-left)/2,cy=y+top*54/100;
@@ -78,7 +79,7 @@ public final class ScreenKoreanMusic extends Screen {
         };
         button.active=!tracks.isEmpty();button.setTooltip(Tooltips.create(Component.literal(label)));addRenderableWidget(button);
     }
-    @Override public void tick(){if(tracks!=AudioKoreanMusic.PLAYBACK.tracks())rebuildWidgets();}
+    @Override public void tick(){if(source!=AudioKoreanMusic.PLAYBACK.tracks()||stationShown!=AudioKoreanMusic.stationEnabled())rebuildWidgets();}
     @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical){
         if(mx>=x+left&&mx<x+w&&my>=y+top&&my<y+h){
             offset=Math.clamp(offset-(int)Math.signum(vertical)*3,0,Math.max(0,tracks.size()-visible));rebuildWidgets();return true;
@@ -100,7 +101,7 @@ public final class ScreenKoreanMusic extends Screen {
             var track=tracks.get(p.selected());
             if(!track.cover().isEmpty())UiAssets.draw(g,track.cover(),x+8,y+top+stationHeight+16,left-16,Math.min(left-16,h-top-stationHeight-28));
             g.centeredText(font,font.plainSubstrByWidth(track.title(),w-left-65),x+left+(w-left)/2,y+top*24/121-font.lineHeight/2,0xFFCFD0B6);
-        }else g.text(font,"음악 리소스팩이 필요합니다.",x+left+8,y+top+12,UiMenuStyle.MUTED);
+        }else if(source.isEmpty())g.text(font,"음악 리소스팩이 필요합니다.",x+left+8,y+top+12,UiMenuStyle.MUTED);
         if(tracks.size()>visible){
             int trackHeight=h-top-10,thumb=Math.max(10,trackHeight*visible/tracks.size());
             int thumbY=y+top+5+(trackHeight-thumb)*offset/(tracks.size()-visible);

@@ -14,23 +14,24 @@ public final class ResearchTextChecks {
             var resources=TooltipKeywordIcons.decorateLines(Component.literal("+6£resources_strip|7 -4£resources_strip|1 -1£resources_strip|5"));
             check(!resources.getString().contains("£")&&!resources.getString().contains("|"), "Resource frame syntax is fully consumed");
             check(resources.getString().chars().filter(c->c>=0xe000&&c<=0xf8ff).distinct().count()==3, "Energy, oil and steel use distinct source frames");
-            var labeled = TooltipKeywordIcons.decorate(Component.literal("건설 속도: +15%"));
-            check(labeled.getString().endsWith(" 건설 속도: +15%") && labeled.getString().charAt(0) >= 0xe000, "Source-bound keyword glyph precedes construction speed");
+            var labeled = TooltipKeywordIcons.decorate(Component.literal("방어: +15%"));
+            check(labeled.getString().endsWith(" 방어: +15%") && labeled.getString().charAt(0) >= 0xe000, "Source-bound keyword glyph precedes a stat label");
+            check(TooltipKeywordIcons.decorate(Component.literal("건설 속도: +15%")).getString().equals("건설 속도: +15%"), "A national modifier label receives no inferred glyph");
             for (String label : List.of("기반시설 건설 속도", "사무단지 건설 속도"))
-                check(TooltipKeywordIcons.decorate(Component.literal(label + ": -5%")).getString().charAt(0) == labeled.getString().charAt(0), "Buildings share construction speed art");
+                check(TooltipKeywordIcons.decorate(Component.literal(label + ": -5%")).getString().equals(label + ": -5%"), "Building construction speed labels receive no inferred glyph");
             var detail = TooltipKeywordIcons.decorateLines(dev.hoi.client.ui.tooltip.Tooltips.sentences(
                     Component.literal("낮은 금리\n  건설 속도: §a+5%§r\n\n§c제거 불가능§r")));
-            check(detail.getString().equals("낮은 금리\n" + labeled.getString().charAt(0) + " 건설 속도: +5%\n\n제거 불가능"),
-                    "Choice tooltips decorate each effect, trim source indentation and preserve blank rows");
+            check(detail.getString().equals("낮은 금리\n  건설 속도: +5%\n\n제거 불가능"),
+                    "Choice tooltips keep the source indentation without an inferred modifier glyph and preserve blank rows");
             detail.visit((style, part) -> {
                 if (part.contains("+5%")) check(style.getColor().getValue() == dev.hoi.client.ui.tooltip.Tooltips.GOOD, "Effect icon insertion preserves TFR colours");
                 return Optional.empty();
             }, Style.EMPTY);
             char business = TooltipKeywordIcons.decorate(Component.literal("사업 가치 변동치: +5%")).getString().charAt(0);
             char personal = TooltipKeywordIcons.decorate(Component.literal("개인 가치 변동치: -5%")).getString().charAt(0);
-            check(business >= 0xe000 && personal >= 0xe000 && business != personal, "Business and personal value use distinct source dollar art");
+            check(business < 0xe000 && personal < 0xe000, "Business and personal value modifiers receive no inferred glyph");
             labeled.visit((style, part) -> {
-                if (part.contains("건설 속도")) check(style.getFont().equals(Style.EMPTY.getFont()), "Keyword font never leaks into Korean text");
+                if (part.contains("방어")) check(style.getFont().equals(Style.EMPTY.getFont()), "Keyword font never leaks into Korean text");
                 return Optional.empty();
             }, Style.EMPTY);
             check(ResearchText.zeroEffect("공중 우세: 0") && ResearchText.zeroEffect("유지비: +0.0%"), "Exact zero effects are omitted");
@@ -38,7 +39,7 @@ public final class ResearchTextChecks {
             var bonus = ResearchText.effect("매월 인구: +7.0%");
             check(bonus.getString().equals("매월 인구: +7%"), "Integral percentages have no decimal suffix");
             color(bonus, "+7%", ChatFormatting.GREEN);
-            check(ResearchText.decorateEffect(bonus).getString().charAt(0) == 0xe05f, "Monthly population uses its original population icon");
+            check(ResearchText.decorateEffect(bonus).getString().equals("매월 인구: +7%"), "Monthly population is not a stat and receives no inferred icon");
             color(ResearchText.effect("기갑 비율: 0.05"), "+5%", ChatFormatting.GREEN);
             color(ResearchText.effect("속도: -1%"), "-1%", ChatFormatting.DARK_RED);
             var cost = ResearchText.effect("민간공장 건설 비용: +2.5%");
@@ -55,8 +56,9 @@ public final class ResearchTextChecks {
             }
             for (String title : List.of("장갑 화물 열차", "장갑 화물 열차 II", "장갑 화물 열차 3", "공격 헬리콥터"))
                 check(ResearchText.decorateEffect(ResearchText.gold(title)).getString().equals(title), "Names never acquire stat icons");
-            check(ResearchText.decorateEffect(ResearchText.effect("건설 속도: +15%")).getString().charAt(0) >= 0xe000, "Beneficial upgrade retains its stat icon");
-            check(ResearchText.decorateEffect(ResearchText.effect("건설 속도: -15%")).getString().charAt(0) >= 0xe000, "Penalty retains the original stat icon");
+            check(ResearchText.decorateEffect(ResearchText.effect("방어: +15%")).getString().charAt(0) >= 0xe000, "Beneficial upgrade retains its stat icon");
+            check(ResearchText.decorateEffect(ResearchText.effect("방어: -15%")).getString().charAt(0) >= 0xe000, "Penalty retains the original stat icon");
+            check(ResearchText.decorateEffect(ResearchText.effect("건설 속도: +15%")).getString().equals("건설 속도: +15%"), "A modifier effect receives no inferred icon");
             var development = ResearchText.decorateEffect(ResearchText.effect("£development 학문 발전도 획득: +15%"));
             check(!development.getString().contains("£") && development.getString().charAt(0) >= 0xe000, "Development gain renders its original inline icon");
             color(development, "+15%", ChatFormatting.GREEN);

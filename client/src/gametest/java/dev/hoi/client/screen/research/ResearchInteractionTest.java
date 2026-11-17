@@ -18,6 +18,12 @@ public final class ResearchInteractionTest {
         var teams=List.of(team("slower",tech.id(),1,100),team("small",tech.id(),2,1),team("best",tech.id(),2,4),team("tie",tech.id(),2,4));
         var slots=List.of(new ResearchView.Slot(0,active.id(),0),new ResearchView.Slot(1,"",0),new ResearchView.Slot(2,"",0),new ResearchView.Slot(3,"",0));
         var view=view(base,base.revision(),slots,teams);
+        var busyTeams=List.of(team("best",tech.id(),2,4));
+        var busyView=view(base,base.revision(),List.of(new ResearchView.Slot(0,active.id(),0,"best"),new ResearchView.Slot(1,tech.id(),0,"best"),new ResearchView.Slot(2,"",0),new ResearchView.Slot(3,"",0)),busyTeams);
+        game.runOnClient(c->{if(!new ResearchScreen(busyView,r->{}).teamTooltip(busyTeams.getFirst(),"",false).endsWith(active.name()+"\n"+tech.name()))throw new AssertionError("One design team researches several slots and lists each as busy");});
+        var zero=view(base,base.revision(),slots,List.of(team("zero",tech.id(),2,0)));
+        var zeroScreen=game.computeOnClient(c->new ResearchScreen(zero,r->{}));game.setScreen(()->zeroScreen);
+        game.runOnClient(c->{var rows=zeroScreen.hoverLines(tech).stream().map(ResearchInteractionTest::visible).toList();if(rows.stream().noneMatch(row->row.startsWith("Shift+클릭하여 zero")))throw new AssertionError("A size-zero design team keeps its Shift+click instruction: "+rows);});
         for(int width:new int[]{2560,1280}) {
             game.getInput().resizeWindow(width,width*9/16);
             game.runOnClient(c->c.options.guiScale().set(2));
@@ -31,7 +37,7 @@ public final class ResearchInteractionTest {
                     if(!screen.preferredTeam(tech.id()).id().equals("best"))throw new AssertionError("Rate, size and server-order tie break");
                     String tooltip=String.join("\n",screen.tooltipLines(tech).stream().map(t->t.getString()).toList());
                     if(!tooltip.contains("Shift+클릭")||!tooltip.contains("Alt+클릭")||!tooltip.contains("Shift+Alt+클릭")||!tooltip.contains("best")||!tooltip.contains("규모 4"))throw new AssertionError("Source interaction instructions and selected organization");
-                    assertInstructions(screen,tech,true,c.font);
+                    assertInstructions(screen,tech,true);
                     click(screen,tech.id(),modifiers);
                     if(modifiers==0) {
                         if(!requests.isEmpty()||field(screen,"detail")==null)throw new AssertionError("Plain click opens details only");
@@ -59,7 +65,7 @@ public final class ResearchInteractionTest {
                 var screen=(ResearchScreen)c.gui.screen();
                 String tooltip=String.join("\n",screen.tooltipLines(tech).stream().map(t->t.getString()).toList());
                 if(!tooltip.contains("Shift+클릭하여 연구")||tooltip.contains("규모"))throw new AssertionError("No-team instructions must use the original plain-research keys");
-                assertInstructions(screen,tech,false,c.font);
+                assertInstructions(screen,tech,false);
             });
             for(int modifiers:new int[]{1,256,257}) {
                 var requests=new ArrayList<ResearchPayloads.Request>();
@@ -76,15 +82,14 @@ public final class ResearchInteractionTest {
             }
         }
     }
-    private static void assertInstructions(ResearchScreen screen,ResearchView.Tech tech,boolean team,net.minecraft.client.gui.Font font) {
+    private static void assertInstructions(ResearchScreen screen,ResearchView.Tech tech,boolean team) {
         var lines=screen.tooltipLines(tech);
         var expected=team?List.of("클릭하여 세부 사항 보기","Shift+클릭하여 best(을)를 이용해 연구(규모 4)","Alt+클릭하여 best(을)를 이용해 연구하고 현재 창 유지","Shift+Alt+클릭하여 best(을)를 이용해 연구하고 다음 빈 연구 슬롯 선택"):List.of("클릭하여 세부 사항 보기","Shift+클릭하여 연구","Alt+클릭하여 연구하고 이 창을 열린 상태로 유지","Shift+Alt+클릭하여 연구하고 다음 빈 슬롯 선택");
         int separator=lines.size()-5;
         if(separator<1||!lines.get(separator).getString().equals("--------------")||lines.get(separator-1).getString().isBlank()||!lines.subList(separator+1,lines.size()).stream().map(t->t.getString()).toList().equals(expected))throw new AssertionError("The source fourteen-dash line must immediately separate the last effect from all four exact interaction instructions");
-        var rendered=dev.hoi.client.ui.tooltip.Tooltips.collapseBlankLines(lines.stream().map(dev.hoi.client.ui.tooltip.Tooltips::format).flatMap(t->dev.hoi.client.ui.tooltip.Tooltips.split(font,t,dev.hoi.client.ui.tooltip.Tooltips.width(screen.width,14)).stream()).toList());
-        var text=rendered.stream().map(ResearchInteractionTest::visible).toList();int index=text.indexOf("--------------");
-        if(index<1||text.get(index-1).isBlank()||!text.get(index+1).startsWith("클릭하여"))throw new AssertionError("Tooltip formatting and blank-line collapsing must preserve the visible separator without an adjacent gap");
-        rendered.get(index).accept((i,s,c)->{if(s.getColor()!=null&&s.getColor().getValue()!=0xFFFFFF)throw new AssertionError("Research separator must use the default text color");return true;});
+        var text=screen.hoverLines(tech).stream().map(ResearchInteractionTest::visible).toList();int index=text.indexOf("클릭하여 세부 사항 보기");
+        if(index<2||!text.get(index-1).isEmpty()||text.get(index-2).isBlank()||text.contains("--------------")||java.util.stream.IntStream.range(1,text.size()).anyMatch(i->text.get(i).isEmpty()&&text.get(i-1).isEmpty())
+                ||!expected.stream().allMatch(line->text.stream().anyMatch(row->row.startsWith(line.substring(0,Math.min(10,line.length()))))))throw new AssertionError("The separator renders as one blank line before all four instructions and no blank lines double: "+text);
     }
     private static String visible(net.minecraft.util.FormattedCharSequence row) {
         var text=new StringBuilder();row.accept((i,s,c)->{text.appendCodePoint(c);return true;});return text.toString();

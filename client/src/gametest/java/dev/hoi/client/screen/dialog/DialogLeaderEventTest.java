@@ -52,7 +52,7 @@ public final class DialogLeaderEventTest {
                             if (dev.hoi.client.ui.UiAssets.imageHeight("events/leader/" + sprite, 605) == 0) throw new AssertionError("Missing original sprite: " + sprite);
                         if (screen.panelLeft() < 0 || screen.panelLeft() + screen.panelWidth() > screen.width || screen.panelTop() < 0 || screen.panelTop() + screen.panelHeight() > screen.height)
                             throw new AssertionError("Original report must remain in the viewport");
-                        if (size[0] == 2560 && (screen.panelLeft() != 499 || screen.panelTop() != 205)) throw new AssertionError("Original CENTER offset must keep the report at (998,410) screen pixels regardless of body length");
+                        if (size[0] == 2560 && (screen.panelLeft() != 499 || screen.panelTop() != (screen.height - screen.panelHeight()) / 2)) throw new AssertionError("The report keeps its original CENTER x offset and is vertically centred");
                         if (screen.textScale() != dev.hoi.client.ui.UiText.scale(c.font)) throw new AssertionError("Existing event font size must remain unchanged");
                         var buttons = screen.children().stream().filter(Button.class::isInstance).map(Button.class::cast).filter(b -> view.choices().stream().anyMatch(choice -> choice.label().equals(b.getMessage().getString()))).toList();
                         if (buttons.size() != view.choices().size() || buttons.stream().map(Button::getX).distinct().count() != 1) throw new AssertionError("Original choices use one column");

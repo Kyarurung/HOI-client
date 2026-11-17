@@ -61,9 +61,8 @@ public final class FocusHoverTest {
         if(!actual.equals(expected))throw new AssertionError("Focus hover must retain the exact source status, paragraphs, effect header, separator and click instructions: "+actual);
         var rows=Tooltips.tooltipLines(font,actual,screen.width);
         var visible=rows.stream().map(FocusHoverTest::visible).toList();
-        int separator=visible.indexOf("--------------"),header=visible.indexOf("효과:");
-        if(separator<1||!visible.get(separator-1).equals("합성 효과")||!visible.get(separator+1).startsWith("클릭하여"))throw new AssertionError("Rendered separator must directly follow the last reward and precede click instructions without blank lines");
-        rows.get(separator).accept((i,s,c)->{if(s.getColor()!=null&&s.getColor().getValue()!=0xFFFFFF)throw new AssertionError("The separator must use the default text color");return true;});
+        int reward=visible.indexOf("합성 효과"),header=visible.indexOf("효과:");
+        if(reward<1||!visible.get(reward+1).isEmpty()||!visible.get(reward+2).startsWith("클릭하여")||visible.contains("--------------"))throw new AssertionError("The source separator line renders as one blank line between the last reward and the click instructions");
         rows.get(header).accept((i,s,c)->{int color=s.getColor()==null?0xFFFFFF:s.getColor().getValue();if(color!=(c==':'?0xFFFFFF:Tooltips.GOLD))throw new AssertionError("Only the source effect label is highlighted; its colon is white");return true;});
     }
     private static String visible(net.minecraft.util.FormattedCharSequence row) {

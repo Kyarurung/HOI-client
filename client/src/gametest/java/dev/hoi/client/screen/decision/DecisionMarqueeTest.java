@@ -22,7 +22,9 @@ public final class DecisionMarqueeTest {
                 var screen=game.computeOnClient(c->new DecisionScreen(view,r->{}));game.setScreen(()->screen);
                 game.getInput().setCursorPos(width-4,width*9/16-4);game.waitTicks(3);
                 int[] bounds=game.computeOnClient(c->{
-                    try{var pane=DecisionScreen.class.getDeclaredField("pane");pane.setAccessible(true);if(pane.getInt(screen)!=275)throw new AssertionError("Decision width must match the original 550 pixels at GUI2");}
+                    int costLeft;
+                    try{var pane=DecisionScreen.class.getDeclaredField("pane");pane.setAccessible(true);if(pane.getInt(screen)!=275)throw new AssertionError("Decision width must match the original 550 pixels at GUI2");
+                        var costWidth=DecisionScreen.class.getDeclaredMethod("costWidth",DecisionPayloads.Row.class);costWidth.setAccessible(true);costLeft=265-49-(int)costWidth.invoke(screen,rows.get(0));}
                     catch(ReflectiveOperationException error){throw new AssertionError(error);}
                     var text=new DecisionText();
                     if(text.component(name).getString().contains("£"))throw new AssertionError("Marquee text icons must use the keyword font");
@@ -32,7 +34,7 @@ public final class DecisionMarqueeTest {
                         if(dev.hoi.client.ui.UiAssets.imageHeight((String)asset.invoke(screen,rows.get(1).icon(),"icon"),20)<=0)throw new AssertionError("The image row requires its actual original sprite");
                     } catch(ReflectiveOperationException error){throw new AssertionError(error);}
                     var button=screen.children().stream().filter(w->w instanceof AbstractWidget b&&b.getMessage().getString().equals(text.component(name+0).getString())).map(AbstractWidget.class::cast).findFirst().orElseThrow();
-                    return new int[]{34,button.getY(),65,button.getHeight()};
+                    return new int[]{34,button.getY(),65,button.getHeight(),costLeft,265-44};
                 });
                 var first=ImageIO.read(game.takeScreenshot("hoi-decisions-marquee-a-"+width+"-gui2").toFile());
                 int substituted=0;
@@ -53,8 +55,21 @@ public final class DecisionMarqueeTest {
                 if(changed<4)throw new AssertionError("Long decision names must move inside the fixed cell");
                 int pictureChanged=0;
                 for(int y=(bounds[1]+bounds[3]+4)*2;y<(bounds[1]+bounds[3]*2-4)*2;y++)for(int x=20;x<60;x++)if(first.getRGB(x,y)!=second.getRGB(x,y))pictureChanged++;
-                if(pictureChanged<4)throw new AssertionError("The original row picture must move beside the name inside their shared marquee boundary");
+                if(pictureChanged>0)throw new AssertionError("The original row picture must stay fixed while only the name text moves: "+pictureChanged);
+                int costChanged=0;
+                for(int y=bounds[1]*2;y<(bounds[1]+bounds[3]*2)*2;y++)for(int x=bounds[4]*2;x<bounds[5]*2;x++)if(first.getRGB(x,y)!=second.getRGB(x,y))costChanged++;
+                if(costChanged>0)throw new AssertionError("The cost icon and value must not move: "+costChanged);
+                int[][] popups=game.computeOnClient(c->{screen.preferences.popup("minor",true);return java.util.stream.Stream.of("중요하지 않은 알림","사건 팝업","뉴스 팝업").map(label->screen.children().stream().filter(w->w instanceof AbstractWidget b&&b.getMessage().getString().equals(label)).map(AbstractWidget.class::cast).findFirst().orElseThrow()).map(b->new int[]{b.getX(),b.getY(),b.getHeight()}).toArray(int[][]::new);});
+                game.waitTicks(2);
+                var aligned=ImageIO.read(game.takeScreenshot("hoi-decisions-popup-checkboxes-"+width+"-gui2").toFile());
+                for(var popup:popups){double box=middle(aligned,popup[0]*2,(popup[0]+11)*2,popup[1]*2,(popup[1]+popup[2])*2,200),label=middle(aligned,(popup[0]+14)*2,(popup[0]+54)*2,popup[1]*2,(popup[1]+popup[2])*2,150);if(Math.abs(box-label)>1.5)throw new AssertionError("Popup checkbox must be centred on its label: box "+box+" label "+label);}
             }
         } catch(java.io.IOException error){throw new AssertionError(error);}
+    }
+    private static double middle(java.awt.image.BufferedImage image,int x0,int x1,int y0,int y1,int minimum){
+        int first=-1,last=-1;
+        for(int y=y0;y<y1;y++)for(int x=x0;x<x1;x++){int rgb=image.getRGB(x,y);if(((rgb>>16&255)+(rgb>>8&255)+(rgb&255))/3>=minimum){if(first<0)first=y;last=y;break;}}
+        if(first<0)throw new AssertionError("Missing checkbox or label pixels at "+x0+","+y0);
+        return (first+last)/2.0;
     }
 }

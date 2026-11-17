@@ -36,7 +36,6 @@ public final class DialogCompletion extends DialogScreen {
         int buttonWidth = Math.min(62, (pane - 38) / 2);
         var details = addRenderableWidget(new UiMenuButton("세부 사항", left + 20, bodyBottom + 1, buttonWidth, 17,
                 () -> respond("details")).background("completion/button").sound(""));
-        details.setTooltip(null);
         details.active = view().choices().stream().anyMatch(c -> c.id().equals("details"));
         addRenderableWidget(new UiMenuButton("확인", left + 170, bodyBottom + 1, buttonWidth, 17,
                 () -> respond("ack")).background("completion/button").sound(""));

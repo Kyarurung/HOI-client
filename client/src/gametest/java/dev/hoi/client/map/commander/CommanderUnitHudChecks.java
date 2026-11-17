@@ -113,6 +113,11 @@ public final class CommanderUnitHudChecks {
         context.runOnClient(client->{
             CommanderUnitHud.selectArea(0,0,1,1);
             if(!CommanderUnitHud.selectedKeys().isEmpty())throw new AssertionError("Empty rectangle must clear selection");
+            dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.hud.HudPayloads.State.of("PRK",dev.hoi.protocol.country.CountryHud.UNKNOWN));
+            CommanderUnitHud.selectArea(drag[0],drag[1],drag[2],drag[3]);
+            boolean foreign=!CommanderUnitHud.selectedKeys().isEmpty();
+            dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.hud.HudPayloads.State.of("KOR",dev.hoi.protocol.country.CountryHud.UNKNOWN));
+            if(foreign)throw new AssertionError("Another country's divisions, fleets and wings are never selectable");
         });
         context.setScreen(()->null);
         for(var allegiance:Allegiance.values()) {

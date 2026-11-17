@@ -1414,11 +1414,11 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (graphics != null) dev.hoi.client.ui.industry.IndustryOrganizationRow.draw(graphics, row.icon(), row.size(), row.name(), row.type(), row.equipment(), x + 8, ry, w - 16);
             if (graphics == null) {
                 var details = new UiMenuButton("세부 사항", x + w - 67, ry + 27, 54, 16, () -> dev.hoi.client.map.commander.CommanderHud.open(new CommanderHudPayloads.Open(CommanderHudPayloads.Mode.ORGANIZATION, row.id(), List.of()))).background("mio/ui/gfx_leader_selection_button/frame_0");
-                details.active = pending == 0; addRenderableWidget(details);
+                details.active = pending == 0; addWidget(details);
                 var select = new UiPanelButton(row.name(), x + 8, ry, w - 16, 49, () -> selectManufacturer(row.id())) {
                     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
                 };
-                select.active = pending == 0; select.setTooltip(Tooltips.createExact(row.tooltip())); addRenderableWidget(select);
+                select.active = pending == 0; select.setTooltip(Tooltips.createExact(row.tooltip())); addRenderableWidget(select); addRenderableOnly(details);
             }
         }
         if (graphics == null) {
@@ -1965,12 +1965,12 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             }
             if(!designMission.isEmpty())tip("선택한 임무의 능력치입니다. 같은 임무를 다시 누르면 기본 능력치로 돌아갑니다.",px.applyAsInt(540),py.applyAsInt(47),size.applyAsInt(520),size.applyAsInt(202));
         }
-        int footerHeight=size.applyAsInt(30),footerCenter=py.applyAsInt(509)+size.applyAsInt(27)/2,footerY=footerCenter-footerHeight/2;
+        int footerHeight=size.applyAsInt(30),footerCenter=py.applyAsInt(502)+size.applyAsInt(34)/2,footerY=footerCenter-footerHeight/2;
         var reset=button("설계 초기화","초기화",px.applyAsInt(10),py.applyAsInt(502),size.applyAsInt(123),size.applyAsInt(34),true,()->send(TANK_RESET,"","",0));
         if(reset!=null)reset.background("production/design/division/reset").textShadow(false).sound("ui.designer."+(navy?"ship":"tank")+".reset");
         if(reset!=null)reset.setTooltip(Tooltips.createExact(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("EQUIPMENT_DESIGNER_RESET_DESC")));
         productionTip(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("CURRENT_EXPERIENCE"),px.applyAsInt(286),footerY,size.applyAsInt(90),footerHeight);
-        if(graphics!=null)UiText.iconText(graphics,font,"hud/"+branch+"_experience",experience==null?"—":integer(experience),px.applyAsInt(286),footerY+1,size.applyAsInt(90),footerHeight,size.applyAsInt(20),TEXT);
+        if(graphics!=null)UiText.iconText(graphics,font,"hud/"+branch+"_experience",experience==null?"—":integer(experience),px.applyAsInt(286),footerY,size.applyAsInt(90),footerHeight,size.applyAsInt(20),TEXT);
         if(graphics==null) {
             int bx=px.applyAsInt(400),by=py.applyAsInt(502),bw=size.applyAsInt(123),bh=size.applyAsInt(36);
             String label=d.errors().isEmpty()?"설계 저장 · "+(armor?"육군":navy?"해군":"공군")+" 경험치 "+d.experience():tankErrors(d);

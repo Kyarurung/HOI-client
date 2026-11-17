@@ -150,7 +150,6 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 var entry = politicsEntry(i == 0 ? "점령지" : "협력정부");
                 var button = new ScreenInvisibleButton(entry.name(), box.x(), box.y(), box.width(), box.height(),
                         () -> { if(entry.name().equals("점령지"))dev.hoi.client.map.MapOccupationHud.open();else showDetail(entry, "politics"); });
-                button.setTooltip(null);
                 button.active = entry.progress() > 0;
                 addRenderableWidget(button);
             }
@@ -350,7 +349,6 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         boolean vacant = entry.value().equals("미지정") || entry.value().isBlank();
         boolean advisor = section.equals("high_command") || slot == 0 && java.util.Set.of("army", "navy", "air").contains(section);
         String title = vacant ? entry.name() : entry.value();
-        button.setTooltip(null);
         officerTooltips.put(button, slot < 0 || advisor && vacant ? entry.detail() : "§e" + title + "§r\n" + entry.detail());
         button.active = detail == null;
         addRenderableWidget(button);
@@ -589,7 +587,6 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                             ClientPlayNetworking.send(new dev.hoi.protocol.dialog.DialogPayloads.PoliticsOpen(section.icon(), position));
                         } else showDetail(entry, section.icon());
                     });
-                    button.setTooltip(null);
                     if (!entry.value().equals("공석") && !entry.value().equals("미지정") && !entry.icon().equals("politics/vacant"))
                         policies.add(new ScreenPolicyHover(new PoliticsLayout.PoliticsBox(x, cy, cell - 4, iconSize), entry));
                     button.active = true; addRenderableWidget(button);
@@ -610,7 +607,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             g.pose().pushMatrix();
             g.pose().translate(selectionLeft(), 0);
             UiMenuStyle.panel(g, 0, top, pane, selectionHeight());
-            UiMenuStyle.heading(g, font, CountryDisplays.name(view.country(), view.countryName()), view.date(), 10, top + 9, pane - 44, TEXT);
+            UiMenuStyle.heading(g, font, CountryDisplays.name(view.country(), view.countryName()), 10, top + 9, pane - 44, TEXT);
             drawPoliticsBanner(g);
             g.pose().popMatrix();
             super.extractRenderState(g, mx, my, delta);
@@ -621,7 +618,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         UiMenuStyle.panel(g, 0, top, pane, height - top);
         String heading=trim(selected == MenuTab.POLITICS ? "정치" : selected.label(),pane-44);int headingX=10;
 
-        UiMenuStyle.heading(g, font, heading, view.date(), headingX, top + 9, pane - 44, TEXT);
+        UiMenuStyle.heading(g, font, heading, headingX, top + 9, pane - 44, TEXT);
         if (selected == MenuTab.POLITICS) drawPoliticsBanner(g);
         if (selected == MenuTab.INTELLIGENCE) {
             UiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);
@@ -645,7 +642,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (balanceOpen && selected == MenuTab.POLITICS && view.balance() != null) drawBalance(g, mx, my);
         super.extractRenderState(g, mx, my, delta);
         drawPoliticsTooltip(g, mx, my, mx);
-        if(manufacturerGroup!=null&&detail==null)manufacturerTooltips.entrySet().stream().filter(e->Tooltips.contains(e.getKey(),mx,my)).findFirst().ifPresent(e->Tooltips.drawSourceScrollable(g,font,e.getValue(),mx,my,width,height,0));
+        if(manufacturerGroup!=null&&detail==null&&children().stream().noneMatch(c->c instanceof dev.hoi.client.ui.UiMenuButton b&&b.getMessage().getString().equals("세부 사항")&&b.isMouseOver(mx,my)))manufacturerTooltips.entrySet().stream().filter(e->Tooltips.contains(e.getKey(),mx,my)).findFirst().ifPresent(e->Tooltips.drawSourceScrollable(g,font,e.getValue(),mx,my,width,height,0));
         if (selected == MenuTab.OFFICER_CORPS && detail == null) {
             String text = officerTooltips.entrySet().stream().filter(entry -> entry.getKey().isMouseOver(mx, my))
                     .map(Map.Entry::getValue).findFirst().orElse("");
@@ -884,7 +881,6 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
         ScreenInvisibleButton(String label, int x, int y, int w, int h, Runnable action) {
             super(x, y, w, h, Component.literal(label), b -> action.run(), DEFAULT_NARRATION);
-            setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(label)));
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
         }

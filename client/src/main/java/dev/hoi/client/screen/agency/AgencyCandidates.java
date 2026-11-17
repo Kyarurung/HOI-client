@@ -96,7 +96,7 @@ public final class AgencyCandidates extends Screen {
         }
         if (operation != null && operation.canResume(parameter)) {
             String label = UiCommandLabels.text("OPERATIVE_RESUME_MISSION_AFTER_OPERATION_CHECKBOX_LABEL", "임무 재개");
-            var checkbox = new UiPanelButton(label, left + 50, top + 279, 13, 13, () -> {
+            var checkbox = new UiPanelButton(label, left + 50, top + 280, 13, 13, () -> {
                 operation.resume(parameter, !operation.resumes(parameter)); rebuildWidgets();
             }) {
                 @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
@@ -121,7 +121,7 @@ public final class AgencyCandidates extends Screen {
         super.extractRenderState(g,mx,my,delta);
         scrollbar().draw(g, scroll);
         if (operation != null && operation.canResume(parameter)) UiText.leftSingleLine(g, font,
-                Component.literal(UiCommandLabels.text("OPERATIVE_RESUME_MISSION_AFTER_OPERATION_CHECKBOX_LABEL", "임무 재개")), left + 75, top + 282, 170, 10, UiMenuStyle.TEXT);
+                Component.literal(UiCommandLabels.text("OPERATIVE_RESUME_MISSION_AFTER_OPERATION_CHECKBOX_LABEL", "임무 재개")), left + 75, top + 281, 170, 10, UiMenuStyle.TEXT);
         var rows=rows();
         for(int i=scroll;i<Math.min(rows.size(),scroll+5);i++) {
             var candidate=rows.get(i);int y=top+38+(i-scroll)*49;

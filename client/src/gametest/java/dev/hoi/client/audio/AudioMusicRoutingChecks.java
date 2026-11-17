@@ -174,5 +174,13 @@ public final class AudioMusicRoutingChecks {
             if(AudioKoreanMusic.stationEnabled())AudioKoreanMusic.toggleStation();
             client.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(volume[0]);
         });
+        context.setScreen(() -> new dev.hoi.client.screen.ScreenKoreanMusic(null));
+        context.waitTicks(2);
+        context.runOnClient(client->{
+            var titles=AudioKoreanMusic.PLAYBACK.tracks().stream().map(track->track.title()).collect(java.util.stream.Collectors.toSet());
+            boolean listed=client.gui.screen().children().stream().anyMatch(widget->widget instanceof net.minecraft.client.gui.components.Button b&&titles.contains(b.getMessage().getString()));
+            client.gui.screen().onClose();
+            if(listed)throw new AssertionError("Playlist rows are listed only while the station is ON");
+        });
     }
 }

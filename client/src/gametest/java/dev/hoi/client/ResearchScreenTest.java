@@ -1343,7 +1343,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.runOnClient(client -> {
                 var debt = dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("GDP 대비 부채: +4.52%"), false);
                 check(debt.getString().equals("GDP 대비 부채: +4.52%"), "Original debt row never inherits a keyword icon");
-                check(dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("GDP 대비 부채: +4.52%")).getString().codePoints().anyMatch(c -> c >= 0xe000 && c <= 0xf8ff), "Other tooltips keep their existing debt keyword icon");
+                check(dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("GDP 대비 부채: +4.52%")).getString().equals("GDP 대비 부채: +4.52%"), "A non-stat debt row receives no inferred icon in other tooltips either");
                 var inflation = dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£inflation 인플레이션: -0.95%"), false);
                 check(!inflation.getString().contains("£") && inflation.getString().codePoints().anyMatch(c -> c >= 0xe000 && c <= 0xf8ff), "Original inflation token renders its actual icon");
             });

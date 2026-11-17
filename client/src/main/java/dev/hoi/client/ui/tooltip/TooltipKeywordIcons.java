@@ -95,6 +95,7 @@ public final class TooltipKeywordIcons {
                 var row = value.getAsJsonObject(); String glyph = row.get("glyph").getAsString();
                 if (glyph.length() != 1 || glyph.charAt(0) < 0xe000 || glyph.charAt(0) > 0xf8ff) return List.of();
                 if(row.has("icon"))sourceTokens.put(row.get("icon").getAsString(),glyph);
+                if(!row.has("source_key")||!row.get("source_key").getAsString().startsWith("STAT_"))continue;
                 for (var item : row.getAsJsonArray("labels")) {
                     String label = item.getAsString();
                     if (label.isBlank() || label.length() > 80 || result.size() >= 1024) return List.of();

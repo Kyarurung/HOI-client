@@ -215,11 +215,13 @@ public final class SceneSurfaceRenderChecks {
                     context.takeScreenshot("hoi-starting-"+mode.toLowerCase()+"-gui2");
                     context.runOnClient(client->{
                         var box=CommanderUnitHud.boxes().stream().filter(b->mode.equals("ARMY")?!b.counter().navy()&&!b.counter().air():mode.equals("NAVY")?b.counter().navy():b.counter().air()).findFirst().orElseThrow();
+                        if(CommanderUnitHud.selectAt(box.x()+box.width()/2.0,box.y()+box.height()/2.0))throw new AssertionError("A viewer without a country must not select a counter");
+                        dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.hud.HudPayloads.State.of(box.counter().country(),dev.hoi.protocol.country.CountryHud.UNKNOWN));
                         if(!CommanderUnitHud.selectAt(box.x()+box.width()/2.0,box.y()+box.height()/2.0))throw new AssertionError("Starting counter selection failed");
                     });
                     context.waitTicks(2);
                     context.takeScreenshot("hoi-starting-"+mode.toLowerCase()+"-selected-gui2");
-                    context.runOnClient(client->CommanderUnitHud.reset());
+                    context.runOnClient(client->{CommanderUnitHud.reset();dev.hoi.client.ClientCampaignHud.accept(dev.hoi.protocol.hud.HudPayloads.State.HIDDEN);});
                     command.accept("kill @e[type=minecraft:item_display]");
                     context.getInput().resizeWindow(1400,1000);
                 }
