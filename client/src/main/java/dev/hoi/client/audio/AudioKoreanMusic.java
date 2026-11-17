@@ -1,6 +1,8 @@
 package dev.hoi.client.audio;
 
 import com.google.gson.Gson;
+import dev.hoi.protocol.audio.AudioPayloads;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.*;
 import net.minecraft.resources.Identifier;
@@ -13,8 +15,9 @@ public final class AudioKoreanMusic {
     private static SoundInstance sound;
     private static boolean enabled;
     private static boolean manuallyStopped;
-    private static boolean stationEnabled = true;
-    private static final AudioPlaylistVolume VOLUME = new AudioPlaylistVolume(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("hoi-audio.properties"));
+    private static boolean stationEnabled;
+    private static boolean packRequested;
+    private static final AudioPlaylistSettings SETTINGS = new AudioPlaylistSettings(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("hoi-audio.properties"));
     private static boolean selected;
     public static final AudioPlaylistPlayback PLAYBACK = new AudioPlaylistPlayback(new AudioPlaylistPlayback.AudioOutput() {
         public boolean start(AudioPlaylistPlayback.AudioTrack track) {
@@ -53,21 +56,35 @@ public final class AudioKoreanMusic {
         enable();
         if (!selected) { selected=true; AudioStoryMusic.play("music.tfr_theme"); }
     }
-    public static void loadVolume(){
-        try { VOLUME.load(); }
+    public static void loadSettings(){
+        try { SETTINGS.load(); stationEnabled = SETTINGS.station(); }
         catch (java.io.IOException | IllegalArgumentException error) { org.slf4j.LoggerFactory.getLogger(AudioKoreanMusic.class).warn("음량 설정을 불러오지 못했습니다", error); }
     }
-    public static double volume(){return VOLUME.value();}
+    public static double volume(){return SETTINGS.value();}
     public static void volume(double value){
-        try { VOLUME.set(value); }
+        try { SETTINGS.set(value); }
         catch (java.io.IOException error) { org.slf4j.LoggerFactory.getLogger(AudioKoreanMusic.class).warn("음량 설정을 저장하지 못했습니다", error); }
     }
     public static boolean isPlaying(){return !PLAYBACK.paused()&&sound!=null&&Minecraft.getInstance().getSoundManager().isActive(sound);}
     public static boolean stationEnabled(){return stationEnabled;}
     public static void toggleStation(){
-        stationEnabled = !stationEnabled;
+        station(!stationEnabled);
         if (!stationEnabled) stop();
-        else { enable(); if (!PLAYBACK.tracks().isEmpty()) play(PLAYBACK.selected()); }
+        else { enable(); requestPack(); if (!PLAYBACK.tracks().isEmpty()) play(PLAYBACK.selected()); }
+    }
+    private static void station(boolean enabled){
+        stationEnabled = enabled;
+        try { SETTINGS.station(enabled); }
+        catch (java.io.IOException error) { org.slf4j.LoggerFactory.getLogger(AudioKoreanMusic.class).warn("음악 설정을 저장하지 못했습니다", error); }
+    }
+    private static void requestPack(){
+        if (packRequested || !ClientPlayNetworking.canSend(AudioPayloads.KoreanMusicRequest.TYPE)) return;
+        ClientPlayNetworking.send(AudioPayloads.KoreanMusicRequest.INSTANCE);
+        packRequested = true;
+    }
+    static boolean packReady(Minecraft client){
+        var sounds = client.getSoundManager();
+        return PLAYBACK.tracks().stream().allMatch(track -> sounds.getSoundEvent(AudioUiSounds.id(track.event())) != null);
     }
     public static void enable(){enabled=stationEnabled&&!manuallyStopped;}
     public static void togglePause(){
@@ -83,13 +100,14 @@ public final class AudioKoreanMusic {
         if (channel != null) channel.execute(value -> value.pause());
     }
     public static void suspend(){PLAYBACK.tick(false);}
-    public static void play(int index){manuallyStopped=false;stationEnabled=true;enabled=true;AudioStoryMusic.reset();PLAYBACK.play(index);}
+    public static void play(int index){manuallyStopped=false;if(!stationEnabled)station(true);enabled=true;requestPack();AudioStoryMusic.reset();PLAYBACK.play(index);}
     static SoundInstance playing(){return sound;}
     public static void tick() {
         var client = Minecraft.getInstance();
-        if(client.level==null){reset();return;}
+        if(client.level==null){reset();packRequested=false;return;}
+        if(stationEnabled)requestPack();
         if(enabled&&!PLAYBACK.requested()&&!PLAYBACK.tracks().isEmpty())PLAYBACK.play(PLAYBACK.selected());
-        boolean allowed = enabled && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0 && !AudioSuperEvent.active() && !AudioStoryMusic.active();
+        boolean allowed = enabled && client.options.getSoundSourceVolume(SoundSource.MASTER) > 0 && !AudioSuperEvent.active() && !AudioStoryMusic.active() && packReady(client);
         PLAYBACK.tick(allowed);
         restorePause();
         if (allowed && sound != null && client.getSoundManager().isActive(sound)) client.getMusicManager().stopPlaying();

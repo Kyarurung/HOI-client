@@ -18,7 +18,7 @@ import net.minecraft.resources.Identifier;
 
 public final class HoiClient implements ClientModInitializer {
     @Override public void onInitializeClient() {
-        dev.hoi.client.audio.AudioKoreanMusic.loadVolume();
+        dev.hoi.client.audio.AudioKoreanMusic.loadSettings();
         ResearchPayloads.registerPayloadTypes();
         ClientCampaignHud.register();
         dev.hoi.client.input.InputMapInfo.register();

@@ -26,6 +26,7 @@ public final class AudioMusicRoutingChecks {
             if (!AudioStoryMusic.active()) throw new AssertionError("Start preserves the theme");
             AudioUiSounds.reset();
         });
+        context.runOnClient(client->{if(AudioKoreanMusic.stationEnabled())AudioKoreanMusic.toggleStation();});
         for(String country:new String[]{"KOR","PRK","JAP","PRC"}) {
             context.runOnClient(client->{
                 AudioUiSounds.reset();ClientCampaignHud.accept(HudPayloads.State.HIDDEN);
@@ -35,11 +36,18 @@ public final class AudioMusicRoutingChecks {
             });
             context.waitTicks(25);
             context.runOnClient(client->{
-                if(AudioKoreanMusic.playing()!=null && AudioKoreanMusic.playing().getSource()!=SoundSource.MASTER) throw new AssertionError("Playlist uses master volume");
-                if(!AudioKoreanMusic.PLAYBACK.requested()||AudioKoreanMusic.playing()==null||!client.getSoundManager().isActive(AudioKoreanMusic.playing()))
-                    throw new AssertionError("Every country must automatically start Korean playlist: "+country);
+                if(AudioKoreanMusic.PLAYBACK.requested()||AudioKoreanMusic.playing()!=null)
+                    throw new AssertionError("Korean playlist stays off until the station is turned on: "+country);
             });
         }
+        context.runOnClient(client->AudioKoreanMusic.toggleStation());
+        context.waitTicks(25);
+        context.runOnClient(client->{
+            if(!AudioKoreanMusic.stationEnabled()||!AudioKoreanMusic.packReady(client))throw new AssertionError("Station ON with every playlist sound loaded");
+            if(AudioKoreanMusic.playing()!=null && AudioKoreanMusic.playing().getSource()!=SoundSource.MASTER) throw new AssertionError("Playlist uses master volume");
+            if(!AudioKoreanMusic.PLAYBACK.requested()||AudioKoreanMusic.playing()==null||!client.getSoundManager().isActive(AudioKoreanMusic.playing()))
+                throw new AssertionError("Turning the station on starts the Korean playlist");
+        });
         int transition = 0;
         for (var cue : new AudioPayloads.Cue[]{AudioPayloads.Cue.MAP_ARMY, AudioPayloads.Cue.MAP_NAVY,
                 AudioPayloads.Cue.MAP_AIR, AudioPayloads.Cue.MAP_SUPPLY, AudioPayloads.Cue.MAP_CONSTRUCTION}) {
@@ -163,6 +171,7 @@ public final class AudioMusicRoutingChecks {
         context.waitTicks(25);
         context.runOnClient(client->{
             if(AudioKoreanMusic.PLAYBACK.requested()||AudioKoreanMusic.playing()!=null||AudioStoryMusic.active()||AudioSuperEvent.active())throw new AssertionError("STOP leaves no music request");
+            if(AudioKoreanMusic.stationEnabled())AudioKoreanMusic.toggleStation();
             client.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(volume[0]);
         });
     }

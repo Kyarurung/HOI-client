@@ -24,7 +24,7 @@ public final class AudioPlaylistGainTest {
             context.runOnClient(client -> {
                 AudioKoreanMusic.volume(.35);
                 AudioUiSounds.reset();
-                AudioKoreanMusic.loadVolume();
+                AudioKoreanMusic.loadSettings();
                 if (AudioKoreanMusic.volume() != .35) throw new AssertionError("Disconnect/reset or persisted reload changed playlist volume");
                 var click = AudioUiSounds.instance("ui.click");
                 click.getOrResolve(client.getSoundManager());

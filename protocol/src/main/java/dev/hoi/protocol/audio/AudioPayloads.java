@@ -19,6 +19,7 @@ public final class AudioPayloads {
         PayloadTypeRegistry.clientboundPlay().register(Signal.TYPE, Signal.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Music.TYPE, Music.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Sound.TYPE, Sound.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(KoreanMusicRequest.TYPE, KoreanMusicRequest.CODEC);
         registered = true;
     }
     public enum Cue {
@@ -56,5 +57,11 @@ public final class AudioPayloads {
         public static final Type<Sound> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","story_sound_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Sound> CODEC=StreamCodec.of((b,p) -> b.writeUtf(p.event(),128),b -> new Sound(b.readUtf(128)));
         @Override public Type<Sound> type(){return TYPE;}
+    }
+    public record KoreanMusicRequest() implements CustomPacketPayload {
+        public static final KoreanMusicRequest INSTANCE=new KoreanMusicRequest();
+        public static final Type<KoreanMusicRequest> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","korean_music_request_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf,KoreanMusicRequest> CODEC=StreamCodec.unit(INSTANCE);
+        @Override public Type<KoreanMusicRequest> type(){return TYPE;}
     }
 }

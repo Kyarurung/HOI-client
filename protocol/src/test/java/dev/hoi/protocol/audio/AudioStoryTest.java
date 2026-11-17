@@ -18,4 +18,12 @@ class AudioStoryTest {
         assertThrows(IllegalArgumentException.class,()->new MapFocus.State(1332,4,20,5,15,30,40));
         assertThrows(IllegalArgumentException.class,()->new MapFocus.State(1332,10,41,5,15,30,40));
     }
+    @Test void koreanMusicRequestCarriesNoDataAndHasItsOwnChannel() {
+        var buffer=new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),net.minecraft.core.RegistryAccess.EMPTY);
+        KoreanMusicRequest.CODEC.encode(buffer,KoreanMusicRequest.INSTANCE);
+        assertEquals(0,buffer.readableBytes());
+        assertSame(KoreanMusicRequest.INSTANCE,KoreanMusicRequest.CODEC.decode(buffer));
+        assertEquals("hoi:korean_music_request_v1",KoreanMusicRequest.TYPE.id().toString());
+        assertNotEquals(Music.TYPE.id(),KoreanMusicRequest.TYPE.id());
+    }
 }

@@ -6,21 +6,21 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
-class AudioPlaylistVolumeTest {
+class AudioPlaylistSettingsTest {
     @TempDir Path directory;
     @Test void defaultsToFullVolumeWithoutCreatingAConfigDuringLoad() throws Exception {
         var file = directory.resolve("hoi-audio.properties");
-        var settings = new AudioPlaylistVolume(file);
+        var settings = new AudioPlaylistSettings(file);
         settings.load();
         assertEquals(1.0, settings.value());
         assertFalse(Files.exists(file));
     }
     @Test void muteIntermediateAndMaximumPersistAcrossNewInstances() throws Exception {
         var file = directory.resolve("nested/hoi-audio.properties");
-        var settings = new AudioPlaylistVolume(file);
+        var settings = new AudioPlaylistSettings(file);
         for (double volume : new double[]{0, .35, 1}) {
             settings.set(volume);
-            var reconnected = new AudioPlaylistVolume(file);
+            var reconnected = new AudioPlaylistSettings(file);
             reconnected.load();
             assertEquals(volume, reconnected.value());
         }
@@ -30,7 +30,7 @@ class AudioPlaylistVolumeTest {
     }
     @Test void clampsFiniteValuesAndRejectsNonFiniteUpdatesWithoutTouchingSavedBytes() throws Exception {
         var file = directory.resolve("hoi-audio.properties");
-        var settings = new AudioPlaylistVolume(file);
+        var settings = new AudioPlaylistSettings(file);
         settings.set(-4);
         assertEquals(0, settings.value());
         settings.set(4);
@@ -45,17 +45,38 @@ class AudioPlaylistVolumeTest {
         var file = directory.resolve("hoi-audio.properties");
         for (String invalid : new String[]{"not-a-number", "NaN", "Infinity"}) {
             Files.writeString(file, "playlistVolume=" + invalid + "\nfutureSetting=preserved\n");
-            var settings = new AudioPlaylistVolume(file);
+            var settings = new AudioPlaylistSettings(file);
             settings.load();
             assertEquals(1, settings.value());
             settings.set(.5);
             assertTrue(Files.readString(file).contains("futureSetting=preserved"));
         }
     }
+    @Test void koreanStationStartsOffAndKeepsItsChoiceBesideTheVolume() throws Exception {
+        var file = directory.resolve("hoi-audio.properties");
+        var settings = new AudioPlaylistSettings(file);
+        settings.load();
+        assertFalse(settings.station());
+        settings.set(.4);
+        settings.station(true);
+        var reconnected = new AudioPlaylistSettings(file);
+        reconnected.load();
+        assertTrue(reconnected.station());
+        assertEquals(.4, reconnected.value());
+        reconnected.station(false);
+        var again = new AudioPlaylistSettings(file);
+        again.load();
+        assertFalse(again.station());
+        assertEquals(.4, again.value());
+        Files.writeString(file, "koreanStation=maybe\n");
+        var invalid = new AudioPlaylistSettings(file);
+        invalid.load();
+        assertFalse(invalid.station());
+    }
     @Test void failedWriteKeepsTheRuntimeVolumeAndExistingBytes() throws Exception {
         var parent = directory.resolve("not-a-directory");
         Files.writeString(parent, "preserve");
-        var settings = new AudioPlaylistVolume(parent.resolve("hoi-audio.properties"));
+        var settings = new AudioPlaylistSettings(parent.resolve("hoi-audio.properties"));
         assertThrows(java.io.IOException.class, () -> settings.set(.25));
         assertEquals(.25, settings.value());
         assertEquals("preserve", Files.readString(parent));
