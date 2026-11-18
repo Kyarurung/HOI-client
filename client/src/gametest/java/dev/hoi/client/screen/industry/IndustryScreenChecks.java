@@ -1113,6 +1113,19 @@ public final class IndustryScreenChecks {
                 check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/"+icon+".png")).isPresent(),"Original production state frame "+icon);
         });
         context.getInput().resizeWindow(2560,1440);context.waitTicks(2);
+        java.awt.image.BufferedImage cells;
+        try{cells=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-production-factory-cells-centered-gui2").toFile());}catch(java.io.IOException failure){throw new AssertionError(failure);}
+        context.runOnClient(client->{
+            var screen=(IndustryScreen)client.gui.screen();double scale=client.getWindow().getGuiScale();
+            for(String name:List.of("military · 공장 1칸","naval · 조선소 1칸")){
+                var b=button(screen,name);
+                int x0=(int)Math.round(b.getX()*scale),y0=(int)Math.round(b.getY()*scale),x1=(int)Math.round((b.getX()+b.getWidth())*scale),y1=(int)Math.round((b.getY()+b.getHeight())*scale);
+                int left=x1,right=x0,top=y1,bottom=y0;
+                for(int y=y0;y<y1;y++)for(int x=x0;x<x1;x++){int c=cells.getRGB(x,y),r=c>>16&255,g=c>>8&255,bl=c&255;if(Math.max(r,Math.max(g,bl))-Math.min(r,Math.min(g,bl))>16){left=Math.min(left,x);right=Math.max(right,x+1);top=Math.min(top,y);bottom=Math.max(bottom,y+1);}}
+                check(right>left,"Production cell draws its icon: "+name);
+                check(Math.abs(left+right-x0-x1)<=2&&Math.abs(top+bottom-y0-y1)<=2,"Production cell icon is centered: "+name+" icon "+left+","+top+"-"+right+","+bottom+" cell "+x0+","+y0+"-"+x1+","+y1);
+            }
+        });
         context.runOnClient(client->{
             var text=dev.hoi.client.ui.tooltip.Tooltips.productionText(net.minecraft.network.chat.Component.literal(
                     "£prod_eff 생산 효율: §e96.38%§r (매일 §e0.00%§r)\n£tech_mod 기술: §a+2.50%§r\n£pol_idea 정책: §c-3.25%§r"));

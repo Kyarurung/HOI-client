@@ -600,7 +600,6 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         int reserved = used - normal - damaged;
         int frame = step == 10 ? 10 : step == 5 ? 5 : 0;
         String name = line.id() + " · " + (e.naval() ? "조선소" : "공장") + " " + (cell + 1) + "칸";
-        int iconOffset = Math.round(new dev.hoi.client.ui.UiUnits(width, height).length(1));
         var button = new UiPanelButton(name, x, y, w, h, () -> send(ASSIGN, line.id(), "", target)) {
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                 if (start >= e.factoryLimit()) return;
@@ -611,8 +610,9 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                         ?Math.min(((int)row*5+(int)column+1)*step,limit):-1;
                 int status=productionFactoryState(start,step,normal,damaged,reserved,line.factories(),preview);
                 if (status >= 0) {
-                    if (e.naval()) UiAssets.draw(g, "production/line/dockyard_" + (frame + status), x + Math.round(3 * scale), y + Math.round(2 * scale), Math.round(26 * scale), Math.round(18 * scale));
-                    else UiAssets.drawContent(g, "production/line/factory_" + (frame + status), x + 1 + iconOffset, y + 1, w - 2, h - 2);
+                    int dockW = Math.round(26 * scale), dockH = Math.round(18 * scale);
+                    if (e.naval()) UiAssets.draw(g, "production/line/dockyard_" + (frame + status), x + (w - dockW) / 2, y + (h - dockH) / 2, dockW, dockH);
+                    else UiAssets.drawContent(g, "production/line/factory_" + (frame + status), x + 1, y + 1, w - 2, h - 2);
                 }
             }
         };

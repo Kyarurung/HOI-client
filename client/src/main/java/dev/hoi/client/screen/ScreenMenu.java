@@ -71,6 +71,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private final List<int[]> partySpans = new ArrayList<>();
     private static final String[] POLITICS_IDS = {"government", "economic_laws", "military_laws", "social_laws", "development", "military_staff", "research_production"};
     private static final String[] POLITICS_NAMES = {"정부", "경제법", "군법", "사회법", "발전도", "군사 참모", "연구 & 생산"};
+    private static final int POLITICS_COLUMNS = 6;
     public ScreenMenu(MenuView view) { this(view, MenuTab.POLITICS, HoiClient::open); }
     public static ScreenMenu forFocus(MenuView view, String id) {
         var screen = new ScreenMenu(view);
@@ -249,6 +250,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         var commanders = sections.stream().filter(v -> v.icon().equals("high_command")).flatMap(v -> v.entries().stream()).toList();
         if (g != null) { UiMenuStyle.metal(g, 8, y, pane - 110, 36); UiMenuStyle.metal(g, pane - 98, y, 90, 36); }
         int count = Math.min(3, commanders.size()), cell = Math.min(31, (pane - 65) / 3);
+        if (g != null) for (int i = 0; i < count; i++) if (commanders.get(i).alert()) alertGlow(g, 11 + i * cell, y + 3, cell - 2, 30);
         for (int i = 0; i < count; i++) {
             var entry = commanders.get(i); int bx = 11 + i * cell;
             if (g != null) {
@@ -286,6 +288,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             if (!special && !entries.isEmpty()) {
                 var chief = entries.getFirst();
                 if (g != null) {
+                    if (chief.alert()) alertGlow(g, 54, y + 25, 32, 32);
                     UiAssets.drawContent(g, chief.icon(), 54, y + 25, 32, 32);
                     if (!chief.value().equals("미지정")) dev.hoi.client.ui.UiText.centeredSingleLine(g, font, Component.literal(chief.value()), 92, y + 22, pane / 2 - 87, 38, TEXT);
                 }
@@ -308,6 +311,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                     boolean selectedSpirit=entry.progress()>0;
                     int backgroundHeight=Math.max(1,(int)Math.round(bw*70.0/168));
                     UiAssets.draw(g,"officer/spirit/ui/background_"+(selectedSpirit?"enabled":"disabled"),bx,by+(28-backgroundHeight)/2,bw,backgroundHeight);
+                    if(entry.alert()){int glowWidth=bw*159/168,glowHeight=bw*115/168;UiAssets.draw(g,"officer/spirit/ui/glow/frame_0",bx+(bw-glowWidth)/2,by+(28-glowHeight)/2,glowWidth,glowHeight);}
                     UiAssets.draw(g, entry.icon(), bx + 2, by - (selectedSpirit?5:9), bw - 4, 38);
                 }
                 officerControl(widgets, entry, branch, i + 1, bx, by, bw, 28);
@@ -567,11 +571,12 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 UiAssets.draw(g, "politics/header/" + new int[]{2, 1, 4, 5, 6, 7, 8}[i], 13, y + 1, 21, 13);
                 UiMenuStyle.heading(g, font, section.title(), 39, y + 2, pane - 50, TEXT);
             }
-            int columns = 6, cell = (pane - 36) / columns, iconSize = Math.min(cell - 4, row - 21);
+            int cell = (pane - 36) / POLITICS_COLUMNS, iconSize = Math.min(cell - 4, row - 21);
             var entries = section.entries();
             int count = Math.max(1, entries.size());
+            if (g != null) for (int j = 0; j < entries.size(); j++) if (entries.get(j).alert()) alertGlow(g, politicsSlotX(j, count, cell), politicsSlotY(j, y, row), cell - 4, iconSize);
             for (int j = 0; j < count; j++) {
-                int x = 16 + Math.max(0, columns - count) * cell / 2 + (j % columns) * cell, cy = y + 17 + (j / columns) * (row - 17);
+                int x = politicsSlotX(j, count, cell), cy = politicsSlotY(j, y, row);
                 var entry = entries.isEmpty() ? new MenuView.Entry(section.title(), "정보 없음", "서버가 이 구역의 상태를 제공하지 않습니다.") : entries.get(j);
                 if (g != null) {
                     String icon = entry.icon().isEmpty() ? "menu/politics" : entry.icon();
@@ -594,10 +599,17 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                     button.active = true; addRenderableWidget(button);
                 }
             }
-            y += row + (count - 1) / columns * (row - 17);
+            y += row + (count - 1) / POLITICS_COLUMNS * (row - 17);
         }
         total = y - contentTop() + scroll;
     }
+    private static void alertGlow(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        float unit = Math.min(w, h) / 63f;
+        int glowW = Math.round(91.65f * unit), glowH = Math.round(74.75f * unit);
+        UiAssets.draw(g, "doctrine/gfx_ongoing_generic_glow_yellow/frame_0", x + (w - glowW) / 2, y + (h - glowH) / 2, glowW, glowH);
+    }
+    private static int politicsSlotX(int index, int count, int cell) { return 16 + Math.max(0, POLITICS_COLUMNS - count) * cell / 2 + (index % POLITICS_COLUMNS) * cell; }
+    private static int politicsSlotY(int index, int y, int row) { return y + 17 + (index / POLITICS_COLUMNS) * (row - 17); }
     private void requestRefresh() {
         if (ClientPlayNetworking.canSend(MenuPayloads.Refresh.TYPE)) ClientPlayNetworking.send(new MenuPayloads.Refresh(token));
     }

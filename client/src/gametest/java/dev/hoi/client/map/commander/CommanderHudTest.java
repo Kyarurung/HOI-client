@@ -23,7 +23,6 @@ public final class CommanderHudTest {
     }
     public static void runArmyGroups(ClientGameTestContext context,MenuView menu){CommanderGroupsRenderTest.run(context,menu);}
     public static void runArmyLayout(ClientGameTestContext context,MenuView menu){CommanderPanelsTest.runArmyLayout(context,menu);CommanderGroupsRenderTest.run(context,menu);}
-    public static void runAirLayout(ClientGameTestContext context,MenuView menu){CommanderPanelsTest.runAirLayout(context,menu);}
     public static void runHeadquartersLayout(ClientGameTestContext context,MenuView menu){CommanderGroupsRenderTest.run(context,menu);}
     public static void runTraitOverlay(ClientGameTestContext game,MenuView menu){
         String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;

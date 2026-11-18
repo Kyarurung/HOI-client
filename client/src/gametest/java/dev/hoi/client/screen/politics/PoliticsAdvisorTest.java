@@ -31,7 +31,13 @@ public final class PoliticsAdvisorTest {
                     game.setScreen(()->new CommanderTraits(roles,null));game.getInput().setCursorPos(size[0]-8,80);game.waitTicks(3);game.takeScreenshot("hoi-advisor-roles-"+stage+"-"+size[0]+"-gui2");
                     var view=stage.equals("before")?before:after;var sent=new ArrayList<DialogPayloads.Action>();
                     var screen=game.computeOnClient(c->new PoliticsChoice(view,null,sent::add));game.setScreen(()->screen);game.waitTicks(3);
-                    game.takeScreenshot("hoi-politics-advisor-"+stage+"-"+size[0]+"-gui2");
+                    var first=javax.imageio.ImageIO.read(game.takeScreenshot("hoi-politics-advisor-"+stage+"-"+size[0]+"-gui2").toFile());
+                    boolean overflow=game.computeOnClient(c->view.tiles().stream().anyMatch(t->c.font.width(net.minecraft.network.chat.Component.literal(t.name()).withStyle(s->s.withBold(true)))>74||PoliticsChoice.traits(t).stream().anyMatch(line->c.font.width(dev.hoi.client.ui.tooltip.Tooltips.officerText(line))>74)));
+                    if(overflow){
+                        game.waitTicks(40);var later=javax.imageio.ImageIO.read(game.takeScreenshot("hoi-politics-advisor-"+stage+"-scrolled-"+size[0]+"-gui2").toFile());
+                        int left=size[0]/2*710/2560*2,changed=0;for(int y=80;y<Math.min(first.getHeight(),670);y++)for(int x=left;x<Math.min(first.getWidth(),left+500);x++)if(first.getRGB(x,y)!=later.getRGB(x,y))changed++;
+                        if(changed<20)throw new AssertionError("Overflowing advisor names and traits must scroll at the minimum font size instead of shrinking");
+                    }
                     if(stage.equals("after"))game.runOnClient(c->{var button=screen.children().stream().filter(w->w instanceof AbstractWidget b&&b.getMessage().getString().equals(added.getFirst().name())).map(w->(AbstractWidget)w).findFirst().orElseThrow();var event=new MouseButtonEvent(button.getX()+1.,button.getY()+1.,new MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(event,false);screen.mouseReleased(event);screen.mouseClicked(event,true);screen.mouseReleased(event);if(!sent.equals(List.of(new DialogPayloads.Action(view.token(),7,added.getFirst().section()))))throw new AssertionError("Added political candidate must send one authenticated request: "+sent+" active="+button.active+" token="+view.token());});
                 }
                 var roster=dialog("kor-army-roster-tooltips");var sent=new ArrayList<DialogPayloads.Action>();var screen=game.computeOnClient(c->new CommanderRoster(roster,null,sent::add));game.setScreen(()->screen);

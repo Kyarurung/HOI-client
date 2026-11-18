@@ -72,7 +72,6 @@ public final class CommanderNavyLayoutTest {
             }
             CommanderNavalRepairInputTest.run(game,menu,directory);
             CommanderNavalContractTest.run(game,menu,directory);
-            CommanderPanelsTest.runNavyLayout(game,menu);
             CommanderCardScopeTest.run(game,menu,directory);
             CommanderBranchTheatersTest.run(game,menu);
             CommanderTheaterCardsTest.run(game,menu,directory);

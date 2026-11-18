@@ -138,12 +138,13 @@ public final class PoliticsChoice extends DialogScreen {
             int costWidth = current ? 0 : costWidth(tile);
             if (grid()) {
                 int textLeft = x + (minister() ? 34 : 38), textWidth = cell - (minister() ? 37 : 41);
-                dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(tile.name()).withStyle(s->s.withBold(true)),textLeft,y+5,textWidth,10,0xFFFFFFFF);
+                long now = net.minecraft.util.Util.getMillis();
+                dev.hoi.client.ui.UiText.scrollingCell(g,font,Component.literal(tile.name()).withStyle(s->s.withBold(true)),textLeft,y+5,textWidth,10,0xFFFFFFFF,false,now);
                 var traits = traits(tile);
                 for (int line = 0; line < traits.size(); line++) {
                     int traitWidth = line==0||current ? textWidth : Math.max(1,textWidth-costWidth-2);
-                    dev.hoi.client.ui.UiText.leftSingleLine(g,font,dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(Tooltips.officerText(traits.get(line)),false),
-                            textLeft,y+14+line*9,traitWidth,9,UiMenuStyle.ACCENT);
+                    dev.hoi.client.ui.UiText.scrollingCell(g,font,dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(Tooltips.officerText(traits.get(line)),false),
+                            textLeft,y+14+line*9,traitWidth,9,UiMenuStyle.ACCENT,false,now);
                 }
                 if (!current) drawCost(g, tile, x + cell - 4 - costWidth, y + 25);
             } else {
