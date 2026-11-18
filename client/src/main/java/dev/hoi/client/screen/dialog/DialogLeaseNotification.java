@@ -69,7 +69,9 @@ public final class DialogLeaseNotification extends DialogScreen {
         if (maximum > 0) {
             int barX = left + s(329), size = s(16), trackTop = y + size, travel = h - size * 3;
             String path = "commander/commands/";
+            g.pose().pushMatrix(); g.pose().translate((size - s(12)) / 2f, 0);
             assets.tile(g, path + "scroll_track/frame_0", barX, trackTop, s(12), h - size * 2, 4, 4, scale);
+            g.pose().popMatrix();
             UiAssets.draw(g, path + "scroll_up/frame_0", barX, y, size, size);
             UiAssets.draw(g, path + "scroll_down/frame_0", barX, y + h - size, size, size);
             UiAssets.draw(g, path + "scroll_drager/frame_0", barX, trackTop + (int)Math.round(travel * scroll / (double)maximum), size, size);

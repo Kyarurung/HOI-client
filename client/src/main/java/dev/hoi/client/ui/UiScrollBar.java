@@ -25,12 +25,13 @@ public record UiScrollBar(int x, int top, int bottom, int visible, int total) {
     public void draw(GuiGraphicsExtractor graphics, int offset) {
         if (maximum() == 0) return;
         background(graphics, x, top, bottom);
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(.5f, 0);
         UiAssets.nineSlice(graphics, "commander/commands/scroll_track/frame_0", x + 1, top + 8, 6, trackHeight(), 4, .5);
-        if (maximum() > 0) {
-            int y = top + 8 + Math.clamp(offset, 0, maximum()) * (trackHeight() - thumbHeight()) / maximum();
-            UiAssets.draw(graphics, "commander/commands/scroll_drager/frame_0", x, y, 8, thumbHeight());
-        }
-        UiAssets.draw(graphics, "commander/commands/scroll_up/frame_0", x + 1, top + 1, 8, 8);
+        int y = top + 8 + Math.clamp(offset, 0, maximum()) * (trackHeight() - thumbHeight()) / maximum();
+        UiAssets.draw(graphics, "commander/commands/scroll_drager/frame_0", x, y, 8, thumbHeight());
+        UiAssets.draw(graphics, "commander/commands/scroll_up/frame_0", x, top + 1, 8, 8);
         UiAssets.draw(graphics, "commander/commands/scroll_down/frame_0", x, bottom - 8, 8, 8);
+        graphics.pose().popMatrix();
     }
 }

@@ -635,8 +635,10 @@ public final class CommanderPanels {
         if(total<=visible||h<=u.size(18))return;
         int arrow=u.size(8),track=h-2*arrow,thumb=u.size(8),maximum=total-visible;
         x+=(w-arrow)/2;w=arrow;
-        var background=net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source("scrollbar_vertical_bg")+".png");int edge=Math.min(h/2,u.size(26)),bx=x-u.size(.5),bw=u.size(9);
+        var background=net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source("scrollbar_vertical_bg")+".png");int edge=Math.min(h/2,u.size(26)),bx=x,bw=u.size(9);
+        g.pose().pushMatrix();g.pose().translate((arrow-bw)/2f,0);
         g.blit(background,bx,y,bx+bw,y+edge,0,1,0,1/3f);g.blit(background,bx,y+edge,bx+bw,y+h-edge,0,1,1/3f,2/3f);g.blit(background,bx,y+h-edge,bx+bw,y+h,0,1,2/3f,1);
+        g.pose().popMatrix();
         UiAssets.nineSlice(g,source("scroll_track"),x+u.size(1),y+arrow,u.size(6),track,4,u.scale()*.5);
         nativeButton(g,out,"scroll_up",x,y,w,arrow,"이전 사단",()->scroll=Math.max(0,scroll-1));
         nativeButton(g,out,"scroll_down",x,y+h-arrow,w,arrow,"다음 사단",()->scroll=Math.min(maximum,scroll+1));

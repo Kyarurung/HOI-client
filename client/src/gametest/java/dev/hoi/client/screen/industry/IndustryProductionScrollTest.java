@@ -18,6 +18,7 @@ public final class IndustryProductionScrollTest {
         catch(ReflectiveOperationException e){throw new RuntimeException(e);}
     }
     private static MouseButtonEvent mouse(double x,double y) {return new MouseButtonEvent(x,y,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));}
+    private static java.awt.image.BufferedImage read(java.nio.file.Path path) {try{return javax.imageio.ImageIO.read(path.toFile());}catch(java.io.IOException failure){throw new AssertionError(failure);}}
     private static void press(IndustryScreen screen,String name) {
         var button=screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(name)).map(w->(Button)w).findFirst().orElseThrow(()->new AssertionError(name));
         var click=mouse(button.getX()+2,button.getY()+2);
@@ -67,8 +68,17 @@ public final class IndustryProductionScrollTest {
                     });
                     game.getInput().setCursorPos(size[0]-3,size[1]-3);game.waitTicks(2);
                     String name="hoi-production-scroll-"+page+"-"+(overflow?"overflow":"fit")+"-"+size[0];
-                    game.takeScreenshot(name);
+                    var shot=read(game.takeScreenshot(name));
                     String barField=page.equals("lines")?"productionScrollbar":"productionPickerScrollbar",offsetField=page.equals("lines")?"scroll":"pickerScroll";
+                    if(overflow)game.runOnClient(c->{
+                        var bar=(UiScrollBar)field(screen,barField);int scale=shot.getWidth()/screen.width,left=bar.x()*scale,right=(bar.x()+9)*scale;
+                        int[][] bands={{(bar.top()+1)*scale+2,(bar.top()+9)*scale-2},{(bar.top()+8)*scale+2,(bar.top()+16)*scale-2},{(bar.bottom()-8)*scale+2,bar.bottom()*scale-2}};
+                        for(var band:bands){
+                            int min=Integer.MAX_VALUE,max=-1;
+                            for(int y=band[0];y<band[1];y++)for(int x=left+2;x<right-2;x++){int p=shot.getRGB(x,y);if(((p>>16&255)+(p>>8&255)+(p&255))/3>14){min=Math.min(min,x);max=Math.max(max,x+1);}}
+                            if(max<0||Math.abs(min+max-left-right)>2)throw new AssertionError("Scroll arrows and thumb sit on the background center line: "+name+" "+min+"-"+max+" in "+left+"-"+right);
+                        }
+                    });
                     game.runOnClient(c->{
                         var bar=(UiScrollBar)field(screen,barField);
                         if(bar==null||(bar.maximum()>0)!=overflow)throw new AssertionError("Unexpected overflow: "+name);

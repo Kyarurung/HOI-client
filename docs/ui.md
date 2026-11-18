@@ -991,6 +991,8 @@ python scripts/compare_event_tooltips.py --run <성공한 전체 실행 폴더> 
 
 작은 사단 목록 스크롤바는 `unitview.gui/army_division_list_view/slider`가 참조하는 `GFX_scrollbar_vertical_bg`를 화살표 뒤에 그린다. 원본 `general_stuff.gfx`의 18×156px와 세로 경계 52px를 보존하여 위·아래 네모 틀을 함께 표시하고, 가운데만 늘린다. `scroll_up`·`scroll_down`·`scroll_drager`는 기존 16×16px를 유지한다. 이 자산은 기존 팩에 포함되어 추가 가져오기가 필요 없다. 공용 `UiScrollBar`(생산·연구·군수산업체 목록 등)와 결정 화면 스크롤도 같은 규칙(`UiScrollBar.background`, 위·아래 26 GUI 고정, 가운데만 늘림)을 쓴다. 이전처럼 3px 경계로 전체를 늘리면 위 칸의 밝은 구분선(원본 y16~18px)이 막대 중간에 흰 줄로 나타나므로 쓰지 않는다. `scroll_track`은 원본 `borderSize` 4px로 늘린다.
 
+스크롤바의 위·아래 화살표(`scroll_up`·`scroll_down` 16px), 손잡이(`scroll_drager` 16px), 홈(`scroll_track` 12px)은 모두 좌우 대칭 그림이므로 배경(`scrollbar_vertical_bg` 18px)의 가로 중심선에 맞춘다(사용자 지시 2026-11-19). GUI2에서 배경 9GUI와 그림 8·6GUI의 차이는 반 GUI(1px) 이동으로 맞추며, 원본 GUI의 위 화살표 x2·손잡이 x-2처럼 1px 어긋난 위치는 쓰지 않는다. 공용 `UiScrollBar`, 결정·무기대여·의용군·무기대여 알림·지휘관 사단 목록 스크롤바에 같은 규칙을 적용한다. `IndustryProductionScrollTest`(`production-scrollbars` 묶음)는 GUI2 화면에서 위 화살표·손잡이·아래 화살표의 보이는 경계가 배경 중심에서 1px 이내인지 검사한다.
+
 스킬 그림은 `affordable=false` 또는 `enabled=false && affordable=null`일 때 회색으로 표시한다. 비용을 낼 수 있지만 재사용 대기 중인 `affordable=true`는 이 조건으로 회색 처리하지 않는다. 서버의 `AbilityDetail.tooltip`이 있으면 색·빈 줄·취소 제목을 포함한 원문을 그대로 쓰며, 없는 구형 응답만 기존 원본 문구와 사용 가능 응답으로 보완한다. 글라이더·상륙 계획 가속의 회색 표시는 미구현 서버 효과의 구현을 뜻하지 않는다. `CommanderAbilityTest`는 여섯 상태 조합을 검사하고 `CommanderAbilitiesRenderTest`는 합성 비활성 입력의 실제 회색 픽셀과 서버 툴팁 보존을 검사한다. 합성 렌더 입력은 실제 소켓·전투·저장/재접속·멀티플레이 검증과 구분한다.
 
 현재 실제 탐색 공격 응답의 툴팁에는 `dont_lose_dig_in_on_attack` 미번역 키가 남아 있다. 클라이언트는 이를 받은 원문대로 표시하며, 원본 한국어 패치와의 번역 일치를 확인한 항목으로 취급하지 않는다. 수치·효과 구현 여부와 표시 이름의 번역 누락은 구분한다.

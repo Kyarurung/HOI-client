@@ -622,9 +622,11 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         int x=pane-11,top=contentTop(),height=contentBottom()-top;
         dev.hoi.client.ui.UiScrollBar.background(g,x,top,top+height);
         UiAssets.nineSlice(g,path+"scroll_track/frame_0",x+2,top+10,5,height-20,2,.5);
+        g.pose().pushMatrix();g.pose().translate(.5f,0);
         UiAssets.draw(g,path+"scroll_up/frame_0",x,top,8,8);
         UiAssets.draw(g,path+"scroll_down/frame_0",x,contentBottom()-8,8,8);
         UiAssets.draw(g,path+"scroll_drager/frame_0",x,scrollThumbTop(),8,scrollThumbHeight());
+        g.pose().popMatrix();
     }
     private void scrollTo(int value) {
         scroll=Math.clamp(value,0,maximumScroll());rebuildWidgets();

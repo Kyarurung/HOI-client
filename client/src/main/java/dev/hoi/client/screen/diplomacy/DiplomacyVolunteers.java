@@ -299,11 +299,15 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
         String path = "commander/commands/";
         int x = x(505), top = y(LIST_TOP), height = s(LIST_BOTTOM - LIST_TOP);
         assets.tile(g, path + "scrollbar_vertical_bg/frame_0", x, top, s(18), height, 0, 52, scale);
-        assets.tile(g, path + "scroll_track/frame_0", x + s(3), top + s(18), s(12), height - s(36), 4, 4, scale);
-        UiAssets.draw(g, path + "scroll_up/frame_0", x + s(2), top + s(3), s(16), s(16));
-        UiAssets.draw(g, path + "scroll_down/frame_0", x + s(1), top + height - s(19), s(16), s(16));
+        g.pose().pushMatrix(); g.pose().translate((s(18) - s(12)) / 2f, 0);
+        assets.tile(g, path + "scroll_track/frame_0", x, top + s(18), s(12), height - s(36), 4, 4, scale);
+        g.pose().popMatrix();
         int travel = Math.max(1, height - s(52));
+        g.pose().pushMatrix(); g.pose().translate((s(18) - s(16)) / 2f, 0);
+        UiAssets.draw(g, path + "scroll_up/frame_0", x, top + s(3), s(16), s(16));
+        UiAssets.draw(g, path + "scroll_down/frame_0", x, top + height - s(19), s(16), s(16));
         UiAssets.draw(g, path + "scroll_drager/frame_0", x, top + s(18) + (int)Math.round(travel * scroll / (double)maximumScroll()), s(16), s(16));
+        g.pose().popMatrix();
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         if (!contextValid() || closed) return;

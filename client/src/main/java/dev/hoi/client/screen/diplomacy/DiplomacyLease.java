@@ -548,12 +548,16 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
         int x = scrollLeft(catalog), top = scrollTop(catalog), bottom = scrollBottom(catalog);
         String path = "commander/commands/";
         assets.tile(g, path + "scrollbar_vertical_bg/frame_0", x, top, s(18), bottom - top, 0, 52, scale);
-        assets.tile(g, path + "scroll_track/frame_0", x + s(3), top + s(18), s(12), bottom - top - s(36), 4, 4, scale);
-        UiAssets.draw(g, path + "scroll_up/frame_0", x + s(2), top + s(3), s(16), s(16));
-        UiAssets.draw(g, path + "scroll_down/frame_0", x + s(1), bottom - s(19), s(16), s(16));
+        g.pose().pushMatrix(); g.pose().translate((s(18) - s(12)) / 2f, 0);
+        assets.tile(g, path + "scroll_track/frame_0", x, top + s(18), s(12), bottom - top - s(36), 4, 4, scale);
+        g.pose().popMatrix();
         int travel = Math.max(1, bottom - top - s(52));
         int position = top + s(18) + (int)Math.round(travel * (catalog ? catalogScroll : draftScroll) / (double)maximum);
+        g.pose().pushMatrix(); g.pose().translate((s(18) - s(16)) / 2f, 0);
+        UiAssets.draw(g, path + "scroll_up/frame_0", x, top + s(3), s(16), s(16));
+        UiAssets.draw(g, path + "scroll_down/frame_0", x, bottom - s(19), s(16), s(16));
         UiAssets.draw(g, path + "scroll_drager/frame_0", x, position, s(16), s(16));
+        g.pose().popMatrix();
     }
     private void paragraph(GuiGraphicsExtractor g, String content, int x, int y, int width, int height) {
         if (content.isEmpty() || width <= 0 || height <= 0) return;
