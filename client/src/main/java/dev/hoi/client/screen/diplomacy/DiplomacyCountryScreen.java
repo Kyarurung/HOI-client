@@ -314,7 +314,8 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
                     UiAssets.draw(g, "intel/no_intel", 9, y, rowsWidth, 36);
                 if (!ledger && !choosing) {
                     var relation=view.relations().get(i);
-                    UiAssets.draw(g,relation.icon(),9-DiplomacyHeader.scaled(3,pane),y+DiplomacyHeader.scaled(12,pane),DiplomacyHeader.scaled(46,pane),DiplomacyHeader.scaled(27,pane));
+                    int[] iconSize=UiAssets.imageSize(relation.icon());
+                    UiAssets.draw(g,relation.icon(),9-DiplomacyHeader.scaled(3,pane),y+DiplomacyHeader.scaled(12,pane),DiplomacyHeader.scaled(iconSize[0],pane),DiplomacyHeader.scaled(iconSize[1],pane));
                     int fw=DiplomacyHeader.scaled(47,pane),fh=DiplomacyHeader.scaled(32,pane);
                     g.enableScissor(9 + DiplomacyHeader.scaled(40, pane), y + DiplomacyHeader.scaled(3, pane), 9 + DiplomacyHeader.scaled(200, pane), y + DiplomacyHeader.scaled(47, pane));
                     for(int j=0;j<relation.countries().size();j++) {

@@ -82,14 +82,7 @@ final class DiplomacyHeader {
     }
     MenuView.Entry partyAt(CountryView view, double x, double mouseY, int pane, int top) {
         var chart = chartBox(pane, top);
-        double dx = x - chart[0] - chart[2] / 2, dy = mouseY - chart[1] - chart[2] / 2;
-        if (dx * dx + dy * dy >= Math.pow(chart[2] * 30 / 71, 2)) return null;
-        double angle = (Math.atan2(-dy, dx) + 2 * Math.PI) % (2 * Math.PI) / (2 * Math.PI), sum = 0;
-        for (var party : parties) {
-            sum += party.progress();
-            if (angle < sum) return party;
-        }
-        return null;
+        return dev.hoi.client.screen.politics.PoliticsPartyChart.at(parties, x - chart[0] - chart[2] / 2, mouseY - chart[1] - chart[2] / 2, chart[2] * 30 / 71);
     }
     MenuView.Entry focusAt(CountryView view, double x, double mouseY, int pane, int top) {
         int height = Math.max(28, scaled(64, pane)), y = politicsTop(top) + leaderHeight(pane) - height - 3;

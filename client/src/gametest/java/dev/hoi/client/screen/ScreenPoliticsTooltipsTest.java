@@ -93,6 +93,25 @@ public final class ScreenPoliticsTooltipsTest {
                 }
             });
         }
+        var pieView=base;
+        context.setScreen(()->new ScreenMenu(pieView));context.waitTicks(3);
+        context.runOnClient(c->{
+            var screen=(ScreenMenu)c.gui.screen();var box=screen.politicsLayout().partyChart();
+            var parties=pieView.page(MenuTab.POLITICS).sections().stream().flatMap(section->section.entries().stream())
+                    .filter(e->(e.icon().startsWith("politics/ideology/")||e.icon().startsWith("politics/party/"))&&e.progress()>=0).toList();
+            double before=0;
+            for(var party:parties) {
+                if(party.progress()>0) {
+                    double angle=(before+party.progress()/2)*Math.PI*2,radius=dev.hoi.client.screen.politics.PoliticsPartyChart.radius(box.width())*.6;
+                    double x=box.x()+dev.hoi.client.screen.politics.PoliticsPartyChart.centerX(box.width())+Math.cos(angle)*radius;
+                    double y=box.y()+dev.hoi.client.screen.politics.PoliticsPartyChart.centerY(box.width())-Math.sin(angle)*radius;
+                    if(!party.equals(screen.politicsHover(x,y)))throw new AssertionError("Party pie starts at three o'clock and runs counterclockwise: "+party.name());
+                }
+                before+=party.progress();
+            }
+            if(dev.hoi.client.ui.UiAssets.imageSize("politics/pie_overlay")[0]!=90)throw new AssertionError("Original TFR party pie overlay must be installed");
+        });
+        context.takeScreenshot("hoi-politics-party-pie-gui2");
         context.setScreen(()->null);
         context.getInput().resizeWindow(1600,1000);
     }

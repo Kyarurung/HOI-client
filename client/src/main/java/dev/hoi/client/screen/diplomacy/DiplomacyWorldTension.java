@@ -17,6 +17,13 @@ import java.time.LocalDate;
 import java.util.*;
 
 public final class DiplomacyWorldTension extends Screen {
+    static final int LIST_X = 46, LIST_Y = 134, ROW = 42, ROWS = 13;
+    private static final int[][] HEADERS = {{24, 180, 244, 303, 362, 440, 504}, {592, 745, 815, 868, 930, 1005, 1071}};
+    private static final int[] HEADER_Y = {155, 158, 159, 158, 159, 159, 159};
+    private static final String[] HEADER_ICONS = {"tension/participants", "tension/surrender", "tension/wargoal", "tension/contribution", "tension/divisions", "hud/factories", "tension/casualties"};
+    private static final String[][] HEADER_TIPS = {{"PARTICIPANTS", "참전국"}, {"WAR_OVERVIEW_CAPITULATION_PROGRESS", "항복 현황"}, {"WARGOAL", "전쟁 명분"},
+            {"WARSCORE_TITLE", "§H전쟁 기여도§!\n적을 항복시키는 데 한 국가가 얼마나 기여했는지를 나타내는 지표입니다. 기여도가 높을수록 종전 시 열릴 평화 회담에서 더 많은 요구를 할 수 있습니다."},
+            {"DIVISIONS", "사단"}, {"INDUSTRY", "산업"}, {"CASUALTY", "사상자"}};
     private DiplomacyWorldTensionView view;
     private DiplomacyWorldTensionView.Sort sort = DiplomacyWorldTensionView.Sort.DATE;
     private String token = UUID.randomUUID().toString(), warId;
@@ -29,6 +36,7 @@ public final class DiplomacyWorldTension extends Screen {
     String token() { return token; }
     DiplomacyWorldTensionView view() { return view; }
     String warId() { return warId; }
+    float scale() { return scale; }
     void select(DiplomacyWorldTensionView.Sort next) {
         descending = sort == next ? !descending : next != DiplomacyWorldTensionView.Sort.COUNTRY;
         sort = next; offset = 0; warId = null; requestChanged();
@@ -73,10 +81,10 @@ public final class DiplomacyWorldTension extends Screen {
         if (!detail) {
             String[] labels = {"날짜","국가","세계 긴장도","현재 전쟁"}; int[] positions = {40,149,258,385};
             for (var tab : DiplomacyWorldTensionView.Sort.values()) button(labels[tab.ordinal()],positions[tab.ordinal()],87,100,29,"tension/sort"+(sort==tab?"_selected":""),() -> select(tab));
-            button("닫기",204,484,123,28,null,this::onClose);
+            button("닫기",204,475,123,34,null,this::onClose);
             if (view != null && !pending && sort == DiplomacyWorldTensionView.Sort.WARS) {
                 for (int i=0;i<Math.min(7,view.wars().size());i++) {
-                    var w = view.wars().get(i); button(w.name(),35,132+i*44,460,41,"",() -> openWar(w.id()));
+                    var w = view.wars().get(i); button(w.name(),LIST_X,LIST_Y+i*44,449,41,"",() -> openWar(w.id()));
                 }
             }
         } else {
@@ -84,16 +92,16 @@ public final class DiplomacyWorldTension extends Screen {
             button("약소국",374,113,140,29,"tension/sort"+(minors?"_selected":""),() -> { minors=!minors; rebuildWidgets(); });
             button("항복함",520,113,140,29,"tension/sort"+(capitulated?"_selected":""),() -> { capitulated=!capitulated; rebuildWidgets(); });
             button("호출 가능",665,113,140,29,"tension/sort"+(callable?"_selected":""),() -> { callable=!callable; rebuildWidgets(); });
-            sideButtons(war().attackers(),18,leftScroll); sideButtons(war().defenders(),589,rightScroll);
+            sideButtons(war().attackers(),25,leftScroll); sideButtons(war().defenders(),593,rightScroll);
         }
     }
     private List<DiplomacyWorldTensionView.Participant> filtered(List<DiplomacyWorldTensionView.Participant> side) {
         return side.stream().filter(p -> (minors || p.leader()) && (capitulated || !p.capitulated()) && (callable || !p.callable())).toList();
     }
     private void sideButtons(List<DiplomacyWorldTensionView.Participant> side,int px,int scroll) {
-        var rows=filtered(side); int start=Math.clamp(scroll,0,Math.max(0,rows.size()-12));
-        for(int i=start;i<Math.min(rows.size(),start+12);i++) {
-            var p=rows.get(i); button(p.name(),px,193+(i-start)*44,531,41,"",() -> HoiClient.openCountry(p.country()));
+        var rows=filtered(side); int start=Math.clamp(scroll,0,Math.max(0,rows.size()-ROWS));
+        for(int i=start;i<Math.min(rows.size(),start+ROWS);i++) {
+            var p=rows.get(i); button(p.name(),px,193+(i-start)*ROW,531,41,"",() -> HoiClient.openCountry(p.country()));
         }
     }
     private void button(String label,int px,int py,int w,int h,String art,Runnable action) {
@@ -123,11 +131,25 @@ public final class DiplomacyWorldTension extends Screen {
         if(centered) g.centeredText(font,line,0,0,color); else g.text(font,line,0,0,color);
         g.pose().popMatrix();
     }
+    private void rightText(GuiGraphicsExtractor g,String value,int px,int py,int w,int color) {
+        float fontScale=Math.max(1.6f, 10f / (font.lineHeight * scale)); var line=net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(Component.literal(value),Math.max(1,(int)(w/fontScale))));
+        g.pose().pushMatrix(); g.pose().translate(px+w-font.width(line)*fontScale,py); g.pose().scale(fontScale);
+        g.text(font,line,0,0,color); g.pose().popMatrix();
+    }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
         HudMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
         begin(g);
         if(war()==null) history(g); else detail(g,war());
         end(g); super.extractRenderState(g,mx,my,delta);
+        String tip=war()==null?"":headerTooltip((mx-x)/scale,(my-y)/scale);
+        if(!tip.isEmpty()) Tooltips.drawExact(g,font,tip,mx,my);
+    }
+    String headerTooltip(double px,double py) {
+        for(int side=0;side<2;side++) for(int i=0;i<HEADER_ICONS.length;i++) {
+            int[] size=UiAssets.imageSize(HEADER_ICONS[i]); int hx=HEADERS[side][i], hy=HEADER_Y[i];
+            if(px>=hx&&px<hx+size[0]&&py>=hy&&py<hy+size[1]) return UiCommandLabels.text(HEADER_TIPS[i][0],HEADER_TIPS[i][1]);
+        }
+        return "";
     }
     private void history(GuiGraphicsExtractor g) {
         UiAssets.draw(g,"tension/background",0,0,527,534);
@@ -136,22 +158,22 @@ public final class DiplomacyWorldTension extends Screen {
         int count=sort==DiplomacyWorldTensionView.Sort.WARS?view.wars().size():view.entries().size();
         if(count==0) text(g,sort==DiplomacyWorldTensionView.Sort.WARS?"현재 진행 중인 전쟁이 없습니다.":"세계 긴장도 발생 기록이 없습니다.",30,176,467,0xFFA8ABA9,true);
         for(int i=0;i<Math.min(7,count);i++) {
-            int py=132+i*44;
+            int px=LIST_X, py=LIST_Y+i*44;
             if(sort==DiplomacyWorldTensionView.Sort.WARS) {
-                var w=view.wars().get(i); UiAssets.draw(g,"tension/war_entry",35,py,460,41);
-                text(g,w.name(),77,py+4,250,0xFFE0E0DA,false); score(g,77,py+22,260,12,w.balance());
-                if(!w.attackers().isEmpty()) flag(g,w.attackers().getFirst().country(),359,py+7,36,24);
-                if(!w.defenders().isEmpty()) flag(g,w.defenders().getFirst().country(),434,py+7,36,24);
+                var w=view.wars().get(i); UiAssets.nineSlice(g,"tension/war_entry",px,py,449,41,6,1);
+                text(g,w.name(),px+45,py+4,250,0xFFE0E0DA,false); score(g,"tension/score_small",px+45,py+20,260,12,w.balance());
+                if(!w.attackers().isEmpty()) flag(g,w.attackers().getFirst().country(),px+326,py+7,"map_detail/flag_frame",px+321,py+3);
+                if(!w.defenders().isEmpty()) flag(g,w.defenders().getFirst().country(),px+401,py+7,"map_detail/flag_frame",px+396,py+3);
             } else {
-                var e=view.entries().get(i); UiAssets.draw(g,"tension/entry",35,py,460,41);
-                flag(g,e.country(),42,py+6,36,24); text(g,e.name(),88,py+4,122,0xFFE0E0DA,false);
+                var e=view.entries().get(i); UiAssets.draw(g,"tension/entry",px,py,449,41);
+                flag(g,e.country(),px+7,py+6,"map_detail/flag_frame",px+2,py+2); text(g,e.name(),px+55,py+4,150,0xFFE0E0DA,false);
                 var date=LocalDate.of(2020,1,1).plusDays(e.day());
-                text(g,date.getDayOfMonth()+" "+date.getMonthValue()+"월, "+date.getYear(),88,py+22,122,0xFFE0E0DA,false);
-                UiAssets.draw(g,"tension/clock",213,py+8,20,25);
-                text(g,percent(e.initial()),244,py+4,49,e.initial()!=null&&e.initial()>0?0xFFCF4545:0xFF6DAD64,false);
-                text(g,percent(e.current()),244,py+22,49,0xFFC5C7BF,false);
+                text(g,date.getDayOfMonth()+" "+date.getMonthValue()+"월, "+date.getYear(),px+55,py+20,180,0xFFE0E0DA,false);
+                UiAssets.draw(g,"tension/clock",px+172,py+7,22,28);
+                rightText(g,percent(e.initial()),px+185,py+4,50,e.initial()!=null&&e.initial()>0?0xFFCF4545:0xFF6DAD64);
+                rightText(g,percent(e.current()),px+185,py+22,50,0xFFC5C7BF);
                 var lines=Tooltips.split(font,Component.literal(e.reason()),145);
-                for(int j=0;j<Math.min(2,lines.size());j++) { g.pose().pushMatrix();g.pose().translate(295,py+4+j*17);g.pose().scale(Math.max(1.25f, 10f / (font.lineHeight * scale)));g.text(font,lines.get(j),0,0,0xFFE0E0DA);g.pose().popMatrix(); }
+                for(int j=0;j<Math.min(2,lines.size());j++) { g.pose().pushMatrix();g.pose().translate(px+240,py+4+j*17);g.pose().scale(Math.max(1.25f, 10f / (font.lineHeight * scale)));g.text(font,lines.get(j),0,0,0xFFE0E0DA);g.pose().popMatrix(); }
             }
         }
         scrollbar(g,503,133,328,offset,view.total(),7);
@@ -162,31 +184,31 @@ public final class DiplomacyWorldTension extends Screen {
         g.blit(id,0,240,1167,514,0,1,239f/506,240f/506);
         g.blit(id,0,514,1167,780,0,1,240f/506,1);
         text(g,war.name(),340,24,487,0xFFE0E0DA,true,true);
-        score(g,294,71,579,26,war.balance()); UiAssets.draw(g,"tension/score_frame",287,66,593,36);
-        text(g,"야전 인력: "+sum(war.attackers()),20,72,264,0xFFE7C34C,true);
-        text(g,"야전 인력: "+sum(war.defenders()),889,72,258,0xFFE7C34C,true);
-        text(g,"손실: —",20,90,264,0xFFE7C34C,true); text(g,"손실: —",889,90,258,0xFFE7C34C,true);
-        drawSide(g,war.attackers(),18,leftScroll); drawSide(g,war.defenders(),589,rightScroll);
+        score(g,"tension/score",294,71,579,26,war.balance()); UiAssets.draw(g,"tension/score_frame",287,66,591,38);
+        text(g,"야전 인력: "+sum(war.attackers()),20,68,250,0xFFE7C34C,true);
+        text(g,"야전 인력: "+sum(war.defenders()),900,68,250,0xFFE7C34C,true);
+        text(g,"손실: —",20,86,250,0xFFE7C34C,true); text(g,"손실: —",900,86,250,0xFFE7C34C,true);
+        drawSide(g,war.attackers(),25,0,leftScroll); drawSide(g,war.defenders(),593,1,rightScroll);
     }
-    private void drawSide(GuiGraphicsExtractor g,List<DiplomacyWorldTensionView.Participant> side,int px,int scroll) {
-        String[] icons={"tension/surrender","tension/contribution","tension/divisions","hud/factories","tension/casualties"};
-        int[] columns={233,283,346,422,485};
-        for(int i=0;i<icons.length;i++) UiAssets.draw(g,icons[i],px+columns[i],157,22,22);
-        var rows=filtered(side); int start=Math.clamp(scroll,0,Math.max(0,rows.size()-12));
-        for(int i=start;i<Math.min(rows.size(),start+12);i++) {
-            var p=rows.get(i); int py=193+(i-start)*44;
-            g.blit(Identifier.parse("hoi:textures/gui/tension/participant.png"),px,py,px+531,py+41,0,1,0,1);
-            flag(g,p.country(),px+8,py+5,30,20);
-            text(g,p.name(),px+55,py+9,174,p.callable()?0xFF999C96:0xFFE0E0DA,false);
-            g.fill(px+55,py+24,px+197,py+27,0xFF28443F);
-            if(p.surrender()!=null) g.fill(px+55,py+24,px+55+(int)(142*p.surrender()),py+27,0xFFA13939);
-            text(g,p.capitulated()?"항복":p.callable()?"대기":"",px+225,py+8,38,0xFFC6C6B7,true);
-            text(g,p.contribution()==null?"—":Math.round(p.contribution()*100)+"%",px+269,py+12,50,0xFFE0E0DA,true);
-            text(g,p.divisions(),px+317,py+12,80,0xFFE0E0DA,true);
-            text(g,p.factories(),px+393,py+12,80,0xFFE0E0DA,true);
-            text(g,p.casualties()==null?"—":p.casualties().toString(),px+466,py+12,60,0xFFE0E0DA,true);
+    private void drawSide(GuiGraphicsExtractor g,List<DiplomacyWorldTensionView.Participant> side,int px,int header,int scroll) {
+        for(int i=0;i<HEADER_ICONS.length;i++) { int[] size=UiAssets.imageSize(HEADER_ICONS[i]); UiAssets.draw(g,HEADER_ICONS[i],HEADERS[header][i],HEADER_Y[i],size[0],size[1]); }
+        var rows=filtered(side); int start=Math.clamp(scroll,0,Math.max(0,rows.size()-ROWS));
+        for(int i=start;i<Math.min(rows.size(),start+ROWS);i++) {
+            var p=rows.get(i); int py=193+(i-start)*ROW;
+            g.blit(Identifier.parse("hoi:textures/gui/"+(p.callable()?"tension/ally":"tension/participant")+".png"),px,py,px+531,py+41,0,1,0,1);
+            flag(g,p.country(),px+9,py+7,"tension/flag_frame",px+4,py+3);
+            if(p.capitulated()) UiAssets.draw(g,"tension/surrender_flag",px+32,py+17,16,16);
+            text(g,p.name(),px+56,py+(p.callable()?8:4),p.callable()?150:180,p.callable()?0xFF999C96:0xFFE0E0DA,false);
+            UiAssets.draw(g,"tension/surrender_bg",px+55,py+26,142,6);
+            if(p.surrender()!=null&&p.surrender()>0) g.blit(Identifier.parse("hoi:textures/gui/tension/surrender_fill.png"),px+55,py+26,px+55+(int)Math.round(142*Math.min(1,p.surrender())),py+32,0,(float)Math.min(1,p.surrender()),0,1);
+            UiAssets.draw(g,"tension/surrender_frame",px+54,py+26,144,8);
+            if(p.callable()) continue;
+            text(g,p.contribution()==null?"—":Math.round(p.contribution()*100)+"%",px+269,py+11,50,0xFFE0E0DA,true);
+            text(g,p.divisions(),px+317,py+11,80,0xFFE0E0DA,true);
+            text(g,p.factories(),px+393,py+11,80,0xFFE0E0DA,true);
+            text(g,p.casualties()==null?"—":p.casualties().toString(),px+466,py+11,60,0xFFE0E0DA,true);
         }
-        scrollbar(g,px+553,193,548,start,rows.size(),12);
+        scrollbar(g,px+541,193,ROWS*ROW,start,rows.size(),ROWS);
     }
     private String sum(List<DiplomacyWorldTensionView.Participant> side) {
         long total=0;
@@ -194,14 +216,15 @@ public final class DiplomacyWorldTension extends Screen {
         return HudMenuBar.number((double)total);
     }
     private static String percent(Double value) { return value==null?"—":String.format(Locale.ROOT,"%.1f%%",value); }
-    private void flag(GuiGraphicsExtractor g,String tag,int px,int py,int w,int h) {
-        if(!UiAssets.draw(g,HudMenuBar.flagTexture(tag),px,py,w,h)) text(g,tag,px,py+5,w,0xFFE0E0DA,true);
+    private void flag(GuiGraphicsExtractor g,String tag,int px,int py,String frame,int fx,int fy) {
+        if(!UiAssets.draw(g,HudMenuBar.flagTexture(tag),px,py,41,26)) text(g,tag,px,py+5,41,0xFFE0E0DA,true);
+        int[] size=UiAssets.imageSize(frame); UiAssets.draw(g,frame,fx,fy,size[0],size[1]);
     }
-    private void score(GuiGraphicsExtractor g,int px,int py,int w,int h,Double amount) {
-        UiAssets.draw(g,"tension/score_blue",px,py,w,h);
+    private void score(GuiGraphicsExtractor g,String art,int px,int py,int w,int h,Double amount) {
+        UiAssets.draw(g,art+"_blue",px,py,w,h);
         if(amount==null) { text(g,"0",px,py,w,0xFFE0E0DA,true);return; }
         int filled=(int)Math.round(w*amount);
-        if(filled>0) g.blit(Identifier.parse("hoi:textures/gui/tension/score_red.png"),px,py,px+filled,py+h,0,amount.floatValue(),0,1);
+        if(filled>0) g.blit(Identifier.parse("hoi:textures/gui/"+art+"_red.png"),px,py,px+filled,py+h,0,amount.floatValue(),0,1);
     }
     private void scrollbar(GuiGraphicsExtractor g,int px,int py,int h,int start,int total,int visible) {
         if(total<=visible)return;
@@ -211,8 +234,8 @@ public final class DiplomacyWorldTension extends Screen {
     @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical) {
         if(view==null||mx<x||mx>x+s(panelWidth)||my<y||my>y+s(panelHeight)) return super.mouseScrolled(mx,my,horizontal,vertical);
         if(war()!=null) {
-            if(mx<x+s(583)) leftScroll=Math.clamp(leftScroll-(int)vertical,0,Math.max(0,filtered(war().attackers()).size()-12));
-            else rightScroll=Math.clamp(rightScroll-(int)vertical,0,Math.max(0,filtered(war().defenders()).size()-12));
+            if(mx<x+s(586)) leftScroll=Math.clamp(leftScroll-(int)vertical,0,Math.max(0,filtered(war().attackers()).size()-ROWS));
+            else rightScroll=Math.clamp(rightScroll-(int)vertical,0,Math.max(0,filtered(war().defenders()).size()-ROWS));
             rebuildWidgets();return true;
         }
         int next=Math.clamp(offset-(int)(vertical*3),0,Math.max(0,view.total()-7));

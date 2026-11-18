@@ -441,13 +441,14 @@ public final class DiplomacyCountryScreenChecks {
                     .filter(party -> party.icon().startsWith("politics/party/") && party.progress() >= 0).toList();
             var expected = parties.stream().filter(party -> party.icon().equals(icon)).findFirst().orElseThrow();
             double before = parties.subList(0, parties.indexOf(expected)).stream().mapToDouble(MenuView.Entry::progress).sum();
-            double angle = (before + expected.progress() / 2) * Math.PI * 2 - Math.PI / 2;
+            double angle = (before + expected.progress() / 2) * Math.PI * 2;
             context.setScreen(() -> selection ? ScreenMenu.selection(view) : new ScreenMenu(view));
             context.waitTicks(3);
             var point = context.computeOnClient(c -> {
                 var screen = (ScreenMenu)c.gui.screen(); var box = screen.politicsLayout().partyChart();
-                double x = box.x() + box.width() / 2.0 + Math.cos(angle) * box.width() / 4;
-                double y = box.y() + box.height() / 2.0 + Math.sin(angle) * box.height() / 4;
+                double radius = dev.hoi.client.screen.politics.PoliticsPartyChart.radius(box.width()) / 2;
+                double x = box.x() + dev.hoi.client.screen.politics.PoliticsPartyChart.centerX(box.width()) + Math.cos(angle) * radius;
+                double y = box.y() + dev.hoi.client.screen.politics.PoliticsPartyChart.centerY(box.width()) - Math.sin(angle) * radius;
                 if (!expected.equals(screen.politicsHover(x, y)))
                     throw new AssertionError("Chart must expose the complete server party entry: " + view.country() + " " + expected.name());
                 if (screen.politicsHover(box.x() + 1, box.y() + 1) != null)

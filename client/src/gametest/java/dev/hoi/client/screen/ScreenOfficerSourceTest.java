@@ -210,13 +210,22 @@ public final class ScreenOfficerSourceTest {
                         context.setScreen(() -> new PoliticsChoice(groupQuote,parent));
                         context.getInput().setCursorPos(2400,1300);
                         context.waitTicks(3);
-                        context.takeScreenshot("hoi-officer-spirit-group-"+group+"-gui2");
+                        var shot=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-officer-spirit-group-"+group+"-gui2").toFile());
                         if(!groupQuote.tiles().isEmpty()) {
                             var first=groupQuote.tiles().getFirst();
-                            var point=context.computeOnClient(client -> client.gui.screen().children().stream()
+                            var box=context.computeOnClient(client -> client.gui.screen().children().stream()
                                     .filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c)
                                     .filter(c->c.getMessage().getString().equals(first.name())).findFirst()
-                                    .map(c->new int[]{c.getX()+c.getWidth()/2,c.getY()+c.getHeight()/2}).orElseThrow());
+                                    .map(c->new int[]{c.getX(),c.getY(),c.getWidth(),c.getHeight()}).orElseThrow());
+                            int[] size=context.computeOnClient(client->dev.hoi.client.ui.UiAssets.imageSize(first.icon()));
+                            int left=Integer.MAX_VALUE,right=-1,top=Integer.MAX_VALUE,bottom=-1;
+                            for(int y=(box[1]+3)*2;y<(box[1]+box[3]-3)*2;y++)for(int x=(box[0]+3)*2;x<(box[0]+33)*2;x++){
+                                int c=shot.getRGB(x,y);
+                                if(((c>>16&255)+(c>>8&255)+(c&255))/3>110){left=Math.min(left,x);right=Math.max(right,x+1);top=Math.min(top,y);bottom=Math.max(bottom,y+1);}
+                            }
+                            if(right<0||right-left>size[0]+2||bottom-top>size[1]+2)
+                                throw new AssertionError("Spirit choice icons keep their source size: "+first.icon()+" "+(right-left)+"x"+(bottom-top)+" source "+size[0]+"x"+size[1]);
+                            var point=new int[]{box[0]+box[2]/2,box[1]+box[3]/2};
                             context.getInput().setCursorPos(point[0]*2,point[1]*2);
                             context.waitTicks(6);
                             context.runOnClient(client->{

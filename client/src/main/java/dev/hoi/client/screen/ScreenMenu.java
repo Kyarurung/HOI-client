@@ -312,7 +312,11 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                     int backgroundHeight=Math.max(1,(int)Math.round(bw*70.0/168));
                     UiAssets.draw(g,"officer/spirit/ui/background_"+(selectedSpirit?"enabled":"disabled"),bx,by+(28-backgroundHeight)/2,bw,backgroundHeight);
                     if(entry.alert()){int glowWidth=bw*159/168,glowHeight=bw*115/168;UiAssets.draw(g,"officer/spirit/ui/glow/frame_0",bx+(bw-glowWidth)/2,by+(28-glowHeight)/2,glowWidth,glowHeight);}
-                    UiAssets.draw(g, entry.icon(), bx + 2, by - (selectedSpirit?5:9), bw - 4, 38);
+                    if (selectedSpirit) {
+                        int[] size = UiAssets.imageSize(entry.icon());
+                        int iconWidth = Math.max(1, Math.round(size[0] * bw / 168f)), iconHeight = Math.max(1, Math.round(size[1] * bw / 168f));
+                        UiAssets.draw(g, entry.icon(), bx + Math.round((bw + 2 * bw / 168f - iconWidth) / 2), by + Math.round(14 + 3 * bw / 168f - iconHeight / 2f), iconWidth, iconHeight);
+                    } else UiAssets.draw(g, entry.icon(), bx + 2, by - 9, bw - 4, 38);
                 }
                 officerControl(widgets, entry, branch, i + 1, bx, by, bw, 28);
             }
@@ -461,6 +465,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         var chart = layout.partyChart();
         UiMenuStyle.recess(g, chart.x(), chart.y(), chart.width(), chart.height());
         for (int[] span : partySpans) g.fill(chart.x() + span[0], chart.y() + span[1], chart.x() + span[2], chart.y() + 1 + span[1], span[3]);
+        int overlayHeight = PoliticsPartyChart.overlayHeight(chart.width());
+        UiAssets.draw(g, "politics/pie_overlay", chart.x(), chart.y() + (chart.width() - overlayHeight) / 2, chart.width(), overlayHeight);
         var list = layout.parties();
         UiMenuStyle.recess(g, list.x(), list.y(), list.width(), list.height());
         double pitch = 11;
@@ -540,19 +546,15 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     private int partyPixel(int x, int y, int size) {
         int samples = 0, red = 0, green = 0, blue = 0;
-        double radius = size / 2.0 - 3;
+        double radius = PoliticsPartyChart.radius(size);
         for (int sy = 0; sy < 4; sy++) for (int sx = 0; sx < 4; sx++) {
-            double dx = x + (sx + .5) / 4 - size / 2.0, dy = y + (sy + .5) / 4 - size / 2.0;
-            double distance = Math.hypot(dx, dy);
-            if (distance > radius) continue;
+            double dx = x + (sx + .5) / 4 - PoliticsPartyChart.centerX(size), dy = y + (sy + .5) / 4 - PoliticsPartyChart.centerY(size);
+            if (Math.hypot(dx, dy) > radius) continue;
             int color = 0xFF34363A;
-            if (distance > radius - .8) color = dy < 0 ? 0xFFA5ABB0 : 0xFF454B51;
-            else {
-                double angle = (Math.atan2(dy, dx) + Math.PI * 2.5) % (Math.PI * 2) / (Math.PI * 2), sum = 0;
-                for (var party : parties) {
-                    sum += party.progress();
-                    if (angle < sum) { color = partyColor(party.icon()); break; }
-                }
+            double angle = PoliticsPartyChart.angle(dx, dy), sum = 0;
+            for (var party : parties) {
+                sum += party.progress();
+                if (angle < sum) { color = partyColor(party.icon()); break; }
             }
             samples++; red += (color >> 16) & 255; green += (color >> 8) & 255; blue += color & 255;
         }
@@ -743,7 +745,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (layout.government().contains(x, y)) return politicsEntry("정치 체제");
         if (!selectionPreview) for (int i=0;i<2;i++) if (layout.status(i).contains(x,y)) return politicsEntry(i==0?"점령지":"협력정부");
         var chart=layout.partyChart();
-        var party=PoliticsPartyChart.at(parties,x-chart.x()-chart.width()/2.0,y-chart.y()-chart.height()/2.0,chart.width()/2.0-3.8);
+        var party=PoliticsPartyChart.at(parties,x-chart.x()-PoliticsPartyChart.centerX(chart.width()),y-chart.y()-PoliticsPartyChart.centerY(chart.width()),PoliticsPartyChart.radius(chart.width()));
         if(party!=null)return party;
         var partyList = layout.parties();
         if (partyList.contains(x, y)) {

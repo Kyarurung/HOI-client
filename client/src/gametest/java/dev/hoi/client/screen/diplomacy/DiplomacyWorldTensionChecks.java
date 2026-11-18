@@ -28,8 +28,24 @@ public final class DiplomacyWorldTensionChecks {
         dev.hoi.client.ResearchScreenTest.gui2Screenshot(context,"hoi-world-tension-history");
         context.runOnClient(client -> ((DiplomacyWorldTension)client.gui.screen()).select(DiplomacyWorldTensionView.Sort.WARS));
         context.waitTicks(3); dev.hoi.client.ResearchScreenTest.gui2Screenshot(context,"hoi-world-tension-wars");
-        context.runOnClient(client -> ((DiplomacyWorldTension)client.gui.screen()).openWar("war"));
+        context.runOnClient(client -> {
+            var screen=(DiplomacyWorldTension)client.gui.screen();
+            var entry=screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button candidate && candidate.getMessage().getString().equals(war.name())).map(w -> (net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow(() -> new AssertionError("War entry must be clickable"));
+            var close=screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button candidate && candidate.getMessage().getString().equals("닫기")).map(w -> (net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow();
+            float scale=screen.scale();
+            if(entry.getX()-close.getX()!=Math.round(DiplomacyWorldTension.LIST_X*scale)-Math.round(204*scale)||entry.getWidth()!=Math.round(449*scale))
+                throw new AssertionError("War entry must use world_tension_war_entry x46 and width449: "+entry.getX()+" "+entry.getWidth());
+            screen.openWar("war");
+        });
         context.waitTicks(3); dev.hoi.client.ResearchScreenTest.gui2Screenshot(context,"hoi-world-tension-war-detail");
+        context.runOnClient(client -> {
+            var screen=(DiplomacyWorldTension)client.gui.screen();
+            if(!screen.headerTooltip(30,165).equals("참전국")||!screen.headerTooltip(1080,170).equals("사상자")||!screen.headerTooltip(250,170).equals("전쟁 명분"))
+                throw new AssertionError("War overview header icons keep the waroverview tooltips");
+            if(!screen.headerTooltip(150,170).isEmpty()) throw new AssertionError("Only the original header icons have tooltips");
+            var rows=screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button candidate && (candidate.getMessage().getString().equals("대한민국")||candidate.getMessage().getString().equals("중화인민공화국"))).map(w -> (net.minecraft.client.gui.components.Button)w).toList();
+            if(rows.size()!=2||rows.get(0).getY()!=rows.get(1).getY()) throw new AssertionError("Both sides start their participant rows on the same line");
+        });
         context.runOnClient(client -> {
             var screen=(DiplomacyWorldTension)client.gui.screen();screen.onClose();
             if(screen.warId()!=null||client.gui.screen()!=screen)throw new AssertionError("Detail close must return to history");

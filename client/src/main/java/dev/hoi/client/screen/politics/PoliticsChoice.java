@@ -88,7 +88,7 @@ public final class PoliticsChoice extends DialogScreen {
             boolean current = cost(tile).equals(APPLIED), removal = current && advisor() && selectable(VACANT);
             var button = new UiMenuButton(tile.name(), tileX(i), y, cellWidth(), ROW,
                     () -> submitPoliticsChoice(removal ? VACANT : tile.section())).caption("");
-            if (!spirit()) button.background("none");
+            button.background("none");
             button.active = !pending && (removal || selectable(tile.section()));
             if (sourceTooltips()) {
                 button.setTooltip(null);
@@ -122,7 +122,7 @@ public final class PoliticsChoice extends DialogScreen {
             UiAssets.draw(g,"officer/medal/"+medal,left+pane/2-20,top+22,40,38);
         }
         int start = top + headerHeight();
-        if (!spirit()) for (int i = 0; i < view().tiles().size(); i++) {
+        for (int i = 0; i < view().tiles().size(); i++) {
             var tile = view().tiles().get(i); int y = tileY(i), x = tileX(i), cell = cellWidth();
             if (y < start || y + ROW > bottom) continue;
             UiAssets.draw(g, "politics/choice/" + (grid() ? "grid_entry" : "list_entry") + "/frame_" + (cost(tile).equals(APPLIED) ? 1 : 0), x, y, cell, ROW);
@@ -132,12 +132,17 @@ public final class PoliticsChoice extends DialogScreen {
             var tile = view().tiles().get(i); int y = tileY(i), x = tileX(i), cell = cellWidth();
             if (y < start || y + ROW > bottom) continue;
             boolean current = cost(tile).equals(APPLIED);
-            if (spirit() && current) g.fill(x + 1, y + 1, x + cell - 1, y + ROW - 1, 0x603F6D1D);
-            if (grayscale(tile)) UiAssets.drawGrayscale(g, tile.icon(), x + 5, y + 2, 31, 34);
-            else UiAssets.draw(g, tile.icon(), x + 5, y + 2, 31, 34);
+            int[] iconBox = {x + 5, y + 2, 31, 34};
+            if (spirit()) {
+                int[] size = UiAssets.imageSize(tile.icon());
+                int iconWidth = Math.max(1, Math.round(size[0] / 2f)), iconHeight = Math.max(1, Math.round(size[1] / 2f));
+                iconBox = new int[]{x + 21 - iconWidth / 2, y + 19 - iconHeight / 2, iconWidth, iconHeight};
+            }
+            if (grayscale(tile)) UiAssets.drawGrayscale(g, tile.icon(), iconBox[0], iconBox[1], iconBox[2], iconBox[3]);
+            else UiAssets.draw(g, tile.icon(), iconBox[0], iconBox[1], iconBox[2], iconBox[3]);
             int costWidth = current ? 0 : costWidth(tile);
             if (grid()) {
-                int textLeft = x + (minister() ? 34 : 38), textWidth = cell - (minister() ? 37 : 41);
+                int textLeft = x + (minister() || spirit() ? 34 : 38), textWidth = cell - (minister() || spirit() ? 37 : 41);
                 long now = net.minecraft.util.Util.getMillis();
                 dev.hoi.client.ui.UiText.scrollingCell(g,font,Component.literal(tile.name()).withStyle(s->s.withBold(true)),textLeft,y+5,textWidth,10,0xFFFFFFFF,false,now);
                 var traits = traits(tile);
@@ -146,7 +151,7 @@ public final class PoliticsChoice extends DialogScreen {
                     dev.hoi.client.ui.UiText.scrollingCell(g,font,dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(Tooltips.officerText(traits.get(line)),false),
                             textLeft,y+14+line*9,traitWidth,9,UiMenuStyle.ACCENT,false,now);
                 }
-                if (!current) drawCost(g, tile, x + cell - 4 - costWidth, y + 25);
+                if (!current) drawCost(g, tile, x + cell - 4 - costWidth, y + (spirit() ? 24 : 25));
             } else {
                 int nameWidth = current ? cell - 46 : Math.max(1, 135 - costWidth / 2 - 44);
                 dev.hoi.client.ui.UiText.left(g,font,Component.literal(tile.name()).withStyle(s->s.withBold(true)),x+42,y+3,nameWidth,31,0xFFFFFFFF);

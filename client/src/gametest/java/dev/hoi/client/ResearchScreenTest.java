@@ -441,7 +441,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("diplomacy")) {
-            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.diplomacy.DiplomacyActionsTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseInputTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.runSource(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseRequestTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyVolunteersTest.run(context); }
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.diplomacy.DiplomacyWorldTensionChecks.run(context, fixtureMenu().hud()); dev.hoi.client.screen.diplomacy.DiplomacyActionsTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseInputTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.runSource(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseRequestTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyVolunteersTest.run(context); }
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("decision-targets")) {
@@ -563,7 +563,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("politics")) {
-            try (var world = context.worldBuilder().create()) { DiplomacyCountryScreenChecks.authoritativePoliticsTooltips(context); dev.hoi.client.screen.ScreenAlertGlowTest.run(context, fixtureMenu()); }
+            try (var world = context.worldBuilder().create()) { DiplomacyCountryScreenChecks.authoritativePoliticsTooltips(context); dev.hoi.client.screen.ScreenAlertGlowTest.run(context, fixtureMenu()); dev.hoi.client.screen.ScreenOfficerSpiritTest.run(context, fixtureMenu()); }
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("occupation")) {
@@ -691,7 +691,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             dev.hoi.client.screen.doctrine.DoctrineNotificationTest.run(context);
             dev.hoi.client.screen.industry.IndustryDesignerButtonsTest.run(context);
             IndustryConstructionTest.run(context,menu.hud());
-            dev.hoi.client.screen.occupation.OccupationScreenTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu()); dev.hoi.client.screen.ScreenAlertGlowTest.run(context,fixtureMenu()); dev.hoi.client.map.MapOccupationHudTest.run(context);
+            dev.hoi.client.screen.occupation.OccupationScreenTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu()); dev.hoi.client.screen.ScreenAlertGlowTest.run(context,fixtureMenu()); dev.hoi.client.screen.ScreenOfficerSpiritTest.run(context,fixtureMenu()); dev.hoi.client.map.MapOccupationHudTest.run(context);
             DiplomacyCountryScreenChecks.run(context,menu.hud());
             dev.hoi.client.screen.diplomacy.DiplomacyActionsTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseInputTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.runSource(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseRequestTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyVolunteersTest.run(context);
             dev.hoi.client.screen.ScreenAuthoritativeFieldsTest.run(context,menu);

@@ -301,7 +301,7 @@ public final class AgencyHud {
         if (operative != null && left == 0) {
             int top = HudMenuBar.height(g.guiWidth()) + 2;
             UiAssets.draw(g, sprite("operative_leader_badge") + "/frame_0", 2, top, 219, 55);
-            UiAssets.draw(g, "country/" + current.country().toLowerCase(Locale.ROOT) + "/intelligence", 3, top, 48, 48);
+            UiAssets.draw(g, "country/" + current.country().toLowerCase(Locale.ROOT) + "/intelligence", 3, top, 54, 54);
             UiAssets.draw(g, art(current, operative.portrait()), 54, top + 7, 25, 34);
             UiAssets.draw(g, sprite("unit_leader_portrait_frame_badge") + "/frame_0", 53, top + 5, 27, 37);
             UiAssets.draw(g, sprite("land_battle_leader_skill_bg") + "/frame_0", 85, top + 9, 12, 18);
@@ -327,7 +327,7 @@ public final class AgencyHud {
             if (missionFrame >= 0) UiAssets.draw(g, sprite("operative_mission_icons_small") + "/frame_" + missionFrame, 81, top + 40, 10, 10);
             scrollText(g, status, 93, top + 42, 110);
             if (!operative.country().isEmpty()) CountryFlags.draw(g, "country/" + operative.country().toLowerCase(Locale.ROOT) + "/flag", "smallest", 209, top + 43, 8, 6);
-            UiAssets.draw(g, "country/" + current.country().toLowerCase(Locale.ROOT) + "/flag", 202, top + 19, 16, 11);
+            UiAssets.draw(g, "country/" + current.country().toLowerCase(Locale.ROOT) + "/flag", 201, top + 18, 13, 10);
             regions.add(new Hit(82, top + 39, 135, 15, "", "", status));
             var dismiss = current.items().stream().filter(item -> item.id().equals("dismiss:" + operative.id())).findFirst().orElse(null);
             UiAssets.drawLeaderControl(g, sprite("nv_btn_delete") + "/frame_0", 54, top + 34, 11, 11, dismiss != null && dismiss.enabled());
@@ -336,8 +336,8 @@ public final class AgencyHud {
             regions.add(new Hit(202, top + 2, 16, 16, "", "deselect", ""));
             for (int i = 0; i < operative.traits().size(); i++) {
                 var trait = operative.traits().get(i);
-                UiAssets.draw(g, art(current, trait.icon()), 85 + i * 11, top + 31, 11, 11);
-                regions.add(new Hit(85 + i * 11, top + 31, 11, 11, "", "", trait.tooltip()));
+                UiAssets.draw(g, art(current, trait.icon()), 85 + i * 11, top + 28, 11, 11);
+                regions.add(new Hit(85 + i * 11, top + 28, 11, 11, "", "", trait.tooltip()));
             }
         }
         hits = List.copyOf(regions);
