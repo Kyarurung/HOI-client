@@ -319,6 +319,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             if (team != null) text = text.replace("$ORG|H$", "§H" + team.name() + "§!").replace("$SIZE|H$", "§H" + team.size() + "§!");
             lines.add(Tooltips.officerText(text));
         }
+        if (detail != null) lines.add(Tooltips.officerText(UiCommandLabels.text("CLICK_DETAILS_CTRL", "§GCtrl+클릭§!하여 다른 창을 열어 놓은 채로 세부 사항 보기")));
         return lines;
     }
     String availableTeamsTooltip(String technology) {

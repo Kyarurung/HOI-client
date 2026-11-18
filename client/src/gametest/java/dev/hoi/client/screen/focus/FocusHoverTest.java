@@ -46,17 +46,26 @@ public final class FocusHoverTest {
             game.runOnClient(c->{
                 var next=new FocusPayloads.View(view.country(),view.name(),view.tree(),view.session(),6,"",view.hud(),List.of(active),false);
                 screen.update(FocusPayloads.Response.of(screen.token(),next));
-                String expected="§Y"+active.name()+"§!\n§!--------------\n§G클릭§!하여 세부 사항 보기\n§GCtrl+클릭§!하여 다른 창을 열어 놓은 채로 세부 사항 보기";
+                String expected="§Y"+active.name()+"§!\n§!--------------\n§G클릭§!하여 세부 사항 보기";
                 if(!screen.hoverTooltip(active).equals(expected))throw new AssertionError("A new revision must remove all cached status, requirements and rewards until authoritative details arrive");
             });
             game.waitTicks(23);
             if(requests.stream().noneMatch(r->r.action()==FocusPayloads.Action.REFRESH&&r.id().equals(node.id())&&r.revision()==6))throw new AssertionError("Hover must request authoritative details at the current revision without selecting the node");
             game.runOnClient(c->{if(!screen.selectedId().isEmpty())throw new AssertionError("Hover must not open the detail window");});
+            game.runOnClient(c->{
+                int[] b=screen.nodeBounds(node.id());
+                var event=new net.minecraft.client.input.MouseButtonEvent(b[0]+b[2]/2.,b[1]+b[3]/2.,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));
+                screen.mouseClicked(event,false);screen.mouseReleased(event);
+                if(!screen.selectedId().equals(node.id()))throw new AssertionError("Clicking the focus opens its detail window");
+                String open=screen.hoverTooltip(active);
+                if(!open.endsWith("\n§G클릭§!하여 세부 사항 보기\n§GCtrl+클릭§!하여 다른 창을 열어 놓은 채로 세부 사항 보기"))throw new AssertionError("With a focus detail window open the hover adds CLICK_DETAILS_CTRL after CLICK_DETAILS_CLICK: "+open);
+            });
+            game.waitTicks(3);game.takeScreenshot("hoi-focus-hover-detail-open-"+width+"-gui2");
         }
     }
     private static void assertTooltip(FocusScreen screen,FocusPayloads.Node node,String status,net.minecraft.client.gui.Font font) {
         if(!UiCommandLabels.text("SEPARATION_LINE", "--------------\n").equals("--------------\n"))throw new AssertionError("The source label must retain exactly fourteen dashes and its trailing newline");
-        String expected="§Y"+node.name()+"§!\n\n"+status+"\n\n§R미충족 조건§!\n  §G충족 조건§!\n조건 안내\n\n§H효과§!:\n§G합성 효과§!\n§!--------------\n§G클릭§!하여 세부 사항 보기\n§GCtrl+클릭§!하여 다른 창을 열어 놓은 채로 세부 사항 보기";
+        String expected="§Y"+node.name()+"§!\n\n"+status+"\n\n§R미충족 조건§!\n  §G충족 조건§!\n조건 안내\n\n§H효과§!:\n§G합성 효과§!\n§!--------------\n§G클릭§!하여 세부 사항 보기";
         String actual=screen.hoverTooltip(node);
         if(!actual.equals(expected))throw new AssertionError("Focus hover must retain the exact source status, paragraphs, effect header, separator and click instructions: "+actual);
         var rows=Tooltips.tooltipLines(font,actual,screen.width);

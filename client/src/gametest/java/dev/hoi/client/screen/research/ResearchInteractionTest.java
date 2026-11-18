@@ -41,6 +41,8 @@ public final class ResearchInteractionTest {
                     click(screen,tech.id(),modifiers);
                     if(modifiers==0) {
                         if(!requests.isEmpty()||field(screen,"detail")==null)throw new AssertionError("Plain click opens details only");
+                        var open=screen.tooltipLines(tech).stream().map(t->t.getString()).toList();
+                        if(!open.getLast().equals("Ctrl+클릭하여 다른 창을 열어 놓은 채로 세부 사항 보기")||!open.get(open.size()-2).startsWith("Shift+Alt+클릭"))throw new AssertionError("With the detail window open the instructions end with CLICK_DETAILS_CTRL: "+open);
                         return;
                     }
                     if(modifiers!=1)click(screen,tech.id(),modifiers);

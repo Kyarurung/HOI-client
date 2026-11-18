@@ -202,7 +202,7 @@ public final class FocusScreen extends Screen {
         }
         result.append("\n§!").append(UiCommandLabels.text("SEPARATION_LINE","--------------\n").stripTrailing());
         result.append('\n').append(UiCommandLabels.text("CLICK_DETAILS_CLICK","§G클릭§!하여 세부 사항 보기"));
-        result.append('\n').append(UiCommandLabels.text("CLICK_DETAILS_CTRL","§GCtrl+클릭§!하여 다른 창을 열어 놓은 채로 세부 사항 보기"));
+        if(!selected.isEmpty())result.append('\n').append(UiCommandLabels.text("CLICK_DETAILS_CTRL","§GCtrl+클릭§!하여 다른 창을 열어 놓은 채로 세부 사항 보기"));
         return result.toString();
     }
     private void link(GuiGraphicsExtractor g,FocusPayloads.Node parent,FocusPayloads.Node child) {
