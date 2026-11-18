@@ -21,7 +21,9 @@ import dev.hoi.client.screen.commander.CommanderCaptivity;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.screen.doctrine.DoctrineScreen;
 import dev.hoi.client.screen.focus.FocusScreen;
-import dev.hoi.client.screen.industry.IndustryOrganization;
+import dev.hoi.client.ui.UiCommandLabels;
+import dev.hoi.client.ui.industry.IndustryOrganizationList;
+import dev.hoi.client.ui.industry.IndustryOrganizationRow;
 import dev.hoi.client.screen.industry.IndustryScreen;
 import dev.hoi.client.screen.politics.PoliticsPartyChart;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -41,7 +43,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private int[] captivityCounts;
     public void captivityCounts(int missing,int held){captivityCounts=new int[]{missing,held};}
     private void openCaptivity(boolean ours){var screen=new CommanderCaptivity(this,ours);DialogCoordinator.setContent(screen);screen.open();}
-    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&manufacturerScrollbar().contains(event.x(),event.y())){if(manufacturerScrollbar().arrow(event.y())){manufacturerScroll=manufacturerScrollbar().step(event.y(),manufacturerScroll,49);rebuildWidgets();}else{manufacturerDragging=true;dragManufacturer(event.y());}return true;}if(!selectionPreview&&selected==MenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&manufacturerScrollbar().contains(event.x(),event.y())){if(manufacturerScrollbar().arrow(event.y())){manufacturerScroll=manufacturerScrollbar().step(event.y(),manufacturerScroll,IndustryOrganizationList.ENTRY_HEIGHT);rebuildWidgets();}else{manufacturerDragging=true;dragManufacturer(event.y());}return true;}if(!selectionPreview&&selected==MenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
     private MenuView view;
     private boolean selectionPreview;
     private final Runnable researchOpen;
@@ -191,7 +193,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private boolean hasFooterActions() { return selected == MenuTab.RESEARCH || selected == MenuTab.INTELLIGENCE; }
     private int contentBottom() { return height - (hasFooterActions() ? 36 : 8); }
     private int detailX() { return width - pane >= 240 ? pane + 6 : Math.max(8, (width - detailWidth()) / 2); }
-    private int detailWidth() { return Math.min(manufacturerGroup!=null?268:310, width - (width - pane >= 240 ? pane + 14 : 16)); }
+    private int detailWidth() { return Math.min(manufacturerGroup!=null?IndustryOrganizationList.WIDTH:310, width - (width - pane >= 240 ? pane + 14 : 16)); }
     private int rowHeight() { return selected == MenuTab.PRODUCTION || selected == MenuTab.RECRUITMENT ? 49 : 37; }
     private void layoutRows(boolean widgets, GuiGraphicsExtractor g) {
         if (selected == MenuTab.POLITICS) { layoutPolitics(widgets, g); return; }
@@ -758,51 +760,53 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         for (var line : lines) { dev.hoi.client.ui.UiText.text(g, font, line, x + 14, y, TEXT); y += 13; }
         g.disableScissor();
     }
-    private UiScrollBar manufacturerScrollbar(){int end=Math.min(height-8,top+328)-4,visible=end-top-59;return new UiScrollBar(detailX()+detailWidth()-11,top+51,end+8,visible,visible+manufacturerMaximum);}
+    private UiScrollBar manufacturerScrollbar(){int start=top+IndustryOrganizationList.LIST_TOP,end=Math.min(height-8,top+IndustryOrganizationList.HEIGHT)-10,visible=end-start;return new UiScrollBar(detailX()+detailWidth()-11,start,end,visible,visible+manufacturerMaximum);}
     private void dragManufacturer(double y){manufacturerScroll=manufacturerScrollbar().offset(y);rebuildWidgets();}
     @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy){if(manufacturerDragging){dragManufacturer(event.y());return true;}return super.mouseDragged(event,dx,dy);}
     @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event){if(manufacturerDragging){manufacturerDragging=false;return true;}return super.mouseReleased(event);}
     private void layoutManufacturers(boolean widgets, GuiGraphicsExtractor g) {
         if(widgets)manufacturerTooltips.clear();
-        int x = detailX(), w = detailWidth(), bottom = Math.min(height-8,top+328);
+        int x = detailX(), w = detailWidth(), bottom = Math.min(height-8,top+IndustryOrganizationList.HEIGHT), start = top + IndustryOrganizationList.LIST_TOP, end = bottom - 10, entryHeight = IndustryOrganizationList.ENTRY_HEIGHT;
         var groups = List.of("points", "materiel", "armor", "air", "navy");
         var names = List.of("특성 점수 보유", "군수품", "전차", "비행기", "함선");
-        var icons = List.of("mio/ui/gfx_refitting/frame_0", "mio/ui/gfx_inf_art_checkbox/frame_0", "mio/ui/gfx_armour_checkbox/frame_0", "mio/ui/gfx_air_checkbox/frame_0", "mio/ui/gfx_screen_ships_checkbox/frame_0");
+        var categories = List.of("", "MATERIEL", "TANK", "PLANE", "SHIP");
+        var icons = List.of("mio/ui/gfx_icon_button_45x32/frame_0", "mio/ui/gfx_inf_art_checkbox/frame_0", "mio/ui/gfx_armour_checkbox/frame_0", "mio/ui/gfx_air_checkbox/frame_0", "mio/ui/gfx_screen_ships_checkbox/frame_0");
         Comparator<MenuView.Manufacturer> order=manufacturerByName?Comparator.comparing(m->m.entry().name()):Comparator.comparingInt(MenuView.Manufacturer::size);
         if(manufacturerDescending)order=order.reversed();
         var filtered=view.manufacturers().stream().filter(m -> manufacturerGroup.equals("points") ? m.points()>0 : m.groups().contains(manufacturerGroup));
         var rows=(manufacturerSorted?filtered.sorted(order):filtered).toList();
-        int available = Math.max(1, bottom - top - 62);
-        manufacturerMaximum=Math.max(0,rows.size()*49-available);manufacturerScroll = Math.clamp(manufacturerScroll, 0, manufacturerMaximum);
-        if (g != null) {
-            g.nextStratum(); UiMenuStyle.panel(g, x, top, w, bottom - top);
-            dev.hoi.client.ui.UiText.centered(g,font,dev.hoi.client.ui.tooltip.Tooltips.officerText("군수산업체",true),x+10,top+5,w-35,20,TEXT,false);
-        }
+        manufacturerMaximum=Math.max(0,rows.size()*entryHeight-Math.max(1,end-start));manufacturerScroll = Math.clamp(manufacturerScroll, 0, manufacturerMaximum);
+        if (g != null) { g.nextStratum(); IndustryOrganizationList.frame(g, font, x, top, w, bottom - top); }
         if (widgets) {
-            addRenderableWidget(new UiMenuButton("규모",x+8,top+32,24,18,()->{manufacturerDescending=manufacturerSorted&&!manufacturerByName&&!manufacturerDescending;manufacturerByName=false;manufacturerSorted=true;rebuildWidgets();}).caption("").background(IndustryOrganization.art("sort_skill")));
-            addRenderableWidget(new UiMenuButton("이름",x+34,top+32,45,18,()->{manufacturerDescending=manufacturerSorted&&manufacturerByName&&!manufacturerDescending;manufacturerByName=true;manufacturerSorted=true;rebuildWidgets();}));
-            addRenderableWidget(new UiMenuButton("×", x + w - 25, top + 3, 19, 19, () -> { manufacturerGroup = null; rebuildWidgets(); }));
+            addRenderableWidget(new UiMenuButton("규모",x+8,top+24,15,15,()->{manufacturerDescending=manufacturerSorted&&!manufacturerByName&&!manufacturerDescending;manufacturerByName=false;manufacturerSorted=true;rebuildWidgets();}).caption("").background("mio/ui/gfx_sort_skill/frame_"+(manufacturerSorted&&!manufacturerByName?manufacturerDescending?2:1:0)).sound("ui.scroll"));
+            addRenderableWidget(new UiMenuButton("이름",x+23,top+24,41,15,()->{manufacturerDescending=manufacturerSorted&&manufacturerByName&&!manufacturerDescending;manufacturerByName=true;manufacturerSorted=true;rebuildWidgets();}).background("mio/ui/gfx_sort_up_down_button_83x29/frame_"+(manufacturerSorted&&manufacturerByName?manufacturerDescending?2:1:0)).sound("ui.scroll"));
+            addRenderableWidget(IndustryOrganizationList.close(x, top, w, () -> { manufacturerGroup = null; rebuildWidgets(); }));
             for (int i = 0; i < groups.size(); i++) {
                 final String group = groups.get(i);
-                String icon=i>0&&manufacturerGroup.equals(group)?icons.get(i).replace("frame_0","frame_1"):icons.get(i);
-                addRenderableWidget(new UiMenuButton(names.get(i), x+w-122+i*23,top+30,23,18,()->{manufacturerGroup=group;manufacturerScroll=0;rebuildWidgets();}).caption("").background(icon).sound("ui.checkbox"));
+                String icon=manufacturerGroup.equals(group)?icons.get(i).replace("frame_0","frame_1"):icons.get(i);
+                String tip=i==0?UiCommandLabels.text("INDUSTRIAL_ORG_LIST_WINDOW_FILTER_CAN_UNLOCK_TOOLTIP","사용할 수 있는 특성 점수를 보유 중인 군수산업체만 보기")
+                        :UiCommandLabels.text("INDUSTRIAL_ORG_LIST_WINDOW_FILTER_CATEGORY_TOOLTIP","$CATEGORY|Y$에 해당되는 군수산업체만 보기").replace("$CATEGORY|Y$","§Y"+UiCommandLabels.text("INDUSTRIAL_ORG_LIST_WINDOW_FILTER_CATEGORY_"+categories.get(i),names.get(i))+"§!");
+                var filter=new dev.hoi.client.ui.UiPanelButton(names.get(i),x+(i==0?152:152+21*i),top+(i==0?25:24),23,16,()->{manufacturerGroup=group;manufacturerScroll=0;rebuildWidgets();}){
+                    @Override protected void extractContents(GuiGraphicsExtractor graphics,int mx,int my,float delta){
+                        UiAssets.draw(graphics,icon,getX(),getY(),getWidth(),getHeight());
+                        if(icon.startsWith("mio/ui/gfx_icon_button_45x32/")){graphics.pose().pushMatrix();graphics.pose().translate(getX()+6.5f,getY()+1.5f);graphics.pose().scale(.5f);UiAssets.draw(graphics,"mio/ui/gfx_refitting/frame_0",0,0,18,18);graphics.pose().popMatrix();}
+                    }
+                };
+                filter.sound("ui.checkbox");filter.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(dev.hoi.client.ui.tooltip.Tooltips.officerText(tip)));addRenderableWidget(filter);
             }
         }
-        if (g != null) g.enableScissor(x + 8, top + 59, x + w - 8, bottom - 4);
-        int y = top + 59 - manufacturerScroll;
+        if (g != null) g.enableScissor(x + 8, start, x + 8 + IndustryOrganizationList.ENTRY_WIDTH, end);
+        int y = start - manufacturerScroll;
         for (var manufacturer : rows) {
             var entry = manufacturer.entry();
-            if (g != null) {
-                dev.hoi.client.ui.industry.IndustryOrganizationRow.draw(g,entry.icon(),manufacturer.size(),entry.name(),manufacturer.type(),manufacturer.equipment(),x+8,y,w-16);
+            if (g != null) IndustryOrganizationRow.draw(g,entry.icon(),manufacturer.size(),entry.name(),manufacturer.type(),manufacturer.equipment(),x+8,y,IndustryOrganizationList.ENTRY_WIDTH);
+            if (widgets && y >= start && y + entryHeight <= end) {
+                var hover=new dev.hoi.client.ui.UiHoverRegion(entry.name(),x+8,y,IndustryOrganizationList.ENTRY_WIDTH,entryHeight);manufacturerTooltips.put(hover,entry.detail());
+                addRenderableWidget(IndustryOrganizationList.details(font,manufacturer.id(),x+8,y));addRenderableWidget(hover);
             }
-            if (widgets && y >= top + 59 && y + 45 <= bottom - 4) {
-                var hover=new dev.hoi.client.ui.UiHoverRegion(entry.name(),x+8,y,w-16,45);manufacturerTooltips.put(hover,entry.detail());
-                addRenderableWidget(new UiMenuButton("세부 사항", x + w - 67, y + 31, 54, 16, () -> dev.hoi.client.map.commander.CommanderHud.open(new dev.hoi.protocol.commander.CommanderHudPayloads.Open(dev.hoi.protocol.commander.CommanderHudPayloads.Mode.ORGANIZATION,manufacturer.id(),List.of()))).background(IndustryOrganization.art("leader_selection_button")));addRenderableWidget(hover);
-            }
-            y += 49;
+            y += entryHeight;
         }
         if (g != null) {
-
             g.disableScissor();
             manufacturerScrollbar().draw(g,manufacturerScroll);
         }
@@ -837,7 +841,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             return true;
         }
         if (detail != null) { detailScroll -= (int)(vertical * 26); return true; }
-        if (manufacturerGroup != null && x >= detailX()) { manufacturerScroll -= (int)(vertical * 35); rebuildWidgets(); return true; }
+        if (manufacturerGroup != null && x >= detailX()) { manufacturerScroll -= (int)(vertical * IndustryOrganizationList.ENTRY_HEIGHT); rebuildWidgets(); return true; }
         if (x < pane && y >= contentTop()) { scroll -= (int)(vertical * 35); rebuildWidgets(); return true; }
         return super.mouseScrolled(x, y, horizontal, vertical);
     }

@@ -18,18 +18,23 @@ public final class IndustryOrganizationRow {
     }
     public static void draw(GuiGraphicsExtractor g,String logo,int size,String name,String type,List<MenuView.ManufacturerEquipment> equipment,int x,int y,int width,String cost){
         var font = Minecraft.getInstance().font;
-        UiAssets.nineSlice(g, art("mio_entry_bg"), x, y, width, 49, 8, .5);
-        UiAssets.drawContent(g, logo, x + 3, y + 7, 33, 35);
-        UiAssets.draw(g, art("land_battle_leader_skill_bg"), x + 38, y + 6, 17, 25);
-        UiText.centered(g, font, Integer.toString(size), x + 38, y + 7, 17, 16, UiMenuStyle.TEXT, false);
-        UiText.leftSingleLine(g, font, net.minecraft.network.chat.Component.literal(name), x + 60, y + 3, width - (cost.isEmpty()?65:137), 14, UiMenuStyle.TEXT);
-        UiText.leftSingleLine(g, font, net.minecraft.network.chat.Component.literal(type), x + 60, y + 17, width - 65, 13, 0xFFFFD060);
-        if(!cost.isEmpty())UiText.leftSingleLine(g,font,TooltipKeywordIcons.decorateLines(Tooltips.officerText(cost),false),x+width-72,y+3,68,14,UiMenuStyle.TEXT);
-        int count = Math.min(5, equipment.size()), pitch = Math.min(27, Math.max(20, (width - 118) / Math.max(1, count)));
+        UiAssets.nineSlice(g, art("mio_entry_bg"), x, y, width, 50, 8, .5);
+        int[] logoSize = UiAssets.imageSize(logo);
+        UiAssets.draw(g, logo, x + 5, y + 10, (logoSize[0] + 1) / 2, (logoSize[1] + 1) / 2);
+        UiAssets.draw(g, art("land_battle_leader_skill_bg"), x + 40, y + 10, 18, 25);
+        UiText.centeredSingleLine(g, font, Tooltips.officerText(Integer.toString(size), true), x + 40, y + 14, 17, 9, UiMenuStyle.TEXT);
+        UiText.leftSingleLine(g, font, net.minecraft.network.chat.Component.literal(name), x + 63, y + 6, Math.min(130, width - 70), 10, UiMenuStyle.TEXT);
+        UiText.leftSingleLine(g, font, net.minecraft.network.chat.Component.literal(type), x + 63, y + 16, Math.min(130, width - 70), 10, 0xFFFFD060);
+        if (!cost.isEmpty()) {
+            var value = TooltipKeywordIcons.decorateLines(Tooltips.officerText(cost), false);
+            int costWidth = Math.min(45, font.width(value));
+            UiText.leftSingleLine(g, font, value, x + Math.min(233, width - 4) - costWidth, y + 7, costWidth, 10, UiMenuStyle.TEXT);
+        }
+        int count = equipment.size(), pitch = count * 35 <= 175 ? 35 : 140 / (count - 1);
         for (int i = 0; i < count; i++) {
             var item = equipment.get(i); int ex = x + 60 + i * pitch;
-            UiAssets.draw(g, equipment(item.token()), ex, y + 31, 18, 16);
-            UiText.leftSingleLine(g, font, net.minecraft.network.chat.Component.literal(Integer.toString(item.traits())), ex + 17, y + 36, 12, 11, UiMenuStyle.TEXT);
+            UiAssets.draw(g, equipment(item.token()), ex, y + 25, 19, 19);
+            UiText.leftSingleLine(g, font, net.minecraft.network.chat.Component.literal(Integer.toString(item.traits())), ex + 21, y + 33, 12, 10, UiMenuStyle.TEXT);
         }
     }
 }

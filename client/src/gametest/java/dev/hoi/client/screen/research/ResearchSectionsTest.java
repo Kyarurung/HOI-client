@@ -1,5 +1,6 @@
 package dev.hoi.client.screen.research;
 
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.research.*;
 import java.nio.file.*;
 import java.util.*;
@@ -130,16 +131,36 @@ public final class ResearchSectionsTest {
             var button=screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.getMessage().getString().equals("연구")).map(net.minecraft.client.gui.components.AbstractWidget.class::cast).findFirst().orElseThrow();
             var event=new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2d,button.getY()+button.getHeight()/2d,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(event,false);screen.mouseReleased(event);
         });
-        game.waitTicks(3);game.takeScreenshot("hoi-research-reference-shell-teams-"+width+"-gui2");
-        int step=0;
-        for(String label:List.of("이름","이름","비용")){
+        game.waitTicks(3);var teams=javax.imageio.ImageIO.read(game.takeScreenshot("hoi-research-reference-shell-teams-"+width+"-gui2").toFile());
+        game.runOnClient(c->{
+            var row=screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.visible&&b.getMessage().getString().equals(team.name())).map(net.minecraft.client.gui.components.AbstractWidget.class::cast).findFirst().orElseThrow();
+            var details=screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.visible&&b.active&&b.getMessage().getString().equals("세부 사항")).map(net.minecraft.client.gui.components.AbstractWidget.class::cast).findFirst().orElseThrow();
+            var empty=screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.visible&&b.active&&b.getMessage().getString().equals(Tooltips.officerText(view.designTeamText().get("empty")).getString())).map(net.minecraft.client.gui.components.AbstractWidget.class::cast).findFirst().orElseThrow();
+            var size=sortButton(screen,"규모");var name=sortButton(screen,"이름");var cost=sortButton(screen,"비용");
+            if(row.getWidth()!=260||row.getHeight()!=50||empty.getWidth()!=260||empty.getHeight()!=50||row.getX()!=empty.getX()||row.getY()!=empty.getY()+50)throw new AssertionError("Organization entries must use the original 520x100 entry and 100 px pitch");
+            if(details.getX()!=row.getX()+200||details.getY()!=row.getY()+25||details.getWidth()!=46||details.getHeight()!=16)throw new AssertionError("Details button must use the original x400/y50 90x31 slot");
+            if(c.font.width(details.getMessage())>details.getWidth()-6)throw new AssertionError("Details label must fit its button without clipping");
+            if(size.getX()-8+275>screen.width-25)throw new AssertionError("Organization list must not cover the research close button");
+            if(size.getX()!=empty.getX()||name.getX()!=size.getX()+15||cost.getX()!=name.getX()+42||size.getY()!=name.getY()||cost.getY()!=name.getY()||empty.getY()-size.getY()!=24)throw new AssertionError("Size, name and cost sort buttons must keep the original sorting_options row");
+        });
+        int titleWhite=0,titleYellow=0;
+        var close=game.computeOnClient(c->screen.children().stream().filter(w->w instanceof dev.hoi.client.ui.UiMenuButton b&&b.visible&&b.active&&b.getMessage().getString().equals("×")&&b.getWidth()==16).map(net.minecraft.client.gui.components.AbstractWidget.class::cast).findFirst().orElseThrow());
+        for(int y=(close.getY()+3)*2;y<(close.getY()+15)*2;y++)for(int x=(close.getX()-200)*2;x<(close.getX()-60)*2;x++){int rgb=teams.getRGB(x,y),r=rgb>>16&255,g=rgb>>8&255,b=rgb&255;if(r>200&&g>200&&b>200)titleWhite++;if(r>200&&g>150&&b<90)titleYellow++;}
+        if(titleWhite<20||titleYellow>0)throw new AssertionError("The list title must use the white INDUSTRIAL_ORG_LIST_WINDOW_TITLE text: "+titleWhite+"/"+titleYellow);
+        int step=0;java.awt.image.BufferedImage previous=teams;
+        for(String label:List.of("이름","이름","비용","규모","규모")){
             var sort=game.computeOnClient(c->sortButton(screen,label));
             game.runOnClient(c->{var event=new net.minecraft.client.input.MouseButtonEvent(sort.getX()+sort.getWidth()/2d,sort.getY()+sort.getHeight()/2d,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(event,false);screen.mouseReleased(event);});
             game.getInput().setCursorPos(width-10,10);game.waitTicks(3);
             var shot=javax.imageio.ImageIO.read(game.takeScreenshot("hoi-research-reference-shell-teams-sort-"+(++step)+"-"+width+"-gui2").toFile());
-            var name=game.computeOnClient(c->sortButton(screen,"이름"));var cost=game.computeOnClient(c->sortButton(screen,"비용"));
-            var active=label.equals("이름")?name:cost;var idle=label.equals("이름")?cost:name;
-            if(arrowPixels(shot,active)<5||arrowPixels(shot,idle)>0)throw new AssertionError("Original sort button frames must mark only the active sort: "+label+" "+step);
+            var name=game.computeOnClient(c->sortButton(screen,"이름"));var cost=game.computeOnClient(c->sortButton(screen,"비용"));var size=game.computeOnClient(c->sortButton(screen,"규모"));
+            if(label.equals("규모")){
+                if(arrowPixels(shot,name)>0||arrowPixels(shot,cost)>0||changedPixels(previous,shot,size)<5)throw new AssertionError("Original size sort frames must mark the size sort: "+step);
+            }else{
+                var active=label.equals("이름")?name:cost;var idle=label.equals("이름")?cost:name;
+                if(arrowPixels(shot,active)<5||arrowPixels(shot,idle)>0)throw new AssertionError("Original sort button frames must mark only the active sort: "+label+" "+step);
+            }
+            previous=shot;
         }
         if(!requests.isEmpty())throw new AssertionError("Sorting organizations must not send research requests");
         var row=game.computeOnClient(c->screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.getMessage().getString().equals(team.name())).map(net.minecraft.client.gui.components.AbstractWidget.class::cast).findFirst().orElseThrow());
@@ -149,6 +170,10 @@ public final class ResearchSectionsTest {
         if(!requests.isEmpty())throw new AssertionError("Inspecting the original shell and HJ offer must not start research");
     }
     private static dev.hoi.client.ui.UiMenuButton sortButton(ResearchScreen screen,String label){return screen.children().stream().filter(w->w instanceof dev.hoi.client.ui.UiMenuButton b&&b.visible&&b.active&&b.getMessage().getString().equals(label)).map(dev.hoi.client.ui.UiMenuButton.class::cast).findFirst().orElseThrow();}
+    private static int changedPixels(java.awt.image.BufferedImage before,java.awt.image.BufferedImage after,net.minecraft.client.gui.components.AbstractWidget button){
+        int count=0;for(int y=button.getY()*2;y<(button.getY()+button.getHeight())*2;y++)for(int x=button.getX()*2;x<(button.getX()+button.getWidth())*2;x++){int a=before.getRGB(x,y),b=after.getRGB(x,y);if(Math.max(Math.abs((a>>16&255)-(b>>16&255)),Math.max(Math.abs((a>>8&255)-(b>>8&255)),Math.abs((a&255)-(b&255))))>40)count++;}
+        return count;
+    }
     private static int arrowPixels(java.awt.image.BufferedImage image,net.minecraft.client.gui.components.AbstractWidget button){
         int count=0;for(int y=button.getY()*2;y<(button.getY()+button.getHeight())*2;y++)for(int x=button.getX()*2;x<(button.getX()+button.getWidth())*2;x++){int rgb=image.getRGB(x,y),r=rgb>>16&255,g=rgb>>8&255,b=rgb&255;if(r>140&&g>90&&b<110&&r-b>60)count++;}
         return count;

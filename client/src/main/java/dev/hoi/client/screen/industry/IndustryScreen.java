@@ -3,6 +3,8 @@ package dev.hoi.client.screen.industry;
 import dev.hoi.client.ui.UiScrollBar;
 import dev.hoi.client.ui.industry.IndustryTerrainAdjustment;
 import dev.hoi.client.ui.industry.IndustryEquipmentDesigns;
+import dev.hoi.client.ui.industry.IndustryOrganizationList;
+import dev.hoi.client.ui.industry.IndustryOrganizationRow;
 import dev.hoi.client.ui.UiHoverRegion;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.input.InputSidebarMovement;
@@ -17,7 +19,6 @@ import dev.hoi.client.ui.UiText;
 import dev.hoi.protocol.*;
 import dev.hoi.protocol.industry.IndustryView.*;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
-import dev.hoi.protocol.commander.*;
 import dev.hoi.protocol.industry.*;
 import dev.hoi.protocol.menu.*;
 import static dev.hoi.protocol.industry.IndustryPayloads.Action.*;
@@ -1373,45 +1374,40 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         var designTeam = designerManufacturer && tankDesigner() ? view.tankDesigner().designTeam() : null;
         if (line == null && offer == null && designTeam == null) return;
         int firstWidget = children().size();
-        int w = Math.min(268, width - 16), x = Math.min(width - w - 8, pane + 88), y = top + 3, end = Math.min(bottom(), y + 326);
+        int w = Math.min(IndustryOrganizationList.WIDTH, width - 16), h = IndustryOrganizationList.HEIGHT, x = Math.min(width - w - 8, pane + 88), y = top + 3, end = Math.min(bottom(), y + h);
         if (offer != null || designTeam != null) {
             x = Math.min(width - w - 8, manufacturerAnchorX);
-            y = Math.clamp(manufacturerAnchorY, top + 3, Math.max(top + 3, bottom() - 326));
-            end = Math.min(bottom(), y + 326);
+            y = Math.clamp(manufacturerAnchorY, top + 3, Math.max(top + 3, bottom() - h));
+            end = Math.min(bottom(), y + h);
         }
-        if (designTeam != null) {
-            w = Math.min(275, width - 16); x = Math.min(width - w - 8, 133); y = Math.max(top + 3, 40); end = Math.min(height - 4, y + 334);
-        }
+        if (designTeam != null) { x = Math.min(width - w - 8, 133); y = Math.max(top + 3, 40); end = Math.min(height - 4, y + h); }
         manufacturerX = x; manufacturerY = y; manufacturerWidth = w; manufacturerBottom = end;
-        if (graphics != null) graphics.nextStratum();
-        if (designTeam != null && graphics != null) UiAssets.nineSlice(graphics,"mio/ui/gfx_tiled_bg/frame_0",x,y,w,end-y,16,.5);
-        else panel(x, y, w, end - y);
-        if (graphics != null) UiText.centeredSingleLine(graphics, font, Tooltips.officerText("군수산업체", true), x + 8, y + 4, w - 34, 22, TEXT);
-        button("군수산업체 목록 닫기", "×", x + w - 25, y + 3, 19, 19, true, this::closeManufacturers);
-        var sortSize=originalButton("규모 정렬","commander/ui/sort_skill",x+8,y+25,15,15,true,()->{manufacturerReverse=!manufacturerSorted||manufacturerName||!manufacturerReverse;manufacturerName=false;manufacturerSorted=true;rebuildWidgets();});
-        var sortName=button("이름 정렬","이름",x+23,y+25,42,15,true,()->{manufacturerReverse=manufacturerSorted&&manufacturerName&&!manufacturerReverse;manufacturerName=true;manufacturerSorted=true;rebuildWidgets();});
-        if(graphics==null){sortSize.sound("ui.scroll");sortName.background("commander/ui/sort_text").sound("ui.scroll");}
+        if (graphics != null) { graphics.nextStratum(); IndustryOrganizationList.frame(graphics, font, x, y, w, end - y); }
+        else addRenderableWidget(IndustryOrganizationList.close(x, y, w, this::closeManufacturers));
+        var sortSize=originalButton("규모 정렬","mio/ui/gfx_sort_skill/frame_"+(manufacturerSorted&&!manufacturerName?manufacturerReverse?2:1:0),x+8,y+24,15,15,true,()->{manufacturerReverse=!manufacturerSorted||manufacturerName||!manufacturerReverse;manufacturerName=false;manufacturerSorted=true;rebuildWidgets();});
+        var sortName=button("이름 정렬","이름",x+23,y+24,41,15,true,()->{manufacturerReverse=manufacturerSorted&&manufacturerName&&!manufacturerReverse;manufacturerName=true;manufacturerSorted=true;rebuildWidgets();});
+        if(graphics==null){sortSize.sound("ui.scroll");sortName.background("mio/ui/gfx_sort_up_down_button_83x29/frame_"+(manufacturerSorted&&manufacturerName?manufacturerReverse?2:1:0)).sound("ui.scroll");}
         var rows = new ArrayList<>(designTeam != null ? designTeam.choices().stream().map(IndustryTankDesigner.DesignTeamChoice::manufacturer).toList() : offer == null ? line.manufacturers() : offer.manufacturers());
         if (manufacturerName) rows.sort(Comparator.comparing(LineManufacturer::name));
         else if (manufacturerSorted) rows.sort(Comparator.comparingInt(LineManufacturer::size));
         if (manufacturerReverse) Collections.reverse(rows);
-        int start = y + 51;
-        manufacturerScroll = Math.clamp(manufacturerScroll, 0, Math.max(0, 47 + rows.size() * 53 - (end - start)));
-        manufacturerScrollbar=new UiScrollBar(x+w-11,start,end,end-start,47+rows.size()*53);
+        int entry = IndustryOrganizationList.ENTRY_HEIGHT, entryWidth = IndustryOrganizationList.ENTRY_WIDTH, start = y + IndustryOrganizationList.LIST_TOP, listEnd = end - 10;
+        manufacturerScroll = Math.clamp(manufacturerScroll, 0, Math.max(0, entry + rows.size() * entry - (listEnd - start)));
+        manufacturerScrollbar=new UiScrollBar(x+w-11,start,listEnd,listEnd-start,entry+rows.size()*entry);
         if(graphics!=null)manufacturerScrollbar.draw(graphics,manufacturerScroll);
         int emptyY = start - manufacturerScroll;
-        if(emptyY>=start&&emptyY+44<=end){
-            if(graphics!=null){UiAssets.nineSlice(graphics,"mio/ui/gfx_mio_entry_bg/frame_0",x+8,emptyY,w-16,44,8,.5);UiText.centeredSingleLine(graphics,font,Tooltips.officerText(designTeam != null ? designTeam.empty() : offer == null ? line.manufacturerEmpty() : offer.manufacturerEmpty()),x+11,emptyY,w-22,44,TEXT);}
-            else addRenderableWidget(new UiPanelButton(designTeam != null ? designTeam.empty() : "군수산업체 없이 생산",x+8,emptyY,w-16,44,()->selectManufacturer("")){@Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){}});
+        if(emptyY>=start&&emptyY+entry<=listEnd){
+            if(graphics!=null)IndustryOrganizationList.empty(graphics,font,designTeam != null ? designTeam.empty() : offer == null ? line.manufacturerEmpty() : offer.manufacturerEmpty(),x+8,emptyY);
+            else addRenderableWidget(new UiPanelButton(designTeam != null ? designTeam.empty() : "군수산업체 없이 생산",x+8,emptyY,entryWidth,entry,()->selectManufacturer("")){@Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){}});
         }
         for (int i = 0; i < rows.size(); i++) {
-            var row = rows.get(i); int ry = start + 47 + i * 53 - manufacturerScroll;
-            if (ry < start || ry + 49 > end) continue;
-            if (graphics != null) dev.hoi.client.ui.industry.IndustryOrganizationRow.draw(graphics, row.icon(), row.size(), row.name(), row.type(), row.equipment(), x + 8, ry, w - 16);
+            var row = rows.get(i); int ry = start + entry + i * entry - manufacturerScroll;
+            if (ry < start || ry + entry > listEnd) continue;
+            if (graphics != null) IndustryOrganizationRow.draw(graphics, row.icon(), row.size(), row.name(), row.type(), row.equipment(), x + 8, ry, entryWidth);
             if (graphics == null) {
-                var details = new UiMenuButton("세부 사항", x + w - 67, ry + 27, 54, 16, () -> dev.hoi.client.map.commander.CommanderHud.open(new CommanderHudPayloads.Open(CommanderHudPayloads.Mode.ORGANIZATION, row.id(), List.of()))).background("mio/ui/gfx_leader_selection_button/frame_0");
+                var details = IndustryOrganizationList.details(font, row.id(), x + 8, ry);
                 details.active = pending == 0; addWidget(details);
-                var select = new UiPanelButton(row.name(), x + 8, ry, w - 16, 49, () -> selectManufacturer(row.id())) {
+                var select = new UiPanelButton(row.name(), x + 8, ry, entryWidth, entry, () -> selectManufacturer(row.id())) {
                     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
                 };
                 select.active = pending == 0; select.setTooltip(Tooltips.createExact(row.tooltip())); addRenderableWidget(select); addRenderableOnly(details);
@@ -1745,8 +1741,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             else if (manufacturerSorted) rows.sort(Comparator.comparingInt(choice -> choice.manufacturer().size()));
             if (manufacturerReverse) Collections.reverse(rows);
             for (int i = 0; i < rows.size(); i++) {
-                int rowY = manufacturerY + 98 + i * 53 - manufacturerScroll;
-                if (rowY >= manufacturerY + 51 && rowY + 49 <= manufacturerBottom && mouseX >= manufacturerX + 8 && mouseX < manufacturerX + manufacturerWidth - 8 && mouseY >= rowY && mouseY < rowY + 49) rows.get(i).changes().forEach(stat -> preview.put(stat.id(), stat.value()));
+                int entry = IndustryOrganizationList.ENTRY_HEIGHT, rowY = manufacturerY + IndustryOrganizationList.LIST_TOP + entry + i * entry - manufacturerScroll;
+                if (rowY >= manufacturerY + IndustryOrganizationList.LIST_TOP && rowY + entry <= manufacturerBottom - 10 && mouseX >= manufacturerX + 8 && mouseX < manufacturerX + 8 + IndustryOrganizationList.ENTRY_WIDTH && mouseY >= rowY && mouseY < rowY + entry) rows.get(i).changes().forEach(stat -> preview.put(stat.id(), stat.value()));
             }
         }
         if(!designerManufacturer&&tankSlot.isEmpty()&&mouseY>=py.applyAsInt(460)&&mouseY<py.applyAsInt(493))for(int i=0;i<d.upgrades().size();i++) {
@@ -2567,7 +2563,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         } else if (++refresh % 60 == 0 && pending == 0) send(view == null ? foreign() ? FOREIGN_LOGISTICS : OPEN : REFRESH, view == null ? foreignTarget : "", "", 0);
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
-        if (designerManufacturer || picker.equals("manufacturer") || !manufacturerEquipment.isEmpty()) { manufacturerScroll -= (int)(vertical * 53); rebuildWidgets(); return true; }
+        if (designerManufacturer || picker.equals("manufacturer") || !manufacturerEquipment.isEmpty()) { manufacturerScroll -= (int)(vertical * IndustryOrganizationList.ENTRY_HEIGHT); rebuildWidgets(); return true; }
         if (designer && !divisionPicker.isEmpty()) {
             divisionPickerScroll -= (int) vertical; rebuildWidgets(); return true;
         }
@@ -2645,7 +2641,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if (designerManufacturer || !manufacturerEquipment.isEmpty() || picker.equals("manufacturer")) {
             if (event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT || pending > 0) return true;
             if (manufacturerScrollbar != null && manufacturerScrollbar.contains(event.x(), event.y())) {
-                if (manufacturerScrollbar.arrow(event.y())) manufacturerScroll = manufacturerScrollbar.step(event.y(), manufacturerScroll, 53);
+                if (manufacturerScrollbar.arrow(event.y())) manufacturerScroll = manufacturerScrollbar.step(event.y(), manufacturerScroll, IndustryOrganizationList.ENTRY_HEIGHT);
                 else { manufacturerDragging = true; manufacturerScroll = manufacturerScrollbar.offset(event.y()); }
                 rebuildWidgets(); return true;
             }

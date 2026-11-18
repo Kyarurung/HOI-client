@@ -118,6 +118,16 @@ public final class IndustryOrganizationTest {
     private static DialogView source(String name)throws java.io.IOException{return new DialogPayloads.Show(json(name),true).view().issued(UUID.randomUUID().toString(),7);}
     private static MouseButtonEvent event(AbstractWidget b,int modifiers,int button){return new MouseButtonEvent(b.getX()+b.getWidth()/2.,b.getY()+b.getHeight()/2.,new MouseButtonInfo(button,modifiers));}
     private static void click(Screen screen,AbstractWidget b,int modifiers){if(b==null)throw new AssertionError("Missing control");var e=event(b,modifiers,InputConstants.MOUSE_BUTTON_LEFT);screen.mouseClicked(e,false);screen.mouseReleased(e);}
+    private static void filterButtons(ClientGameTestContext game,ScreenMenu menu,java.awt.image.BufferedImage shot){
+        var names=List.of("특성 점수 보유","군수품","전차","비행기","함선");
+        var buttons=game.computeOnClient(c->names.stream().map(n->named(menu,n)).toList());
+        var close=game.computeOnClient(c->menu.children().stream().filter(w->w instanceof AbstractWidget b&&b.getMessage().getString().equals("×")&&b.getWidth()==16).map(w->(AbstractWidget)w).findFirst().orElseThrow());
+        int left=close.getX()-256,top=close.getY()-2;
+        for(int i=0;i<names.size();i++){var b=buttons.get(i);if(b.getX()!=left+152+21*i||b.getY()!=top+(i==0?25:24)||b.getWidth()!=23||b.getHeight()!=16)throw new AssertionError("Organization filters must keep the original filter_options slots: "+names.get(i));}
+        var upgrade=buttons.getFirst();int gold=0,frame=0;
+        for(int y=upgrade.getY()*2;y<upgrade.getBottom()*2;y++)for(int x=upgrade.getX()*2;x<upgrade.getRight()*2;x++){int rgb=shot.getRGB(x,y),r=rgb>>16&255,g=rgb>>8&255,b=rgb&255;if(r>150&&g>100&&b<90&&r-b>80)gold++;if(Math.abs(r-g)<20&&Math.abs(g-b)<20&&r>40&&r<150)frame++;}
+        if(gold<10||frame<20)throw new AssertionError("The can-unlock filter must draw GFX_icon_button_45x32 under GFX_refitting: "+gold+"/"+frame);
+    }
     private static AbstractWidget named(Screen screen,String name){return screen.children().stream().filter(w->w instanceof AbstractWidget b&&b.getMessage().getString().equals(name)).map(w->(AbstractWidget)w).findFirst().orElseThrow(()->new AssertionError(name));}
     private static void unavailableQueue(ClientGameTestContext game,DialogView source,Screen parent,int width) {
         var denied=new DialogView(source.token(),source.revision(),source.kind(),source.title(),source.subtitle(),source.body(),source.flag(),source.image(),source.sound(),source.tiles(),source.choices().stream().filter(c->!c.id().startsWith("queue/")&&!c.id().startsWith("up/")&&!c.id().startsWith("down/")).toList(),source.presentation());
@@ -161,7 +171,8 @@ public final class IndustryOrganizationTest {
                 });
                 for(String group:List.of("armor","navy","air","materiel","points")){
                     game.runOnClient(c->{try{var field=ScreenMenu.class.getDeclaredField("manufacturerGroup");field.setAccessible(true);field.set(menu,group);menu.init(menu.width,menu.height);}catch(ReflectiveOperationException e){throw new RuntimeException(e);}int expected=(int)menuView.manufacturers().stream().filter(m->group.equals("points")?m.points()>0:m.groups().contains(group)).count();long visible=menu.children().stream().filter(w->w instanceof AbstractWidget b&&b.getMessage().getString().equals("세부 사항")).count();if(visible<Math.min(expected,4))throw new AssertionError("Manufacturer filter lost visible source entries");});
-                    game.getInput().setCursorPos(size[0]-5,80);game.waitTicks(3);game.takeScreenshot("hoi-mio-list-"+group+"-"+size[0]+"-gui2");
+                    game.getInput().setCursorPos(size[0]-5,80);game.waitTicks(3);var shot=javax.imageio.ImageIO.read(game.takeScreenshot("hoi-mio-list-"+group+"-"+size[0]+"-gui2").toFile());
+                    if(group.equals("points"))filterButtons(game,menu,shot);
                     if(!group.equals("points")){game.runOnClient(c->{click(menu,named(menu,"이름"),0);click(menu,named(menu,"이름"),0);menu.mouseScrolled(menu.width-20,100,0,-8);menu.mouseScrolled(menu.width-20,100,0,8);});}
                 }
                 game.runOnClient(c->{try{var f=ScreenMenu.class.getDeclaredField("manufacturerGroup");f.setAccessible(true);f.set(menu,"materiel");var sorted=ScreenMenu.class.getDeclaredField("manufacturerSorted");sorted.setAccessible(true);sorted.set(menu,false);menu.init(menu.width,menu.height);}catch(ReflectiveOperationException e){throw new RuntimeException(e);}});

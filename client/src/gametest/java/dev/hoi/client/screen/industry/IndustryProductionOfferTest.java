@@ -77,6 +77,7 @@ public final class IndustryProductionOfferTest {
                         var empty = named(screen, "군수산업체 없이 생산");
                         var choice = named(screen, equipment.manufacturers().getFirst().name());
                         for (var widget : List.of(empty, choice)) if (widget.getX() < 0 || widget.getRight() > screen.width || widget.getY() < 0 || widget.getBottom() > screen.height) throw new AssertionError("Offer choice outside viewport");
+                        if (empty.getX() != choice.getX() || empty.getWidth() != choice.getWidth() || empty.getHeight() != choice.getHeight() || empty.getWidth() != 260 || empty.getHeight() != 50 || (choice.getY() - empty.getY()) % 50 != 0) throw new AssertionError("The no-organization entry must use the same original 520x100 entry as the organizations");
                         requests.clear();
                         switch (action) {
                             case "assign" -> { click(screen, choice, InputConstants.MOUSE_BUTTON_LEFT); click(screen, choice, InputConstants.MOUSE_BUTTON_LEFT); }
