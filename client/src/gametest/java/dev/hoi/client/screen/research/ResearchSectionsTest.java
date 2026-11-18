@@ -99,7 +99,8 @@ public final class ResearchSectionsTest {
         game.runOnClient(c->{
             String expected=view.designTeamText().get("available_title")+"\n"+String.join("\n",view.designTeams().stream().filter(t->t.technologies().contains(tech.id())).map(t->view.designTeamText().get("available_item").replace("$NAME$",t.name())).toList());
             if(!screen.availableTeamsTooltip(tech.id()).equals(expected)||!screen.availableTeamsTooltip("hoi:unknown").isEmpty())throw new AssertionError("Flask tooltip must preserve only the matching source organization list");
-            var close=screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.visible&&b.active&&b.getMessage().getString().equals("×")).map(net.minecraft.client.gui.components.AbstractWidget.class::cast).findFirst().orElseThrow();
+            var close=screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.visible&&b.active&&b.getMessage().getString().equals("×")&&screen.overDetailWindows(b.getX()+b.getWidth()/2.,b.getY()+b.getHeight()/2.)).map(net.minecraft.client.gui.components.AbstractWidget.class::cast).findFirst().orElseThrow();
+            if(screen.children().stream().noneMatch(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.visible&&b.active&&b.getMessage().getString().equals("×")&&!screen.overDetailWindows(b.getX()+b.getWidth()/2.,b.getY()+b.getHeight()/2.)))throw new AssertionError("The research screen close button must stay drawn and clickable while the detail is open");
             screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(close.getX()+2,close.getY()+2,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
         });
         var icon=game.computeOnClient(c->{
@@ -130,10 +131,26 @@ public final class ResearchSectionsTest {
             var event=new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2d,button.getY()+button.getHeight()/2d,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(event,false);screen.mouseReleased(event);
         });
         game.waitTicks(3);game.takeScreenshot("hoi-research-reference-shell-teams-"+width+"-gui2");
+        int step=0;
+        for(String label:List.of("이름","이름","비용")){
+            var sort=game.computeOnClient(c->sortButton(screen,label));
+            game.runOnClient(c->{var event=new net.minecraft.client.input.MouseButtonEvent(sort.getX()+sort.getWidth()/2d,sort.getY()+sort.getHeight()/2d,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(event,false);screen.mouseReleased(event);});
+            game.getInput().setCursorPos(width-10,10);game.waitTicks(3);
+            var shot=javax.imageio.ImageIO.read(game.takeScreenshot("hoi-research-reference-shell-teams-sort-"+(++step)+"-"+width+"-gui2").toFile());
+            var name=game.computeOnClient(c->sortButton(screen,"이름"));var cost=game.computeOnClient(c->sortButton(screen,"비용"));
+            var active=label.equals("이름")?name:cost;var idle=label.equals("이름")?cost:name;
+            if(arrowPixels(shot,active)<5||arrowPixels(shot,idle)>0)throw new AssertionError("Original sort button frames must mark only the active sort: "+label+" "+step);
+        }
+        if(!requests.isEmpty())throw new AssertionError("Sorting organizations must not send research requests");
         var row=game.computeOnClient(c->screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.AbstractWidget b&&b.getMessage().getString().equals(team.name())).map(net.minecraft.client.gui.components.AbstractWidget.class::cast).findFirst().orElseThrow());
         game.getInput().setCursorPos((row.getX()+row.getWidth()/2)*2,(row.getY()+row.getHeight()/2)*2);game.waitTicks(4);
         game.runOnClient(c->{if(screen.teamDays(tech,0)!=Math.max(1,(long)Math.floor((tech.baseDays()-tech.progress())/team.rates().get(index))))throw new AssertionError("Shell hover must use the matching HJ research rate");});
         game.takeScreenshot("hoi-research-reference-shell-hj-tooltip-"+width+"-gui2");
         if(!requests.isEmpty())throw new AssertionError("Inspecting the original shell and HJ offer must not start research");
+    }
+    private static dev.hoi.client.ui.UiMenuButton sortButton(ResearchScreen screen,String label){return screen.children().stream().filter(w->w instanceof dev.hoi.client.ui.UiMenuButton b&&b.visible&&b.active&&b.getMessage().getString().equals(label)).map(dev.hoi.client.ui.UiMenuButton.class::cast).findFirst().orElseThrow();}
+    private static int arrowPixels(java.awt.image.BufferedImage image,net.minecraft.client.gui.components.AbstractWidget button){
+        int count=0;for(int y=button.getY()*2;y<(button.getY()+button.getHeight())*2;y++)for(int x=button.getX()*2;x<(button.getX()+button.getWidth())*2;x++){int rgb=image.getRGB(x,y),r=rgb>>16&255,g=rgb>>8&255,b=rgb&255;if(r>140&&g>90&&b<110&&r-b>60)count++;}
+        return count;
     }
 }

@@ -78,6 +78,13 @@ public final class CommanderHud {
         if(training==null)UiAssets.draw(g,"commander/commands/plan_value_strip/frame_"+(card.panel().planEvaluation()==null?0:card.panel().planEvaluation()+1),bx+units.size(group?22:19),ey+units.size(.5),units.size(8),units.size(11.5));
     }
     public static List<Box> boxes(){return boxes;}
+    private static int[] cardArea;
+    public static boolean covers(double x,double y){
+        if(AgencyHud.active())return AgencyHud.containsControl(x,y);
+        var area=cardArea;
+        if(area!=null&&x>=area[0]&&x<area[0]+area[2]&&y>=area[1]&&y<area[1]+area[3])return true;
+        return CommanderPanels.hits().stream().anyMatch(hit->x>=hit.x()&&x<hit.x()+hit.w()&&y>=hit.y()&&y<hit.y()+hit.h());
+    }
     static void togglePalette(String id){paletteGroup=paletteGroup.equals(id)?"":id;boxes=List.of();}
     private static List<Box> boxes=List.of();
     private CommanderHud() {}
@@ -134,9 +141,10 @@ public final class CommanderHud {
     private static boolean backdropPass;
     static boolean backdropPass(){return backdropPass;}
     public static void drawBackdrop(GuiGraphicsExtractor g){backdropPass=true;try{draw(g,0,-1,-1);}finally{backdropPass=false;}}
+    private static int[] offsets(UiUnits units,List<Card> cards){int[] offsets=new int[cards.size()+1];for(int i=0;i<cards.size();i++){boolean group=cards.get(i).role()==Mode.ARMY_GROUP,nextGroup=i+1<cards.size()&&cards.get(i+1).role()==Mode.ARMY_GROUP;offsets[i+1]=offsets[i]+units.size(group?45:42)-units.size(group?2:.5)-units.size(nextGroup?2:.5);}return offsets;}
     private static void draw(GuiGraphicsExtractor g,int left,int mx,int my){
         if(AgencyHud.active()){boxes=List.of();CommanderCardDrag.cancel();return;}
-        tooltipBounds=null;renderedTooltip="";int sidebar=left;left=0;
+        tooltipBounds=null;renderedTooltip="";cardArea=null;int sidebar=left;left=0;
         boxes=List.of();bands=List.of();var client=Minecraft.getInstance();if(view==null||client.level==null||client.gui.hud.isHidden()||!view.country().equals(ClientCampaignHud.country())||!view.dimension().equals(client.level.dimension().identifier().toString())||left>=g.guiWidth()-65){updateHover("");return;}
         var units=CommanderLayout.units(g.guiWidth(),g.guiHeight());
         boolean navalBranch=view.branch()==Mode.NAVY_HQ;
@@ -146,23 +154,23 @@ public final class CommanderHud {
         boolean paged=groups.pages(view,columns).size()>1;
         if(paged)columns=Math.max(2,(g.guiWidth()-units.size(72))/pitch-creationSlots);
         int capacity=columns,contentWidth=g.guiWidth()-(paged?units.size(60):0);
-        var pages=groups.pages(view,capacity,theaters.cards(view));int lastPage=pages.size()-1;page=Math.clamp(page,0,lastPage);var visible=CommanderCardDrag.preview(pages.get(page));
+        var pages=groups.pages(view,capacity,theaters.cards(view));int lastPage=pages.size()-1;page=Math.clamp(page,0,lastPage);var base=pages.get(page);var visible=CommanderCardDrag.preview(base);
         var selected=CommanderUnitHud.selectedKeys().stream().sorted().toList();
         int shown=visible.size();
-        int[] offsets=new int[shown+1];for(int i=0;i<shown;i++){boolean group=visible.get(i).role()==Mode.ARMY_GROUP,nextGroup=i+1<shown&&visible.get(i+1).role()==Mode.ARMY_GROUP;offsets[i+1]=offsets[i]+units.size(group?45:42)-units.size(group?2:.5)-units.size(nextGroup?2:.5);}
+        int[] offsets=offsets(units,visible),baseOffsets=offsets(units,base);
         int bottom=CommanderLayout.cardsBottom(units),navalOffset=navalBranch?units.size(3.5):0,y=bottom-cardHeight+navalOffset;
         int stripX=Math.max(units.size(6),(contentWidth-offsets[shown]-creationSlots*pitch)/2),ordinaryX=stripX+pitch-units.size(2)-units.size(shown>0&&visible.getFirst().role()==Mode.ARMY_GROUP?2:.5);
         var list=new ArrayList<Box>();var drawnBands=new ArrayList<Band>();
         if(navalBranch){g.enableScissor(0,0,g.guiWidth(),bottom);g.pose().pushMatrix();g.pose().translate(0,(float)(3.5*units.scale()-navalOffset));}
-        for(int first=0;first<shown;){String owner=groups.owner(visible.get(first),view);int end=first+1;if(owner.isEmpty()){first=end;continue;}while(end<shown&&groups.owner(visible.get(end),view).equals(owner))end++;
-            int sx=ordinaryX+offsets[first],sy=bottom-units.size(76),sw=offsets[end]-offsets[first],sh=units.size(76),color=groups.color(owner,view);
+        for(int first=0;first<shown;){String owner=groups.owner(base.get(first),view);int end=first+1;if(owner.isEmpty()){first=end;continue;}while(end<shown&&groups.owner(base.get(end),view).equals(owner))end++;
+            int sx=ordinaryX+baseOffsets[first],sy=bottom-units.size(76),sw=baseOffsets[end]-baseOffsets[first],sh=units.size(76),color=groups.color(owner,view);
             drawnBands.add(new Band(owner,sx,sy,sw,sh,color));first=end;
         }
         bands=List.copyOf(drawnBands);
         if(view.branch()==Mode.ARMY)for(int i=0;i<shown;i++){
-            var card=visible.get(i);String owner=groups.owner(card,view);if(owner.isEmpty())continue;
-            boolean group=card.role()==Mode.ARMY_GROUP,last=i+1==shown||!groups.owner(visible.get(i+1),view).equals(owner);
-            int bx=CommanderCardDrag.x(card,ordinaryX+offsets[i]),by=bottom-units.size(79),width=group?units.size(43.75):last?units.size(42):offsets[i+1]-offsets[i];
+            var card=base.get(i);String owner=groups.owner(card,view);if(owner.isEmpty())continue;
+            boolean group=card.role()==Mode.ARMY_GROUP,last=i+1==shown||!groups.owner(base.get(i+1),view).equals(owner);
+            int bx=ordinaryX+baseOffsets[i],by=bottom-units.size(79),width=group?units.size(43.75):last?units.size(42):baseOffsets[i+1]-baseOffsets[i];
             String asset="commander/commands/lg_army_"+(group?"group":last?"end":"mid")+"_bg/";
             if(group)g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED,net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+asset+"atlas.png"),bx,by,0,0,width,units.size(75.5),175,151,350,151,0xffb29854);
             else UiAssets.drawTinted(g,asset+"frame_0",bx,by,width,units.size(last?75:74.5),0xffb29854);
@@ -184,6 +192,8 @@ public final class CommanderHud {
             g.pose().pushMatrix();g.pose().translate(addX,y);g.pose().scale(units.scale()*.5f);UiAssets.draw(g,"commander/hud/army_background/frame_0",9,7,61,83);UiAssets.draw(g,"commander/hud/army_border/frame_0",0,0,79,111);g.pose().popMatrix();
             creationBoxes.add(new Box(addX,y,cardWidth,cardHeight,new Open(Mode.NAVY_HQ,""),"함대 생성·태스크 포스 편입"));
         }
+        int areaTop=bottom-units.size(89);
+        cardArea=new int[]{stripX,areaTop,Math.max(addX+cardWidth,ordinaryX+offsets[shown])-stripX,g.guiHeight()-areaTop};
         for(int i:CommanderCardDrag.drawOrder(visible)) {
             var card=visible.get(i);boolean group=card.role()==Mode.ARMY_GROUP;
             boolean naval=view.branch()==Mode.NAVY_HQ,wing=view.branch()==Mode.AIR&&!group&&card.role()!=Mode.ASSIGN_ARMY;

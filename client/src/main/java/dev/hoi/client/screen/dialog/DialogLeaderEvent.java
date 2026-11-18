@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
 
 final class DialogLeaderEvent extends DialogScreen {
     private final BiConsumer<DialogView, String> send;
-    private int left, top, pane, panelHeight, middleHeight, optionsHeight, bodyTop, bodyBottom, scroll, total, page, capacity;
+    private int left, top, pane, panelHeight, middleHeight, optionsHeight, bodyTop, bodyBottom, scroll, total, page, capacity, titleHeight, shift;
     private double scale;
     private boolean pending;
     private boolean dragging;
@@ -24,6 +24,9 @@ final class DialogLeaderEvent extends DialogScreen {
     @Override public int scrollOffset() { return scroll; }
     private int units(double value) { return (int)Math.round(value * scale); }
     int[] bounds(double x, double y, double w, double h) { return new int[]{left + units(x), top + units(y), units(w), units(h)}; }
+    @Override int[] eventHeadingBounds() { return new int[]{left + units(14), top + units(70), units(551), titleHeight}; }
+    @Override int[] eventBodyBounds() { return new int[]{left + units(198), bodyTop, units(350), bodyBottom - bodyTop}; }
+    int[] portraitBounds() { int[] portrait = bounds(43, 125, 156 * .85, 210 * .85); portrait[1] += shift; return portrait; }
     String portraitPath() { return UiAssets.imageHeight(view().image(), 156) > 0 ? view().image() : "politics/empty/leader"; }
     @Override public void update(DialogView next) {
         if (!view().token().equals(next.token()) || next.revision() < view().revision()) return;
@@ -41,28 +44,30 @@ final class DialogLeaderEvent extends DialogScreen {
         double screenScale = Math.min(width / 1280.0, height / 720.0);
         pane = Math.min(width - 16, Math.max(240, (int)Math.round(605 * .5 * screenScale)));
         scale = pane / 605.0;
+        titleHeight = Math.max(units(32), eventTitleHeight(units(551)));
+        shift = Math.max(0, units(70) + titleHeight + 12 - units(121));
         total = dev.hoi.client.ui.tooltip.Tooltips.split(font,bodyText(), Math.max(1, (int)(units(350) / textScale()))).size() * 12;
-        int buttonHeight = Math.max(units(48), view().choices().stream().mapToInt(c -> UiMenuButton.labelHeight(font, c.label(), units(352), textScale())).max().orElse(0));
+        int buttonHeight = Math.max(units(48), view().choices().stream().mapToInt(c -> UiMenuButton.labelHeight(font, c.label(), units(352), textScale(), true)).max().orElse(0));
         boolean wrapped = buttonHeight > units(48);
         int slotHeight = wrapped ? buttonHeight + 2 : units(47);
-        int available = Math.max(1, height - 16 - units(121 + 68));
+        int available = Math.max(1, height - 16 - units(121 + 68) - shift);
         capacity = Math.clamp((available - units(197.2 + 10) - 24) / Math.max(1, slotHeight), 1, 24);
         int pages = Math.max(1, (view().choices().size() + capacity - 1) / capacity);
         page = Math.clamp(page, 0, pages - 1);
         int shown = Math.min(capacity, Math.max(0, view().choices().size() - page * capacity));
         optionsHeight = (wrapped ? units(10) + shown * slotHeight : units(10 + shown * 47)) + (pages > 1 ? 24 : 0);
         middleHeight = Math.min(Math.max(units(235), total), Math.max(1, available - optionsHeight));
-        panelHeight = units(121 + 68) + middleHeight + optionsHeight;
+        panelHeight = units(121 + 68) + shift + middleHeight + optionsHeight;
         left = Math.clamp(width / 2 - units(282) + offsetX, 8, Math.max(8, width - pane - 8));
         top = Math.clamp((height - panelHeight) / 2 + offsetY, 8, Math.max(8, height - panelHeight - 8));
         dragging = false;
-        bodyTop = top + units(121);
+        bodyTop = top + units(121) + shift;
         bodyBottom = bodyTop + middleHeight;
         scroll = Math.clamp(scroll, 0, Math.max(0, total - bodyViewportHeight()));
         minimizeButton(left + units(10), top + units(45), units(33));
         for (int i = 0; i < shown; i++) {
             var choice = view().choices().get(page * capacity + i);
-            var button = new UiMenuButton(choice.label(), left + units(115), bodyBottom + (wrapped ? units(10) + i * slotHeight : units(10 + i * 47)), units(352), buttonHeight, () -> choose(choice.id())).background("events/leader/choice").textShadow(false).wrapLabel();
+            var button = new UiMenuButton(choice.label(), left + units(115), bodyBottom + (wrapped ? units(10) + i * slotHeight : units(10 + i * 47)), units(352), buttonHeight, () -> choose(choice.id())).background("events/leader/choice").textShadow(false).wrapLabel().bold();
             button.textScale(textScale());
             button.active = !pending;
             choiceTooltip(button, choice);
@@ -97,13 +102,14 @@ final class DialogLeaderEvent extends DialogScreen {
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         if (!stacked) g.fill(0, 0, width, height, 0x70000000);
         sprite(g, "top", 0, 0, 605, 123);
-        tile(g, "middle", bodyTop, middleHeight);
+        tile(g, "middle", bodyTop - shift, shift + middleHeight);
         tile(g, "options", bodyBottom, optionsHeight);
         UiAssets.draw(g, "events/leader/end", left + units(1), bodyBottom + optionsHeight, units(605), units(68));
-        int[] portrait = bounds(43, 125, 156 * .85, 210 * .85);
+        int[] portrait = portraitBounds(), frame = bounds(35, 116, 172 * .85, 232 * .85);
         UiAssets.draw(g, portraitPath(), portrait[0], portrait[1], portrait[2], portrait[3]);
-        sprite(g, "frame", 35, 116, 172 * .85, 232 * .85);
-        eventTitle(g, left + units(14), top + units(70), units(551), Math.max(units(32), (int)Math.ceil(font.lineHeight * eventTitleScale(units(551)))), 0xff000000, false);
+        UiAssets.draw(g, "events/leader/frame", frame[0], frame[1] + shift, frame[2], frame[3]);
+        int[] title = eventHeadingBounds();
+        eventTitle(g, title[0], title[1], title[2], title[3], 0xff000000, false);
         g.enableScissor(left + units(198), bodyTop, left + units(548), bodyBottom);
         int y = bodyTop - scroll;
         for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,bodyText(), Math.max(1, (int)(units(350) / textScale())))) {

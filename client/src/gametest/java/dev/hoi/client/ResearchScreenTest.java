@@ -934,7 +934,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         context.setScreen(()->new ResearchScreen(view,requests::add));context.waitTicks(2);context.takeScreenshot("hoi-tfr-benefits-slots");
         context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().startsWith("제한된 혜택")),"Limited benefits is a passive indicator"));
         click(context,"슬롯 1 · "+view.technology(view.slots().getFirst().technology()).name());context.waitTicks(2);
-        click(context,"×");context.waitTicks(2);
+        closeTop(context);context.waitTicks(2);
         for(var tab:List.of("보병","지상 & 항공 지원","기갑","포","해군","해군 지원 장비","공군","산업","공학")) {
             click(context,tab);context.waitTicks(2);context.takeScreenshot("hoi-tfr-tree-"+List.of("보병","지상 & 항공 지원","기갑","포","해군","해군 지원 장비","공군","산업","공학").indexOf(tab));
         }
@@ -980,7 +980,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             for (int i=0;i<60;i++) screen.keyPressed(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT,0,0));
             screen.keyPressed(ENTER);
         });
-        context.waitTicks(2); context.takeScreenshot("hoi-industry-rearranged-compact-detail"); click(context,"×");
+        context.waitTicks(2); context.takeScreenshot("hoi-industry-rearranged-compact-detail"); closeTop(context);
         context.getInput().resizeWindow(1600,1000); context.waitTicks(3); click(context,"공학"); context.waitTicks(2);
         context.runOnClient(client->{var screen=(ResearchScreen)client.gui.screen();screen.clearFocus();screen.keyPressed(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT,0,0));screen.keyPressed(ENTER);});
         context.waitTicks(2);context.takeScreenshot("hoi-tfr-source-detail");click(context,"연구");
@@ -1197,6 +1197,9 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         context.runOnClient(client -> check(!client.options.keyUp.isDown() && client.gui.screen() instanceof dev.hoi.client.screen.focus.FocusScreen, "Full focus tree releases sidebar movement"));
         context.getInput().releaseKey(o -> o.keyUp); context.setScreen(() -> null); context.waitTicks(2);
         context.runOnClient(client -> check(!client.options.keyUp.isDown() && !client.options.keyJump.isDown() && !client.options.keyShift.isDown(), "No stuck movement on close"));
+    }
+    private static void closeTop(ClientGameTestContext context) {
+        context.runOnClient(client -> client.gui.screen().children().stream().filter(c -> c instanceof Button b && b.active && b.getMessage().getString().equals("×")).map(c -> (Button)c).reduce((first, last) -> last).orElseThrow(() -> new AssertionError("Missing close button")).onPress(ENTER));
     }
     private static void click(ClientGameTestContext context, String label) {
         context.runOnClient(client -> {

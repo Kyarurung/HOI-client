@@ -14,7 +14,7 @@ public class DialogScreen extends Screen {
     static final float EVENT_TITLE_SCALE = 1.5f;
     private DialogView view;
     private final java.util.function.BiConsumer<DialogView, String> send;
-    private boolean pending;
+    private boolean pending, textAssets;
     boolean stacked;
     Runnable minimize;
     private final Map<UiMenuButton, DialogView.Choice> choiceTooltips = new LinkedHashMap<>();
@@ -24,7 +24,7 @@ public class DialogScreen extends Screen {
     private int tooltipScroll;
     private int left, top, pane, panelHeight, bodyTop, bodyBottom, scroll, total, choicePage, quoteViewport;
     private double frameScale;
-    private int bodyLeft, bodyWidth, bottomTop, middleHeight;
+    private int bodyLeft, bodyWidth, bottomTop, middleHeight, newsShift;
     private int[] eventPicture = new int[4], eventHeading = new int[4];
     private List<String> displayedEventChoices = List.of();
     public DialogScreen(DialogView view) { this(view, DialogCoordinator::choose); }
@@ -32,7 +32,10 @@ public class DialogScreen extends Screen {
     public DialogView view() { return view; }
     boolean minimizable() { return !view.choices().isEmpty() && (view.kind() == DialogView.Kind.EVENT || view.kind() == DialogView.Kind.GLOBAL_EVENT); }
     public dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip tooltipBounds() { return tooltipBounds; }
-    void resetChoiceTooltips() { choiceTooltips.clear(); tooltipBounds = null; tooltipText.clear(); }
+    void resetChoiceTooltips() {
+        choiceTooltips.clear(); tooltipBounds = null; tooltipText.clear();
+        if (!textAssets && minecraft != null) { tooltipText.load(minecraft.getResourceManager()); textAssets = true; }
+    }
     void choiceTooltip(UiMenuButton button, DialogView.Choice choice) {
         button.setTooltip(null);
         button.active = button.active && !pending;
@@ -53,7 +56,7 @@ public class DialogScreen extends Screen {
             id = choice.id(); text = choice.tooltip();
             float scale = Math.max(dev.hoi.client.ui.UiText.scale(font), textScale() + 1f / font.lineHeight);
             if (text.isEmpty() && font.width(choice.label()) * scale > button.getWidth() - 6
-                    && dev.hoi.client.ui.UiMenuButton.labelHeight(font, choice.label(), button.getWidth(), textScale()) > button.getHeight()) text = choice.label();
+                    && dev.hoi.client.ui.UiMenuButton.labelHeight(font, choice.label(), button.getWidth(), textScale(), boldEvent()) > button.getHeight()) text = choice.label();
             break;
         }
         if (!id.equals(hoveredChoice)) { hoveredChoice = id; tooltipScroll = 0; }
@@ -95,7 +98,7 @@ public class DialogScreen extends Screen {
         return rows;
     }
     private void addBodyText(List<BodyRow> rows, List<String> text, int wrap) {
-        var lines = dev.hoi.client.ui.tooltip.Tooltips.split(font, tooltipText.component(String.join("\n", text)), wrap);
+        var lines = dev.hoi.client.ui.tooltip.Tooltips.split(font, tooltipText.component(String.join("\n", text)).copy().withStyle(net.minecraft.ChatFormatting.BOLD), wrap);
         text.clear();
         if (lines.isEmpty()) return;
         if (!rows.isEmpty() && rows.getLast().image() != null) rows.add(new BodyRow(net.minecraft.util.FormattedCharSequence.EMPTY, null, 0, 0));
@@ -116,29 +119,40 @@ public class DialogScreen extends Screen {
     List<String> displayedEventChoices() { return displayedEventChoices; }
     float textScale() { return dev.hoi.client.ui.UiText.scale(font); }
     float eventTitleRatio() { return EVENT_TITLE_SCALE; }
-    float eventTitleScale(int width) {
+    float eventTitleScale() { return textScale() * eventTitleRatio(); }
+    private int eventTitlePitch() { return (int)Math.ceil(font.lineHeight * eventTitleScale()); }
+    private List<net.minecraft.network.chat.FormattedText> eventTitleRows(int width) {
         var title = tooltipText.component(view().title()).copy().withStyle(net.minecraft.ChatFormatting.BOLD);
-        float enlarged = textScale() * eventTitleRatio();
-        return font.width(title) * enlarged <= width ? enlarged : textScale();
+        return font.getSplitter().splitLines(title, Math.max(1, (int)(width / eventTitleScale())), net.minecraft.network.chat.Style.EMPTY);
     }
+    private float eventTitleBlock(int lines) { return (Math.max(1, lines) - 1) * eventTitlePitch() + font.lineHeight * eventTitleScale(); }
+    int eventTitleLines(int width) { return Math.max(1, eventTitleRows(width).size()); }
+    int eventTitleHeight(int width) { return (int)Math.ceil(eventTitleBlock(eventTitleLines(width))); }
     void eventTitle(GuiGraphicsExtractor g, int x, int y, int width, int height, int color, boolean shadow) {
-        float scale = eventTitleScale(width);
-        var title = tooltipText.component(view().title()).copy().withStyle(net.minecraft.ChatFormatting.BOLD);
-        int available = Math.max(1, (int)(width / scale));
-        if (font.width(title) > available) {
+        float scale = eventTitleScale();
+        int pitch = eventTitlePitch(), available = Math.max(1, (int)(width / scale));
+        var rows = new ArrayList<>(eventTitleRows(width));
+        int fit = Math.max(1, 1 + (int)Math.floor((height - font.lineHeight * scale) / pitch));
+        if (rows.size() > fit) {
             var marker = Component.literal("…").withStyle(net.minecraft.ChatFormatting.BOLD);
-            title = dev.hoi.client.ui.tooltip.Tooltips.sourceSpacing(font.substrByWidth(title, Math.max(0, available - font.width(marker)))).copy().append(marker);
+            rows.set(fit - 1, net.minecraft.network.chat.FormattedText.composite(font.substrByWidth(rows.get(fit - 1), Math.max(0, available - font.width(marker))), marker));
+            rows.subList(fit, rows.size()).clear();
         }
-        g.pose().pushMatrix();
-        g.pose().translate(Math.round(x + (width - font.width(title) * scale) / 2), Math.round(y + (height - font.lineHeight * scale) / 2));
-        g.pose().scale(scale);
-        g.text(font, title, 0, 0, color, shadow);
-        g.pose().popMatrix();
+        int top = Math.round(y + (height - eventTitleBlock(rows.size())) / 2);
+        for (int i = 0; i < rows.size(); i++) {
+            var line = net.minecraft.locale.Language.getInstance().getVisualOrder(rows.get(i));
+            g.pose().pushMatrix();
+            g.pose().translate(Math.round(x + (width - font.width(line) * scale) / 2), top + i * pitch);
+            g.pose().scale(scale);
+            g.text(font, line, 0, 0, color, shadow);
+            g.pose().popMatrix();
+        }
     }
+    boolean boldEvent() { return sourceEvent() || view.leaderEvent(); }
     public Component bodyText() {
-        if (sourceEvent()) return tooltipText.component(view.body());
-        var body=dev.hoi.client.ui.tooltip.Tooltips.sourceSpacing(Component.literal(view.body()));
-        return dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(body,false);
+        Component body = sourceEvent() ? tooltipText.component(view.body())
+                : dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(dev.hoi.client.ui.tooltip.Tooltips.sourceSpacing(Component.literal(view.body())),false);
+        return boldEvent() ? body.copy().withStyle(net.minecraft.ChatFormatting.BOLD) : body;
     }
     @Override protected void init() {
         resetChoiceTooltips();
@@ -190,7 +204,7 @@ public class DialogScreen extends Screen {
         if (!view.flag().isEmpty() && UiAssets.draw(g, view.flag(), start, top + 34, 27, 18)) start += 35;
         if (paper()) {
             int titleWidth = left + pane - 14 - start;
-            int titleTop = top + Math.min(32, 48 - (int)Math.ceil(font.lineHeight * eventTitleScale(titleWidth)));
+            int titleTop = top + Math.min(32, 48 - (int)Math.ceil(font.lineHeight * eventTitleScale()));
             eventTitle(g, start, titleTop, titleWidth, 18, ink, false);
         }
         else text(g, net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(dev.hoi.client.ui.tooltip.Tooltips.officerText(view.title(), true), (int)((left + pane - 14 - start) / textScale()))), start, top + 35, ink);
@@ -242,7 +256,7 @@ public class DialogScreen extends Screen {
         pane = units(nativeWidth);
         int choiceWidth = units(wide ? 300 : 352);
         int choiceHeight = Math.max(units(wide ? 35 : 48), view.choices().stream()
-                .mapToInt(c -> UiMenuButton.labelHeight(font, c.label(), choiceWidth, textScale())).max().orElse(0));
+                .mapToInt(c -> UiMenuButton.labelHeight(font, c.label(), choiceWidth, textScale(), true)).max().orElse(0));
         int slotHeight = Math.max(units(news ? 47 : 45), choiceHeight + (choiceHeight > units(48) ? 2 : 0));
         int capacity = wide ? 1 : 3;
         if (!wide && !news) capacity = Math.clamp((height - 16 - units(123 + 250 + 70) - 48) / Math.max(1, slotHeight), 1, 3);
@@ -257,6 +271,10 @@ public class DialogScreen extends Screen {
         int imageWidth = units(original[0] * imageScale), imageHeight = units(original[1] * imageScale);
         bodyWidth = units(wide ? 500 : news ? 560 : 526);
         total = bodyRows().stream().mapToInt(BodyRow::rowHeight).sum();
+        int headingWidth = units(wide ? 490 : news ? 460 : 551), titleHeight = eventTitleHeight(headingWidth), oneLine = (int)Math.ceil(eventTitleBlock(1));
+        int headingTop = units(wide ? 20 : news ? 106 : 70), headingHeight = Math.max(units(wide ? 20 : 32), titleHeight);
+        if (wide && titleHeight > oneLine) { headingTop = units(5); headingHeight = units(60); }
+        newsShift = news ? headingHeight - Math.max(units(32), oneLine) : 0;
         int optionTop;
         int imageTop;
         if (wide) {
@@ -267,14 +285,14 @@ public class DialogScreen extends Screen {
             imageTop = units(30);
         } else if (news) {
             panelHeight = units(935);
-            bodyTop = units(325);
+            bodyTop = units(325) + newsShift;
             bodyBottom = bodyTop + Math.max(12, Math.min(total, Math.min(units(475), units(800) - optionsHeight - units(18) - bodyTop)) / 12 * 12);
             optionTop = bodyBottom + units(18);
-            imageTop = units(164);
+            imageTop = units(164) + newsShift;
         } else {
             imageTop = Math.max(units(130), optionsHeight - units(15) + units(12));
             int bottomHeight = Math.max(units(450), imageTop + Math.max(imageHeight, units(250)) + units(70));
-            bodyTop = units(110);
+            bodyTop = headingTop + headingHeight + 12;
             int bodyHeight = Math.max(12, Math.min((Math.max(units(70), total) + 11) / 12 * 12,
                     (height - 16 - bodyTop - units(43) - bottomHeight) / 12 * 12));
             bodyBottom = bodyTop + bodyHeight;
@@ -291,15 +309,14 @@ public class DialogScreen extends Screen {
         bodyTop += top;
         bodyBottom += top;
         bottomTop += top;
-        eventHeading = new int[]{left + units(wide ? 260 : news ? 120 : 22), top + units(wide ? 20 : news ? 106 : 70),
-                units(wide ? 490 : news ? 460 : 551), Math.max(units(wide ? 20 : 32), (int)Math.ceil(font.lineHeight * eventTitleScale(units(wide ? 490 : news ? 460 : 551))))};
+        eventHeading = new int[]{left + units(wide ? 260 : news ? 120 : 22), top + headingTop, headingWidth, headingHeight};
         eventPicture = new int[]{left + units(wide ? 0 : news ? 150 : 49), top + imageTop, imageWidth, imageHeight};
         scroll = Math.clamp(scroll, 0, Math.max(0, total - bodyViewportHeight()));
         minimizeButton(left + units(news ? 45 : 35), top + units(news ? 20 : 45), units(33));
         for (int i = 0; i < shown; i++) {
             var choice = view.choices().get(choicePage * capacity + i);
             var button = new UiMenuButton(choice.label(), left + units(wide ? 350 : news ? 180 : 115), top + optionTop + i * slotHeight,
-                    choiceWidth, choiceHeight, () -> choose(choice.id())).background(wide ? "events/frame/spacebar" : "events/leader/choice").textShadow(false).wrapLabel();
+                    choiceWidth, choiceHeight, () -> choose(choice.id())).background(wide ? "events/frame/spacebar" : "events/leader/choice").textShadow(false).wrapLabel().bold();
             button.textScale(textScale());
             button.sound(wide ? "ui.confirm" : "ui.click");
             if (wide) button.setTooltip(null);
@@ -326,7 +343,7 @@ public class DialogScreen extends Screen {
         } else if (news) {
             UiAssets.draw(g, "events/frame/news", left, top, pane, panelHeight);
             UiAssets.draw(g, view.image(), eventPicture[0], eventPicture[1], eventPicture[2], eventPicture[3]);
-            UiAssets.draw(g, "events/frame/news_overlay", left + units(143), top + units(160), units(415), units(155));
+            UiAssets.draw(g, "events/frame/news_overlay", left + units(143), top + units(160) + newsShift, units(415), units(155));
         } else {
             UiAssets.draw(g, "events/leader/top", left, top, pane, units(123));
             tileEventMiddle(g);

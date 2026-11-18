@@ -204,9 +204,9 @@ public final class AgencyHud {
         var regions = new ArrayList<Hit>();
         var recruit = current.items().stream().filter(item -> item.id().equals("recruit")).findFirst().orElse(null);
         int count = Math.max(current.operatives().size(), current.operativeCapacity() == null ? 0 : current.operativeCapacity());
-        int capacity = Math.max(1, (g.guiWidth() - left - 16) / 40);
+        int capacity = Math.max(1, (g.guiWidth() - 16) / 40);
         page = Math.clamp(page, 0, Math.max(0, count - capacity));
-        int x = Math.max(left + 4, left + (g.guiWidth() - left - Math.min(capacity, count) * 40) / 2), y = g.guiHeight() - 75;
+        int x = Math.max(4, (g.guiWidth() - Math.min(capacity, count) * 40) / 2), y = g.guiHeight() - 75;
         for (var operative : current.operatives().subList(Math.min(page, current.operatives().size()), Math.min(current.operatives().size(), page + capacity))) {
             boolean highlighted = operative.id().equals(selected);
             var operation = current.operations().stream().filter(value -> value.id().equals(operative.operation())).findFirst().orElse(null);
@@ -262,7 +262,7 @@ public final class AgencyHud {
         }
         var operative = current.operatives().stream().filter(value -> value.id().equals(selected)).findFirst().orElse(null);
         if (operative != null) {
-            int barX = left + (g.guiWidth() - left - 201) / 2, barY = g.guiHeight() - 105;
+            int barX = (g.guiWidth() - 201) / 2, barY = g.guiHeight() - 105;
             UiAssets.draw(g, sprite("operative_missionbar_bg") + "/frame_0", barX, barY, 201, 40);
             var missionItem = current.items().stream().filter(item -> item.id().equals("mission:" + operative.id())).findFirst().orElse(null);
             for (int i = 0; i < MISSIONS.length; i++) {

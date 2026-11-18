@@ -42,8 +42,6 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private IndustryView view;
     private final List<net.minecraft.client.gui.components.Renderable> passiveWidgets = new ArrayList<>();
     private final Map<String,Equipment> equipmentById=new HashMap<>();
-    private Map<String,Integer> productionTargets=Map.of();
-    private Map<String,Long> productionShortages=Map.of();
     private final Map<String,Equipment> equipmentBySource=new HashMap<>();
     private final Map<String,String> navalFamilyByTexture=new HashMap<>();
     private final Map<String,IndustryTankDesigner.Slot> designSlots=new HashMap<>();
@@ -154,8 +152,6 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         equipmentById.clear();equipmentBySource.clear();navalFamilyByTexture.clear();designSlots.clear();templatesById.clear();repairShipsById.clear();
         militaryFactories=0;navalFactories=0;
         if(view==null)return;
-        var demand=IndustryProductionIndicators.demand(view.equipment());
-        productionTargets=demand.targets();productionShortages=demand.shortages();
         for(var e:view.equipment()) {
             equipmentById.putIfAbsent(e.id(),e);
             if(e.sourceEquipment()!=null)equipmentBySource.putIfAbsent(e.sourceEquipment(),e);
@@ -470,9 +466,9 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         var priorityDown = originalButton("생산 라인 한 칸 아래로", "construction/ui/down", controlsX, priorityDownY, priorityWidth, priorityHeight, index < view.lines().size() - 1,
                 () -> send(DOWN, line.id(), "", dev.hoi.client.ui.UiPriorityControls.shifted() ? 1 : 0), "construction/ui/down_disabled");
         if (priorityDown != null) priorityDown.setTooltip(Tooltips.create(dev.hoi.client.ui.UiPriorityControls.tooltip(false)));
-        if(!e.naval())productionStock(e, infoX, dy.applyAsInt(78)+demandOffset, x.applyAsInt(275) - infoX, Math.round(22 * scale));
-        if(!e.naval()&&productionTargets.containsKey(e.id())) {
-            int target=productionTargets.getOrDefault(e.id(),0);
+        if(!e.naval())productionStock(line, e, infoX, dy.applyAsInt(78)+demandOffset, x.applyAsInt(275) - infoX, Math.round(22 * scale));
+        if(!e.naval()&&line.needState()!=null) {
+            int target=line.needState();
             int offset=2*demandOffset;
             art("production/line/target_"+target,x.applyAsInt(248),dy.applyAsInt(50)+offset,Math.round(27*scale),Math.round(24*scale));
             productionTip(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip(IndustryProductionIndicators.targetKey(target)),x.applyAsInt(248),dy.applyAsInt(50)+offset,Math.round(27*scale),Math.round(24*scale));
@@ -514,7 +510,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 }
             };
             button.active = pending == 0;
-            button.setTooltip(Tooltips.createExact(IndustryProductionTooltips.equipment(view,line,equipment,productionShortages.get(equipment.id()))));
+            button.setTooltip(Tooltips.createExact(IndustryProductionTooltips.equipment(view,line,equipment,IndustryProductionTooltips.shortage(line))));
             addRenderableWidget(button);
         }
         if (graphics != null) {
@@ -522,8 +518,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             IndustryProductionRender.text(graphics,font,equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),6+Math.round(157*scale),y+Math.round(34*scale),Math.round(118*scale),Math.round(21*scale),TEXT);
         }
         if (!equipment.naval()) {
-            productionStock(equipment,6+Math.round(281*scale),y+Math.round(34*scale),Math.round(39*scale),Math.round(23*scale));
-            if (productionTargets.containsKey(equipment.id())) art("production/line/target_"+productionTargets.get(equipment.id()),6+Math.round(320*scale),y+Math.round(32*scale),Math.round(27*scale),Math.round(24*scale));
+            productionStock(line,equipment,6+Math.round(281*scale),y+Math.round(34*scale),Math.round(39*scale),Math.round(23*scale));
+            if (line.needState()!=null) art("production/line/target_"+line.needState(),6+Math.round(320*scale),y+Math.round(32*scale),Math.round(27*scale),Math.round(24*scale));
         }
         int index=0;
         for(var resource:(line.conversion()!=null&&line.conversion().source()!=null?line.conversion().resources():equipment.resources()).entrySet()) {
@@ -535,7 +531,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private static String productionDaily(double daily) {
         return IndustryEquipmentDesigns.tooltip("PRODUCTION_PRODUCING_DAILY").replace("$AMOUNT$", String.format(Locale.ROOT, "%.2f", daily));
     }
-    private void productionStock(Equipment equipment, int x, int y, int w, int h) {
+    private void productionStock(IndustryView.Line line, Equipment equipment, int x, int y, int w, int h) {
         if(graphics!=null)return;
         int offset=Math.round(new dev.hoi.client.ui.UiUnits(width,height).length(1));
         var button=new UiPanelButton(equipment.name()+" · 재고량 · 군수 보기",x,y,w,h,()->{
@@ -545,7 +541,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             rebuildWidgets();
         }) {
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
-                UiText.cell(g,font,IndustryLogisticsRows.stockLabel(equipment.stockpile()),x-offset,y,w,h,productionTargets.getOrDefault(equipment.id(),0)>0?GOLD:GOOD,true);
+                UiText.cell(g,font,IndustryLogisticsRows.stockLabel(line.needValue()==null?equipment.stockpile():line.needValue()),x-offset,y,w,h,line.needState()!=null&&line.needState()>0?GOLD:GOOD,true);
             }
         };
         button.active=pending==0;
@@ -586,7 +582,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 IndustryProductionRender.text(g,font,waiting?dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOYMENT_NOT_DEPLOYABLE"):equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),rateX,rateY-1,rateWidth,rateHeight,!waiting&&line.daily()>0?TEXT:BAD);
             }
         };
-        button.active=pending==0;button.setTooltip(Tooltips.createExact(waiting?IndustryProductionTooltips.navalWaiting(view,line):IndustryProductionTooltips.equipment(view,line,equipment,productionShortages.get(equipment.id()))));addRenderableWidget(button);
+        button.active=pending==0;button.setTooltip(Tooltips.createExact(waiting?IndustryProductionTooltips.navalWaiting(view,line):IndustryProductionTooltips.equipment(view,line,equipment,IndustryProductionTooltips.shortage(line))));addRenderableWidget(button);
         return x+w;
     }
     static int productionFactoryState(int start,int step,int normal,int damaged,int reserved,int assigned,int preview) {

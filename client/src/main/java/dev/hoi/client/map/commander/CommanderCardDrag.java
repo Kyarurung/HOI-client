@@ -10,7 +10,7 @@ final class CommanderCardDrag {
     private static List<Slot> slots=List.of();
     private static String id="",gesture="";
     private static double start,position,destination;
-    private static int creationX,rightLimit;
+    private static int creationX,rightLimit,leftLimit;
     private static boolean dragging;
     private static Drop queued;
     private static String queuedId="",queuedToken="";
@@ -54,24 +54,24 @@ final class CommanderCardDrag {
         visible.sort(Comparator.comparingInt(Slot::x));
         creationX=boxes.stream().filter(b->b.request()!=null&&b.request().mode()==Mode.CREATE_ARMY).mapToInt(CommanderHud.Box::x).findFirst().orElse(Integer.MAX_VALUE);
         rightLimit=boxes.stream().filter(b->b.request()!=null&&b.request().mode()==Mode.CREATE_ARMY).mapToInt(b->b.x()+b.width()).findFirst().orElse(visible.getLast().x()+visible.getLast().width());
+        leftLimit=Math.min(visible.getFirst().x(),boxes.stream().filter(b->b.request()!=null&&b.request().mode()==Mode.ARMY_GROUPS).mapToInt(CommanderHud.Box::x).findFirst().orElse(Integer.MAX_VALUE));
         source=view;slots=List.copyOf(visible);id=card.id();start=position=destination=x;dragging=false;gesture=CommanderOrders.gestureContext();return true;
     }
     static boolean move(double x){
         if(id.isEmpty())return false;if(!gesture.equals(CommanderOrders.gestureContext())){cancel();return true;}
         dragging|=Math.abs(x-start)>=3;
-        var origin=slots.stream().filter(s->s.card().id().equals(id)).findFirst().orElseThrow();
-        if(origin.card().role()==Mode.ASSIGN_ARMY||origin.card().role()==Mode.ARMY_GROUP)x=start+Math.clamp(x-start,-origin.width(),origin.width());
         var block=slots.stream().filter(s->moves(s.card())).toList();int left=block.getFirst().x(),right=block.getLast().x()+block.getLast().width();
-        destination=Math.clamp(x,slots.getFirst().x(),rightLimit);position=start+Math.clamp(x-start,slots.getFirst().x()-left,rightLimit-right);return true;
+        destination=Math.clamp(x,leftLimit,rightLimit);position=start+Math.clamp(x-start,leftLimit-left,rightLimit-right);return true;
     }
     private static Drop destinationDrop(){
+        if(destination<=slots.getFirst().x())return edgeDrop(source,slots,id,true);
         if(destination<creationX)return drop(source,slots,id,destination);
-        return endDrop(source,slots,id);
+        return edgeDrop(source,slots,id,false);
     }
-    static Drop endDrop(View view,List<Slot> visible,String id){
+    static Drop edgeDrop(View view,List<Slot> visible,String id,boolean front){
         var card=view.cards().stream().filter(c->c.id().equals(id)).findFirst().orElseThrow();
         var siblings=siblings(view,card,parent(card));var shown=new HashSet<String>();for(var slot:visible)shown.add(slot.card().id());
-        var order=new ArrayList<>(siblings.stream().map(Card::id).filter(shown::contains).filter(key->!key.equals(id)).toList());order.add(id);
+        var order=new ArrayList<>(siblings.stream().map(Card::id).filter(shown::contains).filter(key->!key.equals(id)).toList());order.add(front?0:order.size(),id);
         var reordered=order.iterator();var complete=new ArrayList<String>();for(var sibling:siblings)complete.add(shown.contains(sibling.id())?reordered.next():sibling.id());
         return new Drop(parent(card),complete);
     }
@@ -82,6 +82,7 @@ final class CommanderCardDrag {
         var moving=block.getFirst();int index=result.size();if(source.branch()==Mode.NAVY_HQ)for(int n=0;n<result.size();n++)if(result.get(n).role()==Mode.NAVY_HQ){index=n;break;}var order=drop.order();int own=order.indexOf(id);
         for(int i=own+1;i<order.size();i++){String next=order.get(i);int found=-1;for(int n=0;n<result.size();n++)if(result.get(n).id().equals(next)){found=n;break;}if(found>=0){index=found;break;}}
         if(moving.role()==Mode.ASSIGN_ARMY&&!drop.parent().isEmpty()&&own==order.size()-1){for(int n=0;n<result.size();n++)if(result.get(n).id().equals(drop.parent())||parent(result.get(n)).equals(drop.parent()))index=n+1;}
+        if(moving.role()==Mode.ARMY_GROUP&&index==result.size()){index=0;for(int n=0;n<result.size();n++)if(result.get(n).role()==Mode.ARMY_GROUP||!CommanderHud.groups.owner(result.get(n),source).isEmpty())index=n+1;}
         result.addAll(index,block);return result;
     }
     static int x(Card card,int normal){

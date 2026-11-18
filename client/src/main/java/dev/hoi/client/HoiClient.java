@@ -22,11 +22,11 @@ public final class HoiClient implements ClientModInitializer {
         ResearchPayloads.registerPayloadTypes();
         ClientCampaignHud.register();
         dev.hoi.client.input.InputMapInfo.register();
-        dev.hoi.client.map.commander.CommanderUnitHud.register();
         dev.hoi.client.map.commander.CommanderSelectorHud.register();
         dev.hoi.client.map.commander.CommanderHud.register();
         dev.hoi.client.map.agency.AgencyHud.register();
         dev.hoi.client.map.agency.AgencyRaidHud.register();
+        dev.hoi.client.map.commander.CommanderUnitHud.register();
         dev.hoi.client.map.MapOccupationHud.register();
         DialogCoordinator.register();
         dev.hoi.protocol.audio.AudioPayloads.registerPayloadTypes();

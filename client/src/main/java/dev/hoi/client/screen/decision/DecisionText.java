@@ -62,6 +62,24 @@ public final class DecisionText {
         sprites=root.get("sprites") instanceof JsonObject entries?Set.copyOf(entries.keySet()):Set.of();
         clear();
     }
+    public JsonObject load(net.minecraft.server.packs.resources.ResourceManager resources) {
+        flags(new JsonObject());
+        var flagFile=resources.getResource(Identifier.parse("hoi:ui/decision_flags.json"));
+        if(flagFile.isPresent())try(var input=flagFile.get().open()) {
+            byte[] bytes=input.readNBytes(262145);
+            if(bytes.length<=262144)flags(com.google.gson.JsonParser.parseString(new String(bytes,java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject());
+        } catch(Exception invalid) {flags(new JsonObject());}
+        var resource=resources.getResource(Identifier.parse("hoi:ui/decision_assets.json"));
+        if(resource.isEmpty())return null;
+        try(var input=resource.get().open()) {
+            byte[] bytes=input.readNBytes(4194305);
+            if(bytes.length>4194304)return null;
+            var root=com.google.gson.JsonParser.parseString(new String(bytes,java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+            if(root.get("version").getAsInt()!=1)return null;
+            assets(root);
+            return root;
+        } catch(Exception invalid) {return null;}
+    }
     public Component component(String text) {
         return Tooltips.sourceSpacing(sourceComponent(text,false));
     }
@@ -115,7 +133,7 @@ public final class DecisionText {
                 if(matcher.group(2)!=null) {
                     String glyph=flags.get(matcher.group(2));
                     result.append(glyph==null?original:Component.literal(glyph)
-                            .withStyle(Style.EMPTY.withFont(FLAG_FONT).withColor(0xFFFFFF).withShadowColor(0)));
+                            .withStyle(Style.EMPTY.withFont(FLAG_FONT).withColor(0xFFFFFF).withShadowColor(0).withBold(false)));
                 } else {
                     boolean image=preserveImages && lines[lineIndex].strip().equals(matcher.group()) && (images.containsKey(matcher.group(1))
                             || sprites.contains(matcher.group(1)) || sprites.contains("GFX_"+matcher.group(1)));

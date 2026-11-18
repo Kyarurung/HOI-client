@@ -20,9 +20,10 @@ public final class UiMenuButton extends Button {
     private boolean bold;
     public UiMenuButton bold() { bold = true; return this; }
     public UiMenuButton wrapLabel() { wrapLabel = true; return this; }
-    public static int labelHeight(Font font, String label, int width, float scale) {
+    public static int labelHeight(Font font, String label, int width, float scale) { return labelHeight(font, label, width, scale, false); }
+    public static int labelHeight(Font font, String label, int width, float scale, boolean bold) {
         float renderedScale = Math.max(UiText.scale(font), scale + 1f / font.lineHeight);
-        int lines = Tooltips.split(font,Component.literal(label), Math.max(1, (int)((width - 6) / renderedScale))).size();
+        int lines = Tooltips.split(font, bold ? Tooltips.officerText(label, true) : Component.literal(label), Math.max(1, (int)((width - 6) / renderedScale))).size();
         return (int)Math.ceil((lines * (font.lineHeight + 1) - 1) * renderedScale) + (lines > 1 ? 6 : 2);
     }
     public UiMenuButton textShadow(boolean value) { textShadow = value; return this; }

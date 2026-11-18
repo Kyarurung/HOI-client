@@ -430,7 +430,7 @@ public final class DecisionScreenSourceTest {
             }
         }
         for (var row : preview.rows()) {
-            missingAsset(client, assets, result, row.id(), "icon", row.icon(), "omitted");
+            missingAsset(client, assets, result, row.id(), "icon", row.icon(), "GFX_decision_unknown");
             if (preview.categories().stream().noneMatch(category -> category.id().equals(row.category())))
                 missingAsset(client, assets, result, row.category(), "icon", row.categoryIcon(), "omitted");
         }

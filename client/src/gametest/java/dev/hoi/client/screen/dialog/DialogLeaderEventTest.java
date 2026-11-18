@@ -58,17 +58,19 @@ public final class DialogLeaderEventTest {
                         if (buttons.size() != view.choices().size() || buttons.stream().map(Button::getX).distinct().count() != 1) throw new AssertionError("Original choices use one column");
                         for (var button : buttons) if (button.getY() < 0 || button.getBottom() > screen.height || button.getRight() > screen.width) throw new AssertionError("Choice outside the screen");
                         assertChoiceLabels(c.font, screen, view);
-                        int textWidth = Math.max(1, (int)(screen.bounds(198, 121, 350, 1)[2] / screen.textScale()));
-                        int bodyHeight = c.font.split(net.minecraft.network.chat.Component.literal(view.body()), textWidth).size() * 12;
+                        int[] titleBounds = screen.eventHeadingBounds(), bodyBounds = screen.eventBodyBounds(), portrait = screen.portraitBounds();
+                        int textWidth = Math.max(1, (int)(bodyBounds[2] / screen.textScale()));
+                        int bodyHeight = dev.hoi.client.ui.tooltip.Tooltips.split(c.font, screen.bodyText(), textWidth).size() * 12;
                         if (bodyHeight > screen.bodyViewportHeight()) throw new AssertionError("Source and longest-date report bodies must fit above the choices");
-                        int dateLines = name.startsWith("china-182") ? c.font.split(net.minecraft.network.chat.Component.literal(body[1]), textWidth).size() : 0;
-                        if (name.startsWith("china-182") && dateLines != 1) throw new AssertionError("Event dates without minutes must occupy one line at both GUI2 resolutions");
-                        int[] titleBounds = screen.bounds(14, 70, 551, 32);
-                        float titleScale = screen.eventTitleScale(titleBounds[2]);
-                        int titleHeight = Math.max(titleBounds[3], (int)Math.ceil(c.font.lineHeight * titleScale));
-                        if (titleBounds[1] + titleHeight > screen.bounds(198, 121, 350, 1)[1]) throw new AssertionError("Enlarged title must end above the body and portrait");
-                        measurements.put(name + "-" + size[0] + "-title", java.util.Map.of("scale", titleScale, "bold", true, "boxHeightGui", titleHeight, "fontHeightGui", c.font.lineHeight * titleScale));
-                        measurements.put(name + "-" + size[0], java.util.Map.of("guiScale", 2, "panelGui", new int[]{screen.panelLeft(), screen.panelTop(), screen.panelWidth(), screen.panelHeight()}, "titleGui", screen.bounds(14, 70, 551, 32), "portraitGui", screen.bounds(43, 125, 156 * .85, 210 * .85), "frameGui", screen.bounds(35, 116, 172 * .85, 232 * .85), "bodyViewportGui", screen.bodyViewportHeight(), "choicesGui", buttons.stream().map(b -> new int[]{b.getX(), b.getY(), b.getWidth(), b.getHeight()}).toList(), "fontGuiHeight", c.font.lineHeight * screen.textScale(), "bodyGuiHeight", bodyHeight, "dateLines", dateLines));
+                        int dateLines = name.startsWith("china-182") ? c.font.split(net.minecraft.network.chat.Component.literal(body[1]).withStyle(net.minecraft.ChatFormatting.BOLD), textWidth).size() : 0;
+                        if (name.startsWith("china-182") && (size[0] == 2560 ? dateLines != 1 : dateLines > 2)) throw new AssertionError("Bold event dates without minutes must occupy one line at 2560 and at most two lines at 1280: " + dateLines);
+                        float titleScale = screen.eventTitleScale();
+                        if (titleScale != screen.textScale() * 1.5f || titleBounds[3] < screen.eventTitleHeight(titleBounds[2])) throw new AssertionError("Every title line must use 1.5 times the body size");
+                        if (bodyBounds[1] - titleBounds[1] - titleBounds[3] < 12 || titleBounds[1] + titleBounds[3] > portrait[1]) throw new AssertionError("Enlarged title must end one blank row above the body and above the portrait");
+                        int shift = portrait[1] - screen.bounds(43, 125, 1, 1)[1];
+                        int[] frame = screen.bounds(35, 116, 172 * .85, 232 * .85); frame[1] += shift;
+                        measurements.put(name + "-" + size[0] + "-title", java.util.Map.of("scale", titleScale, "bold", true, "lines", screen.eventTitleLines(titleBounds[2]), "boxHeightGui", titleBounds[3], "fontHeightGui", c.font.lineHeight * titleScale));
+                        measurements.put(name + "-" + size[0], java.util.Map.of("guiScale", 2, "panelGui", new int[]{screen.panelLeft(), screen.panelTop(), screen.panelWidth(), screen.panelHeight()}, "titleGui", titleBounds, "portraitGui", portrait, "frameGui", frame, "bodyViewportGui", screen.bodyViewportHeight(), "choicesGui", buttons.stream().map(b -> new int[]{b.getX(), b.getY(), b.getWidth(), b.getHeight()}).toList(), "fontGuiHeight", c.font.lineHeight * screen.textScale(), "bodyGuiHeight", bodyHeight, "dateLines", dateLines));
                         return new int[]{screen.panelLeft() * 2, screen.panelTop() * 2, screen.panelWidth() * 2 + 2, screen.panelHeight() * 2};
                     });
                     var full = context.takeScreenshot("hoi-leader-event-source-" + name + "-" + size[0] + "-gui2");
@@ -146,7 +148,7 @@ public final class DialogLeaderEventTest {
                     next.onPress(new net.minecraft.client.input.KeyEvent(InputConstants.KEY_RETURN, 0, 0));
                 }
                 if (reached.size() != 24) throw new AssertionError("Every bounded server choice must remain reachable");
-                int[] body = screen.bounds(198, 121, 350, 1);
+                int[] body = screen.eventBodyBounds();
                 screen.mouseScrolled(body[0] + 1, body[1] + 1, 0, -100);
                 if (screen.scrollOffset() <= 0) throw new AssertionError("Long reports must scroll without covering the portrait or choices");
                 screen.keyPressed(new net.minecraft.client.input.KeyEvent(InputConstants.KEY_HOME, 0, 0));
@@ -205,7 +207,7 @@ public final class DialogLeaderEventTest {
         float scale = Math.max(dev.hoi.client.ui.UiText.scale(font), screen.textScale() + 1f / font.lineHeight);
         for (var choice : view.choices()) {
             var button = screen.children().stream().filter(Button.class::isInstance).map(Button.class::cast).filter(b -> b.getMessage().getString().equals(choice.label())).findFirst().orElseThrow();
-            var lines = font.split(net.minecraft.network.chat.Component.literal(choice.label()), Math.max(1, (int)((button.getWidth() - 6) / scale)));
+            var lines = font.split(dev.hoi.client.ui.tooltip.Tooltips.officerText(choice.label(), true), Math.max(1, (int)((button.getWidth() - 6) / scale)));
             if ((lines.size() * (font.lineHeight + 1) - 1) * scale > button.getHeight() - 2) throw new AssertionError("Every choice line must fit at the existing button font size: " + choice.label());
             var displayed = new StringBuilder();
             for (var line : lines) {
@@ -265,8 +267,9 @@ public final class DialogLeaderEventTest {
             context.setScreen(() -> leader ? new DialogLeaderEvent(view, (v, choice) -> {}) : new DialogScreen(view));
             context.runOnClient(c -> {
                 var screen = (DialogScreen)c.gui.screen();
-                int titleWidth = leader ? ((DialogLeaderEvent)screen).bounds(14, 70, 551, 32)[2] : screen.eventHeadingBounds()[2];
-                if (screen.eventTitleScale(titleWidth) != screen.textScale()) throw new AssertionError("Longest source title must retain bold at the body size before ellipsis");
+                int[] title = screen.eventHeadingBounds(), body = screen.eventBodyBounds();
+                if (screen.eventTitleScale() != screen.textScale() * 1.5f || screen.eventTitleLines(title[2]) < 2 || title[3] < screen.eventTitleHeight(title[2])) throw new AssertionError("Longest source title must wrap at 1.5 times the body size without an ellipsis");
+                if (body[1] - title[1] - title[3] < 12) throw new AssertionError("A blank row must separate the wrapped title from the body");
                 if (screen.panelTop() < 0 || screen.panelTop() + screen.panelHeight() > screen.height) throw new AssertionError("Longest-title panel outside viewport");
             });
             context.waitTicks(4);

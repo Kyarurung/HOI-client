@@ -39,7 +39,7 @@ public final class FocusHoverTest {
             game.runOnClient(c->{screen.update(FocusPayloads.Response.of(screen.token(),completeView));assertTooltip(screen,completeNode,"§G완료됨§!",c.font);});
             var completeDetail=new FocusPayloads.Detail(detail.id(),detail.name(),detail.description(),504,504,0,0,0,detail.source(),detail.line(),detail.requirements(),detail.rewards(),false,"",true);
             var detailCompleteView=new FocusPayloads.View(view.country(),view.name(),view.tree(),view.session(),4,"",view.hud(),List.of(active),false,completeDetail,null);
-            game.runOnClient(c->{screen.update(FocusPayloads.Response.of(screen.token(),detailCompleteView));assertTooltip(screen,active,"§G완료됨§!",c.font);});
+            game.runOnClient(c->{screen.update(FocusPayloads.Response.of(screen.token(),detailCompleteView));assertTooltip(screen,active,"완료 시간: §H21§!일. (§H10§!일 남음)",c.font);});
             var zeroDetail=new FocusPayloads.Detail(detail.id(),detail.name(),detail.description(),0,0,0,0,0,detail.source(),detail.line(),detail.requirements(),detail.rewards(),true,"",false);
             var zeroView=new FocusPayloads.View(view.country(),view.name(),view.tree(),view.session(),5,"",view.hud(),List.of(node),false,zeroDetail,null);
             game.runOnClient(c->{screen.update(FocusPayloads.Response.of(screen.token(),zeroView));assertTooltip(screen,node,"완료 시간: §H0§!일",c.font);});

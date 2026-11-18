@@ -59,6 +59,9 @@ public final class DialogEventFrameTest {
                     check(screen.bodyViewportHeight() >= 12, "Visible body line must remain available");
                     int[] body = screen.eventBodyBounds(), picture = screen.eventPictureBounds(), title = screen.eventHeadingBounds();
                     check(title[1] + title[3] <= (view.kind() == DialogView.Kind.GLOBAL_EVENT ? picture[1] : body[1]), "Title must clear body and picture");
+                    check(screen.eventTitleScale() == screen.textScale() * 1.5f, "Event titles keep 1.5 times the body size");
+                    if (view.kind() != DialogView.Kind.SUPER_EVENT) check(title[3] >= screen.eventTitleHeight(title[2]), "National and news titles show every wrapped line: " + example.id());
+                    if (view.kind() == DialogView.Kind.EVENT) check(body[1] - title[1] - title[3] >= 12, "A blank row separates the national event title from its body");
                     var buttons = choiceButtons(screen, view);
                     if (view.kind() == DialogView.Kind.GLOBAL_EVENT) {
                         check(buttons.getFirst().getY() == body[1] + body[3] + (int)Math.round(18 * screen.frameScale()), "News choices follow the visible description with 20 native pixels to the visible sprite edge");
@@ -72,7 +75,7 @@ public final class DialogEventFrameTest {
                         check(b.getX() >= screen.panelLeft() && b.getRight() <= screen.panelLeft() + screen.panelWidth()
                                 && b.getBottom() <= screen.panelTop() + screen.panelHeight(), "Choice must stay in its frame");
                         float scale = Math.max(screen.textScale(), screen.textScale() + 1f / c.font.lineHeight);
-                        var lines = c.font.split(b.getMessage(), Math.max(1, (int)((b.getWidth() - 6) / scale)));
+                        var lines = c.font.split(dev.hoi.client.ui.tooltip.Tooltips.officerText(b.getMessage().getString(), true), Math.max(1, (int)((b.getWidth() - 6) / scale)));
                         check((lines.size() * (c.font.lineHeight + 1) - 1) * scale <= b.getHeight() - 2, "Every option line fits its background");
                         var rendered = new StringBuilder();
                         for (var line : lines) {

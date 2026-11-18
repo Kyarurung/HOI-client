@@ -83,8 +83,8 @@ public final class FocusScreen extends Screen {
     }
     private static boolean matches(FocusPayloads.Request request,FocusPayloads.Ack ack){return request!=null && ack!=null && request.action()==ack.action() && request.session().equals(ack.session()) && request.revision()==ack.revision() && request.id().equals(ack.id());}
     private void clearSelection(){selected="";detail=null;detailDirty=false;panning=false;draggingDetail=false;detailPanel.reset();}
-    private void select(String id){if(!selected.equals(id)){selected=id;detail=null;detailDirty=extended && !id.isEmpty();detailPanel.reset();}panning=false;rebuildWidgets();queryDetail();}
-    private void queryDetail(){if(detailDirty && pending==null && ticks>=20)request(FocusPayloads.Action.REFRESH,selected);}
+    private void select(String id){if(!selected.equals(id)){selected=id;detail=hoverDetails.get(id);detailDirty=extended && !id.isEmpty() && detail==null;detailPanel.reset();}panning=false;rebuildWidgets();queryDetail();}
+    private void queryDetail(){if((detailDirty || extended && !selected.isEmpty() && detail==null && ticks>=40) && pending==null && ticks>=20)request(FocusPayloads.Action.REFRESH,selected);}
     private void request(FocusPayloads.Action action,String id) {
         if(!fixture && !ClientPlayNetworking.canSend(FocusPayloads.Request.TYPE))return;
         boolean mutation=action==FocusPayloads.Action.START || action==FocusPayloads.Action.CANCEL;
@@ -191,7 +191,7 @@ public final class FocusScreen extends Screen {
         var result=new StringBuilder("§Y").append(node.name()).append("§!");
         var source=hoverDetails.get(node.id());
         if(source!=null) {
-            String status=node.status().equals("완료")||source.complete()?UiCommandLabels.text("FOCUS_STATUS_COMPLETED_TOOLTIP","§G완료됨§!"):node.remaining()>0?UiCommandLabels.text("FOCUS_STATUS_INPROGRESS_TOOLTIP","완료 시간: $DAYS|0H$일. ($LEFT|0H$일 남음)"):UiCommandLabels.text("FOCUS_STATUS_TOOLTIP","완료 시간: $DAYS|0H$일");
+            String status=node.status().equals("완료")?UiCommandLabels.text("FOCUS_STATUS_COMPLETED_TOOLTIP","§G완료됨§!"):node.remaining()>0?UiCommandLabels.text("FOCUS_STATUS_INPROGRESS_TOOLTIP","완료 시간: $DAYS|0H$일. ($LEFT|0H$일 남음)"):UiCommandLabels.text("FOCUS_STATUS_TOOLTIP","완료 시간: $DAYS|0H$일");
             result.append("\n\n").append(status.replace("$DAYS|0H$","§H"+FocusDetail.days(source.durationHours())+"§!").replace("$LEFT|0H$","§H"+FocusDetail.days(node.remaining())+"§!"));
             if(!source.requirements().isEmpty())result.append('\n');
             for(var row:source.requirements())result.append('\n').append(" ".repeat(row.depth()*2)).append(row.text());

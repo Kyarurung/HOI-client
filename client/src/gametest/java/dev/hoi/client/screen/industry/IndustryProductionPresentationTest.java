@@ -195,8 +195,7 @@ final class IndustryProductionPresentationTest {
         long revision=fixture.revision();
         boolean opened=false;
         for(int target:new int[]{2,1,0,2}) {
-            item.addProperty("demand",target==2?1235:0);
-            old.addProperty("deployed",target==1?1:0);old.addProperty("replacement",target==1?id:"");
+            line.getAsJsonObject().addProperty("needState",target);line.getAsJsonObject().addProperty("needValue",target==0?1234:1);
             data.addProperty("revision",++revision);
             var next=new dev.hoi.protocol.industry.IndustryPayloads.Response(data.toString()).view();
             if(!opened)context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,next.session(),next,request->{}));

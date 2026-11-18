@@ -72,6 +72,7 @@ public final class CommanderUnitHud {
         var client=Minecraft.getInstance();
         if(client.level==null||client.gui.hud.isHidden()||!dimension.equals(client.level.dimension().identifier().toString()))return false;
         if(client.gui.screen()!=null&&x<worldLeft())return false;
+        if(CommanderHud.covers(x,y))return false;
         if(!CommanderPanels.shift())selected.clear();
         for(int i=boxes.size()-1;i>=0;i--) {
             var box=boxes.get(i);
@@ -87,7 +88,7 @@ public final class CommanderUnitHud {
         double top=Math.max(Math.min(startY,endY),HudMenuBar.height(client.getWindow().getGuiScaledWidth()));
         double right=Math.max(startX,endX),bottom=Math.max(startY,endY);
         for(var box:boxes)if(selectable(box.counter(),dimension)&&own(box.counter())&&box.x()<right&&box.x()+box.width()>left
-                &&box.y()<bottom&&box.y()+box.height()>top)selected.add(box.counter().key());
+                &&box.y()<bottom&&box.y()+box.height()>top&&!CommanderHud.covers(box.x()+box.width()/2.0,box.y()+box.height()/2.0))selected.add(box.counter().key());
         boxes.stream().map(CommanderHudBox::counter).filter(c->selected.contains(c.key())).findFirst().ifPresent(c->dev.hoi.client.audio.AudioUiSounds.play(selectionSound(c)));
         CommanderPanels.mapSelectionChanged(true);
     }
@@ -189,7 +190,7 @@ public final class CommanderUnitHud {
     }
     private static String decimal(double value){return BigDecimal.valueOf(value).setScale(1,RoundingMode.DOWN).stripTrailingZeros().toPlainString();}
     private static void tooltip(GuiGraphicsExtractor g,int mx,int my) {
-        if(Minecraft.getInstance().gui.hud.isHidden())return;
+        if(Minecraft.getInstance().gui.hud.isHidden()||CommanderHud.covers(mx,my))return;
         Counter hovered=null;
         for(var box:boxes)if(box.contains(mx,my))hovered=box.counter();
         if(hovered==null||hovered.navy()||hovered.air())return;

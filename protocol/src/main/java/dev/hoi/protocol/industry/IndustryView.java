@@ -247,7 +247,14 @@ public record IndustryView(String session, long revision, String country, Countr
     }
     public record Line(String id, String equipment, int factories, int availableFactories, double efficiency,
             double daily, double progress, double shortage, Conversion conversion, Integer operating, Integer damaged, Double efficiencyGain, Double efficiencyBaseGain, Double efficiencyResourcePenalty, Set<String> missingResources,
-            LineManufacturer manufacturer, List<LineManufacturer> manufacturers, String manufacturerTooltip, String manufacturerEmpty) {
+            LineManufacturer manufacturer, List<LineManufacturer> manufacturers, String manufacturerTooltip, String manufacturerEmpty, Integer needState, Long needValue) {
+        public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain,Double efficiencyBaseGain,Double efficiencyResourcePenalty,Set<String> missingResources,
+                LineManufacturer manufacturer,List<LineManufacturer> manufacturers,String manufacturerTooltip,String manufacturerEmpty) {
+            this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,efficiencyBaseGain,efficiencyResourcePenalty,missingResources,manufacturer,manufacturers,manufacturerTooltip,manufacturerEmpty,null,null);
+        }
+        public Line withNeed(int state,long value) {
+            return new Line(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,efficiencyBaseGain,efficiencyResourcePenalty,missingResources,manufacturer,manufacturers,manufacturerTooltip,manufacturerEmpty,state,value);
+        }
         public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage,Conversion conversion,Integer operating,Integer damaged,Double efficiencyGain,Double efficiencyBaseGain,Double efficiencyResourcePenalty,Set<String> missingResources) {
             this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,conversion,operating,damaged,efficiencyGain,efficiencyBaseGain,efficiencyResourcePenalty,missingResources,null,List.of(),"","");
         }
@@ -278,6 +285,7 @@ public record IndustryView(String session, long revision, String country, Countr
                 throw new IllegalArgumentException("Invalid efficiency growth factors");
             if(factories<0||availableFactories<0||operating!=null&&(operating<0||operating>factories)||damaged!=null&&(damaged<0||damaged>factories-(operating==null?factories:operating)))
                 throw new IllegalArgumentException("Invalid production factory allocation");
+            if(needState!=null&&(needState<0||needState>2)||needValue!=null&&needValue<0)throw new IllegalArgumentException("Invalid production line need");
         }
         public Line(String id,String equipment,int factories,int availableFactories,double efficiency,double daily,double progress,double shortage) {
             this(id,equipment,factories,availableFactories,efficiency,daily,progress,shortage,null);

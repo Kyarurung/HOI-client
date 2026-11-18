@@ -16,14 +16,17 @@ class IndustryProductionIndicatorsTest {
     private IndustryView.Equipment equipment(String id,long stock,long deployed,long demand,String replacement) {
         return new IndustryView.Equipment(id,id,"","armor",false,true,1,10,Map.of(),stock,0,deployed,0,replacement,"tank","전차",demand,false,id);
     }
-    @Test void unmetFamilyDemandPrecedesUpgradesAndSharedStockCoversOlderModels() {
-        var old=equipment("old",5,10,8,"new");
-        var next=equipment("new",0,0,0,"");
-        assertEquals(2,IndustryProductionIndicators.demand(List.of(old,next)).targets().get("new"));
-        old=equipment("old",8,10,8,"new");
-        assertEquals(1,IndustryProductionIndicators.demand(List.of(old,next)).targets().get("new"));
-        assertEquals(0,IndustryProductionIndicators.demand(List.of(equipment("new",0,0,0,""))).targets().get("new"));
+    @Test void theServerNeedPicksTheSourceDestinationTextAndTheShortageShownInTheTooltip() {
+        var line=new IndustryView.Line("line","new",1,1,.5,1,0,0);
+        assertNull(IndustryProductionTooltips.shortage(line));
+        assertEquals(40L,IndustryProductionTooltips.shortage(withNeed(line,2,40)));
+        assertEquals(0L,IndustryProductionTooltips.shortage(withNeed(line,1,25)));
+        assertEquals(0L,IndustryProductionTooltips.shortage(withNeed(line,0,7)));
+        assertEquals("PROD_LINE_LAND_DEST_RESERVES",IndustryProductionIndicators.targetKey(0));
+        assertEquals("PROD_LINE_LAND_DEST_UPGRADING",IndustryProductionIndicators.targetKey(1));
+        assertEquals("PROD_LINE_LAND_DEST_REINFORCEMENT",IndustryProductionIndicators.targetKey(2));
     }
+    private static IndustryView.Line withNeed(IndustryView.Line line,int state,long value) {return line.withNeed(state,value);}
     @Test void sourceRolesDistinguishTankDestroyersArtilleryAndAirDefense() {
         assertEquals("production/roles/land_0",IndustryProductionIndicators.landRole(equipment("modern_tank_destroyer_equipment_1",0,0,0,"")));
         assertEquals("production/roles/land_1",IndustryProductionIndicators.landRole(equipment("modern_tank_artillery_equipment_1",0,0,0,"")));

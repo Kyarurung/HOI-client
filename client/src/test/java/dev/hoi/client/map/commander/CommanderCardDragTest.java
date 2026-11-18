@@ -54,12 +54,22 @@ class CommanderCardDragTest {
         }
     }
     @Test void creationSlotKeepsMembershipAndHiddenSiblingPositions(){
-        assertEquals(new CommanderCardDrag.Drop("G1",List.of("B","A")),CommanderCardDrag.endDrop(VIEW,slots(),"A"));
+        assertEquals(new CommanderCardDrag.Drop("G1",List.of("B","A")),CommanderCardDrag.edgeDrop(VIEW,slots(),"A",false));
         var a=card("A",Mode.ASSIGN_ARMY,"G1");var hidden=card("hidden",Mode.ASSIGN_ARMY,"G1");var b=card("B",Mode.ASSIGN_ARMY,"G1");
         var view=new View("KOR","hoi:atlas_army",Mode.ARMY,List.of(a,hidden,b));
         var visible=List.of(new CommanderCardDrag.Slot(a,0,42),new CommanderCardDrag.Slot(b,42,42));
-        assertEquals(new CommanderCardDrag.Drop("G1",List.of("B","hidden","A")),CommanderCardDrag.endDrop(view,visible,"A"));
-        assertEquals(new CommanderCardDrag.Drop("G1",List.of("A","hidden","B")),CommanderCardDrag.endDrop(view,visible,"B"));
+        assertEquals(new CommanderCardDrag.Drop("G1",List.of("B","hidden","A")),CommanderCardDrag.edgeDrop(view,visible,"A",false));
+        assertEquals(new CommanderCardDrag.Drop("G1",List.of("A","hidden","B")),CommanderCardDrag.edgeDrop(view,visible,"B",false));
+    }
+    @Test void groupCreationSlotMovesCardsFirstWithoutChangingMembership(){
+        assertEquals(new CommanderCardDrag.Drop("G1",List.of("B","A")),CommanderCardDrag.edgeDrop(VIEW,slots(),"B",true));
+        assertEquals(new CommanderCardDrag.Drop("",List.of("E","D")),CommanderCardDrag.edgeDrop(VIEW,slots(),"E",true));
+        assertEquals(new CommanderCardDrag.Drop("",List.of("G2","G1")),CommanderCardDrag.edgeDrop(VIEW,slots(),"G2",true));
+        var a=card("A",Mode.ASSIGN_ARMY,"G1");var hidden=card("hidden",Mode.ASSIGN_ARMY,"G1");var b=card("B",Mode.ASSIGN_ARMY,"G1");
+        var view=new View("KOR","hoi:atlas_army",Mode.ARMY,List.of(a,hidden,b));
+        var visible=List.of(new CommanderCardDrag.Slot(a,0,42),new CommanderCardDrag.Slot(b,42,42));
+        assertEquals(new CommanderCardDrag.Drop("G1",List.of("B","hidden","A")),CommanderCardDrag.edgeDrop(view,visible,"B",true));
+        assertEquals(new CommanderCardDrag.Drop("G1",List.of("A","hidden","B")),CommanderCardDrag.edgeDrop(view,visible,"A",true));
     }
 
 }

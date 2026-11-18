@@ -195,20 +195,9 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         }
     }
     private Map<String,String> loadAssets() {
-        text.flags(new com.google.gson.JsonObject());
-        var flags=minecraft.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:ui/decision_flags.json"));
-        if(flags.isPresent())try(var input=flags.get().open()) {
-            byte[] bytes=input.readNBytes(262145);
-            if(bytes.length<=262144)text.flags(JsonParser.parseString(new String(bytes,java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject());
-        } catch(Exception invalid) {text.flags(new com.google.gson.JsonObject());}
-        var resource=minecraft.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:ui/decision_assets.json"));
-        if(resource.isEmpty())return Map.of();
-        try(var input=resource.get().open()) {
-            byte[] bytes=input.readNBytes(1048577);
-            if(bytes.length>1048576)return Map.of();
-            var root=JsonParser.parseString(new String(bytes,java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
-            if(root.get("version").getAsInt()!=1)return Map.of();
-            text.assets(root);
+        var root=text.load(minecraft.getResourceManager());
+        if(root==null)return Map.of();
+        try {
             panels.assets(root);
             var colors=new HashMap<Integer,Integer>();
             if(root.get("highlightColors") instanceof com.google.gson.JsonArray palette)
@@ -458,6 +447,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         }
         g.disableScissor();
         String image=asset(row.icon(),"icon");
+        if(UiAssets.imageHeight(image,20)<=0)image=asset("GFX_decision_unknown","icon");
         boolean hasImage=UiAssets.imageHeight(image,20)>0;
         String flag=row.target()!=null&&row.target().kind().equals("country")?UiStoryAssets.flag(row.target().id(),row.target().flag()):"";
         int[] flagSize=flag.isEmpty()?new int[]{0,0}:UiAssets.contentSize(flag);

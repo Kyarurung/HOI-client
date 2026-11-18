@@ -95,7 +95,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             final int index = i;
             baseButtons.add(addRenderableWidget(new ResearchTabButton(LABELS[i], CATEGORIES[i], category.equals(CATEGORIES[i]),
                     Math.round((19 + i * 89) / 2f), menuBottom() + 4, tabWidth, () -> {
-                        category = CATEGORIES[index]; scrollX = 0; scrollY = 0; focusedTech = null; detail = null; rebuildWidgets();
+                        category = CATEGORIES[index]; scrollX = 0; scrollY = 0; focusedTech = null; detail = null; teamPicker = false; rebuildWidgets();
                     })));
         }
         baseButtons.add(button("×", width - 25, menuBottom() + 5, 17, 17, this::onClose));
@@ -234,7 +234,6 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         });
     }
     private void initDetail() {
-        baseButtons.forEach(b -> b.active = false);
         panelW = Math.min(266, width - 24); panelH = height - menuBottom() - 18;
         panelX = Math.min(254, width - panelW - 12);
         if (teamPicker) panelX = Math.max(8, Math.min(panelX, width - panelW - Math.min(268, width - 16) - 12));
@@ -380,12 +379,15 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         return rows;
     }
     private void initTeams() {
-        for (var child : children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget) { widget.active = false; if(widget.visible)teamBackdrop.add(widget); widget.visible=false; }
+        for (var child : children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget && !baseButtons.contains(widget)) { widget.active = false; if(widget.visible)teamBackdrop.add(widget); widget.visible=false; }
         teamWidth = Math.min(268, width - 16); teamHeight = Math.min(325, height - menuBottom() - 12);
         teamX = Math.min(width - teamWidth - 8, panelX + panelW + 5); teamY = panelY;
         button("×", teamX + teamWidth - 23, teamY + 3, 18, 18, () -> { teamPicker = false; rebuildWidgets(); });
-        button("이름", teamX + 35, teamY + 28, 40, 15, () -> { teamDescending = teamSorted && !teamCostSort && !teamDescending; teamCostSort = false; teamSorted = true; rebuildWidgets(); });
-        button("비용", teamX + 78, teamY + 28, 40, 15, () -> { teamDescending = teamSorted && teamCostSort && !teamDescending; teamCostSort = true; teamSorted = true; rebuildWidgets(); });
+        for (boolean cost : new boolean[]{false, true}) {
+            var sort = new dev.hoi.client.ui.UiMenuButton(cost ? "비용" : "이름", teamX + (cost ? 78 : 35), teamY + 28, 41, 15, () -> { teamDescending = teamSorted && teamCostSort == cost && !teamDescending; teamCostSort = cost; teamSorted = true; rebuildWidgets(); })
+                    .background("mio/ui/gfx_sort_up_down_button_83x29/frame_" + (teamSorted && teamCostSort == cost ? teamDescending ? 2 : 1 : 0)).sound("ui.scroll");
+            sort.setTooltip(null); addRenderableWidget(sort);
+        }
         var rows = sortedTeams(); int start = teamY + 50;
         teamScroll = Math.clamp(teamScroll, 0, Math.max(0, 47 + rows.size() * 53 - (teamHeight - 57)));
         if (teamScroll == 0) addRenderableWidget(new UiPanelButton(Tooltips.officerText(teamText("empty")).getString(),teamX+8,start,teamWidth-16,44,()->selectTeam("")){
@@ -426,7 +428,8 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (detail != null && !view.message().isEmpty()) g.text(font, trim(view.message(), width - 24), 12, height - 12, MUTED);
         terrainMouseX = mouseX; terrainMouseY = mouseY; terrainTooltip = "";
         if (detail != null) {
-            for (var button : baseButtons) button.extractRenderState(g, -1, -1, delta);
+            boolean covered = overDetailWindows(mouseX, mouseY);
+            for (var button : baseButtons) button.extractRenderState(g, covered ? -1 : mouseX, covered ? -1 : mouseY, delta);
             hoveredTeam = teamRows.entrySet().stream().filter(e -> e.getKey().isMouseOver(mouseX, mouseY)).map(Map.Entry::getValue).findFirst().orElse(""); drawDetail(g);
         }
         if (teamPicker) { for(var widget:teamBackdrop){widget.visible=true;widget.extractRenderState(g,-1,-1,delta);widget.visible=false;} drawTeams(g); }
@@ -896,7 +899,13 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         return (t!=null&&t.status()==ResearchView.Status.COMPLETED?"✓ ":"○ ")+(t==null?id:t.name());
     }
     private boolean insideTree(double x, double y) { return !overview && x >= 0 && x < width && y >= treeTop && y < treeBottom; }
+    boolean overDetailWindows(double x, double y) {
+        return detail != null && x >= panelX && x < panelX + panelW && y >= panelY && y < panelY + panelH
+                || teamPicker && x >= teamX && x <= teamX + teamWidth && y >= teamY && y <= teamY + teamHeight;
+    }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
+        if (detail != null && !overDetailWindows(event.x(), event.y()))
+            for (var button : baseButtons) if (button.isMouseOver(event.x(), event.y())) return button.mouseClicked(event, twice);
         if (detail != null && !teamPicker && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             for (var bar : new dev.hoi.client.ui.UiScrollBar[]{descriptionBar, detailBar}) if (bar != null && bar.contains(event.x(), event.y())) {
                 boolean description = bar == descriptionBar;

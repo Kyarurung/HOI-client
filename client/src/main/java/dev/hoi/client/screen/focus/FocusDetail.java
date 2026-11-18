@@ -40,7 +40,7 @@ final class FocusDetail {
         var area=close?close():start();
         return new Button(area.x(),area.y(),area.width(),area.height(),net.minecraft.network.chat.Component.literal(close?"×":"중점 시작"),button -> action.run(),java.util.function.Supplier::get) {
             {setTooltip(Tooltips.create(net.minecraft.network.chat.Component.literal(close?"닫기":"중점 시작")));}
-            @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager){dev.hoi.client.audio.AudioUiSounds.play(close?"ui.close":"ui.focus.select");}
+            @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager){if(close)dev.hoi.client.audio.AudioUiSounds.play("ui.close");else if(getMessage().getString().equals("중점 취소"))dev.hoi.client.audio.AudioUiSounds.play("ui.focus.select");}
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta) {
                 var state=!active?UiDiplomacyAssets.State.DISABLED:isHoveredOrFocused()?UiDiplomacyAssets.State.OVER:UiDiplomacyAssets.State.UP;
                 buttonAssets.button(g,close?"focus-close":"focus-start",close?"menu/close":"completion/button",getX(),getY(),getWidth(),getHeight(),UiDiplomacyAssets.Effect.BUTTON_STATE,state);
@@ -132,7 +132,7 @@ final class FocusDetail {
         Bounds time=new Bounds(b.x()+104,b.y()+29,85,13);
         boolean completed=node.status().equals("완료");
         progress(g,detail,completed);
-        String duration=detail==null || detail.durationHours()==0?"0":days(detail.durationHours())+"일";
+        String duration=detail==null?"":detail.durationHours()==0?"0":days(detail.durationHours())+"일";
         drawCentered(g,font,completed?"완료됨":duration,time,TEXT_SCALE);
         if(time.contains(mx,my) && detail!=null)Tooltips.drawExact(g,font,(detail.durationHours()==0?"소요 시간: 알 수 없음":duration+" · "+detail.durationHours()+"시간")+"\n경과: "+detail.elapsedHours()+"시간\n저장된 중점 시간: "+detail.bankedHours()+"시간\n정치력을 지불한 저장 시간: "+detail.paidBankedHours()+"시간\n일일 정치력 소모: "+BigDecimal.valueOf(detail.politicalPowerPerDay()).stripTrailingZeros().toPlainString(),mx,my);
         g.pose().pushMatrix();g.pose().translate(b.x()+102.5f,b.y()+46);g.pose().scale(.5f);

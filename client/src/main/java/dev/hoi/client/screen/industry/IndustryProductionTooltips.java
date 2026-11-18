@@ -36,7 +36,10 @@ final class IndustryProductionTooltips {
         return split<0?"":modifier.detail().substring(0,split);
     }
     static String equipment(IndustryView view,IndustryView.Line line,IndustryView.Equipment equipment) {
-        return equipment(view,line,equipment,IndustryProductionIndicators.demand(view.equipment()).shortages().get(equipment.id()));
+        return equipment(view,line,equipment,shortage(line));
+    }
+    static Long shortage(IndustryView.Line line) {
+        return line.needState()==null?null:line.needState()==2?line.needValue():Long.valueOf(0);
     }
     static String equipment(IndustryView view,IndustryView.Line line,IndustryView.Equipment equipment,Long shortage) {
         var text=new StringBuilder("§e").append(equipment.name()).append("§r");
