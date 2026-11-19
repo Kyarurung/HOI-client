@@ -40,7 +40,7 @@ public record DecisionPanelView(String scriptedGui, String windowName, String so
     public record Measure(Double value, Boolean relative) {
         public Measure {
             if (relative == null || value == null) invalid();
-            number(value,0,relative ? 100 : MAX_COORDINATE);
+            number(value,relative ? 0 : -MAX_COORDINATE,relative ? 100 : MAX_COORDINATE);
         }
     }
     public record Layout(Double x, Double y, Measure width, Measure height, String orientation, Boolean centerPosition,
@@ -67,7 +67,7 @@ public record DecisionPanelView(String scriptedGui, String windowName, String so
         public Tooltip { if (immediate == null && delayed == null) invalid(); }
     }
     public record Repeat(String array, String index, String value, String entryContainer) {
-        public Repeat { identifier(array); identifier(index); if (value != null) identifier(value); identifier(entryContainer); }
+        public Repeat { identifier(array); if (index != null) identifier(index); if (value != null) identifier(value); identifier(entryContainer); }
     }
     public record Grid(Measure slotWidth, Measure slotHeight, Integer maxSlotsVertical, Boolean addHorizontal, Repeat repeat) {
         public Grid { if (maxSlotsVertical != null && (maxSlotsVertical < 0 || maxSlotsVertical > MAX_ELEMENTS)) invalid(); }

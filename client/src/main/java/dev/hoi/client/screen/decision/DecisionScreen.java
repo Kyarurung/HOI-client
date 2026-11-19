@@ -203,12 +203,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             if(root.get("highlightColors") instanceof com.google.gson.JsonArray palette)
                 for(int i=0;i<Math.min(64,palette.size());i++)colors.put(i,(int)Long.parseLong(palette.get(i).getAsString(),16));
             highlightColors=Collections.unmodifiableMap(colors);
-            var result=new HashMap<String,String>();
-            for(var entry:root.getAsJsonObject("sprites").entrySet()) {
-                String path=entry.getValue().getAsString();
-                if(path.matches("[a-z0-9_/.-]+") && !path.contains(".."))result.put(entry.getKey(),path);
-            }
-            return Map.copyOf(result);
+            return DecisionPanel.sprites(root);
         } catch(Exception invalid) {return Map.of();}
     }
     private static final int LIST_X=5,LIST_Y=45,LIST_WIDTH=544,GRID_X=14,SCROLL_X=526,EVENT_HEADER=65,EVENT_ROW=33,CATEGORY_HEADER=60,CATEGORY_END=20,DESC_WIDTH=510,TEXT_X=28,TEXT_WIDTH=470,PANEL_WIDTH=486,WHEEL=40;

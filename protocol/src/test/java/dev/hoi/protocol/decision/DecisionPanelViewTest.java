@@ -108,8 +108,10 @@ class DecisionPanelViewTest {
     @Test void nonfiniteUnsafeAndUnsupportedValuesAreRejectedWithoutClamping() {
         for (double value : new double[]{Double.NaN,Double.POSITIVE_INFINITY,Double.NEGATIVE_INFINITY,-1,1_000_001})
             assertThrows(IllegalArgumentException.class,() -> element("icon","icon",value,null,null,List.of()));
-        for (double value : new double[]{Double.NaN,Double.POSITIVE_INFINITY,-1,16_385})
+        for (double value : new double[]{Double.NaN,Double.POSITIVE_INFINITY,-16_385,16_385})
             assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Measure(value,false));
+        assertEquals(-4.0,new DecisionPanelView.Measure(-4.0,false).value());
+        assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Measure(-1.0,true));
         assertThrows(IllegalArgumentException.class,() -> new DecisionPanelView.Measure(101.0,true));
         assertThrows(IllegalArgumentException.class,() -> element("checkbox","checkbox",null,null,null,List.of()));
         var icon=element("icon","icon",null,null,null,List.of());

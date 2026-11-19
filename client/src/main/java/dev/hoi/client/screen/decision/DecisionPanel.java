@@ -10,9 +10,9 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 
-final class DecisionPanel {
-    record Hit(String id,String immediate,String delayed,int x,int y,int width,int height,String button,boolean enabled) {}
-    record Result(int height,List<Hit> hits) {}
+public final class DecisionPanel {
+    public record Hit(String id,String immediate,String delayed,int x,int y,int width,int height,String button,boolean enabled) {}
+    public record Result(int height,List<Hit> hits) {}
     private record Rect(double x,double y,double width,double height) {
         Rect intersect(Rect other) {
             double left=Math.max(x,other.x),top=Math.max(y,other.y);
@@ -26,9 +26,22 @@ final class DecisionPanel {
     private record Progress(String foreground,String background,int width,int height,boolean horizontal,double scale,String effect) {}
     private final Map<String,Progress> progress=new HashMap<>();
     private final Map<String,int[]> lineRuns=new HashMap<>();
+    private final Map<String,Integer> cornered=new HashMap<>();
     private final DecisionRadial radial=new DecisionRadial();
-    void assets(com.google.gson.JsonObject root) {
-        radial.configure(root);dimensions.clear();fonts.clear();progress.clear();lineRuns.clear();
+    public static Map<String,String> sprites(com.google.gson.JsonObject root) {
+        var result=new HashMap<String,String>();
+        if(root.get("sprites") instanceof com.google.gson.JsonObject entries)for(var entry:entries.entrySet()) {
+            String path=entry.getValue().getAsString();
+            if(path.matches("[a-z0-9_/.-]+") && !path.contains(".."))result.put(entry.getKey(),path);
+        }
+        return Map.copyOf(result);
+    }
+    public void assets(com.google.gson.JsonObject root) {
+        radial.configure(root);dimensions.clear();fonts.clear();progress.clear();lineRuns.clear();cornered.clear();
+        if(root.get("cornered") instanceof com.google.gson.JsonObject tiles)for(var entry:tiles.entrySet()) {
+            int border=entry.getValue().getAsJsonObject().get("border").getAsInt();
+            if(border>0 && border<=1024)cornered.put(entry.getKey(),border);
+        }
         if(root.get("progressBars") instanceof com.google.gson.JsonObject bars)for(var entry:bars.entrySet()) {
             var value=entry.getValue().getAsJsonObject();var textures=value.getAsJsonArray("textures");
             String foreground=textures.get(0).getAsJsonObject().get("path").getAsString(),background=textures.get(1).getAsJsonObject().get("path").getAsString();
@@ -46,9 +59,9 @@ final class DecisionPanel {
                 fonts.put(entry.getKey(),new FontMetrics(size,lineHeight));
         }
     }
-    void clear() { dimensions.clear();lineRuns.clear(); }
-    void close() { radial.close();dimensions.clear();fonts.clear();progress.clear();lineRuns.clear(); }
-    Result render(GuiGraphicsExtractor graphics,Font font,DecisionPanelView panel,Map<String,String> assets,
+    public void clear() { dimensions.clear();lineRuns.clear(); }
+    public void close() { radial.close();dimensions.clear();fonts.clear();progress.clear();lineRuns.clear();cornered.clear(); }
+    public Result render(GuiGraphicsExtractor graphics,Font font,DecisionPanelView panel,Map<String,String> assets,
             DecisionText text,int x,int y,int width) {
         if(panel==null || panel.elements().isEmpty())return new Result(0,List.of());
         var root=panel.elements().getFirst();
@@ -170,6 +183,8 @@ final class DecisionPanel {
                     Math.max(1,(int)Math.round(rectangle.width())),Math.max(1,(int)Math.round(rectangle.height())))) {
             } else if(element.kind().equals("background") && "GFX_tiled_window_transparent".equals(element.sprite())) {
                 UiAssets.nineSlice(graphics,draw.path(),0,0,Math.max(1,(int)Math.round(rectangle.width())),Math.max(1,(int)Math.round(rectangle.height())),32,3.0/95);
+            } else if(!draw.path().isEmpty() && cornered.containsKey(element.sprite())) {
+                cornered(graphics,draw.path(),Math.max(1,(int)Math.round(rectangle.width())),Math.max(1,(int)Math.round(rectangle.height())),cornered.get(element.sprite()));
             } else if(!draw.path().isEmpty()) {
                 int w=Math.max(1,(int)Math.round(rectangle.width())),h=Math.max(1,(int)Math.round(rectangle.height()));
                 if(element.kind().equals("button") && Boolean.FALSE.equals(element.enabled()))UiAssets.drawGrayscale(graphics,draw.path(),0,0,w,h);
@@ -190,6 +205,16 @@ final class DecisionPanel {
             graphics.disableScissor();
         }
         return new Result((int)Math.ceil(canvas.height()*scale),List.copyOf(hits));
+    }
+    private void cornered(GuiGraphicsExtractor graphics,String path,int width,int height,int border) {
+        int[] size=dimensions.computeIfAbsent(path,DecisionPanel::dimensions);
+        var id=Identifier.tryParse("hoi:textures/gui/"+path+".png");
+        if(id==null || size[0]<=0 || size[1]<=0)return;
+        int sx=Math.min(border,size[0]/2),sy=Math.min(border,size[1]/2),dx=Math.min(sx,width/2),dy=Math.min(sy,height/2);
+        int[] xs={0,dx,width-dx,width},ys={0,dy,height-dy,height};
+        float[] us={0,(float)sx/size[0],1-(float)sx/size[0],1},vs={0,(float)sy/size[1],1-(float)sy/size[1],1};
+        for(int row=0;row<3;row++)for(int column=0;column<3;column++)
+            if(xs[column+1]>xs[column] && ys[row+1]>ys[row])graphics.blit(id,xs[column],ys[row],xs[column+1],ys[row+1],us[column],us[column+1],vs[row],vs[row+1]);
     }
     private int[] lineRuns(Progress bar,double frame) {
         if(lineRuns.size()>4096)lineRuns.clear();
@@ -232,10 +257,11 @@ final class DecisionPanel {
         double ownScale=Objects.requireNonNullElse(layout.scale(),1.0);
         var metrics=fonts.getOrDefault(layout.font(),new FontMetrics(font.lineHeight,font.lineHeight+1));
         double fontScale=(metrics.size()+(element.name().equals("NatAsm_member_text")?2:0))/font.lineHeight;
-        double defaultWidth=element.kind().equals("text")?parent.width():size[0];
+        boolean filled=element.kind().equals("background") && cornered.containsKey(element.sprite());
+        double defaultWidth=element.kind().equals("text") || filled?parent.width():size[0];
         double width=measure(layout.width(),parent.width(),defaultWidth)*ownScale;
         double defaultHeight=element.kind().equals("text") && element.text()!=null
-                ?text.lines(font,element.text().value(),Math.max(1,(int)(width/fontScale)),Objects.requireNonNullElse(layout.font(),"").endsWith("header")).size()*metrics.lineHeight():size[1];
+                ?text.lines(font,element.text().value(),Math.max(1,(int)(width/fontScale)),Objects.requireNonNullElse(layout.font(),"").endsWith("header")).size()*metrics.lineHeight():filled?parent.height():size[1];
         double height=measure(layout.height(),parent.height(),defaultHeight)*ownScale;
         if(coronavirus && element.kind().equals("text") && !Boolean.TRUE.equals(layout.fixedSize()))height=Math.max(height,defaultHeight*ownScale);
         double left=parent.x(),top=parent.y();
@@ -256,7 +282,8 @@ final class DecisionPanel {
         }
         var rectangle=new Rect(left,top,width,height);
         Rect clip=Boolean.TRUE.equals(layout.clipping())?inheritedClip.intersect(rectangle):inheritedClip;
-        if(element.kind().equals("text") && (Boolean.TRUE.equals(layout.fixedSize()) || !coronavirus && layout.height()!=null))clip=clip.intersect(rectangle);
+        if(element.kind().equals("text") && (Boolean.TRUE.equals(layout.fixedSize()) || !coronavirus && layout.height()!=null))
+            clip=clip.intersect(new Rect(left,top,width,Math.max(height,metrics.lineHeight()*ownScale)));
         draws.add(new Draw(element,rectangle,clip,path,fontScale,metrics.lineHeight()));
         for(var child:element.children())layout(child,rectangle,clip,false,assets,font,text,draws,coronavirus);
     }
@@ -273,7 +300,7 @@ final class DecisionPanel {
         return path;
     }
     private static double measure(DecisionPanelView.Measure value,double parent,double fallback) {
-        return value==null?fallback:value.relative()?value.value()*parent/100:value.value();
+        return value==null?fallback:value.relative()?value.value()*parent/100:value.value()<0?Math.max(0,parent+value.value()):value.value();
     }
     private static int[] dimensions(String path) {
         if(path.isEmpty())return new int[]{0,0};

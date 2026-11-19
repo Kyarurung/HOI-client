@@ -152,9 +152,47 @@ public final class IndustryTradeTest {
             screen.mouseScrolled(screen.tradeFrame().x(300), screen.tradeRowTop(1), 0, -1);
             check(scrollable ? screen.tradeRowTop(0) < before : screen.tradeRowTop(0) == before, "The mouse wheel scrolls the exporter list only when it overflows");
         });
+        var economyPanel = economyFixture();
+        int[] mark = {requests.size()};
         click(context, "경제와 무역 화면 간 전환");
         context.runOnClient(client -> check(ref.get().children().stream().noneMatch(w -> w instanceof Button b && b.getMessage().getString().equals("유럽")), "The switch opens the economy view"));
+        context.runOnClient(client -> ref.get().update(revision(view, view.revision() + 11)));
+        context.waitTicks(2);
+        context.runOnClient(client -> check(sent(requests, mark[0], IndustryPayloads.Action.ECONOMY, "", 1), "Opening the economy view subscribes to the original panel"));
+        context.runOnClient(client -> ref.get().update(revision(view, view.revision() + 12).withEconomyPanel(economyPanel)));
+        context.waitTicks(3);
+        var loanCentre = new int[2];
+        context.runOnClient(client -> {
+            var screen = ref.get(); var frame = screen.tradeFrame();
+            var loan = button(screen, "gdp_1b_loan_button"); var payment = button(screen, "gdp_1b_debt_payment_button");
+            check(loan.active && !payment.active, "Loan and repayment buttons follow their source enabled state");
+            check(loan.getX() >= frame.ix(300) && loan.getY() >= screen.economyTop() && payment.getY() > loan.getY(), "Loan buttons sit in the right column below the economy header");
+            for (String name : List.of("auto_payment_checkbox", "bank_checkbox", "Economic_Civilian_Investments_Button", "Economic_Military_Investments_Button")) button(screen, name);
+            bounds(screen); noOverlap(screen);
+            loanCentre[0] = (int) Math.round((loan.getX() + loan.getWidth() / 2.0) * client.getWindow().getGuiScale());
+            loanCentre[1] = (int) Math.round((loan.getY() + loan.getHeight() / 2.0) * client.getWindow().getGuiScale());
+        });
+        context.getInput().setCursorPos(loanCentre[0], loanCentre[1]); context.waitTicks(3);
+        var economyShot = context.takeScreenshot("hoi-trade-economy-gui2");
+        context.runOnClient(client -> {
+            var screen = ref.get(); var frame = screen.tradeFrame();
+            java.awt.image.BufferedImage image;
+            try { image = javax.imageio.ImageIO.read(economyShot.toFile()); } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+            double scale = client.getWindow().getGuiScale(); int bright = 0;
+            for (int y = (int) (frame.y(55) * scale); y < frame.y(100) * scale; y++) for (int x = (int) (frame.x(20) * scale); x < frame.x(250) * scale; x++) {
+                int rgb = image.getRGB(x, y); if (Math.min(rgb >> 16 & 255, Math.min(rgb >> 8 & 255, rgb & 255)) > 175) bright++;
+            }
+            check(bright > 20, "The GDP frame draws its source text");
+        });
+        context.runOnClient(client -> mark[0] = requests.size());
+        click(context, "gdp_1b_loan_button");
+        context.runOnClient(client -> check(sent(requests, mark[0], IndustryPayloads.Action.ECONOMY_CLICK, "gdp_1b_loan_button", 0), "A loan button sends its source element"));
+        context.runOnClient(client -> ref.get().update(revision(view, view.revision() + 13).withEconomyPanel(economyPanel)));
+        context.runOnClient(client -> mark[0] = requests.size());
         click(context, "경제와 무역 화면 간 전환");
+        context.runOnClient(client -> ref.get().update(revision(view, view.revision() + 14)));
+        context.waitTicks(2);
+        context.runOnClient(client -> check(sent(requests, mark[0], IndustryPayloads.Action.ECONOMY, "", 0), "Leaving the economy view ends the panel subscription"));
         context.getInput().resizeWindow(854, 480); context.waitTicks(3);
         context.runOnClient(client -> {
             var screen = ref.get();
@@ -176,6 +214,17 @@ public final class IndustryTradeTest {
         check(last >= 0, message + " (text drawn)");
         double centre = (first + last + 1) / 2.0 / scale;
         check(Math.abs(centre - expected) <= .75, message + ": centre " + centre + " expected " + expected);
+    }
+    private static boolean sent(List<IndustryPayloads.Request> requests, int from, IndustryPayloads.Action action, String item, int amount) {
+        return requests.subList(from, requests.size()).stream().anyMatch(r -> r.action() == action && r.item().equals(item) && r.amount() == amount);
+    }
+    private static dev.hoi.protocol.decision.DecisionPanelView economyFixture() {
+        String directory = System.getenv("HOI_DECISION_PREVIEW");
+        check(directory != null && !directory.isBlank(), "HOI_DECISION_PREVIEW is required for the server-exported economy panel");
+        try {
+            var root = com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(java.nio.file.Path.of(directory).resolve("decision-economy-panel.json"))).getAsJsonObject();
+            return new com.google.gson.Gson().fromJson(root.get("panel"), dev.hoi.protocol.decision.DecisionPanelView.class);
+        } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
     }
     private static IndustryView revision(IndustryView view, long revision) {
         var json = new com.google.gson.Gson().toJsonTree(view).getAsJsonObject();

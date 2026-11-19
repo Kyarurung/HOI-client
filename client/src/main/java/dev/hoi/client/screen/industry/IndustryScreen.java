@@ -38,6 +38,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private final String token;
     private final Consumer<IndustryPayloads.Request> transport;
     private final dev.hoi.client.ui.UiDiplomacyAssets flagAssets = new dev.hoi.client.ui.UiDiplomacyAssets();
+    private final dev.hoi.client.screen.decision.DecisionText economyText = new dev.hoi.client.screen.decision.DecisionText();
+    private final dev.hoi.client.screen.decision.DecisionPanel economyPanel = new dev.hoi.client.screen.decision.DecisionPanel();
+    private Map<String, String> economyAssets;
+    private boolean economyOpen;
     private MenuTab tab;
     private String foreignTarget = "";
     private boolean foreign() { return !foreignTarget.isEmpty() || view != null && view.viewing() != null; }
@@ -889,7 +893,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             {"request", "TRADE_SORT_REQUEST", "trade/ui/sort_export", "352"}, {"convoys", "TRADE_SORT_CONVOYS", "trade/ui/sort_delivered", "470"}};
     private static final String[] TRADE_ROWS = {"TRADEVIEW_RES_PRODUCED", "TRADEVIEW_RES_IMPORTED", "TRADEVIEW_RES_EXPORTED", "TRADEVIEW_RES_SPECIAL_PROJECT", "TRADEVIEW_RES_PRODUCTION_LINES", "TRADEVIEW_RES_SURPLUS"};
     private static final double[] TRADE_ROW_CENTERS = {176, 195, 214, 233, 252, 282.5};
-    private static final int TRADE_ROW = 45, TRADE_LIST_TOP = 529, TRADE_BODY_TOP = 40, IMPORT_ENTRY = 53, IMPORT_LIST_TOP = 158;
+    private static final int TRADE_ROW = 45, TRADE_LIST_TOP = 529, TRADE_BODY_TOP = 40, IMPORT_ENTRY = 53, IMPORT_LIST_TOP = 158, ECONOMY_Y = 40, ECONOMY_WIDTH = 624;
     UiMenuStyle.Frame tradeFrame() { return frame; }
     int tradeListBottom() { return Math.min(height, frame.iy(windowHeight() - 13)); }
     boolean tradeCompact() { return tradeListBottom() - frame.iy(TRADE_LIST_TOP) < frame.len(TRADE_ROW * 3); }
@@ -1175,19 +1179,59 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 (g, b) -> at.art(g, "production/line/plus", 240, sy + 13.5));
         if (plus != null) plus.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_ACCEPTED_SHORTAGE_ADD_DESC")));
     }
-    private void economy() {
-        var e = view.economy();
-        String[][] rows = {{"실질 GDP", amount(e.gdp())}, {"부채", amount(e.debt())},
-                {"민간공장", "" + e.civilian()}, {"무역 가용 공장", "" + e.freeCivilian()},
-                {"소비재 공장", "" + e.consumer()}, {"군수공장", "" + e.military()}, {"조선소", "" + e.dockyards()},
-                {"전력 공급 / 수요", decimal(e.energy()) + " / " + decimal(e.energyDemand())},
-                {"연료 비축", decimal(e.fuel())}, {"인력", manpower(e.manpower())}};
-        int start = top + 55; scroll = clampScroll(scroll, rows.length, 35, start);
-        for (int i = 0; i < rows.length; i++) {
-            int y = start + i * 35 - scroll; if (!visible(y, 35, start)) continue;
-            recess(6, y, pane - 12, 32); text(rows[i][0], 11, y + 4, pane - 22, MUTED);
-            text(rows[i][1], 11, y + 18, pane - 22, TEXT);
+    private void economySubscription() {
+        boolean wanted = tab == MenuTab.TRADE && tradeTab == 0 && view != null && !foreign() && !closed;
+        if (wanted == economyOpen || pending > 0 || closed || foreign()) return;
+        economyOpen = wanted;
+        send(ECONOMY, "", "", wanted ? 1 : 0);
+    }
+    private Map<String, String> economyAssets() {
+        if (economyAssets == null) {
+            var root = economyText.load(minecraft.getResourceManager());
+            economyAssets = Map.of();
+            if (root != null) { economyPanel.assets(root); economyAssets = dev.hoi.client.screen.decision.DecisionPanel.sprites(root); }
         }
+        return economyAssets;
+    }
+    int economyTop() { return frame.iy(ECONOMY_Y); }
+    int economyBottom() { return Math.min(height, frame.iy(windowHeight())); }
+    private void economy() {
+        var panel = view.economyPanel();
+        if (panel == null) return;
+        int clipTop = economyTop(), clipBottom = economyBottom(), x = frame.ix(0);
+        scroll = Math.max(0, scroll);
+        if (graphics != null) graphics.enableScissor(x, clipTop, frame.ix(ECONOMY_WIDTH), clipBottom);
+        var result = economyPanel.render(graphics, font, panel, economyAssets(), economyText, x, clipTop - scroll, frame.len(ECONOMY_WIDTH));
+        if (graphics != null) graphics.disableScissor();
+        int content = result.hits().stream().mapToInt(hit -> hit.y() + hit.height() + scroll).max().orElse(clipTop) + frame.len(10);
+        int limit = Math.max(0, content - clipBottom);
+        if (scroll > limit && graphics == null) { scroll = limit; economy(); return; }
+        dev.hoi.client.screen.decision.DecisionPanel.Hit hovered = null;
+        var hits = result.hits();
+        for (int index = hits.size() - 1; index >= 0; index--) {
+            var hit = hits.get(index);
+            int x0 = hit.x(), y0 = Math.max(hit.y(), clipTop), x1 = hit.x() + hit.width(), y1 = Math.min(hit.y() + hit.height(), clipBottom);
+            if (!hit.button().isEmpty()) for (var later : hits.subList(index + 1, hits.size())) {
+                int lx0 = later.x(), ly0 = later.y(), lx1 = lx0 + later.width(), ly1 = ly0 + later.height();
+                if (later.button().isEmpty() || lx0 >= x1 || x0 >= lx1 || ly0 >= y1 || y0 >= ly1) continue;
+                int[] cost = {ly0 <= y0 ? ly1 - y0 : Integer.MAX_VALUE, ly1 >= y1 ? y1 - ly0 : Integer.MAX_VALUE,
+                        lx0 <= x0 ? lx1 - x0 : Integer.MAX_VALUE, lx1 >= x1 ? x1 - lx0 : Integer.MAX_VALUE};
+                int side = 0; for (int i = 1; i < 4; i++) if (cost[i] < cost[side]) side = i;
+                if (cost[side] == Integer.MAX_VALUE) continue;
+                switch (side) { case 0 -> y0 = ly1; case 1 -> y1 = ly0; case 2 -> x0 = lx1; default -> x1 = lx0; }
+            }
+            if (y1 <= y0 || x1 <= x0) continue;
+            if (graphics == null && !hit.button().isEmpty()) {
+                var button = new UiPanelButton(hit.button(), x0, y0, x1 - x0, y1 - y0, () -> send(ECONOMY_CLICK, hit.button(), "", 0)) {
+                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
+                };
+                button.active = hit.enabled() && pending == 0 && !foreign();
+                addRenderableWidget(button);
+            }
+            if (hovered == null && !(hit.immediate() + hit.delayed()).isEmpty() && mouseX >= x0 && mouseX < x1 && mouseY >= y0 && mouseY < y1) hovered = hit;
+        }
+        if (graphics != null && !background && hovered != null)
+            economyText.tooltip(graphics, font, hovered.immediate() + hovered.delayed(), mouseX, mouseY, width, height, 0);
     }
     private void tradeValue(Component value,int x,int y,int width,int height,int color) {
         if(graphics==null)return;
@@ -2911,6 +2955,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if (!passive) rebuildWidgets();
     }
     @Override public void tick() {
+        economySubscription();
         if (pending == 0 && view != null && view.draft() != null && openingDesigner) {
             InputSidebarMovement.release(minecraft); designer = true; openingDesigner = false; draftName = view.draft().name(); rebuildWidgets();
         }
@@ -2954,6 +2999,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     }
     @Override public void removed() {
         flagAssets.close();
+        economyPanel.close();
         draggedProduction = "";
         InputSidebarMovement.release(minecraft);
         if (DialogCoordinator.suspending()) return;
@@ -3143,7 +3189,6 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private static String decimal(double n) { return String.format(Locale.ROOT, "%,.1f", n); }
     private static String percent(double n) { return integer(n * 100) + "%"; }
     private static String manpower(double n) { return HudMenuBar.number(n); }
-    private static String amount(Double n) { return n == null ? "알 수 없음" : decimal(n) + " 십억"; }
     private int clampScroll(int value, int count, int h, int start) { return Math.clamp(value / h, 0, Math.max(0, count - Math.max(1, (bottom() - start) / h))) * h; }
     private boolean visible(int y, int h, int start) { return y >= start && y + h <= bottom(); }
     private void rail(int x, int y, int w, int h) { if (graphics != null) UiMenuStyle.metal(graphics, x, y, w, h); }

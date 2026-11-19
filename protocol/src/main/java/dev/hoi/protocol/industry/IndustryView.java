@@ -10,7 +10,14 @@ public record IndustryView(String session, long revision, String country, Countr
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
         List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner, NavalDeployment navalDeployment, CommanderArmyHeadquarters headquarters, CommanderCaptivityView captivity, Viewing viewing, AutoImport autoImport, dev.hoi.protocol.decision.DecisionPanelView economyPanel) {
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
         Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner, NavalDeployment navalDeployment, CommanderArmyHeadquarters headquarters, CommanderCaptivityView captivity, Viewing viewing, AutoImport autoImport) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing,autoImport,null);
+    }
     public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
@@ -53,15 +60,16 @@ public record IndustryView(String session, long revision, String country, Countr
         this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,null);
     }
     public IndustryView withNavalDeployment(NavalDeployment deployment) {
-        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,deployment,headquarters,captivity,viewing,autoImport);
+        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,deployment,headquarters,captivity,viewing,autoImport,economyPanel);
     }
-    public IndustryView withAutoImport(AutoImport value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing,value);}
-    public IndustryView withHeadquarters(CommanderArmyHeadquarters value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,value,captivity,viewing,autoImport);}
-    public IndustryView withCaptivity(CommanderCaptivityView value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,value,viewing,autoImport);}
+    public IndustryView withAutoImport(AutoImport value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing,value,economyPanel);}
+    public IndustryView withEconomyPanel(dev.hoi.protocol.decision.DecisionPanelView value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing,autoImport,value);}
+    public IndustryView withHeadquarters(CommanderArmyHeadquarters value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,value,captivity,viewing,autoImport,economyPanel);}
+    public IndustryView withCaptivity(CommanderCaptivityView value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,value,viewing,autoImport,economyPanel);}
     public record Viewing(String country,String title) {
         public Viewing {IndustryView.text(country,32);IndustryView.text(title,600);if(country.isEmpty())throw new IllegalArgumentException("Invalid viewed country");}
     }
-    public IndustryView withEquipment(List<Equipment> value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,value,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing,autoImport);}
+    public IndustryView withEquipment(List<Equipment> value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,value,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing,autoImport,economyPanel);}
     public record NavalTarget(String id,String name,String port,int level,int ships) {
         public NavalTarget {text(id,128);text(name,256);text(port,128);if(level<0||ships<0)throw new IllegalArgumentException("Invalid naval destination");}
         public boolean fleet(){return id.startsWith("fleet/");}
@@ -86,7 +94,7 @@ public record IndustryView(String session, long revision, String country, Countr
         this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,null);
     }
     public IndustryView withTankDesigner(IndustryTankDesigner designer) {
-        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer,navalDeployment,headquarters,captivity,viewing,autoImport);
+        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer,navalDeployment,headquarters,captivity,viewing,autoImport,economyPanel);
     }
     public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
