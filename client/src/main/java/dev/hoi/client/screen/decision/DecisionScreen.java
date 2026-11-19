@@ -559,10 +559,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         if (!events.equals(eventRows)) rebuildWidgets();
         var view=snapshot.view();
         HudMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
-        g.enableScissor(0,top,pane,height);
-        UiAssets.tiledNineSlice(g,"diplomacy/dialog/panel_dark",-32,top,pane+32,height-top+32,64,.5);
-        g.disableScissor();
-        g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/decision/ui/window_header.png"),0,top,pane,top+21,248f/794,1,0,1);
+        UiMenuStyle.window(g,UiMenuStyle.window(MenuTab.DECISIONS),0,top,pane,height-top);
         g.pose().pushMatrix();g.pose().translate(20,top+4);g.pose().scale(1.25f);
         g.text(font,Tooltips.officerText("사건과 결정",true),0,0,UiMenuStyle.TEXT,false);g.pose().popMatrix();
         g.enableScissor(3,contentTop(),pane-13,contentBottom());layout(g,false);g.disableScissor();

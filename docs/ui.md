@@ -235,7 +235,7 @@ HQ 설계 하단에는 원본 `GFX_button_221x34` 저장 단추만 둔다(x487/y
 
 메뉴 순서는 국가 정보·결정·정보기관·연구·무역과 경제·건설·생산·모병 및 배치·군수·장교단입니다. 군종 경험치는 육군·해군·공군 순서입니다. 날짜·배속은 서버의 게임 시간을 한국어로 표시합니다.
 
-정치 화면은 원본 프레임 안에 지도자 사진과 이름판을 배치하고 국민정신은 왼쪽부터 가로 스크롤합니다. 국가 중점은 제목 영역을 눌러 선택합니다. 정부·장관·군사참모는 소형 철제 프레임 초상화를 우선하며 원본이 없으면 빈 프레임을 사용합니다. 국민정신·지도자 설명은 서버가 제공한 현재 상태만 표시합니다. 정치 고문·장교·장관 선택 칸의 이름과 특성 줄은 칸 폭에 맞춰 줄이지 않고 최소 글자 크기(GUI2 2px)로 그리며, 칸보다 길면 `UiText.scrollingCell`로 좌우로 흐른다(예: 이낙연 고문 특성).
+정치 화면 위쪽은 TFR `countrypoliticsview`의 `GFX_pol_view_bg_new`(팩 `politics/view_background`, 719×394)를 창 (2,40)에 원본 그대로 깔고, 각 내용을 그 그림의 칸에 맞춥니다. 좌표는 726폭 원본 창 기준으로 패널 폭에 비례해 줄입니다: 지도자 틀 (6,49), 국가 중점 (187,52), 국제기구 (585,59), 이념 (180,165), 국민정신 (280,164), 정치 체제 (180,253), 선거 (257,253), 정당 목록 (508,254), 경제 모델 (13,320)과 이름 띠 (13,394), 세력 (99,320), 원형 그래프 (398,325), 권력 균형 (254,339), 점령지·협력정부 (315,398)·(350,398). 아이콘은 칸 안 가운데 정사각형에 그려 원본 비율을 유지하고, 원본에서 쓰임을 찾지 못한 아래 가운데 두 칸은 비워 둡니다. 법률·장관 영역은 y435부터 `GFX_tiled_window_2b_border` 위에 분류마다 원본 `GFX_category_header`(팩 `politics/category_header`, 660×52)와 분류 아이콘·이름을 그립니다. 지도자 사진과 이름판은 원본 프레임 안에 배치하고 국민정신은 왼쪽부터 가로 스크롤합니다. 국가 중점은 제목 영역을 눌러 선택합니다. 정부·장관·군사참모는 소형 철제 프레임 초상화를 우선하며 원본이 없으면 빈 프레임을 사용합니다. 국민정신·지도자 설명은 서버가 제공한 현재 상태만 표시합니다. 정치 고문·장교·장관 선택 칸의 이름과 특성 줄은 칸 폭에 맞춰 줄이지 않고 최소 글자 크기(GUI2 2px)로 그리며, 칸보다 길면 `UiText.scrollingCell`로 좌우로 흐른다(예: 이낙연 고문 특성).
 
 정치·장교단 칸의 후광은 서버 `MenuView.Entry.alert`(지금 바꿀 수 있는 칸)일 때만 그린다. 사용자 지시(2026-11-19)에 따라 애니메이션 없이 프레임 0만 쓰고, 원본 위치(정치 `political_idea_entry`의 x45/y-8, 장교단 x73/y92 등) 대신 칸 아이콘의 정중앙에 둔다. 정치 슬롯·장교단 참모 칸은 `GFX_ongoing_generic_glow_yellow`(141×115 한 프레임, 0.65배)를 원본 63px 칸 대비 크기로 아이콘 뒤에 깔고, 장교단 정신 칸은 `GFX_spirit_glow`(159×115)를 원본처럼 정신 배경(168×70) 위·훈장 아래에 같은 비율로 그린다. 후광 뒤 칸 순서는 이웃 아이콘을 덮지 않도록 같은 줄의 후광을 먼저 모두 그린 다음 아이콘을 그린다. `ScreenAlertGlowTest`(`politics` 묶음)는 GUI2 2560에서 켠 칸의 밝아진 픽셀이 칸 중앙에 대칭인지(정신 칸은 가로만), 끈 칸에 변화가 없는지 검사한다.
 
@@ -1595,7 +1595,7 @@ HQ 목록 아래 빈 공간도 오른쪽 바깥과 같은 지도 클릭 경로�
 
 연구 트리의 코드 바탕·분류 글자 뒤 바탕·선택 탭 아래 연결부는 검정(`#000000`)이다. 9개 분류의 원본 그림과 겹침 수(공학 1회, 공군 3회, 나머지 2회), 크기·배치·흰색 곱셈을 유지한다. 이전 청록빛 바탕은 `#101A21` 코드 색이었으며 해군 원본 배경 중앙의 `(212,212,212,9)` RGBA와 구분한다. 상세창 본문의 원본 `GFX_tiled_paper_bg`는 중앙 `(23,23,23,255)`의 무채색이라 유지한다. 상단 `GFX_tech_info_top_win`의 청회색은 TFR 원본 DDS 자체의 색(중앙 `(49,53,63,255)`)이며 검은 바탕 요청에 따라 이 연구 화면에서만 기존 `UiAssets.drawGrayscale`로 무채색 표시한다. 저장된 원본 이미지는 바꾸지 않는다. 상세창 내부 밑바탕과 연구 군수산업체 선택창 본문은 검정, 업체 창의 제목 배경은 무채색 그라데이션으로 표시한다. 기존 테두리·업체 행 그림·글꼴·수치·효과 색·입력은 유지한다.
 
-검은 바탕 비교는 `research-background`와 `final-contract`를 같은 고정 입력으로 수정 전후 실행한다. 상세창은 원본 `20261028004018_1`, 업체 선택창은 `20261028004019_1`과 비교한다. 공용 `UiMenuStyle.panel`은 변경하지 않는다. 이를 사용하는 연구 개요·국가 메뉴·산업/생산·건설·국가 선택·점령지·정보기관/작전·지휘관 명부/특성·HQ·선호 전술·중점·정치 선택·대화/완료·한국 음악 화면은 기존 색을 유지한다. 이 집중 렌더는 운영 서버 접속·멀티플레이·최종 무필터 검증을 대신하지 않는다.
+검은 바탕 비교는 `research-background`와 `final-contract`를 같은 고정 입력으로 수정 전후 실행한다. 상세창은 원본 `20261028004018_1`, 업체 선택창은 `20261028004019_1`과 비교한다. 국가 화면 사이드 패널은 [국가 화면 패널 배경](#국가-화면-패널-배경)의 원본 창 배경을 쓴다. 코드로 그린 `UiMenuStyle.panel`은 아직 원본 창을 정하지 않은 팝업·대화상자에만 남는다. 이 집중 렌더는 운영 서버 접속·멀티플레이·최종 무필터 검증을 대신하지 않는다.
 
 ### 서버 원문 툴팁과 중점 인레이
 
@@ -2083,6 +2083,27 @@ TFR `interface/core.gui`의 `ToolTip` 선언은 `maxWidth=400`, `borderSize={18,
 - 연구·중점: 화면 이름은 `RESEARCH_RESEARCH`, 빈 슬롯은 `RESEARCH_NO_RESEARCH`이다. 배타 연구는 `RESEARCH_EXCLUSIVE_INFO_TITLE_TOOLTIP`과 `RESEARCH_EXCLUSIVE_INFO_ENTRY`로 표시한다. 중점 소요 시간 칸은 `FOCUS_STATUS_TOOLTIP`·`_INPROGRESS_TOOLTIP`·`_COMPLETED_TOOLTIP`이고 저장 시간·정치력 내역은 표시하지 않는다.
 - 산업: 생산 + 버튼은 `PRODUCTION_ADD_FACTORIES_CLICK`(해군 `PRODUCTION_ADD_NAVAL_FACTORIES_CLICK`)이며 Ctrl은 5, Shift는 10씩 바꾼다. ×10/×5는 `PRODUCTION_FACTORY_SCALE_UP`/`_DOWN`이다. 건설 수리 칸은 `REPAIR_ASSIGNMENT_INFO_FACTORIES`이다. 모병의 증원·업그레이드·주둔군 줄은 `REINFORCEMENT_DESC`/`_EMPTY`, `UPGRADES_DESC`, `GARRISONS_DESC`를 쓴다. 배치 라인은 `CONVEYOR_SET_LOCATION_DESC`, `CONVEYOR_SERIES_CURRENT_AMOUNT_DESC`, `CONVEYOR_LINE_DEPLOY_DESC`/`DEPLOYMENT_NOT_ALLOWED_REASON_TRAINING`, `CONVEYOR_LINE_CANCEL_DESC`를 쓴다. 무역 화면 머리는 `MenuTab.TRADE` 원본 이름을 쓴다.
 - 외교·정치: 관계 행 툴팁은 서버가 보낸 원본 `<관계>_desc`이다. 세력 아이콘은 TFR `TFR_GLOBAL_ASSOCIATION_RANDOM_TT`이다. 권력 균형 막대는 `BOP_TOOLTIP`이다. 구간별 `BOP_RANGE_DESC`는 보정·규칙 자료가 없어 표시하지 않는다.
+
+## 국가 화면 패널 배경
+
+국가 화면 사이드 패널은 TFR 각 창의 `background`를 `UiMenuStyle.window`로 그린다. `corneredTileSpriteType`(192×192, 모서리 64)은 `UiAssets.tiledNineSlice`로 모서리를 고정하고 가운데를 반복하며, 화면 왼쪽 끝에 붙는 창은 결정 화면처럼 왼쪽·아래 테두리를 화면 밖으로 32 밀어 숨긴다. 제목 띠는 `GFX_header_bg`(팩 `decision/ui/window_header`, 794×41)를 원본 x 위치에 맞춰 max(0,−x)~min(794, 창 폭−x) 구간만 잘라 패널 폭·높이 21에 그리고, 제목은 원본 x의 절반 위치에서 띠 높이 가운데에 둔다.
+
+| 화면 | 원본 창 | 배경 | 제목 띠 x | 제목 x |
+| --- | --- | --- | --- | --- |
+| 정치 | `countrypoliticsview` 726 | `GFX_tiled_window_thin_border2` | −70 | 40 |
+| 무역 | `countrytradeview` 620 | `GFX_tiled_window_1b_border` | −170 | 45 |
+| 건설 | `countryconstructionsview` 550 | `GFX_tiled_window_thin_border2` | −248 | 45 |
+| 생산 | `countryproductionlineview` 550 | `GFX_tiled_plain_bg` | −245 | 45 |
+| 모병 및 배치 | `countrydeploymentview` 550 | `GFX_tiled_window` | −248 | 45 |
+| 군수 | `countrylogisticsview` 560 | `GFX_tiled_window_thin_border2` | −240 | 45 |
+| 정보기관 | `countryintelligenceagencyview` 550 | `GFX_tiled_bg` | −245 | 45 |
+| 장교단 | `countryofficercorpview` 550 | `GFX_tiled_bg` | 5 | 45 |
+| 사건과 결정 | `countrydecisionview` 550 | `GFX_tiled_window2_1b_border` | −248 | 45 |
+| 연구 | `countrytechtreeview` | `GFX_tiled_plain_bg2` | 없음 | 45 |
+| 외교 | `countrydiplomacyview` 550 | `GFX_tiled_bg` | 없음 | 14 |
+| 점령지 | `countryoccupationview` 550 | `GFX_tiled_bg` | −249 | 45 |
+
+모병 오른쪽 사단 편제 칸은 원본 `templatedeploymentwindow`의 `GFX_tiled_window_1b_thin_border`를 쓴다. 국가 선택 미리보기는 화면 가운데 놓이므로 정치 창 배경을 네 테두리 모두 보이게 그린다. 정치 탭이 아닌 국가 메뉴 목록 칸, 스크롤바, 연구·정보기관 하단 단추 줄과 팝업·대화상자는 아직 코드로 그린 배경을 쓴다.
 
 ## 실패·거부·안내 메시지
 

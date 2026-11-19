@@ -452,8 +452,9 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     }
     private void drawOverview(GuiGraphicsExtractor g) {
         int pane = overviewWidth(), top = menuBottom(), bannerY = top + 39;
-        UiMenuStyle.panel(g, 0, top, pane, height - top);
-        UiMenuStyle.heading(g, font, "연구", 12, top + 9, pane - 44, UiMenuStyle.TEXT);
+        var frame = UiMenuStyle.window(MenuTab.RESEARCH);
+        UiMenuStyle.window(g, frame, 0, top, pane, height - top);
+        UiMenuStyle.title(g, font, frame, "연구", 0, top, pane);
         g.fillGradient(6, bannerY, pane - 6, bannerY + bannerHeight(), 0xFF4E315E, 0xFF172731);
         if (!UiAssets.cover(g, "panel/research_banner", 6, bannerY, pane - 12, bannerHeight())) {
             ResearchIcons.fallback(g, "ENGINEERING", pane / 2 - 10, bannerY + bannerHeight() / 2 - 8, 0xFFBB98CD, 2);

@@ -5,7 +5,39 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public final class UiMenuStyle {
     public static final int TEXT = 0xFFE3E1D8, ACCENT = 0xFFB8BDB6, MUTED = 0xFF9B9D97;
+    public record Window(String tile, int width, int headerX, int titleX) {}
+    public static final int NO_HEADER = Integer.MIN_VALUE;
+    private static final int HEADER_WIDTH = 794, HEADER_HEIGHT = 21;
+    private static final String THIN_BORDER = "commander/commands/tiled_window_thin_border2/frame_0", TILED_BG = "commander/commands/tiled_bg/frame_0";
+    public static final Window DIPLOMACY = new Window(TILED_BG, 550, NO_HEADER, 14), OCCUPATION = new Window(TILED_BG, 550, -249, 45),
+            TEMPLATES = new Window("commander/commands/tiled_window_1b_thin_border/frame_0", 550, NO_HEADER, 45);
     private UiMenuStyle() {}
+    public static Window window(dev.hoi.protocol.menu.MenuTab tab) {
+        return switch (tab) {
+            case POLITICS -> new Window(THIN_BORDER, 726, -70, 40);
+            case TRADE -> new Window("commander/commands/tiled_window_1b_border/frame_0", 620, -170, 45);
+            case CONSTRUCTION -> new Window(THIN_BORDER, 550, -248, 45);
+            case PRODUCTION -> new Window("commander/commands/tiled_plain_bg/frame_0", 550, -245, 45);
+            case RECRUITMENT -> new Window("commander/commands/tiled_window/frame_0", 550, -248, 45);
+            case LOGISTICS -> new Window(THIN_BORDER, 560, -240, 45);
+            case INTELLIGENCE -> new Window(TILED_BG, 550, -245, 45);
+            case OFFICER_CORPS -> new Window(TILED_BG, 550, 5, 45);
+            case DECISIONS -> new Window("diplomacy/dialog/panel_dark", 550, -248, 45);
+            case RESEARCH -> new Window("research/source/gfx_tiled_plain_bg2/frame_0", 550, NO_HEADER, 45);
+        };
+    }
+    public static void window(GuiGraphicsExtractor g, Window window, int x, int y, int w, int h) {
+        g.enableScissor(x, y, x + w, y + h);
+        UiAssets.tiledNineSlice(g, window.tile(), x - 32, y, w + 32, h + 32, 64, .5);
+        g.disableScissor();
+        if (window.headerX() == NO_HEADER) return;
+        int start = Math.max(0, -window.headerX()), end = Math.min(HEADER_WIDTH, window.width() - window.headerX());
+        g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/decision/ui/window_header.png"), x + Math.max(0, window.headerX()) / 2, y, x + w, y + HEADER_HEIGHT,
+                (float)start / HEADER_WIDTH, (float)end / HEADER_WIDTH, 0, 1);
+    }
+    public static void title(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font, Window window, String text, int x, int y, int width) {
+        heading(g, font, text, x + window.titleX() / 2, y + (window.headerX() == NO_HEADER ? 9 : 6), width - window.titleX() / 2 - 22, TEXT);
+    }
     public static void close(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
         UiAssets.draw(g, "menu/close", x + 2, y + 2, w - 4, h - 4);
     }

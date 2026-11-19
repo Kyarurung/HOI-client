@@ -137,9 +137,9 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
     private int column(int sourceX){return 6+(paletteX()-21)*sourceX/402;}
     private int rowHeight(){return 29;}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
-        UiMenuStyle.panel(g,0,top,pane,height-top);
-        UiAssets.nineSlice(g,"construction/ui/header",0,top,pane,25,4,.5);
-        UiMenuStyle.heading(g, font,"건설",9,top+8, pane - 44,UiMenuStyle.TEXT);
+        var frame=UiMenuStyle.window(MenuTab.CONSTRUCTION);
+        UiMenuStyle.window(g,frame,0,top,pane,height-top);
+        UiMenuStyle.title(g,font,frame,"건설",0,top,pane);
         HudMenuBar.draw(g,width,view == null ? dev.hoi.client.ClientCampaignHud.hud() : view.hud(),mx,my,hudScroll);
         if(view!=null) {
             var s=view.summary();int q=paletteX()-15;
@@ -203,7 +203,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
             var project=view.projects().stream().filter(p->p.id().equals(draggedProject)).findFirst().orElse(null);
             if(project!=null) {
                 int y=Math.clamp((int)Math.round(projectPointerY-projectOffsetY),queueY(),Math.max(queueY(),height-30-rowHeight()));
-                g.nextStratum();g.enableScissor(6,y,paletteX()-15,y+rowHeight()-2);UiMenuStyle.panel(g,0,top,pane,height-top);g.disableScissor();g.pose().pushMatrix();g.pose().translate(0,y-projectY(project));
+                g.nextStratum();g.enableScissor(6,y,paletteX()-15,y+rowHeight()-2);UiMenuStyle.window(g,UiMenuStyle.window(MenuTab.CONSTRUCTION),0,top,pane,height-top);g.disableScissor();g.pose().pushMatrix();g.pose().translate(0,y-projectY(project));
                 drawProject(g,project,projectY(project),-1,-1);
                 for(var widget:movingWidgets)widget.extractRenderState(g,-1,-1,delta);
                 g.pose().popMatrix();

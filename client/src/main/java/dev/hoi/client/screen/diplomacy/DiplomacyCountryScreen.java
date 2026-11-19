@@ -238,8 +238,8 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         assets.beginFrame();
         HudMenuBar.draw(g, width, view == null ? CountryHud.UNKNOWN : view.hud(), mx, my, hudScroll);
-        UiMenuStyle.panel(g, 0, top, pane, height - top);
-        UiMenuStyle.heading(g, font, "외교", 10, top + 9, pane - 44, UiMenuStyle.TEXT);
+        UiMenuStyle.window(g, UiMenuStyle.DIPLOMACY, 0, top, pane, height - top);
+        UiMenuStyle.title(g, font, UiMenuStyle.DIPLOMACY, "외교", 0, top, pane);
         if (view == null) dev.hoi.client.ui.UiText.text(g, font, "서버 정보 불러오는 중…", 12, top + 38, UiMenuStyle.MUTED);
         else {
             String[] targetStats = {"안정도", "전쟁 지지도"};

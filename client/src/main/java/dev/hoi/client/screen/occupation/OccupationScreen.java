@@ -177,8 +177,8 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
     private int rowY(Entry e){return top+s(190+e.offset())-scroll;}
     private boolean visible(Entry e,int y){return y>=top+s(190)&&y+s(e.country()?120:e.row().hasResistance()?60:30)<=height-3;}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
-        UiMenuStyle.panel(g,0,top,pane,height-top);UiAssets.nineSlice(g,"construction/ui/header",0,top,pane,s(43),4,.5);
-        UiText.left(g,font,Component.literal("점령지").withStyle(net.minecraft.ChatFormatting.BOLD),s(28),top+s(7),s(350),s(34),UiMenuStyle.TEXT);
+        UiMenuStyle.window(g,UiMenuStyle.OCCUPATION,0,top,pane,height-top);
+        UiMenuStyle.title(g,font,UiMenuStyle.OCCUPATION,"점령지",0,top,pane);
         UiAssets.draw(g,"occupation/source/gfx_sunk_ships_button/frame_0",s(410),top+s(7),s(28),s(29));
         UiAssets.draw(g,"occupation/source/gfx_equip_overview_button/frame_0",s(450),top+s(7),s(28),s(29));
         HudMenuBar.draw(g,width,dev.hoi.client.ClientCampaignHud.hud(),mx,my,0);

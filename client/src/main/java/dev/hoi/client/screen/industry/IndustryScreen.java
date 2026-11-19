@@ -226,9 +226,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             return;
         }
         graphics = g; mouseX = mx; mouseY = my;
-        UiMenuStyle.panel(g, 0, top, pane, height - top);
-        if (tab == MenuTab.PRODUCTION) UiAssets.draw(g, "production/window_header", 0, top, pane, 25);
-        heading(title(tab), 9, top + 8, pane - 40, TEXT);
+        UiMenuStyle.window(g, UiMenuStyle.window(tab), 0, top, pane, height - top);
+        UiMenuStyle.title(g, font, UiMenuStyle.window(tab), title(tab), 0, top, pane);
         if (view == null) {
             HudMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, hudScroll);
             text("국가 현황을 불러오는 중…", 9, top + 37, pane - 18, MUTED);
@@ -255,7 +254,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (row != null) {
                 int y = Math.clamp((int)Math.round(productionPointerY - productionOffsetY),productionScrollbar.top(),Math.max(productionScrollbar.top(),productionScrollbar.bottom()-row.height()));
                 g.nextStratum();
-                g.enableScissor(6,y,pane-16,y+row.height());UiMenuStyle.panel(g,0,top,pane,height-top);g.disableScissor();
+                g.enableScissor(6,y,pane-16,y+row.height());UiMenuStyle.window(g,UiMenuStyle.window(tab),0,top,pane,height-top);g.disableScissor();
                 g.pose().pushMatrix();g.pose().translate(0,y-row.y());
                 int savedX=mouseX,savedY=mouseY;mouseX=mouseY=-1;
                 productionLine(row.line(),equipment(row.line().equipment()),view.lines().indexOf(row.line()),row.y());
@@ -843,7 +842,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private double minimumTraining() { return view.recruitmentPolicy() == null || view.recruitmentPolicy().minimumTraining() == null ? .2 : view.recruitmentPolicy().minimumTraining(); }
     private void recruitment() {
         int secondX = pane + 3, secondW = rightWidth(), start = top + 28;
-        if (graphics != null) UiMenuStyle.panel(graphics, secondX, top, secondW, height - top);
+        if (graphics != null) UiAssets.tiledNineSlice(graphics, UiMenuStyle.TEMPLATES.tile(), secondX, top, secondW, height - top, 64, .5);
         heading("사단 편제", secondX + (secondW - (int)(font.width(Tooltips.officerText("사단 편제", true)) * (font.lineHeight + 2f) / font.lineHeight)) / 2, top + 8, secondW - 16, TEXT);
         var groups = new LinkedHashMap<String, List<Recruit>>();
         for (var r : view.recruits()) groups.computeIfAbsent(r.template() + "|" + r.location(), key -> new ArrayList<>()).add(r);

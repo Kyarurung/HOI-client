@@ -503,9 +503,10 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         else capitalMap.clear();
         if (group.equals("operations") && selectedId == null) operationMap.draw(g, view, pane, top);
         else operationMap.clear();
-        UiMenuStyle.panel(g, 0, top, pane, height - top);
+        var frame = UiMenuStyle.window(MenuTab.INTELLIGENCE);
+        UiMenuStyle.window(g, frame, 0, top, pane, height - top);
         HudMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, 0);
-        UiMenuStyle.heading(g, font, "정보기관", 10, top + 9, pane - 44, UiMenuStyle.TEXT);
+        UiMenuStyle.title(g, font, frame, "정보기관", 0, top, pane);
         if (unestablished()) { drawUnestablished(g); super.extractRenderState(g,mx,my,delta); return; }
         String flag = view == null ? "menu/intelligence" : Set.of("KOR", "PRC").contains(view.country()) ? "country/" + view.country().toLowerCase(Locale.ROOT) + "/intelligence" : "menu/intelligence";
         UiAssets.cover(g, "agency/ui/header", 6, top + 24, pane - 12, 55);

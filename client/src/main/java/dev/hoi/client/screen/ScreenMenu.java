@@ -72,6 +72,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private static final String[] POLITICS_IDS = {"government", "economic_laws", "military_laws", "social_laws", "development", "military_staff", "research_production"};
     private static final String[] POLITICS_NAMES = {"정부", "경제법", "군법", "사회법", "발전도", "군사 참모", "연구 & 생산"};
     private static final int POLITICS_COLUMNS = 6;
+    private static final UiMenuStyle.Window IDEAS = new UiMenuStyle.Window("research/source/gfx_tiled_window_2b_border/frame_0", PoliticsLayout.WIDTH, UiMenuStyle.NO_HEADER, 0);
     public ScreenMenu(MenuView view) { this(view, MenuTab.POLITICS, HoiClient::open); }
     public static ScreenMenu forFocus(MenuView view, String id) {
         var screen = new ScreenMenu(view);
@@ -394,6 +395,9 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     private void drawPoliticsBanner(GuiGraphicsExtractor g) {
         var layout = politicsLayout(); var leader = layout.leader();
+        g.pose().pushMatrix(); g.pose().translate(0, top); g.pose().scale((float)layout.scale());
+        UiAssets.draw(g, "politics/view_background", PoliticsLayout.ART_X, PoliticsLayout.ART_Y, PoliticsLayout.ART_WIDTH, PoliticsLayout.ART_HEIGHT);
+        g.pose().popMatrix();
         var person = politicsEntry("지도자");
         UiAssets.draw(g, person.icon().isEmpty() ? "politics/empty/leader" : person.icon(),
                 leader.x() + leader.width() * 7 / 172, leader.y() + leader.height() * 6 / 258,
@@ -422,11 +426,9 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
         politicsCell(g, "경제-정치 연합", layout.union());
         var ideology = politicsEntry("세부 이념"); var ideologyBox = layout.ideology();
-        UiMenuStyle.recess(g, ideologyBox.x(), ideologyBox.y(), ideologyBox.width(), ideologyBox.height());
         String ideologyArt = ideology.icon().isEmpty() ? politicsEntry("이념").icon() : ideology.icon();
-        drawPoliticalArt(g, ideologyArt.isEmpty() ? "politics/empty/ideology" : ideologyArt, ideologyBox);
+        drawPoliticalArt(g, ideologyArt.isEmpty() ? "politics/empty/ideology" : ideologyArt, square(ideologyBox));
         var strip = layout.spirits();
-        UiMenuStyle.recess(g, strip.x(), strip.y(), strip.width(), strip.height());
         g.enableScissor(strip.x() + 4, strip.y() + 2, strip.x() + strip.width() - 4, strip.y() + strip.height() - 4);
         int sx = spiritStart() - spiritScroll;
         for (var spirit : spirits) {
@@ -442,7 +444,6 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
         politicsCell(g, "정치 체제", layout.government());
         var electionBox = layout.election();
-        UiMenuStyle.recess(g, electionBox.x(), electionBox.y(), electionBox.width(), electionBox.height());
         String election = politicsEntry("다음 선거").value();
         if (election.equals("선거 없음")) centeredPoliticsText(g, election, electionBox, MUTED);
         else {
@@ -452,23 +453,22 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
         if (!selectionPreview && view.balance() != null) {
             var b = balanceButton(); var balance = view.balance();
-            UiMenuStyle.recess(g, b.x(), b.y(), b.width(), b.height());
             UiAssets.draw(g, balance.value() < 0 ? balance.leftIcon() : balance.rightIcon(), b.x() + 2, b.y() + 2, Math.min(24, b.width()/2), b.height() - 4);
             officerText(g, Math.round(Math.abs(balance.value()) * 100) + "%", b.x() + b.width()/2, b.y() + (b.height() - 7)/2, b.width()/2 - 3, TEXT);
         }
         politicsCell(g, "경제 모델", layout.economy());
+        String economy = politicsEntry("경제 모델").value();
+        if (!economy.equals("정보 없음")) centeredPoliticsText(g, economy, layout.economyName(), TEXT);
         politicsCell(g, "세력", layout.faction());
         for (int i = 0; !selectionPreview && i < 2; i++) {
             var entry = politicsEntry(i == 0 ? "점령지" : "협력정부");
             drawPoliticalArt(g, "politics/" + (i == 0 ? "occupied" : "collaboration") + (entry.progress() > 0 ? "_active" : "_inactive"), layout.status(i));
         }
         var chart = layout.partyChart();
-        UiMenuStyle.recess(g, chart.x(), chart.y(), chart.width(), chart.height());
         for (int[] span : partySpans) g.fill(chart.x() + span[0], chart.y() + span[1], chart.x() + span[2], chart.y() + 1 + span[1], span[3]);
         int overlayHeight = PoliticsPartyChart.overlayHeight(chart.width());
         UiAssets.draw(g, "politics/pie_overlay", chart.x(), chart.y() + (chart.width() - overlayHeight) / 2, chart.width(), overlayHeight);
         var list = layout.parties();
-        UiMenuStyle.recess(g, list.x(), list.y(), list.width(), list.height());
         double pitch = 11;
         float scale = dev.hoi.client.ui.UiText.scale(font);
         int index = 0;
@@ -484,7 +484,10 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             g.pose().popMatrix();
         }
         if (parties.isEmpty()) officerText(g, "정보 없음", list.x() + 5, list.y() + 5, list.width() - 10, MUTED);
-        g.fill(8, layout.contentTop() - 5, pane - 8, layout.contentTop() - 4, 0xFF68686B);
+    }
+    private static PoliticsLayout.PoliticsBox square(PoliticsLayout.PoliticsBox box) {
+        int size = Math.min(box.width(), box.height());
+        return new PoliticsLayout.PoliticsBox(box.x() + (box.width() - size) / 2, box.y() + (box.height() - size) / 2, size, size);
     }
     private void drawPoliticalArt(GuiGraphicsExtractor g, String art, PoliticsLayout.PoliticsBox box) {
         UiAssets.draw(g, art, box.x(), box.y(), box.width(), box.height());
@@ -507,7 +510,6 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 .orElse(new MenuView.Entry(name, "정보 없음", ""));
     }
     private void politicsCell(GuiGraphicsExtractor g, String label, int x, int y, int w, int h) {
-        UiMenuStyle.recess(g, x, y, w, h);
         String kind = switch (label) {
             case "경제 모델" -> "economy";
             case "세력" -> "faction";
@@ -517,7 +519,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         String icon = politicsEntry(label).icon();
         if (icon.isEmpty()) icon = "politics/empty/" + kind;
         int inset = icon.equals("politics/empty/union") ? 0 : 3;
-        UiAssets.draw(g, icon, x + inset - (label.equals("경제-정치 연합") ? 1 : 0), y + inset, w - inset * 2, h - inset * 2);
+        var cell = square(new PoliticsLayout.PoliticsBox(x, y, w, h));
+        UiAssets.draw(g, icon, cell.x() + inset - (label.equals("경제-정치 연합") ? 1 : 0), cell.y() + inset, cell.width() - inset * 2, cell.height() - inset * 2);
     }
     private static int partyColor(String icon) {
         if (icon.matches("politics/party/[0-9a-fA-F]{6}")) return 0xFF000000 | Integer.parseInt(icon.substring(icon.lastIndexOf('/') + 1), 16);
@@ -562,23 +565,25 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     private void layoutPolitics(boolean widgets, GuiGraphicsExtractor g) {
         if (widgets) policies.clear();
-        int row = Math.clamp((contentBottom() - contentTop()) / 7, 37, 68);
+        var layout = politicsLayout(); int header = layout.categoryHeader(); double scale = layout.scale();
+        int row = Math.clamp((contentBottom() - contentTop()) / 7, header + 20, header + 51);
         int y = contentTop() - scroll;
         for (int i = 0; i < POLITICS_IDS.length; i++) {
             final int index = i;
             var section = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.icon().equals(POLITICS_IDS[index])).findFirst()
                     .orElse(new MenuView.Section(POLITICS_NAMES[i], POLITICS_IDS[i], List.of()));
             if (g != null) {
-                UiMenuStyle.metal(g, 9, y, pane - 22, 15);
-                UiAssets.draw(g, "politics/header/" + new int[]{2, 1, 4, 5, 6, 7, 8}[i], 13, y + 1, 21, 13);
-                UiMenuStyle.heading(g, font, section.title(), 39, y + 2, pane - 50, TEXT);
+                int barX = (int)Math.round(12 * scale), iconX = (int)Math.round(21 * scale), nameX = (int)Math.round(87 * scale);
+                UiAssets.draw(g, "politics/category_header", barX, y, (int)Math.round(672 * scale) - barX, header);
+                UiAssets.draw(g, "politics/header/" + new int[]{2, 1, 4, 5, 6, 7, 8}[i], iconX, y + (int)Math.round(8 * scale), (int)Math.round(68 * scale) - iconX, (int)Math.round(33 * scale));
+                UiMenuStyle.heading(g, font, section.title(), nameX, y + (header - 9) / 2, pane - nameX - 12, TEXT);
             }
-            int cell = (pane - 36) / POLITICS_COLUMNS, iconSize = Math.min(cell - 4, row - 21);
+            int cell = (pane - 36) / POLITICS_COLUMNS, iconSize = Math.min(cell - 4, row - header - 6);
             var entries = section.entries();
             int count = Math.max(1, entries.size());
-            if (g != null) for (int j = 0; j < entries.size(); j++) if (entries.get(j).alert()) alertGlow(g, politicsSlotX(j, count, cell), politicsSlotY(j, y, row), cell - 4, iconSize);
+            if (g != null) for (int j = 0; j < entries.size(); j++) if (entries.get(j).alert()) alertGlow(g, politicsSlotX(j, count, cell), politicsSlotY(j, y, row, header), cell - 4, iconSize);
             for (int j = 0; j < count; j++) {
-                int x = politicsSlotX(j, count, cell), cy = politicsSlotY(j, y, row);
+                int x = politicsSlotX(j, count, cell), cy = politicsSlotY(j, y, row, header);
                 var entry = entries.isEmpty() ? new MenuView.Entry(section.title(), "정보 없음", "서버가 이 구역의 상태를 제공하지 않습니다.") : entries.get(j);
                 if (g != null) {
                     String icon = entry.icon().isEmpty() ? "menu/politics" : entry.icon();
@@ -601,7 +606,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                     button.active = true; addRenderableWidget(button);
                 }
             }
-            y += row + (count - 1) / POLITICS_COLUMNS * (row - 17);
+            y += row + (count - 1) / POLITICS_COLUMNS * (row - header - 2);
         }
         total = y - contentTop() + scroll;
     }
@@ -611,7 +616,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         UiAssets.draw(g, "doctrine/gfx_ongoing_generic_glow_yellow/frame_0", x + (w - glowW) / 2, y + (h - glowH) / 2, glowW, glowH);
     }
     private static int politicsSlotX(int index, int count, int cell) { return 16 + Math.max(0, POLITICS_COLUMNS - count) * cell / 2 + (index % POLITICS_COLUMNS) * cell; }
-    private static int politicsSlotY(int index, int y, int row) { return y + 17 + (index / POLITICS_COLUMNS) * (row - 17); }
+    private static int politicsSlotY(int index, int y, int row, int header) { return y + header + 2 + (index / POLITICS_COLUMNS) * (row - header - 2); }
     private void requestRefresh() {
         if (ClientPlayNetworking.canSend(MenuPayloads.Refresh.TYPE)) ClientPlayNetworking.send(new MenuPayloads.Refresh(token));
     }
@@ -622,7 +627,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (selectionPreview) {
             g.pose().pushMatrix();
             g.pose().translate(selectionLeft(), 0);
-            UiMenuStyle.panel(g, 0, top, pane, selectionHeight());
+            UiAssets.tiledNineSlice(g, UiMenuStyle.window(MenuTab.POLITICS).tile(), 0, top, pane, selectionHeight(), 64, .5);
             UiMenuStyle.heading(g, font, CountryDisplays.name(view.country(), view.countryName()), 10, top + 9, pane - 44, TEXT);
             drawPoliticsBanner(g);
             g.pose().popMatrix();
@@ -631,10 +636,9 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             return;
         }
         HudMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
-        UiMenuStyle.panel(g, 0, top, pane, height - top);
-        String heading=trim(selected == MenuTab.POLITICS ? "정치" : selected.label(),pane-44);int headingX=10;
-
-        UiMenuStyle.heading(g, font, heading, headingX, top + 9, pane - 44, TEXT);
+        var frame = UiMenuStyle.window(selected);
+        UiMenuStyle.window(g, frame, 0, top, pane, height - top);
+        UiMenuStyle.title(g, font, frame, trim(selected == MenuTab.POLITICS ? "정치" : selected.label(), pane - 44), 0, top, pane);
         if (selected == MenuTab.POLITICS) drawPoliticsBanner(g);
         if (selected == MenuTab.INTELLIGENCE) {
             UiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);
@@ -643,7 +647,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             dev.hoi.client.ui.UiText.text(g, font, trim("정보기관", pane - 86), 76, top + 43, TEXT);
             dev.hoi.client.ui.UiText.text(g, font, trim(CountryDisplays.name(view.country(), view.countryName()), pane - 86), 76, top + 58, MUTED);
         }
-        UiMenuStyle.recess(g, 5, contentTop() - 3, pane - 10, Math.max(6, contentBottom() - contentTop() + 5));
+        if (selected == MenuTab.POLITICS) UiMenuStyle.window(g, IDEAS, 0, contentTop() - 2, pane, height - contentTop() + 2);
+        else UiMenuStyle.recess(g, 5, contentTop() - 3, pane - 10, Math.max(6, contentBottom() - contentTop() + 5));
         g.enableScissor(6, contentTop(), pane - 6, contentBottom()); layoutRows(false, g); g.disableScissor();
         int visible = contentBottom() - contentTop();
         if (total > visible && visible > 0) {
@@ -692,8 +697,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
     }
     private PoliticsLayout.PoliticsBox balanceButton() {
-        var layout = politicsLayout(); var first = layout.status(0); var last = layout.status(1);
-        return new PoliticsLayout.PoliticsBox(first.x(), layout.summaryY(), last.x() + last.width() - first.x(), first.y() - layout.summaryY() - 2);
+        return politicsLayout().balance();
     }
     private int balancePanelWidth() { return Math.min(UiPanelLayout.width(MenuTab.INTELLIGENCE, width), width - 8); }
     private int balancePanelX() { return Math.min(pane + 3, width - balancePanelWidth()); }

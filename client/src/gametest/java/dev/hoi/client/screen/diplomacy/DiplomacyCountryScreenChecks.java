@@ -351,15 +351,24 @@ public final class DiplomacyCountryScreenChecks {
                 if (Math.abs(focusBox.width() - focusBox.height() * 359.0 / 107) > .5
                         || Math.abs(focusBox.x() + focusBox.height() * 49.5 / 107
                                 - focusImage.x() - focusImage.width() / 2.0) > .5
-                        || focusImage.x() != sizing.ideology().x()
-                        || sizing.spirits().x() != sizing.election().x()
-                        || sizing.spirits().x() + sizing.spirits().width() != pane - 8
-                        || sizing.ideology().y() - focusBox.y() - focusBox.height() != 4
-                        || focusImage.width() != focusImage.height()
-                        || focusImage.height() != sizing.ideology().height())
-                    throw new AssertionError("Focus must center its original frame on the icon and spirits must align with election");
-                for (var box : List.of(sizing.union(), sizing.ideology(), sizing.government()))
-                    if (box.width() != box.height()) throw new AssertionError("Political icon cells must stay square at every size");
+                        || focusImage.width() != focusImage.height())
+                    throw new AssertionError("Focus must center its original frame on the icon");
+                var art = sizing.box(dev.hoi.client.ui.politics.PoliticsLayout.ART_X, dev.hoi.client.ui.politics.PoliticsLayout.ART_Y,
+                        dev.hoi.client.ui.politics.PoliticsLayout.ART_WIDTH, dev.hoi.client.ui.politics.PoliticsLayout.ART_HEIGHT);
+                var cells = List.of(sizing.leader(), sizing.focus(), sizing.union(), sizing.ideology(), sizing.spirits(), sizing.government(), sizing.election(),
+                        sizing.parties(), sizing.economy(), sizing.economyName(), sizing.faction(), sizing.partyChart(), sizing.balance(), sizing.status(0), sizing.status(1));
+                for (int a = 0; a < cells.size(); a++) {
+                    var box = cells.get(a);
+                    if (box.x() < art.x() || box.y() < art.y() || box.x() + box.width() > art.x() + art.width() || box.y() + box.height() > art.y() + art.height())
+                        throw new AssertionError("Politics cell " + a + " must stay inside the original pol_view_bg_new art at pane " + pane);
+                    for (int b = a + 1; b < cells.size(); b++) {
+                        var other = cells.get(b);
+                        if (box.x() < other.x() + other.width() && other.x() < box.x() + box.width() && box.y() < other.y() + other.height() && other.y() < box.y() + box.height())
+                            throw new AssertionError("Politics cells " + a + " and " + b + " overlap at pane " + pane);
+                    }
+                }
+                if (sizing.contentTop() < art.y() + art.height())
+                    throw new AssertionError("Ideas must start below the original politics art");
                 if (sizing.government().x() + sizing.government().width() > sizing.election().x()
                         || sizing.election().x() + sizing.election().width() >= sizing.parties().x()
                         || sizing.partyChart().x() + sizing.partyChart().width() >= sizing.parties().x())
@@ -374,8 +383,7 @@ public final class DiplomacyCountryScreenChecks {
             }
             var leader = layout.leader(); var image = layout.focusImage(); var title = layout.focusTitle();
             if (layout.election().x() + layout.election().width() >= layout.parties().x()
-                    || layout.government().x() + layout.government().width() >= layout.parties().x()
-                    || layout.parties().y() >= layout.summaryY())
+                    || layout.government().x() + layout.government().width() >= layout.parties().x())
                 throw new AssertionError("Party names need the space beside government and election");
             if (!screen.politicsHover(leader.x()+5,leader.y()+10).equals(screen.politicsHover(leader.x()+5,leader.y()+leader.height()-8)))
                 throw new AssertionError("Portrait and name must occupy one continuous cell");
