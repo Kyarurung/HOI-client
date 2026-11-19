@@ -60,8 +60,8 @@ public final class IndustryConstructionScrollTest {
                             if((int)field(screen,offset)!=bar.maximum())throw new AssertionError("Drag: "+name+part);
                         }
                         if(count==24) {
-                            int lastY=queue.top()+23*29-queue.maximum()+6;
-                            if(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("×")&&b.getY()==lastY))throw new AssertionError("Last project unreachable: "+name);
+                            int row=screen.projectRow(23);
+                            if(screen.rowBottom(row)>screen.listBottom()||screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("×")&&b.getY()>=screen.rowTop(row)&&b.getY()<screen.rowBottom(row)))throw new AssertionError("Last project unreachable: "+name);
                         }
                         if(sent.stream().anyMatch(r->r.action()!=IndustryConstructionPayloads.Action.REFRESH))throw new AssertionError("Scrolling sent gameplay requests: "+sent);
                     });

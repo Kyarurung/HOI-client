@@ -19,7 +19,7 @@ public final class IndustryConstructionPayloads {
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE,Response.CODEC);
         registered=true;
     }
-    public enum Action { OPEN, REFRESH, SELECT, PLACE, CANCEL, UP, DOWN, REPAIR, CLOSE, CANCEL_AT, CONVERT, MOVE }
+    public enum Action { OPEN, REFRESH, SELECT, PLACE, CANCEL, UP, DOWN, REPAIR, CLOSE, CANCEL_AT, CONVERT, MOVE, AMOUNT, REPAIR_ORDER_ADD, REPAIR_ORDER_REMOVE, REPAIR_ORDER_MOVE, REPAIR_ORDER_RESET, REPAIR_PLACE, REPAIR_PLACEMENT_CLEAR }
     public record CancelMap() implements CustomPacketPayload {
         public static final CancelMap INSTANCE = new CancelMap();
         public static final Type<CancelMap> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "construction_cancel_map_v1"));

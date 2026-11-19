@@ -16,10 +16,6 @@ public final class IndustryQueueDragTest {
         try { var field = target.getClass().getDeclaredField(name); field.setAccessible(true); return field.get(target); }
         catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
     }
-    private static int method(Object target, String name) {
-        try { var method = target.getClass().getDeclaredMethod(name); method.setAccessible(true); return (int) method.invoke(target); }
-        catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
-    }
     private static MouseButtonEvent mouse(double x, double y) { return new MouseButtonEvent(x, y, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0)); }
     private static void drag(Screen screen, double x, double from, double to) {
         screen.mouseClicked(mouse(x, from), false);
@@ -99,11 +95,12 @@ public final class IndustryQueueDragTest {
         if(!"1".equals(System.getenv("HOI_CAPTURE_BEFORE"))) {
             int[] bounds=game.computeOnClient(c->{
                 if(screen instanceof IndustryScreen industry){float s=industry.productionScale();int h=Math.round((name.contains("collapsed")?60:108)*s),left=industry.productionLeft();var bar=(dev.hoi.client.ui.UiScrollBar)field(industry,"productionScrollbar");return new int[]{left,left+Math.round(511*s),h,Math.min(top+pitch,bar.bottom()-h)};}
-                return new int[]{6,method(screen,"paletteX")-15,27,Math.min(top+pitch,screen.height-30-29)};
+                var construction=(IndustryConstruction)screen;int row=construction.projectRow(0),h=construction.rowBottom(row)-construction.rowTop(row);
+                return new int[]{construction.frame().ix(14),construction.frame().ix(416),h,Math.min(top+pitch,construction.listBottom()-h)};
             });
             try {
                 var a=javax.imageio.ImageIO.read(before.toFile());var b=javax.imageio.ImageIO.read(during.toFile());int changed=0,total=0;
-                for(int y=0;y<bounds[2]*2;y++)for(int px=bounds[0]*2;px<bounds[1]*2;px++){total++;int first=a.getRGB(px,top*2+y),second=b.getRGB(px,bounds[3]*2+y);if(Math.abs((first&255)-(second&255))>5||Math.abs((first>>8&255)-(second>>8&255))>5||Math.abs((first>>16&255)-(second>>16&255))>5)changed++;}
+                int edge=screen instanceof IndustryConstruction?1:0;for(int y=edge;y<bounds[2]*2-edge;y++)for(int px=bounds[0]*2;px<bounds[1]*2;px++){total++;int first=a.getRGB(px,top*2+y),second=b.getRGB(px,bounds[3]*2+y);if(Math.abs((first&255)-(second&255))>5||Math.abs((first>>8&255)-(second>>8&255))>5||Math.abs((first>>16&255)-(second>>16&255))>5)changed++;}
                 if(changed>total*.01)throw new AssertionError("Dragged row lost its original rendering: "+name+" changed "+changed+"/"+total);
             }catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
         }
@@ -145,10 +142,8 @@ public final class IndustryQueueDragTest {
         game.getInput().setCursorPos(width - 4, 4); game.waitTicks(2);
         var shot = game.takeScreenshot("hoi-construction-gauge-synthetic-" + width + "-gui2");
         float[] art = game.computeOnClient(c -> {
-            int q = method(screen, "paletteX") - 15, y = method(screen, "queueY");
-            double fit = Math.min((q - 6) / 402.0, 27 / 54.0);
-            int fitW = (int)Math.round(402 * fit), fitH = (int)Math.round(54 * fit);
-            return new float[]{6 + (q - 6 - fitW) / 2, y + (27 - fitH) / 2, fitW / 402f, fitH / 54f};
+            var frame = screen.frame(); int row = screen.projectRow(0);
+            return new float[]{frame.x(14), frame.y(148 + 52 * row), frame.scale(), frame.scale()};
         });
         int left = (int)Math.ceil((art[0] + 249 * art[2]) * 2 - .49f), right = (int)Math.ceil((art[0] + 311 * art[2]) * 2 - .51f);
         int top = (int)Math.ceil((art[1] + 36 * art[3]) * 2 - .49f), bottom = (int)Math.ceil((art[1] + 45 * art[3]) * 2 - .51f);
@@ -213,27 +208,27 @@ public final class IndustryQueueDragTest {
         var sent = new ArrayList<IndustryConstructionPayloads.Request>();
         var screen = game.computeOnClient(c -> new IndustryConstruction(view.session(), view, sent::add)); game.setScreen(() -> screen);
         game.runOnClient(c -> {
-            int y = method(screen, "queueY") + 14;
+            int row = screen.projectRow(0), pitch = screen.rowTop(row + 1) - screen.rowTop(row), y = screen.rowTop(row) + pitch / 2;
             sent.clear(); drag(screen, 20, y, y);
             if (!sent.isEmpty()) throw new AssertionError("Construction click must not reorder");
-            screen.mouseClicked(mouse(20, y), false); screen.mouseDragged(mouse(20, y + 29), 0, 29);
-            screen.keyPressed(new KeyEvent(InputConstants.KEY_ESCAPE, 0, 0)); screen.mouseReleased(mouse(20, y + 29));
+            screen.mouseClicked(mouse(20, y), false); screen.mouseDragged(mouse(20, y + pitch), 0, pitch);
+            screen.keyPressed(new KeyEvent(InputConstants.KEY_ESCAPE, 0, 0)); screen.mouseReleased(mouse(20, y + pitch));
             if (!sent.isEmpty()) throw new AssertionError("Construction Escape must cancel");
-            screen.mouseClicked(mouse(20, y), false); screen.mouseDragged(mouse(20, y + 29), 0, 29);
-            screen.update(revision(view, IndustryConstructionView.class, 2)); screen.mouseReleased(mouse(20, y + 29));
+            screen.mouseClicked(mouse(20, y), false); screen.mouseDragged(mouse(20, y + pitch), 0, pitch);
+            screen.update(revision(view, IndustryConstructionView.class, 2)); screen.mouseReleased(mouse(20, y + pitch));
             if (!sent.isEmpty()) throw new AssertionError("Construction revision must cancel");
-            drag(screen, 20, y, y + 29);
+            drag(screen, 20, y, y + pitch);
             var request = sent.getFirst();
             if (sent.size() != 1 || request.action() != IndustryConstructionPayloads.Action.MOVE || !request.item().equals(projects.getFirst().id()) || request.amount() != 1 || request.revision() != 2) throw new AssertionError("Construction MOVE contract: " + sent);
             if (!((IndustryConstructionView)field(screen, "view")).projects().equals(projects)) throw new AssertionError("Construction must await authoritative order");
-            drag(screen, 20, y, y + 29); screen.mouseReleased(mouse(20, y + 29));
+            drag(screen, 20, y, y + pitch); screen.mouseReleased(mouse(20, y + pitch));
             if (sent.size() != 1) throw new AssertionError("Pending construction drag must not repeat");
             screen.update(revision(view, IndustryConstructionView.class, 3)); sent.clear();
-            screen.mouseClicked(mouse(20, y), false); screen.mouseDragged(mouse(screen.panelWidth() + 20, y + 29), 20, 29); screen.mouseReleased(mouse(screen.panelWidth() + 20, y + 29));
+            screen.mouseClicked(mouse(20, y), false); screen.mouseDragged(mouse(screen.panelWidth() + 20, y + pitch), 20, pitch); screen.mouseReleased(mouse(screen.panelWidth() + 20, y + pitch));
             if (!sent.isEmpty()) throw new AssertionError("Outside drop must cancel construction drag");
         });
-        preview(game,screen,20,game.computeOnClient(c -> method(screen,"queueY")),29,"construction-synthetic",game.computeOnClient(c->c.getWindow().getWidth()));
-        int y = game.computeOnClient(c -> method(screen,"queueY")+14);
+        preview(game,screen,20,game.computeOnClient(c -> screen.rowTop(screen.projectRow(0))),game.computeOnClient(c -> screen.rowTop(screen.projectRow(1))-screen.rowTop(screen.projectRow(0))),"construction-synthetic",game.computeOnClient(c->c.getWindow().getWidth()));
+        int y = game.computeOnClient(c -> screen.rowTop(screen.projectRow(0))+13);
         game.getInput().setCursorPos(40,y*2); game.waitTicks(3);
         game.takeScreenshot("hoi-construction-drag-tooltip-synthetic-"+game.computeOnClient(c->c.getWindow().getWidth())+"-gui2");
     }

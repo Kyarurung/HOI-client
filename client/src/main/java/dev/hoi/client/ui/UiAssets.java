@@ -275,6 +275,20 @@ public final class UiAssets {
         g.pose().popMatrix();
         return true;
     }
+    public static boolean drawExact(GuiGraphicsExtractor g,String path,float x,float y,float w,float h,int tint) {
+        if(tint==0xFFFFFFFF)return drawExact(g,path,x,y,w,h);
+        path=CountryDisplays.texture(path);
+        var id=Identifier.tryParse("hoi:textures/gui/"+path+".png");
+        if(id==null || w<=0 || h<=0)return false;
+        int[] size=DIMENSIONS.computeIfAbsent(id,UiAssets::dimensions);
+        if(size[0]<=0 || size[1]<=0)return false;
+        g.pose().pushMatrix();
+        g.pose().translate(x,y);
+        g.pose().scale(w/size[0],h/size[1]);
+        g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED,id,0,0,0,0,size[0],size[1],size[0],size[1],size[0],size[1],tint);
+        g.pose().popMatrix();
+        return true;
+    }
     private static int[] dimensions(Identifier id) {
         var resource = Minecraft.getInstance().getResourceManager().getResource(id);
         if (resource.isPresent()) try (var input = new DataInputStream(resource.get().open())) {

@@ -186,6 +186,68 @@ public final class IndustryConstructionTest {
             var request=requests.getLast();
             if(request.action()!=IndustryConstructionPayloads.Action.CONVERT||request.amount()!=0||!request.item().equals("test-state"))throw new AssertionError("Conversion civilian icon sends civilian target for the issued state");
         });
+        context.getInput().resizeWindow(2560,1440);context.getInput().setCursorPos(2500,1400);context.waitTicks(3);
+        var repairLines=List.of(new IndustryConstructionView.Repair("hoi:tfr/state/1|infrastructure","hoi:tfr/state/1","infrastructure","경상북도",5,2,20,.01,1,false),
+                new IndustryConstructionView.Repair("hoi:tfr/state/2|civilian_factory","hoi:tfr/state/2","civilian_factory","서울",10,1,5,.002,2,true));
+        var ordered=new IndustryConstructionView(token,2000,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines);
+        context.runOnClient(client->{
+            var screen=ref.get();screen.update(ordered);
+            if(screen.repairRow(0)<0||screen.repairRow(0)>=screen.projectRow(0))throw new AssertionError("Repair lines sit between the static rows and the construction lines");
+            requests.clear();
+            press(screen,"수량 증가");
+            screen.update(new IndustryConstructionView(token,2001,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            press(screen,"수량 감소");
+            if(requests.size()!=2||requests.get(0).action()!=IndustryConstructionPayloads.Action.AMOUNT||requests.get(0).amount()!=1||requests.get(1).action()!=IndustryConstructionPayloads.Action.AMOUNT||requests.get(1).amount()!=0)throw new AssertionError("Amount buttons add and remove one level: "+requests);
+            requests.clear();screen.update(new IndustryConstructionView(token,2002,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            int row=screen.repairRow(0),y=(screen.rowTop(row)+screen.rowBottom(row))/2,pitch=screen.rowTop(row+1)-screen.rowTop(row);
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(20,y,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
+            screen.mouseDragged(new net.minecraft.client.input.MouseButtonEvent(20,y+pitch,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),0,pitch);
+            screen.mouseReleased(new net.minecraft.client.input.MouseButtonEvent(20,y+pitch,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)));
+            if(requests.size()!=1||requests.getFirst().action()!=IndustryConstructionPayloads.Action.REPAIR_PLACE||!requests.getFirst().item().equals(repairLines.getFirst().id())||requests.getFirst().amount()!=1)throw new AssertionError("Dragging a repair line places it manually: "+requests);
+            requests.clear();screen.update(new IndustryConstructionView(token,2003,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            press(screen,"우선순위");
+            if(!screen.repairWindowOpen())throw new AssertionError("The repair order button opens the repair order window");
+        });
+        context.waitTicks(3);ResearchScreenTest.gui2Screenshot(context,"hoi-construction-repair-order");
+        context.runOnClient(client->{
+            var screen=ref.get();requests.clear();
+            buildingButton(screen,"air_base").onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
+            if(requests.size()!=1||requests.getFirst().action()!=IndustryConstructionPayloads.Action.REPAIR_ORDER_ADD||!requests.getFirst().item().equals("air_base"))throw new AssertionError("A palette click adds its type to the repair queue: "+requests);
+            requests.clear();screen.update(new IndustryConstructionView(token,2004,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            var infrastructure=buildingButton(screen,"infrastructure");
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(infrastructure.getX()+3,infrastructure.getY()+3,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT,0)),false);
+            if(requests.size()!=1||requests.getFirst().action()!=IndustryConstructionPayloads.Action.REPAIR_ORDER_REMOVE||!requests.getFirst().item().equals("infrastructure"))throw new AssertionError("A palette right click removes its type from the repair queue: "+requests);
+            requests.clear();screen.update(new IndustryConstructionView(token,2005,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            press(screen,"열차포");
+            if(requests.size()!=1||requests.getFirst().action()!=IndustryConstructionPayloads.Action.REPAIR_ORDER_ADD||!requests.getFirst().item().equals("railway_gun"))throw new AssertionError("The railway gun button adds railway guns: "+requests);
+            requests.clear();screen.update(new IndustryConstructionView(token,2006,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            press(screen,"대기열 초기화");
+            requests.removeIf(r->r.action()==IndustryConstructionPayloads.Action.REFRESH);
+            if(requests.size()!=1||requests.getFirst().action()!=IndustryConstructionPayloads.Action.REPAIR_ORDER_RESET)throw new AssertionError("Reset clears the repair queue: "+requests);
+            requests.clear();screen.update(new IndustryConstructionView(token,2007,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            press(screen,"수동 배치 해제");
+            if(requests.size()!=1||requests.getFirst().action()!=IndustryConstructionPayloads.Action.REPAIR_PLACEMENT_CLEAR)throw new AssertionError("Clear placement releases manual repair positions: "+requests);
+            requests.clear();screen.update(new IndustryConstructionView(token,2008,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            var at=screen.repairFrame();
+            int first=Math.round(at.y(206+26)),second=Math.round(at.y(206+53+26)),x=Math.round(at.x(200));
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(x,first,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);
+            screen.mouseDragged(new net.minecraft.client.input.MouseButtonEvent(x,second,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),0,second-first);
+            screen.mouseReleased(new net.minecraft.client.input.MouseButtonEvent(x,second,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)));
+            if(requests.size()!=1||requests.getFirst().action()!=IndustryConstructionPayloads.Action.REPAIR_ORDER_MOVE||!requests.getFirst().item().equals("infrastructure")||requests.getFirst().amount()!=1)throw new AssertionError("Dragging a queued type reorders the repair queue: "+requests);
+            requests.clear();screen.update(new IndustryConstructionView(token,2009,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            press(screen,"수리 우선순위 닫기");
+            if(screen.repairWindowOpen())throw new AssertionError("The repair order window closes with its close button");
+            press(screen,"최소화");
+            if(!screen.minimized()||screen.panelRight()>=screen.panelWidth())throw new AssertionError("Minimize leaves only the building palette");
+            for(var w:screen.children())if(w instanceof Button b&&(b.getX()<0||b.getRight()>screen.width))throw new AssertionError("Minimized control escaped viewport: "+b.getMessage().getString());
+            if(screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().equals("↑")))throw new AssertionError("Minimized construction hides the queue");
+            buildingButton(screen,"civilian_factory");
+        });
+        context.waitTicks(3);ResearchScreenTest.gui2Screenshot(context,"hoi-construction-minimized");
+        context.runOnClient(client->{
+            var screen=ref.get();press(screen,"확장");
+            if(screen.minimized()||screen.panelRight()!=screen.panelWidth())throw new AssertionError("Expand restores the construction queue");
+        });
         context.runOnClient(client->{
             ref.get().update(new IndustryConstructionView(token,0,"",null,"",null,List.of(),List.of(),"권한 만료"));
             if(client.gui.screen()!=null)throw new AssertionError("Revoked construction must close");
@@ -193,6 +255,10 @@ public final class IndustryConstructionTest {
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
     }
     private static String buildingName(String id) { return switch(id) {case "infrastructure"->"기반시설";case "air_base"->"공군기지";case "anti_air"->"대공포";case "radar"->"레이더";case "military_factory"->"군수공장";case "civilian_factory"->"민간공장";case "dockyard"->"해군 조선소";case "office_park"->"사무단지";case "refinery"->"합성 정제소";case "fuel_silo"->"연료 저장고";case "rocket_site"->"드론 발사장";case "nuclear_reactor"->"원자로";case "power_plant"->"발전소";case "energy_farm"->"에너지 농장";case "conversion"->"전환";case "fort"->"요새";case "coastal_fort"->"해안 요새";case "port"->"해군기지";case "hub"->"보급 중심지";case "railway"->"철도";case "dam","dam_mountain"->"댐";default->id;}; }
+    private static void press(IndustryConstruction screen,String name) {
+        var button=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(name)).findFirst().orElseThrow(()->new AssertionError("Missing control: "+name));
+        button.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
+    }
     private static Button buildingButton(IndustryConstruction screen,String name) {
         return (Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(buildingName(name))).findFirst().orElseThrow();
     }
