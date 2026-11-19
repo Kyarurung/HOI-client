@@ -31,10 +31,7 @@ public final class IndustryOrganizationAssignmentTest {
         try { var f = screen.getClass().getDeclaredField(name); f.setAccessible(true); f.set(screen, value); }
         catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
     }
-    private static int rowHeight(IndustryScreen screen) {
-        try { var method = IndustryScreen.class.getDeclaredMethod("productionRowHeight"); method.setAccessible(true); return (int)method.invoke(screen); }
-        catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
-    }
+    private static int rowOffset(IndustryScreen screen, int index) { return screen.productionRowTop(index) - screen.productionRowTop(0); }
     private static ResearchView revision(ResearchView source, long revision) {
         var json = JSON.toJsonTree(source).getAsJsonObject(); json.addProperty("revision", revision); return JSON.fromJson(json, ResearchView.class);
     }
@@ -54,7 +51,7 @@ public final class IndustryOrganizationAssignmentTest {
                 var industry = game.computeOnClient(c -> new IndustryScreen(MenuTab.PRODUCTION, before.session(), before, sent::add)); game.setScreen(() -> industry);
                 game.runOnClient(c -> {
                     int index = before.lines().indexOf(before.lines().stream().filter(l -> l.id().equals(line.id())).findFirst().orElseThrow());
-                    field(industry, "scroll", index * rowHeight(industry));
+                    field(industry, "scroll", rowOffset(industry, index));
                     industry.init(industry.width, industry.height);
                 });
                 game.waitTicks(2); game.takeScreenshot("hoi-production-mio-unassigned-" + size[0] + "-gui2");
@@ -74,7 +71,7 @@ public final class IndustryOrganizationAssignmentTest {
                 });
                 var assigned = game.computeOnClient(c -> new IndustryScreen(MenuTab.PRODUCTION, after.session(), after, sent::add)); game.setScreen(() -> assigned);
                 game.runOnClient(c -> {
-                    int index = after.lines().indexOf(line); field(assigned, "scroll", index * rowHeight(assigned)); assigned.init(assigned.width, assigned.height);
+                    int index = after.lines().indexOf(line); field(assigned, "scroll", rowOffset(assigned, index)); assigned.init(assigned.width, assigned.height);
                 });
                 var logo = game.computeOnClient(c -> named(assigned, "군수산업체 · " + line.id())); game.getInput().setCursorPos((logo.getX() + 4) * 2, (logo.getY() + 4) * 2); game.waitTicks(3);
                 game.takeScreenshot("hoi-production-mio-assigned-tooltip-" + size[0] + "-gui2");

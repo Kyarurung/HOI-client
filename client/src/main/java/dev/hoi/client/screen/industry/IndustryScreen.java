@@ -150,6 +150,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     }
     int panelWidth() { return pane; }
     private boolean compact() { return height - top < 300; }
+    private int hudBottom() { return HudMenuBar.height(width); }
     private void indexView() {
         equipmentById.clear();equipmentBySource.clear();navalFamilyByTexture.clear();designSlots.clear();templatesById.clear();repairShipsById.clear();
         militaryFactories=0;navalFactories=0;
@@ -258,7 +259,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (row != null) {
                 int y = Math.clamp((int)Math.round(productionPointerY - productionOffsetY),productionScrollbar.top(),Math.max(productionScrollbar.top(),productionScrollbar.bottom()-row.height()));
                 g.nextStratum();
-                g.enableScissor(6,y,pane-16,y+row.height());UiMenuStyle.window(g,UiMenuStyle.window(tab),frame,height);g.disableScissor();
+                g.enableScissor(productionLeft(),y,productionLeft()+frame.len(512),y+row.height());UiMenuStyle.window(g,UiMenuStyle.window(tab),frame,height);productionListBackground(g,compact()?scroll:0);g.disableScissor();
                 g.pose().pushMatrix();g.pose().translate(0,y-row.y());
                 int savedX=mouseX,savedY=mouseY;mouseX=mouseY=-1;
                 productionLine(row.line(),equipment(row.line().equipment()),view.lines().indexOf(row.line()),row.y());
@@ -292,69 +293,197 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         passiveWidgets.add(widget);
         return widget;
     }
+    private static final String[] FILTERS = {"inf_art", "armour", "air", "capital_ships", "screen_ships", "other_ships", "refit", "resources", "outdated", "stockpiling", "reinforcing", "upgrading"};
+    private static final String[][] FILTER_TEXT = {{"PRODUCTION_EQUIPMENT_FILTER", "보병 및 포병 장비"}, {"PRODUCTION_ARMOR_FILTER", "기갑 차량"}, {"PRODUCTION_AIR_FILTER", "항공기"},
+            {"PRODUCTION_CAPITAL_SHIPS_FILTER", "주력함"}, {"PRODUCTION_SCREEN_SHIPS_FILTER", "보조함"}, {"PRODUCTION_OTHER_SHIPS_FILTER", "기타 함선"}, {"PRODUCTION_REFITTING_FILTER", "개장"},
+            {"PRODUCTION_LACKING_RESOURCES_FILTER", "충족된 자원"}, {"PRODUCTION_OUTDATED_FILTER", "최신 장비"}, {"PRODUCTION_STOCKPILING_FILTER", "비축"}, {"PRODUCTION_REINFORCING_FILTER", "증원"}, {"PRODUCTION_UPGRADING_FILTER", "개선"}};
+    private static final int[][] FILTER_POSITIONS = {{13, 223, 51, 234}, {98, 223, 137, 234}, {183, 223, 221, 234}, {268, 223, 306, 234}, {353, 223, 391, 234}, {439, 223, 476, 234},
+            {14, 252, 67, 262}, {98, 255, 152, 262}, {183, 255, 236, 262}, {268, 255, 322, 262}, {353, 255, 408, 262}, {440, 255, 492, 262}};
+    private static final Set<String> hiddenFilters = new HashSet<>();
+    private static final Set<String> CAPITAL_SHIPS = Set.of("battleship", "battlecruiser", "heavy_cruiser", "carrier"), SCREEN_SHIPS = Set.of("destroyer", "light_cruiser");
+    int productionLeft() { return frame.ix(14); }
+    float productionScale() { return frame.scale(); }
+    int productionRowTop(int index) {
+        double sourceY = 294;
+        for (int i = 0; i < index; i++) sourceY += productionSourceHeight(view.lines().get(i));
+        return Math.round(frame.y(sourceY)) - scroll;
+    }
+    private int windowHeight() { return (int)Math.ceil((height - frame.y()) / frame.scale()); }
+    private boolean productionFilter(String filter, Line line) {
+        var e = equipment(line.equipment());
+        return switch (filter) {
+            case "inf_art" -> !e.naval() && !e.group().equals("armor") && !e.group().equals("air");
+            case "armour" -> !e.naval() && e.group().equals("armor");
+            case "air" -> !e.naval() && e.group().equals("air");
+            case "capital_ships" -> e.naval() && CAPITAL_SHIPS.contains(e.family());
+            case "screen_ships" -> e.naval() && SCREEN_SHIPS.contains(e.family());
+            case "other_ships" -> e.naval() && !CAPITAL_SHIPS.contains(e.family()) && !SCREEN_SHIPS.contains(e.family());
+            case "refit" -> e.naval() && line.conversion() != null;
+            case "resources" -> line.missingResources() == null || line.missingResources().isEmpty();
+            case "outdated" -> !e.outdated();
+            case "stockpiling" -> Objects.equals(line.needState(), 0);
+            case "reinforcing" -> Objects.equals(line.needState(), 2);
+            case "upgrading" -> Objects.equals(line.needState(), 1);
+            default -> false;
+        };
+    }
+    private boolean productionShown(Line line) {
+        for (String filter : hiddenFilters) if (productionFilter(filter, line)) return false;
+        return true;
+    }
+    private double productionSourceHeight(Line line) { return !productionShown(line) ? 0 : collapsedProduction.contains(line.id()) ? 63 : 111; }
     private void production() {
-        var economy = view.economy();
         var lines = new ArrayList<>(view.lines());
         if (productionMoved && !draggedProduction.isEmpty()) {
             int target=productionTarget(productionPointerY);
             var moving=lines.stream().filter(line->line.id().equals(draggedProduction)).findFirst().orElse(null);
             if(target>=0&&moving!=null){lines.remove(moving);lines.add(target,moving);}
         }
-        int start = top + 147, end = height - 7, bodyTop = top + 27;
+        int bodyTop = frame.iy(44), start = frame.iy(289), end = Math.min(height, frame.iy(windowHeight() - 13));
         int viewportTop = compact() ? bodyTop : start;
-        productionScrollbar = new UiScrollBar(pane - 11, viewportTop, end, end - viewportTop, lines.stream().mapToInt(this::productionRowHeight).sum() + (compact() ? start - bodyTop : 0));
+        int content = Math.round(frame.y(294 + lines.stream().mapToDouble(this::productionSourceHeight).sum())) - start;
+        productionScrollbar = new UiScrollBar(frame.ix(527), viewportTop, end, end - viewportTop, content + (compact() ? start - bodyTop : 0));
         scroll = Math.clamp(scroll, 0, productionScrollbar.maximum());
         int offset = compact() ? scroll : 0;
-        if (graphics != null) graphics.enableScissor(0, bodyTop, pane, end);
-        resourceStrip(top + 27 - offset, 32);
-        var modifiers = productionIndicators();
-        int cell = (pane - 12) / 6;
-        for (int i = 0; i < modifiers.size(); i++) {
-            var m = modifiers.get(i); int x = 6 + i * cell, y = top + 62 - offset;
-            recess(x, y, cell - 1, 19);
-            iconText("production/modifiers/" + m.id(), percent(m.value()), x + 2, y + 1, cell - 5, 17, 14, m.value()==0?TEXT:(m.id().equals("damage")?m.value()<0:m.value()>0)?0xFF009F03:0xFFFF3232);
-            productionTip(IndustryProductionTooltips.modifier(m),x,y,cell,19);
+        if (graphics != null) {
+            graphics.enableScissor(0, bodyTop, width, end);
+            productionListBackground(graphics, offset);
         }
-        cell = (pane - 12) / 3;
-        int used = militaryFactories;
-        int naval = navalFactories;
-        String[] icons = {"military_factory_icon", "dockyard_icon", "dockyard_icon_with_wrench"};
-        String[] names = {"군수공장 사용 / 전체", "조선소 사용 / 전체", "해군 수리용 조선소 사용 / 전체"};
-        String[] counts = {used + "/" + economy.military(), naval + "/" + economy.dockyards(), repairDockyards()};
-        int summaryY = top + 84 - offset;
-        for (int i = 0; i < 3; i++) {
-            int x = 6 + i * cell;
-            rail(x, summaryY, cell - 1, 22);
-            iconText("production/summary/" + icons[i], counts[i], x + 2, summaryY + 1, cell - 5, 20, 15, TEXT);
-            tip(names[i] + ": " + counts[i] + (i == 2 ? "\n함선 건조에 배정한 조선소를 제외한 수리 배정 현황" : ""), x, summaryY, cell, 22);
-        }
-        int filterY = top + 109 - offset;
-        if (filterY >= bodyTop && filterY + 22 <= bottom()) productionActions(filterY);
-        int nextY = start - scroll;
-        for (int i = 0; i < lines.size(); i++) {
-            var line = lines.get(i); var e = equipment(line.equipment()); int y = nextY, h = productionRowHeight(line);
-            nextY += h;
+        productionHeader(offset);
+        double sourceY = 294;
+        for (var line : lines) {
+            double sourceHeight = productionSourceHeight(line);
+            int y = Math.round(frame.y(sourceY)) - scroll, h = Math.round(frame.y(sourceY + sourceHeight)) - scroll - y;
+            sourceY += sourceHeight;
+            if (sourceHeight == 0) continue;
             if ((y < viewportTop || y + h > end) && !line.id().equals(draggedProduction)) continue;
             boolean moving=productionMoved&&line.id().equals(draggedProduction);
             if(graphics==null||!moving) {
                 int first=children().size();
-                productionLine(line, e, view.lines().indexOf(line), y);
+                productionLine(line, equipment(line.equipment()), view.lines().indexOf(line), y);
                 if(graphics==null)productionWidgets.put(line.id(),children().subList(first,children().size()).stream().filter(child->child instanceof net.minecraft.client.gui.components.AbstractWidget).map(child->(net.minecraft.client.gui.components.AbstractWidget)child).toList());
             }
         }
         if (graphics != null) graphics.disableScissor();
         if (graphics != null && productionScrollbar.maximum() > 0) productionScrollbar.draw(graphics, scroll);
     }
+    private void productionListBackground(GuiGraphicsExtractor g, int offset) {
+        frame.tile(g, "diplomacy/dialog/panel_dark", 0, 253 - offset / frame.scale(), 550, windowHeight() - 253 + (int)Math.ceil(offset / frame.scale()), 64, UiMenuStyle.TILE);
+    }
+    private void productionHeader(int offset) {
+        var economy = view.economy();
+        float lift = offset;
+        if (graphics != null) UiAssets.drawExact(graphics, "production/ui/win_top", frame.x(0), frame.y(44) - lift, frame.size(550), frame.size(253));
+        for (int i = 0; i < Math.min(7, view.resources().size()); i++) {
+            var r = view.resources().get(i); double rx = 25 + 70 * i;
+            if (graphics != null) {
+                graphics.pose().pushMatrix(); graphics.pose().translate(frame.x(rx), frame.y(61) - lift); graphics.pose().scale(frame.scale());
+                UiAssets.tiledNineSlice(graphics, "commander/commands/mini_tooltip/frame_0", 0, 0, 70, 30, 12, 1);
+                graphics.pose().popMatrix();
+                UiAssets.drawExact(graphics, "production/resources/" + (r.available() < r.demand() ? "missing/" : "") + r.id().toLowerCase(Locale.ROOT), frame.x(rx + 4), frame.y(63) - lift, frame.size(27), frame.size(27));
+                String value = integer(r.available() - r.demand());
+                UiText.marquee(graphics, font, Component.literal(value), frame.x(rx + 35), UiText.centeredY(font, value, frame.y(76) - lift - font.lineHeight / 2f, font.lineHeight, 1), frame.size(33), 1, r.available() < r.demand() ? BAD : GOOD, true, -1);
+            }
+            tip(r.name() + "\n점유지 추출 " + decimal(r.extracted()) + "\n수입 " + decimal(r.imported())
+                    + " · 수출 배정 " + decimal(r.exported()) + "\n생산용 " + decimal(r.available()) + " / 수요 " + decimal(r.demand()), frame.ix(rx), frame.iy(61) - offset, frame.len(70), frame.len(30));
+        }
+        String[][] modifiers = {{"dockyard", "production/line/dockyard_0", "22", "102", "50"}, {"factory", "production/ui/output_icon", "108", "97", "137"}, {"cap", "production/ui/efficiency_cap_icon", "199", "101", "227"},
+                {"retention", "production/ui/efficiency_loss_icon", "281", "101", "309"}, {"growth", "production/line/efficiency", "366", "102", "396"}, {"damage", "production/ui/bombing_defence_icon", "446", "97", "475"}};
+        for (var m : productionIndicators()) for (var spec : modifiers) if (spec[0].equals(m.id())) {
+            double ix = Double.parseDouble(spec[2]), iy = Double.parseDouble(spec[3]), vx = Double.parseDouble(spec[4]);
+            int[] size = UiAssets.imageSize(spec[1]);
+            long rounded = Math.round(m.value() * 100);
+            String value = (rounded >= 0 && !m.id().equals("cap") ? "+" : "") + rounded + "%";
+            int color = m.id().equals("damage") ? rounded < 0 ? GOOD : rounded == 0 ? GOLD : BAD : rounded >= 0 ? GOOD : BAD;
+            if (graphics != null) {
+                UiAssets.drawExact(graphics, spec[1], frame.x(ix), frame.y(iy) - lift, frame.size(size[0]), frame.size(size[1]));
+                UiText.marquee(graphics, font, Component.literal(value), frame.x(vx), UiText.centeredY(font, value, frame.y(111) - lift - font.lineHeight / 2f, font.lineHeight, 1), frame.size(50), 1, color, true, -1);
+            }
+            productionTip(IndustryProductionTooltips.modifier(m), frame.ix(ix), frame.iy(97) - offset, frame.len(vx + 50 - ix), frame.len(30));
+        }
+        String[] icons = {"military_factory_icon", "dockyard_icon", "dockyard_icon_with_wrench"};
+        String[] counts = {militaryFactories + "/" + economy.military(), navalFactories + "/" + economy.dockyards(), repairDockyards()};
+        double[][] summary = {{15, 134, 45, 135, 180}, {258, 136, 290, 80, 375}, {440, 136, -1, 0, 473}};
+        String[] labels = {UiCommandLabels.text("PRODUCTION_OPERATIONAL_ARMS_FACTORIES_LABEL", "군수공장"), UiCommandLabels.text("PRODUCTION_OPERATIONAL_DOCKYARDS_LABEL_SHORT", "조선소"), ""};
+        for (int i = 0; i < 3; i++) {
+            var row = summary[i];
+            int[] size = UiAssets.imageSize("production/summary/" + icons[i]);
+            float center = frame.y(144) - lift - font.lineHeight / 2f;
+            if (graphics != null) {
+                UiAssets.drawExact(graphics, "production/summary/" + icons[i], frame.x(row[0]), frame.y(row[1]) - lift, frame.size(size[0]), frame.size(size[1]));
+                if (row[2] >= 0) UiText.marquee(graphics, font, Tooltips.officerText(labels[i]), frame.x(row[2]), center, frame.size(row[3]), 1, TEXT, true, -1);
+                UiText.marquee(graphics, font, Component.literal(counts[i]), frame.x(row[4]), UiText.centeredY(font, counts[i], center, font.lineHeight, 1), frame.size(i == 2 ? 70 : 75), 1, i == 0 ? militaryFactories == economy.military() ? GOOD : GOLD : i == 1 && navalFactories != economy.dockyards() ? BAD : GOOD, true, -1);
+            }
+            String factoryDesc = IndustryEquipmentDesigns.sourceText(UiCommandLabels.text("arms_factory_desc", "이 건물은 §R군수공장 유지비§!를 대가로 주에 신규 군사 장비 생산을 위한 산업을 제공합니다. 필요한 경우 §Y민간공장§!으로 전환될 수 있습니다."));
+            productionTip(factoryDesc, frame.ix(row[0]), frame.iy(row[1]) - offset, frame.len(size[0]), frame.len(size[1]));
+            if (i == 0) productionTip(factoryDesc, frame.ix(row[2]), frame.iy(137) - offset, frame.len(row[3]), frame.len(20));
+            if (i == 1) productionTip(IndustryEquipmentDesigns.sourceText(UiCommandLabels.text("dockyard_desc", "이 건물은 §R조선소 유지비§!를 대가로 새 함선을 건조하기 위한 산업력을 제공합니다.")), frame.ix(row[2]), frame.iy(137) - offset, frame.len(row[3]), frame.len(20));
+            String working = i == 1 ? UiCommandLabels.text("PRODUCTION_WORKING_FACTORIES", "현재 생산 라인 중 하나에서 작업 중인 공장의 수입니다.") : i == 2 ? UiCommandLabels.text("PRODUCTION_WORKING_DOCKYARDS_FOR_REPAIRS", "현재 함선 수리용으로 사용 중인 조선소의 수입니다.") : null;
+            if (working != null) productionTip(IndustryEquipmentDesigns.sourceText(working), frame.ix(row[4]), frame.iy(137) - offset, frame.len(70), frame.len(20));
+        }
+        if (!compact() || frame.iy(166) - offset >= frame.iy(44)) productionActions(offset);
+        productionFilters(offset);
+    }
+    private void productionFilters(int offset) {
+        float lift = offset;
+        boolean solo = hiddenFilters.size() == FILTERS.length - 1;
+        for (int i = 0; i < FILTERS.length; i++) {
+            String filter = FILTERS[i]; int[] at = FILTER_POSITIONS[i];
+            boolean shown = !hiddenFilters.contains(filter), inverted = filter.equals("resources") || filter.equals("outdated");
+            int used = view.lines().stream().filter(line -> productionFilter(filter, line)).mapToInt(Line::factories).sum();
+            String count = Integer.toString(used);
+            if (graphics != null) {
+                UiAssets.drawExact(graphics, "production/filter/" + filter + "/frame_" + (shown != inverted ? 1 : 0), frame.x(at[0]), frame.y(at[1]) - lift, frame.size(45), frame.size(32));
+                float center = frame.y(at[3] + 9) - lift - font.lineHeight / 2f;
+                UiText.marquee(graphics, font, Component.literal(count), frame.x(at[2]), UiText.centeredY(font, count, center, font.lineHeight, 1), frame.size(40), 1, TEXT, true, i < 6 ? 1 : 0);
+            }
+            if (i < 6) tip(UiCommandLabels.text(i >= 3 ? "PRODUCTION_FILTER_DOCKYARDS" : "PRODUCTION_FILTER_ARMS_FACTORIES", i >= 3 ? "사용 중인 해군 조선소" : "사용 중인 군수공장"),
+                    frame.ix(at[0] + 45), frame.iy(at[3]) - offset, frame.ix(at[2] + 40) - frame.ix(at[0] + 45), frame.len(20));
+            if (graphics == null && (!compact() || frame.iy(at[1]) - offset >= frame.iy(44))) {
+                String tooltip = "§Y" + UiCommandLabels.text(FILTER_TEXT[i][0], FILTER_TEXT[i][1]) + "§!\n"
+                        + UiCommandLabels.text(shown ? "PRODUCTION_FILTER_CLICK_TO_HIDE" : "PRODUCTION_FILTER_CLICK_TO_SHOW", shown ? "이 유형을 모두 §R숨기려면§! §G클릭§!하십시오" : "이 유형을 모두 §G보려면§! §G클릭§!하십시오")
+                        + (solo && shown ? UiCommandLabels.text("PRODUCTION_FILTER_SHIFTCLICK_AGAIN", "\n다시 모든 항목을 §G보려면§! §GShift+클릭§!하십시오.") : UiCommandLabels.text("PRODUCTION_FILTER_SHIFTCLICK", "\n다른 모든 항목을 §R숨기려면§! §GShift+클릭§!하십시오."))
+                        + UiCommandLabels.text("PRODUCTION_FILTER_RIGHTCLICK", "\n이 카테고리 전체를 펼치거나 접으려면 §G우클릭§!하십시오.");
+                int bottom = i < 6 ? Math.min(frame.iy(at[1] + 32), frame.iy(FILTER_POSITIONS[i + 6][1])) : frame.iy(at[1] + 32);
+                var button = new UiPanelButton(UiCommandLabels.text(FILTER_TEXT[i][0], FILTER_TEXT[i][1]), frame.ix(at[0]), frame.iy(at[1]) - offset, frame.ix(at[0] + 45) - frame.ix(at[0]), bottom - frame.iy(at[1]), () -> toggleFilter(filter)) {
+                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
+                    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean twice) {
+                        if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT && isMouseOver(event.x(), event.y())) {
+                            playDownSound(minecraft.getSoundManager()); collapseFilter(filter); return true;
+                        }
+                        return super.mouseClicked(event, twice);
+                    }
+                    @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { dev.hoi.client.audio.AudioUiSounds.play("ui.checkbox"); }
+                };
+                button.setTooltip(Tooltips.createExact(IndustryEquipmentDesigns.sourceText(tooltip)));
+                addRenderableWidget(button);
+            }
+        }
+    }
+    private void toggleFilter(String filter) {
+        if (dev.hoi.client.ui.UiPriorityControls.shifted()) {
+            boolean solo = hiddenFilters.size() == FILTERS.length - 1 && !hiddenFilters.contains(filter);
+            hiddenFilters.clear();
+            if (!solo) for (String other : FILTERS) if (!other.equals(filter)) hiddenFilters.add(other);
+        } else if (!hiddenFilters.remove(filter)) hiddenFilters.add(filter);
+        scroll = 0; rebuildWidgets();
+    }
+    private void collapseFilter(String filter) {
+        var matching = view.lines().stream().filter(line -> productionFilter(filter, line)).map(Line::id).toList();
+        if (matching.isEmpty()) return;
+        boolean collapse = !collapsedProduction.containsAll(matching);
+        if (collapse) collapsedProduction.addAll(matching); else matching.forEach(collapsedProduction::remove);
+        rebuildWidgets();
+    }
     private int productionTarget(double pointerY) {
-        int y=top+147-scroll;
-        for(int i=0;i<view.lines().size();i++){int end=y+productionRowHeight(view.lines().get(i));if(pointerY>=y&&pointerY<end)return i;y=end;}
+        double sourceY = 294;
+        for(int i=0;i<view.lines().size();i++){
+            double sourceHeight=productionSourceHeight(view.lines().get(i));
+            int y=Math.round(frame.y(sourceY))-scroll,end=Math.round(frame.y(sourceY+sourceHeight))-scroll;
+            sourceY+=sourceHeight;
+            if(sourceHeight>0&&pointerY>=y&&pointerY<end)return i;
+        }
         return -1;
-    }
-    private int productionRowHeight() {
-        return Math.round((pane - 22) * 116f / 511) + 2;
-    }
-    private int productionRowHeight(Line line) {
-        return collapsedProduction.contains(line.id()) ? Math.round((pane - 22) * 63f / 511) + 2 : productionRowHeight();
     }
     private void toggleProduction(Line line) {
         boolean collapse = !collapsedProduction.contains(line.id());
@@ -367,27 +496,28 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         rebuildWidgets();
     }
     private void productionLine(Line line, Equipment e, int index, int y) {
-        float scale = (pane - 22) / 511f;
+        float scale = frame.scale();
         boolean collapsed = collapsedProduction.contains(line.id());
         int lineHeight = Math.round((collapsed ? 60 : e.naval() ? 116 : 108) * scale);
         if (graphics == null) productionLines.add(new IndustryProductionLine(line, y, lineHeight));
-        java.util.function.IntUnaryOperator x = n -> 6 + Math.round(n * scale);
+        java.util.function.IntUnaryOperator x = n -> productionLeft() + Math.round(n * scale);
         java.util.function.IntUnaryOperator dy = n -> y + Math.round(n * scale);
         int header = Math.max(1, Math.round(24 * scale));
         int step = e.naval() ? 1 : factoryScales().getOrDefault(line.id(), 1);
         int limit = Math.min(e.factoryLimit(), line.availableFactories());
-        art("production/line/" + (collapsed ? "collapsed" : e.naval() ? (e.factoryLimit() < 15 ? "naval_" + e.factoryLimit() : "naval") : "land"), 6, y, pane - 22, collapsed ? lineHeight : Math.round(108 * scale));
-        art("mio/ui/gfx_production_item_has_mio/frame_0", 6, y, Math.round(512 * scale), Math.round(30 * scale));
+        art("production/line/" + (collapsed ? "collapsed" : e.naval() ? (e.factoryLimit() < 15 ? "naval_" + e.factoryLimit() : "naval") : "land"), productionLeft(), y, Math.round(511 * scale), collapsed ? lineHeight : Math.round(108 * scale));
+        art("mio/ui/gfx_production_item_has_mio/frame_0", productionLeft(), y, Math.round(512 * scale), Math.round(30 * scale));
         art("recruitment/location_frame", x.applyAsInt(2), dy.applyAsInt(1), Math.round(27 * scale), Math.round(27 * scale));
         if(graphics!=null) {
             graphics.pose().pushMatrix();
             graphics.pose().translate(0,-1f/minecraft.getWindow().getGuiScale());
             cellText(Integer.toString(index + 1), x.applyAsInt(3), y + 3, x.applyAsInt(30) - x.applyAsInt(3), header, TEXT, false);
-            cellText(e.name(), x.applyAsInt(40), y + 3, x.applyAsInt(193) - x.applyAsInt(40), header, TEXT, false);
             graphics.pose().popMatrix();
+            var name = net.minecraft.locale.Language.getInstance().getVisualOrder(Tooltips.officerText(e.name()));
+            UiText.marquee(graphics, font, name, productionLeft() + 40 * scale, UiText.centeredY(font, name, y + 4 * scale, 19 * scale, UiText.scale(font)), 154 * scale, UiText.scale(font), TEXT, true, -1);
         }
         if (children().stream().noneMatch(child -> child instanceof net.minecraft.client.gui.components.AbstractWidget widget && widget.isMouseOver(mouseX, mouseY)))
-            productionTip(IndustryEquipmentDesigns.tooltip("PRODUCTION_DRAG_N_DROP"),6,y,pane-22,lineHeight);
+            productionTip(IndustryEquipmentDesigns.tooltip("PRODUCTION_DRAG_N_DROP"),productionLeft(),y,Math.round(511*scale),lineHeight);
         var expand = originalButton(collapsed ? "생산 라인 펼치기" : "생산 라인 접기", "commander/commands/division_list_column_button/frame_" + (collapsed ? 1 : 7),
                 x.applyAsInt(20), dy.applyAsInt(8), Math.round(19 * 1.4f * scale), Math.round(21 * 1.4f * scale), true, () -> toggleProduction(line));
         if (expand != null) {
@@ -417,7 +547,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if (!e.naval()) {
             if (graphics != null) {
                 double cap = view.modifiers().stream().filter(m -> m.id().equals("cap")).findFirst().map(m -> m.value()).orElse(0.0);
-                graphics.pose().pushMatrix(); graphics.pose().translate(6, y); graphics.pose().scale(scale);
+                graphics.pose().pushMatrix(); graphics.pose().translate(productionLeft(), y); graphics.pose().scale(scale);
                 IndustryProductionRender.startEnd(graphics, "production/line/efficiency_max", "production/line/efficiency_bg", 252, 10, 93, 9, cap);
                 IndustryProductionRender.startEnd(graphics, "production/line/efficiency_fill", null, 252, 10, 93, 9, line.efficiency());
                 graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/efficiency_frame.png"), 248, 7, 347, 22, 0, 1, 0, 1);
@@ -500,7 +630,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         }
     }
     private void productionCollapsed(Line line, Equipment equipment, int y, float scale) {
-        int imageX = 6, imageY = y + Math.round(33 * scale), imageWidth = Math.round(278 * scale), imageHeight = Math.round(26 * scale);
+        int imageX = productionLeft(), imageY = y + Math.round(33 * scale), imageWidth = Math.round(278 * scale), imageHeight = Math.round(26 * scale);
         art("production/line/equipment_collapsed", imageX, imageY, imageWidth, imageHeight);
         if (graphics == null) {
             var button = new UiPanelButton(equipment.name() + " · 장비 교체", imageX, imageY, imageWidth, imageHeight, () -> {
@@ -518,20 +648,20 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             addRenderableWidget(button);
         }
         if (graphics != null) {
-            graphics.pose().pushMatrix();graphics.pose().translate(6,y);graphics.pose().scale(scale);
+            graphics.pose().pushMatrix();graphics.pose().translate(productionLeft(),y);graphics.pose().scale(scale);
             IndustryProductionRender.startEnd(graphics,"production/line/progress_fill","production/line/progress_bg",157,34,118,21,line.progress());
             graphics.pose().popMatrix();
-            IndustryProductionRender.text(graphics,font,equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),6+157*scale,y+34*scale,120*scale,21*scale,TEXT,false);
+            IndustryProductionRender.text(graphics,font,equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),productionLeft()+157*scale,y+34*scale,120*scale,21*scale,TEXT,false);
         }
         if (!equipment.naval()) {
-            productionStock(line,equipment,6+Math.round(281*scale),y+Math.round(34*scale),Math.round(39*scale),Math.round(23*scale));
-            if (line.needState()!=null) art("production/line/target_"+line.needState(),6+Math.round(320*scale),y+Math.round(32*scale),Math.round(27*scale),Math.round(24*scale));
+            productionStock(line,equipment,productionLeft()+Math.round(281*scale),y+Math.round(34*scale),Math.round(39*scale),Math.round(23*scale));
+            if (line.needState()!=null) art("production/line/target_"+line.needState(),productionLeft()+Math.round(320*scale),y+Math.round(32*scale),Math.round(27*scale),Math.round(24*scale));
         }
         int index=0;
         for(var resource:(line.conversion()!=null&&line.conversion().source()!=null?line.conversion().resources():equipment.resources()).entrySet()) {
             if(index==3)break;
             boolean missing=line.missingResources().contains(resource.getKey());
-            productionResource(resourceArt((missing?"missing/":"")+resource.getKey()),integer(resource.getValue()*line.operatingFactories()),6+Math.round((360+index++*46)*scale),y+Math.round(32*scale),scale,missing?BAD:TEXT);
+            productionResource(resourceArt((missing?"missing/":"")+resource.getKey()),integer(resource.getValue()*line.operatingFactories()),productionLeft()+Math.round((360+index++*46)*scale),y+Math.round(32*scale),scale,missing?BAD:TEXT);
         }
     }
     private static String productionDaily(double daily) {
@@ -584,10 +714,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 g.fill(x,labelY,x+w,bottom,0x88000000);
                 IndustryProductionRender.text(g,font,familyName(equipment),x+2,labelY,w-4,bottom-labelY,TEXT);
                 int lineY=y-Math.round(30*scale),barX=equipment.naval()?158:157,barY=equipment.naval()?31:26;
-                g.pose().pushMatrix();g.pose().translate(6,lineY);g.pose().scale(scale);
+                g.pose().pushMatrix();g.pose().translate(productionLeft(),lineY);g.pose().scale(scale);
                 IndustryProductionRender.startEnd(g,"production/line/progress_fill","production/line/progress_bg",barX,barY,118,21,line.progress());
                 g.pose().popMatrix();
-                IndustryProductionRender.text(g,font,waiting?dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOYMENT_NOT_DEPLOYABLE"):equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),6+160*scale,lineY+barY*scale,115*scale,21*scale,!waiting&&line.daily()>0?TEXT:BAD,true);
+                IndustryProductionRender.text(g,font,waiting?dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOYMENT_NOT_DEPLOYABLE"):equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),productionLeft()+160*scale,lineY+barY*scale,115*scale,21*scale,!waiting&&line.daily()>0?TEXT:BAD,true);
             }
         };
         button.active=pending==0;button.setTooltip(Tooltips.createExact(waiting?IndustryProductionTooltips.navalWaiting(view,line):IndustryProductionTooltips.equipment(view,line,equipment,IndustryProductionTooltips.shortage(line))));addRenderableWidget(button);
@@ -611,7 +741,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
                 if (start >= e.factoryLimit()) return;
                 UiAssets.draw(g, "production/line/factory_bg", x, y, w, h);
-                float scale=(pane-22)/511f;
+                float scale=IndustryScreen.this.frame.scale();
                 double column=((mx-6)/scale-317)/29,row=((my-lineY)/scale-33)/23;
                 int preview=pending==0&&column>=0&&column<5&&row>=0&&row<3
                         ?Math.min(((int)row*5+(int)column+1)*step,limit):-1;
@@ -639,28 +769,25 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             view.modifiers().stream().filter(m -> m.id().equals(id)).findFirst().ifPresent(result::add);
         return List.copyOf(result);
     }
-    private void productionActions(int y) {
+    private void productionActions(int offset) {
         String[] ids = {"infantry", "armor", "air", "navy", "repair"};
         String[] names = {"보병 및 포병 장비 제작", "기갑 차량 제작", "항공기 제작", "함선 건조", "해군 수리 대기열"};
-        int cell = (pane - 12) / ids.length;
+        int[] xs = {25, 105, 185, 350, 430};
+        if (graphics != null) return;
         for (int i = 0; i < ids.length; i++) {
-            String id = ids[i];
-            originalButton(names[i], "production/actions/" + id, 6 + i * cell, y, cell - 1, 22, () -> {
+            String id = ids[i]; int sourceX = xs[i], x = frame.ix(sourceX), y = frame.iy(166) - offset;
+            int right = i + 1 < xs.length ? Math.min(frame.ix(sourceX + 81), frame.ix(xs[i + 1])) : frame.ix(sourceX + 81);
+            var button = new UiPanelButton(names[i], x, y, right - x, frame.iy(207) - frame.iy(166), () -> {
                 group = id; picker = id.equals("repair") ? "repairs" : "equipment";
                 switchLine = ""; navalFamily=""; hiddenResources.clear(); pickerScroll = 0; rebuildWidgets();
-            });
-        }
-    }
-    private void resourceStrip(int y, int h) {
-        int cell = (pane - 12) / Math.max(1, view.resources().size());
-        for (int i = 0; i < view.resources().size(); i++) {
-            var r = view.resources().get(i); int x = 6 + i * cell;
-            recess(x, y, cell - 1, h);
-            int contentY = y + (h - 27) / 2;
-            art("production/resources/" + (r.available() < r.demand() ? "missing/" : "") + r.id().toLowerCase(Locale.ROOT), x + (cell - 1 - 16) / 2, contentY, 16, 16);
-            cellText(integer(r.available() - r.demand()), x + 2, contentY + 18, cell - 5, 9, r.available() < r.demand() ? BAD : GOOD, false);
-            tip(r.name() + "\n점유지 추출 " + decimal(r.extracted()) + "\n수입 " + decimal(r.imported())
-                    + " · 수출 배정 " + decimal(r.exported()) + "\n생산용 " + decimal(r.available()) + " / 수요 " + decimal(r.demand()), x, y, cell, h);
+            }) {
+                @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                    UiAssets.drawExact(g, "production/actions/" + id, frame.x(sourceX), frame.y(166) - offset, frame.size(81), frame.size(41));
+                }
+            };
+            button.sound("ui.checkbox");
+            button.active = pending == 0;
+            addRenderableWidget(button);
         }
     }
     private void efficiencyBar(int x, int y, int width, int height, double value) {
@@ -1384,13 +1511,13 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         var designTeam = designerManufacturer && tankDesigner() ? view.tankDesigner().designTeam() : null;
         if (line == null && offer == null && designTeam == null) return;
         int firstWidget = children().size();
-        int w = Math.min(IndustryOrganizationList.WIDTH, width - 16), h = IndustryOrganizationList.HEIGHT, x = Math.min(width - w - 8, pane + 88), y = top + 3, end = Math.min(bottom(), y + h);
+        int w = Math.min(IndustryOrganizationList.WIDTH, width - 16), h = IndustryOrganizationList.HEIGHT, x = Math.min(width - w - 8, pane + 88), y = hudBottom() + 3, end = Math.min(bottom(), y + h);
         if (offer != null || designTeam != null) {
             x = Math.min(width - w - 8, manufacturerAnchorX);
-            y = Math.clamp(manufacturerAnchorY, top + 3, Math.max(top + 3, bottom() - h));
+            y = Math.clamp(manufacturerAnchorY, hudBottom() + 3, Math.max(hudBottom() + 3, bottom() - h));
             end = Math.min(bottom(), y + h);
         }
-        if (designTeam != null) { x = Math.min(width - w - 8, 133); y = Math.max(top + 3, 40); end = Math.min(height - 4, y + h); }
+        if (designTeam != null) { x = Math.min(width - w - 8, 133); y = Math.max(hudBottom() + 3, 40); end = Math.min(height - 4, y + h); }
         manufacturerX = x; manufacturerY = y; manufacturerWidth = w; manufacturerBottom = end;
         if (graphics != null) { graphics.nextStratum(); IndustryOrganizationList.frame(graphics, font, x, y, w, end - y); }
         else addRenderableWidget(IndustryOrganizationList.close(x, y, w, this::closeManufacturers));
@@ -1450,7 +1577,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if(picker.equals("manufacturer")){layoutManufacturers();return;}
         if(picker.equals("naval_ports")){layoutNavalPorts();return;}
         if (picker.equals("equipment") || picker.equals("repairs")) { layoutProductionPicker(); return; }
-        int w = Math.min(270, width - 16), x = width - pane >= w + 8 ? pane + 4 : (width - w) / 2, y = top + 3;
+        int w = Math.min(270, width - 16), x = width - pane >= w + 8 ? pane + 4 : (width - w) / 2, y = hudBottom() + 3;
         panel(x, y, w, height - y - 27);
         text("배치 장소 지정", x + 9, y + 8, w - 40, TEXT);
         button("목록 닫기", "×", x + w - 25, y + 3, 19, 19, true, () -> { picker = ""; rebuildWidgets(); });
@@ -1467,7 +1594,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         pickerScroll=0;rebuildWidgets();
     }
     private void layoutNavalPorts() {
-        int w=productionPickerWidth(),x=width-pane>=w+4?pane+2:(width-w)/2,y=top+3,end=Math.min(bottom(),y+Math.round(height*.7f));
+        int w=productionPickerWidth(),x=width-pane>=w+4?pane+2:(width-w)/2,y=hudBottom()+3,end=Math.min(bottom(),y+Math.round(height*.7f));
         double scale=w/375.0;
         panel(x,y,w,end-y);
         heading(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOY_LIST"),x+9,y+7,w-38,TEXT);
@@ -1508,7 +1635,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private void layoutProductionPicker() {
         boolean repair=picker.equals("repairs"), naval=group.equals("navy");
         int w=productionPickerWidth();
-        int x=width-pane>=w+4?pane+2:(width-w)/2,y=top+3;
+        int x=width-pane>=w+4?pane+2:(width-w)/2,y=hudBottom()+3;
         if (!manufacturerEquipment.isEmpty()) x = Math.max(4, Math.min(x, width - w - 278));
         int end=repair?Math.min(bottom(),y+Math.round(w*600f/444)):bottom();
         if(graphics!=null)UiAssets.nineSlice(graphics,"production/picker/panel",x,y,w,end-y,64,w/(repair?444.0:495.0));
@@ -1739,7 +1866,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         String branch=designBranch(),title=designerTitle(branch);
         boolean armor=branch.equals("army"),navy=branch.equals("navy");
         Double experience=armor?view.economy().armyXp():navy?view.hud().navyExperience():view.hud().airExperience();
-        int minY=top+font.lineHeight+8;
+        int minY=hudBottom()+font.lineHeight+8;
         int w=Math.min(Math.min(width-24,Math.max(780,width*5/8)),(height-minY-12)*1092/553);
         int h=w*553/1092,x=(width-w)/2,y=Math.max(minY,(height-h)/2);
         java.util.function.IntUnaryOperator size=n->Math.max(1,n*w/1092);
@@ -2446,8 +2573,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         tradeAmount=Math.clamp(tradeAmount,0,limit);
         double maxImport=Math.min(export,limit*perFactory);
         long needed=p.convoys()==null||p.convoys()<0?-1:(long)p.convoys()*tradeAmount;
-        int w=Math.min(316,Math.min(width-16,(height-top-8)*527/437)),h=w*437/527;
-        int x=(width-w)/2,y=Math.max(top+4,(height-h)/2);
+        int w=Math.min(316,Math.min(width-16,(height-hudBottom()-8)*527/437)),h=w*437/527;
+        int x=(width-w)/2,y=Math.max(hudBottom()+4,(height-h)/2);
         java.util.function.IntUnaryOperator size=n->Math.max(1,n*w/527);
         java.util.function.IntUnaryOperator px=n->x+n*w/527,py=n->y+n*w/527;
         art("trade/offer",x,y,w,h);
@@ -2569,7 +2696,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if (designer && !divisionPicker.isEmpty()) {
             divisionPickerScroll -= (int) vertical; rebuildWidgets(); return true;
         }
-        if (y < top && view != null) { hudScroll = HudMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical); return true; }
+        if (y < hudBottom() && view != null) { hudScroll = HudMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical); return true; }
         if (tankDesigner()) tankScroll -= (int) vertical;
         else if (designer && selectedSlot >= 0) pickerScroll -= (int) vertical;
         else if (designer) {
@@ -2593,7 +2720,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         else if (!picker.isEmpty()) pickerScroll -= (int) (vertical * 55);
         else if (modal()) return super.mouseScrolled(x, y, horizontal, vertical);
         else if (tab == MenuTab.RECRUITMENT && x >= pane) secondScroll -= (int) (vertical * 40);
-        else scroll -= (int) (vertical * (tab == MenuTab.PRODUCTION ? productionRowHeight() : tab == MenuTab.RECRUITMENT ? (compact() ? 85 : 93) : tab == MenuTab.LOGISTICS ? 68 : tradeTab == 0 ? 35 : 34));
+        else scroll -= (int) (vertical * (tab == MenuTab.PRODUCTION ? frame.len(111) : tab == MenuTab.RECRUITMENT ? (compact() ? 85 : 93) : tab == MenuTab.LOGISTICS ? 68 : tradeTab == 0 ? 35 : 34));
         rebuildWidgets(); return true;
     }
     @Override public void removed() {
@@ -2691,7 +2818,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 send(selectingDeployment ? SELECT_LOCATION : LOCATION, slot.recruit(), "", 0);
                 return true;
             }
-            if (selectingDeployment && event.y() > top && minecraft.player != null) {
+            if (selectingDeployment && event.y() > hudBottom() && minecraft.player != null) {
                 if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT) {selectingDeployment = false; dev.hoi.client.map.scene.SceneRenderer.clearDeployment(); rebuildWidgets(); return true;}
                 if (!minecraft.options.getCameraType().isFirstPerson()) return true;
                 var matrix = minecraft.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
@@ -2824,7 +2951,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 g.pose().popMatrix();
             }
         };
-        if(texture.startsWith("production/actions/")||texture.equals("production/picker/expand")||texture.equals("production/picker/collapse")||texture.contains("checkbox")||texture.startsWith("production/picker/check_"))button.sound("ui.checkbox");
+        if(texture.equals("production/picker/expand")||texture.equals("production/picker/collapse")||texture.contains("checkbox")||texture.startsWith("production/picker/check_"))button.sound("ui.checkbox");
         button.active = enabled && pending == 0;
         button.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(name)));
         addRenderableWidget(button);

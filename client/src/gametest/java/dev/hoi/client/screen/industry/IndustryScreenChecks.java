@@ -521,28 +521,31 @@ public final class IndustryScreenChecks {
             var image = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-production-resource-shortages-gui2").toFile());
             var cells = context.computeOnClient(client -> {
                 var screen = (IndustryScreen)client.gui.screen();
-                int cell = (screen.panelWidth() - 12) / resources.size();
-                int y = dev.hoi.client.ui.hud.HudMenuBar.height(screen.width) + 29;
-                return new int[]{cell, y};
+                var frame = dev.hoi.client.ui.UiMenuStyle.frame(dev.hoi.client.ui.UiMenuStyle.window(MenuTab.PRODUCTION), screen.width, screen.panelWidth());
+                double gui = client.getWindow().getGuiScale();
+                return new double[]{frame.x(0) * gui, frame.y(0) * gui, frame.scale() * gui};
             });
-            for (int i = 0; i < resources.size(); i++) {
+            for (int i = 0; i < Math.min(7, resources.size()); i++) {
                 boolean missing = resources.get(i).available() < resources.get(i).demand();
                 int iconRed = 0, numberRed = 0;
-                for (int y = 0; y < 27 * 2; y++) for (int x = 0; x < (cells[0] - 1) * 2; x++) {
-                    int pixel = image.getRGB((6 + i * cells[0]) * 2 + x, cells[1] * 2 + y);
+                double rx = 25 + 70 * i;
+                int left = (int)Math.round(cells[0] + (rx + 4) * cells[2]), split = (int)Math.round(cells[0] + (rx + 33) * cells[2]), right = (int)Math.round(cells[0] + (rx + 68) * cells[2]);
+                int top = (int)Math.round(cells[1] + 63 * cells[2]), bottom = (int)Math.round(cells[1] + 90 * cells[2]);
+                for (int y = top; y < bottom; y++) for (int x = left; x < right; x++) {
+                    int pixel = image.getRGB(x, y);
                     int red = pixel >> 16 & 255, green = pixel >> 8 & 255, blue = pixel & 255;
                     if (red > 100 && red > green + 20 && red > blue + 20) {
-                        if (y < 16 * 2) iconRed++; else numberRed++;
+                        if (x < split) iconRed++; else numberRed++;
                     }
                 }
                 check(missing ? iconRed > 5 && numberRed > 5 : numberRed == 0, "Shortage icon and signed amount follow each resource balance: " + resources.get(i).id());
             }
             var geometry = context.computeOnClient(client -> {
                 var screen = (IndustryScreen)client.gui.screen();
-                float scale = (screen.panelWidth() - 22) / 511f;
-                int x = 6 + Math.round(462 * scale);
-                return new float[]{scale, x + Math.round(5 * scale), x + Math.round(48 * scale), dev.hoi.client.ui.hud.HudMenuBar.height(screen.width) + 147,
-                        Math.round((screen.panelWidth() - 22) * 116f / 511) + 2, x + Math.round(25 * scale)};
+                float scale = screen.productionScale();
+                int x = screen.productionLeft() + Math.round(462 * scale);
+                return new float[]{scale, x + Math.round(5 * scale), x + Math.round(48 * scale), screen.productionRowTop(0),
+                        screen.productionRowTop(1) - screen.productionRowTop(0), x + Math.round(25 * scale)};
             });
             var model = fixture.equipment().getFirst();
             for (int i = 0; i < 2; i++) {
@@ -1148,11 +1151,11 @@ public final class IndustryScreenChecks {
         });
         for(int indicator=0;indicator<6;indicator++) {
             final int column=indicator;
-            var point=context.computeOnClient(client->{var screen=(IndustryScreen)client.gui.screen();int cell=(screen.panelWidth()-12)/6;double scale=client.getWindow().getGuiScale();return new double[]{(6+column*cell+cell/2.0)*scale,(dev.hoi.client.ui.hud.HudMenuBar.height(screen.width)+70)*scale};});
+            var point=context.computeOnClient(client->{var screen=(IndustryScreen)client.gui.screen();var frame=dev.hoi.client.ui.UiMenuStyle.frame(dev.hoi.client.ui.UiMenuStyle.window(MenuTab.PRODUCTION),screen.width,screen.panelWidth());double[] centers={61,147.5,238,320,406,485.5};double scale=client.getWindow().getGuiScale();return new double[]{frame.x(centers[column])*scale,frame.y(112)*scale};});
             context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(2);
             context.takeScreenshot("hoi-production-modifier-"+List.of("dockyard","factory","cap","retention","growth","damage").get(indicator)+"-gui2");
         }
-        var gaugePoint=context.computeOnClient(client->{var screen=(IndustryScreen)client.gui.screen();double scale=client.getWindow().getGuiScale();return new double[]{(6+Math.round(270*(screen.panelWidth()-12)/511f))*scale,(dev.hoi.client.ui.hud.HudMenuBar.height(screen.width)+140)*scale};});
+        var gaugePoint=context.computeOnClient(client->{var screen=(IndustryScreen)client.gui.screen();double scale=client.getWindow().getGuiScale();return new double[]{(screen.productionLeft()+Math.round(297*screen.productionScale()))*scale,(screen.productionRowTop(0)+Math.round(12*screen.productionScale()))*scale};});
         context.getInput().setCursorPos(gaugePoint[0],gaugePoint[1]);context.waitTicks(2);
         context.takeScreenshot("hoi-production-efficiency-tooltip-gui2");
         var equipmentPoint=context.computeOnClient(client->{var b=button((IndustryScreen)client.gui.screen(),gun.name()+" · 장비 교체");double scale=client.getWindow().getGuiScale();return new double[]{(b.getX()+b.getWidth()/2.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};});

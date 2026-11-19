@@ -40,8 +40,8 @@ public final class IndustryQueueDragTest {
                 var screen = game.computeOnClient(c -> new IndustryScreen(MenuTab.PRODUCTION, source.session(), source, sent::add));
                 game.setScreen(() -> screen);
                 game.runOnClient(c -> {
-                    int top = (int)field(screen, "top") + 147, pitch = method(screen, "productionRowHeight");
-                    int x = 6 + Math.round((screen.panelWidth() - 22) * 80f / 511);
+                    int top = screen.productionRowTop(0), pitch = screen.productionRowTop(1) - top;
+                    int x = screen.productionLeft() + Math.round(80 * screen.productionScale());
                     sent.clear(); drag(screen, x, top + 5, top + 5);
                     if (!sent.isEmpty()) throw new AssertionError("Click must not reorder production");
                     screen.mouseClicked(mouse(x, top + 5), false); screen.mouseDragged(mouse(x, top + pitch + 5), 0, pitch);
@@ -60,9 +60,10 @@ public final class IndustryQueueDragTest {
                 });
                 game.getInput().setCursorPos(size[0] - 4, size[1] - 4); game.waitTicks(2);
                 var lines = game.takeScreenshot("hoi-production-lines-source-" + size[0] + "-gui2");
-                efficiencyGauge(lines, source, game.computeOnClient(c -> (int)field(screen, "top") + 147), game.computeOnClient(c -> method(screen, "productionRowHeight")), screen.panelWidth());
-                preview(game,screen,6+Math.round((screen.panelWidth()-22)*80f/511),game.computeOnClient(c -> (int)field(screen,"top")+147),game.computeOnClient(c -> method(screen,"productionRowHeight")),"production-expanded",size[0]);
-                int rowTop = game.computeOnClient(c -> (int)field(screen,"top") + 147);
+                efficiencyGauge(game, lines, source, screen);
+                var row = game.computeOnClient(c -> new int[]{screen.productionLeft() + Math.round(80 * screen.productionScale()), screen.productionRowTop(0), screen.productionRowTop(1) - screen.productionRowTop(0)});
+                preview(game,screen,row[0],row[1],row[2],"production-expanded",size[0]);
+                int rowTop = row[1];
                 game.getInput().setCursorPos(180,(rowTop+5)*2); game.waitTicks(3);
                 game.takeScreenshot("hoi-production-drag-tooltip-expanded-" + size[0] + "-gui2");
                 game.getInput().setCursorPos(size[0]-4,size[1]-4);
@@ -70,9 +71,9 @@ public final class IndustryQueueDragTest {
                     var button = screen.children().stream().filter(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().equals("생산 라인 접기")).map(w -> (net.minecraft.client.gui.components.Button)w).findFirst().orElseThrow();
                     var click = mouse(button.getX() + 2, button.getY() + 2); screen.mouseClicked(click, false); screen.mouseReleased(click);
                     if (!((Set<?>)field(screen, "collapsedProduction")).contains(source.lines().getFirst().id())) throw new AssertionError("Collapse button must remain independent from drag");
-                    sent.clear(); int top = (int)field(screen, "top") + 147;
-                    int pitch = Math.round((screen.panelWidth() - 22) * 63f / 511) + 2;
-                    int x = 6 + Math.round((screen.panelWidth() - 22) * 80f / 511);
+                    sent.clear(); int top = screen.productionRowTop(0);
+                    int pitch = screen.productionRowTop(1) - top;
+                    int x = screen.productionLeft() + Math.round(80 * screen.productionScale());
                     drag(screen, x, top + 5, top + pitch + 5);
                     if (sent.size() != 1 || sent.getFirst().amount() != 1 || sent.getFirst().action() != IndustryPayloads.Action.MOVE) throw new AssertionError("Collapsed row MOVE index");
                 });
@@ -81,7 +82,8 @@ public final class IndustryQueueDragTest {
                 game.getInput().setCursorPos(180,(rowTop+5)*2); game.waitTicks(3);
                 game.takeScreenshot("hoi-production-drag-tooltip-collapsed-" + size[0] + "-gui2");
                 game.getInput().setCursorPos(size[0]-4,size[1]-4);
-                preview(game,screen,6+Math.round((screen.panelWidth()-22)*80f/511),rowTop,Math.round((screen.panelWidth()-22)*63f/511)+2,"production-collapsed",size[0]);
+                var collapsed = game.computeOnClient(c -> new int[]{screen.productionRowTop(0), screen.productionRowTop(1) - screen.productionRowTop(0)});
+                preview(game,screen,row[0],collapsed[0],collapsed[1],"production-collapsed",size[0]);
                 construction(game, hud);
                 constructionGauge(game, hud);
                 equipmentBounds(game, source, size[0]);
@@ -96,7 +98,7 @@ public final class IndustryQueueDragTest {
         var during=game.takeScreenshot("hoi-queue-"+name+"-dragging-"+width+"-gui2");
         if(!"1".equals(System.getenv("HOI_CAPTURE_BEFORE"))) {
             int[] bounds=game.computeOnClient(c->{
-                if(screen instanceof IndustryScreen industry){int h=name.contains("collapsed")?Math.round((industry.panelWidth()-22)*60f/511):Math.round((industry.panelWidth()-22)*108f/511);return new int[]{6,industry.panelWidth()-16,h,Math.min(top+pitch,screen.height-7-h)};}
+                if(screen instanceof IndustryScreen industry){float s=industry.productionScale();int h=Math.round((name.contains("collapsed")?60:108)*s),left=industry.productionLeft();var bar=(dev.hoi.client.ui.UiScrollBar)field(industry,"productionScrollbar");return new int[]{left,left+Math.round(511*s),h,Math.min(top+pitch,bar.bottom()-h)};}
                 return new int[]{6,method(screen,"paletteX")-15,27,Math.min(top+pitch,screen.height-30-29)};
             });
             try {
@@ -107,7 +109,7 @@ public final class IndustryQueueDragTest {
         }
         game.runOnClient(c->screen.keyPressed(new KeyEvent(InputConstants.KEY_ESCAPE,0,0)));game.waitTicks(2);
     }
-    private static void efficiencyGauge(java.nio.file.Path shot, IndustryView source, int top, int pitch, int pane) {
+    private static void efficiencyGauge(ClientGameTestContext game, java.nio.file.Path shot, IndustryView source, IndustryScreen screen) {
         int index = 0;
         while (index < source.lines().size()) {
             var line = source.lines().get(index);
@@ -115,12 +117,14 @@ public final class IndustryQueueDragTest {
             index++;
         }
         if (index == source.lines().size()) throw new AssertionError("Production source needs a land line for the efficiency gauge");
-        float scale = (pane - 22) / 511f, y = top + index * pitch;
+        int row = index;
+        float[] at = game.computeOnClient(c -> new float[]{screen.productionRowTop(row), screen.productionLeft(), screen.productionScale()});
+        float y = at[0], left = at[1], scale = at[2];
         try {
             var image = javax.imageio.ImageIO.read(shot.toFile());
             int above = (int)Math.floor((y + 8.5f * scale) * 2), bottom = (int)Math.floor((y + 18.25f * scale) * 2);
             for (int column = 253; column <= 341; column++) {
-                int x = (int)Math.floor((6 + (column + .5f) * scale) * 2);
+                int x = (int)Math.floor((left + (column + .5f) * scale) * 2);
                 if (!lineArt(image.getRGB(x, above))) throw new AssertionError("Efficiency bar must stay inside its frame at column " + column + ": " + Integer.toHexString(image.getRGB(x, above)));
                 if (lineArt(image.getRGB(x, bottom))) throw new AssertionError("Efficiency bar must fill the bottom row of its frame at column " + column + ": " + Integer.toHexString(image.getRGB(x, bottom)));
             }
@@ -183,8 +187,8 @@ public final class IndustryQueueDragTest {
                         if(drawnWidth!=button.getWidth())throw new AssertionError("Equipment button must use actual fitted artwork width: "+group);
                     }
                     button.visible=false;
-                    int top=(int)field(screen,"top")+147;
-                    return new int[]{12,top*2,(screen.panelWidth()-16)*2,(top+Math.round((collapsed?56:104)*(screen.panelWidth()-22)/511f))*2};
+                    int top=screen.productionRowTop(0),left=screen.productionLeft();float scale=screen.productionScale();
+                    return new int[]{left*2,top*2,(left+Math.round(511*scale))*2,(top+Math.round((collapsed?60:104)*scale))*2};
                 });
                 game.waitTicks(2);
                 var hidden=game.takeScreenshot("hoi-production-bounds-hidden-"+group+"-"+collapsed+"-"+width);
