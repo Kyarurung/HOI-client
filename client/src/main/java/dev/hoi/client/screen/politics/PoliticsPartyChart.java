@@ -5,7 +5,6 @@ import java.util.List;
 
 public final class PoliticsPartyChart {
     private PoliticsPartyChart() {}
-    public static int overlayHeight(int size) { return Math.round(size * 87 / 90f); }
     public static double centerX(int size) { return size * 45 / 90.0; }
     public static double centerY(int size) { return (size - size * 87 / 90.0) / 2 + size * 44 / 90.0; }
     public static double radius(int size) { return size * 39 / 90.0; }

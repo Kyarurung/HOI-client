@@ -60,7 +60,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private boolean manufacturerDragging;
     private boolean manufacturerByName,manufacturerDescending,manufacturerSorted;
     private final Map<net.minecraft.client.gui.components.AbstractWidget,String> manufacturerTooltips=new LinkedHashMap<>();
-    private int spiritScroll, tooltipScroll;
+    private int spiritScroll, tooltipScroll, partyScroll;
     private boolean balanceOpen;
     private MenuView.Entry hoveredPolitics;
     private List<MenuView.Entry> spirits = List.of();
@@ -72,7 +72,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private final List<int[]> partySpans = new ArrayList<>();
     private static final String[] POLITICS_IDS = {"government", "economic_laws", "military_laws", "social_laws", "development", "military_staff", "research_production"};
     private static final String[] POLITICS_NAMES = {"정부", "경제법", "군법", "사회법", "발전도", "군사 참모", "연구 & 생산"};
-    private static final int POLITICS_COLUMNS = 6;
+    private static final int POLITICS_COLUMNS = 7;
     private static final UiMenuStyle.Window IDEAS = new UiMenuStyle.Window("research/source/gfx_tiled_window_2b_border/frame_0", PoliticsLayout.WIDTH, UiMenuStyle.NO_HEADER, 0);
     public ScreenMenu(MenuView view) { this(view, MenuTab.POLITICS, HoiClient::open); }
     public static ScreenMenu forFocus(MenuView view, String id) {
@@ -387,94 +387,117 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         String label = active.map(MenuView.Entry::name).orElse("국가 중점 선택");
         return new MenuView.Entry("국가 중점", label, fontSafe(entries.stream().map(e -> e.name() + " · " + e.value() + "\n" + e.detail()).collect(java.util.stream.Collectors.joining("\n\n"))), active.map(MenuView.Entry::progress).orElse(-1.0), active.map(MenuView.Entry::icon).orElse(""));
     }
+    private void politicsArt(GuiGraphicsExtractor g, PoliticsLayout layout, String art, double x, double y, double w, double h) {
+        UiAssets.drawExact(g, art, layout.x(x), layout.y(y), (float)(w * layout.scale()), (float)(h * layout.scale()));
+    }
+    private void politicsText(GuiGraphicsExtractor g, PoliticsLayout layout, String text, double x, double center, double width, int color, int align) {
+        dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(text), layout.x(x), layout.y(center) - font.lineHeight / 2f, (float)(width * layout.scale()), 1, color, true, align);
+    }
     private void drawPoliticsBanner(GuiGraphicsExtractor g) {
-        var layout = politicsLayout(); var leader = layout.leader();
-        g.pose().pushMatrix(); g.pose().translate(0, top); g.pose().scale((float)layout.scale());
-        UiAssets.draw(g, "politics/view_background", PoliticsLayout.ART_X, PoliticsLayout.ART_Y, PoliticsLayout.ART_WIDTH, PoliticsLayout.ART_HEIGHT);
-        g.pose().popMatrix();
+        var layout = politicsLayout();
+        politicsArt(g, layout, "politics/view_background", PoliticsLayout.ART_X, PoliticsLayout.ART_Y, PoliticsLayout.ART_WIDTH, PoliticsLayout.ART_HEIGHT);
         var person = politicsEntry("지도자");
-        UiAssets.draw(g, person.icon().isEmpty() ? "politics/empty/leader" : person.icon(),
-                leader.x() + leader.width() * 7 / 172, leader.y() + leader.height() * 6 / 258,
-                leader.width() * 158 / 172, leader.height() * 210 / 258);
-        drawPoliticalArt(g, "politics/leader_frame", leader);
-        centeredPoliticsText(g, person.value(), new PoliticsLayout.PoliticsBox(leader.x() + 4, leader.y() + leader.height() * 218 / 258 + 2,
-                leader.width() - 8, leader.height() * 34 / 258), TEXT);
+        politicsArt(g, layout, person.icon().isEmpty() ? "politics/empty/leader" : person.icon(), 13, 55, 156, 210);
+        politicsArt(g, layout, "politics/leader_frame", 6, 49, 172, 258);
+        politicsText(g, layout, person.value(), 15, 285, 155, TEXT, 0);
         if (!selectionPreview) {
-            drawPoliticalArt(g, "politics/focus_background", layout.focus());
-            drawPoliticalArt(g, "politics/focus_select", layout.focusTitle());
+            politicsArt(g, layout, "politics/focus_background", 187, 52, 359, 107);
+            politicsArt(g, layout, "politics/focus_select", 280, 64, 258, 83);
             var focus = politicsFocus();
             if (focus.progress() >= 0) {
-                var bar = layout.focusProgress();
-                g.fill(bar.x(), bar.y(), bar.x() + bar.width(), bar.y() + bar.height(), 0xFF17101B);
-                int filled = (int)Math.round(bar.width() * Math.clamp(focus.progress(), 0, 1));
-                if (filled > 0) {
-                    g.enableScissor(bar.x(), bar.y(), bar.x() + filled, bar.y() + bar.height());
+                politicsArt(g, layout, "politics/focus_progress_bg", 302, 122, 212, 6);
+                double fraction = Math.clamp(focus.progress(), 0, 1);
+                if (fraction > 0) {
+                    g.pose().pushMatrix(); g.pose().translate(layout.x(302), layout.y(122)); g.pose().scale((float)layout.scale());
                     g.blit(net.minecraft.resources.Identifier.fromNamespaceAndPath("hoi", "textures/gui/politics/focus_progress.png"),
-                            bar.x(), bar.y(), bar.x() + bar.width(), bar.y() + bar.height(), 0, 1, 3f / 18, 15f / 18);
-                    g.disableScissor();
+                            0, 0, (int)Math.round(212 * fraction), 6, 0, (float)fraction, 3f / 18, 15f / 18);
+                    g.pose().popMatrix();
                 }
             }
-            drawPoliticalArt(g, focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(),
-                    focus.icon().isEmpty() ? layout.focusImage() : layout.focusArtwork());
-            centeredPoliticsText(g, focus.value(), layout.focusTitle(), focus.value().equals("국가 중점 선택") ? 0xFFFFFFFF : GOLD);
+            String art = focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon();
+            int[] size = UiAssets.imageSize(art);
+            if (size[0] > 0 && size[1] > 0) politicsArt(g, layout, art, 237 - size[0] / 2.0, 105 - size[1] / 2.0, size[0], size[1]);
+            boolean chosen = !focus.value().equals("국가 중점 선택");
+            if (chosen) politicsText(g, layout, focus.value(), 307, 102, 200, GOLD, 0);
+            else politicsText(g, layout, focus.value(), 280, 105.5, 258, 0xFFFFFFFF, 0);
         }
         politicsCell(g, "경제-정치 연합", layout.union());
-        var ideology = politicsEntry("세부 이념"); var ideologyBox = layout.ideology();
+        var ideology = politicsEntry("세부 이념");
         String ideologyArt = ideology.icon().isEmpty() ? politicsEntry("이념").icon() : ideology.icon();
-        drawPoliticalArt(g, ideologyArt.isEmpty() ? "politics/empty/ideology" : ideologyArt, square(ideologyBox));
+        politicsArt(g, layout, ideologyArt.isEmpty() ? "politics/empty/ideology" : ideologyArt, 193, 174, 66, 68);
+        if (!ideology.value().equals("정보 없음")) politicsText(g, layout, ideology.value(), 192, 270, 175, TEXT, -1);
         var strip = layout.spirits();
-        g.enableScissor(strip.x() + 4, strip.y() + 2, strip.x() + strip.width() - 4, strip.y() + strip.height() - 4);
-        int sx = spiritStart() - spiritScroll;
-        for (var spirit : spirits) {
-            if (sx + spiritPitch() - 3 > strip.x() + 4 && sx < strip.x() + strip.width() - 4)
-                UiAssets.draw(g, spirit.icon().isEmpty() ? "menu/politics" : spirit.icon(), sx + 1, strip.y() + 3, spiritPitch() - 3, spiritPitch() - 3);
-            sx += spiritPitch();
+        g.enableScissor(Math.round(layout.x(281)), Math.round(layout.y(165)), Math.round(layout.x(709)), Math.round(layout.y(238)));
+        for (int i = 0; i < spirits.size(); i++) {
+            double sx = 291 + 68 * i - spiritScroll / layout.scale();
+            if (sx + 68 > 281 && sx < 709) {
+                var spirit = spirits.get(i);
+                politicsArt(g, layout, spirit.icon().isEmpty() ? "menu/politics" : spirit.icon(), sx, 170, 68, 68);
+            }
         }
         g.disableScissor();
-        if (maximumSpiritScroll() > 0) {
-            int track = strip.width() - 8, thumb = Math.max(8, track * track / (spirits.size() * spiritPitch()));
-            int x = spiritStart() + spiritScroll * (track - thumb) / maximumSpiritScroll();
-            g.fill(x, strip.y() + strip.height() - 4, x + thumb, strip.y() + strip.height() - 2, 0xFF929497);
-        }
+        if (maximumSpiritScroll() > 0) spiritScrollbar(g, layout);
         politicsCell(g, "정치 체제", layout.government());
-        var electionBox = layout.election();
+        var government = politicsEntry("정치 체제");
+        if (!government.value().equals("정보 없음")) politicsText(g, layout, government.value(), 253, 359, 125, TEXT, 0);
         String election = politicsEntry("다음 선거").value();
-        if (election.equals("선거 없음")) centeredPoliticsText(g, election, electionBox, MUTED);
-        else {
-            int middle = electionBox.y() + electionBox.height() / 2;
-            centeredPoliticsText(g, "다음 선거", new PoliticsLayout.PoliticsBox(electionBox.x(), middle - 12, electionBox.width(), 10), TEXT);
-            centeredPoliticsText(g, election, new PoliticsLayout.PoliticsBox(electionBox.x(), middle + 2, electionBox.width(), 10), GOLD);
-        }
+        politicsText(g, layout, election.equals("선거 없음") ? election : "다음 선거: " + election, 192, 305, 140, election.equals("선거 없음") ? MUTED : TEXT, -1);
         if (!selectionPreview && view.balance() != null) {
-            var b = balanceButton(); var balance = view.balance();
-            UiAssets.draw(g, balance.value() < 0 ? balance.leftIcon() : balance.rightIcon(), b.x() + 2, b.y() + 2, Math.min(24, b.width()/2), b.height() - 4);
-            officerText(g, Math.round(Math.abs(balance.value()) * 100) + "%", b.x() + b.width()/2, b.y() + (b.height() - 7)/2, b.width()/2 - 3, TEXT);
+            var balance = view.balance();
+            politicsArt(g, layout, "politics/bop/button", 379, 253, 129, 57);
+            String side = balance.value() < 0 ? balance.leftIcon() : balance.rightIcon();
+            int[] size = UiAssets.imageSize(side);
+            if (size[0] > 0) politicsArt(g, layout, side, 391, 248, size[0] * .7, size[1] * .7);
+            politicsText(g, layout, Math.round(Math.abs(balance.value()) * 100) + "%", 420, 272, 100, TEXT, 0);
         }
         politicsCell(g, "경제 모델", layout.economy());
         String economy = politicsEntry("경제 모델").value();
-        if (!economy.equals("정보 없음")) centeredPoliticsText(g, economy, layout.economyName(), TEXT);
+        if (!economy.equals("정보 없음")) politicsText(g, layout, economy, 9, 415, 175, TEXT, 0);
         politicsCell(g, "세력", layout.faction());
         for (int i = 0; !selectionPreview && i < 2; i++) {
             var entry = politicsEntry(i == 0 ? "점령지" : "협력정부");
             drawPoliticalArt(g, "politics/" + (i == 0 ? "occupied" : "collaboration") + (entry.progress() > 0 ? "_active" : "_inactive"), layout.status(i));
         }
+        if (!selectionPreview) politicsArt(g, layout, "politics/ui/rules", 625, 7, 38, 42);
         var chart = layout.partyChart();
         for (int[] span : partySpans) g.fill(chart.x() + span[0], chart.y() + span[1], chart.x() + span[2], chart.y() + 1 + span[1], span[3]);
-        int overlayHeight = PoliticsPartyChart.overlayHeight(chart.width());
-        UiAssets.draw(g, "politics/pie_overlay", chart.x(), chart.y() + (chart.width() - overlayHeight) / 2, chart.width(), overlayHeight);
-        var list = layout.parties();
-        double pitch = 11;
-        float scale = dev.hoi.client.ui.UiText.scale(font);
-        int index = 0;
-        for (var party : parties) {
-            int py = list.y() + 4 + (int)(index++ * pitch);
-            if (py + 10 > list.y() + list.height()) break;
-            int swatch = Math.max(2, (int)(pitch - 2));
-            g.fill(list.x() + 4, py, list.x() + 4 + swatch, py + swatch, partyColor(party.icon()));
-            String label = party.name() + " (" + dev.hoi.protocol.ProtocolNumberBounds.percent(party.progress(), 0) + ")";
-            dev.hoi.client.ui.UiText.marquee(g, font, label, list.x() + 17, py, list.width() - 21f, scale, TEXT, true, -1);
+        politicsArt(g, layout, "politics/pie_overlay", 398, 327, 90, 87);
+        drawPartyRows(g, layout);
+    }
+    static final int PARTY_PITCH = 16;
+    private int visibleParties() { return Math.max(1, 173 / PARTY_PITCH); }
+    private void drawPartyRows(GuiGraphicsExtractor g, PoliticsLayout layout) {
+        if (parties.isEmpty()) { politicsText(g, layout, "정보 없음", 530, 264, 170, MUTED, -1); return; }
+        partyScroll = Math.clamp(partyScroll, 0, Math.max(0, parties.size() - visibleParties()));
+        g.enableScissor(Math.round(layout.x(500)), Math.round(layout.y(251)), Math.round(layout.x(710)), Math.round(layout.y(424)));
+        var leading = parties.stream().max(java.util.Comparator.comparingDouble(MenuView.Entry::progress)).orElse(null);
+        for (int row = 0; row < visibleParties() + 1 && partyScroll + row < parties.size(); row++) {
+            var party = parties.get(partyScroll + row);
+            double y = 251 + row * PARTY_PITCH;
+            if (party == leading) politicsArt(g, layout, "politics/party_leading", 510, y + 5, 196, 15);
+            politicsArt(g, layout, "commander/commands/pol_party_colour_bg/frame_0", 507, y + 2, 21, 21);
+            UiAssets.drawTinted(g, "commander/commands/pol_party_colour/frame_0", Math.round(layout.x(511)), Math.round(layout.y(y + 6)), (int)Math.round(13 * layout.scale()), (int)Math.round(13 * layout.scale()), partyColor(party.icon()));
+            String label = party.name() + " (" + Math.round(party.progress() * 100) + ")";
+            politicsText(g, layout, label, 530, y + 12.5, 180, TEXT, -1);
         }
-        if (parties.isEmpty()) officerText(g, "정보 없음", list.x() + 5, list.y() + 5, list.width() - 10, MUTED);
+        g.disableScissor();
+        if (parties.size() > visibleParties()) {
+            var bar = partyScrollbar(layout);
+            bar.draw(g, partyScroll * PARTY_PITCH);
+        }
+    }
+    private dev.hoi.client.ui.UiScrollBar partyScrollbar(PoliticsLayout layout) {
+        return new dev.hoi.client.ui.UiScrollBar(Math.round(layout.x(687)), Math.round(layout.y(251)), Math.round(layout.y(424)), visibleParties() * PARTY_PITCH, parties.size() * PARTY_PITCH);
+    }
+    private void spiritScrollbar(GuiGraphicsExtractor g, PoliticsLayout layout) {
+        g.pose().pushMatrix(); g.pose().translate(layout.x(281), layout.y(233)); g.pose().scale((float)layout.scale());
+        UiAssets.tiledNineSlice(g, "commander/commands/scroll_track_horizontal_2/frame_0", 0, 0, 428, 18, 5, 1);
+        g.pose().popMatrix();
+        politicsArt(g, layout, "commander/commands/scroll_left_2/frame_0", 284, 232, 18, 21);
+        politicsArt(g, layout, "commander/commands/scroll_right_2/frame_0", 690, 232, 18, 21);
+        double travel = 428 - 2 * 21 - 22;
+        double thumb = 302 + travel * spiritScroll / Math.max(1, maximumSpiritScroll());
+        politicsArt(g, layout, "commander/commands/scroll_drager_2/frame_0", thumb, 231, 22, 20);
     }
     private static PoliticsLayout.PoliticsBox square(PoliticsLayout.PoliticsBox box) {
         int size = Math.min(box.width(), box.height());
@@ -482,12 +505,6 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     private void drawPoliticalArt(GuiGraphicsExtractor g, String art, PoliticsLayout.PoliticsBox box) {
         UiAssets.draw(g, art, box.x(), box.y(), box.width(), box.height());
-    }
-    private void centeredPoliticsText(GuiGraphicsExtractor g, String text, PoliticsLayout.PoliticsBox box, int color) {
-        if (selectionPreview) {
-            float scale = Math.min(dev.hoi.client.ui.UiText.scale(font), box.height() / (float)font.lineHeight);
-            dev.hoi.client.ui.UiText.marquee(g, font, text, box.x() + 4, box.y() + (box.height() - font.lineHeight * scale) / 2, box.width() - 8, scale, color, true, 0);
-        } else dev.hoi.client.ui.UiText.centered(g, font, text, box.x() + 4, box.y(), box.width() - 8, Math.max(10, box.height()), color);
     }
     private void politicsCell(GuiGraphicsExtractor g, String label, PoliticsLayout.PoliticsBox box) {
         politicsCell(g, label, box.x(), box.y(), box.width(), box.height());
@@ -553,35 +570,35 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     private void layoutPolitics(boolean widgets, GuiGraphicsExtractor g) {
         if (widgets) policies.clear();
-        var layout = politicsLayout(); int header = layout.categoryHeader(); double scale = layout.scale();
-        int row = Math.clamp((contentBottom() - contentTop()) / 7, header + 20, header + 51);
-        int y = contentTop() - scroll;
+        var layout = politicsLayout(); double scale = layout.scale();
+        int iconSize = (int)Math.round(63 * scale);
+        float origin = layout.y(PoliticsLayout.CATEGORY_Y) - scroll;
         for (int i = 0; i < POLITICS_IDS.length; i++) {
             final int index = i;
             var section = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.icon().equals(POLITICS_IDS[index])).findFirst()
                     .orElse(new MenuView.Section(POLITICS_NAMES[i], POLITICS_IDS[i], List.of()));
+            float y = origin + (float)(PoliticsLayout.CATEGORY_PITCH * i * scale);
             if (g != null) {
-                int barX = (int)Math.round(12 * scale), iconX = (int)Math.round(21 * scale), nameX = (int)Math.round(87 * scale);
-                UiAssets.draw(g, "politics/category_header", barX, y, (int)Math.round(672 * scale) - barX, header);
-                UiAssets.draw(g, "politics/header/" + new int[]{2, 1, 4, 5, 6, 7, 8}[i], iconX, y + (int)Math.round(8 * scale), (int)Math.round(68 * scale) - iconX, (int)Math.round(33 * scale));
-                UiMenuStyle.heading(g, font, section.title(), nameX, y + (header - 9) / 2, pane - nameX - 12, TEXT);
+                UiAssets.drawExact(g, "politics/category_header", layout.x(27), y, (float)(660 * scale), (float)(52 * scale));
+                String icon = "politics/header/" + new int[]{2, 1, 4, 5, 6, 7, 8}[i];
+                int[] size = UiAssets.imageSize(icon);
+                UiAssets.drawExact(g, icon, layout.x(36), y + (float)(8 * scale), (float)(size[0] * scale), (float)(size[1] * scale));
+                UiMenuStyle.heading(g, font, section.title(), Math.round(layout.x(102)), Math.round(y + (float)(20.5 * scale) - 4.5f * (font.lineHeight + 2f) / font.lineHeight) + 1, (int)Math.round(300 * scale), TEXT);
             }
-            int cell = (pane - 36) / POLITICS_COLUMNS, iconSize = Math.min(cell - 4, row - header - 6);
             var entries = section.entries();
-            int count = Math.max(1, entries.size());
-            if (g != null) for (int j = 0; j < entries.size(); j++) if (entries.get(j).alert()) alertGlow(g, politicsSlotX(j, count, cell), politicsSlotY(j, y, row, header), cell - 4, iconSize);
+            int count = Math.max(1, Math.min(POLITICS_COLUMNS, entries.size()));
+            if (g != null) for (int j = 0; j < Math.min(count, entries.size()); j++) if (entries.get(j).alert())
+                alertGlow(g, Math.round(layout.x(104 + 80 * j)), Math.round(y + (float)(44 * scale)), iconSize, iconSize);
             for (int j = 0; j < count; j++) {
-                int x = politicsSlotX(j, count, cell), cy = politicsSlotY(j, y, row, header);
+                int x = Math.round(layout.x(104 + 80 * j)), cy = Math.round(y + (float)(44 * scale));
                 var entry = entries.isEmpty() ? new MenuView.Entry(section.title(), "정보 없음", "서버가 이 구역의 상태를 제공하지 않습니다.") : entries.get(j);
                 if (g != null) {
                     String icon = entry.icon().isEmpty() ? "menu/politics" : entry.icon();
-                    UiAssets.draw(g, icon, x, cy, cell - 4, iconSize);
-                    if (!icon.equals("politics/vacant") && (entry.value().equals("정보 없음") || entry.value().equals("미지정")))
-                        g.fill(x, cy + iconSize - 2, x + cell - 4, cy + iconSize, 0xA0404246);
+                    UiAssets.draw(g, icon, x, cy, iconSize, iconSize);
                 }
                 if (widgets && cy >= contentTop() && cy + iconSize <= contentBottom()) {
                     final int position = j;
-                    var button = new ScreenInvisibleButton(entry.name() + " · " + entry.value(), x, cy, cell - 4, iconSize, () -> {
+                    var button = new ScreenInvisibleButton(entry.name() + " · " + entry.value(), x, cy, iconSize, iconSize, () -> {
                         if (section.icon().equals("research_production") && position < 4) {
                             manufacturerGroup = List.of("armor", "navy", "air", "materiel").get(position);
                             manufacturerScroll = 0; detail = null; manufacturerDetailId = null; rebuildWidgets();
@@ -590,21 +607,18 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                         } else showDetail(entry, section.icon());
                     });
                     if (!entry.value().equals("공석") && !entry.value().equals("미지정") && !entry.icon().equals("politics/vacant"))
-                        policies.add(new ScreenPolicyHover(new PoliticsLayout.PoliticsBox(x, cy, cell - 4, iconSize), entry));
+                        policies.add(new ScreenPolicyHover(new PoliticsLayout.PoliticsBox(x, cy, iconSize, iconSize), entry));
                     button.active = true; addRenderableWidget(button);
                 }
             }
-            y += row + (count - 1) / POLITICS_COLUMNS * (row - header - 2);
         }
-        total = y - contentTop() + scroll;
+        total = Math.round(layout.y(PoliticsLayout.CATEGORY_Y + PoliticsLayout.CATEGORY_PITCH * POLITICS_IDS.length)) - contentTop();
     }
     private static void alertGlow(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         float unit = Math.min(w, h) / 63f;
         int glowW = Math.round(91.65f * unit), glowH = Math.round(74.75f * unit);
         UiAssets.draw(g, "doctrine/gfx_ongoing_generic_glow_yellow/frame_0", x + (w - glowW) / 2, y + (h - glowH) / 2, glowW, glowH);
     }
-    private static int politicsSlotX(int index, int count, int cell) { return 16 + Math.max(0, POLITICS_COLUMNS - count) * cell / 2 + (index % POLITICS_COLUMNS) * cell; }
-    private static int politicsSlotY(int index, int y, int row, int header) { return y + header + 2 + (index / POLITICS_COLUMNS) * (row - header - 2); }
     private void requestRefresh() {
         if (ClientPlayNetworking.canSend(MenuPayloads.Refresh.TYPE)) ClientPlayNetworking.send(new MenuPayloads.Refresh(token));
     }
@@ -716,10 +730,10 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             Tooltips.drawExact(g, font, text, mx, my);
         }
     }
-    public PoliticsLayout politicsLayout() { return new PoliticsLayout(pane, top); }
-    int spiritPitch() { return Math.max(18, politicsLayout().spirits().height() - 5); }
-    private int maximumSpiritScroll() { return Math.max(0, spirits.size() * spiritPitch() - Math.max(0, politicsLayout().spirits().width() - 8)); }
-    private int spiritStart() { return politicsLayout().spirits().x() + 4; }
+    public PoliticsLayout politicsLayout() { return new PoliticsLayout(pane, top, selectionPreview || frame == null ? 0 : frame.x()); }
+    int spiritPitch() { return Math.max(1, (int)Math.round(68 * politicsLayout().scale())); }
+    private int maximumSpiritScroll() { return Math.max(0, (int)Math.round((spirits.size() * 68 - 418) * politicsLayout().scale())); }
+    private int spiritStart() { return Math.round(politicsLayout().x(291)); }
     public MenuView.Entry politicsHover(double x, double y) {
         if (selected != MenuTab.POLITICS || detail != null || manufacturerGroup != null) return null;
         var layout = politicsLayout();
@@ -727,10 +741,9 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             var leader = politicsEntry("지도자");
             return leader;
         }
-        var strip = layout.spirits();
-        if (x >= strip.x() + 4 && x < strip.x() + strip.width() - 4 && y >= strip.y() + 2 && y < strip.y() + strip.height() - 4) {
+        if (x >= layout.x(281) && x < layout.x(709) && y >= layout.y(170) && y < layout.y(231)) {
             int position = (int)x - spiritStart() + spiritScroll, index = position / spiritPitch();
-            if (position >= 0 && position % spiritPitch() >= 1 && position % spiritPitch() < spiritPitch() - 2 && index < spirits.size()) return spirits.get(index);
+            if (position >= 0 && index < spirits.size()) return spirits.get(index);
         }
         if (layout.ideology().contains(x, y)) return politicsEntry("세부 이념");
         if (layout.economy().contains(x, y)) return politicsEntry("경제 모델");
@@ -740,8 +753,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         var party=PoliticsPartyChart.at(parties,x-chart.x()-PoliticsPartyChart.centerX(chart.width()),y-chart.y()-PoliticsPartyChart.centerY(chart.width()),PoliticsPartyChart.radius(chart.width()));
         if(party!=null)return party;
         var partyList = layout.parties();
-        if (partyList.contains(x, y)) {
-            int index = (int)(y - partyList.y() - 4) / 11;
+        if (partyList.contains(x, y) && x < layout.x(687)) {
+            int index = partyScroll + (int)((y - layout.y(251)) / (PARTY_PITCH * layout.scale()));
             if (index >= 0 && index < parties.size()) return parties.get(index);
         }
         if (layout.faction().contains(x, y)) return politicsEntry("세력");
@@ -831,6 +844,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             return true;
         }
         if (selected == MenuTab.POLITICS && detail == null && manufacturerGroup == null && politicsLayout().parties().contains(x, y)) {
+            partyScroll = Math.clamp(partyScroll - (int)Math.signum(vertical), 0, Math.max(0, parties.size() - visibleParties()));
             return true;
         }
         if (politicsHover(x, y) != null && (com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
