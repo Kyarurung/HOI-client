@@ -89,7 +89,7 @@ public final class CommanderPanels {
         if(!selected.contains(card.id()))select(card.id(),false);else {selected.retainAll(Set.of(card.id()));selectedForces.removeIf(id->card.panel().members().stream().noneMatch(force->force.id().equals(id)));hits=List.of();CommanderOrders.selectionChanged();}
         openMissionPanel();return true;
     }
-    static void openMissionPanel(){if(current==null)return;if(current.branch()==Mode.NAVY_HQ){if(selected.isEmpty())CommanderOrders.message("임무를 지정할 함대를 먼저 선택하세요.");else {wingList=false;hits=List.of();}}else {var wings=attachmentWings();if(wings.isEmpty())CommanderOrders.message("임무를 지정할 비행단을 먼저 선택하세요.");else showWings(wings);}}
+    static void openMissionPanel(){if(current==null)return;if(current.branch()==Mode.NAVY_HQ){if(!selected.isEmpty()){wingList=false;hits=List.of();}}else {var wings=attachmentWings();if(!wings.isEmpty())showWings(wings);}}
     public static void showWings(Collection<String> ids){CommanderUnitHud.clearSelection();selectWings(ids);wingList=true;}
     static void selectWings(Collection<String> ids){airCardSelection=false;if(current!=null&&current.branch()==Mode.AIR)selected.clear();templateCard="";fullArmyCards.clear();manualArmyKeys.clear();selectedWings.clear();if(current!=null)current.wings().stream().filter(w->ids.contains(w.id())).map(Member::id).forEach(selectedWings::add);scroll=0;hits=List.of();postureMenu=false;CommanderOrders.selectionChanged();}
     static void select(String id){select(id,shift());}
@@ -153,10 +153,10 @@ public final class CommanderPanels {
     private static void retainManualArmySelection(){var allowed=new HashSet<String>();for(var card:current.cards())if(selected.contains(card.id())&&card.panel()!=null&&card.panel().divisionIds()!=null)card.panel().divisionIds().forEach(id->allowed.add("unit/"+id));manualArmyKeys.removeIf(key->key.startsWith("unit/")&&!allowed.contains(key));}
     static void counterSelectionRefreshed(){var keys=CommanderUnitHud.selectedKeys();manualArmyKeys.removeIf(key->!key.startsWith("unit/")&&!keys.contains(key));}
     private static void syncArmySelection(){
-        var ids=new TreeSet<String>(manualArmyKeys);boolean missing=false,oversized=false;
-        for(var card:current.cards())if(fullArmyCards.contains(card.id())&&(card.role()==Mode.ASSIGN_ARMY||card.role()==Mode.ARMY_GROUP)){if(card.panel()==null||card.panel().divisionIds()==null){missing=true;oversized|=card.panel()!=null&&card.panel().total()>2048;}else card.panel().divisionIds().forEach(id->ids.add("unit/"+id));}
+        var ids=new TreeSet<String>(manualArmyKeys);boolean missing=false;
+        for(var card:current.cards())if(fullArmyCards.contains(card.id())&&(card.role()==Mode.ASSIGN_ARMY||card.role()==Mode.ARMY_GROUP)){if(card.panel()==null||card.panel().divisionIds()==null)missing=true;else card.panel().divisionIds().forEach(id->ids.add("unit/"+id));}
         if(missing&&!manualArmyKeys.isEmpty()&&manualArmyKeys.size()<=2048){CommanderUnitHud.replaceKeys(manualArmyKeys);return;}
-        if(missing||ids.size()>2048){CommanderUnitHud.replaceDivisions(List.of());CommanderOrders.message(oversized||ids.size()>2048?"선택한 사단이 명령 입력 한도 2048개를 초과했습니다.":"군 구성원 정보를 기다리고 있습니다.");return;}
+        if(missing||ids.size()>2048){CommanderUnitHud.replaceDivisions(List.of());return;}
         CommanderUnitHud.replaceKeys(ids);
     }
     public static List<String> commandSelection(){
@@ -185,7 +185,7 @@ public final class CommanderPanels {
     private static boolean marshalSkills(){return current!=null&&current.cards().stream().anyMatch(c->c.role()==Mode.ARMY_GROUP&&selected.contains(c.id()));}
     private static String abilityAction(String ability){return "ABILITY/"+(marshalSkills()?"MARSHAL/":"")+ability.toUpperCase(Locale.ROOT);}
     static boolean armyCommandVisible(){return armyInput()&&!fullArmyCards.isEmpty();}
-    static void armyAbility(String ability){var divisions=selectedDivisions();if(!armyCommandVisible()||divisions.isEmpty()){CommanderOrders.message("스킬을 사용할 군이나 사단을 선택하세요.");return;}CommanderOrders.send(abilityAction(ability),divisions,List.of());}
+    static void armyAbility(String ability){var divisions=selectedDivisions();if(!armyCommandVisible()||divisions.isEmpty())return;CommanderOrders.send(abilityAction(ability),divisions,List.of());}
     static List<String> armyAbilityIds(){
         if(!armyCommandVisible())return List.of();var cards=current.cards().stream().filter(c->selected.contains(c.id())&&c.panel()!=null&&(marshalSkills()?c.role()==Mode.ARMY_GROUP:c.role()==Mode.ASSIGN_ARMY)).toList();
         return armyAbilityIds(cards);
@@ -224,7 +224,7 @@ public final class CommanderPanels {
             case "REPAIR_NOW","REPAIR_CANCEL" -> CommanderOrders.send("NAVAL_SETTING/"+tool+"_BATCH",forces.stream().map(Member::id).toList(),List.of());
             case "REINFORCE","SPLIT_REPAIR","REPAIR_PRIORITY","AGGRESSIVENESS","STANCE" -> {
                 String action=switch(tool){case "REINFORCE"->"REINFORCE";case "SPLIT_REPAIR"->"AUTO_SPLIT";case "REPAIR_PRIORITY"->previous?"REPAIR_PREVIOUS":"REPAIR_NEXT";case "STANCE"->previous?"STANCE_PREVIOUS":"STANCE_NEXT";default->previous?"ENGAGEMENT_PREVIOUS":"ENGAGEMENT_NEXT";};
-                var values=navalBatch(tool.equals("STANCE")?forces.stream().sorted(Comparator.comparing(Member::id)).toList():forces,action);if(values.isEmpty()){CommanderOrders.message("태스크 포스 설정을 먼저 선택하세요.");return;}
+                var values=navalBatch(tool.equals("STANCE")?forces.stream().sorted(Comparator.comparing(Member::id)).toList():forces,action);if(values.isEmpty())return;
                 CommanderOrders.send("NAVAL_SETTING/BATCH/"+action,values,List.of());
             }
         }
@@ -269,7 +269,7 @@ public final class CommanderPanels {
         if(armies.isEmpty()||controls.size()!=armies.size()||controls.stream().anyMatch(c->!c.enabled()))return "선택한 군 중 이 명령을 지정할 수 없는 군이 있습니다.";
         return type.equals("INVASION")&&armies.size()!=1?"상륙 계획 초안을 편집할 군 하나를 선택하세요.":"";
     }
-    private static void openArmyControl(String type){String reason=armyControlReason(type);if(!reason.isEmpty()){CommanderOrders.message(reason);return;}var armies=selectedArmies();CommanderOrders.land(type,armies.stream().map(Card::id).toList());}
+    private static void openArmyControl(String type){if(!armyControlReason(type).isEmpty())return;var armies=selectedArmies();CommanderOrders.land(type,armies.stream().map(Card::id).toList());}
     private static String source(String id){return "commander/commands/"+id+"/frame_0";}
     private static void leaderSkill(GuiGraphicsExtractor g,UiUnits u,int value,int x,float y){
         g.pose().pushMatrix();g.pose().translate(x,y);g.pose().scale(u.scale()*.5f);g.fill(0,0,23,1,0xff584d51);g.fill(0,1,1,34,0xff584d51);g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+source("land_battle_leader_skill_bg")+".png"),1,1,23,34,1/35f,34/35f,1/50f,49/50f);g.pose().popMatrix();
@@ -396,7 +396,7 @@ public final class CommanderPanels {
         nativeButton(g,out,"select_all_armylist_short_btn",x+extra+u.size(group?152.5:132),y+u.size(38.5),u.size(26),u.size(11.5),UiCommandLabels.text("SELECT_ALL",""),()->select(card.id(),false));
         nativeButton(g,out,"motorization_level_toggle_btn",x+extra+u.size(group?175:154.5),y+u.size(38.5),u.size(22),u.size(11.5),UiCommandLabels.text("ARMY_MOTORIZATION_PRIORITY","")+(panel==null||panel.motorizationPriority()==null?"\n\n차량 수송 우선순위 자료가 없습니다.":""),()->{if(!group&&panel!=null&&panel.motorizationPriority()!=null)CommanderOrders.send("ARMY_MOTORIZATION",List.of(card.id()),List.of());});
         UiAssets.draw(g,source("motorization_level_toggle_strip").replace("frame_0","frame_"+(panel==null||panel.motorizationPriority()==null?0:panel.motorizationPriority())),x+extra+u.size(group?178.5:158),y+u.size(38.5),u.size(15),u.size(11.5));
-        nativeButton(g,out,group?"army_group_toggle_armies_divisions_btn":"railway_gun_toggle_btn",x+extra+u.size(group?193.5:174),y+u.size(38.5),u.size(group?20.5:22),u.size(11.5),group?UiCommandLabels.text("TOGGLE_ARMY_GROUP_VIEW_ARMIES_DIVISIONS",""):UiCommandLabels.text("RAILWAY_GUN_CLICK_TO_SELECT_ASSIGNED",""),()->{if(group){if(!armyListGroups.remove(card.id()))armyListGroups.add(card.id());scroll=0;hits=List.of();}else CommanderOrders.message("철도포 배속은 아직 지원하지 않습니다.");});
+        nativeButton(g,out,group?"army_group_toggle_armies_divisions_btn":"railway_gun_toggle_btn",x+extra+u.size(group?193.5:174),y+u.size(38.5),u.size(group?20.5:22),u.size(11.5),group?UiCommandLabels.text("TOGGLE_ARMY_GROUP_VIEW_ARMIES_DIVISIONS",""):UiCommandLabels.text("RAILWAY_GUN_CLICK_TO_SELECT_ASSIGNED",""),()->{if(group){if(!armyListGroups.remove(card.id()))armyListGroups.add(card.id());scroll=0;hits=List.of();}});
         if(!group)nativeButton(g,out,"army_select_wings_btn",x+extra+u.size(193.5),y+u.size(38.5),u.size(22),u.size(11.5),UiCommandLabels.text("SELECT_ATTACHED_AIRWINGS","부속된 비행단 선택"),()->showWings(current.wings().stream().filter(wing->wing.data()!=null&&wing.data().attachedArmy().equals(card.id())).map(Member::id).toList()));
         for(int n=buttonsStart;n<out.size()-1;n++){var hit=out.get(n);out.set(n,new Hit(hit.x(),hit.y(),Math.min(hit.w(),out.get(n+1).x()-hit.x()),hit.h(),hit.tip(),hit.action(),hit.gesture(),hit.sound(),hit.icon()));}
     }
@@ -711,7 +711,7 @@ public final class CommanderPanels {
         return chosen.size()==all.size()?UiCommandLabels.text("ALL_TASKFORCES_SELECTED","임무 - 모든 태스크 포스"):UiCommandLabels.text("MULTIPLE_TASKFORCES_SELECTED","임무 - 다수 태스크 포스");
     }
     private static void navalSetting(Member member,int setting,boolean previous){
-        var state=member.data()==null?null:member.data().navy();if(state==null){CommanderOrders.message("태스크 포스 설정을 불러오는 중입니다.");return;}
+        var state=member.data()==null?null:member.data().navy();if(state==null)return;
         String action,expected;if(setting==2){action=previous?"ENGAGEMENT_PREVIOUS":"ENGAGEMENT_NEXT";expected="engagement/"+state.engagement();}
         else {action=setting==1?"AUTO_SPLIT":"REINFORCE";Boolean value=setting==1?state.autoSplit():state.reinforce();expected="state/"+(value==null?"unset":value);}
         CommanderOrders.send("NAVAL_SETTING/"+action,List.of(member.id(),expected),List.of());
@@ -720,7 +720,7 @@ public final class CommanderPanels {
     private static final String[][] NAVAL_TARGETS={{"SUBMARINE","submarine","잠수함"},{"DESTROYER","destroyer","초계함"},{"LIGHT_CRUISER","light_cruiser","호위함"},{"HEAVY_CRUISER","heavy_cruiser","구축함"},{"CONVOY","convoy","수송선"},{"BATTLE_CRUISER","battle_cruiser","순양전함"},{"BATTLESHIP","battleship","미사일 순양함"},{"SH_BATTLESHIP","sh_battleship","순양전함"},{"CARRIER","carrier","항공모함"}};
     private static boolean targetExcluded(Member force,String type){return force.data()!=null&&force.data().navy()!=null&&force.data().navy().resolvedExcludedTargets().contains(type);}
     private static void navalTarget(List<Member> forces,String type){
-        if(forces.stream().anyMatch(force->force.data()==null||force.data().navy()==null)){CommanderOrders.message("태스크 포스 설정을 불러오는 중입니다.");return;}
+        if(forces.stream().anyMatch(force->force.data()==null||force.data().navy()==null))return;
         var selection=new ArrayList<String>();for(int i=0;i<forces.size();i++){var force=forces.get(i);selection.add(force.id());selection.add("excluded/"+i+"/"+targetExcluded(force,type));}CommanderOrders.send("NAVAL_SETTING/TARGET_BATCH/"+type,selection,List.of());
     }
     private static String navalTargetTooltip(List<Member> forces,String[] type){if(forces.stream().anyMatch(force->force.data()==null||force.data().navy()==null))return type[2]+"\n\n태스크 포스 설정을 불러오는 중입니다.";return String.join("\n",forces.stream().map(force->UiCommandLabels.text(targetExcluded(force,type[0])?"NAVAL_MISSION_TARGET_IS_SELECTED":"NAVAL_MISSION_TARGET_IS_DESELECTED","").replace("$TYPE$",type[2])).distinct().toList());}

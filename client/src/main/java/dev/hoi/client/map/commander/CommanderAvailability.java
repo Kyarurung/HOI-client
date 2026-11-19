@@ -46,9 +46,9 @@ final class CommanderAvailability {
         return targets.size()==expected.size()&&new HashSet<>(targets).equals(new HashSet<>(expected))?reason(action):"";
     }
     static boolean waiting(String action,List<String> targets){return (!current()||assessment==null)&&!reason(action,targets).isEmpty();}
-    static boolean allow(String action,List<String> targets){String reason=reason(action,targets);if(reason.isEmpty())return true;CommanderOrders.message(reason);return false;}
+    static boolean allow(String action,List<String> targets){return reason(action,targets).isEmpty();}
     static boolean warning(String action){var status=current()&&assessment!=null?assessment.actions().get(action):null;return status!=null&&Boolean.TRUE.equals(status.warning());}
     static String tooltip(String action,String original){var status=current()&&assessment!=null?assessment.actions().get(action):null;if(status!=null&&!status.details().isEmpty())original=action.startsWith("NAVY/")||action.startsWith("NAVAL_TB/")?status.details():original+"\n\n"+status.details();String reason=status!=null&&!status.enabled()&&status.reason().isEmpty()?"":reason(action);return reason.isEmpty()||original.contains(reason)?original:explain(original,reason);}
     static String explain(String original,String reason){return reason.isEmpty()?original:original+"\n\n§R"+reason+"§!";}
-    static boolean allow(String action){String reason=reason(action);if(reason.isEmpty())return true;CommanderOrders.message(reason);return false;}
+    static boolean allow(String action){return reason(action).isEmpty();}
 }

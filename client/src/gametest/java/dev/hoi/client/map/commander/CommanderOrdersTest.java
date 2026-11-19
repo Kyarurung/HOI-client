@@ -94,7 +94,7 @@ final class CommanderOrdersTest {
                         ack(issued[0],11,kind.equals("army")?"":action);if(!CommanderOrders.ready())throw new AssertionError("New authoritative revision must release pending input");
                     });
                     if(!kind.equals("army"))game.runOnClient(client->{if(CommanderHud.boxes().stream().anyMatch(box->box.action()!=null&&box.tip().equals("선택한 부대 임무 패널")))throw new AssertionError("Direct mission controls must not be duplicated by an intermediate mission button");});
-                    game.getInput().setCursorPos(size[0]-30,90);game.runOnClient(client->{if(kind.equals("army"))CommanderOrders.message("현재 지도의 명령 정보를 기다리고 있습니다.");});game.waitTicks(1);game.runOnClient(client->{assertMessagesHidden();});game.takeScreenshot("hoi-direct-command-"+kind+"-"+size[0]+"x"+size[1]+"-gui2");
+                    game.getInput().setCursorPos(size[0]-30,90);game.runOnClient(client->{if(kind.equals("army"))client.gui.hud.setOverlayMessage(net.minecraft.network.chat.Component.literal("Campaign overlay probe"),false);});game.waitTicks(1);game.runOnClient(client->{assertMessagesHidden();});game.takeScreenshot("hoi-direct-command-"+kind+"-"+size[0]+"x"+size[1]+"-gui2");
                     if(kind.equals("army")){game.runOnClient(client->CommanderUnitHud.selectDivisions(refreshSelection.stream().filter(id->id.startsWith("unit/")).map(id->id.substring(5)).toList(),false));game.waitTicks(2);}
                     game.runOnClient(client->{
                         var screen=client.gui.screen();double x=screen.width*.78,y=screen.height*.48;int before=commands.size();var exact=CommanderPanels.commandSelection();

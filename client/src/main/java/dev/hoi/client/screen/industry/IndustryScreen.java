@@ -127,7 +127,6 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if (closed || !next.session().equals(token)) return;
         if (next.country().isEmpty() || view != null && !next.country().equals(view.country())) {
             closed = true; minecraft.gui.setScreen(null);
-            if (minecraft.player != null && !next.message().isBlank()) minecraft.player.sendSystemMessage(net.minecraft.network.chat.Component.literal(next.message()));
             return;
         }
         if (view != null && next.revision() <= view.revision()) return;
@@ -224,8 +223,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         if (selectingDeployment && view != null) {
             HudMenuBar.drawPassive(g, width, view.hud(), view.country());
-            String instruction = pending > 0 ? "배치 가능한 장소를 불러오는 중…" : "좌클릭: 배치 장소 지정  ·  우클릭: 취소";
-            g.centeredText(font, instruction, width / 2, height - 24, TEXT); return;
+            return;
         }
         graphics = g; mouseX = mx; mouseY = my;
         UiMenuStyle.panel(g, 0, top, pane, height - top);
@@ -2013,7 +2011,6 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             var costStat=statsById.get("build_cost_ic");
             if(costStat!=null)productionTip(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.statTooltip(costStat),costLeft,footerY,px.applyAsInt(1060)-costLeft,footerHeight);
         }
-        if(!view.message().isEmpty())tip(view.message(),px.applyAsInt(140),py.applyAsInt(508),size.applyAsInt(137),size.applyAsInt(30));
         if(armor&&tankSlot.isEmpty())tankRoleMenu(px.applyAsInt(24),py.applyAsInt(95),size.applyAsInt(305),size.applyAsInt(35));
     }
     private void tankRoleMenu(int x,int y,int w,int h) {

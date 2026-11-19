@@ -11,7 +11,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 
 public final class CommanderOrders {
     public static Consumer<Command> commandObserver;
@@ -44,12 +43,10 @@ public final class CommanderOrders {
     public static void accept(Context next){
         var client=Minecraft.getInstance();if(client.level==null||!next.country().equals(ClientCampaignHud.country())||!next.dimension().equals(client.level.dimension().identifier().toString())||retired.contains(next.token()))return;
         if(context!=null&&context.token().equals(next.token())&&next.revision()<context.revision())return;
-        String previousPending=context==null?"":context.pending();boolean acknowledged=context!=null&&context.token().equals(next.token())&&waitingRevision>=0&&next.revision()>waitingRevision;
         boolean fresh=context==null||!context.token().equals(next.token());
         if(fresh){if(context!=null)retired.add(context.token());sequence=0;detailGeneration=-1;detailPages.clear();published=null;waitingRevision=-1;cancelQueued=false;generation++;}
         context=next;if(fresh){heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;queuedMove=null;latched=null;resume=null;}if(waitingRevision>=0&&next.revision()>waitingRevision)waitingRevision=-1;
         long availabilityRequest=CommanderAvailability.request();selectionChanged();if(cancelQueued&&waitingRevision<0){cancelQueued=false;if(!next.pending().isEmpty())send("CANCEL",List.of(),List.of());}
-        if(acknowledged&&waitingRevision<0&&!next.pending().equals(previousPending)){if(next.pending().startsWith("AIR/"))message("지도에서 공역을 우클릭하세요.");else if(next.pending().startsWith("NAVY/"))message("지도에서 해역을 우클릭하세요.");}
         continueHeld();continueMove();CommanderHud.reconcileCardOrder();CommanderAvailability.update(context,sequence-1,published,availabilityRequest==CommanderAvailability.request());
     }
     static void acceptDetails(DetailPage page){
@@ -91,7 +88,6 @@ public final class CommanderOrders {
         if(queuedMove==null||!ready()||cancelQueued)return;
         var queued=queuedMove;queuedMove=null;if(!targetTool()&&queued.selection().equals(CommanderPanels.commandSelection()))send("MAP",queued.selection(),queued.rays());
     }
-    public static void message(String text){Minecraft.getInstance().gui.hud.setOverlayMessage(Component.literal(text),false);}
     static void selectionScopeChanged(){resume=null;heldMap=null;generation++;if(valid()&&(!context.pending().isEmpty()||waitingRevision>=0))cancelTarget();}
     public static boolean cancelTarget(){
         if(NavalInvasionOrders.cancel())return true;
@@ -101,7 +97,7 @@ public final class CommanderOrders {
     }
     public static void selectionChanged(){
         if(!valid())return;var keys=CommanderPanels.commandSelection();if(keys.equals(published)){CommanderAvailability.update(context,sequence-1,published,false);return;}
-        if(keys.size()>2048){message("선택한 부대가 명령 입력 한도를 초과했습니다.");return;}
+        if(keys.size()>2048)return;
         if(selectionObserver==null&&!ClientPlayNetworking.canSend(Selection.TYPE))return;
         boolean changed=published!=null;var packet=new Selection(context.token(),sequence++,keys);published=keys;generation++;
         if(selectionObserver!=null)selectionObserver.accept(packet);else ClientPlayNetworking.send(packet);
@@ -116,10 +112,10 @@ public final class CommanderOrders {
         return currentHud(view)&&send(action,selection,List.of());
     }
     public static boolean send(String action,List<String> selection,List<Ray> rays){
-        if(!valid()){message("현재 지도의 명령 정보를 기다리고 있습니다.");return false;}
+        if(!valid())return false;
         if(waitingRevision>=0)return false;
-        if(selection.size()>2048||rays.size()>64){message("선택한 부대 또는 지도 경로가 명령 입력 한도를 초과했습니다.");return false;}
-        if(commandObserver==null&&!ClientPlayNetworking.canSend(Command.TYPE)){message("직접 명령 연결을 사용할 수 없습니다.");return false;}
+        if(selection.size()>2048||rays.size()>64)return false;
+        if(commandObserver==null&&!ClientPlayNetworking.canSend(Command.TYPE))return false;
         selectionChanged();if(waitingRevision>=0||!CommanderAvailability.allow(action,selection))return false;var packet=new Command(context.token(),context.revision(),action,selection,rays);waitingRevision=context.revision();
         if(commandObserver!=null)commandObserver.accept(packet);else ClientPlayNetworking.send(packet);return true;
     }
@@ -128,25 +124,25 @@ public final class CommanderOrders {
         if(client.player==null||client.gui.screen()!=null||!client.options.getCameraType().isFirstPerson()||!CommanderHud.cardsVisible()||!valid()||CommanderPanels.commandSelection().isEmpty())return false;
         var matrix=client.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
         var vector=matrix.transformProject(new org.joml.Vector3f(0,0,1)).normalize();
-        try{map(List.of(new Ray(vector.x,vector.y,vector.z)));}catch(IllegalArgumentException sky){message("지도에서 이동할 위치를 선택하세요.");}
+        try{map(List.of(new Ray(vector.x,vector.y,vector.z)));}catch(IllegalArgumentException sky){}
         return true;
     }
     public static boolean map(List<Ray> rays,boolean pointEdit){
-        if(!valid()){message("현재 지도의 명령 정보를 기다리고 있습니다.");return false;}
-        if(rays.isEmpty()){message("지도에서 이동할 위치를 선택하세요.");return false;}var selected=CommanderPanels.commandSelection();if(selected.isEmpty()&&pending().isEmpty()){message("이동할 부대를 선택하세요.");return false;}
+        if(!valid())return false;
+        if(rays.isEmpty())return false;var selected=CommanderPanels.commandSelection();if(selected.isEmpty()&&pending().isEmpty())return false;
         var points=drawsPlanLine()?rays:List.of(targetTool()?rays.getLast():rays.getFirst());
         if(!targetTool()){
-            if(selected.size()>2048){message("선택한 부대가 명령 입력 한도를 초과했습니다.");return false;}
-            selectionChanged();if(waitingRevision>=0){queuedMove=new HeldMap("MAP",selected,points,context.revision());message("앞선 명령 뒤에 마지막 이동 명령을 보냅니다.");return true;}
+            if(selected.size()>2048)return false;
+            selectionChanged();if(waitingRevision>=0){queuedMove=new HeldMap("MAP",selected,points,context.revision());return true;}
         }
         if(clicksBorder()&&points.stream().allMatch(points.getFirst()::equals))points=List.of(points.getFirst());
-        if(!heldAction.isEmpty()&&(!heldOwned||!context.pending().startsWith(heldAction)&&!context.pending().equals("LAND/AREA_STATES"))){var targets=heldAction.equals("LAND/ASSIGN_UNITS")?selected:CommanderPanels.armyIds();if(targets.isEmpty()){message("명령 대상을 선택하세요.");return false;}var queued=new HeldMap(heldAction,selected,points,context.revision());if(send(heldAction,targets,List.of())){heldOwned=true;heldMap=queued;return true;}return false;}
+        if(!heldAction.isEmpty()&&(!heldOwned||!context.pending().startsWith(heldAction)&&!context.pending().equals("LAND/AREA_STATES"))){var targets=heldAction.equals("LAND/ASSIGN_UNITS")?selected:CommanderPanels.armyIds();if(targets.isEmpty())return false;var queued=new HeldMap(heldAction,selected,points,context.revision());if(send(heldAction,targets,List.of())){heldOwned=true;heldMap=queued;return true;}return false;}
         return send(pointEdit&&editsPoint()?"MAP/POINT":"MAP",selected,pointEdit&&editsPoint()?List.of(rays.getFirst(),rays.getLast()):points);
     }
     static void land(String type,List<String> armies){if(pending().equals("LAND/"+type)){cancelTarget();return;}if(!CommanderAvailability.allow("LAND/"+type,armies))return;resume=null;latched=new ModeRequest("LAND/"+type,armies);if(!armies.isEmpty())send("LAND/"+type,armies,List.of());}
-    static void assignSelected(){var ids=CommanderPanels.commandSelection();if(ids.isEmpty()){message("배정할 사단을 선택하세요.");return;}land("ASSIGN_UNITS",ids);}
+    static void assignSelected(){var ids=CommanderPanels.commandSelection();if(ids.isEmpty())return;land("ASSIGN_UNITS",ids);}
     static void formation(String action,String target,List<String> selection){
-        if(selection.isEmpty()){message(action.endsWith("ARMIES")||action.equals("CREATE_GROUP")?"편성할 군 카드를 선택하세요.":"편성할 사단을 선택하세요.");return;}
+        if(selection.isEmpty())return;
         var values=new ArrayList<String>();if(!target.isEmpty())values.add("target/"+target);values.addAll(selection);
         if(send("FORMATION/"+action,values,List.of())&&(action.equals("CREATE_ARMY")||action.equals("MOVE_DIVISIONS"))){CommanderPanels.mapSelectionChanged();if(action.equals("CREATE_ARMY"))CommanderPanels.awaitCreatedArmy(selection);}
     }
@@ -166,7 +162,7 @@ public final class CommanderOrders {
             }
             return true;
         }
-        if(request.mode()==Mode.ARMY_ABILITIES){if(Set.of("force_attack","last_stand","staff_office_plan","extra_suplies").contains(request.target()))CommanderPanels.armyAbility(request.target());else message("사용할 스킬 버튼을 선택하세요.");return true;}
+        if(request.mode()==Mode.ARMY_ABILITIES){if(Set.of("force_attack","last_stand","staff_office_plan","extra_suplies").contains(request.target()))CommanderPanels.armyAbility(request.target());return true;}
         if(Set.of(Mode.NAVAL_TASK_FORCES,Mode.NAVAL_MISSION,Mode.AIR_MISSION).contains(request.mode())&&CommanderPanels.openMission(request))return true;
         if(CommanderPanels.armyInput()&&(request.mode()==Mode.CREATE_ARMY||request.mode()==Mode.MOVE_DIVISIONS)){formation(request.mode().name(),request.target(),request.selection());return true;}
         if(CommanderPanels.armyInput()&&request.mode()==Mode.ARMY_GROUPS&&request.target().isEmpty()){formation("CREATE_GROUP","",CommanderPanels.formationArmies());return true;}

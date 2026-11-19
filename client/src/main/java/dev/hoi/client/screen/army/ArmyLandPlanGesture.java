@@ -28,7 +28,7 @@ public final class ArmyLandPlanGesture {
         try {
             var point=new Point(x,y,new Ray(vector.x,vector.y,vector.z));
             if(points.size()==64)points.set(63,point);else points.add(point);
-        }catch(IllegalArgumentException sky){dev.hoi.client.map.commander.CommanderOrders.message("지도에서 이동할 위치를 선택하세요.");}
+        }catch(IllegalArgumentException sky){}
     }
     public List<Ray> finish(Minecraft client){var result=compatible(client)?points.stream().map(Point::ray).toList():List.<Ray>of();clear();return result;}
     public void draw(GuiGraphicsExtractor graphics) {

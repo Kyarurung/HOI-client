@@ -57,7 +57,6 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
     public void update(IndustryConstructionView next) {
         if(!next.session().equals(token))return;
         if(next.country().isEmpty() || view!=null&&!next.country().equals(view.country())){
-            if(!next.message().isBlank()&&minecraft.player!=null)minecraft.player.sendSystemMessage(Component.literal(next.message()));
             minecraft.gui.setScreen(null);return;
         }
         if(view!=null&&next.revision()<=view.revision())return;
@@ -194,7 +193,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
                 String detail=column==0?calculation(s.factoryCalculation(),"사용 중인 공장"):column==1?calculation(s.speedCalculation(),"건설 속도"):calculation(s.energyCalculation(),"사용 가능한 에너지");
                 Tooltips.drawExact(g,font,detail,mx,my);
             }
-        } else dev.hoi.client.ui.UiText.text(g, font,loadingFailed?"서버 응답이 없습니다.":"건설 현황을 불러오는 중…",10,top+40,UiMenuStyle.MUTED);
+        } else if(!loadingFailed) dev.hoi.client.ui.UiText.text(g, font,"건설 현황을 불러오는 중…",10,top+40,UiMenuStyle.MUTED);
         drawConversions(g,mx,my);
         var movingWidgets=projectMoved&&!draggedProject.isEmpty()?projectWidgets.getOrDefault(draggedProject,List.of()).stream().filter(widget->widget.visible).toList():List.<net.minecraft.client.gui.components.AbstractWidget>of();
         for(var widget:movingWidgets)widget.visible=false;

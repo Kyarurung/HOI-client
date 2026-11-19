@@ -32,29 +32,29 @@ public final class CommanderCaptivity extends Screen implements InputSidebarMove
     Tooltips.ScrolledTooltip detailTooltip(){return tooltip;}
     private boolean overTooltip(double x,double y){return tooltip!=null&&x>=tooltip.x()-4&&x<tooltip.x()+tooltip.width()+4&&y>=tooltip.y()-4&&y<tooltip.y()+tooltip.height()+4;}
     private void clearTooltip(){tooltip=null;tooltipText="";tooltipScroll=0;}
-    private String query="",sort="name",failure="";
-    private boolean ours,descending,pending,closed,dirty,dragging;
+    private String query="",sort="name";
+    private boolean ours,descending,pending,closed,dirty,dragging,halted;
     private int left,top,pane,bottom,ticks,pendingTicks,editTicks,scroll;
     public CommanderCaptivity(Screen parent,boolean ours){this(parent,UUID.randomUUID().toString(),ours,null,request->{if(!ClientPlayNetworking.canSend(IndustryPayloads.Request.TYPE))throw new IllegalStateException("서버에 연결할 수 없습니다.");ClientPlayNetworking.send(request);});}
-    public CommanderCaptivity(Screen parent,String token,boolean ours,IndustryView fixture,Consumer<IndustryPayloads.Request> transport){super(Component.literal("포획된 지휘관"));this.parent=parent;this.token=token;this.ours=ours;this.view=fixture;this.transport=transport;failure=fixture==null?"":fixture.message();if(state()!=null){this.ours=state().ours();query=state().query();sort=state().sort();descending=state().descending();}}
+    public CommanderCaptivity(Screen parent,String token,boolean ours,IndustryView fixture,Consumer<IndustryPayloads.Request> transport){super(Component.literal("포획된 지휘관"));this.parent=parent;this.token=token;this.ours=ours;this.view=fixture;this.transport=transport;halted=fixture!=null&&!fixture.message().isEmpty();if(state()!=null){this.ours=state().ours();query=state().query();sort=state().sort();descending=state().descending();}}
     boolean ownCommanders(){return ours;}
     public void open(){send(CAPTIVITY_OPEN,0);}
     private CommanderCaptivityView state(){return view==null?null:view.captivity();}
     private int pages(){return state()==null?1:Math.max(1,(state().total()+CommanderCaptivityView.PAGE_SIZE-1)/CommanderCaptivityView.PAGE_SIZE);}
     private UiScrollBar scrollbar(){return new UiScrollBar(left+pane-11,top+55,bottom-5,1,pages());}
     private void page(int value){if(state()!=null&&!pending){int next=Math.clamp(value,0,pages()-1);if(next!=state().page())send(CAPTIVITY_QUERY,next);}}
-    private void send(IndustryPayloads.Action action,int page){if(closed||pending)return;pending=true;pendingTicks=0;failure="";dirty=false;try{transport.accept(new IndustryPayloads.Request(action,token,view==null?0:view.revision(),query,(ours?"ours":"theirs")+"/"+sort+"/"+(descending?"desc":"asc"),page));}catch(IllegalArgumentException|IllegalStateException error){pending=false;failure="지휘관 목록을 요청하지 못했습니다. 다시 시도하세요.";}if(minecraft!=null)refreshWidgets();}
+    private void send(IndustryPayloads.Action action,int page){if(closed||pending)return;pending=true;pendingTicks=0;halted=false;dirty=false;try{transport.accept(new IndustryPayloads.Request(action,token,view==null?0:view.revision(),query,(ours?"ours":"theirs")+"/"+sort+"/"+(descending?"desc":"asc"),page));}catch(IllegalArgumentException|IllegalStateException error){pending=false;halted=true;}if(minecraft!=null)refreshWidgets();}
     public void update(IndustryView next){
         if(closed||!next.session().equals(token))return;
         if(next.country().isEmpty()||view!=null&&!next.country().equals(view.country())){closed=true;DialogCoordinator.setContent(null);return;}
         if(view!=null&&next.revision()<=view.revision())return;
-        boolean typed=dirty;String typedQuery=query;view=next;pending=false;failure=next.message();
+        boolean typed=dirty;String typedQuery=query;view=next;pending=false;halted=!next.message().isEmpty();
         if(state()!=null){ours=state().ours();sort=state().sort();descending=state().descending();query=typed?typedQuery:state().query();dirty=typed&&!query.equals(state().query());if(parent instanceof ScreenMenu menu)menu.captivityCounts(state().missing(),state().held());}
-        else failure="지휘관 목록을 받지 못했습니다. 다시 시도하세요.";
+        else halted=true;
         scroll=0;clearTooltip();refreshWidgets();
     }
     private void refreshWidgets(){boolean focused=search!=null&&search.isFocused();rebuildWidgets();if(focused&&search!=null)setFocused(search);}
-    public void failed(){pending=false;failure="지휘관 목록을 읽지 못했습니다. 다시 시도하세요.";refreshWidgets();}
+    public void failed(){pending=false;halted=true;refreshWidgets();}
     private UiMenuButton button(String caption,int x,int y,int w,int h,Runnable action){var b=new UiMenuButton(caption,x,y,w,h,action);b.active=!pending;addRenderableWidget(b);return b;}
     private void tab(boolean own){if(ours==own)return;ours=own;scroll=0;send(CAPTIVITY_QUERY,0);}
     private void order(String key){if(sort.equals(key))descending=!descending;else{sort=key;descending=!key.equals("name");}send(CAPTIVITY_QUERY,0);}
@@ -71,7 +71,7 @@ public final class CommanderCaptivity extends Screen implements InputSidebarMove
         button("우리에게 포획된 지휘관",left+133,top+36,129,21,()->tab(false)).bold().background("officer/hq/captured_tab/frame_"+(ours?1:0));
         scroll=Math.clamp(scroll,0,Math.max(0,(state()==null?0:state().rows().size()*49)-(bottom-top-60)));
     }
-    @Override public void tick(){if(closed)return;ticks++;if(dirty)editTicks++;if(pending&&++pendingTicks>=200){pending=false;failure="응답을 받지 못했습니다. 다시 시도하세요.";refreshWidgets();}if(!pending&&failure.isEmpty()){if(dirty&&editTicks>=8)send(state()==null?CAPTIVITY_OPEN:CAPTIVITY_QUERY,0);else if(!dirty&&ticks%80==0)send(state()==null?CAPTIVITY_OPEN:CAPTIVITY_QUERY,state()==null?0:state().page());}}
+    @Override public void tick(){if(closed)return;ticks++;if(dirty)editTicks++;if(pending&&++pendingTicks>=200){pending=false;halted=true;refreshWidgets();}if(!pending&&!halted){if(dirty&&editTicks>=8)send(state()==null?CAPTIVITY_OPEN:CAPTIVITY_QUERY,0);else if(!dirty&&ticks%80==0)send(state()==null?CAPTIVITY_OPEN:CAPTIVITY_QUERY,state()==null?0:state().page());}}
     @Override public void onClose(){if(closed)return;closed=true;try{transport.accept(new IndustryPayloads.Request(CLOSE,token,view==null?0:view.revision(),"","",0));}catch(IllegalArgumentException|IllegalStateException ignored){}DialogCoordinator.setContent(parent);}
     @Override public boolean allowsMovement(){return false;}
     @Override public int unitHudLeft(){return left+pane;}
@@ -98,8 +98,8 @@ public final class CommanderCaptivity extends Screen implements InputSidebarMove
             }
             if(state().rows().isEmpty())UiText.centered(g,font,query.isEmpty()?"해당 지휘관이 없습니다.":"검색 결과가 없습니다.",left+8,top+64,pane-16,24,UiMenuStyle.MUTED);
             g.disableScissor();scrollbar().draw(g,state().page());
-        }else UiText.centered(g,font,pending?"불러오는 중…":"목록을 받지 못했습니다.",left+8,top+64,pane-16,24,UiMenuStyle.MUTED);
-        if(!failure.isEmpty()||pending){g.fill(left+4,bottom-43,left+pane-4,bottom-23,0xEE151515);UiText.centered(g,font,pending?"불러오는 중…":failure,left+7,bottom-42,pane-14,18,pending?UiMenuStyle.MUTED:0xFFE15B5B);}
+        }else if(pending)UiText.centered(g,font,"불러오는 중…",left+8,top+64,pane-16,24,UiMenuStyle.MUTED);
+        if(pending){g.fill(left+4,bottom-43,left+pane-4,bottom-23,0xEE151515);UiText.centered(g,font,"불러오는 중…",left+7,bottom-42,pane-14,18,UiMenuStyle.MUTED);}
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget)widget.extractRenderState(g,mx,my,delta);
         if(my<top+55||my>=bottom-5)hovered="";
         if(overTooltip(mx,my))hovered=tooltipText;

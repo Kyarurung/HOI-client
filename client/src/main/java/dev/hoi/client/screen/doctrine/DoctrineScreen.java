@@ -373,7 +373,6 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         }
         g.disableScissor();
         UiMenuStyle.close(g, width - 22, top + 25, 17, 17, TEXT);
-        if (!view.message().isEmpty()) UiText.left(g, font, view.message(), 8, height - 23, width - 16, 15, GOLD);
         if (picking != null) drawPopup(g);
         for (var child : children()) if (child instanceof net.minecraft.client.gui.components.Renderable renderable)
             renderable.extractRenderState(g, mx, my, delta);

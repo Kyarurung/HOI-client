@@ -15,9 +15,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 
 public final class NetworkScreens {
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(NetworkScreens.class);
     private static final NetworkPendingScreen pendingResearch = new NetworkPendingScreen();
     private static final NetworkPendingScreen pendingMenu = new NetworkPendingScreen();
     private static dev.hoi.protocol.menu.MenuTab pendingTab;
@@ -35,7 +35,7 @@ public final class NetworkScreens {
                 else if (screen instanceof DiplomacyCountryScreen country) country.update(packet);
             } catch (IllegalArgumentException error) {
                 DialogCoordinator.setContent(null);
-                message("의용군 정보를 읽을 수 없습니다.");
+                LOGGER.warn("의용군 정보를 읽을 수 없습니다.", error);
             }
         });
         dev.hoi.protocol.diplomacy.DiplomacyPayloads.registerPayloadTypes();
@@ -46,18 +46,18 @@ public final class NetworkScreens {
                 else if (screen instanceof DiplomacyCountryScreen country) country.update(packet);
             } catch (IllegalArgumentException error) {
                 DialogCoordinator.setContent(null);
-                message("무기대여 정보를 읽을 수 없습니다.");
+                LOGGER.warn("무기대여 정보를 읽을 수 없습니다.", error);
             }
         });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.focus.FocusPayloads.Response.TYPE, (packet, context) -> {
             if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.focus.FocusScreen screen) {
-                try { screen.update(packet); } catch (IllegalArgumentException e) { DialogCoordinator.setContent(null); message("중점 정보를 읽을 수 없습니다."); }
+                try { screen.update(packet); } catch (IllegalArgumentException e) { DialogCoordinator.setContent(null); LOGGER.warn("중점 정보를 읽을 수 없습니다.", e); }
             }
         });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.decision.DecisionPayloads.Response.TYPE, (packet, context) -> {
             if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.decision.DecisionScreen screen) {
                 try { screen.update(packet); }
-                catch (IllegalArgumentException error) { DialogCoordinator.setContent(null); message("결정 정보를 읽을 수 없습니다."); }
+                catch (IllegalArgumentException error) { DialogCoordinator.setContent(null); LOGGER.warn("결정 정보를 읽을 수 없습니다.", error); }
             }
         });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.decision.DecisionDetailPayloads.Response.TYPE, (packet, context) -> {
@@ -69,21 +69,21 @@ public final class NetworkScreens {
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.diplomacy.DiplomacyWorldTensionPayloads.Response.TYPE, (packet, context) -> {
             if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.diplomacy.DiplomacyWorldTension screen) {
                 try { screen.update(packet); }
-                catch (IllegalArgumentException error) { DialogCoordinator.setContent(null); message("세계 긴장도 정보를 읽을 수 없습니다."); }
+                catch (IllegalArgumentException error) { DialogCoordinator.setContent(null); LOGGER.warn("세계 긴장도 정보를 읽을 수 없습니다.", error); }
             }
         });
         dev.hoi.protocol.industry.IndustryPayloads.registerPayloadTypes();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (pendingMenu.waiting()) {
                 if (!menuContextValid()) cancelOpen();
-                else if (pendingMenu.tick()) { cancelOpen(); message("국가 메뉴 응답이 없습니다. 다시 열어주세요."); }
+                else if (pendingMenu.tick()) cancelOpen();
                 else if (++menuRetryTicks >= 20 && ClientPlayNetworking.canSend(MenuPayloads.Refresh.TYPE)) {
                     menuRetryTicks = 0;
                     ClientPlayNetworking.send(new MenuPayloads.Refresh(menuToken));
                 }
             }
             if (pendingResearch.waiting() && !researchContextValid()) cancelOpen();
-            if (pendingResearch.tick()) message("연구 화면 응답이 없습니다. 다시 열어주세요.");
+            pendingResearch.tick();
         });
         ClientPlayNetworking.registerGlobalReceiver(ResearchPayloads.OpenScreen.TYPE, (packet, context) -> open());
         ClientPlayNetworking.registerGlobalReceiver(MenuPayloads.SelectionPreview.TYPE, (packet, context) -> {
@@ -94,40 +94,40 @@ public final class NetworkScreens {
             try {
                 cancelOpen();
                 DialogCoordinator.setContent(ScreenMenu.selection(packet.view()));
-            } catch (IllegalArgumentException error) { message("국가 선택 정보를 읽을 수 없습니다."); }
+            } catch (IllegalArgumentException error) { LOGGER.warn("국가 선택 정보를 읽을 수 없습니다.", error); }
         });
         ClientPlayNetworking.registerGlobalReceiver(MenuPayloads.OpenScreen.TYPE, (packet, context) -> {
             try {
                 var view = packet.view();
                 cancelOpen();
                 DialogCoordinator.setContent(new ScreenMenu(view));
-            } catch (RuntimeException e) { message("HOI 메뉴 데이터를 읽을 수 없습니다."); }
+            } catch (RuntimeException e) { LOGGER.warn("HOI 메뉴 데이터를 읽을 수 없습니다.", e); }
         });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.country.CountryPayloads.OpenScreen.TYPE, (packet, context) -> openCountry(packet.target()));
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.country.CountryPayloads.Response.TYPE, (packet, context) -> {
             if (DialogCoordinator.contentScreen() instanceof DiplomacyCountryScreen screen) {
                 try { screen.update(packet); }
-                catch (IllegalArgumentException error) { DialogCoordinator.setContent(null); message("국가 정보를 읽을 수 없습니다."); }
+                catch (IllegalArgumentException error) { DialogCoordinator.setContent(null); LOGGER.warn("국가 정보를 읽을 수 없습니다.", error); }
             }
         });
         ClientPlayNetworking.registerGlobalReceiver(MenuPayloads.Update.TYPE, (packet, context) -> receiveMenu(packet));
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.industry.IndustryConstructionPayloads.Response.TYPE, (packet, context) -> {
             if(DialogCoordinator.contentScreen() instanceof IndustryConstruction screen) {
-                try {screen.update(packet.view());} catch(IllegalArgumentException e){message("건설 데이터를 읽을 수 없습니다.");}
+                try {screen.update(packet.view());} catch(IllegalArgumentException e){LOGGER.warn("건설 데이터를 읽을 수 없습니다.",e);}
             }
         });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.industry.IndustryPayloads.Response.TYPE, (packet, context) -> {
-            if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.army.ArmyHeadquarters headquarters) {try{headquarters.update(packet.view());}catch(IllegalArgumentException error){DialogCoordinator.setContent(null);message("HQ 편제 정보를 읽을 수 없습니다.");}}
+            if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.army.ArmyHeadquarters headquarters) {try{headquarters.update(packet.view());}catch(IllegalArgumentException error){DialogCoordinator.setContent(null);LOGGER.warn("HQ 편제 정보를 읽을 수 없습니다.",error);}}
             else if(DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.commander.CommanderCaptivity captured){try{captured.update(packet.view());}catch(IllegalArgumentException error){captured.failed();}}
             else if (DialogCoordinator.contentScreen() instanceof IndustryScreen screen) {
                 try { screen.update(packet.view()); }
-                catch (IllegalArgumentException error) { DialogCoordinator.setContent(null); message("산업 현황을 읽을 수 없습니다."); }
+                catch (IllegalArgumentException error) { DialogCoordinator.setContent(null); LOGGER.warn("산업 현황을 읽을 수 없습니다.", error); }
             }
         });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.doctrine.DoctrinePayloads.Response.TYPE, (packet, context) -> {
             if (!(DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.doctrine.DoctrineScreen screen)) return;
             try { screen.update(packet.view()); }
-            catch (IllegalArgumentException invalid) { DialogCoordinator.setContent(null); message("교리 화면을 다시 열어주세요."); }
+            catch (IllegalArgumentException invalid) { DialogCoordinator.setContent(null); LOGGER.warn("교리 화면을 다시 열어주세요.", invalid); }
         });
         ClientPlayNetworking.registerGlobalReceiver(AgencyPayloads.Highlight.TYPE, (packet, context) -> dev.hoi.client.map.agency.AgencyHud.accept(packet));
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.raid.RaidPayloads.Highlight.TYPE, (packet, context) -> {
@@ -150,7 +150,7 @@ public final class NetworkScreens {
                 if (DialogCoordinator.contentScreen() instanceof AgencyScreen agency) agency.update(view);
                 else dev.hoi.client.map.agency.AgencyHud.accept(view);
             }
-            catch (IllegalArgumentException error) { message("정보기관 데이터를 읽을 수 없습니다."); }
+            catch (IllegalArgumentException error) { LOGGER.warn("정보기관 데이터를 읽을 수 없습니다.", error); }
         });
         ClientPlayNetworking.registerGlobalReceiver(ResearchPayloads.Response.TYPE, (packet, context) -> receiveResearch(packet));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
@@ -171,7 +171,6 @@ public final class NetworkScreens {
                     if (active || pendingResearch.matches(view.session())) {
                         cancelOpen();
                         if (active) DialogCoordinator.setContent(null);
-                        message(view.message());
                     }
                 } else if (pendingResearch.matches(view.session())) {
                     if (!researchContextValid() || !researchCountry.isEmpty() && !researchCountry.equals(view.country())) {
@@ -189,7 +188,7 @@ public final class NetworkScreens {
                 } else {
                     send(new ResearchPayloads.Request(ResearchPayloads.Action.CLOSE, view.session(), 0, -1, ""));
                 }
-            } catch (IllegalArgumentException e) { cancelOpen(); message("HOI 연구 화면 데이터를 읽을 수 없습니다."); }
+            } catch (IllegalArgumentException e) { cancelOpen(); LOGGER.warn("HOI 연구 화면 데이터를 읽을 수 없습니다.", e); }
     }
     static ResearchPayloads.Request beginResearch() {
         cancelOpen();
@@ -201,7 +200,7 @@ public final class NetworkScreens {
     }
     public static void open() {
         if (pendingResearch.waiting() || DialogCoordinator.contentScreen() instanceof ResearchScreen) return;
-        if (!ClientPlayNetworking.canSend(ResearchPayloads.Request.TYPE)) { message("이 서버는 HOI 연구 UI를 지원하지 않습니다."); return; }
+        if (!ClientPlayNetworking.canSend(ResearchPayloads.Request.TYPE)) return;
         send(beginResearch());
     }
     public static void openResearchDetail(String id) {
@@ -236,16 +235,16 @@ public final class NetworkScreens {
                 if (!country.equals(view.country())) return;
                 var screen = target == null ? new ScreenMenu(view, tab, dev.hoi.client.HoiClient::open) : ScreenMenu.forFocus(view, target);
                 DialogCoordinator.setContent(screen);
-            } catch (IllegalArgumentException error) { message("HOI 메뉴 데이터를 읽을 수 없습니다."); }
+            } catch (IllegalArgumentException error) { LOGGER.warn("HOI 메뉴 데이터를 읽을 수 없습니다.", error); }
             return;
         }
         if (!(DialogCoordinator.contentScreen() instanceof ScreenMenu menu) || menu.selectionPreview() || !menu.token().equals(packet.screen())) return;
         if (packet.json().isEmpty()) { cancelOpen(); DialogCoordinator.setContent(null); return; }
         try { menu.update(new MenuPayloads.OpenScreen(packet.json()).view()); }
-        catch (RuntimeException error) { message("HOI 메뉴 갱신 데이터를 읽을 수 없습니다."); }
+        catch (RuntimeException error) { LOGGER.warn("HOI 메뉴 갱신 데이터를 읽을 수 없습니다.", error); }
     }
     public static void openSourceFocusDetail(String id) {
-        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.focus.FocusPayloads.Request.TYPE)) { message("이 서버는 중점 계통도 UI를 지원하지 않습니다."); return; }
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.focus.FocusPayloads.Request.TYPE)) return;
         cancelOpen();DialogCoordinator.setContent(new dev.hoi.client.screen.focus.FocusScreen(id));
     }
     public static void openFocusDetail(String id) {
@@ -253,7 +252,7 @@ public final class NetworkScreens {
         if (pendingMenu.waiting()) pendingMenu.target(id);
     }
     public static void openCountry(String target) {
-        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.country.CountryPayloads.Request.TYPE)) { message("이 서버는 외국 정보 UI를 지원하지 않습니다."); return; }
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.country.CountryPayloads.Request.TYPE)) return;
         cancelOpen(); DialogCoordinator.setContent(new DiplomacyCountryScreen(target));
         dev.hoi.client.audio.AudioUiSounds.play("ui.menu_tab");
     }
@@ -266,20 +265,20 @@ public final class NetworkScreens {
         cancelOpen(); var screen = new IndustryScreen(target); DialogCoordinator.setContent(screen); screen.open();
     }
     public static void openWorldTension() {
-        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.diplomacy.DiplomacyWorldTensionPayloads.Request.TYPE)) { message("이 서버는 세계 긴장도 이력 UI를 지원하지 않습니다."); return; }
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.diplomacy.DiplomacyWorldTensionPayloads.Request.TYPE)) return;
         cancelOpen(); DialogCoordinator.setContent(new dev.hoi.client.screen.diplomacy.DiplomacyWorldTension());
     }
     public static void openConstruction() {
-        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryConstructionPayloads.Request.TYPE)) { message("이 서버는 건설 UI를 지원하지 않습니다."); return; }
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryConstructionPayloads.Request.TYPE)) return;
         cancelOpen();var screen=new IndustryConstruction();DialogCoordinator.setContent(screen);screen.open();
     }
     public static void openIndustry(dev.hoi.protocol.menu.MenuTab tab) {
-        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryPayloads.Request.TYPE)) { message("이 서버는 산업 UI를 지원하지 않습니다."); return; }
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryPayloads.Request.TYPE)) return;
         cancelOpen(); var screen = new IndustryScreen(tab); DialogCoordinator.setContent(screen); screen.open();
     }
     public static void openAgency() {
         dev.hoi.client.map.agency.AgencyHud.reset();
-        if (!ClientPlayNetworking.canSend(AgencyPayloads.Request.TYPE)) { message("이 서버는 HOI 정보기관을 지원하지 않습니다."); return; }
+        if (!ClientPlayNetworking.canSend(AgencyPayloads.Request.TYPE)) return;
         cancelOpen(); var screen = new AgencyScreen(null); DialogCoordinator.setContent(screen); screen.open();
     }
     public static void openMenu(dev.hoi.protocol.menu.MenuTab tab) {
@@ -291,15 +290,11 @@ public final class NetworkScreens {
         }
         if (IndustryScreen.supports(tab)) { openIndustry(tab); return; }
         if(tab==dev.hoi.protocol.menu.MenuTab.CONSTRUCTION){openConstruction();return;}
-        if (!ClientPlayNetworking.canSend(MenuPayloads.Refresh.TYPE)) { message("이 서버는 HOI 국가 메뉴를 지원하지 않습니다."); return; }
+        if (!ClientPlayNetworking.canSend(MenuPayloads.Refresh.TYPE)) return;
         if (pendingMenu.waiting() && pendingTab == tab && menuContextValid()) return;
         ClientPlayNetworking.send(beginMenu(tab));
     }
     public static void send(ResearchPayloads.Request request) {
         if (Minecraft.getInstance().getConnection() != null && ClientPlayNetworking.canSend(ResearchPayloads.Request.TYPE)) ClientPlayNetworking.send(request);
-    }
-    private static void message(String text) {
-        var player = Minecraft.getInstance().player;
-        if (player != null) player.sendSystemMessage(Component.literal(text));
     }
 }

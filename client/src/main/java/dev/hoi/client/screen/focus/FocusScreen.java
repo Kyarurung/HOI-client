@@ -184,7 +184,6 @@ public final class FocusScreen extends Screen {
         }
         hoverTarget="";
         if(!widgetAt(mx,my) && (selected.isEmpty() || !detailPanel.bounds().contains(mx,my))) {var node=at(mx,my);if(node!=null){hoverTarget=node.id();g.setTooltipForNextFrame(font,Tooltips.tooltipLines(font,hoverTooltip(node),width),mx,my);}}
-        if(view!=null && !view.message().isEmpty() && !Set.of("중점 시작","중점 취소").contains(view.message()))g.text(font,font.plainSubstrByWidth(view.message(),width-115),105,height-19,UiMenuStyle.TEXT);
         HudMenuBar.drawTooltip(g,width,view==null?CountryHud.UNKNOWN:view.hud(),my<HudMenuBar.height(width)?mx:-1,my,0);
     }
     String hoverTooltip(FocusPayloads.Node node) {

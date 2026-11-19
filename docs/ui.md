@@ -700,7 +700,7 @@ Task-force settings project only stored optional repair policy, auto-split, rein
 
 ### GUI2 카드와 지도 직접 명령
 
-지도에서 고른 사단·함대가 있으면 카드 구성원보다 우선한다. 함대 카운터의 `<id>|navy_<종류>`는 `navy/<id>`로 정규화하며 카드만 선택했을 때는 그 카드의 구성원을 사용한다. 빈 선택·유효하지 않은 지도 명령 세션·빈 광선·앞 명령 대기는 기존 액션바에 이유를 표시한다. “이동할 부대를 선택하세요.”, “지도에서 이동할 위치를 선택하세요.”, “앞선 명령 뒤에 마지막 이동 명령을 보냅니다.”는 게임 효과 설명이 아닌 HOI 입력 진단 문구이며 원본 localisation 키가 없다.
+지도에서 고른 사단·함대가 있으면 카드 구성원보다 우선한다. 함대 카운터의 `<id>|navy_<종류>`는 `navy/<id>`로 정규화하며 카드만 선택했을 때는 그 카드의 구성원을 사용한다. 빈 선택·유효하지 않은 지도 명령 세션·빈 광선은 메시지 없이 입력을 무시한다. 앞 명령 응답을 기다리는 동안의 이동은 마지막 이동만 보관했다가 보낸다.
 
 직접 이동 입력만 검사하는 `direct-movement`는 기존 명령·계층 선택·상세 선택·기본 화면 우클릭 검사를 함께 실행한다. 더 넓은 패널·임무 오버레이 회귀는 `movement-controls`를 유지한다. 집중 재현은 `test runGameTest remapJar -PhoiTestSuite=direct-movement`에 서버·protocol 고정 사본과 외부 팩 경로를 지정한다. 모의 명령 관측으로 미배정 선택·카드 밖 함대 선택, 첫 ray, 카메라 이동, 마지막 대기 명령, 동일 revision 거절을 검사한다. 첫 ray 캡처에는 검증용 전송 완료 문구를 추가하지 않는다. 첫 ray 캡처는 실제 클라이언트 렌더링과 모의 명령 입력의 증거이며 서버 이동 성공·이동선·계획 이탈·멀티플레이 증거가 아니다. 새 서버 계약 입력의 이동선 검증은 별도다.
 
@@ -1329,7 +1329,7 @@ The background render fixture activates existing button callbacks with Enter, as
 
 ## 임무 저장 안내와 원본 공군 화살표
 
-공군·해군 임무 단추는 현재 선택의 사전검증 응답이 아직 없어도 활성화한다. 현재 토큰·revision·선택과 일치하는 서버 `enabled=false` 응답만 임무를 막고 이유를 표시한다. `enabled=true`의 안내 문구는 비활성 조건으로 사용하지 않는다. 실제 요청의 토큰·revision·중복 전송 잠금과 서버 최종 검증은 유지한다. 임무 저장 응답이 `AIR/…` 또는 `NAVY/…` 대기로 바뀌면 각각 “지도에서 공역을 우클릭하세요.”, “지도에서 해역을 우클릭하세요.”를 기존 안내 영역에 표시한다. 이는 정확히 대응하는 원본 키가 없는 HOI 조작 안내이며, 대상 위의 원본 `AIR_REGION_RIGHT_CLICK` 툴팁을 대체하지 않는다. 해군 `ship_activity_no_assignment`는 임무 그림으로 치환하지 않고 원본 할당 없음 그림을 사용한다.
+공군·해군 임무 단추는 현재 선택의 사전검증 응답이 아직 없어도 활성화한다. 현재 토큰·revision·선택과 일치하는 서버 `enabled=false` 응답만 임무를 막으며, 막힌 단추를 눌러도 메시지를 보내지 않는다. `enabled=true`의 안내 문구는 비활성 조건으로 사용하지 않는다. 실제 요청의 토큰·revision·중복 전송 잠금과 서버 최종 검증은 유지한다. 임무 저장 응답이 `AIR/…` 또는 `NAVY/…` 대기로 바뀌어도 별도 안내 메시지는 보내지 않고, 대상 위의 원본 `AIR_REGION_RIGHT_CLICK` 툴팁만 쓴다. 해군 `ship_activity_no_assignment`는 임무 그림으로 치환하지 않고 원본 할당 없음 그림을 사용한다.
 
 공군 화살표는 `PlanOverlay.air`의 `AirArrow`를 페이지 0에서 받아 전체 장면 조립 후 한 번에 게시한다. 다른 국가·차원과 섞인/순서가 잘못된 페이지를 거절하며 빈 장면·권한 변경·접속 종료는 이전 화살표를 지운다. 이전 공군 상자 선분 재질은 제거되었으며 사거리 원과 결정 강조의 흰 재질은 별도로 유지한다.
 
@@ -2077,12 +2077,16 @@ TFR `interface/core.gui`의 `ToolTip` 선언은 `maxWidth=400`, `borderSize={18,
 
 ## 원본에 없는 가운뎃점 안내 정리
 
-`·`로 이어 붙인 클라이언트 생성 안내(“HOI 적용”, “미구현”, “선택 해제 · 이름” 등)는 원작 툴팁에 없으면 표시하지 않는다. 원작 키가 있으면 그 원문으로 바꾼다. 버튼이 비활성인 이유를 원작이 표시하지 않으면 사유 없이 비활성만 유지한다. 지휘 명령은 `Decision(false,false,"")`을 허용하고, 툴팁에는 원본 문구만 남긴다. 클릭 시 액션바 안내는 기존 일반 문구를 쓴다. 주요 대응은 다음과 같다.
+`·`로 이어 붙인 클라이언트 생성 안내(“HOI 적용”, “미구현”, “선택 해제 · 이름” 등)는 원작 툴팁에 없으면 표시하지 않는다. 원작 키가 있으면 그 원문으로 바꾼다. 버튼이 비활성인 이유를 원작이 표시하지 않으면 사유 없이 비활성만 유지한다. 지휘 명령은 `Decision(false,false,"")`을 허용하고, 툴팁에는 원본 문구만 남긴다. 주요 대응은 다음과 같다.
 
 - 지휘: 비행단·태스크 포스 행과 기지 머리행의 ×는 `DESELECT_UNIT`이다. 태스크 포스 `선택`은 원본처럼 툴팁이 없다. 부속 군 방패는 `ATTACHED_AIR_WING_DESC`와 `ATTACHED_AIR_WING_DELAYED_DESC`를 쓴다. 집단군 색 칸은 `SELECT_COLOR`이다. 입력 검사는 `air_base_close`, `air_wing_close/ID`, `naval_force_select/ID`, `naval_force_close/ID` 히트 ID로 행을 구분한다.
 - 연구·중점: 화면 이름은 `RESEARCH_RESEARCH`, 빈 슬롯은 `RESEARCH_NO_RESEARCH`이다. 배타 연구는 `RESEARCH_EXCLUSIVE_INFO_TITLE_TOOLTIP`과 `RESEARCH_EXCLUSIVE_INFO_ENTRY`로 표시한다. 중점 소요 시간 칸은 `FOCUS_STATUS_TOOLTIP`·`_INPROGRESS_TOOLTIP`·`_COMPLETED_TOOLTIP`이고 저장 시간·정치력 내역은 표시하지 않는다.
 - 산업: 생산 + 버튼은 `PRODUCTION_ADD_FACTORIES_CLICK`(해군 `PRODUCTION_ADD_NAVAL_FACTORIES_CLICK`)이며 Ctrl은 5, Shift는 10씩 바꾼다. ×10/×5는 `PRODUCTION_FACTORY_SCALE_UP`/`_DOWN`이다. 건설 수리 칸은 `REPAIR_ASSIGNMENT_INFO_FACTORIES`이다. 모병의 증원·업그레이드·주둔군 줄은 `REINFORCEMENT_DESC`/`_EMPTY`, `UPGRADES_DESC`, `GARRISONS_DESC`를 쓴다. 배치 라인은 `CONVEYOR_SET_LOCATION_DESC`, `CONVEYOR_SERIES_CURRENT_AMOUNT_DESC`, `CONVEYOR_LINE_DEPLOY_DESC`/`DEPLOYMENT_NOT_ALLOWED_REASON_TRAINING`, `CONVEYOR_LINE_CANCEL_DESC`를 쓴다. 무역 화면 머리는 `MenuTab.TRADE` 원본 이름을 쓴다.
 - 외교·정치: 관계 행 툴팁은 서버가 보낸 원본 `<관계>_desc`이다. 세력 아이콘은 TFR `TFR_GLOBAL_ASSOCIATION_RANDOM_TT`이다. 권력 균형 막대는 `BOP_TOOLTIP`이다. 구간별 `BOP_RANGE_DESC`는 보정·규칙 자료가 없어 표시하지 않는다.
+
+## 실패·거부·안내 메시지
+
+클라이언트와 서버는 채팅·액션바·화면 하단 안내 줄로 실패·거부·일반 안내 메시지를 보내지 않는다. 막힌 입력은 아무 동작도 하지 않고 비활성 상태와 원본 툴팁만 남긴다. 서버 응답의 `message` 필드(연구·생산·건설·교리·중점·결정·정보기관·국가 행동)는 그리지 않으며 배치 지정 완료, 포획 지휘관 목록 자동 갱신 중지 같은 내부 판정에만 쓴다. 배치 장소 지정 모드의 하단 조작 안내 줄도 그리지 않는다. 응답을 해석하지 못하면 해당 화면만 닫고 클라이언트 로그에 남긴다. 불러오는 중 표시와 빈 목록 문구는 메시지가 아닌 화면 상태라 유지한다.
 
 ## 원본 근거가 필요한 클라이언트 표시
 

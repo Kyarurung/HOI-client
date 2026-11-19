@@ -13,7 +13,6 @@ import dev.hoi.client.ui.country.CountryDisplays;
 import dev.hoi.client.ui.UiCommandLabels;
 import dev.hoi.protocol.agency.AgencyPayloads;
 import dev.hoi.protocol.agency.AgencyView;
-import dev.hoi.client.map.commander.CommanderOrders;
 import dev.hoi.client.map.scene.SceneAssembler;
 import dev.hoi.client.map.scene.SceneMesh;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -100,7 +99,6 @@ public final class AgencyHud {
         if (session.isEmpty() || !next.session().equals(session)) return;
         if (!active() || !next.country().equals(country) || !country.equals(ClientCampaignHud.country())) { reset(); cooldown = 100; return; }
         if (view != null && next.revision() <= view.revision()) return;
-        if (pendingRevision >= 0 && !next.message().isEmpty()) CommanderOrders.message(next.message());
         pendingRevision = -1; clearTarget();
         view = next; hits = List.of();
         if (view.operatives().stream().noneMatch(operative -> operative.id().equals(selected))) selected = "";

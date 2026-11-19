@@ -52,7 +52,7 @@ public final class MapCursor extends Screen implements InputSidebarMovement.Inpu
         if(dev.hoi.client.map.commander.CommanderHud.pressAt(event.x(),event.y(),event.button(),twice))return true;
         if(dev.hoi.client.map.naval.NavalInvasionOverlay.click(event.x(),event.y(),event.button()))return true;
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT||event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&(dev.hoi.client.map.commander.CommanderOrders.pointMode()||dev.hoi.client.map.commander.CommanderOrders.clicksBorder()||dev.hoi.client.map.commander.CommanderOrders.editsPoint())){
-            if(dev.hoi.client.map.commander.CommanderOrders.targetTool()&&!dev.hoi.client.map.commander.CommanderOrders.ready()){dev.hoi.client.map.commander.CommanderOrders.message("앞선 명령의 응답을 기다리고 있습니다.");return true;}
+            if(dev.hoi.client.map.commander.CommanderOrders.targetTool()&&!dev.hoi.client.map.commander.CommanderOrders.ready())return true;
             commandButton=event.button();commandContext=dev.hoi.client.map.commander.CommanderOrders.gestureContext();commandLine=dev.hoi.client.map.commander.CommanderOrders.drawsPlanLine();
             return commandGesture.begin(minecraft,event.x(),event.y(),width,height,!dev.hoi.client.map.commander.CommanderOrders.targetTool());
         }

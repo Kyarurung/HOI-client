@@ -96,7 +96,7 @@ final class CommanderCardDrag {
         if(!dragged){dev.hoi.client.audio.AudioUiSounds.play(dev.hoi.client.audio.AudioUiSounds.selection(view.cards().stream().filter(c->c.id().equals(moved)).findFirst().orElseThrow().role()));CommanderPanels.select(moved);return true;}
         var card=view.cards().stream().filter(c->c.id().equals(moved)).findFirst().orElseThrow();
         if(card.role()==Mode.ASSIGN_ARMY&&!parent(card).equals(drop.parent())){
-            if(view.branch()!=Mode.ARMY){CommanderOrders.message("군 소속은 육군 지도에서 변경하세요.");return true;}
+            if(view.branch()!=Mode.ARMY)return true;
             var values=new ArrayList<String>();if(!drop.parent().isEmpty())values.add("target/"+drop.parent());values.add(moved);
             if(CommanderOrders.sendFromHud(view,"FORMATION/"+(drop.parent().isEmpty()?"DETACH_ARMIES":"MOVE_ARMIES"),values)){dev.hoi.client.audio.AudioUiSounds.play("ui.click");queued=drop;queuedId=moved;queuedToken=view.orderToken();queuedRevision=view.orderRevision();queuedView=view;queuedSelection=Set.copyOf(CommanderPanels.selectedCards());ticks=100;}
         }else if(!siblings(view,card,drop.parent()).stream().map(Card::id).toList().equals(drop.order())&&CommanderOrders.sendFromHud(view,"CARD_ORDER",drop.order()))dev.hoi.client.audio.AudioUiSounds.play("ui.click");
@@ -112,7 +112,7 @@ final class CommanderCardDrag {
         if(new HashSet<>(actual).equals(new HashSet<>(order))&&!actual.equals(order))CommanderOrders.sendFromHud(view,"CARD_ORDER",order);
     }
     static boolean applied(View view,String token,long revision){return view.orderToken()!=null&&token.equals(view.orderToken())&&view.orderRevision()>=revision;}
-    static void tick(){if(queued!=null&&--ticks<=0){clearQueue();CommanderOrders.message("소속 변경이 확인되지 않아 카드 순서 요청을 취소했습니다.");}}
+    static void tick(){if(queued!=null&&--ticks<=0)clearQueue();}
     static void cancel(){id="";source=null;slots=List.of();dragging=false;gesture="";}
     private static void clearQueue(){queued=null;queuedId="";queuedToken="";queuedView=null;queuedSelection=Set.of();ticks=0;}
     static void reset(){cancel();clearQueue();}

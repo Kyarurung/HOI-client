@@ -258,7 +258,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             if(!eventRows.isEmpty())y+=7;
         }
         var view=snapshot.view();
-        String notice=view==null || snapshot.loading()?"서버 정보 불러오는 중…":view.message();
+        String notice=view==null || snapshot.loading()?"서버 정보 불러오는 중…":"";
         if(!notice.isEmpty()) {
             var lines=text.lines(font,notice,pane-24);
             for(var line:lines) {

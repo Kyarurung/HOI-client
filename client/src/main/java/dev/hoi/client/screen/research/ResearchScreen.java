@@ -434,7 +434,6 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         UiAssets.tiledNineSlice(g, "research/source/gfx_tiled_window_3b_border/frame_0", 0, menuBottom() + 24, width, height - menuBottom() - 24, 64, .5);
         g.nextStratum();
         drawTree(g, mouseX, mouseY);
-        if (detail != null && !view.message().isEmpty()) g.text(font, trim(view.message(), width - 24), 12, height - 12, MUTED);
         terrainMouseX = mouseX; terrainMouseY = mouseY; terrainTooltip = "";
         if (detail != null) {
             boolean covered = overDetailWindows(mouseX, mouseY);
@@ -994,7 +993,6 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     @Override public void removed() { InputSidebarMovement.release(minecraft); if (DialogCoordinator.suspending()) return; waitingTeamSlot = -1; waitingTeam = ""; waitingTechnology = ""; requests.accept(new ResearchPayloads.Request(ResearchPayloads.Action.CLOSE, view.session(), 0, -1, "")); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
-    private String trim(String value, int max) { return font.width(value) <= max ? value : font.plainSubstrByWidth(value, Math.max(1, max - font.width("…"))) + "…"; }
     private static int color(ResearchView.Status status) {
         return switch (status) { case LOCKED -> 0xFF77838C; case AVAILABLE -> GOLD; case ACTIVE -> 0xFF74BCD8; case COMPLETED -> 0xFF8DBD81; };
     }

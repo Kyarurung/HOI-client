@@ -334,11 +334,6 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
                 dev.hoi.client.ui.UiText.text(g, font, trim(value, rowsWidth - 42), 46, y + 21, UiMenuStyle.MUTED);
             }
             g.disableScissor();
-            if (view.actions() != null && !view.actions().message().isBlank()) {
-                var lines = dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(view.actions().message()), pane - 24);
-                int messageY = height - 42 - Math.min(3, lines.size()) * 12;
-                for (var line : lines.stream().limit(3).toList()) { dev.hoi.client.ui.UiText.text(g, font, line, 12, messageY, 0xFFFFBB22); messageY += 12; }
-            }
             if (confirmation != null) {
                 int x = detailX(), w = detailWidth();
                 g.nextStratum(); UiMenuStyle.panel(g, x, top, w, 207);
