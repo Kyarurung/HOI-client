@@ -43,7 +43,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private int[] captivityCounts;
     public void captivityCounts(int missing,int held){captivityCounts=new int[]{missing,held};}
     private void openCaptivity(boolean ours){var screen=new CommanderCaptivity(this,ours);DialogCoordinator.setContent(screen);screen.open();}
-    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&manufacturerScrollbar().contains(event.x(),event.y())){if(manufacturerScrollbar().arrow(event.y())){manufacturerScroll=manufacturerScrollbar().step(event.y(),manufacturerScroll,IndustryOrganizationList.ENTRY_HEIGHT);rebuildWidgets();}else{manufacturerDragging=true;dragManufacturer(event.y());}return true;}if(!selectionPreview&&selected==MenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}return super.mouseClicked(event,twice);}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&manufacturerScrollbar().contains(event.x(),event.y())){if(manufacturerScrollbar().arrow(event.y())){manufacturerScroll=manufacturerScrollbar().step(event.y(),manufacturerScroll,IndustryOrganizationList.ENTRY_HEIGHT);rebuildWidgets();}else{manufacturerDragging=true;dragManufacturer(event.y());}return true;}if(!selectionPreview&&selected==MenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}if(!selectionPreview&&detail==null&&(selected==MenuTab.POLITICS||selected==MenuTab.OFFICER_CORPS)&&listScrollbar().contains(event.x(),event.y())){if(event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return true;var bar=listScrollbar();if(bar.arrow(event.y()))scroll=bar.step(event.y(),scroll,40);else{listDragging=true;scroll=bar.offset(event.y());}rebuildWidgets();return true;}return super.mouseClicked(event,twice);}
     private MenuView view;
     private boolean selectionPreview;
     private final Runnable researchOpen;
@@ -184,6 +184,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         layoutRows(false, null);
         scroll = Math.clamp(scroll, 0, Math.max(0, total - (contentBottom() - contentTop())));
         layoutRows(true, null);
+        if (selected == MenuTab.OFFICER_CORPS) officerHeader(true, null);
         if (selected == MenuTab.RESEARCH) addRenderableWidget(new UiMenuButton("연구 선택", 8, height - 27, 88, 20, researchOpen));
         if (manufacturerGroup != null && detail == null) layoutManufacturers(true, null);
         if (detail != null) {
@@ -193,9 +194,15 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
     }
     private int contentTop() { return selected == MenuTab.POLITICS ? politicsLayout().contentTop()
+            : selected == MenuTab.OFFICER_CORPS ? frame.iy(186)
             : top + (selected == MenuTab.TRADE ? 62 : selected == MenuTab.INTELLIGENCE ? 82 : 32); }
     private boolean hasFooterActions() { return selected == MenuTab.RESEARCH || selected == MenuTab.INTELLIGENCE; }
-    private int contentBottom() { return height - (hasFooterActions() ? 36 : 8); }
+    private int windowHeight() { return (int)Math.ceil((height - frame.y()) / frame.scale()); }
+    private int contentBottom() { return selected == MenuTab.OFFICER_CORPS ? frame.iy(windowHeight() - 10) : selected == MenuTab.POLITICS ? frame.iy(windowHeight() - 10) : height - (hasFooterActions() ? 36 : 8); }
+    private dev.hoi.client.ui.UiScrollBar listScrollbar() {
+        int x = selected == MenuTab.POLITICS ? frame.ix(PoliticsLayout.WIDTH - 23) : frame.ix(527);
+        return new dev.hoi.client.ui.UiScrollBar(x, contentTop(), contentBottom(), contentBottom() - contentTop(), total);
+    }
     private int detailX() { return width - pane >= 240 ? pane + 6 : Math.max(8, (width - detailWidth()) / 2); }
     private int detailWidth() { return Math.min(manufacturerGroup!=null?IndustryOrganizationList.WIDTH:310, width - (width - pane >= 240 ? pane + 14 : 16)); }
     private int rowHeight() { return selected == MenuTab.PRODUCTION || selected == MenuTab.RECRUITMENT ? 49 : 37; }
@@ -247,108 +254,137 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
         total = y - contentTop() + scroll;
     }
-    private void layoutOfficers(boolean widgets, GuiGraphicsExtractor g) {
-        int y = contentTop() - scroll;
+    private float officerX(double px) { return frame.x(px); }
+    private float officerY(double py) { return frame.y(py) - scroll; }
+    private void officerArt(GuiGraphicsExtractor g, String path, double x, double y, double w, double h) {
+        UiAssets.drawExact(g, path, officerX(x), officerY(y), frame.size(w), frame.size(h));
+    }
+    private void officerHeader(boolean widgets, GuiGraphicsExtractor g) {
         var sections = view.page(MenuTab.OFFICER_CORPS).sections();
         var commanders = sections.stream().filter(v -> v.icon().equals("high_command")).flatMap(v -> v.entries().stream()).toList();
-        if (g != null) { UiMenuStyle.metal(g, 8, y, pane - 110, 36); UiMenuStyle.metal(g, pane - 98, y, 90, 36); }
-        int count = Math.min(3, commanders.size()), cell = Math.min(31, (pane - 65) / 3);
-        if (g != null) for (int i = 0; i < count; i++) if (commanders.get(i).alert()) alertGlow(g, 11 + i * cell, y + 3, cell - 2, 30);
+        if (g != null) frame.art(g, "officer/ui/advisor_theorist_entry", 11, 45);
+        int count = Math.min(3, commanders.size()), by = frame.iy(59.5), size = frame.len(55);
+        if (g != null) for (int i = 0; i < count; i++) if (commanders.get(i).alert()) alertGlow(g, frame.ix(33.5 + 60 * i), by, size, size);
         for (int i = 0; i < count; i++) {
-            var entry = commanders.get(i); int bx = 11 + i * cell;
-            if (g != null) {
-                UiAssets.draw(g, entry.icon().isEmpty() ? "politics/high_command" : entry.icon(), bx, y + 3, cell - 2, 30);
-            }
-            officerControl(widgets, entry, "high_command", i, bx, y, cell - 2, 36);
+            var entry = commanders.get(i);
+            int bx = frame.ix(33.5 + 60 * i);
+            if (g != null) UiAssets.drawContent(g, entry.icon().isEmpty() ? "politics/high_command" : entry.icon(), bx, by, size, size);
+            officerControl(widgets, entry, "high_command", i, bx, by, size, size, false);
         }
         var tactic = sections.stream().filter(v -> v.icon().equals("preferred_tactic")).flatMap(v -> v.entries().stream()).findFirst().orElse(null);
         if (tactic != null) {
-            if (g != null) UiAssets.draw(g, "officer/preferred_tactic", pane - 65, y + 4, 48, 28);
-            officerControl(widgets, tactic, "preferred_tactic", 0, pane - 65, y + 4, 48, 28);
+            if (g != null) frame.art(g, "officer/preferred_tactic", 405, 50);
+            officerControl(widgets, tactic, "preferred_tactic", 0, frame.ix(405), frame.iy(50), frame.len(101), frame.len(60), false);
         }
-        y += 38;
-        double commandScale=Math.min(.5,(pane-16)/523.0);int hqWidth=(int)Math.round(200*commandScale),captureWidth=(int)Math.round(218*commandScale),commandHeight=(int)Math.round(62*commandScale),commandX=8+(int)Math.round(10*commandScale),captureX=8+(int)Math.round(293*commandScale);
         var captured=sections.stream().filter(v->v.icon().equals("captivity")).flatMap(v->v.entries().stream()).toList();String missing=captivityCounts!=null?Integer.toString(captivityCounts[0]):captured.isEmpty()?"—":captured.getFirst().value(),held=captivityCounts!=null?Integer.toString(captivityCounts[1]):captured.size()<2?"—":captured.get(1).value();
         String capturedTip="§e포획된 지휘관§r\n§a클릭§r하여 우리의 실종된 지휘관 확인\n§a우클릭§r하여 우리가 포획한 지휘관 확인\n\n우리의 실종된 지휘관: §e"+missing+"§r\n우리에게 포획된 지휘관: §e"+held+"§r\n\n"+dev.hoi.client.ui.UiCommandLabels.text("CAPTURED_GENERALS_DELAYED_OPERATIVES","전투 중에 지휘관이 포로로 잡힐 수 있습니다. 포획된 지휘관은 습격이나 첩보 작전을 통해 구출할 수 있습니다.");
-        var deployed=sections.stream().filter(v->v.icon().equals("army_hq")).flatMap(v->v.entries().stream()).findFirst().orElse(null);int badgeX=8+(int)Math.round(210*commandScale),badgeY=y+(int)Math.round(19*commandScale),badgeWidth=(int)Math.round(18*commandScale),badgeHeight=(int)Math.round(27*commandScale),counterX=8+(int)Math.round(230*commandScale),counterWidth=Math.max(1,captureX-counterX-1);
-        if(g!=null){g.enableScissor(8,y,8+(int)Math.round(523*commandScale),y+(int)Math.round(85*commandScale));UiAssets.draw(g,"officer/hq/ribbon",8,y,(int)Math.round(539*commandScale),(int)Math.round(59*commandScale));g.disableScissor();UiAssets.draw(g,"officer/hq/hq_button",commandX,y+3,hqWidth,(int)Math.round(49*commandScale));UiAssets.draw(g,"officer/hq/captured_button",captureX,y,captureWidth,commandHeight);dev.hoi.client.ui.UiText.centered(g,font,"육군 사령부 편제",commandX+8,y+3,hqWidth-16,(int)Math.round(49*commandScale),TEXT);if(deployed!=null){UiAssets.draw(g,"officer/hq/badge",badgeX,badgeY,badgeWidth,badgeHeight);dev.hoi.client.ui.UiText.leftSingleLine(g,font,Component.literal(deployed.value()),counterX,badgeY,counterWidth,badgeHeight,TEXT);}dev.hoi.client.ui.UiText.centered(g,font,"포획된 지휘관",captureX+(int)Math.round(69*commandScale),y+4,captureWidth-(int)Math.round(75*commandScale),commandHeight-7,TEXT);g.pose().pushMatrix();float pixel=(float)(1.0/minecraft.getWindow().getGuiScale());g.pose().translate(pixel,0);dev.hoi.client.ui.UiText.centered(g,font,held,captureX+19,y+19,10,9,GOLD,false);g.pose().popMatrix();}
-        if(widgets){int rowY=y;var headquarters=new UiMenuButton("육군 사령부 편제",commandX,rowY+2,hqWidth,commandHeight,()->{var screen=new ArmyHeadquarters(this);DialogCoordinator.setContent(screen);screen.open();}).caption("").background("none");headquarters.setTooltip(null);officerTooltips.put(headquarters,dev.hoi.client.ui.UiCommandLabels.text("ARMY_HQ_TEMPLATES_TOGGLE_TOOLTIP","§G클릭§!하여 §Y육군 사령부 편제§! 목록을 전환합니다. 이 목록에서는 육군 사령부 편제를 검토 및 관리할 수 있습니다."));addRenderableWidget(headquarters);if(deployed!=null){var counter=new dev.hoi.client.ui.UiHoverRegion(deployed.name(),badgeX,badgeY,counterX+counterWidth-badgeX,badgeHeight);officerTooltips.put(counter,deployed.detail());counter.active=detail==null;addRenderableWidget(counter);}var button=new UiMenuButton("포획된 지휘관",captureX,rowY,captureWidth,commandHeight,()->openCaptivity(true)).caption("").background("none");button.setTooltip(null);capturedButton=button;officerTooltips.put(button,capturedTip);addRenderableWidget(button);}
-        y += (int)Math.round(85*commandScale);
-        for (String branch : List.of("army", "navy", "air", "special")) {
+        var deployed=sections.stream().filter(v->v.icon().equals("army_hq")).flatMap(v->v.entries().stream()).findFirst().orElse(null);
+        if (g != null) {
+            g.enableScissor(frame.ix(13), frame.iy(116), frame.ix(536), frame.iy(201));
+            frame.art(g, "officer/hq/ribbon", 13, 116);
+            g.disableScissor();
+            frame.art(g, "officer/hq/hq_button", 23, 121);
+            frame.art(g, "officer/hq/captured_button", 306, 116);
+            dev.hoi.client.ui.UiText.marquee(g, font, Tooltips.officerText("육군 사령부 편제"), frame.x(35), frame.y(145.5) - font.lineHeight / 2f, frame.size(176), 1, TEXT, true, 0);
+            if (deployed != null) {
+                frame.art(g, "officer/hq/badge", 223, 135);
+                dev.hoi.client.ui.UiText.marquee(g, font, Component.literal(deployed.value()), frame.x(243), frame.y(148.5) - font.lineHeight / 2f, frame.size(60), 1, TEXT, true, -1);
+            }
+            dev.hoi.client.ui.UiText.marquee(g, font, Tooltips.officerText("포획된 지휘관"), frame.x(361), frame.y(147) - font.lineHeight / 2f, frame.size(155), 1, TEXT, true, 0);
+            dev.hoi.client.ui.UiText.marquee(g, font, Component.literal(held), frame.x(341), dev.hoi.client.ui.UiText.centeredY(font, held, frame.y(163) - font.lineHeight / 2f, font.lineHeight, 1), frame.size(20), 1, GOLD, false, 0);
+        }
+        if (widgets) {
+            var headquarters=new UiMenuButton("육군 사령부 편제",frame.ix(23),frame.iy(121),frame.len(200),frame.len(49),()->{var screen=new ArmyHeadquarters(this);DialogCoordinator.setContent(screen);screen.open();}).caption("").background("none");
+            headquarters.setTooltip(null);officerTooltips.put(headquarters,dev.hoi.client.ui.UiCommandLabels.text("ARMY_HQ_TEMPLATES_TOGGLE_TOOLTIP","§G클릭§!하여 §Y육군 사령부 편제§! 목록을 전환합니다. 이 목록에서는 육군 사령부 편제를 검토 및 관리할 수 있습니다."));addRenderableWidget(headquarters);
+            if(deployed!=null){var counter=new dev.hoi.client.ui.UiHoverRegion(deployed.name(),frame.ix(223),frame.iy(135),frame.len(80),frame.len(27));officerTooltips.put(counter,deployed.detail());counter.active=detail==null;addRenderableWidget(counter);}
+            var button=new UiMenuButton("포획된 지휘관",frame.ix(306),frame.iy(116),frame.len(218),frame.len(62),()->openCaptivity(true)).caption("").background("none");button.setTooltip(null);capturedButton=button;officerTooltips.put(button,capturedTip);addRenderableWidget(button);
+        }
+    }
+    private static final int[] OFFICER_TOPS = {191, 451, 712, 973};
+    private void layoutOfficers(boolean widgets, GuiGraphicsExtractor g) {
+        var sections = view.page(MenuTab.OFFICER_CORPS).sections();
+        String[] branches = {"army", "navy", "air", "special"};
+        int last = 186;
+        for (int b = 0; b < branches.length; b++) {
+            String branch = branches[b];
             var section = sections.stream().filter(v -> v.icon().equals(branch)).findFirst().orElse(null);
             if (section == null) continue;
+            int t = OFFICER_TOPS[b];
             String artBranch = branch.equals("special") ? "army" : branch;
-            var entries = section.entries(); boolean special = branch.equals("special");
-            int h = special ? 69 : branch.equals("air") ? 125 : 129;
+            var entries = section.entries(); boolean special = branch.equals("special"), air = branch.equals("air");
+            int h = special ? 143 : 254;
             if (g != null) {
-                UiMenuStyle.recess(g, 8, y, pane - 16, h);
-                UiAssets.cover(g, "officer/" + artBranch + "/background", 9, y + 17, pane - 18, h - 18);
-                UiAssets.cover(g, "officer/" + artBranch + "/header", 9, y - 8, pane - 18, h);
-                if(special)g.fill(8,y,pane-8,y+17,0xFF4A4A31);
-                UiAssets.draw(g, "officer/" + branch + "/banner", 8, y - 4, 49, 35);
-                dev.hoi.client.ui.UiText.left(g, font, Component.literal(section.title()).withStyle(net.minecraft.ChatFormatting.BOLD), 60, y - 1, pane - 72, 17, TEXT);
+                g.pose().pushMatrix(); g.pose().translate(officerX(13), officerY(t)); g.pose().scale(frame.scale());
+                UiAssets.tiledNineSlice(g, "officer/" + artBranch + "/background", 0, 0, 516, h, 6, 1);
+                g.pose().popMatrix();
+                officerArt(g, "officer/" + artBranch + "/header", 13, t - 12, 516, 242);
+                officerArt(g, "officer/" + branch + "/banner", air ? 13 : 9, t - (special ? 4 : air ? 6 : 7), 119, 66);
+                dev.hoi.client.ui.UiText.marquee(g, font, Component.literal(section.title()).withStyle(net.minecraft.ChatFormatting.BOLD), officerX(123), officerY(t + 14.5) - font.lineHeight / 2f, frame.size(240), 1, TEXT, true, -1);
             }
             if (!special && !entries.isEmpty()) {
                 var chief = entries.getFirst();
+                double cx = branch.equals("army") ? 118 : branch.equals("navy") ? 120 : 122, cy = t + (branch.equals("navy") ? 38 : 39);
+                int bx = Math.round(officerX(cx)), by = Math.round(officerY(cy)), bw = frame.len(61), bh = frame.len(83);
                 if (g != null) {
-                    if (chief.alert()) alertGlow(g, 54, y + 25, 32, 32);
-                    UiAssets.drawContent(g, chief.icon(), 54, y + 25, 32, 32);
-                    if (!chief.value().equals("미지정")) dev.hoi.client.ui.UiText.centeredSingleLine(g, font, Component.literal(chief.value()), 92, y + 22, pane / 2 - 87, 38, TEXT);
+                    if (chief.alert()) alertGlow(g, bx, by, bw, bw);
+                    UiAssets.drawContent(g, chief.icon(), bx, by, bw, bh);
+                    if (!chief.value().equals("미지정")) dev.hoi.client.ui.UiText.marquee(g, font, Component.literal(chief.value()), officerX(183), officerY(t + 57) - font.lineHeight / 2f, frame.size(110), 1, TEXT, true, -1);
                 }
-                officerControl(widgets, chief, branch, 0, 48, y + 19, Math.max(44, pane / 2 - 42), 44);
+                officerControl(widgets, chief, branch, 0, bx, by, frame.len(176), bh, true);
             }
             int doctrineIndex = special ? 0 : 1;
             if (entries.size() > doctrineIndex) {
-                var doctrine = entries.get(doctrineIndex); int dx = special ? pane - 61 : pane * 340 / 550;
+                var doctrine = entries.get(doctrineIndex);
+                double dx = special ? 401 : 301, dy = t + (special ? 45 : branch.equals("army") ? 34 : 35);
                 if (g != null) {
-                    UiAssets.draw(g, "officer/" + branch + "/doctrine_frame", dx, y + 19, 44, 44);
-                    UiAssets.drawContent(g, doctrine.icon(), dx + 6, y + 25, 32, 32);
+                    officerArt(g, "officer/" + branch + "/doctrine_frame", dx, dy, 89, 77);
+                    UiAssets.drawContent(g, doctrine.icon(), Math.round(officerX(dx + 14)), Math.round(officerY(dy + 10)), frame.len(61), frame.len(52));
+                    officerArt(g, special ? "officer/ui/number_container_short" : "officer/ui/number_container", special ? dx + 26 : dx + 10, t + 94 - 10.5, special ? 37 : 69, 21);
                 }
-                officerControl(widgets, doctrine, branch, -1, dx, y + 19, 44, 44);
+                officerControl(widgets, doctrine, branch, -1, Math.round(officerX(dx)), Math.round(officerY(dy)), frame.len(89), frame.len(77), true);
             }
             int spirits = Math.max(0, entries.size() - 2);
-            for (int i = 0; !special && i < spirits; i++) {
-                var entry = entries.get(i + 2); int bw = (pane - 44) / 3;
-                int bx = (pane - (spirits * bw + (spirits - 1) * 10)) / 2 + i * (bw + 10), by = y + 61;
+            int[] spiritX = air ? new int[]{112, 278} : new int[]{29, 195, 361};
+            for (int i = 0; !special && i < spirits && i < spiritX.length; i++) {
+                var entry = entries.get(i + 2);
+                double sx = spiritX[i], sy = t + 124;
+                int bx = Math.round(officerX(sx)), by = Math.round(officerY(sy)), bw = frame.len(151), bh = frame.len(63);
                 if (g != null) {
-                    boolean selectedSpirit=entry.progress()>0;
-                    int backgroundHeight=Math.max(1,(int)Math.round(bw*70.0/168));
-                    UiAssets.draw(g,"officer/spirit/ui/background_"+(selectedSpirit?"enabled":"disabled"),bx,by+(28-backgroundHeight)/2,bw,backgroundHeight);
-                    if(entry.alert()){int glowWidth=bw*159/168,glowHeight=bw*115/168;UiAssets.draw(g,"officer/spirit/ui/glow/frame_0",bx+(bw-glowWidth)/2,by+(28-glowHeight)/2,glowWidth,glowHeight);}
-                    if (selectedSpirit) {
-                        int[] size = UiAssets.imageSize(entry.icon());
-                        int iconWidth = Math.max(1, Math.round(size[0] * bw / 168f)), iconHeight = Math.max(1, Math.round(size[1] * bw / 168f));
-                        UiAssets.draw(g, entry.icon(), bx + Math.round((bw + 2 * bw / 168f - iconWidth) / 2), by + Math.round(14 + 3 * bw / 168f - iconHeight / 2f), iconWidth, iconHeight);
-                    } else UiAssets.draw(g, entry.icon(), bx + 2, by - 9, bw - 4, 38);
+                    boolean selectedSpirit = entry.progress() > 0;
+                    officerArt(g, "officer/spirit/ui/background_" + (selectedSpirit ? "enabled" : "disabled"), sx, sy, 151.2, 63);
+                    if (entry.alert()) officerArt(g, "officer/spirit/ui/glow/frame_0", sx + 3.95, sy - 20.25, 143.1, 103.5);
+                    int[] size = UiAssets.imageSize(entry.icon());
+                    double iconScale = selectedSpirit ? .9 : .72, centerX = sx + 75.6 + (selectedSpirit ? .9 : 1.8), centerY = sy + 31.5 + (selectedSpirit ? 2.7 : -7.2);
+                    if (size[0] > 0) officerArt(g, entry.icon(), centerX - size[0] * iconScale / 2, centerY - size[1] * iconScale / 2, size[0] * iconScale, size[1] * iconScale);
                 }
-                officerControl(widgets, entry, branch, i + 1, bx, by, bw, 28);
+                officerControl(widgets, entry, branch, i + 1, bx, by, bw, bh, true);
             }
             var statistics = sections.stream().filter(v -> v.icon().equals(branch + "_stats"))
                     .flatMap(v -> v.entries().stream()).toList();
             int columns = special ? 5 : 7;
-            int cellWidth = (pane - 20) / (special ? 7 : columns);
-            int statsY = y + (special ? 33 : branch.equals("air") ? 95 : 96);
+            double statsX = special ? 25 : branch.equals("army") ? 17 : 20, statsPitch = special || branch.equals("army") ? 72 : 71;
             for (int i = 0; i < statistics.size(); i++) {
                 var statistic = statistics.get(i);
-                int sx = 10 + i % columns * cellWidth, sy = statsY + i / columns * 16;
+                double sx = statsX + i % columns * statsPitch, sy = t + (special ? 67 : 189) + i / columns * 33;
+                int left = Math.round(officerX(sx)), upper = Math.round(officerY(sy)), w = frame.len(74), cellHeight = frame.len(32);
                 if (g != null) {
-                    UiAssets.cover(g, "officer/stats/background", sx, sy, cellWidth - 1, 15);
-                    UiAssets.drawContent(g, statistic.icon(), sx + 1, sy + 1, 12, 13);
-                    officerStatText(g, statistic.value(), sx + 13, sy, cellWidth - 14);
+                    officerArt(g, "officer/stats/background", sx, sy, 74, 32);
+                    UiAssets.drawContent(g, statistic.icon(), left + frame.len(4), upper + frame.len(6), frame.len(24), frame.len(20));
+                    officerStatText(g, statistic.value(), left + frame.len(28), upper, w - frame.len(32), cellHeight);
                 }
-                if (widgets && sy >= contentTop() && sy + 15 <= contentBottom()) {
-                    var button = new dev.hoi.client.ui.UiHoverRegion(statistic.name(), sx, sy, cellWidth - 1, 15);
+                if (widgets && upper >= contentTop() && upper + cellHeight <= contentBottom()) {
+                    var button = new dev.hoi.client.ui.UiHoverRegion(statistic.name(), left, upper, w, cellHeight);
                     officerTooltips.put(button, statistic.detail());
                     button.active = detail == null;
                     addRenderableWidget(button);
                 }
             }
-            y += h + 4;
+            last = t + h;
         }
-        total = y - contentTop() + scroll;
+        total = Math.round(frame.y(last + 10)) - contentTop();
     }
-    private void officerControl(boolean widgets, MenuView.Entry entry, String section, int slot, int x, int y, int w, int h) {
-        if (!widgets || y < contentTop() || y + h > contentBottom()) return;
+    private void officerControl(boolean widgets, MenuView.Entry entry, String section, int slot, int x, int y, int w, int h, boolean scrolled) {
+        if (!widgets || scrolled && (y < contentTop() || y + h > contentBottom())) return;
         var button = new ScreenInvisibleButton(entry.name() + " · " + entry.value(), x, y, w, h, () -> {
             if (slot >= 0 && (officerOpen!=null || ClientPlayNetworking.canSend(dev.hoi.protocol.dialog.DialogPayloads.PoliticsOpen.TYPE))) {
                 var request=new dev.hoi.protocol.dialog.DialogPayloads.PoliticsOpen("officer_"+section,slot);
@@ -366,8 +402,9 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         button.active = detail == null;
         addRenderableWidget(button);
     }
-    private void officerStatText(GuiGraphicsExtractor g, String value, int x, int y, int available) {
-        dev.hoi.client.ui.UiText.marquee(g, font, Tooltips.styled(Component.literal(value), false), x, y + (15 - font.lineHeight * .75f) / 2f, available, .75f, GOLD, true, 1);
+    private void officerStatText(GuiGraphicsExtractor g, String value, int x, int y, int available, int height) {
+        var text = Tooltips.styled(Component.literal(value), false);
+        dev.hoi.client.ui.UiText.marquee(g, font, text.getVisualOrderText(), x, dev.hoi.client.ui.UiText.centeredY(font, text.getVisualOrderText(), y, height, 1), available, 1, GOLD, true, 1);
     }
     private void officerText(GuiGraphicsExtractor g, String value, int x, int y, int available, int color) {
         float scale = dev.hoi.client.ui.UiText.scale(font);
@@ -649,11 +686,14 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText("정보기관"), 76, top + 43, pane - 86, dev.hoi.client.ui.UiText.scale(font), TEXT, true, -1);
             dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(CountryDisplays.name(view.country(), view.countryName())), 76, top + 58, pane - 86, dev.hoi.client.ui.UiText.scale(font), MUTED, true, -1);
         }
-        if (selected == MenuTab.POLITICS) UiMenuStyle.window(g, IDEAS, 0, contentTop() - 2, pane, height - contentTop() + 2);
+        if (selected == MenuTab.POLITICS) frame.tile(g, IDEAS.tile(), 0, PoliticsLayout.IDEAS_Y, PoliticsLayout.WIDTH, windowHeight() - PoliticsLayout.IDEAS_Y, 64, UiMenuStyle.TILE);
+        else if (selected == MenuTab.OFFICER_CORPS) { frame.tile(g, "diplomacy/dialog/panel_dark", 0, 173, 550, windowHeight() - 173, 64, UiMenuStyle.TILE); officerHeader(false, g); }
         else UiMenuStyle.recess(g, 5, contentTop() - 3, pane - 10, Math.max(6, contentBottom() - contentTop() + 5));
-        g.enableScissor(6, contentTop(), pane - 6, contentBottom()); layoutRows(false, g); g.disableScissor();
+        boolean original = selected == MenuTab.POLITICS || selected == MenuTab.OFFICER_CORPS;
+        g.enableScissor(original ? 0 : 6, contentTop(), original ? frame.ix(selected == MenuTab.POLITICS ? PoliticsLayout.WIDTH - 23 : 527) : pane - 6, contentBottom()); layoutRows(false, g); g.disableScissor();
         int visible = contentBottom() - contentTop();
-        if (total > visible && visible > 0) {
+        if (original) { if (total > visible) listScrollbar().draw(g, scroll); }
+        else if (total > visible && visible > 0) {
             int thumb = Math.max(10, visible * visible / total);
             int y = contentTop() + scroll * (visible - thumb) / Math.max(1, total - visible);
             g.fill(pane - 7, contentTop(), pane - 3, contentBottom(), 0xFF08090B);
@@ -781,8 +821,9 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     private UiScrollBar manufacturerScrollbar(){int start=top+IndustryOrganizationList.LIST_TOP,end=Math.min(height-8,top+IndustryOrganizationList.HEIGHT)-10,visible=end-start;return new UiScrollBar(detailX()+detailWidth()-11,start,end,visible,visible+manufacturerMaximum);}
     private void dragManufacturer(double y){manufacturerScroll=manufacturerScrollbar().offset(y);rebuildWidgets();}
-    @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy){if(manufacturerDragging){dragManufacturer(event.y());return true;}return super.mouseDragged(event,dx,dy);}
-    @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event){if(manufacturerDragging){manufacturerDragging=false;return true;}return super.mouseReleased(event);}
+    @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy){if(manufacturerDragging){dragManufacturer(event.y());return true;}if(listDragging){scroll=listScrollbar().offset(event.y());rebuildWidgets();return true;}return super.mouseDragged(event,dx,dy);}
+    @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event){if(manufacturerDragging){manufacturerDragging=false;return true;}if(listDragging){listDragging=false;return true;}return super.mouseReleased(event);}
+    private boolean listDragging;
     private void layoutManufacturers(boolean widgets, GuiGraphicsExtractor g) {
         if(widgets)manufacturerTooltips.clear();
         int x = detailX(), w = detailWidth(), bottom = Math.min(height-8,top+IndustryOrganizationList.HEIGHT), start = top + IndustryOrganizationList.LIST_TOP, end = bottom - 10, entryHeight = IndustryOrganizationList.ENTRY_HEIGHT;
