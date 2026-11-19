@@ -66,10 +66,7 @@ public final class UiMenuButton extends Button {
             if (font.width(captionText) * scale > w - 6 && h >= 24) {
                 UiText.centered(g, font, captionText, x + 3, y + 1, w - 6, h - 2, active ? UiMenuStyle.TEXT : UiMenuStyle.MUTED, textShadow); return;
             }
-            var label = net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(captionText, Math.max(1, (int)((w - 6) / scale))));
-            g.pose().pushMatrix(); g.pose().translate(x + w / 2f, y + (h - font.lineHeight * scale) / 2f); g.pose().scale(scale);
-            g.text(font, label, -font.width(label) / 2, 0, active ? UiMenuStyle.TEXT : UiMenuStyle.MUTED, textShadow);
-            g.pose().popMatrix();
+            UiText.marquee(g, font, net.minecraft.locale.Language.getInstance().getVisualOrder(captionText), x + 3, y + (h - font.lineHeight * scale) / 2f, w - 6, scale, active ? UiMenuStyle.TEXT : UiMenuStyle.MUTED, textShadow, 0);
         }
     }
 }

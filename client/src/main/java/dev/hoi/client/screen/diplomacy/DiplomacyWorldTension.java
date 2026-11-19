@@ -154,10 +154,7 @@ public final class DiplomacyWorldTension extends Screen {
         text(g,value,px,py,w,color,centered,false);
     }
     private void text(GuiGraphicsExtractor g,String value,int px,int py,int w,int color,boolean centered,boolean bold) {
-        float fontScale=fontScale(); var line=net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(Tooltips.officerText(value,bold),Math.max(1,(int)(w/fontScale))));
-        g.pose().pushMatrix(); g.pose().translate(px+(centered?w/2f:0),py); g.pose().scale(fontScale);
-        if(centered) g.centeredText(font,line,0,0,color); else g.text(font,line,0,0,color);
-        g.pose().popMatrix();
+        UiText.marquee(g,font,Tooltips.officerText(value,bold),px,py,w,fontScale(),color,true,centered?0:-1);
     }
     private void marquee(GuiGraphicsExtractor g,String value,int px,int py,int w,int color,boolean centered) {
         float fontScale=fontScale();
@@ -166,9 +163,7 @@ public final class DiplomacyWorldTension extends Screen {
         g.pose().popMatrix();
     }
     private void rightText(GuiGraphicsExtractor g,String value,int px,int py,int w,int color) {
-        float fontScale=fontScale(); var line=net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(Component.literal(value),Math.max(1,(int)(w/fontScale))));
-        g.pose().pushMatrix(); g.pose().translate(px+w-font.width(line)*fontScale,py); g.pose().scale(fontScale);
-        g.text(font,line,0,0,color); g.pose().popMatrix();
+        UiText.marquee(g,font,value,px,py,w,fontScale(),color,true,1);
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
         HudMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);

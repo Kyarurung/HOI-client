@@ -178,11 +178,11 @@ public final class ArmyHeadquarters extends Screen implements InputSidebarMoveme
     private void drawStats(GuiGraphicsExtractor g){
         String[] headers={"기본 능력치","전투 능력치","장비 비용"};for(int col=0;col<3;col++)UiText.centeredSingleLine(g,font,Tooltips.officerText(headers[col],true),x(672+col*174),y(47),s(166),s(24),0xFF000000);
         if(hq().details()==null)return;int[] rows={0,0,0};
-        for(var stat:hq().details().stats()){if(stat.id().equals("HARDNESS"))continue;int col=statColumn(stat.id()),row=rows[col]++,bx=x(673+col*174),by=y(74+row*20),w=s(166);String value=statValue(stat,false),icon=IndustryEquipmentDesigns.divisionStatField(stat.id(),"texture");int valueWidth=Math.round(font.width(value)*UiText.scale(font)),iconWidth=icon.isEmpty()?0:s(20);if(!icon.isEmpty())UiAssets.draw(g,icon,bx,by+s(2),s(18),s(16));UiText.text(g,font,Component.literal(UiText.ellipsize(font,stat.name()+":",Math.max(0,(int)((w-valueWidth-iconWidth-3)/UiText.scale(font))))).getVisualOrderText(),bx+iconWidth,by,0xFF000000,false);UiText.text(g,font,Component.literal(value).getVisualOrderText(),bx+w-valueWidth,by,0xFF000000,false);}
+        for(var stat:hq().details().stats()){if(stat.id().equals("HARDNESS"))continue;int col=statColumn(stat.id()),row=rows[col]++,bx=x(673+col*174),by=y(74+row*20),w=s(166);String value=statValue(stat,false),icon=IndustryEquipmentDesigns.divisionStatField(stat.id(),"texture");int valueWidth=Math.round(font.width(value)*UiText.scale(font)),iconWidth=icon.isEmpty()?0:s(20);if(!icon.isEmpty())UiAssets.draw(g,icon,bx,by+s(2),s(18),s(16));UiText.marquee(g,font,stat.name()+":",bx+iconWidth,by,w-valueWidth-iconWidth-3,UiText.scale(font),0xFF000000,false,-1);UiText.text(g,font,Component.literal(value).getVisualOrderText(),bx+w-valueWidth,by,0xFF000000,false);}
         int row=rows[2];for(var equipment:new TreeMap<>(draft().equipment()).entrySet()){
             if(equipment.getValue()<=0)continue;
             int bx=x(1021),by=y(74+row++*20),w=s(166);String value=Long.toString(equipment.getValue());int valueWidth=Math.round(font.width(value)*UiText.scale(font));
-            UiText.text(g,font,Component.literal(UiText.ellipsize(font,label(equipment.getKey()),Math.max(0,(int)((w-valueWidth-3)/UiText.scale(font))))).getVisualOrderText(),bx,by,0xFF000000,false);
+            UiText.marquee(g,font,label(equipment.getKey()),bx,by,w-valueWidth-3,UiText.scale(font),0xFF000000,false,-1);
             UiText.text(g,font,Component.literal(value).getVisualOrderText(),bx+w-valueWidth,by,0xFF000000,false);
         }
     }
@@ -231,7 +231,7 @@ public final class ArmyHeadquarters extends Screen implements InputSidebarMoveme
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){
                 UiAssets.nineSlice(g,"commander/commands/mini_tooltip/frame_0",getX(),getY(),getWidth(),getHeight(),8,.5);
                 UiAssets.drawAlignedContent(g,icon,icon,getX()+s(9),getY()+s(17),s(76),s(42));
-                UiText.left(g,font,UiText.ellipsize(font,caption,Math.max(1,(int)(s(158)/UiText.scale(font)))),getX()+s(85),getY()+s(5),s(160),s(22),enabled?UiMenuStyle.TEXT:UiMenuStyle.MUTED);
+                UiText.marquee(g,font,Tooltips.officerText(caption),getX()+s(85),getY()+s(5)+(s(22)-UiText.MIN_HEIGHT)/2,s(158),UiText.scale(font),enabled?UiMenuStyle.TEXT:UiMenuStyle.MUTED,true,-1);
                 UiText.leftSingleLine(g,font,TooltipKeywordIcons.decorateLines(Tooltips.styled(Component.literal(detail),false),false),getX()+s(85),getY()+s(35),s(160),s(22),UiMenuStyle.TEXT);
             }
         };button.active=!pending&&enabled;addRenderableWidget(button);return button;

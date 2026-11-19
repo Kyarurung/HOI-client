@@ -379,7 +379,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             graphics.pose().pushMatrix();
             graphics.pose().translate(0,-1f/minecraft.getWindow().getGuiScale());
             cellText(Integer.toString(index + 1), x.applyAsInt(3), y + 3, x.applyAsInt(30) - x.applyAsInt(3), header, TEXT, false);
-            cellText(UiText.ellipsize(font,e.name(),(int)((x.applyAsInt(193)-x.applyAsInt(40))/UiText.scale(font))), x.applyAsInt(40), y + 3, x.applyAsInt(193) - x.applyAsInt(40), header, TEXT, false);
+            cellText(e.name(), x.applyAsInt(40), y + 3, x.applyAsInt(193) - x.applyAsInt(40), header, TEXT, false);
             graphics.pose().popMatrix();
         }
         if (children().stream().noneMatch(child -> child instanceof net.minecraft.client.gui.components.AbstractWidget widget && widget.isMouseOver(mouseX, mouseY)))
@@ -433,8 +433,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                         UiAssets.draw(g,"production/deployment/button",getX(),getY(),getWidth(),getHeight());
                         int icon=Math.round(31*scale);
                         UiAssets.draw(g,"production/deployment/port",getX(),getY()+(getHeight()-icon)/2,icon,icon);
-                        String clipped=UiText.ellipsize(font,caption,(int)((getWidth()-icon-2)/UiText.scale(font)),"...");
-                        UiText.text(g,font,clipped,getX()+icon,getY()+Math.round((getHeight()-font.lineHeight*UiText.scale(font))/2),TEXT);
+                        UiText.marquee(g,font,Tooltips.officerText(caption),getX()+icon,getY()+Math.round((getHeight()-font.lineHeight*UiText.scale(font))/2),getWidth()-icon-2,UiText.scale(font),TEXT,true,-1);
                     }
                 };
                 deploy.active=pending==0;
@@ -834,10 +833,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     }
     private void tradeValue(Component value,int x,int y,int width,int height,int color) {
         if(graphics==null)return;
-        float scale=Math.min(UiText.scale(font),(width-2f)/Math.max(1,font.width(value)));
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(x+(width-font.width(value)*scale)/2,y+(height-font.lineHeight*scale)/2);
-        graphics.pose().scale(scale);graphics.text(font,value,0,0,color);graphics.pose().popMatrix();
+        float scale=UiText.scale(font);
+        UiText.marquee(graphics,font,value,x,y+(height-font.lineHeight*scale)/2,width,scale,color,true,0);
     }
     private double minimumTraining() { return view.recruitmentPolicy() == null || view.recruitmentPolicy().minimumTraining() == null ? .2 : view.recruitmentPolicy().minimumTraining(); }
     private void recruitment() {
@@ -902,7 +899,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 art("recruitment/conveyor", groupX, y, (int)Math.round(490 * gs), headerHeight);
                 if (!t.line().isEmpty()) art(unitTexture(t.line().getFirst(), false), groupX + 2 + (int)(10 * gs), y + (int)(17 * gs), (int)(70 * gs), (int)(50 * gs));
                 tip(t.name(),groupX+(int)(95*gs),y+(int)(17*gs),(int)(214*gs),(int)(29*gs));
-                centeredCompactText(UiText.ellipsize(font,t.name(),(int)(214*gs/UiText.scale(font))), groupX + (int)(95 * gs), y + (int)(29 * gs) - 5, (int)(214 * gs), TEXT);
+                centeredCompactText(t.name(), groupX + (int)(95 * gs), y + (int)(29 * gs) - 5, (int)(214 * gs), TEXT);
                 int amountSize = Math.max(8, (int)Math.round(26 * gs)), amountY = y + 2 + (int)Math.round(10 * gs);
                 int minusX = groupX + 2 + (int)Math.round(312 * gs), plusX = groupX + 2 + (int)Math.round(383 * gs);
                 textureButton(t.name() + " 연속 훈련 횟수 증가", "", "recruitment/increase", plusX, amountY, amountSize, amountSize, first.seriesLimit() < 999, () -> send(SERIES, first.id(), "", first.seriesLimit() + 1));
@@ -936,7 +933,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 if (!visible(y, lineHeight, start)) continue;
                 int lineX = 7 + (int)Math.round(2 * gs);
                 art("recruitment/line", lineX, y, (int)Math.round(514 * gs), lineHeight);
-                compactText(UiText.ellipsize(font,t.name()+" "+number,(int)(190*gs/UiText.scale(font))), lineX + (int)(9 * gs), y + (int)(20 * gs) - 3, (int)(190 * gs), TEXT);
+                compactText(t.name()+" "+number, lineX + (int)(9 * gs), y + (int)(20 * gs) - 3, (int)(190 * gs), TEXT);
                 double manpowerRatio = t.manpower() == 0 ? 1 : (double) r.manpower() / t.manpower();
                 double equipped = fillRatio(t.equipment(), r.equipment());
                 art("recruitment/equipment_state", lineX + 1 + (int)(211 * gs), y + 1 + (int)(7 * gs), (int)(27 * gs), (int)(27 * gs));
@@ -969,7 +966,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             int iconWidth = (int)(72 * cardScale), nameX = secondX + 5 + (int)(97 * cardScale), nameWidth = (int)(234 * cardScale);
             if (!t.line().isEmpty()) art(unitTexture(t.line().getFirst(), false), secondX + 7 + (int)(9 * cardScale), y + (int)(12 * cardScale), iconWidth, (int)(52 * cardScale));
             art("production/design/division/deployment_priority_" + t.priority(), secondX + 5 + (int)(60 * cardScale), y + (int)(16 * cardScale), Math.max(1, (int)(16 * cardScale)), Math.max(1, (int)(52 * cardScale)));
-            centeredCompactText(UiText.ellipsize(font,t.name(),(int)(nameWidth/UiText.scale(font))), nameX, y + (int)(32 * cardScale) - 5, nameWidth, TEXT);
+            centeredCompactText(t.name(), nameX, y + (int)(32 * cardScale) - 5, nameWidth, TEXT);
             int buttonWidth = (int)(71 * cardScale), buttonY = y + (int)(49 * cardScale), buttonHeight = Math.max(10, (int)(26 * cardScale));
             textureButton(t.name() + " 훈련", "훈련", "recruitment/button", secondX + 5 + (int)(158 * cardScale), buttonY, buttonWidth, buttonHeight, !retired.contains(t.id()), () -> send(RECRUIT, t.id(), "", 0));
             textureButton(t.name() + " 편제", "편제", "recruitment/button", secondX + 5 + (int)(229 * cardScale), buttonY, buttonWidth, buttonHeight, true, () -> loadDesigner(t.id()));
@@ -994,13 +991,11 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         return control;
     }
     private void centeredCompactText(String value, int x, int y, int width, int color) {
-        String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)(width / UiText.scale(font))));
-        compactText(clipped, x + Math.max(0, (width - (int)Math.ceil(font.width(clipped) * dev.hoi.client.ui.UiText.scale(font))) / 2), y, width, color);
+        int inset = Math.max(0, (width - (int)Math.ceil(font.width(value) * UiText.scale(font))) / 2);
+        compactText(value, x + inset, y, width - inset, color);
     }
     private void compactText(String value, int x, int y, int width, int color) {
-        if (graphics == null) return;
-        graphics.pose().pushMatrix(); graphics.pose().translate(x, y); graphics.pose().scale(dev.hoi.client.ui.UiText.scale(font));
-        graphics.text(font, font.plainSubstrByWidth(value, Math.max(1, (int)(width / UiText.scale(font)))), 0, 0, color); graphics.pose().popMatrix();
+        if (graphics != null) UiText.marquee(graphics, font, value, x, y, width, UiText.scale(font), color, true, -1);
     }
     private void loadDesigner(String id) {
         selectedSlot = -1; designerScroll = 0; picker = ""; divisionPicker = ""; openingDesigner = true;
@@ -1065,7 +1060,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 productionTip(design.specialForcesTooltip(), x + 226, y + 30, 13, 12);
             }
             String groupName = design == null ? "—" : design.nameGroups().stream().filter(group -> group.id().equals(t.nameGroup())).map(NameGroup::name).findFirst().orElse(IndustryEquipmentDesigns.tooltip("MODULE_NONE_FIXED"));
-            leftText(UiText.ellipsize(font, groupName, (int)(92 / UiText.scale(font))), x + 85, y + 60, 92, TEXT);
+            leftText(groupName, x + 85, y + 60, 92, TEXT);
             productionTip(groupName, x + 85, y + 58, 92, 13);
             originalButton("편제 목록", "production/design/division/expand", x + 180, y + 30, 11, 11, selectedSlot < 0, () -> { divisionPicker = divisionPicker.equals("templates") ? "" : "templates"; divisionPickerScroll = 0; rebuildWidgets(); });
             var names = originalButton("사단 이름 그룹 목록", "production/design/division/expand", x + 180, y + 59.5f, 11, 11, selectedSlot < 0 && design != null, () -> { divisionPicker = divisionPicker.equals("names") ? "" : "names"; divisionPickerScroll = 0; rebuildWidgets(); }, null);
@@ -1227,7 +1222,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 if (graphics != null) {
                     if (compact) graphics.fill(sx, sy, sx + colWidth - 1, sy + 10, row % 2 == 0 ? 0xFF858585 : 0xFF909090);
                     if (!icon.isEmpty()) UiAssets.draw(graphics, icon, sx + 2, sy + 1, 9, 8);
-                    UiText.text(graphics, font, Component.literal(UiText.ellipsize(font, label, Math.max(0, (int)((contentWidth - valueWidth - iconWidth - 5) / UiText.scale(font))))).getVisualOrderText(), sx + 2 + iconWidth, sy, 0xFF000000, false);
+                    UiText.marquee(graphics, font, label, sx + 2 + iconWidth, sy, contentWidth - valueWidth - iconWidth - 5, UiText.scale(font), 0xFF000000, false, -1);
                     UiText.text(graphics, font, Component.literal(amount).getVisualOrderText(), sx + contentWidth - valueWidth, sy, 0xFF000000, false);
                 }
                 productionTip(label + " " + amount + (detail.isEmpty() ? "" : "\n\n" + detail), sx, sy, contentWidth, 10);
@@ -1497,7 +1492,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                     UiAssets.draw(g,"production/deployment/"+(target.id().isEmpty()?"theater":"port"),bx+(iconCell-icon)/2,by+(bh-icon)/2,icon,icon);
                     if(target.fleet())UiText.cell(g,font,Integer.toString(target.ships()),bx,by+bh/2,iconCell,bh/2,TEXT,false);
                     String caption=target.fleet()||target.id().isEmpty()?target.name():target.name()+" (§e"+target.level()+"§r)";
-                    UiText.cell(g,font,UiText.ellipsize(font,caption,(int)((bw-iconCell-4)/UiText.scale(font)),"..."),bx+iconCell,by,bw-iconCell-4,bh,TEXT,false);
+                    UiText.cell(g,font,caption,bx+iconCell,by,bw-iconCell-4,bh,TEXT,false);
                 }
             };
             entry.active=pending==0;
@@ -1627,10 +1622,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 var units=new dev.hoi.client.ui.UiUnits(width,height);
                 if(!unfinished&&!blueprint&&!landRole.isEmpty())UiAssets.draw(g,landRole,x+imageWidth-Math.round(36*scale)-Math.round(units.length(3)),y+h-Math.round(35*scale)+Math.round(units.length(1)),Math.round(36*scale),Math.round(35*scale));
                 if(equipment.naval()) {
-                    pickerRightText(g,UiText.ellipsize(font,equipment.name(),(int)((right-labelX)/UiText.scale(font))),labelX,y+Math.round(6*scale),right-labelX);
+                    pickerRightText(g,equipment.name(),labelX,y+Math.round(6*scale),right-labelX);
                     pickerRightText(g,familyName(equipment),labelX,y+Math.round(22*scale),right-labelX);
                 } else {
-                    UiText.text(g,font,UiText.ellipsize(font,equipment.name(),Math.max(0,(int)((right-labelX)/UiText.scale(font)))),labelX,y+Math.round(6*scale),TEXT);
+                    UiText.marquee(g,font,Tooltips.officerText(equipment.name()),labelX,y+Math.round(6*scale),right-labelX,UiText.scale(font),TEXT,true,-1);
                     var lines=Tooltips.split(font,Component.literal(familyName(equipment)),Math.max(1,(int)((right-labelX)/UiText.scale(font))));
                     for(int i=0;i<Math.min(equipment.group().equals("air")?2:3,lines.size());i++) {
                         UiText.text(g,font,lines.get(i),labelX,y+Math.round(22*scale)+i*UiText.MIN_HEIGHT,TEXT);
@@ -1869,9 +1864,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             int removeSize=size.applyAsInt(27),removeX=backX-gap-removeSize;
             if(graphics!=null) {
                 var label=Tooltips.officerText("모듈 선택",true);
-                float labelScale=Math.min(1.5f,((navy?removeX:backX)-gap-px.applyAsInt(112))/(float)font.width(label));
-                graphics.pose().pushMatrix();graphics.pose().translate(px.applyAsInt(112),headerCenter-font.lineHeight*labelScale/2);graphics.pose().scale(labelScale);
-                graphics.text(font,label,0,0,TEXT);graphics.pose().popMatrix();
+                UiText.marquee(graphics,font,label,px.applyAsInt(112),headerCenter-font.lineHeight*1.5f/2,(navy?removeX:backX)-gap-px.applyAsInt(112),1.5f,TEXT,true,-1);
             }
             if(navy&&!slot.selected().isEmpty())originalButton("장착 모듈 제거","production/designer/remove",removeX,Math.round(headerCenter-removeSize/2f),removeSize,removeSize,true,()->{send(TANK_MODULE,slot.id(),"",0);tankSlot="";});
             var categories=dev.hoi.client.ui.industry.IndustryEquipmentDesigns.categoryIds(d.chassis(),slot.id()).stream()
@@ -2196,10 +2189,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if(graphics==null)return;
         var caption=Component.literal(value);
         if(!right)caption.withStyle(net.minecraft.ChatFormatting.BOLD);
-        float scale=Math.min(Math.min(1.1f,Math.max(.8f,this.width/1100f))*multiplier,(float)width/Math.max(1,font.width(caption)));
-        scale=Math.min(scale,(float)Math.max(1,height-2)/font.lineHeight);
-        graphics.pose().pushMatrix();graphics.pose().translate(x+(right?width-font.width(caption)*scale:0),y+(height-(font.lineHeight-(right?2:0))*scale)/2);graphics.pose().scale(scale);
-        graphics.text(font,caption,0,0,0xFF13170E,false);graphics.pose().popMatrix();
+        float scale=Math.min(Math.min(1.1f,Math.max(.8f,this.width/1100f))*multiplier,(float)Math.max(1,height-2)/font.lineHeight);
+        UiText.marquee(graphics,font,caption,x,y+(height-(font.lineHeight-(right?2:0))*scale)/2,width,scale,0xFF13170E,false,right?1:-1);
     }
     private void tankSlotButton(IndustryTankDesigner.Slot slot,int x,int y,int w,int h) {
         String texture=slot.choices().stream().filter(p->p.id().equals(slot.selected())).map(IndustryTankDesigner.Part::texture).findFirst().orElse("production/designer/add");
@@ -2286,8 +2277,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         button.setTooltip(Tooltips.createExact(tankModuleTooltip(part)));addRenderableWidget(button);
     }
     private void pickerRightText(GuiGraphicsExtractor g,String value,int x,int y,int width) {
-        String clipped=font.plainSubstrByWidth(value,Math.max(1,(int)(width/UiText.scale(font))));
-        UiText.text(g,font,clipped,x+width-Math.round(font.width(clipped)*UiText.scale(font)),y,TEXT);
+        UiText.marquee(g,font,Tooltips.officerText(value),x,y,width,UiText.scale(font),TEXT,true,1);
     }
     private void pickerScrollbar(int x,int top,int bottom,int visible,int total,int step) {
         productionPickerScrollbar=new UiScrollBar(x,top,bottom,visible,total);
@@ -2377,7 +2367,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                             int column=(mx-getX())*400/Math.max(1,getWidth());
                             setTooltip(column>=35&&column<60?policyTip:column>=200&&column<270?shipsTip:column>=270?capacityTip:listTip);
                             UiAssets.draw(g,"production/picker/repair_state"+(port.disabled()?"_disabled":port.priority()==0?"_low":port.priority()==2?"_high":""),getX()+Math.round(getWidth()*35f/400),py+2,Math.round(getWidth()*22f/400),getHeight()-4);
-                            UiText.text(g,font,font.plainSubstrByWidth(port.name(),Math.max(1,(int)((getWidth()*140f/400)/UiText.scale(font)))),getX()+Math.round(getWidth()*60f/400),py+4,TEXT);
+                            UiText.marquee(g,font,Tooltips.officerText(port.name()),getX()+Math.round(getWidth()*60f/400),py+4,getWidth()*140f/400,UiText.scale(font),TEXT,true,-1);
                             UiAssets.draw(g,"production/picker/ships",getX()+getWidth()/2,py+3,15,10);
                             IndustryProductionRender.text(g,font,Long.toString(waiting),getX()+getWidth()*59/100,py,w*9/100,row-2,TEXT);
                             UiAssets.draw(g,"production/summary/dockyard_icon",getX()+getWidth()*68/100,py+2,12,12);
@@ -2394,7 +2384,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 art("production/picker/repair_ship",sx,sy,sw,shipHeight);
                 String family=navalFamilyByTexture.getOrDefault(ship.texture(),ship.texture().substring(ship.texture().lastIndexOf('/')+1));
                 art(navalSilhouette(family),sx+Math.round(sw*24f/401),sy+Math.round(sw*8f/401),Math.round(sw*112f/401),Math.round(sw*18f/401));
-                leftText(UiText.ellipsize(font,ship.name(),(int)(labelWidth/UiText.scale(font))),label,sy+2,labelWidth,TEXT);
+                leftText(ship.name(),label,sy+2,labelWidth,TEXT);
                 leftText(repairState(ship),label,sy+shipHeight-9,labelWidth,repairState(ship).equals("수리 중")?GOOD:MUTED);
                 int gaugeHeight=Math.round(sw*28f/401),gaugeWidth=Math.max(2,Math.round(sw*6f/401));
                 int gaugeY=sy+Math.round(sw*2f/401),orgX=sx+Math.round(sw*6f/401),hpX=sx+Math.round(sw*14f/401);
@@ -2773,9 +2763,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private void leftText(String value, int x, int y, int max, int color) {
         if (graphics == null) return;
         var source=Tooltips.officerText(value);
-        var display=font.substrByWidth(source,Math.max(1,(int)(max/UiText.scale(font))));
-        UiText.text(graphics,font,net.minecraft.locale.Language.getInstance().getVisualOrder(display),x,y,color);
-        if(!display.getString().equals(source.getString()))tip(value,x,y-1,max,11);
+        UiText.marquee(graphics,font,source,x,y,max,UiText.scale(font),color,true,-1);
+        if(font.width(source)*UiText.scale(font)>max)tip(value,x,y-1,max,11);
     }
     private void text(String value, int x, int y, int max, int color) {
         if (graphics == null) return;
@@ -2874,7 +2863,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                     int start = center - (font.width(costLabel) + 13) / 2;
                     g.text(font, costLabel, start, y + 21, 0xFFFFFFFF);
                     UiAssets.draw(g, "hud/army_experience", start + font.width(costLabel) + 2, y + 19, 11, 11);
-                } else g.centeredText(font, font.plainSubstrByWidth(detail, tw), center, y + 21, 0xFF000000 | Tooltips.GOOD);
+                } else UiText.marquee(g, font, detail, center - tw / 2f, y + 21, tw, 1, 0xFF000000 | Tooltips.GOOD, true, 0);
             }
         };
         button.active = enabled && pending == 0;

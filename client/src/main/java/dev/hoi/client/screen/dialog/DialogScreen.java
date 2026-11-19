@@ -134,13 +134,15 @@ public class DialogScreen extends Screen {
         var rows = new ArrayList<>(eventTitleRows(width));
         int fit = Math.max(1, 1 + (int)Math.floor((height - font.lineHeight * scale) / pitch));
         if (rows.size() > fit) {
-            var marker = Component.literal("…").withStyle(net.minecraft.ChatFormatting.BOLD);
-            rows.set(fit - 1, net.minecraft.network.chat.FormattedText.composite(font.substrByWidth(rows.get(fit - 1), Math.max(0, available - font.width(marker))), marker));
-            rows.subList(fit, rows.size()).clear();
+            var rest = new ArrayList<net.minecraft.network.chat.FormattedText>();
+            for (var row : rows.subList(fit - 1, rows.size())) { if (!rest.isEmpty()) rest.add(net.minecraft.network.chat.FormattedText.of(" ")); rest.add(row); }
+            rows.subList(fit - 1, rows.size()).clear();
+            rows.add(net.minecraft.network.chat.FormattedText.composite(rest));
         }
         int top = Math.round(y + (height - eventTitleBlock(rows.size())) / 2);
         for (int i = 0; i < rows.size(); i++) {
             var line = net.minecraft.locale.Language.getInstance().getVisualOrder(rows.get(i));
+            if (font.width(line) > available) { dev.hoi.client.ui.UiText.marquee(g, font, line, x, top + i * pitch, width, scale, color, shadow, -1); continue; }
             g.pose().pushMatrix();
             g.pose().translate(Math.round(x + (width - font.width(line) * scale) / 2), top + i * pitch);
             g.pose().scale(scale);
@@ -207,8 +209,8 @@ public class DialogScreen extends Screen {
             int titleTop = top + Math.min(32, 48 - (int)Math.ceil(font.lineHeight * eventTitleScale()));
             eventTitle(g, start, titleTop, titleWidth, 18, ink, false);
         }
-        else text(g, net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(dev.hoi.client.ui.tooltip.Tooltips.officerText(view.title(), true), (int)((left + pane - 14 - start) / textScale()))), start, top + 35, ink);
-        text(g, trim(view.subtitle(), (int)((pane - 28) / textScale())).getVisualOrderText(), left + 12, top + 48, paper() ? 0xff62566a : UiMenuStyle.MUTED);
+        else dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(view.title(), true), start, top + 35, left + pane - 14 - start, textScale(), ink, !paper(), -1);
+        dev.hoi.client.ui.UiText.marquee(g, font, tooltipText.component(view.subtitle()), left + 12, top + 48, pane - 28, textScale(), paper() ? 0xff62566a : UiMenuStyle.MUTED, !paper(), -1);
         g.enableScissor(left + 8, bodyTop, left + pane - 8, bodyBottom);
         int y = bodyTop + 5 - scroll;
         if (view.kind() != DialogView.Kind.EVENT) y = image(g, y);
@@ -223,14 +225,14 @@ public class DialogScreen extends Screen {
                 int x = left + 12 + (i % 3) * (cell + 4), ty = y + (i / 3) * 59;
                 UiMenuStyle.recess(g, x, ty, cell, 55);
                 UiAssets.draw(g, tile.icon(), x + 5, ty + 5, 25, 23);
-                g.text(font, trim(tile.name(), cell - 10), x + 5, ty + 31, UiMenuStyle.TEXT);
-                g.text(font, trim(tile.value(), cell - 39), x + 35, ty + 12, UiMenuStyle.ACCENT);
+                dev.hoi.client.ui.UiText.marquee(g, font, tooltipText.component(tile.name()), x + 5, ty + 31, cell - 10, 1, UiMenuStyle.TEXT, true, -1);
+                dev.hoi.client.ui.UiText.marquee(g, font, tooltipText.component(tile.value()), x + 35, ty + 12, cell - 39, 1, UiMenuStyle.ACCENT, true, -1);
             }
             y += ((view.tiles().size() + 2) / 3) * 59;
             y += 8;
             for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(view.body()), pane - 32)) { g.text(font, line, left + 15, y, ink); y += 13; }
         } else for (var tile : view.tiles()) {
-            text(g, trim(tile.name() + (tile.value().isEmpty() ? "" : " · " + tile.value()), (int)((pane - 32) / textScale())).getVisualOrderText(), left + 15, y, ink); y += paper() ? 15 : 17;
+            dev.hoi.client.ui.UiText.marquee(g, font, tooltipText.component(tile.name() + (tile.value().isEmpty() ? "" : " · " + tile.value())), left + 15, y, pane - 32, textScale(), ink, !paper(), -1); y += paper() ? 15 : 17;
             for (var line : dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(tile.detail()), (int)((pane - 40) / textScale()))) { text(g, line, left + 19, y, ink); y += paper() ? 12 : 13; }
             y += 15;
         }
@@ -389,7 +391,6 @@ public class DialogScreen extends Screen {
         if (UiAssets.draw(g, view.image(), left + (pane - imageWidth) / 2, y, imageWidth, imageHeight)) return y + imageHeight + 12;
         return y;
     }
-    private Component trim(String text, int space) { return dev.hoi.client.ui.UiText.ellipsize(font, tooltipText.component(text), space); }
     private void text(GuiGraphicsExtractor g, net.minecraft.util.FormattedCharSequence text, int x, int y, int color) {
         g.pose().pushMatrix(); g.pose().translate(x, y); g.pose().scale(textScale());
         g.text(font, text, 0, 0, color, !paper()); g.pose().popMatrix();

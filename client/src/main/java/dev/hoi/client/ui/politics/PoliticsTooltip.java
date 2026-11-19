@@ -108,13 +108,7 @@ public final class PoliticsTooltip {
                     UiAssets.draw(g,row.image(),x,top,width,row.height());
                     float nameplateLeft=x+width*11f/172f, nameplateRight=x+width*161f/172f;
                     float nameplateTop=top+row.height()*224f/258f, nameplateBottom=top+row.height()*247f/258f;
-                    float scale=Math.min(1.4f,(nameplateRight-nameplateLeft-8)/Math.max(1,font.width(row.text())));
-                    g.pose().pushMatrix();
-                    g.pose().translate((nameplateLeft+nameplateRight-font.width(row.text())*scale)/2,
-                            (nameplateTop+nameplateBottom-font.lineHeight*scale)/2);
-                    g.pose().scale(scale);
-                    g.text(font,row.text(),0,0,0xFFFFFFFF);
-                    g.pose().popMatrix();
+                    dev.hoi.client.ui.UiText.marquee(g,font,row.text(),nameplateLeft+4,(nameplateTop+nameplateBottom-font.lineHeight*1.4f)/2,nameplateRight-nameplateLeft-8,1.4f,0xFFFFFFFF,true,0);
                 } else if (row.text() != null) {
                     UiAssets.draw(g, row.image(), x, top, 12, font.lineHeight);
                     g.text(font, row.text(), x + 15, top, 0xFFE0E0E0);

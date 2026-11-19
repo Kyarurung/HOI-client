@@ -89,8 +89,8 @@ public final class CommanderTraits extends DialogScreen implements dev.hoi.clien
         if(pending)children().stream().filter(c->c instanceof AbstractWidget).map(c->(AbstractWidget)c).forEach(w->w.active=false);
     }
     private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,boolean centered) {
-        var component=TooltipKeywordIcons.decorateLines(value.startsWith("§l")?Tooltips.officerText(value,true):Tooltips.officerText(value),false);boolean clipped=font.width(component)>w;var shown=clipped?net.minecraft.network.chat.FormattedText.composite(font.substrByWidth(component,Math.max(0,w-font.width("…"))),net.minecraft.network.chat.FormattedText.of("…")):component;
-        g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(shown),px+(centered?(w-font.width(shown))/2:0),py+Math.max(0,(h-font.lineHeight)/2),color,false);
+        var component=TooltipKeywordIcons.decorateLines(value.startsWith("§l")?Tooltips.officerText(value,true):Tooltips.officerText(value),false);boolean clipped=font.width(component)>w;
+        UiText.marquee(g,font,component,px,py+Math.max(0,(h-font.lineHeight)/2),w,1,color,false,centered?0:-1);
         if(clipped&&mouseX>=px&&mouseX<px+w&&mouseY>=py&&mouseY<py+Math.max(h,font.lineHeight))clippedTooltip=value;
     }
     private void drawButton(GuiGraphicsExtractor g,AbstractWidget button,int mx,int my,float delta) {button.extractRenderState(g,mx,my,delta);label(g,button.getMessage().getString(),button.getX()+size(2),button.getY(),Math.max(1,button.getWidth()-size(4)),button.getHeight(),button.active?UiMenuStyle.TEXT:UiMenuStyle.MUTED,true);}

@@ -58,22 +58,25 @@ public final class ResearchSlotButton extends Button {
         String title = technology == null ? "연구할 기술을 선택하세요." : technology.name();
         float titleScale = 1f;
         int titleWidth = Math.round(400 * scale / titleScale);
-        if (font.width(title) > titleWidth) title = font.plainSubstrByWidth(title, Math.max(1, titleWidth - 9)) + "…";
+        boolean overflow = font.width(title) > titleWidth;
+        int offset = dev.hoi.client.ui.UiText.scrollingOffset(Math.max(0, font.width(title) - titleWidth), dev.hoi.client.ui.UiText.marqueeMillis());
         g.pose().pushMatrix();
         g.pose().translate(sourceX(57), sourceY(12));
         g.pose().scale(titleScale);
+        if (overflow) g.enableScissor(0, -1, titleWidth, font.lineHeight + 1);
         float outline = 1f / Minecraft.getInstance().getWindow().getGuiScale();
         for (int y = -1; y <= 1; y++) {
             for (int x = -1; x <= 1; x++) {
                 if (x == 0 && y == 0) continue;
                 g.pose().pushMatrix();
                 g.pose().translate(x * outline, y * outline);
-                g.text(font, title, 0, 0, 0xFF000000, false);
+                g.text(font, title, -offset, 0, 0xFF000000, false);
                 g.pose().popMatrix();
             }
         }
         g.nextStratum();
-        g.text(font, title, 0, 0, 0xFFE0E6E8, false);
+        g.text(font, title, -offset, 0, 0xFFE0E6E8, false);
+        if (overflow) g.disableScissor();
         g.pose().popMatrix();
         if (technology != null) {
             var status = Component.literal(Long.toString(technology.remainingDays(slot.savedDays()))).withStyle(style -> style.withColor(0xFFD060))

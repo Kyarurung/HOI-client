@@ -51,6 +51,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
     private static final KeyEvent ENTER = new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
     private static final KeyEvent ESCAPE = new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE, 0, 0);
     @Override public void runTest(ClientGameTestContext context) {
+        context.runOnClient(client -> dev.hoi.client.ui.UiText.holdMarquee(true));
         context.runOnClient(client -> {
             var dispatcher = new com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource>();
             HoiClient.registerCommands(dispatcher);

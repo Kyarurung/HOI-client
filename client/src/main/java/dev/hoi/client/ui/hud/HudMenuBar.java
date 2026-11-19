@@ -190,9 +190,8 @@ public final class HudMenuBar {
         UiAssets.draw(g, "hud/" + icon(item), x + 2, STATS_TOP + (h - 10) / 2, 11, 10);
         var font = Minecraft.getInstance().font;
         String value = item.value();
-        String fit = font.width(value) <= w - 18 ? value : font.plainSubstrByWidth(value, Math.max(1, w - 27)) + "…";
         int color = indicatorColor(item);
-        UiText.cell(g, font, fit, x + 15, STATS_TOP, w - 18, item.barLabel() == null ? h : 10, color, false);
+        UiText.cell(g, font, value, x + 15, STATS_TOP, w - 18, item.barLabel() == null ? h : 10, color, false);
         if (item.barLabel() != null) {
             g.fill(x + 15, STATS_TOP + 10, x + w - 3, STATS_TOP + 12, 0xFF18201A);
             if (item.ratio() != null) g.fill(x + 15, STATS_TOP + 10, x + 15 + (int)Math.round((w - 18) * Math.clamp(item.ratio(),0,1)), STATS_TOP + 12, 0xFF6D9C61);

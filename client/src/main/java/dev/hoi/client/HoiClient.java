@@ -7,6 +7,7 @@ import dev.hoi.client.map.scene.SceneRenderer;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.client.screen.raid.RaidScreen;
 import dev.hoi.client.ui.UiAssets;
+import dev.hoi.client.ui.UiText;
 import dev.hoi.protocol.research.ResearchPayloads;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -45,7 +46,7 @@ public final class HoiClient implements ClientModInitializer {
         ClientTickEvents.START_CLIENT_TICK.register(InputSidebarMovement::tick);
         NetworkScreens.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registry) -> registerCommands(dispatcher));
-        ClientTickEvents.END_CLIENT_TICK.register(client -> { dev.hoi.client.audio.AudioUnitVoices.tick(); dev.hoi.client.audio.AudioStoryMusic.tick(); dev.hoi.client.audio.AudioKoreanMusic.tick(); });
+        ClientTickEvents.END_CLIENT_TICK.register(client -> { UiText.tick(client); dev.hoi.client.audio.AudioUnitVoices.tick(); dev.hoi.client.audio.AudioStoryMusic.tick(); dev.hoi.client.audio.AudioKoreanMusic.tick(); });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             dev.hoi.client.screen.industry.IndustryScreen.clearPreferences();
             dev.hoi.client.ui.country.CountryDisplays.clear(); dev.hoi.client.audio.AudioStorySounds.clear();

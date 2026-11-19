@@ -126,14 +126,6 @@ public final class IndustryScreenChecks {
     }
     private static void longNames(ClientGameTestContext context,IndustryView base) {
         String name="사용자가 직접 지정한 매우 긴 이름의 장비와 사단 편제 이름을 끝까지 보존하는 테스트";
-        context.runOnClient(client->{
-            for(String text:List.of(name,"전차","혼합 Korean ABC 123 "+name))for(int width:new int[]{0,3,12,48,100}) {
-                String shown=dev.hoi.client.ui.UiText.ellipsize(client.font,text,width);
-                check(client.font.width(shown)<=width,"Ellipsis and text fit the actual font width");
-                if(client.font.width(text)<=width)check(shown.equals(text),"Fitting names remain unchanged");
-                else if(width>=client.font.width("…"))check(shown.endsWith("…"),"Overlong names have an ellipsis");
-            }
-        });
         var gson=new com.google.gson.Gson();var json=gson.toJsonTree(base).getAsJsonObject();
         for(var row:json.getAsJsonArray("equipment"))row.getAsJsonObject().addProperty("name",name);
         for(var row:json.getAsJsonArray("templates"))row.getAsJsonObject().addProperty("name",name);

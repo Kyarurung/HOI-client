@@ -208,7 +208,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             if (g != null) {
                 UiMenuStyle.metal(g, 8, y, pane - 16, 21);
                 UiAssets.draw(g, texture(section.icon()), 13, y + 3, 19, 15);
-                dev.hoi.client.ui.UiText.text(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(trim(section.title(), pane - 68), true), 37, y + 6, TEXT);
+                dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(section.title(), true), 37, y + 6, pane - 68, dev.hoi.client.ui.UiText.scale(font), TEXT, true, -1);
                 dev.hoi.client.ui.UiText.text(g, font, collapsed.contains(index) ? "+" : "−", pane - 25, y + 6, GOLD);
             }
             if (widgets && y >= contentTop() && y + 21 <= contentBottom()) {
@@ -364,16 +364,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         button.active = detail == null;
         addRenderableWidget(button);
     }
-    static float officerStatScale(net.minecraft.client.gui.Font font, Component styled, int available) {
-        return Math.min(.75f, available / (float)Math.max(1, font.width(styled)));
-    }
     private void officerStatText(GuiGraphicsExtractor g, String value, int x, int y, int available) {
-        var styled = Tooltips.styled(Component.literal(value), false);
-        float scale = officerStatScale(font, styled, available);
-        g.pose().pushMatrix();
-        g.pose().translate(x + available - font.width(styled) * scale, y + (15 - font.lineHeight * scale) / 2f);
-        g.pose().scale(scale);
-        g.text(font, styled.getVisualOrderText(), 0, 0, GOLD); g.pose().popMatrix();
+        dev.hoi.client.ui.UiText.marquee(g, font, Tooltips.styled(Component.literal(value), false), x, y + (15 - font.lineHeight * .75f) / 2f, available, .75f, GOLD, true, 1);
     }
     private void officerText(GuiGraphicsExtractor g, String value, int x, int y, int available, int color) {
         float scale = dev.hoi.client.ui.UiText.scale(font);
@@ -478,10 +470,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             int swatch = Math.max(2, (int)(pitch - 2));
             g.fill(list.x() + 4, py, list.x() + 4 + swatch, py + swatch, partyColor(party.icon()));
             String label = party.name() + " (" + dev.hoi.protocol.ProtocolNumberBounds.percent(party.progress(), 0) + ")";
-            float rowScale = Math.min(scale, (list.width() - 21f) / Math.max(1, font.width(label)));
-            g.pose().pushMatrix(); g.pose().translate(list.x() + 17, py); g.pose().scale(rowScale);
-            g.text(font, label, 0, 0, TEXT);
-            g.pose().popMatrix();
+            dev.hoi.client.ui.UiText.marquee(g, font, label, list.x() + 17, py, list.width() - 21f, scale, TEXT, true, -1);
         }
         if (parties.isEmpty()) officerText(g, "정보 없음", list.x() + 5, list.y() + 5, list.width() - 10, MUTED);
     }
@@ -494,11 +483,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     private void centeredPoliticsText(GuiGraphicsExtractor g, String text, PoliticsLayout.PoliticsBox box, int color) {
         if (selectionPreview) {
-            float scale = Math.min(dev.hoi.client.ui.UiText.scale(font), (box.width() - 8f) / Math.max(1, font.width(text)));
-            scale = Math.min(scale, box.height() / (float)font.lineHeight);
-            g.pose().pushMatrix();
-            g.pose().translate(box.x() + (box.width() - font.width(text) * scale) / 2, box.y() + (box.height() - font.lineHeight * scale) / 2);
-            g.pose().scale(scale); g.text(font, text, 0, 0, color); g.pose().popMatrix();
+            float scale = Math.min(dev.hoi.client.ui.UiText.scale(font), box.height() / (float)font.lineHeight);
+            dev.hoi.client.ui.UiText.marquee(g, font, text, box.x() + 4, box.y() + (box.height() - font.lineHeight * scale) / 2, box.width() - 8, scale, color, true, 0);
         } else dev.hoi.client.ui.UiText.centered(g, font, text, box.x() + 4, box.y(), box.width() - 8, Math.max(10, box.height()), color);
     }
     private void politicsCell(GuiGraphicsExtractor g, String label, PoliticsLayout.PoliticsBox box) {
@@ -638,14 +624,14 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         HudMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
         var frame = UiMenuStyle.window(selected);
         UiMenuStyle.window(g, frame, 0, top, pane, height - top);
-        UiMenuStyle.title(g, font, frame, trim(selected == MenuTab.POLITICS ? "정치" : selected.label(), pane - 44), 0, top, pane);
+        UiMenuStyle.title(g, font, frame, selected == MenuTab.POLITICS ? "정치" : selected.label(), 0, top, pane);
         if (selected == MenuTab.POLITICS) drawPoliticsBanner(g);
         if (selected == MenuTab.INTELLIGENCE) {
             UiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);
             if (!view.country().equals("KOR") || !UiAssets.draw(g, "country/kor/intelligence", 18, top + 33, 42, 40))
                 UiAssets.draw(g, "menu/intelligence", 18, top + 33, 42, 40);
-            dev.hoi.client.ui.UiText.text(g, font, trim("정보기관", pane - 86), 76, top + 43, TEXT);
-            dev.hoi.client.ui.UiText.text(g, font, trim(CountryDisplays.name(view.country(), view.countryName()), pane - 86), 76, top + 58, MUTED);
+            dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText("정보기관"), 76, top + 43, pane - 86, dev.hoi.client.ui.UiText.scale(font), TEXT, true, -1);
+            dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(CountryDisplays.name(view.country(), view.countryName())), 76, top + 58, pane - 86, dev.hoi.client.ui.UiText.scale(font), MUTED, true, -1);
         }
         if (selected == MenuTab.POLITICS) UiMenuStyle.window(g, IDEAS, 0, contentTop() - 2, pane, height - contentTop() + 2);
         else UiMenuStyle.recess(g, 5, contentTop() - 3, pane - 10, Math.max(6, contentBottom() - contentTop() + 5));
@@ -765,10 +751,10 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         int x = detailX(), w = detailWidth();
         g.nextStratum();
         UiMenuStyle.panel(g, x, top, w, height - top - 34);
-        UiMenuStyle.heading(g, font, trim(detail.name(), w - 48), x + 10, top + 9, w - 44, TEXT);
+        UiMenuStyle.heading(g, font, detail.name(), x + 10, top + 9, w - 44, TEXT);
         UiMenuStyle.recess(g, x + 8, top + 31, w - 16, 38);
         UiAssets.draw(g, detail.icon().isEmpty() ? texture(detailIcon) : detail.icon(), x + 12, top + 36, 34, 26);
-        dev.hoi.client.ui.UiText.text(g, font, trim(detail.value(), w - 64), x + 55, top + 44, TEXT);
+        dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(detail.value()), x + 55, top + 44, w - 64, dev.hoi.client.ui.UiText.scale(font), TEXT, true, -1);
         g.horizontalLine(x + 10, x + w - 10, top + 74, 0xFF4E4F52);
         var lines = Tooltips.split(font,Component.literal(detail.detail().isBlank() ? "추가 정보 없음" : detail.detail()), w - 28);
         int visible = Math.max(1, height - top - 128);
@@ -880,7 +866,6 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     @Override public void removed() { InputSidebarMovement.release(minecraft); if (!DialogCoordinator.suspending()) HoiClient.cancelOpen(); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
-    private String trim(String text, int max) { return dev.hoi.client.ui.UiText.ellipsize(font, text, max); }
     private String texture(String icon) {
         return switch (icon) {
             case "politics" -> "country/" + view.country().toLowerCase(Locale.ROOT) + "/flag";

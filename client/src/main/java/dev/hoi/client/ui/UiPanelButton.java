@@ -27,9 +27,6 @@ public class UiPanelButton extends Button {
         }
         var font = Minecraft.getInstance().font;
         float scale = UiText.scale(font);
-        var label = net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(dev.hoi.client.ui.tooltip.Tooltips.officerText(getMessage().getString()), Math.max(1, (int)((w - 6) / scale))));
-        g.pose().pushMatrix(); g.pose().translate(x + w / 2f, y + (h - font.lineHeight * scale) / 2f); g.pose().scale(scale);
-        g.text(font, label, -font.width(label)/2, 0, active ? 0xFFE0E6E8 : 0xFF81909A);
-        g.pose().popMatrix();
+        UiText.marquee(g, font, net.minecraft.locale.Language.getInstance().getVisualOrder(dev.hoi.client.ui.tooltip.Tooltips.officerText(getMessage().getString())), x + 3, y + (h - font.lineHeight * scale) / 2f, w - 6, scale, active ? 0xFFE0E6E8 : 0xFF81909A, true, 0);
     }
 }

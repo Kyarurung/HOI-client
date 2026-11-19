@@ -72,10 +72,7 @@ public final class IndustryNavalDeploymentTest {
         press(context,"생산 배치 대상 · "+navalLine);
         ResearchScreenTest.gui2Screenshot(context,"hoi-navy-production-long-picker");
         context.runOnClient(client->{
-            var font=client.font;int width=font.width("대한민국...");
-            String clipped=dev.hoi.client.ui.UiText.ellipsize(font,longName,width,"...");
-            if(!clipped.endsWith("...")||font.width(clipped)>width)throw new AssertionError("Long destination fits its cell with literal ellipsis");
-            if(!button((IndustryScreen)client.gui.screen(),longName).active)throw new AssertionError("Clipping must preserve the full destination and selection");
+            if(!button((IndustryScreen)client.gui.screen(),longName).active)throw new AssertionError("A long destination keeps its full name and selection");
         });
         json.getAsJsonObject("navalDeployment").getAsJsonObject("destinations").addProperty(navalLine,"");
         for(int slots:new int[]{5,10}) {

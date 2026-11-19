@@ -85,6 +85,14 @@ public final class UiMenuHeadingTest {
                     int descenders = bottom(image, 300 + row * 60, 0xFFFF00);
                     if (descenders - latin != (row == 2 ? 3 : 2)) throw new AssertionError("Latin descenders must retain their shape below the common baseline");
                 }
+                context.runOnClient(client -> UiText.holdMarquee(false));
+                context.waitTicks(47);
+                var scrolled = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-menu-header-marquee-synthetic-" + size[0] + "-gui2").toFile());
+                context.runOnClient(client -> UiText.holdMarquee(true));
+                int changed = 0;
+                for (int py = 40; py < 64; py++) for (int px = 480; px < 560; px++) if (image.getRGB(px, py) != scrolled.getRGB(px, py)) changed++;
+                if (changed == 0 || ink(scrolled, 480, 40, 80, 24) == 0) throw new AssertionError("Overflowing heading must scroll horizontally inside its box");
+                if (ink(scrolled, 562, 40, 40, 24) != 0 || ink(scrolled, 430, 40, 48, 24) != 0) throw new AssertionError("Scrolling heading must stay inside its box");
             }
         } catch (java.io.IOException error) {
             throw new java.io.UncheckedIOException(error);

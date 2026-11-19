@@ -167,7 +167,7 @@ public final class PoliticsChoice extends DialogScreen {
         }
         if (view().tiles().isEmpty()) {
             if (sourceTooltips()) dev.hoi.client.ui.UiText.left(g,font,view().body(),left+6,start+12,pane-12,Math.max(10,bottom-start-12),UiMenuStyle.MUTED);
-            else dev.hoi.client.ui.UiText.centeredAt(g,font,font.plainSubstrByWidth(view().body(),pane-12),left+pane/2,start+12,UiMenuStyle.MUTED);
+            else dev.hoi.client.ui.UiText.marquee(g,font,Tooltips.officerText(view().body()),left+6,start+12,pane-12,dev.hoi.client.ui.UiText.scale(font),UiMenuStyle.MUTED,true,0);
         }
     }
     private String number(DialogView.Tile tile) { return cost(tile).replaceAll("§.", "").replace(" 정치력", ""); }

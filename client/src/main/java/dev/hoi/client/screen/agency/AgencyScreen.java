@@ -268,9 +268,10 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                         UiAssets.cover(g, AgencyOperation.texture(item.texture()), imageLeft, by + 1, imageRight - imageLeft, h - 4);
                         if (completed) UiAssets.draw(g, AgencyOperation.sprite("GFX_operation_complete_list"), bx + 4, by + 3, Math.round(w * 408f / 519), h - 6);
                         g.enableScissor(bx + 4, by + 4, bx + w - 4, by + h - 4);
-                        String title = trim(item.title(), (int)((flagX - textX - 6 - tokens.stream().filter(token -> !token.required()).count() * 15)/UiText.scale(font)));
-                        UiText.text(g, font, title, textX, by + 7, TEXT);
-                        float tokenX = textX + Math.round(font.width(title) * UiText.scale(font)) + 6;
+                        var title = Tooltips.officerText(item.title());
+                        int titleWidth = (int)(flagX - textX - 6 - tokens.stream().filter(token -> !token.required()).count() * 15);
+                        UiText.marquee(g, font, title, textX, by + 7, titleWidth, UiText.scale(font), TEXT, true, -1);
+                        float tokenX = textX + Math.min(titleWidth, Math.round(font.width(title) * UiText.scale(font))) + 6;
                         float tokenY = by + 5;
                         for (var token : tokens) if (!token.required()) { AgencyOperation.token(g, token, tokenX, tokenY); tokenX += 15; }
                         tokenX = bx + 107.5f;
@@ -299,7 +300,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                             UiText.text(g,font,duration,0,0,GOLD);
                             g.pose().popMatrix();
                             g.disableScissor();
-                        } else UiText.text(g,font,trim(item.value(),(int)((actionX-textX-6)/UiText.scale(font))),textX,actionY+4,GOLD);
+                        } else UiText.marquee(g,font,Tooltips.officerText(item.value()),textX,actionY+4,actionX-textX-6,UiText.scale(font),GOLD,true,-1);
                         UiAssets.draw(g, AgencyOperation.sprite("GFX_launch_operation_button_anim"), actionX, actionY, 62, 18);
                         String caption = operation == null ? "준비하기"
                                 : completed ? item.button()
@@ -329,7 +330,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                         if (item.progress() >= 1) UiAssets.draw(g, AgencyOperation.sprite("GFX_crypto_decryption_done_icon"), 232, 38, 39, 36);
                         else UiAssets.drawGrayscale(g, AgencyOperation.sprite("GFX_crypto_decryption_done_icon"), 232, 38, 39, 36);
                         g.pose().popMatrix();
-                        UiText.text(g, font, trim(item.title(), (int)(200 * scale / UiText.scale(font))), bx + Math.round(60 * scale), by + Math.round(11 * scale), TEXT);
+                        UiText.marquee(g, font, Tooltips.officerText(item.title()), bx + Math.round(60 * scale), by + Math.round(11 * scale), Math.round(200 * scale), UiText.scale(font), TEXT, true, -1);
                         UiText.centered(g, font, item.value(), bx + Math.round(15 * scale), by + Math.round(49 * scale), Math.round(190 * scale), Math.round(18 * scale), TEXT);
                         var cipher = view.ciphers().stream().filter(value -> value.country().equals(country)).findFirst().orElse(null);
                         if (cipher != null) {
@@ -381,7 +382,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
             for (int i = 0; i < item.parameters().size(); i++) {
                 final int index = i; var parameter = item.parameters().get(i); String value = arguments.get(i);
                 String name = parameter.choices().stream().filter(c -> c.value().equals(value)).map(Choice::label).findFirst().orElse("선택 없음");
-                addRenderableWidget(new UiPanelButton(parameter.label() + ": " + trim(name, dw - 116), dx + 10, bottom - (item.parameters().size() - i) * 25, dw - 20, 22,
+                addRenderableWidget(new UiPanelButton(parameter.label() + ": " + name, dx + 10, bottom - (item.parameters().size() - i) * 25, dw - 20, 22,
                         () -> { choosing = index; searchText = ""; choiceScroll = 0; rebuildWidgets(); }));
             }
             if (!item.button().isBlank()) {
@@ -408,7 +409,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         choiceScroll = Math.clamp(choiceScroll, 0, Math.max(0, choices.size() - count));
         for (int i = choiceScroll; i < Math.min(choices.size(), choiceScroll + count); i++) {
             var choice = choices.get(i);
-            addRenderableWidget(new UiPanelButton(trim(choice.label(), dw - 38), dx + 12, 113 + (i - choiceScroll) * 25, dw - 24, 22,
+            addRenderableWidget(new UiPanelButton(choice.label(), dx + 12, 113 + (i - choiceScroll) * 25, dw - 24, 22,
                     () -> { arguments.set(choosing, choice.value()); choosing = -1; rebuildWidgets(); }));
         }
     }
@@ -574,10 +575,10 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         if (item != null) {
             int dx = detailX(), dw = detailWidth();
             g.fillGradient(dx, 38, dx + dw, height - 36, 0xFF343D46, 0xFF10151B); g.outline(dx, 38, dw, height - 74, 0xFF88919A);
-            UiText.text(g, font, trim(item.title(), dw - 73), dx + 10, 51, GOLD);
+            UiText.marquee(g, font, Tooltips.officerText(item.title()), dx + 10, 51, dw - 73, UiText.scale(font), GOLD, true, -1);
             if (choosing < 0) {
                 if (!UiAssets.draw(g, item.texture(), dx + 12, 77, 72, 58)) UiAssets.draw(g, "menu/intelligence", dx + 12, 77, 72, 58);
-                UiText.text(g, font, trim(item.value(), dw - 109), dx + 97, 86, TEXT);
+                UiText.marquee(g, font, Tooltips.officerText(item.value()), dx + 97, 86, dw - 109, UiText.scale(font), TEXT, true, -1);
                 if (item.group().equals("operations") && dw >= 360) {
                     String[] phases = {"phase_border", "phase_bribe", "phase_escape"};
                     int artWidth = Math.min(70, (dw - 124) / 3);
@@ -750,8 +751,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
                 UiAssets.draw(g, "agency/ui/progress_frame", x, y, 112, 15);
                 float scale = UiText.scale(font);
                 int daysWidth = days.equals("준비 완료!") ? 23 : Math.round(font.width(days) * scale);
-                String visible = font.plainSubstrByWidth(label, Math.max(1, (int)((104 - daysWidth - (days.isEmpty() ? 0 : 4)) / scale)));
-                UiText.text(g, font, visible, x + 4, y + 2, TEXT);
+                UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(label), x + 4, y + 2, 104 - daysWidth - (days.isEmpty() ? 0 : 4), scale, TEXT, true, -1);
                 if (days.equals("준비 완료!")) {
                     UiText.centeredSingleLine(g, font, Component.literal("준비"), x + 85, y + 1, 23, 7, GOLD);
                     UiText.centeredSingleLine(g, font, Component.literal("완료!"), x + 85, y + 8, 23, 7, GOLD);
@@ -815,5 +815,4 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
     @Override public boolean allowsMovement() { return selectedId == null && !group.equals("upgrades"); }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
-    private String trim(String s, int max) { return dev.hoi.client.ui.UiText.ellipsize(font, s, max); }
 }

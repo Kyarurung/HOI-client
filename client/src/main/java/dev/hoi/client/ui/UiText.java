@@ -9,39 +9,47 @@ import net.minecraft.util.FormattedCharSequence;
 public final class UiText {
     public static final int MIN_HEIGHT = 9;
     private UiText() {}
-    public static String ellipsize(Font font, String value, int width) {
-        return ellipsize(font,value,width,"…");
-    }
-    public static String ellipsize(Font font, String value, int width, String marker) {
-        if(font.width(value)<=width)return value;
-        int suffix=font.width(marker);
-        return width<suffix?"":font.plainSubstrByWidth(value,width-suffix)+marker;
-    }
-    public static Component ellipsize(Font font, Component value, int width) {
-        if(value.getString().contains("£"))value=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(value,false);
-        if(font.width(value)<=width)return value;
-        var marker=Component.literal("…").withStyle(value.getStyle());
-        if(width<font.width(marker))return Component.empty();
-        return Tooltips.sourceSpacing(font.substrByWidth(value,width-font.width(marker))).copy().append(marker);
-    }
     public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right) {
         cell(g, font, value, x, y, width, height, color, right, true);
     }
+    private static Object marqueeScreen;
+    private static int marqueeTicks;
+    private static boolean marqueeHeld;
+    public static void holdMarquee(boolean held) { marqueeHeld = held; }
+    public static void tick(net.minecraft.client.Minecraft client) {
+        var screen = client.gui.screen();
+        if (screen != marqueeScreen) { marqueeScreen = screen; marqueeTicks = 0; }
+        else if (!marqueeHeld) marqueeTicks++;
+    }
+    public static long marqueeMillis() { return marqueeTicks * 50L; }
+    public static void marquee(GuiGraphicsExtractor g, Font font, FormattedCharSequence text, float x, float y, float width, float scale, int color, boolean shadow, int align) {
+        float textWidth = font.width(text) * scale;
+        boolean overflow = textWidth > width + .01f;
+        float left = overflow ? x - scrollingOffset((int)Math.ceil((textWidth - width) / scale), marqueeMillis()) * scale
+                : align < 0 ? x : align > 0 ? x + width - textWidth : x + (width - textWidth) / 2;
+        if (overflow) g.enableScissor(Math.round(x), (int)Math.floor(y - scale), Math.round(x + width), (int)Math.ceil(y + (font.lineHeight + 1) * scale));
+        g.pose().pushMatrix();
+        g.pose().translate(left, y);
+        g.pose().scale(scale);
+        g.text(font, text, 0, 0, color, shadow);
+        g.pose().popMatrix();
+        if (overflow) g.disableScissor();
+    }
+    public static void marquee(GuiGraphicsExtractor g, Font font, Component text, float x, float y, float width, float scale, int color, boolean shadow, int align) {
+        marquee(g, font, text.getVisualOrderText(), x, y, width, scale, color, shadow, align);
+    }
+    public static void marquee(GuiGraphicsExtractor g, Font font, String text, float x, float y, float width, float scale, int color, boolean shadow, int align) {
+        marquee(g, font, Component.literal(text), x, y, width, scale, color, shadow, align);
+    }
     public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right, boolean shadow) {
         float scale = scale(font);
-        var clipped = net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(Tooltips.officerText(value), Math.max(1, (int)(width / scale))));
-        float remaining = width - font.width(clipped) * scale;
-        g.pose().pushMatrix();
-        g.pose().translate(x + (right ? remaining : remaining / 2), centeredY(font, clipped, y, height, scale));
-        g.pose().scale(scale);
-        g.text(font, clipped, 0, 0, color, shadow);
-        g.pose().popMatrix();
+        var text = net.minecraft.locale.Language.getInstance().getVisualOrder(Tooltips.officerText(value));
+        marquee(g, font, text, x, centeredY(font, text, y, height, scale), width, scale, color, shadow, right ? 1 : 0);
     }
     public static void iconText(GuiGraphicsExtractor g, Font font, String icon, String value, int x, int y, int width, int height, int iconSize, int color) {
         float scale = scale(font);
         int size = Math.min(iconSize, Math.min(height, Math.max(1, width - 4)));
-        var clipped = font.substrByWidth(Tooltips.officerText(value), Math.max(1, (int)((width - size - 3) / scale)));
-        int textWidth = Math.round(font.width(clipped) * scale);
+        int textWidth = Math.min(Math.round(font.width(Tooltips.officerText(value)) * scale), Math.max(1, width - size - 3));
         int left = x + (width - size - 3 - textWidth) / 2;
         UiAssets.draw(g, icon, left, y + (height - size) / 2, size, size);
         cell(g, font, value, left + size + 3, y, textWidth, height, color, false);
@@ -87,13 +95,13 @@ public final class UiText {
         text(g, font, text, x - Math.round(font.width(text) * scale(font) / 2), y, color);
     }
     public static void leftSingleLine(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
+        marqueeCell(g, font, text, x, y, width, height, color, true, -1);
+    }
+    public static void marqueeCell(GuiGraphicsExtractor g, Font font, Component text, float x, float y, float width, float height, int color, boolean shadow, int align) {
         if(text.getString().contains("£"))text=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(text,false);
-        float fitted = Math.min(scale(font), Math.min(width / (float)Math.max(1, font.width(text)), height / (float)font.lineHeight));
-        g.pose().pushMatrix();
-        g.pose().translate(x, centeredY(font, text.getVisualOrderText(), y, height, fitted));
-        g.pose().scale(fitted);
-        g.text(font, text, 0, 0, color);
-        g.pose().popMatrix();
+        float fitted = Math.min(scale(font), height / (float)font.lineHeight);
+        var sequence = text.getVisualOrderText();
+        marquee(g, font, sequence, x, centeredY(font, sequence, y, height, fitted), width, fitted, color, shadow, align);
     }
     public static void scrollingCell(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color, boolean centered) {
         if(text.getString().contains("£"))text=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(text,false);
@@ -130,13 +138,7 @@ public final class UiText {
         for (int i = 0; i < count; i++) text(g, font, lines.get(i), x, top + i * (MIN_HEIGHT + 1), color);
     }
     public static void centeredSingleLine(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
-        if(text.getString().contains("£"))text=dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(text,false);
-        float fitted = Math.min(scale(font), Math.min(width / (float)Math.max(1, font.width(text)), height / (float)font.lineHeight));
-        g.pose().pushMatrix();
-        g.pose().translate(x + (width - font.width(text) * fitted) / 2, centeredY(font, text.getVisualOrderText(), y, height, fitted));
-        g.pose().scale(fitted);
-        g.text(font, text, 0, 0, color);
-        g.pose().popMatrix();
+        marqueeCell(g, font, text, x, y, width, height, color, true, 0);
     }
     public static void centered(GuiGraphicsExtractor g, Font font, String text, int x, int y, int width, int height, int color) {
         centered(g,font,Component.literal(text),x,y,width,height,color);

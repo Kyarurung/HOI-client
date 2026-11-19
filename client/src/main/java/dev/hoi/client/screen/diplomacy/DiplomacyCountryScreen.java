@@ -330,8 +330,8 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
                 else UiAssets.draw(g, icon, 12, y + 5, 27, 25);
                 String name = choosing ? dev.hoi.client.ui.country.CountryDisplays.name(view.countries().get(i).tag(), view.countries().get(i).name()) : entries().get(i).name();
                 String value = choosing ? view.countries().get(i).tag() : entries().get(i).value();
-                dev.hoi.client.ui.UiText.text(g, font, trim(name, rowsWidth - 42), 46, y + 6, UiMenuStyle.TEXT);
-                dev.hoi.client.ui.UiText.text(g, font, trim(value, rowsWidth - 42), 46, y + 21, UiMenuStyle.MUTED);
+                dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(name), 46, y + 6, rowsWidth - 42, dev.hoi.client.ui.UiText.scale(font), UiMenuStyle.TEXT, true, -1);
+                dev.hoi.client.ui.UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(value), 46, y + 21, rowsWidth - 42, dev.hoi.client.ui.UiText.scale(font), UiMenuStyle.MUTED, true, -1);
             }
             g.disableScissor();
             if (confirmation != null) {
@@ -352,7 +352,7 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
             if (detail != null) {
                 int x = detailX(), w = detailWidth();
                 g.nextStratum(); UiMenuStyle.panel(g, x, top, w, height - top - 31);
-                UiMenuStyle.heading(g, font, trim(detail.name(), w - 55), x + 9, top + 9, w - 44, UiMenuStyle.TEXT);
+                UiMenuStyle.heading(g, font, detail.name(), x + 9, top + 9, w - 44, UiMenuStyle.TEXT);
                 var lines = dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(detail.value() + "\n\n" + (detail.detail().isEmpty() ? "추가 정보 없음" : detail.detail())), w - 22);
                 detailScroll = Math.clamp(detailScroll, 0, Math.max(0, lines.size() * 13 - (height - top - 78)));
                 g.enableScissor(x + 7, top + 32, x + w - 7, height - 37);
@@ -412,7 +412,6 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
         }
         return super.mouseClicked(event,twice);
     }
-    private String trim(String text, int w) { return dev.hoi.client.ui.UiText.ellipsize(font, text, w); }
     @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dx, double dy) {
         return event.button() == InputConstants.MOUSE_BUTTON_LEFT && intelLedger != null && intelLedger.drag(event.x(), event.y()) || super.mouseDragged(event, dx, dy);
     }

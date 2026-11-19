@@ -77,24 +77,12 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
         label(g,value,x,y,w,h,color,12,true);
     }
     private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,int size,boolean centered) {
-        label(g,value,px,py,w,h,color,size,centered,true);
+        label(g,value,px,py,w,h,color,size,centered,false);
     }
-    private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,int size,boolean centered,boolean wrap) {
-        label(g,value,px,py,w,h,color,size,centered,wrap,false);
-    }
-    private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,int size,boolean centered,boolean wrap,boolean bold) {
+    private void label(GuiGraphicsExtractor g,String value,int px,int py,int w,int h,int color,int size,boolean centered,boolean bold) {
         float textScale=(float)(Math.max(10,size*scale)/font.lineHeight);
         var text=Tooltips.sentences(Component.literal(value).withStyle(style->style.withBold(bold)));
-        if(!wrap)textScale=Math.min(textScale,n(w)/(float)Math.max(1,font.width(text)));
-        var lines=Tooltips.split(font,text,Math.max(1,(int)(n(w)/textScale)));
-        if(lines.isEmpty())return;
-        var line=wrap?lines.getFirst():text.getVisualOrderText();
-        float offset=centered?(n(w)-font.width(line)*textScale)/2:0;
-        g.pose().pushMatrix();
-        g.pose().translate(x(px)+offset,y(py)+(n(h)-font.lineHeight*textScale)/2);
-        g.pose().scale(textScale);
-        g.text(font,line,0,0,color);
-        g.pose().popMatrix();
+        dev.hoi.client.ui.UiText.marquee(g,font,text,x(px),y(py)+(n(h)-font.lineHeight*textScale)/2,n(w),textScale,color,true,centered?0:-1);
     }
     private void cell(GuiGraphicsExtractor g,DialogView.Tile tile,int x,int y,int w,int h,boolean standing) {
         art(g,standing?"map_detail/standing":"map_detail/shared",x,y,w,h);
@@ -161,7 +149,7 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
         hovers.clear();
         if(!DialogCoordinator.renderingContent())dev.hoi.client.ClientCampaignHud.draw(g);
         art(g,sea()?"map_detail/sea":"map_detail/state",0,0,sea()?433:463,sea()?300:683);
-        if(!sea())label(g,view().title(),13,5,436,30,UiMenuStyle.TEXT,24,true,true,true);
+        if(!sea())label(g,view().title(),13,5,436,30,UiMenuStyle.TEXT,24,true,true);
         if(sea())sea(g);else land(g);
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable r)r.extractRenderState(g,mx,my,delta);
         var current=hovers.stream().filter(h->mx>=h.x()&&mx<h.x()+h.w()&&my>=h.y()&&my<h.y()+h.h()).map(MapHover::tile).findFirst().orElse(null);
@@ -280,7 +268,7 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
         var weather=tiles("weather");
         art(g,weather.isEmpty()||weather.getFirst().icon().isEmpty()?"map_detail/ocean":weather.getFirst().icon(),10,36,413,70);
         art(g,"map_detail/sea_header",0,-2,435,62);
-        label(g,view().title(),42,6,356,28,UiMenuStyle.TEXT,20,true,true,true);
+        label(g,view().title(),42,6,356,28,UiMenuStyle.TEXT,20,true,true);
         art(g,"map_detail/sea_dominance_header_bg",10,106,414,37);
         art(g,"map_detail/dominance",90,114,28,16);
         int frameWidth=n(191),frameHeight=n(20);

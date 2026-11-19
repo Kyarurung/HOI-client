@@ -25,12 +25,7 @@ final class IndustryProductionRender {
     }
     static void text(GuiGraphicsExtractor g, Font font, String value, float x, float y, float w, float h, int color, boolean right) {
         if (g == null) return;
-        int textWidth = font.width(value);
-        float scale = Math.min(UiText.scale(font), Math.min((w - 2f) / Math.max(1, textWidth), h / (float)font.lineHeight));
-        g.pose().pushMatrix();
-        g.pose().translate(right ? x + w - textWidth * scale : x + (w - textWidth * scale) / 2, UiText.centeredY(font, value, y, h, scale));
-        g.pose().scale(scale);
-        g.text(font, value, 0, 0, color);
-        g.pose().popMatrix();
+        float scale = Math.min(UiText.scale(font), h / (float)font.lineHeight);
+        UiText.marquee(g, font, value, x, UiText.centeredY(font, value, y, h, scale), w, scale, color, true, right ? 1 : 0);
     }
 }

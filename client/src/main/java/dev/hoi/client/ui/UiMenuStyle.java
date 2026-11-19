@@ -44,9 +44,7 @@ public final class UiMenuStyle {
     public static void heading(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font,
                                String text, int x, int y, int width, int color) {
         float scale = (font.lineHeight + 2f) / font.lineHeight;
-        var label = net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(Tooltips.officerText(text, true), Math.max(1, (int)(width / scale))));
-        g.pose().pushMatrix(); g.pose().translate(x, y - 1); g.pose().scale(scale);
-        g.text(font, label, 0, 0, 0xFFFFFFFF); g.pose().popMatrix();
+        UiText.marquee(g, font, net.minecraft.locale.Language.getInstance().getVisualOrder(Tooltips.officerText(text, true)), x, y - 1, width, scale, 0xFFFFFFFF, true, -1);
     }
     public static boolean symbol(GuiGraphicsExtractor g, String label, int x, int y, int w, int h, int color) {
         if (label.equals("×") || label.equals("X")) { close(g, x, y, w, h, color); return true; }

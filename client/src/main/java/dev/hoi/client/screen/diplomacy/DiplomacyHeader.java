@@ -48,9 +48,9 @@ final class DiplomacyHeader {
         assets.politicalChart(g, parties, chart[0], chart[1], (int)chart[2]);
         int textX = scaled(263, pane), textW = pane - textX - scaled(20, pane);
         int textY = y + (chartCellH - 36) / 2 + 1;
-        UiText.text(g, font, font.plainSubstrByWidth(entry(view, "집권 정당").value(), (int)(textW / UiText.scale(font))), textX, textY + 1, UiMenuStyle.TEXT);
-        UiText.text(g, font, font.plainSubstrByWidth(entry(view, "이념").value(), (int)(textW / UiText.scale(font))), textX, textY + 13, UiMenuStyle.TEXT);
-        UiText.text(g, font, font.plainSubstrByWidth(entry(view, "다음 선거").value(), (int)(textW / UiText.scale(font))), textX, textY + 25, UiMenuStyle.TEXT);
+        UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(entry(view, "집권 정당").value()), textX, textY + 1, textW, UiText.scale(font), UiMenuStyle.TEXT, true, -1);
+        UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(entry(view, "이념").value()), textX, textY + 13, textW, UiText.scale(font), UiMenuStyle.TEXT, true, -1);
+        UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(entry(view, "다음 선거").value()), textX, textY + 25, textW, UiText.scale(font), UiMenuStyle.TEXT, true, -1);
         int focusH = Math.max(28, scaled(64, pane));
         int focusY = y + leaderH - focusH - 3, focusX = right + scaled(100, pane);
         var focus = view.focuses().stream().filter(e -> !e.value().equals("완료")).findFirst().orElse(new MenuView.Entry("선택된 중점 없음", "", ""));

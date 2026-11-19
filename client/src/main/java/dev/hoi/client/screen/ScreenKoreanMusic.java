@@ -58,7 +58,7 @@ public final class ScreenKoreanMusic extends Screen {
                     UiAssets.nineSlice(g,"music/row",getX(),getY(),getWidth(),getHeight(),2,1);
                     if(index==AudioKoreanMusic.PLAYBACK.selected()&&AudioKoreanMusic.PLAYBACK.requested())g.fill(getX(),getY()+2,getRight(),getBottom()-2,0x403E842E);
                     if(isHovered())g.fill(getX(),getY()+1,getRight(),getBottom()-1,0x20585858);
-                    g.text(font,font.plainSubstrByWidth(track.title(),getWidth()-60),getX()+5,getY()+(getHeight()-font.lineHeight)/2+1,0xFFD7D7D7);
+                    dev.hoi.client.ui.UiText.marquee(g,font,track.title(),getX()+5,getY()+(getHeight()-font.lineHeight)/2+1,getWidth()-60,1,0xFFD7D7D7,true,-1);
                     if(index==AudioKoreanMusic.PLAYBACK.selected()&&AudioKoreanMusic.isPlaying())UiAssets.draw(g,"music/selected",getRight()-52,getY()+4,10,10);
                     long seconds=(long)track.seconds();
                     g.text(font,String.format(Locale.ROOT,"%02d:%02d",seconds/60,seconds%60),getRight()-34,getY()+(getHeight()-font.lineHeight)/2+1,0xFFBBBBBB);
@@ -100,7 +100,7 @@ public final class ScreenKoreanMusic extends Screen {
         if(!tracks.isEmpty()){
             var track=tracks.get(p.selected());
             if(!track.cover().isEmpty())UiAssets.draw(g,track.cover(),x+8,y+top+stationHeight+16,left-16,Math.min(left-16,h-top-stationHeight-28));
-            g.centeredText(font,font.plainSubstrByWidth(track.title(),w-left-65),x+left+(w-left)/2,y+top*24/121-font.lineHeight/2,0xFFCFD0B6);
+            dev.hoi.client.ui.UiText.marquee(g,font,track.title(),x+left+(w-left)/2-(w-left-65)/2f,y+top*24/121-font.lineHeight/2,w-left-65,1,0xFFCFD0B6,true,0);
         }else if(source.isEmpty())g.text(font,"음악 리소스팩이 필요합니다.",x+left+8,y+top+12,UiMenuStyle.MUTED);
         if(tracks.size()>visible){
             int trackHeight=h-top-10,thumb=Math.max(10,trackHeight*visible/tracks.size());

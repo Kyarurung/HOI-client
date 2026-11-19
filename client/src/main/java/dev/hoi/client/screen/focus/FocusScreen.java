@@ -149,7 +149,7 @@ public final class FocusScreen extends Screen {
         UiAssets.tiledNineSlice(g,"commander/commands/tiled_window_1b_border/frame_0",0,top-5,width,height-top+5,64,.5);
         g.nextStratum();
         var heading=Tooltips.officerText((view==null?"":view.name()+" ")+"중점 계통도",true);
-        g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(font.substrByWidth(heading,Math.max(30,width-245))),10,HudMenuBar.height(width)+4,UiMenuStyle.TEXT);
+        dev.hoi.client.ui.UiText.marquee(g,font,heading,10,HudMenuBar.height(width)+4,Math.max(30,width-245),1,UiMenuStyle.TEXT,true,-1);
         g.enableScissor(4,top,width-4,height-5);
         if(view!=null) {
             FocusInlays.draw(g,view.inlays(),panX,panY,zoom);

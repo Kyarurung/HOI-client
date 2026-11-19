@@ -317,12 +317,12 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
             boolean banking=track.selected().isEmpty()||!track.rewards().isEmpty()&&track.rewards().stream().allMatch(DoctrineView.Reward::unlocked);
             var masteryIcon=TooltipKeywordIcons.decorateLines(Component.literal("£doctrine_mastery"),false);
             var masteryIconLine=firstLine(masteryIcon,10);
-            String masteryLine=UiText.ellipsize(font,banking?track.bank():track.mastery(),Math.max(1,(int)(22/UiText.scale(font))));
-            int masteryIconWidth=Math.round(font.width(masteryIconLine)*UiText.scale(font)),masteryWidth=Math.round(font.width(masteryLine)*UiText.scale(font));
+            String masteryLine=banking?track.bank():track.mastery();
+            int masteryIconWidth=Math.round(font.width(masteryIconLine)*UiText.scale(font)),masteryWidth=Math.min(22,Math.round(font.width(masteryLine)*UiText.scale(font)));
             int masteryLeft=x+123+(33-masteryIconWidth-1-masteryWidth)/2;
             if (grandPreview()) UiAssets.drawGrayscale(g, "keywords/doctrine_mastery", masteryLeft, tracksTop + 91, masteryIconWidth, 8);
             else UiText.text(g,font,masteryIconLine,masteryLeft,tracksTop+91,GOLD);
-            UiText.text(g,font,masteryLine,masteryLeft+masteryIconWidth+1,tracksTop+91,grandPreview() ? TEXT : GOLD);
+            UiText.marquee(g,font,Tooltips.officerText(masteryLine),masteryLeft+masteryIconWidth+1,tracksTop+91,masteryWidth,UiText.scale(font),grandPreview() ? TEXT : GOLD,true,-1);
             for (int j = 0; j < track.rewards().size(); j++) {
                 var reward = track.rewards().get(j); int ry = tracksTop + 130 + j * 44;
                 if(ry>=height-8)break;
@@ -457,14 +457,10 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
     private void drawUnlockLabel(GuiGraphicsExtractor g, DoctrineView.Choice preview, int x, int y) {
         var caption = Component.literal(preview.cost() + " 잠금 해제");
         int icon = 10, gap = 2;
-        float scale = Math.min(UiText.scale(font), (58f - icon - gap) / Math.max(1, font.width(caption)));
-        int textWidth = Math.round(font.width(caption) * scale), left = x + (58 - icon - gap - textWidth) / 2;
+        float scale = UiText.scale(font);
+        int textWidth = Math.min(58 - icon - gap, Math.round(font.width(caption) * scale)), left = x + (58 - icon - gap - textWidth) / 2;
         UiAssets.draw(g, "hud/" + view.branch().toLowerCase(Locale.ROOT) + "_experience", left, y + (17 - icon) / 2, icon, icon);
-        g.pose().pushMatrix();
-        g.pose().translate(left + icon + gap, UiText.centeredY(font, caption.getVisualOrderText(), y, 17, scale));
-        g.pose().scale(scale);
-        g.text(font, caption, 0, 0, preview.enabled() ? TEXT : 0xFF91918E);
-        g.pose().popMatrix();
+        UiText.marquee(g, font, caption, left + icon + gap, UiText.centeredY(font, caption.getVisualOrderText(), y, 17, scale), textWidth, scale, preview.enabled() ? TEXT : 0xFF91918E, true, -1);
     }
     private boolean canAfford(DoctrineView.Choice choice) {
         try { return new java.math.BigDecimal(view.experience()).compareTo(new java.math.BigDecimal(choice.cost())) >= 0; }

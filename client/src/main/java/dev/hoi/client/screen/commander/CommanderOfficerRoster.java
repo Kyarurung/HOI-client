@@ -28,7 +28,7 @@ public final class CommanderOfficerRoster extends DialogScreen {
     CommanderOfficerRoster(DialogView view,Screen parent,BiConsumer<DialogView,String> sender){super(view,sender);this.parent=parent;}
     public static boolean matches(DialogView view){return view.kind()==DialogView.Kind.COMMANDER&&Set.of("navy/captains","commander/field_officers").contains(view.image())&&!CommanderConfirmation.matches(view);}
     public Screen backdrop(){return parent;}
-    private void label(GuiGraphicsExtractor g,String value,int x,int y,int width){var text=Tooltips.officerText(value);var shown=font.width(text)>width?net.minecraft.network.chat.FormattedText.composite(font.substrByWidth(text,Math.max(0,width-font.width("…"))),net.minecraft.network.chat.FormattedText.of("…")):text;g.text(font,net.minecraft.locale.Language.getInstance().getVisualOrder(shown),x,y,UiMenuStyle.TEXT,false);}
+    private void label(GuiGraphicsExtractor g,String value,int x,int y,int width){dev.hoi.client.ui.UiText.marquee(g,font,Tooltips.officerText(value),x,y,width,1,UiMenuStyle.TEXT,false,-1);}
     AbstractWidget choiceButton(String id){return buttons.get(id);}
     public void dismiss(){DialogCoordinator.setContent(parent);}
     @Override public void update(DialogView next){if(!next.token().equals(view().token())||next.revision()<view().revision()||pending&&next.revision()==view().revision())return;pending=false;super.update(next);}

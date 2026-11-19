@@ -38,7 +38,7 @@ public final class ArmyDivisionTemplates extends DialogScreen {
             var b=buttons.get(tile.section());if(b==null)continue;
             UiAssets.nineSlice(g,"commander/commands/mini_tooltip/frame_0",b.getX(),b.getY(),b.getWidth(),25,6,.5);
             UiAssets.drawContent(g,dev.hoi.client.map.commander.CommanderPanels.armyUnitIcon(tile.icon()),b.getX()+1,b.getY()+6,33,13);
-            var lines=font.split(Tooltips.officerText(tile.name()),b.getWidth()-35);int shown=Math.min(2,lines.size());for(int i=0;i<shown;i++){var line=lines.get(i);if(i==1&&lines.size()>2){var text=new StringBuilder();line.accept((index,style,code)->{text.appendCodePoint(code);return true;});line=net.minecraft.network.chat.Component.literal(font.plainSubstrByWidth(text.toString(),Math.max(1,b.getWidth()-35-font.width("…")))+"…").getVisualOrderText();}g.text(font,line,b.getX()+35,b.getY()+(25-shown*10)/2+i*10,b.active?UiMenuStyle.TEXT:0xFFACAAAD,false);}
+            var lines=font.split(Tooltips.officerText(tile.name()),b.getWidth()-35);int shown=Math.min(2,lines.size());for(int i=0;i<shown;i++){var line=lines.get(i);if(i==1&&lines.size()>2){var first=new StringBuilder();lines.getFirst().accept((index,style,code)->{first.appendCodePoint(code);return true;});String full=Tooltips.officerText(tile.name()).getString();line=net.minecraft.network.chat.Component.literal(full.substring(Math.min(full.length(),first.length())).strip()).getVisualOrderText();}UiText.marquee(g,font,line,b.getX()+35,b.getY()+(25-shown*10)/2+i*10,b.getWidth()-35,1,b.active?UiMenuStyle.TEXT:0xFFACAAAD,false,-1);}
         }
         scrollbar().draw(g,scroll);
         for(var b:buttons.values())b.extractRenderState(g,mx,my,delta);
