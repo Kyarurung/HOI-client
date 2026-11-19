@@ -18,6 +18,35 @@ public final class FocusScreenChecks {
             context.setScreen(() -> new FocusScreen(view,sent::add));context.waitTicks(3);
             context.takeScreenshot("hoi-focus-original-"+tag.toLowerCase(Locale.ROOT));context.waitTicks(3);
             if(tag.equals("KOR")) {
+                context.getInput().resizeWindow(2560,1440);context.runOnClient(c->c.options.guiScale().set(2));context.waitTicks(3);
+                context.runOnClient(c->{
+                    var screen=(FocusScreen)c.gui.screen();
+                    var plus=button(screen,"+");var minus=button(screen,"−");var close=button(screen,"×");
+                    float s=dev.hoi.client.ui.hud.HudMenuBar.windowTop(screen.width)/78f,center=screen.width-114*s,upper=dev.hoi.client.ui.hud.HudMenuBar.windowTop(screen.width)+11*s;
+                    check(minus.getX()==Math.round(center-21*s)&&minus.getRight()==plus.getX()&&plus.getRight()==Math.round(center+56*s),"Zoom buttons keep the original focus view columns");
+                    check(minus.getY()==Math.round(upper)&&plus.getY()==minus.getY()&&plus.getHeight()==minus.getHeight(),"Zoom buttons keep the original focus view row");
+                    check(close.getX()==Math.round(screen.width-48*s)&&close.getY()==Math.round(upper+2*s)&&plus.getRight()<=close.getX(),"The close button keeps the original corner and never overlaps zoom");
+                    float zoom=screen.zoomLevel();
+                    plus.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
+                    check(screen.zoomLevel()>zoom,"The plus button zooms in");
+                    minus.onPress(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN,0,0));
+                    check(Math.abs(screen.zoomLevel()-zoom)<1e-4,"The minus button zooms back out");
+                    screen.keyPressed(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_PAGEUP,0,0));
+                    check(screen.zoomLevel()>zoom,"Page Up zooms in like the original shortcut");
+                    screen.keyPressed(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_PAGEDOWN,0,0));
+                    check(Math.abs(screen.zoomLevel()-zoom)<1e-4,"Page Down zooms out like the original shortcut");
+                });
+                context.takeScreenshot("hoi-focus-zoom-gui2");
+                var plusCenter=context.computeOnClient(c->{var b=button((FocusScreen)c.gui.screen(),"+");double scale=c.getWindow().getGuiScale();return new double[]{(b.getX()+b.getWidth()/2.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};});
+                context.getInput().setCursorPos(plusCenter[0],plusCenter[1]);context.waitTicks(5);
+                context.takeScreenshot("hoi-focus-zoom-tooltip-gui2");
+                context.getInput().setCursorPos(10,10);
+                context.getInput().resizeWindow(854,480);context.waitTicks(3);
+                context.runOnClient(c->{
+                    var screen=(FocusScreen)c.gui.screen();
+                    check(button(screen,"+").getRight()<=button(screen,"×").getX()&&button(screen,"−").getRight()==button(screen,"+").getX(),"Small windows keep the zoom and close buttons apart");
+                });
+                context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
                 String target=view.nodes().getFirst().id();
                 context.setScreen(()->new FocusScreen(target));
                 context.runOnClient(c->{
@@ -54,4 +83,8 @@ public final class FocusScreenChecks {
         FocusDetailTest.run(context);
         context.setScreen(() -> null);
     }
+    private static net.minecraft.client.gui.components.Button button(FocusScreen screen,String name) {
+        return (net.minecraft.client.gui.components.Button)screen.children().stream().filter(w->w instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().equals(name)).findFirst().orElseThrow(()->new AssertionError("Missing focus control: "+name));
+    }
+    private static void check(boolean value,String message) {if(!value)throw new AssertionError(message);}
 }

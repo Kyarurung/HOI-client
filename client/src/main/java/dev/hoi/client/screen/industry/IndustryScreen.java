@@ -80,6 +80,12 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private String navalFamily = "";
     private String navalProductionLine = "";
     private String group = "all", picker = "", switchLine = "", resource = "IRON", partner = "";
+    private final Set<String> tradeRegions = new HashSet<>();
+    private String tradeSort = "export", draggedImport = "";
+    private boolean tradeSortReverse, autoImportWindow, autoImportMoving, tradeDragging, importMoved;
+    private double autoImportX, autoImportY, autoImportGrabX, autoImportGrabY, importGrabY, importPointerY, importStartY;
+    private int autoImportBudget = -1, tradeClipTop, tradeClipBottom = Integer.MAX_VALUE;
+    private UiScrollBar tradeScrollbar;
     private boolean openingDesigner;
     private String location = "", locationRecruit = "", draftName = "";
     private record IndustryDeploymentLocation(int x,int y,int width,int height,String recruit,String label) {}
@@ -138,6 +144,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if (designer && next.draft() == null) designer = false;
         if(next.tankDesigner()!=null&&!tankDesigner()) {tankName=next.tankDesigner().name();tankSlot="";tankScroll=0;}
         draggedProduction = "";
+        autoImportBudget = -1; draggedImport = ""; importMoved = false;
         view = next; pending = 0; indexView();
         if (!tankDesigner() || view.tankDesigner().designTeam() == null) designerManufacturer = false;
         if (!manufacturerEquipment.isEmpty() && (equipmentById.get(manufacturerEquipment) == null || equipment(manufacturerEquipment).manufacturers().isEmpty())) manufacturerEquipment = "";
@@ -196,6 +203,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         passiveWidgets.clear();
         productionScrollbar = null;
         productionPickerScrollbar = null;
+        tradeScrollbar = null;
         manufacturerScrollbar = null; manufacturerWidgets.clear();
         pane = UiPanelLayout.width(tab, width); frame = UiMenuStyle.frame(UiMenuStyle.window(tab), width, pane); top = Math.round(frame.y());
         filterProduction();
@@ -230,8 +238,9 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         graphics = g; mouseX = mx; mouseY = my;
         UiMenuStyle.window(g, UiMenuStyle.window(tab), frame, height);
         if (tab == MenuTab.TRADE) {
-            UiMenuStyle.title(g, font, frame, "경제", 75, 18, 217, 0, UiMenuStyle.TEXT);
-            UiMenuStyle.title(g, font, frame, "무역", 332, 18, 217, 0, UiMenuStyle.TEXT);
+            frame.art(g, "trade/ui/econ_switch/frame_" + (tradeTab == 0 ? 0 : 1), 70, 4);
+            UiMenuStyle.title(g, font, frame, UiCommandLabels.text("TRADE_ECON", "경제"), 78, 21, 210, 0, UiMenuStyle.TEXT);
+            UiMenuStyle.title(g, font, frame, UiCommandLabels.text("TRADE_TRADE", "무역"), 335, 21, 210, 0, UiMenuStyle.TEXT);
         } else UiMenuStyle.title(g, font, UiMenuStyle.window(tab), frame, title(tab));
         if (view == null) {
             HudMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, hudScroll);
@@ -281,7 +290,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         graphics = null;
     }
     private void layout() {
-        switch (tab) { case PRODUCTION -> production(); case TRADE -> trade();
+        switch (tab) { case PRODUCTION -> production(); case TRADE -> { trade(); autoImportPriority(); }
             case LOGISTICS -> logistics(); case RECRUITMENT -> recruitment(); default -> {} }
     }
     @Override protected <T extends net.minecraft.client.gui.components.events.GuiEventListener & net.minecraft.client.gui.components.Renderable & net.minecraft.client.gui.narration.NarratableEntry> T addRenderableWidget(T widget) {
@@ -875,91 +884,309 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         }
         if (items.isEmpty()) text("연구 완료 또는 비축된 장비가 없습니다.", 10, start + 6, pane - 20, MUTED);
     }
+    private static final String[] TRADE_REGIONS = {"europe", "north_america", "south_america", "australia", "africa", "asia", "middle_east", "faction", "subject"};
+    private static final String[][] TRADE_SORTS = {{"country", "TRADE_SORT_COUNTRY", "trade/ui/sort_export", "77"}, {"export", "TRADE_SORT_EXPORT", "trade/ui/sort_export", "247"},
+            {"request", "TRADE_SORT_REQUEST", "trade/ui/sort_export", "352"}, {"convoys", "TRADE_SORT_CONVOYS", "trade/ui/sort_delivered", "470"}};
+    private static final String[] TRADE_ROWS = {"TRADEVIEW_RES_PRODUCED", "TRADEVIEW_RES_IMPORTED", "TRADEVIEW_RES_EXPORTED", "TRADEVIEW_RES_SPECIAL_PROJECT", "TRADEVIEW_RES_PRODUCTION_LINES", "TRADEVIEW_RES_SURPLUS"};
+    private static final double[] TRADE_ROW_CENTERS = {176, 195, 214, 233, 252, 282.5};
+    private static final int TRADE_ROW = 45, TRADE_LIST_TOP = 529, TRADE_BODY_TOP = 40, IMPORT_ENTRY = 53, IMPORT_LIST_TOP = 158;
+    UiMenuStyle.Frame tradeFrame() { return frame; }
+    int tradeListBottom() { return Math.min(height, frame.iy(windowHeight() - 13)); }
+    boolean tradeCompact() { return tradeListBottom() - frame.iy(TRADE_LIST_TOP) < frame.len(TRADE_ROW * 3); }
+    int tradeListTop() { return tradeCompact() ? frame.iy(TRADE_BODY_TOP) : frame.iy(TRADE_LIST_TOP); }
+    private UiMenuStyle.Frame tradeBody() { return tradeCompact() ? new UiMenuStyle.Frame(frame.x(), frame.y() - scroll, frame.scale()) : frame; }
+    private UiMenuStyle.Frame tradeList() { return tradeCompact() ? tradeBody() : new UiMenuStyle.Frame(frame.x(), frame.y() - scroll, frame.scale()); }
+    int tradeRowTop(int index) { return Math.round(tradeList().y(TRADE_LIST_TOP + TRADE_ROW * index)); }
+    UiMenuStyle.Frame autoImportFrame() {
+        float x = Math.max(0, Math.min(frame.x(768) + (float) autoImportX, width - frame.size(295)));
+        float y = Math.max(hudBottom(), frame.y(-3) + (float) autoImportY);
+        return new UiMenuStyle.Frame(x, y, frame.scale());
+    }
+    boolean autoImportOpen() { return autoImportWindow && tab == MenuTab.TRADE && tradeTab == 1 && view != null && view.autoImport() != null && partner.isEmpty() && !foreign(); }
+    private boolean insideAutoImport(double x, double y) {
+        if (!autoImportOpen()) return false;
+        var at = autoImportFrame();
+        return x >= at.x(0) && x < at.x(295) && y >= at.y(0) && y < at.y(640);
+    }
+    private double autoImportShift(UiMenuStyle.Frame at) {
+        int lines = font.split(Tooltips.officerText(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITY_DESCRIPTION")), Math.max(1, Math.round(at.size(260)))).size();
+        return Math.max(0, 42 + lines * font.lineHeight / at.scale() - 104);
+    }
+    private int importTarget() {
+        var at = autoImportFrame();
+        double center = (importPointerY - importGrabY - at.y(0)) / at.scale() + IMPORT_ENTRY / 2.0;
+        return Math.clamp((int) Math.floor((center - IMPORT_LIST_TOP - autoImportShift(at)) / IMPORT_ENTRY), 0, view.autoImport().order().size() - 1);
+    }
+    private static int tradeColor(long value) { return value > 0 ? GOOD : value < 0 ? BAD : TEXT; }
+    private void tradeText(GuiGraphicsExtractor g, UiMenuStyle.Frame at, Component text, double sx, double center, double sw, int color, int align) {
+        var line = text.getVisualOrderText();
+        UiText.marquee(g, font, line, at.x(sx), UiText.centeredY(font, line, at.y(center) - font.lineHeight / 2f, font.lineHeight, 1), at.size(sw), 1, color, true, align);
+    }
+    private void tradeIcon(UiMenuStyle.Frame at, String path, double sx, double sy, double scale) {
+        int[] size = UiAssets.imageSize(path);
+        UiAssets.drawExact(graphics, path, at.x(sx), at.y(sy), at.size(size[0] * scale), at.size(size[1] * scale));
+    }
+    private void sourceTip(String value, int x, int y, int w, int h, boolean window) {
+        if (graphics == null || background || designerManufacturer || mouseX < x || mouseX >= x + w || mouseY < y || mouseY >= y + h) return;
+        if (!window && (mouseY < tradeClipTop || mouseY >= tradeClipBottom || insideAutoImport(mouseX, mouseY))) return;
+        graphics.setTooltipForNextFrame(font, Tooltips.sourceLines(font, value, Tooltips.width(graphics.guiWidth(), 14) + 24), mouseX, mouseY);
+    }
+    private UiPanelButton sourceButton(String name, UiMenuStyle.Frame at, double sx, double sy, double sw, double sh, Runnable action, java.util.function.BiConsumer<GuiGraphicsExtractor, UiPanelButton> draw) {
+        if (graphics != null) return null;
+        int clipTop = tradeClipTop, clipBottom = tradeClipBottom;
+        int x = at.ix(sx), y = Math.max(at.iy(sy), clipTop), bottom = Math.min(at.iy(sy + sh), clipBottom);
+        if (bottom <= y) return null;
+        var button = new UiPanelButton(name, x, y, Math.max(1, at.ix(sx + sw) - x), bottom - y, action) {
+            @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                boolean clip = clipTop > 0 || clipBottom < Integer.MAX_VALUE;
+                if (clip) g.enableScissor(0, clipTop, IndustryScreen.this.width, Math.min(clipBottom, IndustryScreen.this.height));
+                draw.accept(g, this);
+                if (clip) g.disableScissor();
+            }
+        };
+        button.active = pending == 0 && !foreign();
+        addRenderableWidget(button);
+        return button;
+    }
+    private void commitAutoImportBudget() {
+        var auto = view == null ? null : view.autoImport();
+        if (auto != null && autoImportBudget >= 0 && autoImportBudget != auto.budget()) send(AUTO_IMPORT_BUDGET, "", "", autoImportBudget);
+        else { autoImportBudget = -1; rebuildWidgets(); }
+    }
     private void trade() {
-        int half = (pane - 14) / 2;
-        button("경제", "경제", 6, top + 27, half, 22, true, () -> { tradeTab = 0; scroll = 0; rebuildWidgets(); });
-        button("무역", "무역", 8 + half, top + 27, half, 22, true, () -> { tradeTab = 1; scroll = 0; rebuildWidgets(); });
-        var e = view.economy();
-        if (tradeTab == 0) {
-            String[][] rows = {{"실질 GDP", amount(e.gdp())}, {"부채", amount(e.debt())},
-                    {"민간공장", "" + e.civilian()}, {"무역 가용 공장", "" + e.freeCivilian()},
-                    {"소비재 공장", "" + e.consumer()}, {"군수공장", "" + e.military()}, {"조선소", "" + e.dockyards()},
-                    {"전력 공급 / 수요", decimal(e.energy()) + " / " + decimal(e.energyDemand())},
-                    {"연료 비축", decimal(e.fuel())}, {"인력", manpower(e.manpower())}};
-            int start = top + 55; scroll = clampScroll(scroll, rows.length, 35, start);
-            for (int i = 0; i < rows.length; i++) {
-                int y = start + i * 35 - scroll; if (!visible(y, 35, start)) continue;
-                recess(6, y, pane - 12, 32); text(rows[i][0], 11, y + 4, pane - 22, MUTED);
-                text(rows[i][1], 11, y + 18, pane - 22, TEXT);
-            }
-            return;
+        tradeClipTop = 0; tradeClipBottom = Integer.MAX_VALUE;
+        var toggle = sourceButton("경제와 무역 화면 간 전환", frame, 70, 4, 482, 35, () -> { tradeTab = 1 - tradeTab; scroll = 0; autoImportWindow = false; rebuildWidgets(); }, (g, b) -> {});
+        if (toggle != null) toggle.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.text("open_econ_button_tt")));
+        if (tradeTab == 0) { economy(); return; }
+        var e = view.economy(); var auto = view.autoImport(); boolean automatic = auto != null && auto.enabled();
+        boolean compact = tradeCompact();
+        int bodyTop = frame.iy(TRADE_BODY_TOP), listTop = tradeListTop(), listBottom = tradeListBottom();
+        var rows = IndustryTradeRows.rows(view, resource, tradeRegions, tradeSort, tradeSortReverse);
+        int content = frame.len(compact ? TRADE_LIST_TOP + TRADE_ROW * rows.size() - TRADE_BODY_TOP : TRADE_ROW * rows.size());
+        tradeScrollbar = new UiScrollBar(frame.ix(591), listTop, listBottom, listBottom - listTop, content);
+        scroll = Math.clamp(scroll, 0, tradeScrollbar.maximum());
+        final var at = tradeBody();
+        tradeClipTop = compact ? bodyTop : 0; tradeClipBottom = compact ? listBottom : Integer.MAX_VALUE;
+        if (graphics != null && compact) graphics.enableScissor(0, bodyTop, width, listBottom);
+        int traded = view.trades().stream().filter(Trade::importing).mapToInt(Trade::factories).sum();
+        if (graphics != null) {
+            at.art(graphics, "agency/ui/section", 46, 42);
+            tradeText(graphics, at, Component.literal(IndustryTradeTexts.text("TRADE_CIV_FACTORIES")), 71, 63, 150, TEXT, 0);
+            at.art(graphics, "construction/summary/civilian_factory", 236, 50);
+            tradeText(graphics, at, Component.literal(Integer.toString(e.civilian())), 270, 62, 45, GOOD, -1);
+            tradeIcon(at, "construction/consumer_goods", 300, 49.75, .7);
+            tradeText(graphics, at, Component.literal(Integer.toString(e.consumer())), 340, 62, 35, GOLD, -1);
+            tradeIcon(at, "construction/ui/traded_factories", 370, 46.25, .7);
+            tradeText(graphics, at, Component.literal(Integer.toString(traded)), 410, 62, 35, GOLD, -1);
+            String available = IndustryTradeTexts.text("TRADE_CIV_FACTORIES_AVAIL"); int mark = available.indexOf("$AVAIL$");
+            Component availableText = mark < 0 ? Component.literal(available) : Component.literal(available.substring(0, mark)).withColor(TEXT)
+                    .append(Component.literal(Integer.toString(e.freeCivilian())).withColor(GOLD)).append(Component.literal(available.substring(mark + 7)).withColor(TEXT));
+            tradeText(graphics, at, availableText, 434, 62, 120, TEXT, 0);
+            at.tile(graphics, "doctrine/gfx_tiled_decisions_bg_small", 20, 80, 580, 50, 16, 48);
+            tradeText(graphics, at, Tooltips.officerText(IndustryTradeTexts.text("TRADE_AUTO_IMPORT")), 60, 105, 190, TEXT, -1);
+            at.art(graphics, "construction/ui/number_box", 250, 92);
+            tradeText(graphics, at, Component.literal(Integer.toString(autoImportBudget >= 0 ? autoImportBudget : auto == null ? 0 : auto.budget())), 250, 105, 80, TEXT, 0);
+            at.tile(graphics, "trade/ui/slider_track", 340, 99, 145, 12, 4, 12);
         }
-        rail(6, top + 54, pane - 12, 21);
-        art("construction/civilian_factory", 9, top + 57, 15, 15);
-        leftText("민간공장", 28, top + 61, 45, TEXT); leftText("" + e.civilian(), 74, top + 61, pane/2-78, GOLD);
-        leftText("이용 가능:", pane/2+4, top + 61, pane/2-34, TEXT); leftText("" + e.freeCivilian(), pane - 28, top + 61, 21, GOLD);
-        int labelWidth = compact() ? 0 : 36, cell = Math.max(16, (pane - 12 - labelWidth) / Math.max(1, view.resources().size()));
-        String[] labels = {"추출", "수입", "수출", "생산", "잔여"};
-        for (int i = 0; i < view.resources().size(); i++) {
-            var r = view.resources().get(i); int x = 6 + labelWidth + i * cell;
-            imageButton(r.name(), resourceArt(r.id()), x, top + 79, cell - 1, 20, true,
-                    () -> { resource = r.id(); scroll = 0; rebuildWidgets(); });
-            double[] values = {r.extracted(), r.imported(), -r.exported(), -r.demand(), r.available() - r.demand()};
-            for (int j = 0; !compact() && j < values.length; j++) {
-                recess(x, top + 102 + j * 13, cell - 1, 12);
-                cellText(integer(values[j]), x + 2, top + 102 + j * 13, cell - 5, 12, values[j] < 0 ? BAD : GOOD, true);
-            }
-            tip(r.name() + "\n추출 " + decimal(r.extracted()) + " · 수입 " + decimal(r.imported()) + "\n수출 배정 " + decimal(r.exported())
-                    + "\n생산 수요 " + decimal(r.demand()) + " · 잔여 " + decimal(r.available() - r.demand()), x, top + 79, cell, compact() ? 20 : 88);
-        }
-        for (int j = 0; !compact() && j < labels.length; j++) cellText(labels[j], 8, top + 102 + j * 13, labelWidth - 4, 12, MUTED, true);
-        int heading = top + (compact() ? 104 : 172);
-        var contracts = view.trades().stream().filter(t -> t.importing() && t.resource().equals(resource))
-                .collect(java.util.stream.Collectors.groupingBy(IndustryView.Trade::partner));
-        int rowX = 6, rowWidth = pane - 12;
-        double rowScale = rowWidth / 576.0;
-        int start = heading + 18, rowHeight = Math.max(20, (int)Math.round(45 * rowScale)), h = rowHeight + 1;
-        int[] cols = {rowX + (int)Math.round(4 * rowScale), rowX + (int)Math.round(250 * rowScale), rowX + (int)Math.round(341 * rowScale), rowX + (int)Math.round(450 * rowScale)};
-        int[] ends = {rowX + (int)Math.round(248 * rowScale), rowX + (int)Math.round(328 * rowScale), rowX + (int)Math.round(438 * rowScale), rowX + (int)Math.round(571 * rowScale)};
-        String[] headers = {"국가", "수출", "운송됨", "수송선"};
-        for (int i = 0; i < 4; i++) cellText(headers[i], cols[i], heading, ends[i] - cols[i], 16, TEXT, false);
-        var partners=view.partners().stream().filter(p->Math.round(p.exports().getOrDefault(resource,0.0))>0).toList();
-        scroll = clampScroll(scroll, partners.size(), h, start);
-        for (int i = 0; i < partners.size(); i++) {
-            var p = partners.get(i); int y = start + i * h - scroll; if (!visible(y, h, start)) continue;
-            var active = contracts.getOrDefault(p.id(), List.of());
-            double delivered = active.stream().mapToDouble(IndustryView.Trade::delivered).sum();
-            var detail=p.detail()==null?null:p.detail().resources().get(resource);
-            double total=p.exports().getOrDefault(resource,0.0),requested=active.stream().mapToInt(IndustryView.Trade::factories).sum()*(p.resourcesPerFactory()==null?8:p.resourcesPerFactory());
-            if(detail!=null)requested=detail.requested();
-            double remaining=detail==null?Math.max(0,total-delivered):detail.remaining();
-            art(!active.isEmpty() ? "trade/row_active" : !p.route() ? "trade/row_blocked" : "trade/row", rowX, y, rowWidth, rowHeight);
-            int flagX = rowX + (int)Math.round(7 * rowScale), flagY = y + (int)Math.round(8 * rowScale);
-            int flagWidth = Math.max(1, (int)Math.round(41 * rowScale)), flagHeight = Math.max(1, (int)Math.round(26 * rowScale));
-            if (graphics != null) UiAssets.cover(graphics, HudMenuBar.flagTexture(p.id()), flagX, flagY, flagWidth, flagHeight);
-            art("trade/flag_overlay", flagX, flagY, flagWidth, flagHeight);
-            art("trade/flag_small_frame", rowX + (int)Math.round(4 * rowScale), y + (int)Math.round(6 * rowScale), (int)Math.round(47 * rowScale), (int)Math.round(32 * rowScale));
-            int nameX = rowX + (int)Math.round(53 * rowScale);
-            leftText(p.name(), nameX, y + (rowHeight - Math.round(font.lineHeight * UiText.scale(font))) / 2, cols[1] - nameX - 3, TEXT);
-            tradeValue(Component.literal(integer(remaining)+"/"+integer(total)),cols[1],y,ends[1]-cols[1],rowHeight,GOLD);
-            String shipped=active.isEmpty()?"§e0":"§"+(delivered+1e-9<requested?"c":"e")+integer(delivered)+"§r/§e"+integer(requested);
-            tradeValue(Tooltips.styled(Component.literal(shipped),false),cols[2],y,ends[2]-cols[2],rowHeight,TEXT);
-            String convoy=detail!=null&&!active.isEmpty()&&detail.convoyNeeded()>0?""+detail.convoyUsed():IndustryTradeAmounts.convoyCell(p.convoys());
-            tradeValue(Component.literal(convoy),cols[3],y,ends[3]-cols[3],rowHeight,active.isEmpty()?TEXT:GOOD);
-            if (graphics == null) {
-                var row = new UiPanelButton(p.name() + "에서 수입", 6, y, pane - 12, rowHeight, () -> { partner = p.id(); tradeAmount = active.stream().mapToInt(IndustryView.Trade::factories).sum(); rebuildWidgets(); }) {
-                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+        sourceTip(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_DESC"), at.ix(60), at.iy(96), at.ix(250) - at.ix(60), at.len(18), false);
+        sourceTip(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_BUDGET_DESC"), at.ix(250), at.iy(92), at.len(80), at.len(26), false);
+        var check = sourceButton(IndustryTradeTexts.text("TRADE_AUTO_IMPORT"), at, 28, 89, 32, 32, () -> send(AUTO_IMPORT, "", "", automatic ? 0 : 1),
+                (g, b) -> at.art(g, "trade/ui/checkbox/frame_" + (auto == null ? 2 : automatic ? 1 : 0), 28, 89));
+        if (check != null) { check.active &= auto != null; check.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_DESC"))); }
+        int maximum = auto == null ? 0 : auto.maximum(), budget = autoImportBudget >= 0 ? autoImportBudget : auto == null ? 0 : auto.budget();
+        int sliderTop = Math.max(at.iy(97), tradeClipTop), sliderBottom = Math.min(at.iy(113), tradeClipBottom), clipTop = tradeClipTop, clipBottom = tradeClipBottom;
+        if (graphics == null && sliderBottom > sliderTop) {
+            var slider = new net.minecraft.client.gui.components.AbstractSliderButton(at.ix(340), sliderTop, at.ix(485) - at.ix(340), sliderBottom - sliderTop, Component.literal("자동 수입 예산"), maximum <= 0 ? 0 : Math.min(1, budget / (double) maximum)) {
+                @Override protected void updateMessage() {}
+                @Override protected void applyValue() { autoImportBudget = (int) Math.round(value * maximum); value = maximum <= 0 ? 0 : autoImportBudget / (double) maximum; }
+                @Override public void onRelease(net.minecraft.client.input.MouseButtonEvent event) { super.onRelease(event); commitAutoImportBudget(); }
+                @Override public boolean keyPressed(KeyEvent event) {
+                    if (active && (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_LEFT || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT)) {
+                        autoImportBudget = Math.clamp(budget + (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT ? 1 : -1), 0, maximum);
+                        commitAutoImportBudget(); return true;
                     }
+                    return super.keyPressed(event);
+                }
+                @Override public void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
+                    boolean clip = clipTop > 0 || clipBottom < Integer.MAX_VALUE;
+                    if (clip) g.enableScissor(0, clipTop, IndustryScreen.this.width, Math.min(clipBottom, IndustryScreen.this.height));
+                    UiAssets.drawExact(g, "trade/knob", at.x(340) + (float) value * at.size(129), at.y(97), at.size(16), at.size(16));
+                    if (clip) g.disableScissor();
+                }
+            };
+            slider.active = !background && pending == 0 && automatic && maximum > 0;
+            slider.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_BUDGET_DESC")));
+            addRenderableWidget(slider);
+        }
+        String priorityLabel = IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITY_OPEN");
+        var priority = sourceButton(priorityLabel, at, 490, 89, 94, 31, () -> { autoImportWindow = !autoImportWindow; draggedImport = ""; rebuildWidgets(); },
+                (g, b) -> { at.art(g, "diplomacy/dialog/clear_button/frame_0", 490, 89); tradeText(g, at, Component.literal(priorityLabel), 490, 105, 94, TEXT, 0); });
+        if (priority != null) { priority.active &= auto != null; priority.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITY_OPEN_TOOLTIP"))); }
+        var resources = view.resources();
+        if (graphics != null) {
+            at.art(graphics, "trade/ui/resource_bg", 17, 130);
+            for (int k = 0; k < TRADE_ROWS.length; k++) tradeText(graphics, at, Component.literal(IndustryTradeTexts.text(TRADE_ROWS[k])), 22, TRADE_ROW_CENTERS[k], 78, TEXT, 1);
+        }
+        for (int i = 0; i < Math.min(7, resources.size()); i++) {
+            var r = resources.get(i); double ex = 108 + 68 * i;
+            long surplus = Math.round(r.available() - r.demand());
+            long[] values = {Math.round(r.extracted()), Math.round(r.imported()), -Math.round(r.exported()), 0, -Math.round(r.demand())};
+            boolean fuel = r.fuelCurrent() != null && r.fuelMaximum() != null;
+            if (graphics != null) {
+                at.art(graphics, resourceArt(r.id()), ex + 6, 135.5);
+                tradeText(graphics, at, Component.literal(Long.toString(surplus)), ex + 34, 149, 37, fuel ? TEXT : tradeColor(surplus), 1);
+                for (int k = 0; k < values.length; k++) tradeText(graphics, at, Component.literal(Long.toString(values[k])), ex + 5, 176 + 19 * k, 65, tradeColor(values[k]), 1);
+                if (fuel) {
+                    String[] labels = IndustryTradeTexts.text("OIL_NEED_TEXT").split("\n", -1);
+                    long[] needs = {Math.round(r.available() - r.demand() - r.fuelCurrent()), Math.round(r.available() - r.demand() - r.fuelMaximum())};
+                    double pitch = font.lineHeight / at.scale();
+                    for (int k = 0; k < needs.length; k++) {
+                        double center = 282.5 + (k - .5) * pitch;
+                        if (k < labels.length) tradeText(graphics, at, Component.literal(labels[k]), ex + 5, center, 20, TEXT, -1);
+                        tradeText(graphics, at, Component.literal(Long.toString(needs[k])), ex + 22, center, 49, needs[k] < 0 ? BAD : TEXT, 1);
+                    }
+                } else tradeText(graphics, at, Component.literal(Long.toString(surplus)), ex + 5, 282.5, 65, surplus < 0 ? BAD : TEXT, 1);
+                if (mouseX >= at.x(ex + 10) && mouseX < at.x(ex + 78)) {
+                    sourceTip(IndustryTradeTexts.balance(r), at.ix(ex + 10), at.iy(131), at.len(68), at.len(33), false);
+                    String[] tips = {IndustryTradeTexts.produced(r), IndustryTradeTexts.imported(view, r), IndustryTradeTexts.exported(r), null, IndustryTradeTexts.used(r)};
+                    for (int k = 0; k < tips.length; k++) if (tips[k] != null) sourceTip(tips[k], at.ix(ex + 10), at.iy(167 + 19 * k), at.len(68), at.len(19), false);
+                    sourceTip(IndustryTradeTexts.surplus(r), at.ix(ex + 10), at.iy(264), at.len(68), at.len(36), false);
+                }
+            }
+            int imports = view.trades().stream().filter(t -> t.importing() && t.resource().equals(r.id())).mapToInt(Trade::factories).sum();
+            boolean cancellable = imports > 0 && !automatic;
+            var cancel = sourceButton(r.name() + " 수입 취소", at, ex + 30, 303, 31, 31, () -> send(CANCEL_IMPORTS, r.id(), "", 0),
+                    (g, b) -> { if (cancellable) at.art(g, "trade/ui/cancel_import", ex + 30, 303); else UiAssets.drawGrayscale(g, "trade/ui/cancel_import", at.ix(ex + 30), at.iy(303), at.len(31), at.len(31)); });
+            if (cancel != null) {
+                cancel.active &= cancellable;
+                cancel.setTooltip(Tooltips.createOfficer(automatic ? IndustryTradeTexts.text("TRADE_AUTO_IMPORT_BLOCKS_CANCEL")
+                        : IndustryTradeTexts.fill(imports > 0 ? "CANCEL_RESOURCE_IMPORT" : "NO_IMPORT_TO_CANCEL", Map.of("RESOURCE", r.name()))));
+            }
+        }
+        if (graphics != null) at.art(graphics, "trade/ui/filter_bg", 13, 373);
+        for (int i = 0; i < Math.min(7, resources.size()); i++) {
+            var r = resources.get(i); double tx = 11 + 85 * i; boolean selected = r.id().equals(resource);
+            var filter = sourceButton(r.name(), at, tx, 334, i < 6 ? 85 : 90, 51, () -> { resource = r.id(); scroll = 0; rebuildWidgets(); },
+                    (g, b) -> { at.art(g, "trade/ui/resource_btn/frame_" + (selected ? 1 : 0), tx, 334); at.art(g, resourceArt(r.id()), tx + 32, 343); });
+            if (filter != null) { filter.sound("ui.checkbox"); filter.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.fill("TRADE_FILTER_BY", Map.of("KEY", r.name())))); }
+        }
+        for (int k = 0; k < TRADE_REGIONS.length; k++) {
+            String id = TRADE_REGIONS[k], name = IndustryTradeTexts.text(id); double fx = 107 + 150 * (k % 3), fy = 385 + 35 * (k / 3); boolean on = tradeRegions.contains(id);
+            var region = sourceButton(name, at, fx, fy, 123, 34, () -> { if (!tradeRegions.remove(id)) tradeRegions.add(id); scroll = 0; rebuildWidgets(); },
+                    (g, b) -> { at.art(g, "trade/ui/region_filter/frame_" + (on ? 0 : 1), fx, fy); tradeText(g, at, Component.literal(name), fx + 2, fy + 16.5, 117, TEXT, 0); });
+            if (region != null) region.sound("ui.scroll");
+        }
+        for (var sort : TRADE_SORTS) {
+            double sx = Double.parseDouble(sort[3]); int[] size = UiAssets.imageSize(sort[2]); String label = IndustryTradeTexts.text(sort[1]);
+            sourceButton(label, at, sx, 501, size[0], Math.min(size[1], TRADE_LIST_TOP - 501), () -> {
+                if (tradeSort.equals(sort[0])) tradeSortReverse = !tradeSortReverse; else { tradeSort = sort[0]; tradeSortReverse = false; }
+                scroll = 0; rebuildWidgets();
+            }, (g, b) -> { at.art(g, sort[2], sx, 501); tradeText(g, at, Component.literal(label), sx, 517, size[0], TEXT, 0); });
+        }
+        var list = tradeList();
+        if (graphics != null && !compact) graphics.enableScissor(0, listTop, width, listBottom);
+        tradeClipTop = listTop; tradeClipBottom = listBottom;
+        String blocked = automatic ? "\n\n" + IndustryEquipmentDesigns.sourceText(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_BLOCKS_PROPOSE")) : "";
+        for (int i = 0; i < rows.size(); i++) {
+            var row = rows.get(i); var p = row.partner(); double base = TRADE_LIST_TOP + TRADE_ROW * i;
+            float y = list.y(base);
+            int visibleTop = Math.max(Math.round(y), listTop), visibleBottom = Math.min(Math.round(list.y(base + TRADE_ROW)), listBottom);
+            if (visibleBottom <= visibleTop) continue;
+            if (graphics != null) {
+                UiAssets.drawExact(graphics, row.factories() > 0 ? "trade/row_active" : !p.route() ? "trade/row_blocked" : "trade/row", list.x(15), y, list.size(576), list.size(45));
+                UiAssets.cover(graphics, HudMenuBar.flagTexture(p.id()), list.ix(22), list.iy(base + 8), list.len(41), list.len(26));
+                list.art(graphics, "trade/flag_overlay", 22, base + 8, 41, 26);
+                list.art(graphics, "trade/flag_small_frame", 19, base + 6, 47, 32);
+                tradeText(graphics, list, Component.literal(p.name()), 68, base + 21.5, 190, TEXT, -1);
+                tradeText(graphics, list, Component.literal(integer(row.remaining()) + "/" + integer(row.total())), 265, base + 22, 77, GOLD, 0);
+                String shipped = row.factories() == 0 ? "§e0" : "§" + (row.delivered() + 1e-9 < row.requested() ? "c" : "e") + integer(row.delivered()) + "§r/§e" + integer(row.requested());
+                tradeText(graphics, list, Tooltips.styled(Component.literal(shipped), false), 354, base + 22, 100, TEXT, 0);
+                String convoy = row.detail() != null && row.factories() > 0 && row.detail().convoyNeeded() > 0 ? Long.toString(row.detail().convoyUsed()) : IndustryTradeAmounts.convoyCell(p.convoys());
+                tradeText(graphics, list, Component.literal(convoy), 467, base + 22, 100, row.factories() > 0 ? GOOD : TEXT, 0);
+                if (row.detail() != null && mouseY >= visibleTop && mouseY < visibleBottom) {
+                    var detail = row.detail(); String law = p.detail().law(); int h = visibleBottom - visibleTop;
+                    productionTip(detail.status() + "\n\n" + p.detail().influence() + (law.isBlank() ? "" : "\n\n" + law) + blocked, list.ix(15), visibleTop, list.ix(249) - list.ix(15), h);
+                    productionTip(detail.exports() + blocked, list.ix(249), visibleTop, list.ix(342) - list.ix(249), h);
+                    productionTip(detail.transported() + blocked, list.ix(342), visibleTop, list.ix(458) - list.ix(342), h);
+                    productionTip(detail.convoys() + blocked, list.ix(458), visibleTop, list.ix(591) - list.ix(458), h);
+                }
+            } else {
+                var button = new UiPanelButton(p.name() + "에서 수입", list.ix(15), visibleTop, list.ix(591) - list.ix(15), visibleBottom - visibleTop, () -> { partner = p.id(); tradeAmount = row.factories(); autoImportWindow = false; rebuildWidgets(); }) {
+                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
                 };
-                row.active = !background && pending == 0; addRenderableWidget(row);
+                button.active = !background && pending == 0 && !automatic;
+                addRenderableWidget(button);
             }
-            if(detail!=null) {
-                String influence=p.detail().influence(),law=p.detail().law();
-                productionTip(detail.status()+"\n\n"+influence+(law.isBlank()?"":"\n\n"+law),cols[0],y,ends[0]-cols[0],rowHeight);
-                productionTip(detail.exports(),cols[1],y,ends[1]-cols[1],rowHeight);
-                productionTip(detail.transported(),cols[2],y,ends[2]-cols[2],rowHeight);
-                productionTip(detail.convoys(),cols[3],y,ends[3]-cols[3],rowHeight);
+        }
+        if (graphics != null) { graphics.disableScissor(); tradeScrollbar.draw(graphics, scroll); }
+    }
+    private void autoImportPriority() {
+        tradeClipTop = 0; tradeClipBottom = Integer.MAX_VALUE;
+        if (!autoImportOpen()) return;
+        var auto = view.autoImport(); var at = autoImportFrame(); double shift = autoImportShift(at);
+        if (graphics != null) {
+            graphics.nextStratum();
+            at.tile(graphics, "commander/commands/tiled_plain_bg/frame_0", 0, 0, 295, 640, 64, UiMenuStyle.TILE);
+            tradeText(graphics, at, Component.literal(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITY_HEADER")), 0, 22, 295, TEXT, 0);
+            int y = at.iy(42);
+            for (var line : font.split(Tooltips.officerText(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITY_DESCRIPTION")), Math.max(1, Math.round(at.size(260))))) { UiText.text(graphics, font, line, at.ix(10), y, TEXT); y += font.lineHeight; }
+            tradeText(graphics, at, Tooltips.officerText(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITIZE_FUEL")), 44, 124 + shift, 240, TEXT, -1);
+        }
+        sourceTip(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITIZE_FUEL_DESC"), at.ix(44), at.iy(115 + shift), at.len(240), at.len(18), true);
+        sourceButton("×", at, 257, 8, 32, 33, () -> { autoImportWindow = false; draggedImport = ""; rebuildWidgets(); }, (g, b) -> at.art(g, "menu/close", 257, 8, 32, 33));
+        boolean fuel = auto.fuel();
+        var check = sourceButton(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITIZE_FUEL"), at, 10, 108 + shift, 32, 32, () -> send(AUTO_IMPORT_FUEL, "", "", fuel ? 0 : 1),
+                (g, b) -> at.art(g, "trade/ui/checkbox/frame_" + (fuel ? 1 : 0), 10, 108 + shift));
+        if (check != null) check.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITIZE_FUEL_DESC")));
+        var order = auto.order(); int source = order.indexOf(draggedImport), target = importMoved && source >= 0 ? importTarget() : source;
+        for (int pass = 0; pass < 2; pass++) for (int i = 0; i < order.size(); i++) {
+            boolean dragged = importMoved && i == source;
+            if (dragged != (pass == 1)) continue;
+            int display = i;
+            if (importMoved && source >= 0 && !dragged) {
+                if (source < target && i > source && i <= target) display = i - 1;
+                else if (source > target && i >= target && i < source) display = i + 1;
             }
+            double sy = dragged ? (importPointerY - importGrabY - at.y(0)) / at.scale() : IMPORT_LIST_TOP + shift + IMPORT_ENTRY * display;
+            importEntry(at, auto, order.get(i), dragged ? target : display, sy);
+        }
+        String resetLabel = IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITY_RESET");
+        var reset = sourceButton(resetLabel, at, 86, 596, 123, 34, () -> send(AUTO_IMPORT_RESET, "", "", 0),
+                (g, b) -> { at.art(g, "production/design/division/reset", 86, 596); tradeText(g, at, Component.literal(resetLabel), 86, 613, 123, TEXT, 0); });
+        if (reset != null) reset.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_PRIORITY_RESET_TOOLTIP")));
+    }
+    private void importEntry(UiMenuStyle.Frame at, IndustryView.AutoImport auto, String id, int index, double sy) {
+        String name = view.resources().stream().filter(r -> r.id().equals(id)).map(Resource::name).findFirst().orElse(id);
+        int shortage = auto.shortage().getOrDefault(id, 0);
+        if (graphics != null) {
+            at.tile(graphics, "doctrine/gfx_tiled_decisions_bg_small", 12, sy, 260, 53, 16, 48);
+            at.art(graphics, "construction/ui/number_circle", 22, sy + 15.45, 22.1, 22.1);
+            tradeText(graphics, at, Component.literal(Integer.toString(index + 1)), 22, sy + 26.5, 22.1, TEXT, 0);
+            at.art(graphics, resourceArt(id), 52, sy + 13);
+            tradeText(graphics, at, Component.literal(name), 84, sy + 26.5, 82, TEXT, -1);
+            tradeText(graphics, at, Component.literal(Integer.toString(shortage)), 205, sy + 26.5, 35, TEXT, 0);
+        }
+        sourceTip(UiCommandLabels.text("PRODUCTION_DRAG_N_DROP", "§G드래그 앤 드롭§!으로 §Y우선순위§!를 변경할 수 있습니다."), at.ix(12), at.iy(sy), at.len(260), at.len(53), true);
+        sourceTip(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_ACCEPTED_SHORTAGE_DESC"), at.ix(205), at.iy(sy + 16.5), at.len(35), at.len(20), true);
+        var minus = sourceButton(name + " 허용 부족량 감소", at, 180, sy + 14, 25, 25, () -> send(AUTO_IMPORT_SHORTAGE, id, "", Math.max(0, shortage - factoryStep())),
+                (g, b) -> at.art(g, "production/line/minus", 180, sy + 14));
+        if (minus != null) { minus.active &= shortage > 0; minus.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_ACCEPTED_SHORTAGE_SUB_DESC"))); }
+        var plus = sourceButton(name + " 허용 부족량 증가", at, 240, sy + 13.5, 26, 26, () -> send(AUTO_IMPORT_SHORTAGE, id, "", Math.min(10000, shortage + factoryStep())),
+                (g, b) -> at.art(g, "production/line/plus", 240, sy + 13.5));
+        if (plus != null) plus.setTooltip(Tooltips.createOfficer(IndustryTradeTexts.text("TRADE_AUTO_IMPORT_ACCEPTED_SHORTAGE_ADD_DESC")));
+    }
+    private void economy() {
+        var e = view.economy();
+        String[][] rows = {{"실질 GDP", amount(e.gdp())}, {"부채", amount(e.debt())},
+                {"민간공장", "" + e.civilian()}, {"무역 가용 공장", "" + e.freeCivilian()},
+                {"소비재 공장", "" + e.consumer()}, {"군수공장", "" + e.military()}, {"조선소", "" + e.dockyards()},
+                {"전력 공급 / 수요", decimal(e.energy()) + " / " + decimal(e.energyDemand())},
+                {"연료 비축", decimal(e.fuel())}, {"인력", manpower(e.manpower())}};
+        int start = top + 55; scroll = clampScroll(scroll, rows.length, 35, start);
+        for (int i = 0; i < rows.length; i++) {
+            int y = start + i * 35 - scroll; if (!visible(y, 35, start)) continue;
+            recess(6, y, pane - 12, 32); text(rows[i][0], 11, y + 4, pane - 22, MUTED);
+            text(rows[i][1], 11, y + 18, pane - 22, TEXT);
         }
     }
     private void tradeValue(Component value,int x,int y,int width,int height,int color) {
@@ -2697,6 +2924,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             divisionPickerScroll -= (int) vertical; rebuildWidgets(); return true;
         }
         if (y < hudBottom() && view != null) { hudScroll = HudMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical); return true; }
+        if (insideAutoImport(x, y)) return true;
         if (tankDesigner()) tankScroll -= (int) vertical;
         else if (designer && selectedSlot >= 0) pickerScroll -= (int) vertical;
         else if (designer) {
@@ -2719,6 +2947,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         }
         else if (!picker.isEmpty()) pickerScroll -= (int) (vertical * 55);
         else if (modal()) return super.mouseScrolled(x, y, horizontal, vertical);
+        else if (tab == MenuTab.TRADE && tradeTab == 1) { if (tradeScrollbar != null && x < pane && y >= tradeScrollbar.top() && y < tradeScrollbar.bottom()) scroll -= (int) (vertical * frame.size(TRADE_ROW)); }
         else if (tab == MenuTab.RECRUITMENT && x >= pane) secondScroll -= (int) (vertical * 40);
         else scroll -= (int) (vertical * (tab == MenuTab.PRODUCTION ? frame.len(111) : tab == MenuTab.RECRUITMENT ? (compact() ? 85 : 93) : tab == MenuTab.LOGISTICS ? 68 : tradeTab == 0 ? 35 : 34));
         rebuildWidgets(); return true;
@@ -2742,6 +2971,14 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             }
             return true;
         }
+        if (!draggedImport.isEmpty()) { importPointerY = event.y(); importMoved |= Math.abs(event.y() - importStartY) >= 2; rebuildWidgets(); return true; }
+        if (autoImportMoving) {
+            float baseX = frame.x(768), baseY = frame.y(-3);
+            autoImportX = Math.clamp(event.x() - autoImportGrabX - baseX, -baseX, Math.max(-baseX, width - frame.size(295) - baseX));
+            autoImportY = Math.clamp(event.y() - autoImportGrabY - baseY, hudBottom() - baseY, Math.max(hudBottom() - baseY, height - frame.size(40) - baseY));
+            rebuildWidgets(); return true;
+        }
+        if (tradeDragging && tradeScrollbar != null) { scroll = tradeScrollbar.offset(event.y()); rebuildWidgets(); return true; }
         if(divisionPickerDragging&&divisionPickerBar!=null){divisionPickerScroll=divisionPickerBar.offset(event.y());rebuildWidgets();return true;}if(productionDragging&&productionScrollbar!=null){scroll=productionScrollbar.offset(event.y());rebuildWidgets();return true;}if(productionPickerDragging&&productionPickerScrollbar!=null){pickerScroll=productionPickerScrollbar.offset(event.y());rebuildWidgets();return true;}if(manufacturerDragging){manufacturerScroll=manufacturerScrollbar.offset(event.y());rebuildWidgets();return true;}return super.mouseDragged(event,dx,dy);
     }
     @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event){
@@ -2754,10 +2991,33 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             }
             return true;
         }
+        if (!draggedImport.isEmpty()) {
+            String id = draggedImport; boolean moved = importMoved; int target = moved && view != null && view.autoImport() != null ? importTarget() : -1;
+            draggedImport = ""; importMoved = false;
+            if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && moved && pending == 0 && target >= 0 && target != view.autoImport().order().indexOf(id)) {
+                dev.hoi.client.audio.AudioUiSounds.play("ui.click"); send(AUTO_IMPORT_ORDER, id, "", target); return true;
+            }
+            rebuildWidgets(); return true;
+        }
+        if (autoImportMoving) { autoImportMoving = false; return true; }
+        if (tradeDragging) { tradeDragging = false; return true; }
         if(divisionPickerDragging){divisionPickerDragging=false;return true;}if(productionDragging||productionPickerDragging){productionDragging=false;productionPickerDragging=false;return true;}if(manufacturerDragging){manufacturerDragging=false;return true;}return super.mouseReleased(event);
     }
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean twice) {
         if (!draggedProduction.isEmpty()) { draggedProduction = ""; rebuildWidgets(); return true; }
+        if (!draggedImport.isEmpty()) { draggedImport = ""; importMoved = false; rebuildWidgets(); return true; }
+        if (insideAutoImport(event.x(), event.y())) {
+            if (super.mouseClicked(event, twice)) return true;
+            if (event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) return true;
+            var at = autoImportFrame(); double shift = autoImportShift(at), sx = (event.x() - at.x(0)) / at.scale(), sy = (event.y() - at.y(0)) / at.scale() - IMPORT_LIST_TOP - shift;
+            var order = view.autoImport().order(); int index = (int) Math.floor(sy / IMPORT_ENTRY);
+            if (pending == 0 && sx >= 12 && sx < 272 && sy >= 0 && index < order.size()) {
+                draggedImport = order.get(index); importGrabY = event.y() - at.y(IMPORT_LIST_TOP + shift + IMPORT_ENTRY * index); importPointerY = importStartY = event.y(); importMoved = false;
+                return true;
+            }
+            autoImportMoving = true; autoImportGrabX = event.x() - at.x(0); autoImportGrabY = event.y() - at.y(0);
+            return true;
+        }
         if (tab == MenuTab.PRODUCTION && !modal() && view != null && pending == 0 && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             float scale = (pane - 22) / 511f;
             if (event.x() >= 6 + Math.round(48 * scale) && event.x() < 6 + Math.round(193 * scale)) {
@@ -2792,6 +3052,11 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if(tab==MenuTab.PRODUCTION&&(!modal()||dockedProductionPicker())&&productionScrollbar!=null&&productionScrollbar.maximum()>0&&productionScrollbar.contains(event.x(),event.y())) {
                 if(productionScrollbar.arrow(event.y()))scroll=productionScrollbar.step(event.y(),scroll,28);
                 else {productionDragging=true;scroll=productionScrollbar.offset(event.y());}
+                rebuildWidgets();return true;
+            }
+            if(tab==MenuTab.TRADE&&tradeTab==1&&!modal()&&tradeScrollbar!=null&&tradeScrollbar.maximum()>0&&tradeScrollbar.contains(event.x(),event.y())) {
+                if(tradeScrollbar.arrow(event.y()))scroll=tradeScrollbar.step(event.y(),scroll,frame.len(TRADE_ROW));
+                else {tradeDragging=true;scroll=tradeScrollbar.offset(event.y());}
                 rebuildWidgets();return true;
             }
             if(productionPickerScrollbar!=null&&productionPickerScrollbar.maximum()>0&&productionPickerScrollbar.contains(event.x(),event.y())) {
@@ -2835,6 +3100,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     @Override public boolean allowsMovement() { return !modal(); }
     @Override public boolean keyPressed(KeyEvent e) {
         if (!draggedProduction.isEmpty() && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { draggedProduction = ""; rebuildWidgets(); return true; }
+        if (autoImportOpen() && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { autoImportWindow = false; draggedImport = ""; rebuildWidgets(); return true; }
         if ((designerManufacturer || !manufacturerEquipment.isEmpty() || picker.equals("manufacturer")) && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { closeManufacturers(); return true; }
         if (designer && !divisionPicker.isEmpty() && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
             divisionPicker = ""; rebuildWidgets(); return true;
@@ -2904,7 +3170,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if(font.width(Tooltips.officerText(value))*scale>max)tip(value,x,y-1,max,11);
     }
     private void productionTip(String value,int x,int y,int w,int h) {
-        if(graphics!=null&&!background&&!designerManufacturer&&mouseX>=x&&mouseX<x+w&&mouseY>=y&&mouseY<y+h)
+        if(graphics!=null&&!background&&!designerManufacturer&&mouseX>=x&&mouseX<x+w&&mouseY>=y&&mouseY<y+h&&!insideAutoImport(mouseX,mouseY))
             Tooltips.drawExact(graphics,font,value,mouseX,mouseY);
     }
     private void tip(String value, int x, int y, int w, int h) {

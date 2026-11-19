@@ -483,8 +483,8 @@ public final class IndustryScreenChecks {
             final int col=column;
             var point=context.computeOnClient(client->{
                 var screen=(IndustryScreen)client.gui.screen();var row=button(screen,partner.name()+"에서 수입");
-                int pane=row.getWidth()+12;int[] edges={8,pane*44/100,pane*65/100,pane*83/100,pane-7};
-                return new double[]{(edges[col]+edges[col+1])*client.getWindow().getGuiScale()/2,(row.getY()+row.getHeight()/2.0)*client.getWindow().getGuiScale()};
+                double[] centers={140,300,400,520};
+                return new double[]{screen.tradeFrame().x(centers[col])*client.getWindow().getGuiScale(),(row.getY()+row.getHeight()/2.0)*client.getWindow().getGuiScale()};
             });
             context.getInput().setCursorPos(point[0],point[1]);context.waitTicks(5);
             context.takeScreenshot("hoi-trade-tooltip-"+List.of("country","export","delivered","convoys").get(column)+"-gui2");
@@ -738,7 +738,7 @@ public final class IndustryScreenChecks {
                         "picker/variant", "picker/variant_armor", "picker/variant_air", "picker/variant_navy", "picker/expand", "picker/collapse", "picker/manufacturer", "picker/role_any", "picker/filter_carrier"))
                     check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/" + path + ".png")).isPresent(), "Production and designer asset " + path);
             });
-            if (tab == MenuTab.TRADE) { click(context, "경제"); context.waitTicks(2); context.takeScreenshot("hoi-industry-economy"); click(context, "무역"); }
+            if (tab == MenuTab.TRADE) { click(context, "경제와 무역 화면 간 전환"); context.waitTicks(2); context.takeScreenshot("hoi-industry-economy"); click(context, "경제와 무역 화면 간 전환"); }
             context.getInput().resizeWindow(854, 480); context.waitTicks(3);
             context.runOnClient(client -> { var s = (IndustryScreen)client.gui.screen(); s.mouseScrolled(20, 170, 0, -100); checkBounds(s); });
             context.waitTicks(2); context.takeScreenshot("hoi-industry-compact-" + tab.id());

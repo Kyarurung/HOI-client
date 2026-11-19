@@ -104,9 +104,16 @@ public final class FocusScreen extends Screen {
         detailClose=null;detailStart=null;
         top=HudMenuBar.height(width)+29;
         HudMenuBar.buttons(width,view==null?"":view.country(),null,HoiClient::openMenu,HudMenuBar.height(width)).forEach(this::addRenderableWidget);
-        addRenderableWidget(new UiMenuButton("×",width-25,top-26,21,21,() -> super.onClose()));
-        addRenderableWidget(new UiMenuButton("+",width-51,top-25,21,20,() -> zoom(1.15,width/2.0,(height+top)/2.0)));
-        addRenderableWidget(new UiMenuButton("−",width-74,top-25,21,20,() -> zoom(1/1.15,width/2.0,(height+top)/2.0)));
+        float unit=HudMenuBar.windowTop(width)/78f,windowTop=HudMenuBar.windowTop(width),center=width-114*unit,middle=windowTop+28.5f*unit;
+        int closeLeft=Math.round(width-48*unit),closeTop=Math.round(windowTop+13*unit);
+        addRenderableWidget(new UiMenuButton("×",closeLeft,closeTop,Math.round(width-16*unit)-closeLeft,Math.round(windowTop+46*unit)-closeTop,() -> super.onClose())
+                .caption("").background("menu/close").art(width-48*unit,windowTop+13*unit,32*unit,33*unit).sound("ui.close"));
+        int split=Math.round(center+17.5f*unit),artTop=Math.round(middle-17.5f*unit),artBottom=Math.round(middle+17.5f*unit),minusLeft=Math.round(center-21*unit);
+        var zoomTip=Tooltips.createOfficer(UiCommandLabels.text("FOCUS_ZOOM_SLIDER_TOOLTIP","클릭하거나 §G마우스 휠§!을 사용하여 중점 계통도를 확대/축소"));
+        var zoomIn=new UiMenuButton("+",split,artTop,Math.round(center+56*unit)-split,artBottom-artTop,() -> zoom(1.15,width/2.0,(height+top)/2.0)).caption("").background("focus/zoom_in").art(center+14*unit,middle-17.5f*unit,42*unit,35*unit);
+        var zoomOut=new UiMenuButton("−",minusLeft,artTop,split-minusLeft,artBottom-artTop,() -> zoom(1/1.15,width/2.0,(height+top)/2.0)).caption("").background("focus/zoom_out").art(center-21*unit,middle-17.5f*unit,42*unit,35*unit);
+        zoomIn.setTooltip(zoomTip);zoomOut.setTooltip(zoomTip);
+        addRenderableWidget(zoomIn);addRenderableWidget(zoomOut);
         int searchWidth=Math.min(140,Math.max(65,width/5));
         if(search==null) {
             search=new EditBox(font,0,0,searchWidth,18,Component.literal("중점 검색"));
@@ -265,7 +272,7 @@ public final class FocusScreen extends Screen {
     @Override public boolean mouseDragged(MouseButtonEvent event,double dx,double dy) {if(!selected.isEmpty() && detailPanel.drag(event.y()))return true;if(draggingDetail){detailPanel.move(dx,dy,width,height,top);rebuildWidgets();return true;}if(panning){panX+=(float)dx;panY+=(float)dy;return true;}return super.mouseDragged(event,dx,dy);}
     @Override public boolean mouseReleased(MouseButtonEvent event){panning=false;draggingDetail=false;detailPanel.release();return super.mouseReleased(event);}
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical){if(!selected.isEmpty() && detailPanel.scroll(x,y,vertical))return true;if(y>=top){zoom(Math.pow(1.1,vertical),x,y);return true;}return super.mouseScrolled(x,y,horizontal,vertical);}
-    @Override public boolean keyPressed(KeyEvent event){if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && !selected.isEmpty()){clearSelection();rebuildWidgets();return true;}if(!selected.isEmpty() && getFocused()!=search && (event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER)){if(detailStart.active)detailStart.onPress(event);return true;}return super.keyPressed(event);}
+    @Override public boolean keyPressed(KeyEvent event){if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && !selected.isEmpty()){clearSelection();rebuildWidgets();return true;}if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_PAGEUP || event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_PAGEDOWN){zoom(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_PAGEUP?1.15:1/1.15,width/2.0,(height+top)/2.0);return true;}if(!selected.isEmpty() && getFocused()!=search && (event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER)){if(detailStart.active)detailStart.onPress(event);return true;}return super.keyPressed(event);}
     @Override public boolean isPauseScreen(){return false;}
     @Override public void removed(){detailPanel.release();detailPanel.closeResources();super.removed();}
 }

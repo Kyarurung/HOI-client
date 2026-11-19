@@ -10,7 +10,20 @@ public record IndustryView(String session, long revision, String country, Countr
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
         List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
+        Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner, NavalDeployment navalDeployment, CommanderArmyHeadquarters headquarters, CommanderCaptivityView captivity, Viewing viewing, AutoImport autoImport) {
+    public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
+        List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
+        List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
+        List<Choice> companies, List<Choice> locations, List<Recruit> recruits, List<Deployed> deployed,
         Template draft, String message, NavalRepairs navalRepairs, SpecialForces specialForces, RecruitmentPolicy recruitmentPolicy, IndustryTankDesigner tankDesigner, NavalDeployment navalDeployment, CommanderArmyHeadquarters headquarters, CommanderCaptivityView captivity, Viewing viewing) {
+        this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing,null);
+    }
+    public record AutoImport(boolean enabled, int budget, int maximum, List<String> order, Map<String,Integer> shortage, boolean fuel) {
+        public AutoImport {
+            order=bounded(order,16);order.forEach(id->text(id,32));shortage=boundedMap(shortage,16);
+            if(budget<0||maximum<0||budget>10000||maximum>100000||shortage.values().stream().anyMatch(n->n==null||n<0||n>10000))throw new IllegalArgumentException("Invalid automatic import");
+        }
+    }
     public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
         List<Partner> partners, List<Trade> trades, List<Template> templates, List<Choice> battalions,
@@ -40,14 +53,15 @@ public record IndustryView(String session, long revision, String country, Countr
         this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,null);
     }
     public IndustryView withNavalDeployment(NavalDeployment deployment) {
-        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,deployment,headquarters,captivity,viewing);
+        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,deployment,headquarters,captivity,viewing,autoImport);
     }
-    public IndustryView withHeadquarters(CommanderArmyHeadquarters value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,value,captivity,viewing);}
-    public IndustryView withCaptivity(CommanderCaptivityView value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,value,viewing);}
+    public IndustryView withAutoImport(AutoImport value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing,value);}
+    public IndustryView withHeadquarters(CommanderArmyHeadquarters value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,value,captivity,viewing,autoImport);}
+    public IndustryView withCaptivity(CommanderCaptivityView value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,value,viewing,autoImport);}
     public record Viewing(String country,String title) {
         public Viewing {IndustryView.text(country,32);IndustryView.text(title,600);if(country.isEmpty())throw new IllegalArgumentException("Invalid viewed country");}
     }
-    public IndustryView withEquipment(List<Equipment> value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,value,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing);}
+    public IndustryView withEquipment(List<Equipment> value){return new IndustryView(session,revision,country,hud,economy,resources,modifiers,value,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,tankDesigner,navalDeployment,headquarters,captivity,viewing,autoImport);}
     public record NavalTarget(String id,String name,String port,int level,int ships) {
         public NavalTarget {text(id,128);text(name,256);text(port,128);if(level<0||ships<0)throw new IllegalArgumentException("Invalid naval destination");}
         public boolean fleet(){return id.startsWith("fleet/");}
@@ -72,7 +86,7 @@ public record IndustryView(String session, long revision, String country, Countr
         this(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,null);
     }
     public IndustryView withTankDesigner(IndustryTankDesigner designer) {
-        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer,navalDeployment,headquarters,captivity,viewing);
+        return new IndustryView(session,revision,country,hud,economy,resources,modifiers,equipment,lines,partners,trades,templates,battalions,companies,locations,recruits,deployed,draft,message,navalRepairs,specialForces,recruitmentPolicy,designer,navalDeployment,headquarters,captivity,viewing,autoImport);
     }
     public IndustryView(String session, long revision, String country, CountryHud hud, Economy economy,
         List<Resource> resources, List<Modifier> modifiers, List<Equipment> equipment, List<Line> lines,
@@ -164,7 +178,14 @@ public record IndustryView(String session, long revision, String country, Countr
     public record Economy(int military, int dockyards, int civilian, int freeCivilian, int consumer,
             double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand) {}
     public record Resource(String id, String name, double extracted, double imported, double exported,
-            double available, double demand) {}
+            double available, double demand, Double fuelCurrent, Double fuelMaximum) {
+        public Resource {
+            if(fuelCurrent!=null&&(!Double.isFinite(fuelCurrent)||fuelCurrent<0)||fuelMaximum!=null&&(!Double.isFinite(fuelMaximum)||fuelMaximum<0))throw new IllegalArgumentException("Invalid fuel use");
+        }
+        public Resource(String id, String name, double extracted, double imported, double exported, double available, double demand) {
+            this(id,name,extracted,imported,exported,available,demand,null,null);
+        }
+    }
     public record Modifier(String id, String name, double value, String detail) {}
     public record DesignInfo(String chassis,String role,List<String> missions) {
         public DesignInfo {text(chassis,128);text(role,128);missions=List.copyOf(missions);if(missions.size()>16)throw new IllegalArgumentException("Too many missions");missions.forEach(id->text(id,128));}
@@ -297,13 +318,14 @@ public record IndustryView(String session, long revision, String country, Countr
             if(stock<0||!Double.isFinite(cost)||cost<=0||!Double.isFinite(speed)||speed<0)throw new IllegalArgumentException("Invalid conversion");
         }
     }
-    public record Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys, Double influence, Double resourcesPerFactory, Long freeConvoys, List<TradingNation> buyers, TradeDetail detail) {
+    public record Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys, Double influence, Double resourcesPerFactory, Long freeConvoys, List<TradingNation> buyers, TradeDetail detail, String continent, boolean faction, boolean subject) {
+        public Partner(String id,String name,Map<String,Double> exports,boolean route,Integer convoys,Double influence,Double resourcesPerFactory,Long freeConvoys,List<TradingNation> buyers,TradeDetail detail) {this(id,name,exports,route,convoys,influence,resourcesPerFactory,freeConvoys,buyers,detail,null,false,false);}
         public Partner(String id,String name,Map<String,Double> exports,boolean route,Integer convoys,Double influence,Double resourcesPerFactory,Long freeConvoys,List<TradingNation> buyers) {this(id,name,exports,route,convoys,influence,resourcesPerFactory,freeConvoys,buyers,null);}
         public Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys, Double influence, Double resourcesPerFactory, Long freeConvoys) {this(id,name,exports,route,convoys,influence,resourcesPerFactory,freeConvoys,List.of());}
         public Partner(String id, String name, Map<String,Double> exports, boolean route, Integer convoys) {this(id,name,exports,route,convoys,null,null,null);}
         public Partner(String id, String name, Map<String,Double> exports, boolean route) { this(id,name,exports,route,null); }
         public Partner {
-            text(id,32);text(name,128);exports=boundedMap(exports,8);buyers=buyers==null?List.of():bounded(buyers,4096);
+            text(id,32);text(name,128);exports=boundedMap(exports,8);buyers=buyers==null?List.of():bounded(buyers,4096);if(continent!=null)text(continent,32);
             if(influence!=null&&(!Double.isFinite(influence)||influence<0)||resourcesPerFactory!=null&&(!Double.isFinite(resourcesPerFactory)||resourcesPerFactory<=0)||freeConvoys!=null&&freeConvoys<0)
                 throw new IllegalArgumentException("Invalid trade terms");
         }
