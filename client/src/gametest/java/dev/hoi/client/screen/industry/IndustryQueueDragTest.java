@@ -58,7 +58,9 @@ public final class IndustryQueueDragTest {
                     if (sent.size() != 1) throw new AssertionError("Pending production drag must not repeat");
                     screen.update(revision(source, IndustryView.class, source.revision() + 2));
                 });
-                game.getInput().setCursorPos(size[0] - 4, size[1] - 4); game.waitTicks(2); game.takeScreenshot("hoi-production-lines-source-" + size[0] + "-gui2");
+                game.getInput().setCursorPos(size[0] - 4, size[1] - 4); game.waitTicks(2);
+                var lines = game.takeScreenshot("hoi-production-lines-source-" + size[0] + "-gui2");
+                efficiencyGauge(lines, source, game.computeOnClient(c -> (int)field(screen, "top") + 147), game.computeOnClient(c -> method(screen, "productionRowHeight")), screen.panelWidth());
                 preview(game,screen,6+Math.round((screen.panelWidth()-22)*80f/511),game.computeOnClient(c -> (int)field(screen,"top")+147),game.computeOnClient(c -> method(screen,"productionRowHeight")),"production-expanded",size[0]);
                 int rowTop = game.computeOnClient(c -> (int)field(screen,"top") + 147);
                 game.getInput().setCursorPos(180,(rowTop+5)*2); game.waitTicks(3);
@@ -81,6 +83,7 @@ public final class IndustryQueueDragTest {
                 game.getInput().setCursorPos(size[0]-4,size[1]-4);
                 preview(game,screen,6+Math.round((screen.panelWidth()-22)*80f/511),rowTop,Math.round((screen.panelWidth()-22)*63f/511)+2,"production-collapsed",size[0]);
                 construction(game, hud);
+                constructionGauge(game, hud);
                 equipmentBounds(game, source, size[0]);
             }
         } finally { game.setScreen(() -> null); game.runOnClient(c -> c.options.guiScale().set(previous)); }
@@ -103,6 +106,56 @@ public final class IndustryQueueDragTest {
             }catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
         }
         game.runOnClient(c->screen.keyPressed(new KeyEvent(InputConstants.KEY_ESCAPE,0,0)));game.waitTicks(2);
+    }
+    private static void efficiencyGauge(java.nio.file.Path shot, IndustryView source, int top, int pitch, int pane) {
+        int index = 0;
+        while (index < source.lines().size()) {
+            var line = source.lines().get(index);
+            if (source.equipment().stream().noneMatch(e -> e.id().equals(line.equipment()) && e.naval())) break;
+            index++;
+        }
+        if (index == source.lines().size()) throw new AssertionError("Production source needs a land line for the efficiency gauge");
+        float scale = (pane - 22) / 511f, y = top + index * pitch;
+        try {
+            var image = javax.imageio.ImageIO.read(shot.toFile());
+            int above = (int)Math.floor((y + 8.5f * scale) * 2), bottom = (int)Math.floor((y + 18.25f * scale) * 2);
+            for (int column = 253; column <= 341; column++) {
+                int x = (int)Math.floor((6 + (column + .5f) * scale) * 2);
+                if (!lineArt(image.getRGB(x, above))) throw new AssertionError("Efficiency bar must stay inside its frame at column " + column + ": " + Integer.toHexString(image.getRGB(x, above)));
+                if (lineArt(image.getRGB(x, bottom))) throw new AssertionError("Efficiency bar must fill the bottom row of its frame at column " + column + ": " + Integer.toHexString(image.getRGB(x, bottom)));
+            }
+        } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+    }
+    private static boolean lineArt(int rgb) {
+        int red = rgb >> 16 & 255, green = rgb >> 8 & 255, blue = rgb & 255;
+        return blue > red + 4 && blue > green + 4 && blue > 40;
+    }
+    private static void constructionGauge(ClientGameTestContext game, CountryHud hud) {
+        var summary = new IndustryConstructionView.Summary(43, 7, 7, 25, 4, 0, 4, 1.31, 10, 21.86);
+        var projects = List.of(new IndustryConstructionView.Project("gauge-full", "state-0", "civilian_factory", "건설 입력 0", 1, 15, 10800, 0, 10800),
+                new IndustryConstructionView.Project("gauge-half", "state-1", "civilian_factory", "건설 입력 1", 1, 15, 5400, 0, 10800));
+        var view = new IndustryConstructionView("gauge", 1, "KOR", hud, "", summary, List.of(), projects, "");
+        var screen = game.computeOnClient(c -> new IndustryConstruction(view.session(), view, request -> {}));
+        game.setScreen(() -> screen);
+        int width = game.computeOnClient(c -> c.getWindow().getWidth());
+        game.getInput().setCursorPos(width - 4, 4); game.waitTicks(2);
+        var shot = game.takeScreenshot("hoi-construction-gauge-synthetic-" + width + "-gui2");
+        float[] art = game.computeOnClient(c -> {
+            int q = method(screen, "paletteX") - 15, y = method(screen, "queueY");
+            double fit = Math.min((q - 6) / 402.0, 27 / 54.0);
+            int fitW = (int)Math.round(402 * fit), fitH = (int)Math.round(54 * fit);
+            return new float[]{6 + (q - 6 - fitW) / 2, y + (27 - fitH) / 2, fitW / 402f, fitH / 54f};
+        });
+        int left = (int)Math.ceil((art[0] + 249 * art[2]) * 2 - .49f), right = (int)Math.ceil((art[0] + 311 * art[2]) * 2 - .51f);
+        int top = (int)Math.ceil((art[1] + 36 * art[3]) * 2 - .49f), bottom = (int)Math.ceil((art[1] + 45 * art[3]) * 2 - .51f);
+        if (right - left < 40 || bottom - top < 6) throw new AssertionError("Construction slot must be sampled on screen: " + left + "," + top + " - " + right + "," + bottom);
+        try {
+            var image = javax.imageio.ImageIO.read(shot.toFile());
+            for (int y = top; y < bottom; y++) for (int x = left; x < right; x++) {
+                int rgb = image.getRGB(x, y);
+                if ((rgb >> 8 & 255) < (rgb >> 16 & 255) + 5) throw new AssertionError("Full construction bar must cover its slot at " + x + "," + y + ": " + Integer.toHexString(rgb));
+            }
+        } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
     }
     private static void equipmentBounds(ClientGameTestContext game, IndustryView source, int width) {
         for (String group : List.of("infantry", "navy", "air")) {

@@ -229,7 +229,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
         double fit=Math.min((q-6)/402.0,(rowHeight()-2)/54.0);int fitW=(int)Math.round(402*fit),fitH=(int)Math.round(54*fit);
         g.pose().pushMatrix();
         g.pose().translate(6+(q-6-fitW)/2,y+(rowHeight()-2-fitH)/2);g.pose().scale(fitW/402f,fitH/54f);
-        IndustryProductionRender.startEnd(g,"construction/ui/progress","construction/ui/progress_background",249,36,60,8,p.cost()==0?0:p.progress()/p.cost());
+        IndustryProductionRender.startEnd(g,"construction/ui/progress","construction/ui/progress_background",249,36,62,9,p.cost()==0?0:p.progress()/p.cost());
         g.pose().popMatrix();
         if(mx>=column(172)&&mx<column(172)+23&&my>=y+2&&my<y+25&&p.taskTooltip()!=null)Tooltips.drawExact(g,font,p.taskTooltip(),mx,my);
         else if(mx>=column(249)&&mx<column(310)&&my>=y&&my<y+rowHeight()-3&&p.tooltip()!=null)Tooltips.drawExact(g,font,p.tooltip(),mx,my);

@@ -414,8 +414,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (graphics != null) {
                 double cap = view.modifiers().stream().filter(m -> m.id().equals("cap")).findFirst().map(m -> m.value()).orElse(0.0);
                 graphics.pose().pushMatrix(); graphics.pose().translate(6, y); graphics.pose().scale(scale);
-                IndustryProductionRender.startEnd(graphics, "production/line/efficiency_max", "production/line/efficiency_bg", 252, 8, 93, 9, cap);
-                IndustryProductionRender.startEnd(graphics, "production/line/efficiency_fill", null, 252, 8, 93, 9, line.efficiency());
+                IndustryProductionRender.startEnd(graphics, "production/line/efficiency_max", "production/line/efficiency_bg", 252, 10, 93, 9, cap);
+                IndustryProductionRender.startEnd(graphics, "production/line/efficiency_fill", null, 252, 10, 93, 9, line.efficiency());
                 graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/efficiency_frame.png"), 248, 7, 347, 22, 0, 1, 0, 1);
                 UiAssets.draw(graphics, "production/line/efficiency", 225, 4, 24, 21);
                 graphics.pose().popMatrix();
