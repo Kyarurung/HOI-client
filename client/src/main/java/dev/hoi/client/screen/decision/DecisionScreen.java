@@ -42,12 +42,13 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     private final DecisionText text = new DecisionText();
     private final DecisionPanel panels = new DecisionPanel();
     private Map<String,String> assets = Map.of();
-    private int pane, top, scroll, total, ticks = 99, tooltipScroll;
+    private static final UiMenuStyle.Window WINDOW=UiMenuStyle.window(MenuTab.DECISIONS);
+    private UiMenuStyle.Frame frame;
+    private int pane, scroll, total, ticks = 99, tooltipScroll;
     private long marqueeTicks;
     private long pendingRevision = -1;
     private boolean legacy;
     private boolean draggingScroll;
-    private int scrollGrab;
     private Boolean modern;
     private int legacyPage;
     private String hover = "";
@@ -79,7 +80,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             }
         });
     }
-    int scrollOffset() { return scroll; }
+    int scrollOffset() { return Math.round(scroll*frame.scale()); }
     boolean collapsed(String id) { return collapsed.contains(id); }
     int rowCount() { return snapshot.rows().size(); }
     boolean pending() { return pendingRevision>=0; }
@@ -176,14 +177,13 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     }
     @Override protected void init() {
         eventRows = dialogs() == null ? List.of() : dialogs().events();
-        pane=UiPanelLayout.width(MenuTab.DECISIONS,width);top=HudMenuBar.height(width);
         assets=loadAssets();text.clear();panels.clear();
-        pane=Math.max(1,Math.min(275,width-16));
+        pane=Math.max(1,Math.min(275,width-16));frame=UiMenuStyle.frame(WINDOW,width,pane);
         var view=snapshot.view();
         HudMenuBar.buttons(width,view==null?"":view.country(),MenuTab.DECISIONS,tab -> {
             if(tab==MenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(tab);
         }).forEach(this::addRenderableWidget);
-        addRenderableWidget(new UiMenuButton("×",pane-25,top+3,19,19,this::onClose));
+        addRenderableWidget(UiMenuStyle.close(WINDOW,frame,this::onClose));
         layout(null,false);
         scroll=Math.clamp(scroll,0,Math.max(0,total-contentBottom()+contentTop()));
         layout(null,true);
@@ -211,8 +211,17 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             return Map.copyOf(result);
         } catch(Exception invalid) {return Map.of();}
     }
-    private int contentTop() { return top + 26; }
-    private int contentBottom() { return height-(legacy?32:10); }
+    private static final int LIST_X=5,LIST_Y=45,LIST_WIDTH=544,GRID_X=14,SCROLL_X=526,EVENT_HEADER=65,EVENT_ROW=33,CATEGORY_HEADER=60,CATEGORY_END=20,DESC_WIDTH=510,TEXT_X=28,TEXT_WIDTH=470,PANEL_WIDTH=486,WHEEL=40;
+    private int listBottom() { return (int)Math.ceil((height-frame.y())/frame.scale())+2; }
+    int contentTop() { return frame.iy(LIST_Y); }
+    int contentBottom() { return legacy?height-32:Math.min(height,frame.iy(listBottom())); }
+    private int listLeft() { return frame.ix(LIST_X); }
+    private int listRight() { return frame.ix(LIST_X+LIST_WIDTH); }
+    private void line(GuiGraphicsExtractor g,Component value,double x,double center,double width,int color,boolean centered,boolean bold) {
+        if(width<=0)return;
+        int left=frame.ix(x),right=frame.ix(x+width),top=Math.round(frame.y(center)-font.lineHeight/2f);
+        text.scrollingCell(g,font,bold?value.copy().withStyle(net.minecraft.ChatFormatting.BOLD):value,left,top,Math.max(1,right-left),font.lineHeight,color,centered,marqueeTicks*50);
+    }
     private List<DecisionPayloads.Category> categories() {
         var groups=new LinkedHashMap<String,DecisionPayloads.Category>();
         for(var category:snapshot.categories())groups.put(category.id(),category);
@@ -221,138 +230,140 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         return List.copyOf(groups.values());
     }
     private void layout(GuiGraphicsExtractor g,boolean widgets) {
-        int pane=this.pane-10;
         if(widgets)hits.clear();
         var groups=new LinkedHashMap<String,List<DecisionPayloads.Row>>();
         for(var row:snapshot.rows())groups.computeIfAbsent(row.category(),k -> new ArrayList<>()).add(row);
-        int y=contentTop()-scroll,header=Math.max(26,pane*52/550);
-        {
-            int eventHeader=36;
-            if (g != null) {
-                UiAssets.nineSlice(g, "decision/ui/event_header", 5, y, pane - 10, eventHeader, 5, 1);
-                g.text(font, Tooltips.officerText("사건",true), 16, y + 6, UiMenuStyle.TEXT,false);
+        int y=LIST_Y-scroll;
+        if(g!=null) {
+            frame.art(g,"decision/ui/event_header",GRID_X,y);
+            line(g,text.component("사건"),34,y+23.5,240,UiMenuStyle.TEXT,false,true);
+        }
+        popup(g,widgets,"minor","중요하지 않은 알림",116,y+10,104);
+        popup(g,widgets,"events","사건 팝업",256,y+10,110);
+        popup(g,widgets,"news","뉴스 팝업",256,y+38,110);
+        y+=EVENT_HEADER;
+        for(var event:eventRows) {
+            if(g!=null) {
+                frame.art(g,"decision/ui/event_row",GRID_X-1,y);
+                frame.art(g,"decision/ui/event_type/frame_1",GRID_X+15,y+3);
+                String remaining=event.remainingDays()==null?"":event.remainingDays()+"일";
+                double timer=remaining.isEmpty()?0:font.width(remaining)/frame.scale()+8;
+                line(g,text.component(event.title()),GRID_X+50,y+16,450-timer,UiMenuStyle.TEXT,false,false);
+                if(!remaining.isEmpty())text.draw(g,font,Component.literal(remaining).getVisualOrderText(),frame.ix(GRID_X+500)-font.width(remaining),Math.round(UiText.centeredY(font,remaining,frame.y(y+16)-font.lineHeight/2f,font.lineHeight,1)),UiMenuStyle.TEXT,false);
             }
-            popup(g,widgets,"minor","중요하지 않은 알림",58,y+5,90,26);
-            popup(g,widgets,"events","사건 팝업",152,y+5,Math.max(65,pane-197),12);
-            popup(g,widgets,"news","뉴스 팝업",152,y+19,Math.max(65,pane-197),12);
-            y += eventHeader + 3;
-            double eventScale = (pane - 14) / 512.0;
-            int eventHeight = Math.max(12, (int)Math.round(33 * eventScale));
-            for (var event : eventRows) {
-                if (g != null) {
-                    UiAssets.nineSlice(g, "decision/ui/event_row", 7, y, pane - 14, eventHeight, 4, 1);
-                    UiAssets.draw(g, "decision/ui/event_type/frame_1", 7 + (int)Math.round(15 * eventScale), y + (int)Math.round(3 * eventScale), (int)Math.round(30 * eventScale), (int)Math.round(26 * eventScale));
-                    int textLeft = 7 + (int)Math.round(50 * eventScale);
-                    UiText.scrollingCell(g,font,text.component(event.title()),textLeft,y,pane-textLeft-80,eventHeight,UiMenuStyle.TEXT,false,marqueeTicks*50);
-                    if (event.remainingDays() != null) {
-                        String remaining = event.remainingDays() + "일";
-                        int right = 7 + (int)Math.round(500 * eventScale);
-                        g.text(font, remaining, right - font.width(remaining), y + (eventHeight - font.lineHeight) / 2, UiMenuStyle.TEXT, false);
-                    }
-                }
-                if (widgets && visible(y, eventHeight)) control(event.title(), 7, y, pane - 14, eventHeight, true, "ui.click", () -> {
-                    var stack = dialogs(); if (stack != null) stack.reopen(event.token());
-                });
-                y += eventHeight + 3;
-            }
-            if(!eventRows.isEmpty())y+=7;
+            if(widgets && visible(frame.iy(y),frame.len(EVENT_ROW)))control(event.title(),frame.ix(GRID_X-1),frame.iy(y),frame.len(512),frame.len(EVENT_ROW),true,"ui.click",() -> {
+                var stack=dialogs();if(stack!=null)stack.reopen(event.token());
+            });
+            y+=EVENT_ROW;
         }
         var view=snapshot.view();
         String notice=view==null || snapshot.loading()?"서버 정보 불러오는 중…":"";
         if(!notice.isEmpty()) {
-            var lines=text.lines(font,notice,pane-24);
+            var lines=text.lines(font,notice,frame.len(TEXT_WIDTH));
             for(var line:lines) {
-                if(g!=null)text.draw(g,font,line,12,y,UiMenuStyle.MUTED,false);
-                y+=font.lineHeight+1;
+                if(g!=null)text.draw(g,font,line,frame.ix(TEXT_X),frame.iy(y+4),UiMenuStyle.MUTED,false);
+                y+=Math.round((font.lineHeight+1)/frame.scale());
             }
-            y+=4;
+            y+=8;
         }
         for(var category:categories()) {
             String id=category.id(),name=category.name();
-            int categoryHeight=Math.max(header,text.rows(name).size()*(font.lineHeight+1)+8);
+            var rows=groups.getOrDefault(id,List.of());
             if(g!=null) {
-                UiAssets.nineSlice(g,"decision/category",5,y,pane-10,categoryHeight,5,1);
-                UiAssets.draw(g,asset(category.icon(),"icon"),10,y+(categoryHeight-header+6)/2,header-6,header-6);
-                label(g,name,header+8,y,pane-header-43,categoryHeight,UiMenuStyle.TEXT,0,true);
-                UiAssets.draw(g,collapsed.contains(id)?"recruitment/expand":"recruitment/collapse",pane-27,y+(categoryHeight-12)/2,12,12);
-                if(!groups.getOrDefault(id,List.of()).isEmpty())UiAssets.draw(g,"decision/ui/track_category/frame_"+categoryTracking(groups.get(id)),pane-42,y+(categoryHeight-10)/2,10,10);
+                frame.art(g,"decision/ui/category",GRID_X-4,y+8);
+                String icon=asset(category.icon(),"icon");
+                int[] iconSize=UiAssets.imageSize(icon);
+                if(iconSize[0]>0)frame.art(g,icon,GRID_X+10,y+16,Math.min(iconSize[0],51),Math.min(iconSize[1],40));
+                line(g,text.component(name),GRID_X+74,y+28.5,365,UiMenuStyle.TEXT,true,true);
+                frame.art(g,collapsed.contains(id)?"recruitment/expand":"recruitment/collapse",GRID_X+470,y+23);
+                if(!rows.isEmpty())frame.art(g,"decision/ui/track_category/frame_"+categoryTracking(rows),GRID_X+435,y+24);
             }
-            if(widgets && visible(y,categoryHeight)) {
-                control(name,6,y,pane-50,categoryHeight,true,"ui.decision.tab",() -> {if(!collapsed.add(id))collapsed.remove(id);rebuildWidgets();});
-                control("분류 접기: "+name,pane-28,y,17,categoryHeight,true,"ui.decision.tab",() -> {if(!collapsed.add(id))collapsed.remove(id);rebuildWidgets();});
-                hits.add(new DecisionHit("category/"+id,"§Y"+text.component(name).getString()+"§!",y,categoryHeight));
-                var rows=groups.getOrDefault(id,List.of());
+            if(widgets && visible(frame.iy(y+8),frame.len(53))) {
+                Runnable fold=() -> {if(!collapsed.add(id))collapsed.remove(id);rebuildWidgets();};
+                control(name,frame.ix(GRID_X-4),frame.iy(y+8),frame.len(GRID_X+435-(GRID_X-4)),frame.len(53),true,"ui.decision.tab",fold);
+                control("분류 접기: "+name,frame.ix(GRID_X+470),frame.iy(y+23),frame.len(24),frame.len(25),true,"ui.decision.tab",fold);
+                hits.add(new DecisionHit("category/"+id,"§Y"+text.component(name).getString()+"§!",frame.ix(GRID_X-4),frame.iy(y+8),frame.len(516),frame.len(53)));
                 if(!rows.isEmpty()) {
-                    control("분류 추적: "+text.component(name).getString(),pane-43,y,13,categoryHeight,true,"ui.decision.tab",()->{
+                    control("분류 추적: "+text.component(name).getString(),frame.ix(GRID_X+435),frame.iy(y+24),frame.len(23),frame.len(23),true,"ui.decision.tab",()->{
                         boolean enabled=categoryTracking(rows)!=1;
                         preferences.tracking(server(),viewCountry(),rows.stream().map(DecisionPayloads.Row::id).toList(),enabled);
                         rebuildWidgets();
                     });
-                    hits.add(new DecisionHit("track-category/"+id,dev.hoi.client.ui.UiCommandLabels.text("CLICK_TO_TOGGLE_ALL_CATEGORY_DECISION_TRACKING",""),pane-43,y,13,categoryHeight));
+                    hits.add(new DecisionHit("track-category/"+id,dev.hoi.client.ui.UiCommandLabels.text("CLICK_TO_TOGGLE_ALL_CATEGORY_DECISION_TRACKING",""),frame.ix(GRID_X+435),frame.iy(y+24),frame.len(23),frame.len(23)));
                 }
             }
-            y+=categoryHeight+3;
-            if(collapsed.contains(id))continue;
-            y=body(g,category,y,widgets);
-            for(var row:groups.getOrDefault(id,List.of())) {
-                int rowHeight=rowHeight(row);
-                if(g!=null)row(g,row,y,rowHeight);
-                if(widgets && visible(y,rowHeight)) {
-                    hits.add(new DecisionHit(row.id(),tooltip(row),y,rowHeight));
-                    control(rowName(row),7,y,pane-52,rowHeight,row.enabled() && !pending() && !snapshot.loading(),"ui.decision.take",
-                            () -> {request(DecisionPayloads.Action.TAKE,row.id(),legacy?legacyPage:0);rebuildWidgets();});
-                    control("결정 실행: "+text.component(rowName(row)).getString(),pane-30,y,20,rowHeight,row.enabled() && !pending() && !snapshot.loading(),"ui.decision.take",
-                            () -> {request(DecisionPayloads.Action.TAKE,row.id(),legacy?legacyPage:0);rebuildWidgets();});
-                    control("추적: "+text.component(rowName(row)).getString(),pane-44,y,12,rowHeight,true,"ui.decision.tab",()->{
-                        preferences.tracking(server(),viewCountry(),row.id(),!tracking(row));rebuildWidgets();
-                    });
-                    hits.add(new DecisionHit("track/"+row.id(),dev.hoi.client.ui.UiCommandLabels.text(tracking(row)?"DECISION_KEEP_NOTIFIED":"DECISION_NOT_KEEP_NOTIFIED",""),pane-44,y,12,rowHeight));
+            y+=CATEGORY_HEADER;
+            if(!collapsed.contains(id)) {
+                y=body(g,category,y,widgets);
+                for(var row:rows) {
+                    int rowHeight=rowHeight(row);
+                    if(g!=null)row(g,row,y);
+                    int top=frame.iy(y),height=frame.len(rowHeight);
+                    if(widgets && visible(top,height)) {
+                        boolean active=row.enabled() && !pending() && !snapshot.loading();
+                        hits.add(new DecisionHit(row.id(),tooltip(row),frame.ix(GRID_X),top,frame.len(512),height));
+                        control(rowName(row),frame.ix(GRID_X),top,frame.len(row.remainingHours()>0?512:437),height,active,"ui.decision.take",
+                                () -> {request(DecisionPayloads.Action.TAKE,row.id(),legacy?legacyPage:0);rebuildWidgets();});
+                        if(row.remainingHours()<=0) {
+                            int selectY=row.target()==null?6:4;
+                            control("결정 실행: "+text.component(rowName(row)).getString(),frame.ix(GRID_X+465),frame.iy(y+selectY),frame.len(40),frame.len(28),active,"ui.decision.take",
+                                    () -> {request(DecisionPayloads.Action.TAKE,row.id(),legacy?legacyPage:0);rebuildWidgets();});
+                            control("추적: "+text.component(rowName(row)).getString(),frame.ix(GRID_X+437),frame.iy(y+7),frame.len(23),frame.len(23),true,"ui.decision.tab",()->{
+                                preferences.tracking(server(),viewCountry(),row.id(),!tracking(row));rebuildWidgets();
+                            });
+                            hits.add(new DecisionHit("track/"+row.id(),dev.hoi.client.ui.UiCommandLabels.text(tracking(row)?"DECISION_KEEP_NOTIFIED":"DECISION_NOT_KEEP_NOTIFIED",""),frame.ix(GRID_X+437),frame.iy(y+7),frame.len(23),frame.len(23)));
+                        }
+                    }
+                    y+=rowHeight;
                 }
-                y+=rowHeight+3;
             }
-            y+=7;
+            y+=CATEGORY_END;
         }
-        total=y-contentTop()+scroll;
+        total=y-(LIST_Y-scroll);
     }
+    private static boolean timed(DecisionPayloads.Row row) { return row.remainingHours()>0 && row.target()==null; }
     private String server() { return fixture?"fixture":DecisionPreferences.server(); }
     private String viewCountry() { var view=snapshot.view();return view==null?"":view.country(); }
     private boolean tracking(DecisionPayloads.Row row) { return preferences.tracking(server(),viewCountry(),row.id()); }
     private int categoryTracking(List<DecisionPayloads.Row> rows) {
         long tracked=rows.stream().filter(this::tracking).count();return tracked==rows.size()?1:tracked==0?0:2;
     }
-    private void popup(GuiGraphicsExtractor g,boolean widgets,String id,String label,int x,int y,int width,int height) {
+    private void popup(GuiGraphicsExtractor g,boolean widgets,String id,String label,int x,int y,int labelWidth) {
+        int box=y+2;
         if(g!=null) {
-            UiAssets.draw(g,"decision/ui/checkbox/frame_"+(preferences.popup(id)?1:0),x,y+(height-10)/2,11,11);
-            label(g,label,x+14,y-1,width-14,height,UiMenuStyle.TEXT,-1);
+            frame.art(g,"decision/ui/checkbox/frame_"+(preferences.popup(id)?1:0),x,box);
+            line(g,text.component(label),x+36,box+14.5,labelWidth,UiMenuStyle.TEXT,false,false);
         }
-        if(widgets && visible(y,height)) {
-            control(label,x,y,width,height,true,"ui.decision.tab",()->{preferences.popup(id,!preferences.popup(id));rebuildWidgets();});
+        int left=frame.ix(x),top=frame.iy(box),width=frame.ix(x+36+labelWidth)-left,height=frame.len(30);
+        if(widgets && visible(top,height)) {
+            control(label,left,top,width,height,true,"ui.decision.tab",()->{preferences.popup(id,!preferences.popup(id));rebuildWidgets();});
             String tooltip=switch(id) {
                 case "minor" -> "에이스 조종사 사건 같이 작은 사건 알림을 전환하려면 §G클릭§!하십시오.";
                 case "news" -> "뉴스 알림을 전환하려면 §G클릭§!하십시오";
                 default -> "사건 알림을 전환하려면 §G클릭§!하십시오";
             };
-            hits.add(new DecisionHit("popup/"+id,tooltip,x,y,width,height));
+            hits.add(new DecisionHit("popup/"+id,tooltip,left,top,width,height));
         }
     }
     private boolean visible(int y,int height) { return y>=contentTop() && y+height<=contentBottom(); }
     private int body(GuiGraphicsExtractor g,DecisionPayloads.Category category,int y,boolean widgets) {
-        int pane=this.pane-10;
-        int start=y,bodyWidth=pane-22;
+        int start=y;
+        float scale=frame.scale();
         if(g!=null) {
             int bodyHeight=body(null,category,y,false)-y;
-            if(bodyHeight>0)UiAssets.tiledNineSlice(g,assets.getOrDefault("GFX_tiled_decisions_bg_small","doctrine/gfx_tiled_decisions_bg_small"),7,y,pane-14,bodyHeight,16,.5);
+            if(bodyHeight>0)frame.tile(g,assets.getOrDefault("GFX_tiled_decisions_bg_small","doctrine/gfx_tiled_decisions_bg_small"),GRID_X,y-1,DESC_WIDTH,bodyHeight,16,48);
         }
+        int lineHeight=Math.round((font.lineHeight+2)/scale);
         String picture=asset(category.picture(),"picture");
-        int pictureWidth=Math.min(bodyWidth,(int)Math.round(UiAssets.imageSize(picture)[0]*pane/550.0));
-        int pictureHeight=UiAssets.imageHeight(picture,pictureWidth);
-        if(pictureHeight>0) {
-            pictureHeight=Math.min(pictureHeight,pane);
-            if(g!=null)UiAssets.draw(g,picture,11+(bodyWidth-pictureWidth)/2,y,pictureWidth,pictureHeight);
-            y+=pictureHeight+4;
+        int[] pictureSize=UiAssets.imageSize(picture);
+        if(pictureSize[0]>0 && pictureSize[1]>0) {
+            int pictureWidth=Math.min(TEXT_WIDTH,pictureSize[0]),pictureHeight=Math.min(DESC_WIDTH,Math.round(pictureSize[1]*pictureWidth/(float)pictureSize[0]));
+            if(g!=null)frame.art(g,picture,TEXT_X+(TEXT_WIDTH-pictureWidth)/2.0,y+6,pictureWidth,pictureHeight);
+            y+=pictureHeight+14;
         }
         if(!category.description().isEmpty()) {
-            int lineHeight=font.lineHeight+2;
+            if(y==start)y+=6;
+            int bodyWidth=frame.len(TEXT_WIDTH);
             var rows=text.sourceRows(category.description());
             for(int index=0;index<rows.size();index++) {
                 var line=rows.get(index);
@@ -360,15 +371,14 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                     int image=index;
                     while(image<rows.size() && rows.get(image).getString().isBlank())image++;
                     String path=image<rows.size()?bodyImage(rows.get(image)):"";
-                    int imageWidth=Math.min(bodyWidth,(int)Math.round(UiAssets.imageSize(path)[0]*pane/550.0));
-                    int imageHeight=UiAssets.imageHeight(path,imageWidth);
+                    int[] size=UiAssets.imageSize(path);
+                    int imageWidth=Math.min(TEXT_WIDTH,size[0]),imageHeight=size[0]>0?Math.round(size[1]*imageWidth/(float)size[0]):0;
                     int after=image+1;
                     while(after<rows.size() && rows.get(after).getString().isBlank())after++;
                     if(image-index>=3 && after-image-1>=3 && imageHeight>lineHeight*2) {
-                        int padding=Math.max(4,pane*10/550);
-                        y+=padding;
-                        if(g!=null)UiAssets.draw(g,path,11+(bodyWidth-imageWidth)/2,y,imageWidth,imageHeight);
-                        y+=imageHeight+padding;
+                        y+=10;
+                        if(g!=null)frame.art(g,path,TEXT_X+(TEXT_WIDTH-imageWidth)/2.0,y,imageWidth,imageHeight);
+                        y+=imageHeight+10;
                         index=after-1;
                         continue;
                     }
@@ -379,14 +389,13 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                     }
                 }
                 String path=bodyImage(line);
-                int imageWidth=Math.min(bodyWidth,(int)Math.round(UiAssets.imageSize(path)[0]*pane/550.0));
-                int imageHeight=UiAssets.imageHeight(path,imageWidth);
+                int[] size=UiAssets.imageSize(path);
+                int imageWidth=Math.min(TEXT_WIDTH,size[0]),imageHeight=size[0]>0?Math.min(DESC_WIDTH,Math.round(size[1]*imageWidth/(float)size[0])):0;
                 if(imageHeight>lineHeight*2) {
-                    imageHeight=Math.min(imageHeight,pane);
-                    if(g!=null)UiAssets.draw(g,path,11+(bodyWidth-imageWidth)/2,y,imageWidth,imageHeight);
-                    y+=imageHeight+3;
+                    if(g!=null)frame.art(g,path,TEXT_X+(TEXT_WIDTH-imageWidth)/2.0,y,imageWidth,imageHeight);
+                    y+=imageHeight+6;
                 } else for(var part:font.split(TooltipKeywordIcons.decorateLines(line,false),bodyWidth).isEmpty()?List.of(net.minecraft.util.FormattedCharSequence.EMPTY):font.split(TooltipKeywordIcons.decorateLines(line,false),bodyWidth)) {
-                    if(g!=null)text.draw(g,font,part,11,y,UiMenuStyle.TEXT,false);
+                    if(g!=null)text.draw(g,font,part,frame.ix(TEXT_X),frame.iy(y),UiMenuStyle.TEXT,false);
                     y+=lineHeight;
                 }
             }
@@ -395,11 +404,11 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             int reserved=0;
             if(category.description().endsWith("\n") && category.panel().elements().stream().anyMatch(element->negativePanel(element))) {
                 var rows=text.rows(category.description());
-                for(int index=rows.size()-1;index>=0 && rows.get(index).getString().isBlank();index--)reserved+=font.lineHeight+2;
-                if(reserved<3*(font.lineHeight+2))reserved=0;
+                for(int index=rows.size()-1;index>=0 && rows.get(index).getString().isBlank();index--)reserved+=lineHeight;
+                if(reserved<3*lineHeight)reserved=0;
             }
             y-=reserved;
-            var result=panels.render(g,font,category.panel(),assets,text,11,y,bodyWidth);
+            var result=panels.render(g,font,category.panel(),assets,text,frame.ix(TEXT_X),frame.iy(y),frame.len(PANEL_WIDTH));
             if(widgets)for(var hit:result.hits()) {
                 String tooltip=hit.immediate()+hit.delayed();
                 if(!tooltip.isEmpty())hits.add(new DecisionHit("panel/"+category.id()+"/"+hit.id(),tooltip,hit.x(),hit.y(),hit.width(),hit.height()));
@@ -411,9 +420,9 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                             () -> {request(DecisionPayloads.Action.PANEL_CLICK,click,0);rebuildWidgets();});
                 }
             }
-            y+=result.height();
+            y+=Math.round(result.height()/scale);
         }
-        return y==start?y:y+5;
+        return y==start?y:y+10;
     }
     private static boolean negativePanel(DecisionPanelView.Element element) {
         return element.layout().y()!=null && element.layout().y()<0 || element.children().stream().anyMatch(DecisionScreen::negativePanel);
@@ -423,18 +432,73 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         return matcher.find() && line.getString().replace(matcher.group(),"").isBlank()
                 ?assets.getOrDefault(matcher.group(1),assets.getOrDefault("GFX_"+matcher.group(1),"")):"";
     }
-    private void row(GuiGraphicsExtractor g,DecisionPayloads.Row row,int y,int height) {
-        int pane=this.pane-10;
-        String background="decision/ui/row/frame_"+(row.phase().equals("ACTIVE")?0:1);
-        if(UiAssets.imageHeight(background,100)==0)background=row.enabled()?"decision/row":"decision/row_disabled";
-        UiAssets.nineSlice(g,background,7,y,pane-14,height,4,1);
-        String cost=rowCost(row);
-        int costWidth=costWidth(row);
-        int right=pane-49,costLeft=right-costWidth;
-        int costColor=row.remainingHours()>0?0xFFFFFF:Boolean.FALSE.equals(row.costMet())?Tooltips.BAD:Tooltips.GOLD;
+    private void row(GuiGraphicsExtractor g,DecisionPayloads.Row row,int y) {
+        boolean targeted=row.target()!=null,timed=timed(row),counting=row.remainingHours()>0;
+        int left=targeted?GRID_X-1:GRID_X,top=targeted?y-1:y;
+        frame.art(g,"decision/ui/row/frame_"+(row.phase().equals("ACTIVE")?0:1),left,top);
+        if(!row.progress().isEmpty() && row.totalHours()!=null && row.totalHours()>0) {
+            String path="hoi:textures/gui/decision/ui/progress_"+row.progress().toLowerCase(Locale.ROOT)+"/texturefile1.png";
+            double progress=Math.clamp(1-row.remainingHours()/(double)row.totalHours(),0,1);
+            int fill=(int)Math.round(502*progress);
+            if(fill>0) {
+                g.pose().pushMatrix();g.pose().translate(frame.x(GRID_X+(targeted?9:timed?2:5)),frame.y(y+28));g.pose().scale(frame.scale());
+                g.blit(net.minecraft.resources.Identifier.parse(path),0,0,fill,10,0,(float)progress,0,1);
+                g.pose().popMatrix();
+            }
+        }
+        String image=asset(row.icon(),"icon");
+        if(UiAssets.imageHeight(image,20)<=0)image=asset("GFX_decision_unknown","icon");
+        int[] imageSize=UiAssets.imageSize(image);
+        double imageRight=0;
+        if(imageSize[0]>0 && imageSize[1]>0) {
+            double x=targeted?GRID_X+15:GRID_X+(timed?32:30)-imageSize[0]/2.0,iy=targeted?y:y+(timed?20:19)-imageSize[1]/2.0;
+            frame.art(g,image,x,iy);
+            imageRight=x+imageSize[0];
+        }
+        double cost=GRID_X+(timed?455:432);
+        String costText=rowCost(row);
+        double costWidth=0;
+        if(counting) {
+            String days=(row.remainingHours()+23)/24+"일";
+            double timerScale=targeted?.85:.95;
+            int[] timer=UiAssets.imageSize("decision/timer");
+            frame.art(g,"decision/timer",GRID_X+492-timer[0]*timerScale/2,y+15-timer[1]*timerScale/2,timer[0]*timerScale,timer[1]*timerScale);
+            int right=frame.ix(GRID_X+475);
+            var sequence=Component.literal(days).withStyle(style->style.withColor(Tooltips.GOLD)).getVisualOrderText();
+            text.draw(g,font,sequence,right-font.width(days),Math.round(UiText.centeredY(font,sequence,frame.y(y+19.5)-font.lineHeight/2f,font.lineHeight,1)),0xFFFFFFFF,false);
+            costWidth=timed?0:(font.width(days)/frame.scale()+10);
+            cost=GRID_X+405-8;
+        }
+        if(!timed && !counting)costWidth=drawCost(g,row,costText,cost,y);
+        double nameX=GRID_X+(targeted||timed?62:55);
+        String flag=targeted&&row.target().kind().equals("country")?UiStoryAssets.flag(row.target().id(),row.target().flag()):"";
+        int[] flagSize=flag.isEmpty()?new int[]{0,0}:UiAssets.contentSize(flag);
+        if(flagSize[1]>0) {
+            double flagHeight=font.lineHeight/frame.scale(),flagWidth=flagSize[0]*flagHeight/flagSize[1],flagX=Math.max(GRID_X+30,imageRight+2);
+            UiAssets.drawContent(g,flag,frame.ix(flagX),frame.iy(y+16.5-flagHeight/2),Math.max(1,frame.len(flagWidth)),font.lineHeight);
+            nameX=Math.max(nameX,flagX+flagWidth+6);
+        }
+        nameX=Math.max(nameX,imageRight+2);
+        double nameRight=Math.min(nameX+(targeted?280:timed?300:330),(counting?GRID_X+475-(font.width((row.remainingHours()+23)/24+"일")/frame.scale()):cost-costWidth)-6);
+        var nameRows=text.rows(rowName(row)).stream().map(line->TooltipKeywordIcons.decorateLines(line,false)).toList();
+        int rowsHeight=nameRows.size()*(font.lineHeight+1)-1;
+        int nameTop=Math.round(frame.y(y+16.5)-rowsHeight/2f);
+        for(var line:nameRows) {
+            line(g,line,nameX,(nameTop-frame.y())/frame.scale()+font.lineHeight/2f/frame.scale(),nameRight-nameX,0xFFFFFFFF,false,false);
+            nameTop+=font.lineHeight+1;
+        }
+        if(!counting) {
+            frame.art(g,"decision/ui/track_decision/frame_"+(tracking(row)?1:0),GRID_X+437,y+7);
+            frame.art(g,"decision/ui/select/frame_"+(row.enabled() && !pending() && !snapshot.loading()?1:0),GRID_X+465,y+(targeted?4:6));
+        }
+    }
+    private double drawCost(GuiGraphicsExtractor g,DecisionPayloads.Row row,String cost,double right,int y) {
+        int costColor=Boolean.FALSE.equals(row.costMet())?Tooltips.BAD:Tooltips.GOLD;
         var costRows=text.rows(cost).stream().map(line->TooltipKeywordIcons.decorateLines(line,false)).toList();
-        int costTop=y+(height-costRows.size()*(font.lineHeight+1))/2;
-        g.enableScissor(costLeft,y,pane-44,y+height);
+        int widest=costRows.stream().mapToInt(font::width).max().orElse(0);
+        double width=Math.min(320,widest/frame.scale());
+        int edge=frame.ix(right),costTop=Math.round(frame.y(y+18)-(costRows.size()*(font.lineHeight+1)-1)/2f);
+        g.enableScissor(edge-frame.len(320),frame.iy(y),edge,frame.iy(y+39));
         for(var line:costRows) {
             var coloredCost=Component.empty();
             line.visit((style,part)->{
@@ -442,53 +506,11 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
                 return Optional.empty();
             },net.minecraft.network.chat.Style.EMPTY);
             var sequence=coloredCost.getVisualOrderText();
-            text.draw(g,font,sequence,right-font.width(coloredCost),Math.round(UiText.centeredY(font,sequence,costTop,font.lineHeight+1,1)),0xFFFFFFFF,false);
+            text.draw(g,font,sequence,edge-font.width(coloredCost),Math.round(UiText.centeredY(font,sequence,costTop,font.lineHeight+1,1)),0xFFFFFFFF,false);
             costTop+=font.lineHeight+1;
         }
         g.disableScissor();
-        String image=asset(row.icon(),"icon");
-        if(UiAssets.imageHeight(image,20)<=0)image=asset("GFX_decision_unknown","icon");
-        boolean hasImage=UiAssets.imageHeight(image,20)>0;
-        String flag=row.target()!=null&&row.target().kind().equals("country")?UiStoryAssets.flag(row.target().id(),row.target().flag()):"";
-        int[] flagSize=flag.isEmpty()?new int[]{0,0}:UiAssets.contentSize(flag);
-        int flagHeight=flagSize[1]>0?font.lineHeight:0,flagWidth=flagHeight==0?0:Math.max(1,Math.round((float)flagSize[0]*flagHeight/flagSize[1]));
-        int nameLeft=hasImage?10:34,textLeft=nameLeft+(hasImage?24:0)+(flagWidth==0?0:flagWidth+4),textWidth=Math.max(10,costLeft-4-textLeft);
-        var nameRows=text.rows(rowName(row)).stream().map(line->TooltipKeywordIcons.decorateLines(line,false)).toList();
-        int nameX=textLeft-UiText.scrollingOffset(Math.max(0,nameRows.stream().mapToInt(font::width).max().orElse(0)-textWidth),marqueeTicks*50);
-        if(hasImage)UiAssets.draw(g,image,nameLeft,y+3,20,height-6);
-        if(flagWidth>0)UiAssets.drawContent(g,flag,nameLeft+(hasImage?24:0),y+(height-flagHeight)/2,flagWidth,flagHeight);
-        g.enableScissor(textLeft,y,textLeft+textWidth,y+height);
-        int nameTop=y+(height-nameRows.size()*(font.lineHeight+1))/2;
-        for(var line:nameRows) {
-            var sequence=line.getVisualOrderText();
-            text.draw(g,font,sequence,nameX,Math.round(UiText.centeredY(font,sequence,nameTop,font.lineHeight+1,1)),0xFFFFFFFF,false);
-            nameTop+=font.lineHeight+1;
-        }
-        g.disableScissor();
-        String action=row.remainingHours()>0?"decision/timer":"decision/select";
-        int actionHeight=UiAssets.imageHeight(action,20);
-        UiAssets.draw(g,action,pane-30,y+(height-actionHeight)/2,20,actionHeight);
-        UiAssets.draw(g,"decision/ui/track_decision/frame_"+(tracking(row)?1:0),pane-44,y+(height-10)/2,10,10);
-        if(!row.progress().isEmpty() && row.totalHours()!=null && row.totalHours()>0) {
-            String path="decision/ui/progress_"+row.progress().toLowerCase(Locale.ROOT)+"/";
-            double progress=Math.clamp(1-row.remainingHours()/(double)row.totalHours(),0,1);
-            int left=10,barWidth=pane-24,barY=y+height-5;
-            UiAssets.draw(g,path+"texturefile2",left,barY,barWidth,4);
-            int fill=(int)Math.round(barWidth*progress);
-            if(fill>0)g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+path+"texturefile1.png"),left,barY,left+fill,barY+4,0,(float)progress,0,1);
-        }
-    }
-    private String rowOutline(DecisionPayloads.Row row) {
-        var matcher=BODY_IMAGE.matcher(rowName(row));
-        String token="";
-        while(matcher.find())if(matcher.group(1).endsWith("_texticon") && rowName(row).substring(matcher.end()).isBlank()
-                && !text.component(matcher.group()).getString().contains("£"))token=matcher.group();
-        return token;
-    }
-    private String rowLabel(DecisionPayloads.Row row) {
-        String outline=rowOutline(row);
-        String name=rowName(row);
-        return outline.isEmpty()?name:name.substring(0,name.lastIndexOf(outline)).stripTrailing();
+        return width;
     }
     private String rowCost(DecisionPayloads.Row row) {
         String cost=row.remainingHours()>0?(row.remainingHours()+23)/24+"일":row.costText().isEmpty()?format(row.cost()):row.costText();
@@ -497,13 +519,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     private boolean political(DecisionPayloads.Row row) {
         return row.remainingHours()==0 && (row.costText().isEmpty() || row.costText().matches("[0-9]+(?:\\.[0-9]+)?"));
     }
-    private int costWidth(DecisionPayloads.Row row) {
-        return Math.min((pane-10)/2,Math.max(22,text.rows(rowCost(row)).stream().mapToInt(line->font.width(TooltipKeywordIcons.decorateLines(line,false))).max().orElse(0)+6));
-    }
-    private int rowHeight(DecisionPayloads.Row row) {
-        int lines=Math.max(text.rows(rowLabel(row)).size(),text.rows(rowCost(row)).size());
-        return Math.max(rowOutline(row).isEmpty()?20:font.lineHeight*2+4,lines*(font.lineHeight+1)+8);
-    }
+    private static int rowHeight(DecisionPayloads.Row row) { return row.target()!=null?40:39; }
     private String tooltip(DecisionPayloads.Row row) {
         String body=row.tooltip().isEmpty()?row.description():row.tooltip();
         if(!row.costText().isEmpty() && text.component(body).getString().equals(text.component(row.costText()).getString()))body=row.costText();
@@ -522,18 +538,6 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     }
     static String rowName(DecisionPayloads.Row row) {
         return row.target()==null?row.name():row.name()+" ("+row.target().name()+")";
-    }
-    private void label(GuiGraphicsExtractor g,String value,int x,int y,int width,int height,int color,int alignment) {
-        label(g,value,x,y,width,height,color,alignment,false);
-    }
-    private void label(GuiGraphicsExtractor g,String value,int x,int y,int width,int height,int color,int alignment,boolean bold) {
-        var lines=text.rows(value);
-        int lineHeight=font.lineHeight+1;
-        int top=y+(height-lines.size()*lineHeight)/2;
-        for(var line:lines) {
-            text.scrollingCell(g,font,bold?line.copy().withStyle(net.minecraft.ChatFormatting.BOLD):line,x,top,width,lineHeight,color,alignment==0,marqueeTicks*50);
-            top+=lineHeight;
-        }
     }
     private void control(String name,int x,int y,int width,int height,boolean enabled,String sound,Runnable action) {
         var button=new Button(x,y,width,height,text.component(name),b -> action.run(),message -> message.get()) {
@@ -559,15 +563,15 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         if (!events.equals(eventRows)) rebuildWidgets();
         var view=snapshot.view();
         HudMenuBar.draw(g,width,view==null?CountryHud.UNKNOWN:view.hud(),mx,my,0);
-        UiMenuStyle.window(g,UiMenuStyle.window(MenuTab.DECISIONS),0,top,pane,height-top);
-        g.pose().pushMatrix();g.pose().translate(20,top+4);g.pose().scale(1.25f);
-        g.text(font,Tooltips.officerText("사건과 결정",true),0,0,UiMenuStyle.TEXT,false);g.pose().popMatrix();
-        g.enableScissor(3,contentTop(),pane-13,contentBottom());layout(g,false);g.disableScissor();
-        drawScrollbar(g);
-        if(view!=null && categories().isEmpty())g.text(font,"선택 가능한 결정 없음",12,contentTop()+48,UiMenuStyle.MUTED);
+        UiMenuStyle.window(g,WINDOW,frame,height);
+        UiMenuStyle.title(g,font,WINDOW,frame,"사건과 결정");
+        frame.tile(g,"decision/ui/list_frame",LIST_X,LIST_Y,LIST_WIDTH,listBottom()-LIST_Y,64,UiMenuStyle.TILE);
+        g.enableScissor(listLeft(),contentTop(),listRight(),contentBottom());layout(g,false);g.disableScissor();
+        scrollbar().draw(g,scroll);
+        if(view!=null && categories().isEmpty())g.text(font,"선택 가능한 결정 없음",frame.ix(TEXT_X),contentTop()+48,UiMenuStyle.MUTED);
         super.extractRenderState(g,mx,my,delta);
         DecisionHit selected=null;
-        if(mx>=7 && mx<pane-13 && my>=contentTop() && my<contentBottom())
+        if(mx>=listLeft() && mx<frame.ix(SCROLL_X) && my>=contentTop() && my<contentBottom())
             for(var hit:hits)if(mx>=hit.x() && (long)mx<hit.x()+(long)hit.width() && my>=hit.y() && my<hit.y()+hit.height())selected=hit;
         String id=selected==null?"":selected.id();
         if(!id.equals(hover)) {hover=id;tooltipScroll=0;}
@@ -605,45 +609,25 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         appendCost(result,row);
         return result.toString();
     }
-    private int maximumScroll() { return Math.max(0,total-contentBottom()+contentTop()); }
-    private int scrollThumbHeight() {
-        return 8;
-    }
-    private int scrollThumbTop() {
-        int travel=Math.max(1,contentBottom()-contentTop()-20-scrollThumbHeight());
-        return contentTop()+10+(int)Math.round(travel*scroll/(double)Math.max(1,maximumScroll()));
-    }
-    private void drawScrollbar(GuiGraphicsExtractor g) {
-        if(maximumScroll()==0)return;
-        String path="commander/commands/";
-        int x=pane-11,top=contentTop(),height=contentBottom()-top;
-        dev.hoi.client.ui.UiScrollBar.background(g,x,top,top+height);
-        UiAssets.nineSlice(g,path+"scroll_track/frame_0",x+2,top+10,5,height-20,2,.5);
-        g.pose().pushMatrix();g.pose().translate(.5f,0);
-        UiAssets.draw(g,path+"scroll_up/frame_0",x,top,8,8);
-        UiAssets.draw(g,path+"scroll_down/frame_0",x,contentBottom()-8,8,8);
-        UiAssets.draw(g,path+"scroll_drager/frame_0",x,scrollThumbTop(),8,scrollThumbHeight());
-        g.pose().popMatrix();
-    }
+    private int visibleList() { return Math.max(1,Math.round((contentBottom()-contentTop())/frame.scale())); }
+    private int maximumScroll() { return Math.max(0,total-visibleList()); }
+    dev.hoi.client.ui.UiScrollBar scrollbar() { return new dev.hoi.client.ui.UiScrollBar(frame.ix(SCROLL_X),contentTop(),contentBottom(),visibleList(),total); }
     private void scrollTo(int value) {
         scroll=Math.clamp(value,0,maximumScroll());rebuildWidgets();
     }
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice) {
-        if(maximumScroll()>0 && event.x()>=pane-12 && event.x()<pane && event.y()>=contentTop() && event.y()<contentBottom()) {
+        var bar=scrollbar();
+        if(bar.contains(event.x(),event.y())) {
             if(event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return true;
-            if(event.y()<contentTop()+10)scrollTo(scroll-28);
-            else if(event.y()>=contentBottom()-10)scrollTo(scroll+28);
-            else if(event.y()>=scrollThumbTop() && event.y()<scrollThumbTop()+scrollThumbHeight()) {
-                draggingScroll=true;scrollGrab=(int)event.y()-scrollThumbTop();
-            } else scrollTo(scroll+(event.y()<scrollThumbTop()?-1:1)*(contentBottom()-contentTop()));
+            if(bar.arrow(event.y()))scrollTo(bar.step(event.y(),scroll,WHEEL));
+            else {draggingScroll=true;scrollTo(bar.offset(event.y()));}
             return true;
         }
         return super.mouseClicked(event,twice);
     }
     @Override public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event,double dx,double dy) {
         if(draggingScroll && event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
-            int travel=Math.max(1,contentBottom()-contentTop()-20-scrollThumbHeight());
-            scrollTo((int)Math.round((event.y()-scrollGrab-contentTop()-10)*maximumScroll()/travel));return true;
+            scrollTo(scrollbar().offset(event.y()));return true;
         }
         return super.mouseDragged(event,dx,dy);
     }
@@ -656,12 +640,12 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical) {
         boolean overTooltip=tooltipBounds!=null && x>=tooltipBounds.x()-4 && x<tooltipBounds.x()+tooltipBounds.width()+4
                 && y>=tooltipBounds.y()-4 && y<tooltipBounds.y()+tooltipBounds.height()+4;
-        boolean overSource=x>=7 && x<pane-13 && hits.stream().anyMatch(hit->hit.id().equals(hover) && y>=hit.y() && y<hit.y()+hit.height());
+        boolean overSource=x>=listLeft() && x<frame.ix(SCROLL_X) && hits.stream().anyMatch(hit->hit.id().equals(hover) && y>=hit.y() && y<hit.y()+hit.height());
         if(tooltipBounds!=null && tooltipBounds.maxScroll()>0 && !hover.isEmpty() && (overTooltip || overSource)) {
             tooltipScroll=Math.clamp(tooltipScroll-(int)(vertical*(font.lineHeight+1)*3),0,tooltipBounds.maxScroll());return true;
         }
-        if(x>=0 && x<pane && y>=contentTop() && y<contentBottom()) {
-            scroll=Math.clamp(scroll-(int)(vertical*28),0,Math.max(0,total-contentBottom()+contentTop()));rebuildWidgets();return true;
+        if(x>=0 && x<listRight() && y>=contentTop() && y<contentBottom()) {
+            scrollTo(scroll-(int)(vertical*WHEEL));return true;
         }
         return super.mouseScrolled(x,y,horizontal,vertical);
     }

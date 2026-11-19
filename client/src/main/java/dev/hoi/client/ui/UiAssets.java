@@ -237,24 +237,43 @@ public final class UiAssets {
             g.blit(id, xs[col], ys[row], xs[col + 1], ys[row + 1], us[col], us[col + 1], vs[row], vs[row + 1]);
     }
     public static void tiledNineSlice(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,int border,double scale) {
+        tiledNineSlice(g,path,x,y,w,h,border,scale,0);
+    }
+    public static void tiledNineSlice(GuiGraphicsExtractor g,String path,int x,int y,int w,int h,int border,double scale,int declared) {
         var id=Identifier.tryParse("hoi:textures/gui/"+path+".png");
         if(id==null || w<=0 || h<=0 || scale<=0)return;
         int[] size=DIMENSIONS.computeIfAbsent(id,UiAssets::dimensions);
-        if(size[0]<=2*border || size[1]<=2*border)return;
+        int declaredW=Math.max(declared,size[0]),declaredH=Math.max(declared,size[1]);
+        if(size[0]<=declaredW-border || size[1]<=declaredH-border || declaredW<=2*border || declaredH<=2*border)return;
         int edge=Math.min(Math.min(w,h)/2,Math.max(1,(int)Math.round(border*scale)));
         int[] xs={x,x+edge,x+w-edge,x+w},ys={y,y+edge,y+h-edge,y+h};
-        int[] us={0,border,size[0]-border,size[0]},vs={0,border,size[1]-border,size[1]};
+        int[] us={0,border,declaredW-border,declaredW},vs={0,border,declaredH-border,declaredH};
         for(int row=0;row<3;row++)for(int col=0;col<3;col++) {
             int tileWidth=col==1?Math.max(1,(int)Math.round((us[2]-us[1])*scale)):xs[col+1]-xs[col];
             int tileHeight=row==1?Math.max(1,(int)Math.round((vs[2]-vs[1])*scale)):ys[row+1]-ys[row];
             if(tileWidth<=0 || tileHeight<=0)continue;
             for(int ty=ys[row];ty<ys[row+1];ty+=tileHeight)for(int tx=xs[col];tx<xs[col+1];tx+=tileWidth) {
                 int tw=Math.min(tileWidth,xs[col+1]-tx),th=Math.min(tileHeight,ys[row+1]-ty);
-                g.blit(id,tx,ty,tx+tw,ty+th,(float)us[col]/size[0],
-                        (float)(us[col]+(us[col+1]-us[col])*(double)tw/tileWidth)/size[0],(float)vs[row]/size[1],
-                        (float)(vs[row]+(vs[row+1]-vs[row])*(double)th/tileHeight)/size[1]);
+                double u0=us[col],u1=us[col]+(us[col+1]-us[col])*(double)tw/tileWidth,v0=vs[row],v1=vs[row]+(vs[row+1]-vs[row])*(double)th/tileHeight;
+                double shownU=Math.min(u1,size[0]),shownV=Math.min(v1,size[1]);
+                int drawW=(int)Math.round(tw*(shownU-u0)/(u1-u0)),drawH=(int)Math.round(th*(shownV-v0)/(v1-v0));
+                if(drawW<=0 || drawH<=0)continue;
+                g.blit(id,tx,ty,tx+drawW,ty+drawH,(float)(u0/size[0]),(float)(shownU/size[0]),(float)(v0/size[1]),(float)(shownV/size[1]));
             }
         }
+    }
+    public static boolean drawExact(GuiGraphicsExtractor g,String path,float x,float y,float w,float h) {
+        path=CountryDisplays.texture(path);
+        var id=Identifier.tryParse("hoi:textures/gui/"+path+".png");
+        if(id==null || w<=0 || h<=0)return false;
+        int[] size=DIMENSIONS.computeIfAbsent(id,UiAssets::dimensions);
+        if(size[0]<=0 || size[1]<=0)return false;
+        g.pose().pushMatrix();
+        g.pose().translate(x,y);
+        g.pose().scale(w/size[0],h/size[1]);
+        g.blit(id,0,0,size[0],size[1],0,1,0,1);
+        g.pose().popMatrix();
+        return true;
     }
     private static int[] dimensions(Identifier id) {
         var resource = Minecraft.getInstance().getResourceManager().getResource(id);

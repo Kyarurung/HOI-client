@@ -304,7 +304,7 @@ public final class DecisionPanelTest {
         var screen = (DecisionScreen)client.gui.screen();
         var button = screen.children().stream().filter(child -> child instanceof Button value && value.getMessage().getString().equals(fixture.id()))
                 .map(child -> (Button)child).findFirst().orElseThrow();
-        int top = button.getBottom() + 3, width = screen.unitHudLeft() - 32;
+        int top = button.getY() + 26, width = screen.unitHudLeft() - 32;
         var renderer = new DecisionPanel();
         var text = new DecisionText();
         renderer.assets(assets.root());

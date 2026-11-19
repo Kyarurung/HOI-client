@@ -35,6 +35,8 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
     private final String token;
     private final Consumer<IndustryConstructionPayloads.Request> transport;
     private IndustryConstructionView view;
+    private static final UiMenuStyle.Window WINDOW=UiMenuStyle.window(MenuTab.CONSTRUCTION);
+    private UiMenuStyle.Frame frame;
     private int pane,top,scroll,paletteScroll,pending,refresh,hudScroll;
     private UiScrollBar queueScrollbar,paletteScrollbar;
     private boolean queueDragging,paletteDragging;
@@ -65,12 +67,12 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
     int panelWidth(){return pane;}
     @Override protected void init() {
         queueScrollbar=null;paletteScrollbar=null;projectWidgets.clear();
-        pane=UiPanelLayout.width(MenuTab.CONSTRUCTION,width);top=HudMenuBar.height(width);
+        pane=UiPanelLayout.width(MenuTab.CONSTRUCTION,width);frame=UiMenuStyle.frame(WINDOW,width,pane);top=Math.round(frame.y());
         HudMenuBar.buttons(width,view==null?"":view.country(),MenuTab.CONSTRUCTION,t->{
             if(t==MenuTab.CONSTRUCTION)return;
             if(t==MenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(t);
         }).forEach(this::addRenderableWidget);
-        addRenderableWidget(new UiMenuButton("×",pane-25,top+3,19,19,this::onClose));
+        addRenderableWidget(UiMenuStyle.close(WINDOW,frame,this::onClose));
         if(view==null){
             return;
         }
@@ -137,9 +139,8 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
     private int column(int sourceX){return 6+(paletteX()-21)*sourceX/402;}
     private int rowHeight(){return 29;}
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
-        var frame=UiMenuStyle.window(MenuTab.CONSTRUCTION);
-        UiMenuStyle.window(g,frame,0,top,pane,height-top);
-        UiMenuStyle.title(g,font,frame,"건설",0,top,pane);
+        UiMenuStyle.window(g,WINDOW,frame,height);
+        UiMenuStyle.title(g,font,WINDOW,frame,"건설");
         HudMenuBar.draw(g,width,view == null ? dev.hoi.client.ClientCampaignHud.hud() : view.hud(),mx,my,hudScroll);
         if(view!=null) {
             var s=view.summary();int q=paletteX()-15;
@@ -203,7 +204,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
             var project=view.projects().stream().filter(p->p.id().equals(draggedProject)).findFirst().orElse(null);
             if(project!=null) {
                 int y=Math.clamp((int)Math.round(projectPointerY-projectOffsetY),queueY(),Math.max(queueY(),height-30-rowHeight()));
-                g.nextStratum();g.enableScissor(6,y,paletteX()-15,y+rowHeight()-2);UiMenuStyle.window(g,UiMenuStyle.window(MenuTab.CONSTRUCTION),0,top,pane,height-top);g.disableScissor();g.pose().pushMatrix();g.pose().translate(0,y-projectY(project));
+                g.nextStratum();g.enableScissor(6,y,paletteX()-15,y+rowHeight()-2);UiMenuStyle.window(g,WINDOW,frame,height);g.disableScissor();g.pose().pushMatrix();g.pose().translate(0,y-projectY(project));
                 drawProject(g,project,projectY(project),-1,-1);
                 for(var widget:movingWidgets)widget.extractRenderState(g,-1,-1,delta);
                 g.pose().popMatrix();

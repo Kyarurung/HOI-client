@@ -52,6 +52,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private List<Equipment> productionItems=List.of(),navalTypes=List.of();
     private final Map<String,Long> navalCounts=new HashMap<>();
     private int militaryFactories,navalFactories;
+    private UiMenuStyle.Frame frame;
     private int pane, top, scroll, secondScroll, pickerScroll, hudScroll, pending, refresh;
     private int designerScroll;
     private String divisionPicker = "";
@@ -195,7 +196,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         productionScrollbar = null;
         productionPickerScrollbar = null;
         manufacturerScrollbar = null; manufacturerWidgets.clear();
-        pane = UiPanelLayout.width(tab, width); top = HudMenuBar.height(width);
+        pane = UiPanelLayout.width(tab, width); frame = UiMenuStyle.frame(UiMenuStyle.window(tab), width, pane); top = Math.round(frame.y());
         filterProduction();
         graphics = null; if (!designer) nameBox = null; deploymentLocations.clear(); productionLines.clear(); productionWidgets.clear();
         if (selectingDeployment) return;
@@ -205,7 +206,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (next == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(next);
         }).stream().filter(button -> !foreign() || button.getMessage().getString().equals(MenuTab.LOGISTICS.label() + " 메뉴")).forEach(this::addRenderableWidget);
         background = false;
-        if (!modal() || dockedProductionPicker()) button("닫기", "×", pane - 25, top + 3, 19, 19, true, this::onClose);
+        if (!modal() || dockedProductionPicker()) { var close = UiMenuStyle.close(UiMenuStyle.window(tab), frame, this::onClose); close.active = pending == 0; addRenderableWidget(close); }
         if (view != null) {
             background = modal() && !dockedProductionPicker();
             layout();
@@ -226,8 +227,11 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             return;
         }
         graphics = g; mouseX = mx; mouseY = my;
-        UiMenuStyle.window(g, UiMenuStyle.window(tab), 0, top, pane, height - top);
-        UiMenuStyle.title(g, font, UiMenuStyle.window(tab), title(tab), 0, top, pane);
+        UiMenuStyle.window(g, UiMenuStyle.window(tab), frame, height);
+        if (tab == MenuTab.TRADE) {
+            UiMenuStyle.title(g, font, frame, "경제", 75, 18, 217, 0, UiMenuStyle.TEXT);
+            UiMenuStyle.title(g, font, frame, "무역", 332, 18, 217, 0, UiMenuStyle.TEXT);
+        } else UiMenuStyle.title(g, font, UiMenuStyle.window(tab), frame, title(tab));
         if (view == null) {
             HudMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, hudScroll);
             text("국가 현황을 불러오는 중…", 9, top + 37, pane - 18, MUTED);
@@ -254,7 +258,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (row != null) {
                 int y = Math.clamp((int)Math.round(productionPointerY - productionOffsetY),productionScrollbar.top(),Math.max(productionScrollbar.top(),productionScrollbar.bottom()-row.height()));
                 g.nextStratum();
-                g.enableScissor(6,y,pane-16,y+row.height());UiMenuStyle.window(g,UiMenuStyle.window(tab),0,top,pane,height-top);g.disableScissor();
+                g.enableScissor(6,y,pane-16,y+row.height());UiMenuStyle.window(g,UiMenuStyle.window(tab),frame,height);g.disableScissor();
                 g.pose().pushMatrix();g.pose().translate(0,y-row.y());
                 int savedX=mouseX,savedY=mouseY;mouseX=mouseY=-1;
                 productionLine(row.line(),equipment(row.line().equipment()),view.lines().indexOf(row.line()),row.y());

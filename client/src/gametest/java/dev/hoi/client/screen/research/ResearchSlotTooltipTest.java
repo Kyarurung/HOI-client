@@ -166,7 +166,7 @@ public final class ResearchSlotTooltipTest {
                 var screen = (ResearchScreen)client.gui.screen();
                 var button = slot(screen, 1);
                 check(button.getBottom() <= slot(screen, 2).getY(), "Source-height research lines do not overlap");
-                return new double[]{button.getX() * 2, button.getY() * 2, button.sourceScale() * 2, slot(screen, 0).getY() * 2};
+                return new double[]{button.sourceLeft() * 2, button.sourceTop() * 2, button.sourceScale() * 2, slot(screen, 0).sourceTop() * 2};
             });
             var path = context.takeScreenshot("hoi-research-line-state-" + percent + (assigned ? "-assigned-" : "-plain-") + size[0] + "-gui2");
             try {

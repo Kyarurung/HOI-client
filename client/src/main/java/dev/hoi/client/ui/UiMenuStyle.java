@@ -5,26 +5,82 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public final class UiMenuStyle {
     public static final int TEXT = 0xFFE3E1D8, ACCENT = 0xFFB8BDB6, MUTED = 0xFF9B9D97;
-    public record Window(String tile, int width, int headerX, int titleX) {}
-    public static final int NO_HEADER = Integer.MIN_VALUE;
-    private static final int HEADER_WIDTH = 794, HEADER_HEIGHT = 21;
+    public record Window(String tile, int width, int originX, int headerX, int headerY, int titleX, int titleCenter, int titleWidth, int closeX, int closeY, boolean clip) {
+        public Window(String tile, int width, int headerX, int titleX) { this(tile, width, 0, headerX, 0, titleX, 0, 0, 0, 0, true); }
+    }
+    public record Frame(float x, float y, float scale) {
+        private static float pixel(float value) {
+            double gui = net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale();
+            return gui > 0 ? (float)(Math.round(value * gui) / gui) : value;
+        }
+        public float x(double px) { return pixel(x + (float)(px * scale)); }
+        public float y(double py) { return pixel(y + (float)(py * scale)); }
+        public int ix(double px) { return Math.round(x(px)); }
+        public int iy(double py) { return Math.round(y(py)); }
+        public int len(double px) { return Math.round((float)(px * scale)); }
+        public float size(double px) { return (float)(px * scale); }
+        public boolean art(GuiGraphicsExtractor g, String path, double px, double py) {
+            int[] size = UiAssets.imageSize(path);
+            return size[0] > 0 && UiAssets.drawExact(g, path, x(px), y(py), size(size[0]), size(size[1]));
+        }
+        public boolean art(GuiGraphicsExtractor g, String path, double px, double py, double pw, double ph) {
+            return UiAssets.drawExact(g, path, x(px), y(py), size(pw), size(ph));
+        }
+        public void tile(GuiGraphicsExtractor g, String path, double px, double py, int pw, int ph, int border, int declared) {
+            g.pose().pushMatrix();
+            g.pose().translate(x(px), y(py));
+            g.pose().scale(scale);
+            UiAssets.tiledNineSlice(g, path, 0, 0, pw, ph, border, 1, declared);
+            g.pose().popMatrix();
+        }
+    }
+    public static final int NO_HEADER = Integer.MIN_VALUE, TILE = 192;
+    private static final int HEADER_WIDTH = 794, HEADER_HEIGHT = 21, HEADER_SOURCE_HEIGHT = 41;
+    private static final net.minecraft.resources.Identifier HEADER = net.minecraft.resources.Identifier.parse("hoi:textures/gui/decision/ui/window_header.png");
     private static final String THIN_BORDER = "commander/commands/tiled_window_thin_border2/frame_0", TILED_BG = "commander/commands/tiled_bg/frame_0";
     public static final Window DIPLOMACY = new Window(TILED_BG, 550, NO_HEADER, 14), OCCUPATION = new Window(TILED_BG, 550, -249, 45),
             TEMPLATES = new Window("commander/commands/tiled_window_1b_thin_border/frame_0", 550, NO_HEADER, 45);
     private UiMenuStyle() {}
     public static Window window(dev.hoi.protocol.menu.MenuTab tab) {
         return switch (tab) {
-            case POLITICS -> new Window(THIN_BORDER, 726, -70, 40);
-            case TRADE -> new Window("commander/commands/tiled_window_1b_border/frame_0", 620, -170, 45);
-            case CONSTRUCTION -> new Window(THIN_BORDER, 550, -248, 45);
-            case PRODUCTION -> new Window("commander/commands/tiled_plain_bg/frame_0", 550, -245, 45);
-            case RECRUITMENT -> new Window("commander/commands/tiled_window/frame_0", 550, -248, 45);
-            case LOGISTICS -> new Window(THIN_BORDER, 560, -240, 45);
-            case INTELLIGENCE -> new Window(TILED_BG, 550, -245, 45);
-            case OFFICER_CORPS -> new Window(TILED_BG, 550, 5, 45);
-            case DECISIONS -> new Window("diplomacy/dialog/panel_dark", 550, -248, 45);
-            case RESEARCH -> new Window("research/source/gfx_tiled_plain_bg2/frame_0", 550, NO_HEADER, 45);
+            case POLITICS -> new Window(THIN_BORDER, 726, -5, -70, 4, 40, 21, 400, 683, 6, true);
+            case TRADE -> new Window("commander/commands/tiled_window_1b_border/frame_0", 620, -6, -170, 6, 332, 18, 217, 582, 8, false);
+            case CONSTRUCTION -> new Window(THIN_BORDER, 550, -9, -248, 7, 45, 19, 240, 507, 9, true);
+            case PRODUCTION -> new Window("commander/commands/tiled_plain_bg/frame_0", 550, -6, -245, 7, 45, 20, 440, 507, 9, true);
+            case RECRUITMENT -> new Window("commander/commands/tiled_window/frame_0", 550, -6, -248, 7, 45, 19, 440, 507, 9, true);
+            case LOGISTICS -> new Window(THIN_BORDER, 560, -6, -240, 7, 45, 19, 240, 514, 10, true);
+            case INTELLIGENCE -> new Window(TILED_BG, 550, -6, -245, 7, 45, 19, 440, 507, 9, true);
+            case OFFICER_CORPS -> new Window(TILED_BG, 550, -6, 5, 7, 45, 20, 440, 507, 10, true);
+            case DECISIONS -> new Window("diplomacy/dialog/panel_dark", 550, -6, -248, 7, 45, 19, 440, 507, 9, true);
+            case RESEARCH -> new Window(THIN_BORDER, 550, -6, -245, 7, 45, 19, 440, 507, 9, true);
         };
+    }
+    public static Frame frame(Window window, int screenWidth, int pane) {
+        float scale = pane / (float)window.width();
+        return new Frame(window.originX() * scale, dev.hoi.client.ui.hud.HudMenuBar.windowTop(screenWidth), scale);
+    }
+    public static void window(GuiGraphicsExtractor g, Window window, Frame frame, int bottom) {
+        int height = (int)Math.ceil((bottom - frame.y()) / frame.scale());
+        frame.tile(g, window.tile(), 0, 0, window.width(), height, 64, TILE);
+        if (window.headerX() == NO_HEADER) return;
+        int start = Math.max(0, -window.headerX()), end = window.clip() ? Math.min(HEADER_WIDTH, window.width() - window.headerX()) : HEADER_WIDTH;
+        if (end <= start) return;
+        g.pose().pushMatrix();
+        g.pose().translate(frame.x(window.headerX() + start), frame.y(window.headerY()));
+        g.pose().scale(frame.scale());
+        g.blit(HEADER, 0, 0, end - start, HEADER_SOURCE_HEIGHT, (float)start / HEADER_WIDTH, (float)end / HEADER_WIDTH, 0, 1);
+        g.pose().popMatrix();
+    }
+    public static void title(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font, Window window, Frame frame, String text) {
+        title(g, font, frame, text, window.titleX() + 2, window.titleCenter(), window.titleWidth() - 2, -1, TEXT);
+    }
+    public static void title(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font, Frame frame, String text, int x, double center, int width, int align, int color) {
+        float scale = (font.lineHeight + 2f) / font.lineHeight;
+        UiText.marquee(g, font, net.minecraft.locale.Language.getInstance().getVisualOrder(Tooltips.officerText(text, true)), frame.x(x), frame.y(center) - 4.5f * scale, frame.size(width), scale, color, true, align);
+    }
+    public static UiMenuButton close(Window window, Frame frame, Runnable action) {
+        return new UiMenuButton("×", frame.ix(window.closeX()), frame.iy(window.closeY()), frame.len(32), frame.len(33), action)
+                .caption("").background("menu/close").art(frame.x(window.closeX()), frame.y(window.closeY()), frame.size(32), frame.size(33)).sound("ui.close");
     }
     public static void window(GuiGraphicsExtractor g, Window window, int x, int y, int w, int h) {
         g.enableScissor(x, y, x + w, y + h);

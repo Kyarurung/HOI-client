@@ -26,6 +26,7 @@ public final class HudMenuBar {
     private static final int TENSION_WIDTH = 73, TENSION_HEIGHT = 93;
     static float scale(int width) { return Math.min(1f, (width - 23f) * 2 / (TAB_X[TAB_X.length - 1] + TAB_WIDTH + TENSION_WIDTH)); }
     public static int height(int width) { return (int)Math.ceil(41 * scale(width)); }
+    public static float windowTop(int width) { return 39 * scale(width); }
     public static int dockWidth(int width) { return Math.round(338 * scale(width)); }
     public static final int STATS_TOP = 2, STATS_HEIGHT = 15;
     public static int flagWidth(int width) { return Math.round(FLAG_WIDTH * scale(width) / 2); }

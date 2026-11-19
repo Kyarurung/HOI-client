@@ -66,6 +66,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private List<MenuView.Entry> spirits = List.of();
     private record ScreenPolicyHover(PoliticsLayout.PoliticsBox box, MenuView.Entry entry) {}
     private final List<ScreenPolicyHover> policies = new ArrayList<>();
+    private UiMenuStyle.Frame frame;
     private int pane, top, scroll, total, detailScroll, tradeTab, hudScroll;
     private List<MenuView.Entry> parties = List.of();
     private final List<int[]> partySpans = new ArrayList<>();
@@ -120,7 +121,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     @Override protected void init() {
         officerTooltips.clear();capturedButton=null;
         pane = UiPanelLayout.width(selected, width);
-        top = HudMenuBar.height(width);
+        frame = UiMenuStyle.frame(UiMenuStyle.window(selected), width, pane);
+        top = Math.round(frame.y());
         if (selectionPreview) {
             pane = Math.min(width - 16, 726 / Math.max(1, minecraft.getWindow().getGuiScale()));
             while (pane > 160 && new PoliticsLayout(pane, 0).contentTop() > height - 16) pane--;
@@ -141,7 +143,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             HoiClient.cancelOpen();
             selected = tab; balanceOpen = false; scroll = 0; collapsed.clear(); detail = null; manufacturerGroup = null; manufacturerDetailId = null; rebuildWidgets();
         }).forEach(this::addRenderableWidget);
-        addRenderableWidget(new UiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
+        addRenderableWidget(UiMenuStyle.close(UiMenuStyle.window(selected), frame, this::onClose));
         if (focusTarget != null) {
             detail = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 중점"))
                     .flatMap(s -> s.entries().stream()).filter(e -> e.detail().lines().findFirst().orElse("").equals(focusTarget))
@@ -622,9 +624,9 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             return;
         }
         HudMenuBar.draw(g, width, view.hud(), mx, my, hudScroll);
-        var frame = UiMenuStyle.window(selected);
-        UiMenuStyle.window(g, frame, 0, top, pane, height - top);
-        UiMenuStyle.title(g, font, frame, selected == MenuTab.POLITICS ? "정치" : selected.label(), 0, top, pane);
+        var window = UiMenuStyle.window(selected);
+        UiMenuStyle.window(g, window, frame, height);
+        UiMenuStyle.title(g, font, window, frame, selected == MenuTab.POLITICS ? "정치" : selected.label());
         if (selected == MenuTab.POLITICS) drawPoliticsBanner(g);
         if (selected == MenuTab.INTELLIGENCE) {
             UiMenuStyle.recess(g, 8, top + 30, pane - 16, 46);

@@ -516,7 +516,7 @@ $env:HOI_MISSION_OVERLAY_FIXTURES='C:/HOI/fabric/build/mission-overlay-source-fi
 
 그림이 있는 툴팁은 등록된 `textImages.width`를 GUI2 단위로 환산한 너비에 본문을 줄바꿈한다. 여러 그림이면 가장 넓은 그림을 기준으로 하며, 화면 안쪽 한계를 넘으면 비율을 유지해 축소한다. 그림 없는 툴팁은 기존 글자 너비와 최대324GUI 규칙을 유지한다. 화면 높이를 넘는 본문은 기존 휠 스크롤로 읽는다.
 
-사이드바 바탕은 기존 `diplomacy/dialog/panel_dark`의 왼쪽·아래 테두리를 화면 밖에서 잘라 바깥 실선이 나타나지 않게 한다. 제목·내부 분류/설명 테두리는 유지한다. 결정 툴팁은 공통 툴팁처럼 맨 앞·뒤 빈 줄과 고정 최소 폭을 제거하며 본문용 예약 빈 줄에는 적용하지 않는다. `£GFX_kor_diffusion`은 리소스팩 `textImages`의 실제 원본 그림을 사용한다. 국회의장 이름판·정당 그림 크기/툴팁 모양은 해당 Steam 호버 장면의 대조가 남아 있으며 현재 본문 스크린샷으로 원본 일치를 주장하지 않는다.
+사이드바 바탕은 `diplomacy/dialog/panel_dark`(원본 `GFX_tiled_window2_1b_border`)를 원본 창 원점 (−6,78)부터 화면 아래 끝까지 그린다(배치는 [국가 화면 패널 배경](#국가-화면-패널-배경)). 결정 툴팁은 공통 툴팁처럼 맨 앞·뒤 빈 줄과 고정 최소 폭을 제거하며 본문용 예약 빈 줄에는 적용하지 않는다. `£GFX_kor_diffusion`은 리소스팩 `textImages`의 실제 원본 그림을 사용한다. 국회의장 이름판·정당 그림 크기/툴팁 모양은 해당 Steam 호버 장면의 대조가 남아 있으며 현재 본문 스크린샷으로 원본 일치를 주장하지 않는다.
 
 국회의장 이름판은 TFRKP `TFRKP National Assembly l_korean.yml`의 원문 이름·색을 그대로 쓴다. `texticon_portraits` 출처의 172×258 원본 초상화 다음에 오는 들여쓴 이름 줄은 별도 본문 대신 그림 이름판 중앙(원본 y=235)에 배치한다. `textImages`의 원본 픽셀 크기는 GUI2 기준 절반 GUI로 그리며 초상화는86×129GUI다. 정당 그림도 같은 변환과 원본 비율을 유지한다. 일반 본문의 빈 줄 예약과 글꼴 크기는 바꾸지 않는다. `DecisionPanelTest`는 GUI2 두 해상도에서 이름판 안의 실제 글자 픽셀을 확인한다. Steam `20261028003518_1.jpg`~`20261028003523_1.jpg`를 국회의장·정당 호버의 크기 대조 근거로 사용한다. 그림 크기 보정은 `decisions` 집중 검사에서 두 해상도 이름판 픽셀·호버·리로드까지 통과했다. 정당 툴팁 본문 폭·그림 정렬과 국회 목록 원점은 원본과의 차이가 남아 있으며 전체 외형 일치를 뜻하지 않는다. 운영 서버 접속·멀티플레이·직접 음향 청취는 수행하지 않았다.
 
@@ -2086,24 +2086,32 @@ TFR `interface/core.gui`의 `ToolTip` 선언은 `maxWidth=400`, `borderSize={18,
 
 ## 국가 화면 패널 배경
 
-국가 화면 사이드 패널은 TFR 각 창의 `background`를 `UiMenuStyle.window`로 그린다. `corneredTileSpriteType`(192×192, 모서리 64)은 `UiAssets.tiledNineSlice`로 모서리를 고정하고 가운데를 반복하며, 화면 왼쪽 끝에 붙는 창은 결정 화면처럼 왼쪽·아래 테두리를 화면 밖으로 32 밀어 숨긴다. 제목 띠는 `GFX_header_bg`(팩 `decision/ui/window_header`, 794×41)를 원본 x 위치에 맞춰 max(0,−x)~min(794, 창 폭−x) 구간만 잘라 패널 폭·높이 21에 그리고, 제목은 원본 x의 절반 위치에서 띠 높이 가운데에 둔다.
+메뉴 10개 탭(정치~장교단)의 창은 `UiMenuStyle.frame`이 원본 좌표계를 GUI로 옮긴다. 배율 s=패널 폭÷원본 창 폭(2560×1440 GUI2에서 모든 탭 0.5, 원본 1px=물리 1px), 창 원점은 원본 `show_position` x×s(정치 −5, 건설 −9, 나머지 −6px)와 `HudMenuBar.windowTop`=39×HUD 배율 GUI(원본 y=78px)이다. 반 GUI 좌표는 `Frame.art`·`Frame.tile`이 pose 이동으로 그대로 그리고 클릭 영역만 반올림한다. 창은 원본처럼 화면 아래 끝까지 차며 아래 테두리가 보인다(왼쪽 바깥 실선은 원점 −6px로 자연히 화면 밖).
 
-| 화면 | 원본 창 | 배경 | 제목 띠 x | 제목 x |
-| --- | --- | --- | --- | --- |
-| 정치 | `countrypoliticsview` 726 | `GFX_tiled_window_thin_border2` | −70 | 40 |
-| 무역 | `countrytradeview` 620 | `GFX_tiled_window_1b_border` | −170 | 45 |
-| 건설 | `countryconstructionsview` 550 | `GFX_tiled_window_thin_border2` | −248 | 45 |
-| 생산 | `countryproductionlineview` 550 | `GFX_tiled_plain_bg` | −245 | 45 |
-| 모병 및 배치 | `countrydeploymentview` 550 | `GFX_tiled_window` | −248 | 45 |
-| 군수 | `countrylogisticsview` 560 | `GFX_tiled_window_thin_border2` | −240 | 45 |
-| 정보기관 | `countryintelligenceagencyview` 550 | `GFX_tiled_bg` | −245 | 45 |
-| 장교단 | `countryofficercorpview` 550 | `GFX_tiled_bg` | 5 | 45 |
-| 사건과 결정 | `countrydecisionview` 550 | `GFX_tiled_window2_1b_border` | −248 | 45 |
-| 연구 | `countrytechtreeview` | `GFX_tiled_plain_bg2` | 없음 | 45 |
-| 외교 | `countrydiplomacyview` 550 | `GFX_tiled_bg` | 없음 | 14 |
-| 점령지 | `countryoccupationview` 550 | `GFX_tiled_bg` | −249 | 45 |
+TFR 타일(`tiled_window_thin_border2`·`tiled_window2_1b_border`·`tiled_plain_bg`·`tiled_paper_w_frame_one_border` 등)은 원본 dds가 190×190이지만 gfx는 192로 선언되어, 원작은 192 기준 9분할(가운데 반복 64px, 오른쪽·아래 조각은 실제 텍셀 128~189만 그리고 마지막 2px 투명)로 그린다. 원작 사진에서 결정 창 마지막 불투명 행은 화면 y1434, 군수 창 아래 밝은 선은 y1431로 192 기준과 일치한다. `UiAssets.tiledNineSlice(…, declared)`가 이 규칙을 따르며 `UiMenuStyle.TILE`(192)을 쓴다.
 
-모병 오른쪽 사단 편제 칸은 원본 `templatedeploymentwindow`의 `GFX_tiled_window_1b_thin_border`를 쓴다. 국가 선택 미리보기는 화면 가운데 놓이므로 정치 창 배경을 네 테두리 모두 보이게 그린다. 정치 탭이 아닌 국가 메뉴 목록 칸, 스크롤바, 연구·정보기관 하단 단추 줄과 팝업·대화상자는 아직 코드로 그린 배경을 쓴다.
+제목 띠는 `GFX_header_bg`(팩 `decision/ui/window_header`, 794×41)를 원본 (x,y)에 원크기×s로 그리고 창 폭에서 자른다(무역 창은 원본 `clipping = no`라 오른쪽 4px가 창 밖으로 나온다). 제목은 MC 글꼴 11/9배로 원작 글자 중심 행에 맞춘다: VCR02_24 상자 y+11, VCR02_26(생산·장교단) y+12, 무역(높이 25 상자) y+12, 글자 왼쪽은 상자 x+2(원작 20261014201842·20261024072637·20261118205348 등 실측 88~106행). 무역은 원본처럼 `TRADE_ECON` "경제"(75,6)와 `TRADE_TRADE` "무역"(332,6)을 각 217px 가운데에 둔다. 닫기 단추는 금속 바탕 없이 `GFX_closebutton`(팩 `menu/close`, 32×33)을 원본 위치에 원크기×s로 그려 머리 띠 오른쪽 칸(텍스처 x746~789) 안에 들어간다. 결정 창에서 X 글자 열 507~526·행 93~112가 원작과 같다.
+
+| 화면 | 원본 창 | 배경 | 원점 x | 제목 띠 (x,y) | 제목 (x, 글자 중심 y, 폭) | 닫기 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 정치 | `countrypoliticsview` 726 | `GFX_tiled_window_thin_border2` | −5 | (−70,4) | (40, 21, 400) | (683,6) |
+| 무역 | `countrytradeview` 620 | `GFX_tiled_window_1b_border` | −6 | (−170,6) | (75·332, 18, 217) | (582,8) |
+| 건설 | `countryconstructionsview` 550 | `GFX_tiled_window_thin_border2` | −9 | (−248,7) | (45, 19, 240) | (507,9) |
+| 생산 | `countryproductionlineview` 550 | `GFX_tiled_plain_bg` | −6 | (−245,7) | (45, 20, 440) | (507,9) |
+| 모병 및 배치 | `countrydeploymentview` 550 | `GFX_tiled_window` | −6 | (−248,7) | (45, 19, 440) | (507,9) |
+| 군수 | `countrylogisticsview` 560 | `GFX_tiled_window_thin_border2` | −6 | (−240,7) | (45, 19, 240) | (514,10) |
+| 정보기관 | `countryintelligenceagencyview` 550 | `GFX_tiled_bg` | −6 | (−245,7) | (45, 19, 440) | (507,9) |
+| 장교단 | `countryofficercorpview` 550 | `GFX_tiled_bg` | −6 | (5,7) | (45, 20, 440) | (507,10) |
+| 사건과 결정 | `countrydecisionview` 550 | `GFX_tiled_window2_1b_border` | −6 | (−248,7) | (45, 19, 440) | (507,9) |
+| 연구 | `countrytechnologyview` 550 | `GFX_tiled_window_thin_border2` | −6 | (−245,7) | (45, 19, 440) | (507,9) |
+| 외교 | `countrydiplomacyview` 550 | `GFX_tiled_bg` | 0 | 없음 | 14 | 금속 단추 |
+| 점령지 | `countryoccupationview` 550 | `GFX_tiled_bg` | 0 | −249 | 45 | 금속 단추 |
+
+패널 폭(`UiPanelLayout`)은 2560 GUI2에서 정치 363, 무역 310, 군수 280(원본 560), 나머지 275이다. 정보기관은 생산·건설·장교단과 같은 275 분기를 쓰고, 1280×720 GUI2의 축소 폭(정치 248, 무역 244, 군수 300, 연구 등 184)은 유지한다. 외교·점령지는 메뉴 탭 범위 밖이라 이전 그리기를 유지한다. 모병 오른쪽 사단 편제 칸은 원본 `templatedeploymentwindow`의 `GFX_tiled_window_1b_thin_border`를 쓴다. 국가 선택 미리보기는 화면 가운데 놓이므로 정치 창 배경을 네 테두리 모두 보이게 그린다.
+
+사건과 결정 목록은 원본 `decision_grid_container`(5,45, 폭 544, `GFX_tiled_paper_w_frame_one_border` 192 타일)이고 바닥은 원작 사진의 밝은 선(화면 y1428=텍셀 178)에 맞춰 창 높이+2px이다. 항목은 grid x14에서 원본 높이로 쌓는다: 사건 머리 65(그림 515×83), 사건 행 33(512×33, 아이콘 (29,+3), 이름 x64, 남은 일수 오른쪽 끝 514), 분류 머리 60(그림 516×53을 (10,+8), 아이콘 (24,+16), 이름 (88~453) 가운데·글자 중심 +28.5, 추적 (449,+24) 23×23, 접기 (484,+23) 24×25), 분류 설명은 `GFX_tiled_decisions_bg_small`을 (14,−1) 폭 510에, 본문 글 x28 폭 470, 결정 행 39(대상 결정 40, 그림 512×40, 대상은 (13,−1)), 분류 끝 20. 결정 행: 아이콘 가운데 (44,+19)(시한 (46,+20), 대상 왼쪽 위 (29,+0)), 이름 x69(대상·시한 x76), 비용 오른쪽 끝 446(VCR02_12 글자 중심 +18), 추적 점 (451,+7), 선택 마름모 (479,+6)(대상 +4)는 실행 가능 프레임 1·불가 프레임 0, 진행 막대 `GFX_decision_item_progress_*` 502×10을 (19,+28)(시한 16, 대상 23). 남은 기간이 있는 행은 선택·추적 대신 `decision/timer`를 (506,+15) 가운데 0.95배(대상 0.85배)로, 남은 일수를 오른쪽 끝 489에 금색으로 둔다. 팝업 체크박스(34×30)는 원본 (116·256, +10/+38)에서 사용자 규칙대로 1 GUI 아래, 글자는 체크 표시 중심에 맞춘다. 원작 KOR의 "TOP SECRET" 서류철은 TFRKP 스크립트 GUI `Documents_Button_GUI`라 창 배경이 아니며 구현하지 않았다.
+
+연구 개요는 원본 `countrytechnologyview` 슬롯 창이다: 탭 `GFX_tab_large`(팩 `mio/ui/gfx_tab_large/frame_0`) (150,44)에 `RESEARCH_TAB_SLOTS` "연구 슬롯", `research_slots` (0,80) `GFX_tiled_bg`, `slots_window` (0,220) `GFX_tiled_window_thin_border2`, 배너 `GFX_research_top_win` (5,90) 원크기, 혜택 줄(글자 (55,235)·(300,235), 아이콘 (185,232)·(427,232), 값 (220,235)·(460,235)), 슬롯 (15,255) 간격 100. 빈 슬롯은 `GFX_empty_research_slot_glow`(팩 `research/ui/empty_slot_glow/frame_1`)를 (5,5)에 1초 주기로 엇갈려 그린다.
 
 ## 실패·거부·안내 메시지
 

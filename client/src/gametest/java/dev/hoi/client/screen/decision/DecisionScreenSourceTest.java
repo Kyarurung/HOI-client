@@ -237,7 +237,7 @@ public final class DecisionScreenSourceTest {
                         var screen=(DecisionScreen)client.gui.screen();
                         int maximum=screen.scrollOffset();
                         if(maximum==0)return;
-                        int x=screen.unitHudLeft()-7,top=HudMenuBar.height(screen.width)+26,bottom=screen.height-10;
+                        int x=screen.scrollbar().x()+4,top=screen.contentTop(),bottom=screen.contentBottom();
                         var right=new net.minecraft.client.input.MouseButtonEvent(x,top+3,
                                 new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT,0));
                         screen.mouseClicked(right,false);
@@ -286,7 +286,7 @@ public final class DecisionScreenSourceTest {
                         var costRow=preview.rows().stream().filter(row->row.id().equals("KOR_export_to_pol_k9_plus")).findFirst().orElseThrow();
                         int[] rectangle=context.computeOnClient(client->{
                             var screen=(DecisionScreen)client.gui.screen();locate(screen,costRow.name());
-                            var b=(Button)screen.children().stream().filter(child->child instanceof Button control && control.getX()==7 && control.getMessage().getString().equals(sourceText().component(costRow.name()).getString())).findFirst().orElseThrow();
+                            var b=(Button)screen.children().stream().filter(child->child instanceof Button control && control.getX()<20 && control.getMessage().getString().equals(sourceText().component(costRow.name()).getString())).findFirst().orElseThrow();
                             return new int[]{Math.max(b.getX(),b.getRight()-110)*2,b.getY()*2,b.getRight()*2,b.getBottom()*2};
                         });
                         margin(context);
@@ -458,7 +458,7 @@ public final class DecisionScreenSourceTest {
         resetScroll(screen);
         for (int step = 0; step < 10_000; step++) {
             for (var child : screen.children()) if (child instanceof Button button && button.getY() >= HudMenuBar.height(screen.width) + 52) {
-                if (button.getX() < 0 || button.getRight() > screen.width || button.getBottom() > screen.height - 10)
+                if (button.getX() < 0 || button.getRight() > screen.width || button.getBottom() > screen.contentBottom())
                     throw new AssertionError("Source decision control exceeds viewport: " + preview.name());
                 if(preview.name().equals("kor") && preview.rows().stream().anyMatch(row -> row.id().equals("KOR_export_to_tur_k9")
                         && text.component(row.name()).getString().equals(button.getMessage().getString())) && button.getHeight()>22)
@@ -478,7 +478,7 @@ public final class DecisionScreenSourceTest {
         String label = sourceText().component(name).getString();
         resetScroll(screen);
         for (int step = 0; step < 10_000; step++) {
-            for (var child : screen.children()) if (child instanceof Button button && (button.getX() == 7 || button.getX() == 6)
+            for (var child : screen.children()) if (child instanceof Button button && button.getX() < 20
                     && button.getY() >= HudMenuBar.height(screen.width) + 52 && button.getMessage().getString().equals(label))
                 return new int[]{button.getX() + button.getWidth() / 2, button.getY() + button.getHeight() / 2};
             if (!scroll(screen)) break;

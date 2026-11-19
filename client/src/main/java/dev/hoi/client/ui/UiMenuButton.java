@@ -32,6 +32,8 @@ public final class UiMenuButton extends Button {
     public UiMenuButton caption(String value) { caption = value; if (isClose(value)) setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal("닫기"))); return this; }
     private static boolean isClose(String value) { return value.equals("×") || value.equals("x") || value.equals("X"); }
     public UiMenuButton background(String value) { background = value; return this; }
+    private float[] art;
+    public UiMenuButton art(float x, float y, float w, float h) { art = new float[]{x, y, w, h}; return this; }
     public UiMenuButton(String label, int x, int y, int w, int h, Runnable action) {
         this(label, null, false, x, y, w, h, action);
     }
@@ -43,7 +45,8 @@ public final class UiMenuButton extends Button {
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play(isClose(caption == null ? getMessage().getString() : caption) ? "ui.close" : sound); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
-        if (wrapLabel && ("events/leader/choice".equals(background) || "events/frame/spacebar".equals(background)) && h > UiAssets.imageHeight(background, w)) UiAssets.nineSlice(g, background, x, y, w, h, 4, w / ("events/frame/spacebar".equals(background) ? 300.0 : 352.0));
+        if (art != null && background != null) UiAssets.drawExact(g, background, art[0], art[1], art[2], art[3]);
+        else if (wrapLabel && ("events/leader/choice".equals(background) || "events/frame/spacebar".equals(background)) && h > UiAssets.imageHeight(background, w)) UiAssets.nineSlice(g, background, x, y, w, h, 4, w / ("events/frame/spacebar".equals(background) ? 300.0 : 352.0));
         else if (background != null && background.startsWith("agency/ui/tab")) UiAssets.nineSlice(g, background, x, y, w, h, 20, .5);
         else if (!"none".equals(background) && (background == null || !(background.equals("agency/ui/category") ? UiAssets.drawContent(g, background, x, y, w, h) : UiAssets.draw(g, background, x, y, w, h)))) UiMenuStyle.control(g, x, y, w, h, selected, false);
         String displayed = caption == null ? getMessage().getString() : caption;

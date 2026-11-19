@@ -106,21 +106,24 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (detail != null) initDetail();
     }
     public int treeTop() { return treeTop; }
-    private int visibleSlots() { return Math.max(1, Math.min(6, (height - slotsTop() - 8) / slotPitch())); }
+    private static final int SLOT_TOP = 255, SLOT_PITCH = 100;
+    private int windowHeight() { var frame = overviewFrame(); return (int)Math.ceil((height - frame.y()) / frame.scale()); }
+    private int visibleSlots() { return Math.max(1, (windowHeight() - 14 - SLOT_TOP) / SLOT_PITCH); }
     private int menuBottom() { return HudMenuBar.height(width); }
     private int overviewWidth() { return UiPanelLayout.width(MenuTab.RESEARCH, width); }
-    private int slotPitch() { return 50; }
-    private int bannerHeight() { return Math.max(1, Math.min((overviewWidth() - 12) * 138 / 532, height - menuBottom() - 80 - Math.min(6, view.slots().size()) * slotPitch())); }
-    private int slotsTop() { return menuBottom() + 72 + bannerHeight(); }
+    private static final UiMenuStyle.Window WINDOW = UiMenuStyle.window(MenuTab.RESEARCH);
+    private UiMenuStyle.Frame overviewFrame() { return UiMenuStyle.frame(WINDOW, width, overviewWidth()); }
+    private int slotsTop() { return overviewFrame().iy(SLOT_TOP); }
     private void initOverview() {
         int pane = overviewWidth(), count = visibleSlots();
+        var frame = overviewFrame();
         slotOffset = Math.clamp(slotOffset, 0, Math.max(0, view.slots().size() - count));
-        button("×", pane - 28, menuBottom() + 7, 20, 20, this::onClose);
+        addRenderableWidget(UiMenuStyle.close(WINDOW, frame, this::onClose));
         for (int n = 0; n < count; n++) {
             int index = slotOffset + n;
             if (index >= view.slots().size()) break;
             var slot = view.slots().get(index); var technology = view.technology(slot.technology());
-            var slotButton = addRenderableWidget(new ResearchSlotButton(slot, technology, view.country(), 6, slotsTop() + n * slotPitch(), Math.min(254, pane - 12), slotPitch(), () -> {
+            var slotButton = addRenderableWidget(new ResearchSlotButton(slot, technology, view.country(), frame.x(15), frame.y(SLOT_TOP + n * SLOT_PITCH), frame.scale(), () -> {
                 selectedSlot = index; overview = false; scrollX = 0; scrollY = 0; focusedTech = null;
                 if (technology != null) { category = ResearchLayout.category(technology); showDetail(technology.id()); }
                 else rebuildWidgets();
@@ -145,11 +148,11 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             slotTooltipMaximum = tooltip.maxScroll();
             return;
         }
-        if(y<slotsTop()-33||y>=slotsTop())return;
-        int pane=overviewWidth();
+        var frame=overviewFrame();
+        if(y<frame.y(228)||y>=frame.y(SLOT_TOP))return;
         String text="";
-        if(x>=12&&x<pane/2-6)text=view.benefits().limitedTooltip().isEmpty()?"제한된 기술 혜택이 여기에 열거됩니다.":view.benefits().limitedTooltip();
-        else if(x>=pane/2+6&&x<pane-12)text=view.benefits().speedTooltip().isEmpty()?"§e연구 속도§r\n\n새로운 기술을 연구하는 시간이 감소합니다.":view.benefits().speedTooltip();
+        if(x>=frame.x(55)&&x<frame.x(270))text=view.benefits().limitedTooltip().isEmpty()?"제한된 기술 혜택이 여기에 열거됩니다.":view.benefits().limitedTooltip();
+        else if(x>=frame.x(300)&&x<frame.x(510))text=view.benefits().speedTooltip().isEmpty()?"§e연구 속도§r\n\n새로운 기술을 연구하는 시간이 감소합니다.":view.benefits().speedTooltip();
         if(!text.isEmpty())dev.hoi.client.ui.tooltip.Tooltips.drawExact(g,font,text,x,y);
     }
     String slotTooltipAt(double x,double y) {
@@ -451,25 +454,24 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         HudMenuBar.drawTooltip(g, width, view.hud(), mouseY < menuBottom() ? mouseX : -1, mouseY, hudScroll);
     }
     private void drawOverview(GuiGraphicsExtractor g) {
-        int pane = overviewWidth(), top = menuBottom(), bannerY = top + 39;
-        var frame = UiMenuStyle.window(MenuTab.RESEARCH);
-        UiMenuStyle.window(g, frame, 0, top, pane, height - top);
-        UiMenuStyle.title(g, font, frame, "연구", 0, top, pane);
-        g.fillGradient(6, bannerY, pane - 6, bannerY + bannerHeight(), 0xFF4E315E, 0xFF172731);
-        if (!UiAssets.cover(g, "panel/research_banner", 6, bannerY, pane - 12, bannerHeight())) {
-            ResearchIcons.fallback(g, "ENGINEERING", pane / 2 - 10, bannerY + bannerHeight() / 2 - 8, 0xFFBB98CD, 2);
-        }
-        g.outline(6, bannerY, pane - 12, bannerHeight(), 0xFFA070B5);
-        researchIndicator(g,"제한된 혜택:","research/limited_benefits",Integer.toString(view.benefits().remainingUses()),12,slotsTop()-33,pane/2-18,GOLD,false);
-        double researchSpeed=view.benefits().researchSpeed();
-        researchIndicator(g,"연구 속도:","research/speed",dev.hoi.protocol.ProtocolNumberBounds.signedPercent(researchSpeed, 0),pane/2+6,slotsTop()-33,pane/2-18,0xFF000000 | (researchSpeed>=0?dev.hoi.client.ui.tooltip.Tooltips.GOOD:dev.hoi.client.ui.tooltip.Tooltips.BAD),true);
+        var frame = overviewFrame();
+        int bottom = windowHeight();
+        UiMenuStyle.window(g, WINDOW, frame, height);
+        UiMenuStyle.title(g, font, WINDOW, frame, "연구");
+        frame.art(g, "mio/ui/gfx_tab_large/frame_0", 150, 44);
+        UiText.marquee(g, font, Tooltips.officerText(UiCommandLabels.text("RESEARCH_TAB_SLOTS", "연구 슬롯")), frame.x(150), frame.y(65) - font.lineHeight / 2f, frame.size(258), 1, TEXT, true, 0);
+        frame.tile(g, "commander/commands/tiled_bg/frame_0", 0, 80, 550, bottom - 85, 64, UiMenuStyle.TILE);
+        frame.tile(g, "commander/commands/tiled_window_thin_border2/frame_0", 0, 220, 550, bottom - 226, 64, UiMenuStyle.TILE);
+        if (!frame.art(g, "panel/research_banner", 5, 90)) ResearchIcons.fallback(g, "ENGINEERING", frame.ix(271) - 10, frame.iy(159) - 8, 0xFFBB98CD, 2);
+        double researchSpeed = view.benefits().researchSpeed();
+        researchIndicator(g, frame, "제한된 혜택:", 55, 130, "research/limited_benefits", 185, Integer.toString(view.benefits().remainingUses()), 220, GOLD);
+        researchIndicator(g, frame, "연구 속도:", 300, 125, "research/speed", 427, dev.hoi.protocol.ProtocolNumberBounds.signedPercent(researchSpeed, 0), 460,
+                0xFF000000 | (researchSpeed >= 0 ? dev.hoi.client.ui.tooltip.Tooltips.GOOD : dev.hoi.client.ui.tooltip.Tooltips.BAD));
     }
-    private void researchIndicator(GuiGraphicsExtractor g,String label,String icon,String value,int x,int y,int max,int color,boolean right) {
-        int natural=font.width(label)+15+font.width(value);
-        float scale=Math.min(1f,max/(float)Math.max(1,natural));
-        g.pose().pushMatrix();g.pose().translate(right?x+max-natural*scale:x,y + 16.5f - 3.5f * scale);g.pose().scale(scale);
-        g.text(font,label,0,0,TEXT);UiAssets.draw(g,icon,font.width(label)+2,-2,11,11);
-        g.text(font,value,font.width(label)+15,0,color);g.pose().popMatrix();
+    private void researchIndicator(GuiGraphicsExtractor g, UiMenuStyle.Frame frame, String label, int labelX, int labelWidth, String icon, int iconX, String value, int valueX, int color) {
+        frame.art(g, icon, iconX, 232);
+        UiText.marquee(g, font, Tooltips.officerText(label), frame.x(labelX), frame.y(242) - font.lineHeight / 2f, frame.size(Math.min(labelWidth, iconX - labelX - 4)), 1, TEXT, true, -1);
+        UiText.marquee(g, font, Component.literal(value), frame.x(valueX), UiText.centeredY(font, value, frame.y(242) - font.lineHeight / 2f, font.lineHeight, 1), frame.size(50), 1, color, true, -1);
     }
     private void drawTree(GuiGraphicsExtractor g, int mx, int my) {
         g.enableScissor(0, treeTop, width, treeTop + treePadding + 16);
@@ -956,7 +958,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             hudScroll = HudMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical);
             return true;
         }
-        if (overview && x < overviewWidth() && y >= slotsTop() && view.slots().size() > visibleSlots()) {
+        if (overview && x < overviewFrame().x(550) && y >= slotsTop() && view.slots().size() > visibleSlots()) {
             slotOffset -= (int)Math.signum(vertical); rebuildWidgets(); return true;
         }
         if (teamPicker) { teamScroll -= (int)(vertical * IndustryOrganizationList.ENTRY_HEIGHT); rebuildWidgets(); return true; }
