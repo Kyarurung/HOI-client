@@ -807,12 +807,12 @@ public final class IndustryScreenChecks {
         context.runOnClient(client->check(requests.getLast().amount()==6,"Importing all 44 resources reserves six civilian factories"));
         requests.clear();
         context.setScreen(() -> new IndustryScreen(MenuTab.PRODUCTION, v.session(), v, requests::add)); context.waitTicks(2);
-        click(context, "공장 늘리기 · 부족분 예약");
+        click(context, "공장 늘리기");
         context.runOnClient(client -> {
             var s = (IndustryScreen)client.gui.screen(); var request = requests.getLast();
             check(request.action() == IndustryPayloads.Action.ASSIGN && request.amount() == v.lines().getFirst().factories() + 1
                     && request.revision() == v.revision(), "Only a bounded authenticated factory request");
-            check(!button(s, "공장 늘리기 · 부족분 예약").active, "No duplicate request while waiting");
+            check(!button(s, "공장 늘리기").active, "No duplicate request while waiting");
             s.update(copy(v, hud, v.revision() + 1, null));
         });
         click(context, "보병 및 포병 장비 제작"); context.waitTicks(2); ResearchScreenTest.gui2Screenshot(context,"hoi-industry-equipment-picker");
@@ -865,13 +865,13 @@ public final class IndustryScreenChecks {
         context.getInput().resizeWindow(1600, 1000); context.waitTicks(3);
         checkGenerations(context,hud);
         context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, empty.session(), empty, requests::add)); context.waitTicks(2);
-        context.runOnClient(client -> check(client.gui.screen().children().stream().noneMatch(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소 · 지급 장비와 인력 반환")), "No training rows before a server-issued recruit exists"));
+        context.runOnClient(client -> check(client.gui.screen().children().stream().noneMatch(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소")), "No training rows before a server-issued recruit exists"));
         String template = v.templates().getFirst().name();
         click(context, template + " 훈련");
         context.runOnClient(client -> {
             check(requests.getLast().action() == IndustryPayloads.Action.RECRUIT && requests.getLast().other().isEmpty(), "Training starts with no deployment location");
             ((IndustryScreen)client.gui.screen()).update(copy(v, hud, v.revision() + 1, null));
-            check(client.gui.screen().children().stream().anyMatch(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소 · 지급 장비와 인력 반환")), "Authoritative recruit response creates a training line");
+            check(client.gui.screen().children().stream().anyMatch(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소")), "Authoritative recruit response creates a training line");
         });
         context.waitTicks(2); ResearchScreenTest.gui2Screenshot(context, "hoi-recruitment-after-training");
         context.runOnClient(client -> {
@@ -926,7 +926,7 @@ public final class IndustryScreenChecks {
             context.waitTicks(2); context.takeScreenshot("hoi-recruitment-collapsed-" + size[0] + "-gui2");
             context.runOnClient(client -> {
                 var screen = (IndustryScreen)client.gui.screen();
-                check(screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소 · 지급 장비와 인력 반환")).count() == 4, "Collapse hides only the chosen group's training rows");
+                check(screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals("훈련 취소")).count() == 4, "Collapse hides only the chosen group's training rows");
                 for (String asset : List.of("collapse", "expand", "cancel_line", "delete_template", "increase", "decrease", "icon_bg"))
                     check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/recruitment/" + asset + ".png")).isPresent(), "Original recruitment asset " + asset);
             });
@@ -1108,7 +1108,7 @@ public final class IndustryScreenChecks {
             var screen=(IndustryScreen)client.gui.screen();checkBounds(screen);
             check(screen.panelWidth()>=275,"Production keeps GUI2 reference cell space when the viewport permits");
             check(screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().matches("(military · 공장|naval · 조선소) [0-9]+칸")).count()==30,"Both production pools expose all fifteen cells");
-            check(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().startsWith("naval · ×")),"Dockyards have no multiplier buttons");
+            check(screen.children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().startsWith("naval ×")),"Dockyards have no multiplier buttons");
             for(String icon:List.of("factory_0","factory_1","factory_2","factory_3","dockyard_0","dockyard_1","dockyard_2","dockyard_3","x5_normal","x5_selected","x10_normal","x10_selected","efficiency_frame","efficiency_fill","efficiency_bg","progress_fill","progress_bg"))
                 check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/"+icon+".png")).isPresent(),"Original production state frame "+icon);
         });
@@ -1176,11 +1176,11 @@ public final class IndustryScreenChecks {
         context.getInput().setCursorPos(700,700);context.getInput().resizeWindow(1600,1000);context.waitTicks(2);
         context.runOnClient(client->{check(requests.stream().allMatch(request->request.action()==IndustryPayloads.Action.CLOSE),"Tooltip fixture transitions only close their previous screen");requests.clear();});
         for(int multiplier:new int[]{5,10,1}) {
-            click(context,"military · ×"+(multiplier==1?10:multiplier));
+            click(context,"military ×"+(multiplier==1?10:multiplier));
             check(requests.isEmpty(),"Display multiplier does not mutate production");
             context.waitTicks(2);ResearchScreenTest.gui2Screenshot(context,"hoi-production-factories-x"+multiplier);
         }
-        click(context,"military · ×10");
+        click(context,"military ×10");
         context.getInput().resizeWindow(2560,1440);context.waitTicks(2);
         for(int hovered:new int[]{3,1}) {
             var point=context.computeOnClient(client->{var b=button((IndustryScreen)client.gui.screen(),"military · 공장 "+hovered+"칸");double scale=client.getWindow().getGuiScale();return new double[]{(b.getX()+b.getWidth()/2.0)*scale,(b.getY()+b.getHeight()/2.0)*scale};});
@@ -1188,12 +1188,12 @@ public final class IndustryScreenChecks {
             context.takeScreenshot(hovered==3?"hoi-production-factory-add-hover-gui2":"hoi-production-factory-cancel-hover-gui2");
         }
         context.getInput().setCursorPos(700,700);context.getInput().resizeWindow(1600,1000);context.waitTicks(2);
-        click(context,"military · ×10");
+        click(context,"military ×10");
         click(context,"military · 공장 15칸");
         context.runOnClient(client->{var r=requests.getLast();check(r.action()==IndustryPayloads.Action.ASSIGN&&r.item().equals("military")&&r.amount()==15&&r.revision()==issued.revision(),"X1 allows reserving fifteen factories despite only twelve owned");});
         for(int multiplier:new int[]{5,10}) {
             requests.clear();context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);
-            click(context,"military · ×"+multiplier);
+            click(context,"military ×"+multiplier);
             context.setScreen(()->null);
             context.setScreen(()->new IndustryScreen(MenuTab.PRODUCTION,issued.session(),issued,requests::add));context.waitTicks(1);
             ResearchScreenTest.gui2Screenshot(context,"hoi-production-reopened-x"+multiplier);

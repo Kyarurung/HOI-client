@@ -25,6 +25,7 @@ public final class CommanderCursorTooltipTest {
                 var box=game.computeOnClient(client->CommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().target().equals(card.id())&&b.request().mode()==(navy?Mode.NAVY_FLEET:Mode.ASSIGN_ARMY)).findFirst().orElseThrow());
                 String suffix=(navy?"navy":"army")+"-"+size[0]+"x"+size[1]+"-gui2";
                 var idle=game.takeScreenshot("hoi-card-idle-"+suffix);
+                if(!navy){if(card.panel().forces()!=null)throw new AssertionError("Gauge check expects the fixture army without a plan force ratio");gauge(game,idle,box);}
                 Files.writeString(idle.resolveSibling(idle.getFileName()+".json"),new com.google.gson.Gson().toJson(Map.of("x",box.x()*2,"y",box.y()*2,"width",box.width()*2,"height",box.height()*2)));
                 CommanderHud.TooltipBounds previous=null;
                 for(int step=0;step<2;step++) {
@@ -47,6 +48,11 @@ public final class CommanderCursorTooltipTest {
             }
         } catch(java.io.IOException error) {throw new java.io.UncheckedIOException(error);}
         finally {game.runOnClient(client->{CommanderHud.reset();CommanderUnitHud.reset();});game.setScreen(()->null);}
+    }
+    private static void gauge(ClientGameTestContext game,Path shot,CommanderHud.Box card) throws java.io.IOException {
+        int[] frame=game.computeOnClient(client->{var u=CommanderLayout.units(client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight());var foot=CommanderHud.boxes().stream().filter(b->b.x()==card.x()&&b.y()==card.y()+card.height()&&b.height()==u.size(14)).findFirst().orElseThrow();double scale=client.getWindow().getGuiScale();return new int[]{(int)Math.round((card.x()+u.size(3.5))*scale),(int)Math.round((foot.y()+foot.height()-u.size(6.5))*scale),(int)Math.round(u.scale()*scale*50)};});
+        var image=javax.imageio.ImageIO.read(shot.toFile());double k=frame[2]/100.0;
+        for(int row=2;row<=6;row++)for(int col=5;col<=59;col++){int rgb=image.getRGB(frame[0]+(int)Math.floor(col*k),frame[1]+(int)Math.floor(row*k));if(Math.max(rgb>>16&255,Math.max(rgb>>8&255,rgb&255))>0x10)throw new AssertionError("Plan gauge window must be filled by its dark bar at "+col+","+row+": "+Integer.toHexString(rgb));}
     }
     private static void memberTooltip(ClientGameTestContext game,Member member,String suffix,boolean army) throws java.io.IOException {
         var point=game.computeOnClient(client->{

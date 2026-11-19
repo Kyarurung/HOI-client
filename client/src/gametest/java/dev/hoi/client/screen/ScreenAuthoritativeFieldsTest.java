@@ -88,7 +88,7 @@ public final class ScreenAuthoritativeFieldsTest {
                 game.setScreen(()->new ResearchScreen(research,r->{}));game.waitTicks(3);
                 dev.hoi.client.screen.research.ResearchSlotTooltipTest.empty(game);
                 game.takeScreenshot("hoi-k1-research-date-empty-slots-"+size[0]+"-gui"+size[2]);
-                var point=game.computeOnClient(c->{var button=c.gui.screen().children().stream().filter(w->w instanceof dev.hoi.client.screen.research.ResearchSlotButton b&&b.getMessage().getString().contains("연구 선택")).map(w->(Button)w).findFirst().orElseThrow();double scale=c.getWindow().getGuiScale();return new double[]{(button.getX()+button.getWidth()/2.)*scale,(button.getY()+button.getHeight()/2.)*scale};});
+                var point=game.computeOnClient(c->{var button=c.gui.screen().children().stream().filter(w->w instanceof dev.hoi.client.screen.research.ResearchSlotButton b&&b.getMessage().getString().equals(dev.hoi.client.ui.UiCommandLabels.text("RESEARCH_NO_RESEARCH", "사용되지 않음"))).map(w->(Button)w).findFirst().orElseThrow();double scale=c.getWindow().getGuiScale();return new double[]{(button.getX()+button.getWidth()/2.)*scale,(button.getY()+button.getHeight()/2.)*scale};});
                 game.getInput().setCursorPos(point[0],point[1]);game.waitTicks(3);
                 game.takeScreenshot("hoi-k1-research-empty-slot-hover-no-invented-tooltip-"+size[0]+"-gui"+size[2]);
                 liveHud(game,menu,size);

@@ -14,10 +14,11 @@ public final class ResearchSlotButton extends Button {
     private final ResearchView.Tech technology;
     private final String country;
     ResearchSlotButton(ResearchView.Slot slot, ResearchView.Tech technology, String country, int x, int y, int width, int height, Runnable action) {
-        super(x, y, width, height, Component.literal("슬롯 " + (slot.index() + 1) + " · " + (technology == null ? "연구 선택" : technology.name())),
+        super(x, y, width, height, Component.literal(technology == null ? dev.hoi.client.ui.UiCommandLabels.text("RESEARCH_NO_RESEARCH", "사용되지 않음") : technology.name()),
                 b -> action.run(), DEFAULT_NARRATION);
         this.slot = slot; this.technology = technology; this.country = country;
     }
+    public int index() { return slot.index(); }
     float sourceScale() { return Math.min(getWidth() / 508f, getHeight() / 99f); }
     int sourceX(int x) { return getX() + Math.round(x * sourceScale()); }
     int sourceY(int y) { return getY() + Math.round(y * sourceScale()); }

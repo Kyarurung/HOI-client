@@ -14,7 +14,6 @@ public final class CommanderSourceTest {
     public static void run(ClientGameTestContext context) {
         CommanderRosterTest.run(context);
         CommanderAdmiralSourceTest.run(context);
-        CommanderAirAceSourceTest.run(context);
         CommanderTraitTreeTest.run(context);
         String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
         try {

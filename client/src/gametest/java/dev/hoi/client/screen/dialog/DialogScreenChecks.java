@@ -47,10 +47,9 @@ public final class DialogScreenChecks {
             context.getInput().setCursorPos(1800, 800); context.waitTicks(3);
             var baseline = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-map-country-flag-gui2").toFile());
             var bounds = context.computeOnClient(c -> {
-                double scale = c.getWindow().getGuiScale();
-                return new int[]{(int)(4 * scale), (int)(3 * scale),
-                        (int)(dev.hoi.client.ui.hud.HudMenuBar.flagWidth(c.gui.screen().width) * scale),
-                        (int)((dev.hoi.client.ui.hud.HudMenuBar.height(c.gui.screen().width) - 6) * scale)};
+                double scale = c.getWindow().getGuiScale(), k = dev.hoi.client.ui.hud.HudMenuBar.flagWidth(c.gui.screen().width) / 49.0;
+                int left = (int)Math.ceil(4.5 * k * scale), top = (int)Math.ceil(7.5 * k * scale);
+                return new int[]{left, top, (int)Math.floor(45.5 * k * scale) - left, (int)Math.floor(32.5 * k * scale) - top};
             });
             for (String image : List.of("map_detail/terrain/plains", "map_detail/sea", "air_detail/background")) {
                 var view = new DialogView(UUID.randomUUID().toString(), 1, DialogView.Kind.STATE, "국기 유지 검증", "", "", "", image, "", List.of(), List.of());

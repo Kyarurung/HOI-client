@@ -59,6 +59,16 @@ public final class MapAirDetailChecks {
                 for(var tile:tiles)if(!tile.icon().isBlank()&&c.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/"+tile.icon()+".png")).isEmpty())throw new AssertionError("Missing air asset: "+tile.icon());
             });
             context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-detail-"+size[0]+"-gui2");
+            if(size[0]==2560) {
+                context.runOnClient(c->((MapAirDetail)c.gui.screen()).toggleCategory(1,false));context.waitTicks(2);
+                var off=context.takeScreenshot("hoi-air-category-off-gui2");
+                var dots=context.computeOnClient(c->{var screen=(MapAirDetail)c.gui.screen();double scale=screen.panelWidth()/552.0,gui=c.getWindow().getGuiScale();int[][] result=new int[3][2];for(int i=0;i<3;i++){result[i][0]=(int)Math.round((screen.panelLeft()+(207+45*i+6)*scale)*gui);result[i][1]=(int)Math.round((screen.panelTop()+244*scale)*gui);}return result;});
+                try {
+                    var image=javax.imageio.ImageIO.read(off.toFile());
+                    for(int i=0;i<3;i++){boolean green=false;for(int dy=-3;dy<=3;dy++)for(int dx=-3;dx<=3;dx++){int rgb=image.getRGB(dots[i][0]+dx,dots[i][1]+dy),r=rgb>>16&255,g=rgb>>8&255,bl=rgb&255;green|=g>r+40&&g>bl+40;}if(green!=(i!=1))throw new AssertionError("Mission filter "+i+" must use the original "+(i!=1?"ON":"OFF")+" frame at "+dots[i][0]+","+dots[i][1]);}
+                } catch(java.io.IOException error){throw new AssertionError(error);}
+                context.runOnClient(c->((MapAirDetail)c.gui.screen()).toggleCategory(1,false));context.waitTicks(2);
+            }
             if(size[0]==2560)for(int[] point:new int[][]{{169,204},{353,204},{45,126},{113,126},{164,66},{25,52},{25,88},{94,52},{94,88},{280,55},{280,91}}) {
                 var cursor=context.computeOnClient(c->{var screen=(MapAirDetail)c.gui.screen();double scale=screen.panelWidth()/552.0,gui=c.getWindow().getGuiScale();return new double[]{(screen.panelLeft()+point[0]*scale)*gui,(screen.panelTop()+point[1]*scale)*gui};});
                 context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);context.takeScreenshot("hoi-air-tooltip-"+point[0]+"-"+point[1]+"-gui2");

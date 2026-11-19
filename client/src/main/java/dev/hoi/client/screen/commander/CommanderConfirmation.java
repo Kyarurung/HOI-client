@@ -38,10 +38,10 @@ public final class CommanderConfirmation extends DialogScreen {
         if(division(view())&&parent==null){parent=new MapCursor();parent.init(width,height);}
         boolean agency=parent instanceof AgencyScreen;
         if(agency&&((AgencyScreen)parent).dismissalBackdrop()!=parent)((AgencyScreen)parent).dismissalBackdrop().init(width,height);
-        buttons.clear();pane=Math.min(agency?250:233,width-16);lines=font.split(bodyText(),pane-(agency?50:40));panelHeight=Math.min(height-16,agency?130:154);left=Math.clamp((width-pane)/2+offsetX,0,width-pane);top=Math.clamp((height-panelHeight)/2+offsetY,0,height-panelHeight);
+        buttons.clear();pane=Math.min(agency?250:240,width-16);lines=font.split(bodyText(),agency?pane-50:Math.min(215,pane-25));panelHeight=Math.min(height-16,agency?130:161);left=Math.clamp((width-pane)/2+offsetX,0,width-pane);top=Math.clamp((height-panelHeight)/2+offsetY,0,height-panelHeight);
         scroll=Math.clamp(scroll,0,Math.max(0,lines.size()*10-bodyHeight()));
         for(var choice:view().choices()){
-            boolean cancel=choice.id().equals("cancel");var button=new UiMenuButton(cancel?choice.label():"OK",left+(cancel?agency?45:43:agency?130:128),top+panelHeight-(agency?28:30),agency?74:70,agency?17:13,()->choose(choice.id())).background("commander/commands/button_148x34/frame_0").textShadow(true).sound(cancel?"ui.close":"ui.click");
+            boolean cancel=choice.id().equals("cancel");var button=new UiMenuButton(cancel?choice.label():"OK",left+(cancel?45:130),agency?top+panelHeight-28:top+Math.min(125,panelHeight-36),74,17,()->choose(choice.id())).background("commander/commands/button_148x34/frame_0").textShadow(true).sound(cancel?"ui.close":"ui.click");
             button.caption("");button.active=!pending;button.setTooltip(Tooltips.createOfficer(choice.tooltip()));buttons.put(choice.id(),button);addRenderableWidget(button);
         }
     }
@@ -73,7 +73,7 @@ public final class CommanderConfirmation extends DialogScreen {
             scrollbar().draw(g,scroll);
         }
         for(var child:children())if(child instanceof net.minecraft.client.gui.components.Renderable widget)widget.extractRenderState(g,mx,my,delta);
-        for(var button:buttons.values()){var label=button.getMessage().copy().withStyle(net.minecraft.ChatFormatting.BOLD);g.text(font,label,button.getX()+(button.getWidth()-font.width(label))/2,button.getY()+(button.getHeight()-font.lineHeight)/2,button.active?0xFFFFFFFF:UiMenuStyle.MUTED,true);}
+        for(var button:buttons.values()){var label=button.getMessage().copy();g.text(font,label,button.getX()+(button.getWidth()-font.width(label))/2,button.getY()+(button.getHeight()-font.lineHeight)/2,button.active?0xFFFFFFFF:UiMenuStyle.MUTED,true);}
     }
     @Override protected void choose(String id){if(pending||view().choices().stream().noneMatch(c->c.id().equals(id)))return;pending=true;buttons.values().forEach(b->b.active=false);super.choose(id);}
     @Override public void onClose(){choose("cancel");}

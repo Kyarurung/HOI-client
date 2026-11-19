@@ -60,8 +60,7 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
         for(var entry:entries){
             int y=rowY(entry);if(!visible(entry,y))continue;var row=entry.row();
             if(entry.country()){
-                add((expanded.contains(row.country())?"▾ ":"▸ ")+row.countryName(),null,null,"",s(12),y,s(282),s(45),false,()->{if(!expanded.add(row.country()))expanded.remove(row.country());rebuildWidgets();}).setTooltip(null);
-                add((expanded.contains(row.country())?"점령지 접기 · ":"점령지 펼치기 · ")+row.countryName(),"occupation/"+(expanded.contains(row.country())?"collapse":"expand"),null,"",s(9),y+s(38),s(19),s(19),false,()->{if(!expanded.add(row.country()))expanded.remove(row.country());rebuildWidgets();});
+                add((expanded.contains(row.country())?"▾ ":"▸ ")+row.countryName(),"occupation/"+(expanded.contains(row.country())?"collapse":"expand"),null,"",s(9),y+s(38),s(19),s(19),false,()->{if(!expanded.add(row.country()))expanded.remove(row.country());rebuildWidgets();}).setTooltip(null);
                 if(row.hasResistance())add("주둔 사단 편제","occupation/template_button",templateIcon(row.template()),"",s(18),y+s(84),s(76),s(31),false,()->select(row.state(),true)).setTooltip(Tooltips.createExact(templateTooltip(entry)));
                 var admin=row.administration();boolean returning=admin!=null&&admin.returnTerritory();String caption=returning?"영토 반환":"국가 해방";
                 var release=add(caption,"occupation/release",null,caption,s(190),y+s(84),s(149),s(27),false,()->openReturn(row.country()));release.active=pending==0&&returning&&admin.enabled();
@@ -71,6 +70,11 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
                 if(row.hasResistance())add("주둔 사단 편제","occupation/template_button",templateIcon(row.template()),"",s(18),y+s(28),s(76),s(31),false,()->select(row.state(),true)).setTooltip(Tooltips.createExact(templateTooltip(entry)));
                 if(row.hasResistance())add(law(row.law()),"occupation/state_law",lawIcon(row.law()),"",s(477),y+s(24),s(40),s(34),false,()->select(row.state(),false)).setTooltip(Tooltips.createExact(currentLawTooltip(entry,row.law())));
             }
+        }
+        for(var entry:entries){
+            int y=rowY(entry);if(!visible(entry,y))continue;var row=entry.row();
+            String state=entry.country()?"country:"+row.country():row.state();
+            add(entry.country()?row.countryName():row.name(),null,null,"",s(12),y,s(entry.country()?282:280),s(entry.country()?38:row.hasResistance()?26:30),false,()->send(Action.ZOOM,state,"")).setTooltip(Tooltips.createExact(label("OCCUPATION_ZOOM_TO_STATE_TOOLTIP")));
         }
         if(target!=null)buildPopup();
         if(returnTarget!=null)buildReturn();

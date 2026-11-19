@@ -215,12 +215,14 @@ public final class CommanderHud {
             if(view.branch()==Mode.AIR&&!group&&!wing)airAttachments(g,units,list,card,attached,bx,by);
             UiText.cell(g,client.font,countLabel(card),bx+units.size(naval?3.5:group?7:4),naval?by+units.size(44.5):by+ch-units.size(16),naval?units.size(33):cw-units.size(group?14:8),Math.max(client.font.lineHeight,units.size(naval?10.5:10)),countColor(card),false);
             if(!wing&&card.panel()!=null)for(var control:card.panel().controls())if(Set.of("LEADER_TRAITS","LEADER_ADVISOR").contains(control.id())&&(!control.id().equals("LEADER_TRAITS")||hasCommander(card))){boolean traits=control.id().equals("LEADER_TRAITS");int width=units.size(traits?(control.icon().contains("available_trait")?11:12):14),height=units.size(traits?12.5:14),cx=naval?bx+units.size(traits?5:22.5):traits?innerX:innerX+innerWidth-width,cy=naval?by+units.size(31.5):innerY+innerHeight-height;if(naval)UiAssets.drawLeaderControl(g,control.icon(),cx,cy,width,height,control.enabled());else {int[] bounds=UiAssets.drawLeaderControlAnchored(g,control.icon(),traits?innerX:innerX+innerWidth,innerY+innerHeight,width,height,!traits,control.enabled());cx=bounds[0];cy=bounds[1];width=bounds[2];height=bounds[3];}list.add(new Box(cx,cy,width,height,null,0,control.tooltip(),()->{if(control.enabled())open(control.request());}));}
-            if(!naval&&!wing&&card.panel()!=null)CommanderPanels.progress(g,"plan_unit_power",bx+units.size(group?8:5),by+ch-units.size(6.5),units.size(29.5),units.size(3),card.panel().forces(),0xff008000,0xff020305);
-            if(!naval&&!wing)UiAssets.draw(g,"commander/commands/plan_frame/frame_0",bx+units.size(group?6.5:3.5),by+ch-units.size(6.5),units.size(32.5),units.size(4.5));
+            if(!naval&&!wing){
+                g.pose().pushMatrix();g.pose().translate(bx+units.size(group?6.5:3.5),by+ch-units.size(6.5));g.pose().scale(units.scale()*.5f);
+                if(card.panel()!=null)CommanderPanels.progress(g,"plan_unit_power",3,1,59,6,card.panel().forces(),0xff008000,0xff020305);
+                UiAssets.draw(g,"commander/commands/plan_frame/frame_0",0,0,65,9);g.pose().popMatrix();
+            }
             if(!naval&&!wing&&card.panel()!=null){
                 int sx=bx+units.size(group?.5:1.5),sy=by+units.size(group?19.5:18),sh=units.size(group?14.5:11.5);
-                String tip="집단군 색상 · "+(card.panel().color()==null?"미지정":String.format(Locale.ROOT,"#%06X",card.panel().color()));
-                if(group&&CommanderPanels.selected(card.id())&&!card.panel().palette().isEmpty())list.add(new Box(sx,sy,units.size(3.5),sh,null,0,tip+"\n"+UiCommandLabels.text("SELECT_COLOR","지도 색상 선택"),()->{paletteGroup=paletteGroup.equals(card.id())?"":card.id();boxes=List.of();}));
+                if(group&&CommanderPanels.selected(card.id())&&!card.panel().palette().isEmpty())list.add(new Box(sx,sy,units.size(3.5),sh,null,0,UiCommandLabels.text("SELECT_COLOR","지도 색상 선택"),()->{paletteGroup=paletteGroup.equals(card.id())?"":card.id();boxes=List.of();}));
             }
             if(!wing&&!group&&card.role()!=Mode.NAVY_HQ){
                 int controlX=bx+units.size(31.5),closeY=by+units.size(3.5),controlWidth=units.size(naval?9:8),controlHeight=units.size(naval?9:8);

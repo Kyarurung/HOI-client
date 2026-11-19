@@ -8,6 +8,7 @@ import dev.hoi.client.ui.country.CountryDisplays;
 import dev.hoi.client.ui.tooltip.Tooltips;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import java.util.List;
@@ -20,18 +21,19 @@ public final class HudMenuBar {
     private static List<HudIndicator> cachedIndicators = List.of();
     private HudMenuBar() {}
     public static void clear() { cachedHud = null; cachedIndicators = List.of(); HudTooltip.clear(); }
-    public static int height(int width) { return width >= 600 ? 36 : 34; }
-    private static int tabWidth(int width) {
-        return Math.min(Math.min(28, Math.max(20, width * 7 / 200)), (width - 12) / MenuTab.ORDER.size());
-    }
-    public static int dockWidth(int width) { return statsLeft(width) + tabWidth(width) * (MenuTab.ORDER.size() - 1); }
-    public static final int STATS_HEIGHT = 14;
-    public static int flagWidth(int width) { return (height(width) - 6) * 98 / 67; }
-    static int statsLeft(int width) { return flagWidth(width) + 10; }
-    private static final int TENSION_DOCK_WIDTH = 38;
+    private static final int[] TAB_X = {109, 164, 220, 275, 331, 387, 442, 497, 553};
+    private static final int TAB_Y = 35, TAB_WIDTH = 55, TAB_HEIGHT = 41, FLAG_X = 1, FLAG_Y = 6, FLAG_WIDTH = 98, FLAG_HEIGHT = 67;
+    private static final int TENSION_WIDTH = 73, TENSION_HEIGHT = 93;
+    static float scale(int width) { return Math.min(1f, (width - 23f) * 2 / (TAB_X[TAB_X.length - 1] + TAB_WIDTH + TENSION_WIDTH)); }
+    public static int height(int width) { return (int)Math.ceil(41 * scale(width)); }
+    public static int dockWidth(int width) { return Math.round(338 * scale(width)); }
+    public static final int STATS_TOP = 2, STATS_HEIGHT = 15;
+    public static int flagWidth(int width) { return Math.round(FLAG_WIDTH * scale(width) / 2); }
+    public static int statsLeft(int width) { return Math.round(48 * scale(width)); }
     public static boolean showingTensionTooltip;
-    public static int tensionX(int width) { return width - 34; }
-    public static int statsRight(int width) { return width - TENSION_DOCK_WIDTH; }
+    private static float tensionLeft(int width) { return width - TENSION_WIDTH * scale(width) / 2; }
+    public static int tensionX(int width) { return (int)Math.floor(tensionLeft(width)); }
+    public static int statsRight(int width) { return tensionX(width); }
     public enum HudFormat { NUMBER, POLITICAL_POWER, COMMAND_POWER, EXPERIENCE, NUCLEAR, PERCENT, MONEY, FUEL_INCREASING, FUEL_DECREASING }
     public record HudIndicator(String icon, String label, Number raw, HudFormat format, String barLabel, Double ratio, String value) {
         public HudIndicator(String icon, String label, Number raw, HudFormat format, String barLabel, Double ratio) { this(icon, label, raw, format, barLabel, ratio, value(icon, raw, format)); }
@@ -96,10 +98,7 @@ public final class HudMenuBar {
     public static void drawBackground(GuiGraphicsExtractor g, int width, CountryHud hud, int offset) {
         if (dev.hoi.client.screen.dialog.DialogCoordinator.renderingContent()) return;
         hud = snapshot(hud);
-        int dock = dockWidth(width), h = height(width);
-        UiMenuStyle.metal(g, 0, 0, width, STATS_HEIGHT + 1);
-        UiMenuStyle.metal(g, 0, STATS_HEIGHT, dock, h - STATS_HEIGHT);
-        UiMenuStyle.recess(g, statsLeft(width) - 3, 15, dock - statsLeft(width), h - 17);
+        topbar(g, width);
         var items = indicators(hud);
         int maxScroll = maximumScroll(width, hud), left = statsLeft(width) - Math.clamp(offset, 0, maxScroll);
         int contentWidth = items.stream().mapToInt(HudIndicator::width).sum();
@@ -113,6 +112,19 @@ public final class HudMenuBar {
         g.disableScissor();
         drawTension(g, width, hud);
     }
+    private static final Identifier TOPBAR = Identifier.parse("hoi:textures/gui/hud/topbar_background.png");
+    private static void topbar(GuiGraphicsExtractor g, int width) {
+        float k = scale(width) / 2;
+        int band = (int)Math.ceil(width / k) - 724;
+        g.pose().pushMatrix();
+        g.pose().scale(k, k);
+        art(g, 0, 0, 724, 82, 4, 1, 728, 83);
+        if (band > 0) art(g, 724, 0, 724 + band, 38, 728, 1, 728 + Math.min(1612, band), 39);
+        g.pose().popMatrix();
+    }
+    private static void art(GuiGraphicsExtractor g, int x0, int y0, int x1, int y1, int u0, int v0, int u1, int v1) {
+        g.blit(TOPBAR, x0, y0, x1, y1, u0 / 2346f, u1 / 2346f, v0 / 87f, v1 / 87f);
+    }
     public static void drawTooltip(GuiGraphicsExtractor g, int width, CountryHud hud, int mx, int my, int offset) {
         hud = snapshot(hud);
         HudIndicator hovered = null;
@@ -120,11 +132,10 @@ public final class HudMenuBar {
         int contentWidth = indicators(hud).stream().mapToInt(HudIndicator::width).sum();
         for (var item : indicators(hud)) {
             if (item.icon().equals("gdp") && maxScroll == 0) left += Math.max(0, statsRight(width) - statsLeft(width) - contentWidth - 3);
-            if (mx >= Math.max(statsLeft(width), left) && mx < Math.min(statsRight(width) - 2, left + item.width()) && my >= 1 && my < STATS_HEIGHT) hovered = item;
+            if (mx >= Math.max(statsLeft(width), left) && mx < Math.min(statsRight(width) - 2, left + item.width()) && my >= STATS_TOP && my < STATS_HEIGHT) hovered = item;
             left += item.width();
         }
-        int bottom = 3 + height(width) - 6 + 2 + Minecraft.getInstance().font.lineHeight + 4;
-        showingTensionTooltip = mx >= tensionX(width) && mx < tensionX(width) + 30 && my >= 3 && my < bottom;
+        showingTensionTooltip = mx >= tensionX(width) && mx < width && my >= 0 && my < TENSION_HEIGHT * scale(width) / 2;
         if (showingTensionTooltip) hovered = new HudIndicator("world_tension", "세계 긴장도", hud.worldTension(), HudFormat.PERCENT);
         try { HudTooltip.draw(g, width, hud, hovered, mx, my); }
         finally { showingTensionTooltip = false; }
@@ -132,24 +143,20 @@ public final class HudMenuBar {
     public static void drawPassive(GuiGraphicsExtractor g, int width, CountryHud hud, String country) {
         HudMusicButton.draw(g, width);
         draw(g, width, hud, -1, -1, 0);
-        int tabWidth = tabWidth(width);
-        for (var tab : MenuTab.ORDER) drawTab(g, tab, country, false,
-                tab == MenuTab.POLITICS ? 4 : statsLeft(width) + (tab.ordinal() - 1) * tabWidth,
-                tab == MenuTab.POLITICS ? 3 : 17, tab == MenuTab.POLITICS ? flagWidth(width) : tabWidth - 2,
-                height(width) - (tab == MenuTab.POLITICS ? 6 : 20));
+        for (var tab : MenuTab.ORDER) drawTab(g, tab, country, false, width, snapshot(hud));
     }
     private static void drawTension(GuiGraphicsExtractor g, int width, CountryHud hud) {
-        int x = tensionX(width), h = height(width) - 6;
+        float s = scale(width), k = s / 2, left = tensionLeft(width);
         var font = Minecraft.getInstance().font;
-        int percentY = 3 + h + 2, percentHeight = font.lineHeight + 4;
-        UiMenuStyle.metal(g, statsRight(width), 0, TENSION_DOCK_WIDTH, percentY + percentHeight + 3);
-        UiMenuStyle.recess(g, x, 3, 30, h);
-        UiAssets.draw(g, "hud/defcon/frame", x, 3, 30, h);
         int frame = defconFrame(hud.worldTension());
-        if (frame >= 0) UiAssets.draw(g, "hud/defcon/" + frame, x + 2, 5, 26, h - 4);
-        else g.centeredText(font, "0", x + 15, 3 + (h - font.lineHeight) / 2, UiMenuStyle.TEXT);
-        UiMenuStyle.recess(g, x, percentY, 30, percentHeight);
-        g.centeredText(font, hud.worldTension() == null ? "0" : percent(hud.worldTension()), x + 15, percentY + 2, UiMenuStyle.TEXT);
+        g.pose().pushMatrix();
+        g.pose().translate(left, 0);
+        g.pose().scale(k, k);
+        UiAssets.draw(g, "hud/defcon/background", 0, 0, TENSION_WIDTH, TENSION_HEIGHT);
+        if (frame >= 0) UiAssets.draw(g, "hud/defcon/" + frame, 16, 25, 44, 34);
+        g.pose().popMatrix();
+        if (frame < 0) UiText.centered(g, font, "0", Math.round(left + 2 * s), Math.round(4.5f * s), Math.round(34 * s), Math.round(30 * s), UiMenuStyle.TEXT, false);
+        UiText.centered(g, font, hud.worldTension() == null ? "0" : percent(hud.worldTension()), Math.round(left + s), Math.round(36.5f * s), Math.round(36.5f * s), Math.round(9 * s), UiMenuStyle.TEXT, false);
     }
     public static int defconFrame(Double tension) {
         if (tension == null) return -1;
@@ -178,17 +185,17 @@ public final class HudMenuBar {
         return java.math.BigDecimal.valueOf(value).movePointLeft(3).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + "조";
     }
     private static void stat(GuiGraphicsExtractor g, HudIndicator item, int x) {
-        int w = item.width();
-        UiMenuStyle.recess(g, x, 1, w - 1, STATS_HEIGHT - 1);
-        UiAssets.draw(g, "hud/" + icon(item), x + 2, 1 + (STATS_HEIGHT - 1 - 10) / 2, 11, 10);
+        int w = item.width(), h = STATS_HEIGHT - STATS_TOP;
+        UiAssets.nineSlice(g, "commander/commands/generic_box_smallest/frame_0", x, STATS_TOP, w - 1, h, 6, .5);
+        UiAssets.draw(g, "hud/" + icon(item), x + 2, STATS_TOP + (h - 10) / 2, 11, 10);
         var font = Minecraft.getInstance().font;
         String value = item.value();
         String fit = font.width(value) <= w - 18 ? value : font.plainSubstrByWidth(value, Math.max(1, w - 27)) + "…";
         int color = indicatorColor(item);
-        UiText.cell(g, font, fit, x + 15, 1, w - 18, item.barLabel() == null ? STATS_HEIGHT - 1 : 10, color, false);
+        UiText.cell(g, font, fit, x + 15, STATS_TOP, w - 18, item.barLabel() == null ? h : 10, color, false);
         if (item.barLabel() != null) {
-            g.fill(x + 15, 11, x + w - 3, 13, 0xFF18201A);
-            if (item.ratio() != null) g.fill(x + 15, 11, x + 15 + (int)Math.round((w - 18) * Math.clamp(item.ratio(),0,1)), 13, 0xFF6D9C61);
+            g.fill(x + 15, STATS_TOP + 10, x + w - 3, STATS_TOP + 12, 0xFF18201A);
+            if (item.ratio() != null) g.fill(x + 15, STATS_TOP + 10, x + 15 + (int)Math.round((w - 18) * Math.clamp(item.ratio(),0,1)), STATS_TOP + 12, 0xFF6D9C61);
         }
     }
     static HudIndicator fuelIndicator(CountryHud.NationalIndicators n) {
@@ -212,16 +219,12 @@ public final class HudMenuBar {
         return buttons(width, country, selected, select, Integer.MAX_VALUE);
     }
     public static List<Button> buttons(int width, String country, MenuTab selected, Consumer<MenuTab> select, int bottom) {
-        int tabWidth = tabWidth(width);
-        var buttons = new ArrayList<Button>(MenuTab.ORDER.stream().map(tab -> new HudTabButton(tab, country, selected == tab,
-                tab == MenuTab.POLITICS ? 4 : statsLeft(width) + (tab.ordinal() - 1) * tabWidth,
-                tab == MenuTab.POLITICS ? flagWidth(width) : tabWidth - 2, tab == MenuTab.POLITICS ? 3 : 17,
-                height(width) - (tab == MenuTab.POLITICS ? 6 : 20), () -> select.accept(tab))).toList());
-        int defconHeight = height(width) - 6;
+        var buttons = new ArrayList<Button>(MenuTab.ORDER.stream().map(tab -> new HudTabButton(tab, country, selected == tab, width, () -> select.accept(tab))).toList());
+        float s = scale(width), left = tensionLeft(width);
         for (int part = 0; part < 2; part++) {
-            int buttonY = part == 0 ? 3 : 3 + defconHeight + 2;
-            int buttonHeight = part == 0 ? defconHeight : Minecraft.getInstance().font.lineHeight + 4;
-            buttons.add(new Button(tensionX(width), buttonY, 30, Math.max(0, Math.min(buttonHeight, bottom - buttonY)), Component.literal(part == 0 ? "데프콘" : "세계 긴장도 %"),
+            int buttonX = (int)Math.floor(left + (part == 0 ? 4 : 2) * s / 2), buttonY = (int)Math.floor((part == 0 ? 9 : 71) * s / 2);
+            int buttonWidth = (int)Math.ceil(left + (part == 0 ? 72 : 71) * s / 2) - buttonX, buttonHeight = (int)Math.ceil((part == 0 ? 69 : 92) * s / 2) - buttonY;
+            buttons.add(new Button(buttonX, buttonY, buttonWidth, Math.max(0, Math.min(buttonHeight, bottom - buttonY)), Component.literal(part == 0 ? "데프콘" : "세계 긴장도 %"),
                     b -> dev.hoi.client.HoiClient.openWorldTension(), message -> message.get()) {
                 @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play("ui.click"); }
                 @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {}
@@ -238,22 +241,34 @@ public final class HudMenuBar {
         private final MenuTab tab;
         private final String country;
         private final boolean selected;
-        private HudTabButton(MenuTab tab, String country, boolean selected, int x, int width, int y, int height, Runnable action) {
-            super(x, y, width, height, Component.literal(tab.label() + " 메뉴"), b -> action.run(), DEFAULT_NARRATION);
-            this.tab = tab; this.country = country; this.selected = selected;
+        private final int screenWidth;
+        private HudTabButton(MenuTab tab, String country, boolean selected, int screenWidth, Runnable action) {
+            this(tab, country, selected, screenWidth, bounds(tab, scale(screenWidth)), action);
+        }
+        private HudTabButton(MenuTab tab, String country, boolean selected, int screenWidth, int[] bounds, Runnable action) {
+            super(bounds[0], bounds[1], bounds[2], bounds[3], Component.literal(tab.label() + " 메뉴"), b -> action.run(), DEFAULT_NARRATION);
+            this.tab = tab; this.country = country; this.selected = selected; this.screenWidth = screenWidth;
             if (tab != MenuTab.POLITICS) setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(tab.label())));
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-            int x = getX(), y = getY(), w = getWidth(), h = getHeight();
-            drawTab(g, tab, country, selected, x, y, w, h);
+            drawTab(g, tab, country, selected, screenWidth, snapshot(null));
             if (tab == MenuTab.POLITICS && Tooltips.contains(this, mx, my)) {
                 String name = CountryDisplays.name(country, "");
                 if (!name.isBlank()) Tooltips.drawExact(g, Minecraft.getInstance().font, name, mx, my);
             }
         }
     }
+    private static int[] bounds(MenuTab tab, float s) {
+        boolean flag = tab == MenuTab.POLITICS;
+        int x = flag ? FLAG_X : TAB_X[tab.ordinal() - 1], y = flag ? FLAG_Y : TAB_Y, w = flag ? FLAG_WIDTH : TAB_WIDTH, h = flag ? FLAG_HEIGHT : TAB_HEIGHT;
+        int left = Math.round(x * s / 2), top = Math.round(y * s / 2);
+        return new int[]{left, top, Math.round((x + w) * s / 2) - left, Math.round((y + h) * s / 2) - top};
+    }
     public static void drawFlag(GuiGraphicsExtractor g, String country, int x, int y, int w, int h) {
         UiMenuStyle.metal(g, x, y, w, h);
+        flag(g, country, x, y, w, h);
+    }
+    private static void flag(GuiGraphicsExtractor g, String country, int x, int y, int w, int h) {
         String texture = flagTexture(country);
         if (texture.isEmpty()) g.fill(x + 2, y + 2, x + w - 2, y + h - 2, 0xFF4B5257);
         else {
@@ -267,17 +282,23 @@ public final class HudMenuBar {
         }
         UiAssets.draw(g, "menu/flag_overlay", x, y, w, h);
     }
-    private static void drawTab(GuiGraphicsExtractor g, MenuTab tab, String country, boolean selected, int x, int y, int w, int h) {
+    private static void drawTab(GuiGraphicsExtractor g, MenuTab tab, String country, boolean selected, int width, CountryHud hud) {
         if (dev.hoi.client.screen.dialog.DialogCoordinator.renderingContent()) return;
-            var font = Minecraft.getInstance().font;
-            if (selected) g.fillGradient(x, y, x + w, y + h, 0xFF454B4C, 0xFF202526);
-            String texture = tab == MenuTab.POLITICS ? flagTexture(country) : "menu/" + tab.id();
-            boolean flag = tab == MenuTab.POLITICS;
-            if (flag) drawFlag(g, country, x, y, w, h);
-            else if (!UiAssets.draw(g, texture, x, y, w, h))
-                g.centeredText(font, "◇", x + w / 2, y + (h - 8) / 2, UiMenuStyle.ACCENT);
-            if (selected) {
-                g.horizontalLine(x + 2, x + w - 3, y + h - 1, UiMenuStyle.ACCENT);
-            }
+        float s = scale(width), k = s / 2;
+        boolean drawn = true;
+        g.pose().pushMatrix();
+        g.pose().scale(k, k);
+        if (tab == MenuTab.POLITICS) flag(g, country, FLAG_X, FLAG_Y, FLAG_WIDTH, FLAG_HEIGHT);
+        else drawn = UiAssets.draw(g, "menu/" + tab.id() + (selected ? "_selected" : ""), TAB_X[tab.ordinal() - 1], TAB_Y, TAB_WIDTH, TAB_HEIGHT);
+        g.pose().popMatrix();
+        var font = Minecraft.getInstance().font;
+        int[] bounds = bounds(tab, s);
+        if (!drawn) g.centeredText(font, "◇", bounds[0] + bounds[2] / 2, bounds[1] + (bounds[3] - 8) / 2, UiMenuStyle.ACCENT);
+        Integer count = hud.availableDecisions();
+        if (tab == MenuTab.DECISIONS && count != null && count > 0) {
+            int x = Math.round(57 * s), y = Math.round(36 * s) - 13;
+            UiAssets.draw(g, "mio/ui/gfx_topbar_alert_bg/frame_0", x, y, 13, 13);
+            UiText.centered(g, font, Integer.toString(count), x - 4, y, 21, 13, 0xFFFFFFFF, false);
+        }
     }
 }

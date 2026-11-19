@@ -61,7 +61,7 @@ public final class IndustryRegimentChecks {
                     check(adds.get(2).getY()==firstRow+23*v.draft().columnSize(2),"Third column advances independently");
                     check(adds.get(4).getY()==firstRow,"Fifth column starts unlocked");
                     if(v.draft().columnSize(2) < 3) {
-                        check(s.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("연대 지원 · 같은 열에 대대 3개 필요")&&!b.active).count()==5,
+                        check(s.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("DESIGNER_BLOCKED_REGIMENTAL_SUPPORT"))&&!b.active).count()==5,
                                 "All regiment support cells stay locked with fewer than three battalions");
                         press(adds.getLast());
                         int oldRequests=requests.size();

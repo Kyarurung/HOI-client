@@ -208,9 +208,8 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
                 relationTooltip(r))).toList();
     }
     private static String relationTooltip(CountryView.Relation relation) {
-        return relation.name() + "\n" + (relation.detail().isEmpty()
-                ? relation.countries().stream().map(CountryView.Choice::name).collect(java.util.stream.Collectors.joining(" · "))
-                : relation.detail());
+        return relation.detail().isEmpty() ? relation.name() + "\n" + relation.countries().stream().map(CountryView.Choice::name).collect(java.util.stream.Collectors.joining("\n"))
+                : relation.detail();
     }
     String relationTooltipAt(double x, double y) {
         if (view == null || ledger || choosing || detail != null || confirmation != null
@@ -283,7 +282,7 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
             if (factionIcon) {
                 UiAssets.draw(g, factionEntry.icon(), pane - 44, top + 25, 32, 32);
                 if (mx >= pane - 44 && mx < pane - 12 && my >= top + 25 && my < top + 57)
-                    dev.hoi.client.ui.tooltip.Tooltips.draw(g, font, factionEntry.value() + "\n" + factionEntry.detail(), mx, my);
+                    dev.hoi.client.ui.tooltip.Tooltips.draw(g, font, factionEntry.detail().isEmpty() ? factionEntry.value() : factionEntry.detail(), mx, my);
             }
             int half = (pane - 18) / 2;
             UiAssets.nineSlice(g, AgencyIntelLedger.source("tab_intel_ledger", ledger ? 0 : 1), 7, DiplomacyHeader.tabs(top), half, 20, 5, pane / 550.0);

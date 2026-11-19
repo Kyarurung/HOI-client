@@ -192,8 +192,7 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
                 String capacity=Integer.toString(leader.capacity());
                 if(leader.role().equals("제독"))UiText.centered(g,font,capacity,left+224,y+5,34,19,0xFFFFFFFF,false);
                 else {g.text(font,capacity,left+245-font.width(capacity),y+10,0xFFFFFFFF,false);g.pose().pushMatrix();g.pose().translate(left+246,y+7);g.pose().scale(.375f);UiAssets.draw(g,"commander/commands/medal_collection/frame_0",0,0,16,28);g.pose().popMatrix();}
-                if(leader.traitDetails().isEmpty())UiText.centered(g,font,String.join(" · ",leader.traits()),left+70,y+28,95,16,UiMenuStyle.MUTED);
-                else for(int traitIndex=0;traitIndex<leader.traitDetails().size();traitIndex++) {
+                for(int traitIndex=0;traitIndex<leader.traitDetails().size();traitIndex++) {
                     var trait=leader.traitDetails().get(traitIndex);int traitX=CountryFlagStack.left(traitIndex,leader.traitDetails().size(),left+70,94,12),visibleWidth=CountryFlagStack.visibleWidth(traitIndex,leader.traitDetails().size(),left+70,94,12);
                     if(!trait.icon().isEmpty())UiAssets.draw(g,trait.icon(),traitX,y+28,12,16);
                     else UiText.centered(g,font,trait.name(),traitX,y+28,12,16,UiMenuStyle.MUTED);

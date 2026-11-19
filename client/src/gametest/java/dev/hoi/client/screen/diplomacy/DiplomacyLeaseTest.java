@@ -171,7 +171,7 @@ public final class DiplomacyLeaseTest {
                 context.takeScreenshot("hoi-diplomacy-lease-source-" + stage + "-catalog-" + category.name().toLowerCase(java.util.Locale.ROOT) + "-gui2");
             }
             if (stage.equals("empty")) {
-                var disabled = view.equipment().stream().filter(choice -> !choice.available() && !choice.reason().isBlank()).findFirst().orElseThrow();
+                var disabled = view.equipment().stream().filter(choice -> !choice.available()).findFirst().orElseThrow();
                 check(disabled.category() == Category.INFANTRY, "Actual disabled fuel source choice is absent");
                 context.runOnClient(client -> click((DiplomacyLease)client.gui.screen(), button((DiplomacyLease)client.gui.screen(), labels.get("LEND_LEASE_INFANTRY_BUTTON").getAsString()), MOUSE_BUTTON_LEFT));
                 context.waitTicks(3);
@@ -180,7 +180,7 @@ public final class DiplomacyLeaseTest {
             if (stage.equals("once")) {
                 var selected = view.equipment().stream().filter(choice -> choice.key().equals(view.lines().getFirst().key())).findFirst().orElseThrow();
                 var percent = selected.modes().stream().filter(mode -> mode.mode() == Mode.PERCENT).findFirst().orElseThrow();
-                check(!percent.supported() && !percent.reason().isBlank(), "Actual unsupported percentage reason is missing");
+                check(!percent.supported() && percent.reason().isBlank(), "Actual unsupported percentage must stay disabled without a non-original reason");
                 sourceDisabledTooltip(context, percent.label(), "hoi-diplomacy-lease-source-percent-disabled-gui2");
             }
             context.runOnClient(client -> {
@@ -286,7 +286,7 @@ public final class DiplomacyLeaseTest {
             screen.update(DiplomacyPayloads.Response.of(second.token(), UPDATED, rejected));
             for (int i = 0; i < 12; i++) screen.tick();
             check(requests.size() == 2 && screen.view().submitReason().equals(reason), "Rejected unchanged draft repeatedly requested preview");
-            click(screen, button(screen, "닫기 · 검증 항공기"), MOUSE_BUTTON_LEFT);
+            click(screen, button(screen, "취소 검증 항공기"), MOUSE_BUTTON_LEFT);
             check(screen.draft().isEmpty(), "Remaining invalid draft cannot be removed");
         });
     }

@@ -51,11 +51,11 @@ public final class DiplomacyCountryScreenChecks {
                 var point = context.computeOnClient(c -> {
                     int width = c.gui.screen().width;
                     var items = dev.hoi.client.ui.hud.HudMenuBar.indicators(menu.hud());
-                    int x = dev.hoi.client.ui.hud.HudMenuBar.flagWidth(width) + 10;
+                    int x = dev.hoi.client.ui.hud.HudMenuBar.statsLeft(width);
                     int total = items.stream().mapToInt(dev.hoi.client.ui.hud.HudMenuBar.HudIndicator::width).sum();
                     for (var item : items) {
                         if (item.icon().equals("gdp")) x += Math.max(0, dev.hoi.client.ui.hud.HudMenuBar.statsRight(width)
-                                - dev.hoi.client.ui.hud.HudMenuBar.flagWidth(width) - 10 - total - 3);
+                                - dev.hoi.client.ui.hud.HudMenuBar.statsLeft(width) - total - 3);
                         if (item.icon().equals(key)) {
                             if (item.raw() == null && !item.value().equals(item.icon().equals("supplies")?"0%":"0")) throw new AssertionError("Missing HUD value must display zero: " + key);
                             var text = new StringBuilder();

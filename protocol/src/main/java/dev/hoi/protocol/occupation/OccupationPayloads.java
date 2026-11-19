@@ -68,7 +68,7 @@ public final class OccupationPayloads {
             if(rows.size()>2048||templates.size()>256||laws.size()>64)throw new IllegalArgumentException("Occupation view limit");
         }
     }
-    public enum Action { OPEN, REFRESH, CLOSE, LAW, TEMPLATE, RESET, RESISTANCE, COMPLIANCE, RETURN }
+    public enum Action { OPEN, REFRESH, CLOSE, LAW, TEMPLATE, RESET, RESISTANCE, COMPLIANCE, RETURN, ZOOM }
     public record Request(Action action,String token,long revision,String state,String value) implements CustomPacketPayload {
         public Request {Objects.requireNonNull(action);UUID.fromString(token);if(revision<0)throw new IllegalArgumentException("Invalid occupation revision");text(state,160);text(value,160);}
         public static final Type<Request> TYPE=new Type<>(Identifier.parse("hoi:occupation_request_v3"));

@@ -16,6 +16,7 @@ import net.minecraft.client.input.*;
 public final class CommanderNavyLayoutTest {
     private CommanderNavyLayoutTest() {}
     private static MouseButtonEvent mouse(double x,double y,int button){return new MouseButtonEvent(x,y,new MouseButtonInfo(button,0));}
+    private static CommanderPanels.Hit control(String id){return CommanderPanels.hits().stream().filter(h->h.icon().equals(id)).findFirst().orElseThrow(()->new AssertionError("Missing navy control: "+id));}
     private static CommanderPanels.Hit hit(String tip){return CommanderPanels.hits().stream().filter(h->h.tip().equals(tip)).findFirst().orElseThrow(()->new AssertionError("Missing navy control: "+tip));}
     private static void click(ClientGameTestContext game,CommanderPanels.Hit hit,int button){game.runOnClient(client->{var e=mouse(hit.x()+hit.w()/2.,hit.y()+hit.h()/2.,button);if(!client.gui.screen().mouseClicked(e,false))throw new AssertionError("Navy click was not consumed");client.gui.screen().mouseReleased(e);});}
     private static CommanderHud.Box portrait(String id){return CommanderHud.boxes().stream().filter(b->b.request()!=null&&b.request().mode()==Mode.NAVY_FLEET&&b.request().target().equals(id)).findFirst().orElseThrow();}
@@ -32,7 +33,7 @@ public final class CommanderNavyLayoutTest {
                 game.setScreen(MapCursor::new);game.getInput().setCursorPos(size[0]-30,90);game.waitTicks(3);
                 game.runOnClient(client->{
                     CommanderPanelsTest.assertCardLayout(new View(source.country(),source.dimension(),source.branch(),source.cards(),source.wings(),true),client.getWindow().getGuiScaledWidth(),client.getWindow().getGuiScaledHeight());
-                    var select=hit("선택 · "+force.name());var close=hit("선택 해제 · "+force.name());if(select.y()!=close.y()||select.x()+select.w()>close.x()+2)throw new AssertionError("Task-force selection and close must occupy the first row");
+                    var select=control("naval_force_select/"+force.id());var close=control("naval_force_close/"+force.id());if(select.y()!=close.y()||select.x()+select.w()>close.x()+2)throw new AssertionError("Task-force selection and close must occupy the first row");
                     var bands=CommanderPanels.hits().stream().filter(h->h.icon().equals("naval_force_band")).toList();if(bands.size()!=fleet.panel().members().size())throw new AssertionError("All source task forces must fit in one band for this fixture");
                     for(var h:bands)if(h.x()<0||h.x()+h.w()>client.getWindow().getGuiScaledWidth())throw new AssertionError("Navy band escaped the viewport");
                     var a=portrait(fleets.get(0).id());var b=portrait(fleets.get(1).id());if(b.x()>a.x()+a.width())throw new AssertionError("Fleet cards must touch");
@@ -42,18 +43,18 @@ public final class CommanderNavyLayoutTest {
                 game.takeScreenshot("hoi-navy-layout-"+size[0]+"x"+size[1]+"-gui2");
                 game.runOnClient(client->{for(var control:fleet.panel().controls())if(Set.of("LEADER_TRAITS","LEADER_ADVISOR").contains(control.id())){var target=CommanderPanels.hits().stream().filter(h->h.icon().equals(control.id().equals("LEADER_TRAITS")?"navy_leader_details":"navy_leader_advisor")).findFirst().orElseThrow();CommanderPanels.click(target.x()+1,target.y()+1);if(control.enabled()){if(opens.size()!=1||!opens.getFirst().equals(control.request()))throw new AssertionError("Leader control must use its authoritative request");}else if(!opens.isEmpty())throw new AssertionError("Unavailable leader control must not send");opens.clear();}});
                 game.runOnClient(client->{var box=portrait(fleets.get(1).id());var e=mouse(box.x()+box.width()/2.,box.y()+box.height()/2.,InputConstants.MOUSE_BUTTON_LEFT);client.gui.screen().mouseClicked(e,false);client.gui.screen().mouseReleased(e);});game.waitTicks(2);
-                game.runOnClient(client->{var expected=fleets.get(1).panel().members().stream().map(m->"navy/"+m.id()).sorted().toList();if(!CommanderPanels.commandSelection().equals(expected)||CommanderPanels.hits().stream().anyMatch(h->h.tip().equals("선택 · "+force.name())))throw new AssertionError("Switching fleet cards leaked another fleet's task forces");CommanderPanels.closeSelection();});game.waitTicks(2);
+                game.runOnClient(client->{var expected=fleets.get(1).panel().members().stream().map(m->"navy/"+m.id()).sorted().toList();if(!CommanderPanels.commandSelection().equals(expected)||CommanderPanels.hits().stream().anyMatch(h->h.icon().equals("naval_force_select/"+force.id())))throw new AssertionError("Switching fleet cards leaked another fleet's task forces");CommanderPanels.closeSelection();});game.waitTicks(2);
                 game.runOnClient(client->{if(!CommanderPanels.hits().isEmpty()||!CommanderPanels.commandSelection().isEmpty())throw new AssertionError("Unselected navy view must hide missions and force lists");CommanderPanels.select(fleet.id(),false);});game.waitTicks(2);
-                click(game,game.computeOnClient(client->hit("선택 · "+force.name())),InputConstants.MOUSE_BUTTON_RIGHT);
+                click(game,game.computeOnClient(client->control("naval_force_select/"+force.id())),InputConstants.MOUSE_BUTTON_RIGHT);
                 game.runOnClient(client->{if(!opens.isEmpty()||!commands.isEmpty()||CommanderPanels.commandSelection().size()!=fleet.panel().members().size())throw new AssertionError("Right-click on select must not change or send orders");});
-                click(game,game.computeOnClient(client->hit("선택 · "+force.name())),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
+                click(game,game.computeOnClient(client->control("naval_force_select/"+force.id())),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
                 game.runOnClient(client->{if(!CommanderPanels.commandSelection().equals(List.of("navy/"+force.id())))throw new AssertionError("Selection must retain exact task-force identity");});
                 game.takeScreenshot("hoi-navy-single-force-"+size[0]+"x"+size[1]+"-gui2");
-                click(game,game.computeOnClient(client->hit("선택 해제 · "+force.name())),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
+                click(game,game.computeOnClient(client->control("naval_force_close/"+force.id())),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
                 game.runOnClient(client->{if(!CommanderPanels.commandSelection().isEmpty()||!CommanderPanels.hits().isEmpty())throw new AssertionError("Deselecting the last task force must close its fleet panel");});
                 game.takeScreenshot("hoi-navy-last-force-deselected-"+size[0]+"x"+size[1]+"-gui2");
                 game.runOnClient(client->{var box=portrait(fleet.id());var e=mouse(box.x()+box.width()/2.,box.y()+box.height()/2.,InputConstants.MOUSE_BUTTON_LEFT);client.gui.screen().mouseClicked(e,false);client.gui.screen().mouseReleased(e);});game.waitTicks(2);
-                click(game,game.computeOnClient(client->hit("선택 · "+force.name())),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
+                click(game,game.computeOnClient(client->control("naval_force_select/"+force.id())),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
                 game.runOnClient(client->{if(!CommanderPanels.commandSelection().equals(List.of("navy/"+force.id())))throw new AssertionError("Reopened fleet must allow exact task-force selection before select all");});
                 click(game,game.computeOnClient(client->hit(UiCommandLabels.text("SELECT_ALL","모두 선택"))),InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
                 game.runOnClient(client->{if(CommanderPanels.commandSelection().size()!=fleet.panel().members().size()||!opens.isEmpty()||!commands.isEmpty())throw new AssertionError("Select all is local selection only");});
@@ -115,7 +116,7 @@ public final class CommanderNavyLayoutTest {
             });
             game.takeScreenshot("hoi-navy-ten-forces-"+size[0]+"x"+size[1]+"-gui2");
             var seen=new HashSet<String>();for(int page=0;page<12;page++){
-                game.runOnClient(client->{for(var force:forces)if(CommanderPanels.hits().stream().anyMatch(h->h.tip().equals("선택 · "+force.name())))seen.add(force.id());client.gui.screen().mouseScrolled(100,170,0,-1);});game.waitTicks(2);
+                game.runOnClient(client->{for(var force:forces)if(CommanderPanels.hits().stream().anyMatch(h->h.icon().equals("naval_force_select/"+force.id())))seen.add(force.id());client.gui.screen().mouseScrolled(100,170,0,-1);});game.waitTicks(2);
                 if(seen.size()==10)break;
             }
             if(seen.size()!=10)throw new AssertionError("Every task force must remain reachable in the left panel: "+seen.size());

@@ -79,7 +79,15 @@ public final class AgencyCapitalMapTest {
                 context.waitTicks(4);
                 context.runOnClient(client -> {
                     var screen = (AgencyScreen)client.gui.screen();
-                    if (screen.capitalHits().size() != 1) throw new AssertionError("A visible loaded capital must project into the map area at GUI2");
+                    if (screen.capitalHits().size() != 1) {
+                        var camera = client.gameRenderer.mainCamera();
+                        throw new AssertionError("A visible loaded capital must project into the map area at GUI2: camera=" + camera.position() + " forward=" + camera.forwardVector()
+                                + " cameraEntity=" + client.getCameraEntity() + " player=" + client.player.position() + " rotation=" + client.player.getXRot() + "/" + client.player.getYRot()
+                                + " dimension=" + client.level.dimension().identifier() + " capital=" + point[0] + "," + point[1] + " ground=" + client.level.getHeight(Heightmap.Types.WORLD_SURFACE, (int)Math.floor(point[0]), (int)Math.floor(point[1]))
+                                + " gui=" + client.getWindow().getGuiScaledWidth() + "x" + client.getWindow().getGuiScaledHeight() + " paused=" + client.isPaused()
+                                + " projected=" + camera.getViewRotationProjectionMatrix(new org.joml.Matrix4f()).transformProject(new net.minecraft.world.phys.Vec3(point[0], client.level.getHeight(Heightmap.Types.WORLD_SURFACE, (int)Math.floor(point[0]), (int)Math.floor(point[1])) + 1, point[1]).subtract(camera.position()).toVector3f())
+                                + " buttons=" + screen.children().stream().filter(Button.class::isInstance).map(b -> ((Button)b).getMessage().getString() + "@" + ((Button)b).getX() + "," + ((Button)b).getY()).toList());
+                    }
                 });
                 context.getInput().setCursorPos(size[0] - 2, size[1] - 2); context.waitTicks(2);
                 context.takeScreenshot("hoi-agency-capital-synthetic-" + size[0] + "x" + size[1] + "-gui2");

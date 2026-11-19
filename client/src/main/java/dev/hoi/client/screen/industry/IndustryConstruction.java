@@ -9,6 +9,7 @@ import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.client.ui.UiAssets;
+import dev.hoi.client.ui.UiCommandLabels;
 import dev.hoi.client.ui.UiScrollBar;
 import dev.hoi.protocol.industry.IndustryConstructionView.*;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
@@ -187,7 +188,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
             }
             queueScrollbar.draw(g,scroll);
             paletteScrollbar.draw(g,paletteScroll);
-            if(mx>=pane-123&&mx<pane-27&&my>=top+3&&my<top+23)Tooltips.draw(g,font,"건설보다 건물 수리를 우선하는 공장 수\n우선 지정 "+s.repairPriority()+" · 실제 수리 배정 "+s.repair()+"\n수리할 건물이 없으면 건설에 배정됩니다.",mx,my);
+            if(mx>=pane-123&&mx<pane-27&&my>=top+3&&my<top+23)Tooltips.draw(g,font,UiCommandLabels.text("REPAIR_ASSIGNMENT_INFO_FACTORIES","건설보다 건물 수리를 우선하는 §H공장§! 숫자입니다."),mx,my);
             if(mx>=6&&mx<q&&my>=top+27&&my<top+58) {
                 int column=Math.min(2,(mx-6)/cell);
                 String detail=column==0?calculation(s.factoryCalculation(),"사용 중인 공장"):column==1?calculation(s.speedCalculation(),"건설 속도"):calculation(s.energyCalculation(),"사용 가능한 에너지");
@@ -226,16 +227,10 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
         UiAssets.draw(g,"construction/"+p.building(),column(172),y+2,23,23);
         dev.hoi.client.ui.UiText.cell(g,font,Integer.toString(p.levels()),column(190),y+14,12,11,UiMenuStyle.TEXT,true);
         dev.hoi.client.ui.UiText.cell(g,font,p.factories()+"/15",column(249)+1,y+1,column(310)-column(249),17,UiMenuStyle.TEXT,false);
-        int progressX=column(250),progressWidth=column(310)-progressX;
+        double fit=Math.min((q-6)/402.0,(rowHeight()-2)/54.0);int fitW=(int)Math.round(402*fit),fitH=(int)Math.round(54*fit);
         g.pose().pushMatrix();
-        g.pose().translate(0,-1f/minecraft.getWindow().getGuiScale());
-        UiAssets.draw(g,"construction/ui/progress_background",progressX,y+18,progressWidth,5);
-        int filled=(int)(progressWidth*Math.clamp(p.cost()==0?0:p.progress()/p.cost(),0,1));
-        if(filled>0) {
-            g.enableScissor(progressX,y+17,progressX+filled,y+24);
-            UiAssets.draw(g,"construction/ui/progress",progressX,y+18,progressWidth,5);
-            g.disableScissor();
-        }
+        g.pose().translate(6+(q-6-fitW)/2,y+(rowHeight()-2-fitH)/2);g.pose().scale(fitW/402f,fitH/54f);
+        IndustryProductionRender.startEnd(g,"construction/ui/progress","construction/ui/progress_background",249,36,60,8,p.cost()==0?0:p.progress()/p.cost());
         g.pose().popMatrix();
         if(mx>=column(172)&&mx<column(172)+23&&my>=y+2&&my<y+25&&p.taskTooltip()!=null)Tooltips.drawExact(g,font,p.taskTooltip(),mx,my);
         else if(mx>=column(249)&&mx<column(310)&&my>=y&&my<y+rowHeight()-3&&p.tooltip()!=null)Tooltips.drawExact(g,font,p.tooltip(),mx,my);

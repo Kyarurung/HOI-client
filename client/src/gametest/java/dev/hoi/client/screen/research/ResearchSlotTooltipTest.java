@@ -14,7 +14,7 @@ public final class ResearchSlotTooltipTest {
     public static void empty(ClientGameTestContext context) {
         context.runOnClient(client->{
             var screen=(ResearchScreen)client.gui.screen();int empty=0;
-            for(var child:screen.children())if(child instanceof ResearchSlotButton button&&button.getMessage().getString().contains("연구 선택")) {
+            for(var child:screen.children())if(child instanceof ResearchSlotButton button&&button.getMessage().getString().equals(dev.hoi.client.ui.UiCommandLabels.text("RESEARCH_NO_RESEARCH", "사용되지 않음"))) {
                 empty++;check(screen.slotTooltipAt(button.getX()+button.getWidth()/2.,button.getY()+button.getHeight()/2.).isEmpty(),"Empty-slot saved-day tooltip requires an original binding, not only a localisation key");
             }
             check(empty>0,"Source research fixture must contain an empty slot");
@@ -73,8 +73,7 @@ public final class ResearchSlotTooltipTest {
                     check(text.contains("£unit_infantry_icon_medium£") && text.contains("+5.00%") && text.indexOf("보병") < text.indexOf("시험 설명"), "Slot preserves unit icon, exact precision and effect/description order");
                     check(text.contains("\n\n시험 설명") && text.contains("첫 줄\n\n시험 설명 둘째 줄"), "Description and source separators use one blank line");
                 }
-                check(button.getMessage().getString().equals("슬롯 " + (slotIndex + 1) + " · "
-                        + (technology == null ? "연구 선택" : technology.name())), "Slot accessible name changed");
+                check(button.getMessage().getString().equals(technology == null ? dev.hoi.client.ui.UiCommandLabels.text("RESEARCH_NO_RESEARCH", "사용되지 않음") : technology.name()), "Slot accessible name changed");
                 check(button.active && button.visible, "Slot selection remains available");
                 double scale = client.getWindow().getGuiScale();
                 return new double[]{(button.getX() + button.getWidth() / 2.0) * scale,

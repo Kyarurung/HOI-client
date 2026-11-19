@@ -325,7 +325,7 @@ public final class DialogCompletionChecks {
         context.setScreen(() -> new ScreenMenu(new MenuView("KOR", "대한민국", "2020-01-01", "PAUSED", pages, hud)));
         context.getInput().setCursorPos(135, 14); context.waitTicks(3);
         context.runOnClient(c -> {
-            var flag=(Button)c.gui.screen().children().stream().filter(w->w instanceof HudMenuBar.HudTabButton b&&b.getX()==4).findFirst().orElseThrow();
+            var flag=(Button)c.gui.screen().children().stream().filter(w->w instanceof HudMenuBar.HudTabButton b&&b.getMessage().getString().equals(MenuTab.POLITICS.label()+" 메뉴")).findFirst().orElseThrow();
             check(flag.getWidth()>flag.getHeight(),"Country flag keeps a wide aspect ratio");
             check(c.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/menu/flag_overlay.png")).isPresent(),"Original TFR flag overlay loads from the split UI pack");
             var lines = HudTooltip.body(c.font, c.gui.screen().width, hud, HudMenuBar.indicators(hud).getFirst());

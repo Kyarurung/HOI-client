@@ -15,6 +15,7 @@ import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiPanelLayout;
 import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.client.ui.UiAssets;
+import dev.hoi.client.ui.UiCommandLabels;
 import dev.hoi.client.ui.UiText;
 import dev.hoi.protocol.*;
 import dev.hoi.protocol.industry.IndustryView.*;
@@ -118,7 +119,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         return tab == MenuTab.PRODUCTION || tab == MenuTab.TRADE || tab == MenuTab.LOGISTICS || tab == MenuTab.RECRUITMENT;
     }
     private static String title(MenuTab tab) {
-        return switch (tab) { case PRODUCTION -> "생산"; case TRADE -> "경제 · 무역";
+        return switch (tab) { case PRODUCTION -> "생산"; case TRADE -> MenuTab.TRADE.label();
             case LOGISTICS -> "군수"; case RECRUITMENT -> "모병 및 배치"; default -> "산업"; };
     }
     public void open() { send(foreign() ? FOREIGN_LOGISTICS : OPEN, foreignTarget, "", 0); }
@@ -374,7 +375,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         int header = Math.max(1, Math.round(24 * scale));
         int step = e.naval() ? 1 : factoryScales().getOrDefault(line.id(), 1);
         int limit = Math.min(e.factoryLimit(), line.availableFactories());
-        art("production/line/" + (collapsed ? "collapsed" : e.naval() ? (e.factoryLimit() < 15 ? "naval_" + e.factoryLimit() : "naval") : "land"), 6, y, pane - 22, lineHeight);
+        art("production/line/" + (collapsed ? "collapsed" : e.naval() ? (e.factoryLimit() < 15 ? "naval_" + e.factoryLimit() : "naval") : "land"), 6, y, pane - 22, collapsed ? lineHeight : Math.round(108 * scale));
         art("mio/ui/gfx_production_item_has_mio/frame_0", 6, y, Math.round(512 * scale), Math.round(30 * scale));
         art("recruitment/location_frame", x.applyAsInt(2), dy.applyAsInt(1), Math.round(27 * scale), Math.round(27 * scale));
         if(graphics!=null) {
@@ -414,10 +415,12 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         }
         if (!e.naval()) {
             if (graphics != null) {
+                double cap = view.modifiers().stream().filter(m -> m.id().equals("cap")).findFirst().map(m -> m.value()).orElse(0.0);
                 graphics.pose().pushMatrix(); graphics.pose().translate(6, y); graphics.pose().scale(scale);
-                UiAssets.draw(graphics, "production/line/efficiency", 225, 4, 24, 21);
-                IndustryProductionRender.bar(graphics, "efficiency", 251, 10, 93, 9, line.efficiency());
+                IndustryProductionRender.startEnd(graphics, "production/line/efficiency_max", "production/line/efficiency_bg", 252, 8, 93, 9, cap);
+                IndustryProductionRender.startEnd(graphics, "production/line/efficiency_fill", null, 252, 8, 93, 9, line.efficiency());
                 graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/production/line/efficiency_frame.png"), 248, 7, 347, 22, 0, 1, 0, 1);
+                UiAssets.draw(graphics, "production/line/efficiency", 225, 4, 24, 21);
                 graphics.pose().popMatrix();
             }
             productionTip(IndustryProductionTooltips.efficiency(view,line), x.applyAsInt(248), y, Math.round(99 * scale), header);
@@ -448,8 +451,9 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         originalButton("공장 줄이기", "production/line/minus", x.applyAsInt(379) + 1, y + 2, header, header, line.factories() > 0,
                 () -> send(ASSIGN, line.id(), "", Math.max(0, line.factories() - factoryStep())));
         IndustryProductionRender.text(graphics,font, (collapsed || line.reservedFactories() > 0 ? (line.operatingFactories() + line.damagedFactories()) + "/" : "") + line.factories(), x.applyAsInt(403) + 1, y + 2, x.applyAsInt(453) - x.applyAsInt(403), header, TEXT);
-        originalButton("공장 늘리기 · 부족분 예약", "production/line/plus", x.applyAsInt(453) + 1, y + 2, header, header, line.factories() < limit,
+        var add = originalButton("공장 늘리기", "production/line/plus", x.applyAsInt(453) + 1, y + 2, header, header, line.factories() < limit,
                 () -> send(ASSIGN, line.id(), "", Math.min(limit, line.factories() + factoryStep())));
+        if (add != null) add.setTooltip(Tooltips.create(Component.literal(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip(e.naval() ? "PRODUCTION_ADD_NAVAL_FACTORIES_CLICK" : "PRODUCTION_ADD_FACTORIES_CLICK"))));
         originalButton("생산 라인 삭제", "production/line/delete", x.applyAsInt(481), y + 2, header, header, true, () -> send(REMOVE, line.id(), "", 0));
         if (collapsed) {
             productionCollapsed(line, e, y, scale);
@@ -476,12 +480,11 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         }
         var conversion = line.conversion();
         if (!e.naval()) for (int multiplier : new int[]{10, 5}) {
-            String label = line.id() + " · ×" + multiplier;
-            originalButton(label, "production/line/x" + multiplier + (step == multiplier ? "_selected" : "_normal"),
-                    x.applyAsInt(278), dy.applyAsInt(multiplier == 10 ? 30 : 68), Math.round(36 * scale), Math.round(36 * scale), () -> {
+            var scaleButton = originalButton(line.id() + " ×" + multiplier, "production/line/x" + multiplier + (step == multiplier ? "_selected" : "_normal"),
+                    x.applyAsInt(278), dy.applyAsInt(multiplier == 10 ? 30 : 68), Math.round(36 * scale), Math.round(36 * scale), true, () -> {
                         factoryScales().put(line.id(), step == multiplier ? 1 : multiplier); rebuildWidgets();
                     });
-            tip("공장 " + multiplier + "개씩 표시 · 다시 누르면 ×1", x.applyAsInt(278), dy.applyAsInt(multiplier == 10 ? 30 : 68), Math.round(36 * scale), Math.round(36 * scale));
+            if (scaleButton != null) scaleButton.setTooltip(Tooltips.create(Tooltips.officerText(step == multiplier ? UiCommandLabels.text("PRODUCTION_FACTORY_SCALE_DOWN", "") : UiCommandLabels.text("PRODUCTION_FACTORY_SCALE_UP", "").replace("$SCALE$", Integer.toString(multiplier)))));
         }
         for (int cell = 0; cell < 15; cell++) {
             int fx = x.applyAsInt(317 + cell % 5 * 29), fy = dy.applyAsInt(33 + cell / 5 * 23);
@@ -515,8 +518,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             addRenderableWidget(button);
         }
         if (graphics != null) {
-            IndustryProductionRender.bar(graphics,"progress",6+Math.round(157*scale),y+Math.round(34*scale),Math.round(118*scale),Math.round(21*scale),line.progress());
-            IndustryProductionRender.text(graphics,font,equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),6+Math.round(157*scale),y+Math.round(34*scale),Math.round(118*scale),Math.round(21*scale),TEXT);
+            graphics.pose().pushMatrix();graphics.pose().translate(6,y);graphics.pose().scale(scale);
+            IndustryProductionRender.startEnd(graphics,"production/line/progress_fill","production/line/progress_bg",157,34,118,21,line.progress());
+            graphics.pose().popMatrix();
+            IndustryProductionRender.text(graphics,font,equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),6+157*scale,y+34*scale,120*scale,21*scale,TEXT,false);
         }
         if (!equipment.naval()) {
             productionStock(line,equipment,6+Math.round(281*scale),y+Math.round(34*scale),Math.round(39*scale),Math.round(23*scale));
@@ -578,9 +583,11 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 if(equipment.outdated())UiAssets.draw(g,"production/outdated_overlay",x,y+down,w,h);
                 g.fill(x,labelY,x+w,bottom,0x88000000);
                 IndustryProductionRender.text(g,font,familyName(equipment),x+2,labelY,w-4,bottom-labelY,TEXT);
-                int rateX=slotX+Math.round(155*scale),rateY=y+Math.round(scale),rateWidth=Math.round(118*scale),rateHeight=Math.round(21*scale);
-                IndustryProductionRender.bar(g,"progress",rateX,rateY-1,rateWidth,rateHeight,line.progress());
-                IndustryProductionRender.text(g,font,waiting?dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOYMENT_NOT_DEPLOYABLE"):equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),rateX,rateY-1,rateWidth,rateHeight,!waiting&&line.daily()>0?TEXT:BAD);
+                int lineY=y-Math.round(30*scale),barX=equipment.naval()?158:157,barY=equipment.naval()?31:26;
+                g.pose().pushMatrix();g.pose().translate(6,lineY);g.pose().scale(scale);
+                IndustryProductionRender.startEnd(g,"production/line/progress_fill","production/line/progress_bg",barX,barY,118,21,line.progress());
+                g.pose().popMatrix();
+                IndustryProductionRender.text(g,font,waiting?dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOYMENT_NOT_DEPLOYABLE"):equipment.naval()?IndustryProductionIndicators.navalDays(line.daily(),line.progress()):productionDaily(line.daily()),6+160*scale,lineY+barY*scale,115*scale,21*scale,!waiting&&line.daily()>0?TEXT:BAD,true);
             }
         };
         button.active=pending==0;button.setTooltip(Tooltips.createExact(waiting?IndustryProductionTooltips.navalWaiting(view,line):IndustryProductionTooltips.equipment(view,line,equipment,IndustryProductionTooltips.shortage(line))));addRenderableWidget(button);
@@ -885,10 +892,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (ratio == null && !category.equals("upgrade")) cellText("—", meterX, meterY, meterW, meterH, MUTED, false);
             if (i == 0 && ratio != null) {
                 String needs = policy.reinforcementNeeds().entrySet().stream().map(e -> equipmentLabel(e.getKey()) + " · 부족 " + e.getValue()).collect(java.util.stream.Collectors.joining("\n"));
-                tip("증원 · 장비 충족률 " + percent(policy.reinforcementRatio()) + (needs.isEmpty() ? "\n부족한 장비 없음" : "\n" + needs), 7, y, (int)(400 * scale), rowHeight);
+                tip(UiCommandLabels.text("REINFORCEMENT_DESC", "") + "\n\n" + (needs.isEmpty() ? UiCommandLabels.text("REINFORCEMENT_EMPTY", "") : needs), 7, y, (int)(400 * scale), rowHeight);
             } else if (policy != null && policy.equipmentTooltips().containsKey(category)) {
                 tip(policy.equipmentTooltips().get(category), 7, y, (int)(400 * scale), rowHeight);
-            } else tip(names[i] + (ratio == null ? " · 장비 배정 현황 미제공" : " · 장비 충족률 " + percent(ratio)), 7, y, (int)(400 * scale), rowHeight);
+            } else if (Set.of("upgrade", "garrison").contains(category)) tip(UiCommandLabels.text(category.equals("upgrade") ? "UPGRADES_DESC" : "GARRISONS_DESC", ""), 7, y, (int)(400 * scale), rowHeight);
         }
         int cursor = start + prioritiesHeight - scroll;
         for (var entry : groups.entrySet()) {
@@ -913,7 +920,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 art("recruitment/location_frame", groupX + (int)(94 * gs), y + (int)(48 * gs), (int)(27 * gs), (int)(27 * gs));
                 centeredCompactText(locationName(first.location()), groupX + (int)(119 * gs), y + (int)(61 * gs) - 3, (int)(188 * gs), first.location().isEmpty() ? BAD : TEXT);
                 if (graphics == null) deploymentLocations.add(new IndustryDeploymentLocation(groupX + (int)(91 * gs), y + (int)(46 * gs), (int)(223 * gs), (int)(31 * gs), first.id(), locationName(first.location())));
-                tip("좌클릭하여 배치 프로빈스 선택 · 우클릭하여 장소 초기화", groupX + (int)(91 * gs), y + (int)(46 * gs), (int)(223 * gs), (int)(31 * gs));
+                tip(UiCommandLabels.text("CONVEYOR_SET_LOCATION_DESC", ""), groupX + (int)(91 * gs), y + (int)(46 * gs), (int)(223 * gs), (int)(31 * gs));
                 textureButton(t.name() + " 부대 추가", "부대 추가", "recruitment/add", groupX + (int)(315 * gs), y + (int)(50 * gs), (int)(105 * gs), (int)(23 * gs), true, () -> send(RECRUIT, t.id(), first.location(), 0));
                 textureButton(t.name() + " 모든 라인 즉시 배치", "", "recruitment/deploy", groupX + (int)(421 * gs), y + (int)(47 * gs), (int)(27 * gs), (int)(27 * gs), !first.location().isEmpty() && rows.stream().anyMatch(r -> r.progress() >= minimumTraining()), () -> send(DEPLOY_GROUP, first.id(), "", 0));
                 textureButton(t.name() + " 모든 라인 생산 취소", "", "recruitment/cancel", groupX + (int)(450 * gs), y + (int)(47 * gs), (int)(27 * gs), (int)(27 * gs), true, () -> send(CANCEL_GROUP, first.id(), "", 0));
@@ -941,15 +948,17 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 bar(lineX + (int)(333 * gs), y + (int)(14 * gs), (int)(64 * gs), Math.max(3, (int)(11 * gs)), r.progress(), 0xFF7EAF69);
                 tip(t.name()+" "+number+"\n훈련 " + percent(r.progress()) + " · 인력 " + percent(manpowerRatio) + " · 장비 " + percent(equipped) + "\n" + equipmentList(t.equipment(), r.equipment()), 8, y, (int)(397 * gs), lineHeight);
                 cellText(r.seriesLabel(), lineX + (int)(398 * gs) + 2, y + (int)(7 * gs) + 1, (int)(57 * gs), (int)(26 * gs), r.seriesLimit() == 0 ? GOLD : TEXT, false);
-                tip("라인의 현재 연속 훈련 수 · " + r.seriesLabel(), lineX + (int)(398 * gs), y + (int)(7 * gs), (int)(57 * gs), (int)(26 * gs));
-                textureButton("즉시 배치 · 훈련 " + Math.round(minimumTraining()*100) + "% 이상", "", "recruitment/deploy_line", lineX + (int)(458 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), !r.location().isEmpty() && r.progress() >= minimumTraining(), () -> send(DEPLOY, r.id(), "", 0));
-                textureButton("훈련 취소 · 지급 장비와 인력 반환", "", "recruitment/cancel_line", lineX + (int)(484 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), true, () -> send(CANCEL_RECRUIT, r.id(), "", 0));
+                tip(UiCommandLabels.text("CONVEYOR_SERIES_CURRENT_AMOUNT_DESC", ""), lineX + (int)(398 * gs), y + (int)(7 * gs), (int)(57 * gs), (int)(26 * gs));
+                String deployTip = r.progress() >= minimumTraining() ? UiCommandLabels.text("CONVEYOR_LINE_DEPLOY_DESC", "") : UiCommandLabels.text("DEPLOYMENT_NOT_ALLOWED_REASON_TRAINING", "")
+                        .replace("$VALUE|1H%$", "§H" + String.format(Locale.ROOT, "%.1f%%", minimumTraining() * 100) + "§!").replace("$CURRENT|1R%$", "§R" + String.format(Locale.ROOT, "%.1f%%", r.progress() * 100) + "§!");
+                textureButton("즉시 배치", "", "recruitment/deploy_line", lineX + (int)(458 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), !r.location().isEmpty() && r.progress() >= minimumTraining(), () -> send(DEPLOY, r.id(), "", 0), deployTip);
+                textureButton("훈련 취소", "", "recruitment/cancel_line", lineX + (int)(484 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), true, () -> send(CANCEL_RECRUIT, r.id(), "", 0), UiCommandLabels.text("CONVEYOR_LINE_CANCEL_DESC", ""));
             }
         }
         var special = view.specialForces();
         art("recruitment/special", secondX + 11, top + 30, 20, 20);
         text(special == null ? "—/—" : special.used() + "/" + special.capacity(), secondX + 35, top + 35, secondW - 128, TEXT);
-        tip("특수부대 대대 · 사용량 / 한도" + (special == null ? " · 정보 없음" : "\n" + special.used() + " / " + special.capacity() + " · 훈련 대기 포함"), secondX + 7, top + 28, secondW - 100, 23);
+        if (special != null) tip("특수부대 대대 · 사용량 / 한도\n" + special.used() + " / " + special.capacity(), secondX + 7, top + 28, secondW - 100, 23);
         button("새 사단 편제 설계", "사단 설계", secondX + secondW - 90, top + 29, 83, 22, true,
                 () -> { selectedSlot=-1; designerScroll=0; picker=""; openingDesigner=true; send(NEW_TEMPLATE,"","",0); });
         var retired = view.recruitmentPolicy() == null ? Set.<String>of() : view.recruitmentPolicy().retiredTemplates();
@@ -973,14 +982,19 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     }
     private static String priorityName(int priority) {return switch(priority) {case 0 -> "낮음"; case 1 -> "보통"; default -> "높음";};}
     private static String priorityTexture(int priority, boolean selected) {return "recruitment/priority" + (selected ? switch(priority) {case 0 -> "_low"; case 1 -> "_normal"; default -> "_high";} : "");}
-    private void textureButton(String name, String label, String background, int x, int y, int w, int h, boolean enabled, Runnable action) {
-        if (graphics != null) return;
+    private void textureButton(String name, String label, String background, int x, int y, int w, int h, boolean enabled, Runnable action, String tooltip) {
+        var control = textureButton(name, label, background, x, y, w, h, enabled, action);
+        if (control != null) control.setTooltip(Tooltips.create(Tooltips.officerText(tooltip)));
+    }
+    private dev.hoi.client.ui.UiMenuButton textureButton(String name, String label, String background, int x, int y, int w, int h, boolean enabled, Runnable action) {
+        if (graphics != null) return null;
         var control = new dev.hoi.client.ui.UiMenuButton(name, x, y, w, h, action).caption(label).background(background);
         if (name.startsWith("클릭하여")) control.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal("클릭").withStyle(net.minecraft.ChatFormatting.GREEN).append(Component.literal(name.substring(2)).withStyle(net.minecraft.ChatFormatting.WHITE))));
         if (background.equals("recruitment/delete_template")) control.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal("편제를 목록에서 ").withStyle(net.minecraft.ChatFormatting.WHITE)
                 .append(Component.literal("삭제").withStyle(net.minecraft.ChatFormatting.DARK_RED)).append(Component.literal("합니다.").withStyle(net.minecraft.ChatFormatting.WHITE))));
         if (name.contains("우선순위") || name.contains("연속 훈련 횟수")) control.setTooltip(null);
         control.textScale(dev.hoi.client.ui.UiText.scale(font)); control.active = enabled && pending == 0; addRenderableWidget(control);
+        return control;
     }
     private void centeredCompactText(String value, int x, int y, int width, int color) {
         String clipped = font.plainSubstrByWidth(value, Math.max(1, (int)(width / UiText.scale(font))));
@@ -1137,7 +1151,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                     int bx = x + 27 + column * cell, by = y + 267 - designerScroll;
                     if (by < y + 113 || by + 16 > y + h - 53) continue;
                     boolean unlocked = t.columnSize(column) >= (design == null ? 3 : design.regimentBattalions());
-                    divisionSlot(unlocked ? "연대 지원" : design == null ? "연대 지원 · 같은 열에 대대 3개 필요" : design.regimentLocked(),
+                    divisionSlot(unlocked ? "연대 지원" : design == null ? dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("DESIGNER_BLOCKED_REGIMENTAL_SUPPORT") : design.regimentLocked(),
                             unlocked ? "production/designer/add" : "production/designer/locked", bx, by, 32, 16, false, () -> {});
                 }
             }
@@ -2342,14 +2356,12 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         for(var port:ports) {
             var portShips=port.ships().stream().map(repairShipsById::get).filter(Objects::nonNull).toList();
             long waiting=portShips.stream().filter(ship->repairState(ship).equals("수리 대기")).count();
-            long returning=portShips.stream().filter(ship->repairState(ship).equals("귀항 중")).count();
-            String counts="수리 대기 §e"+waiting+"§r척\n수리 중 §e"+port.activeShips()+"§r척 · 귀항 중 §e"+returning+"§r척";
             int py=by;by+=row;
             if(py>=start&&py+row<=end-3) {
                 if(graphics==null) {
-                    var listTip=Tooltips.create(Component.literal(counts+"\n\n§a클릭§r하여 함선 대기열 목록을 전환합니다."));
+                    var listTip=Tooltips.create(Component.literal("§a클릭§r하여 함선 대기열 목록을 전환합니다."));
                     var policyTip=Tooltips.create(Component.literal((port.disabled()?"§c수리하지 않음":port.priority()==0?"§c수리 우선순위 - 낮음":port.priority()==1?"§e수리 우선순위 - 중간":"§a수리 우선순위 - 높음")+"§r\n\n우선순위가 더 높은 해군기지는 수리를 위한 조선소를 먼저 할당받습니다.\n\n§a클릭§r하여 우선순위를 바꾸십시오. §a우클릭§r하여 조선소의 수리 여부를 활성화하거나 비활성화하십시오."));
-                    var shipsTip=Tooltips.create(Component.literal("이 해군기지에서 함선 §e"+waiting+"§r척이 수리를 위해 대기 중입니다.\n\n"+counts));
+                    var shipsTip=Tooltips.create(Component.literal("이 해군기지에서 함선 §e"+waiting+"§r척이 수리를 위해 대기 중입니다."));
                     var capacityTip=Tooltips.create(Component.literal("§e"+waiting+"§r척의 함정이 수리 대기 중입니다.\n현재 수리 중: §e"+port.activeShips()+"§r척\n이 §e해군기지§r는 동시에 최대 §e"+(port.capacity()==0?"—":port.capacity())+"§r척의 수리 작업을 수행할 수 있습니다."));
                     var button=new UiPanelButton("수리 항구: "+port.name(),x+7,py,w-18,Math.round((w-18)*33f/400),()->{if(!expandedRepairPorts.add(port.id()))expandedRepairPorts.remove(port.id());rebuildWidgets();}) {
                         @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice) {
@@ -2718,8 +2730,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private String equipmentLabel(String id) {var e=equipmentById.get(id);return e==null?id:familyName(e);}
     private Equipment equipment(String id) { return Objects.requireNonNull(equipmentById.get(id)); }
     private int factoryStep() {
-        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
-                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT) ? 10 : 1;
+        if (com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RSHIFT)) return 10;
+        return com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LCONTROL)
+                || com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_RCONTROL) ? 5 : 1;
     }
     private static String familyName(Equipment e) { return e.familyName() == null ? e.name() : e.familyName(); }
     private Template template(String id) { return Objects.requireNonNull(templatesById.get(id)); }
@@ -2823,7 +2837,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         };
         if(texture.startsWith("production/actions/")||texture.equals("production/picker/expand")||texture.equals("production/picker/collapse")||texture.contains("checkbox")||texture.startsWith("production/picker/check_"))button.sound("ui.checkbox");
         button.active = enabled && pending == 0;
-        button.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(name.contains(" · ×") ? name.substring(name.indexOf(" · ×") + 3) + " · 다시 누르면 ×1" : name)));
+        button.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(name)));
         addRenderableWidget(button);
         return button;
     }

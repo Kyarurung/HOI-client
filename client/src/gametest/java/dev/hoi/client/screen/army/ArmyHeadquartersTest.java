@@ -44,7 +44,8 @@ public final class ArmyHeadquartersTest {
                     double slotCenter=slots.get(0).getX()+slots.get(0).getWidth()/2d;
                     if(Math.abs(slotCenter-slots.get(2).getX()-slots.get(2).getWidth()/2d)>1)throw new AssertionError("HQ lead battalion must align with the middle battalion");
                     double supportCenter=(slots.get(4).getX()+slots.get(7).getX()+slots.get(7).getWidth())/2d;
-                    if(Math.abs(slotCenter+3-supportCenter)>1)throw new AssertionError("HQ visible battalion backgrounds and support row must share their center");
+                    double scale;try{var field=ArmyHeadquarters.class.getDeclaredField("scale");field.setAccessible(true);scale=field.getDouble(screen);}catch(ReflectiveOperationException failure){throw new AssertionError(failure);}
+                    if(Math.abs(slotCenter+5*scale-supportCenter)>1)throw new AssertionError("HQ visible battalion backgrounds and support row must share their center");
                     for(String field:List.of("HQ 배치 일수","HQ 배치 지휘력","HQ 생산 자원","HQ 예상 생산 비용"))if(screen.children().stream().noneMatch(c->c instanceof dev.hoi.client.ui.UiHoverRegion r&&r.getMessage().getString().equals(field)))throw new AssertionError("Missing authoritative HQ cost field: "+field);
                     for(String id:List.of("HARDNESS","ORGANIZATION","HP","SPEED"))if(screen.children().stream().noneMatch(c->c instanceof dev.hoi.client.ui.UiHoverRegion r&&r.getMessage().getString().equals("HQ 요약 · "+id)))throw new AssertionError("Missing authoritative HQ summary: "+id);
                     var terrain=screen.children().stream().filter(c->c instanceof dev.hoi.client.ui.UiHoverRegion r&&r.getMessage().getString().startsWith("HQ 지역 변동치")).map(dev.hoi.client.ui.UiHoverRegion.class::cast).toList();

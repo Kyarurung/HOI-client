@@ -21,7 +21,10 @@ public record DiplomacyWorldTensionView(String viewer, CountryHud hud, long day,
             if (day < 0 || !Double.isFinite(current) || initial != null && !Double.isFinite(initial)) throw new IllegalArgumentException("Invalid tension entry");
         }
     }
-    public record War(String id, String name, long day, Double balance, List<Participant> attackers, List<Participant> defenders) {
+    public record War(String id, String name, long day, Double balance, List<Participant> attackers, List<Participant> defenders, boolean major) {
+        public War(String id, String name, long day, Double balance, List<Participant> attackers, List<Participant> defenders) {
+            this(id, name, day, balance, attackers, defenders, false);
+        }
         public War {
             CountryView.text(id, 128); CountryView.text(name, 512); ratio(balance);
             attackers = List.copyOf(attackers); defenders = List.copyOf(defenders);
@@ -30,9 +33,14 @@ public record DiplomacyWorldTensionView(String viewer, CountryHud hud, long day,
     }
     public record Participant(String country, String name, String manpower, String divisions, String factories,
                               Long casualties, Double contribution, Double surrender, boolean capitulated,
-                              boolean callable, boolean leader) {
+                              boolean callable, boolean leader, boolean major, boolean wargoal, String faction) {
+        public Participant(String country, String name, String manpower, String divisions, String factories,
+                           Long casualties, Double contribution, Double surrender, boolean capitulated,
+                           boolean callable, boolean leader) {
+            this(country, name, manpower, divisions, factories, casualties, contribution, surrender, capitulated, callable, leader, false, false, "");
+        }
         public Participant {
-            CountryView.tag(country); CountryView.text(name, 256);
+            CountryView.tag(country); CountryView.text(name, 256); faction = faction == null ? "" : faction; CountryView.text(faction, 256);
             for (String value : List.of(manpower, divisions, factories)) CountryView.text(value, 64);
             ratio(contribution); ratio(surrender);
             if (casualties != null && casualties < 0) throw new IllegalArgumentException("Negative casualties");

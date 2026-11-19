@@ -22,9 +22,7 @@ final class IndustryLogisticsRows {
             String estimate = balance >= 0 ? "현재 비축량으로 충원 가능" : daily > 0
                     ? "부족분 생산 예상: " + productionLabel(Math.ceil(-balance / daily)) + "일" : "생산 라인이나 가용 자원이 필요합니다.";
             return "충원 수요: " + demand + "\n비축량: " + stockpile() + "\n균형: " + balance
-                    + "\n일일 생산: " + productionLabel(daily) + "\n" + estimate
-                    + "\n신규 손실·수요 변화 없이 현재 생산량이 유지될 때의 예상입니다."
-                    + "\n인력·보급로·우선순위에 따라 실제 지급 시점이 달라집니다.";
+                    + "\n일일 생산: " + productionLabel(daily) + "\n" + estimate;
         }
     }
     static String productionLabel(double value) {

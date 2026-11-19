@@ -50,7 +50,7 @@ public final class CommanderOrderPayloads {
     public record Decision(boolean enabled,boolean target,String reason,String details,Boolean warning) {
         public Decision(boolean enabled,boolean target,String reason){this(enabled,target,reason,"");}
         public Decision(boolean enabled,boolean target,String reason,String details){this(enabled,target,reason,details,null);}
-        public Decision {details=details==null?"":details;if(details.length()>3000)throw new IllegalArgumentException("Command detail too long");Objects.requireNonNull(reason);if(reason.length()>400||enabled!=reason.isEmpty()||!enabled&&target)throw new IllegalArgumentException("Invalid command availability");}
+        public Decision {details=details==null?"":details;if(details.length()>3000)throw new IllegalArgumentException("Command detail too long");Objects.requireNonNull(reason);if(reason.length()>400||enabled&&!reason.isEmpty()||!enabled&&target)throw new IllegalArgumentException("Invalid command availability");}
     }
     public record Assessment(String token,long revision,long sequence,long request,Map<String,Decision> actions) {
         public Assessment {UUID.fromString(token);actions=Map.copyOf(actions);if(revision<0||sequence<0||request<0||actions.size()>64||actions.keySet().stream().anyMatch(a->!a.matches("[A-Z_/]{1,80}")))throw new IllegalArgumentException("Invalid command assessment");}

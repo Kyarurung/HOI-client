@@ -381,7 +381,8 @@ public final class DiplomacyLease extends Screen implements InputSidebarMovement
     }
     private void removeButton(LeaseLine line, int rowLeft, int rowTop) {
         var choice = equipment(line.key());
-        var remove = button(label("CLOSE") + " · " + choice.name(), "diplomacy/dialog/remove/frame_2", rowLeft + s(453), rowTop + s(5), s(28), s(28), true, () -> remove(line.key()));
+        var remove = button(label("DIPLOMACY_CANCEL") + " " + choice.name(), "diplomacy/dialog/remove/frame_2", rowLeft + s(453), rowTop + s(5), s(28), s(28), true, () -> remove(line.key()));
+        tip(remove, label("DIPLOMACY_CANCEL"));
         remove.controlKey = "remove:" + line.key();
         remove.sound = "ui.close";
         remove.active = editing();

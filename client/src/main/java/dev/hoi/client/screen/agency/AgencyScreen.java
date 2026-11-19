@@ -421,7 +421,8 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         if (group.equals("cryptology") && !view.ciphers().isEmpty()) return view.ciphers().stream().map(cipher ->
                 new Item("cipher:" + cipher.country(), "cryptology", cipher.name(), cipher.status(), cipher.statusTooltip(), "", "", false, cipher.progress(), List.of())).toList();
         return view.items().stream().filter(i -> i.group().equals(group) && !i.id().equals("cancel_project") && !i.id().equals("cipher_level") && !i.id().equals("spy_master") && !i.id().startsWith("reveal:")
-                && !i.id().startsWith("auto_commence:") && !i.id().startsWith("auto_repeat:") && !i.id().startsWith("commence_operation:")).sorted(group.equals("upgrades") ? Comparator.comparingInt(AgencyScreen::upgradeOrder) : Comparator.comparingInt(i -> 0)).toList();
+                && !i.id().startsWith("auto_commence:") && !i.id().startsWith("auto_repeat:") && !i.id().startsWith("commence_operation:")
+                && !(i.id().startsWith("cancel_operation:") && view.items().stream().anyMatch(o -> o.id().equals("dismiss_operation:" + i.id().substring("cancel_operation:".length()))))).sorted(group.equals("upgrades") ? Comparator.comparingInt(AgencyScreen::upgradeOrder) : Comparator.comparingInt(i -> 0)).toList();
     }
     private void changeGroup(String next) { capitalMap.clear(); queuedUpgrade = null; group = next; selectedId = null; choosing = -1; scroll = 0; rebuildWidgets(); }
     private void selectItem(Item item) {

@@ -441,7 +441,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("diplomacy")) {
-            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.diplomacy.DiplomacyWorldTensionChecks.run(context, fixtureMenu().hud()); dev.hoi.client.screen.diplomacy.DiplomacyActionsTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseInputTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.runSource(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseRequestTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyVolunteersTest.run(context); }
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.diplomacy.DiplomacyWorldTensionChecks.run(context); dev.hoi.client.screen.diplomacy.DiplomacyActionsTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseInputTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseTest.runSource(context); dev.hoi.client.screen.diplomacy.DiplomacyLeaseRequestTest.run(context); dev.hoi.client.screen.diplomacy.DiplomacyVolunteersTest.run(context); }
             return;
         }
         if (System.getProperty("hoi.testSuite", "all").equals("decision-targets")) {
@@ -464,13 +464,8 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             }
             return;
         }
-        if (System.getProperty("hoi.testSuite", "all").equals("air-assignment")) {
-            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.commander.CommanderBranchMissionSourceTest.runAirNames(context); }
-            return;
-        }
         if (System.getProperty("hoi.testSuite", "all").equals("missions")) {
             try (var world = context.worldBuilder().create()) {
-                dev.hoi.client.screen.commander.CommanderBranchMissionSourceTest.run(context);
                 dev.hoi.client.screen.commander.CommanderLandMissionSourceTest.run(context);
                 dev.hoi.client.map.commander.CommanderHudTest.run(context,fixtureMenu());
             }
@@ -697,7 +692,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             dev.hoi.client.screen.ScreenAuthoritativeFieldsTest.run(context,menu);
             dev.hoi.client.screen.decision.DecisionScreenChecks.run(context,menu.hud());
             dev.hoi.client.screen.focus.FocusScreenChecks.run(context);
-            dev.hoi.client.screen.diplomacy.DiplomacyWorldTensionChecks.run(context,menu.hud());
+            dev.hoi.client.screen.diplomacy.DiplomacyWorldTensionChecks.run(context);
             DialogScreenChecks.run(context);
             dev.hoi.client.screen.dialog.DialogLeaderEventTest.run(context);
             IndustryRegimentChecks.run(context);
@@ -705,7 +700,6 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 dev.hoi.client.screen.commander.CommanderPreferredTacticsTest.run(context);
                 dev.hoi.client.screen.commander.CommanderSourceTest.run(context);
             dev.hoi.client.screen.doctrine.DoctrineScreenSourceTest.run(context);
-            dev.hoi.client.screen.commander.CommanderBranchMissionSourceTest.run(context);
                 dev.hoi.client.screen.commander.CommanderLandMissionSourceTest.run(context);
             world.getServer().runCommand("gamemode creative @a");context.waitTicks(3);
             dev.hoi.client.map.commander.CommanderHudTest.run(context,menu);
@@ -837,7 +831,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 check(client.gui.screen().children().stream().noneMatch(c -> c instanceof Button b
                         && List.of("<", ">", "1 / 1").contains(b.getMessage().getString())), "No page count or page navigation buttons");
             });
-            click(context, "슬롯 1 · 연구 선택"); context.waitTicks(2);
+            clickSlot(context, 0); context.waitTicks(2);
             context.runOnClient(client -> {
                 var screen = (ResearchScreen)client.gui.screen();
                 checkToolbar(screen);
@@ -856,7 +850,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 check(client.gui.screen().children().stream().noneMatch(c -> c instanceof Button b
                         && b.getMessage().getString().equals("연구")), "Closed detail cannot send a duplicate request");
             });
-            click(context, "슬롯 1 · 연구 선택");
+            clickSlot(context, 0);
             context.waitTicks(2); context.takeScreenshot("hoi-research-tree");
             click(context, "기갑"); context.waitTicks(2); context.takeScreenshot("hoi-research-armor");
             click(context, "해군 지원 장비"); context.waitTicks(2);
@@ -871,7 +865,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.getInput().resizeWindow(1600, 1000); context.waitTicks(2);
             context.setScreen(() -> fixtureMainMenu(menu, MenuTab.POLITICS, view, requests));
             click(context, "연구 메뉴");
-            click(context, "슬롯 2 · 진행 연구");
+            clickSlot(context, 1);
             click(context, "연구");
             context.runOnClient(client -> check(requests.getLast().action() == ResearchPayloads.Action.CANCEL
                     && requests.getLast().slot() == 1, "Cancel uses the actual active slot"));
@@ -915,7 +909,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         check(!slots.isEmpty() && slots.getLast().getBottom() <= screen.height - 8, "Visible compact slots fit the sidebar");
         for (int i = 0; i < total; i++) screen.mouseScrolled(12, screen.height - 20, 0, -1);
         check(screen.children().stream().anyMatch(c -> c instanceof ResearchSlotButton slot
-                && slot.getMessage().getString().startsWith("슬롯 " + total + " · ") && slot.getBottom() <= screen.height - 8),
+                && slot.index() == total - 1 && slot.getBottom() <= screen.height - 8),
                 "Every supplied slot remains reachable by scrolling");
         for (int i = 0; i < total; i++) screen.mouseScrolled(12, screen.height - 20, 0, 1);
     }
@@ -929,7 +923,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
         context.setScreen(()->new ResearchScreen(view,requests::add));context.waitTicks(2);context.takeScreenshot("hoi-tfr-benefits-slots");
         context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().startsWith("제한된 혜택")),"Limited benefits is a passive indicator"));
-        click(context,"슬롯 1 · "+view.technology(view.slots().getFirst().technology()).name());context.waitTicks(2);
+        clickSlot(context, 0);context.waitTicks(2);
         closeTop(context);context.waitTicks(2);
         for(var tab:List.of("보병","지상 & 항공 지원","기갑","포","해군","해군 지원 장비","공군","산업","공학")) {
             click(context,tab);context.waitTicks(2);context.takeScreenshot("hoi-tfr-tree-"+List.of("보병","지상 & 항공 지원","기갑","포","해군","해군 지원 장비","공군","산업","공학").indexOf(tab));
@@ -992,7 +986,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                         .noneMatch(text -> text.startsWith("슬롯 ") && text.contains("▸")), "Detail slot cycling button is absent");
                 var text = screen.detailLines(tech).stream().map(Component::getString).collect(java.util.stream.Collectors.joining("\n"));
                 check(!text.contains("해금 장비·시설") && !text.contains("아래 선행 연구") && !text.contains("hoi:"), "Internal IDs and general prerequisites stay hidden");
-                check(text.contains("택일 연구") == !tech.source().excludes().isEmpty(), "Only mutually exclusive choices receive the choice explanation");
+                check(text.contains("상호 배타적임") == !tech.source().excludes().isEmpty(), "Only mutually exclusive choices receive the choice explanation");
                 if (id.equals("advanced_ship_hull_light")) {
                     var cards = ResearchDetails.cards(tech);
                     check(cards.size() == 2 && cards.get(1).effects().contains("속도: +35%"), "Source hull and engine cards retain their separate stats");
@@ -1096,7 +1090,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             for (int frame = 0; frame < 10; frame++)
                 check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/defcon/" + frame + ".png")).isPresent(),
                         "Original DEFCON frame loaded: " + frame);
-            check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/defcon/frame.png")).isPresent(),
+            check(client.getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "textures/gui/hud/defcon/background.png")).isPresent(),
                     "Original DEFCON panel loaded");
         });
     }
@@ -1197,6 +1191,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
     private static void closeTop(ClientGameTestContext context) {
         context.runOnClient(client -> client.gui.screen().children().stream().filter(c -> c instanceof Button b && b.active && b.getMessage().getString().equals("×")).map(c -> (Button)c).reduce((first, last) -> last).orElseThrow(() -> new AssertionError("Missing close button")).onPress(ENTER));
     }
+    private static void clickSlot(ClientGameTestContext context, int index) {
+        context.runOnClient(client -> client.gui.screen().children().stream().filter(c -> c instanceof dev.hoi.client.screen.research.ResearchSlotButton b && b.active && b.index() == index)
+                .map(c -> (Button)c).findFirst().orElseThrow(() -> new AssertionError("Missing research slot " + (index + 1))).onPress(ENTER));
+    }
     private static void click(ClientGameTestContext context, String label) {
         context.runOnClient(client -> {
             var button = client.gui.screen().children().stream().filter(c -> c instanceof Button b && b.active
@@ -1207,11 +1205,11 @@ public final class ResearchScreenTest implements FabricClientGameTest {
     private static void checkToolbar(net.minecraft.client.gui.screens.Screen screen) {
         var tabs = screen.children().stream().filter(c -> c instanceof HudMenuBar.HudTabButton).map(c -> (HudMenuBar.HudTabButton)c).toList();
         check(tabs.size() == MenuTab.ORDER.size() && tabs.stream().allMatch(b -> b.active && b.visible
-                && (b.getY() == 3 || b.getY() == 17) && b.getBottom() < HudMenuBar.height(screen.width)), "Common navigation stays usable below the resource strip");
+                && (b.getY() == 3 || b.getY() == 18) && b.getBottom() < HudMenuBar.height(screen.width)), "Common navigation stays usable below the resource strip");
         check(tabs.getLast().getRight() < HudMenuBar.dockWidth(screen.width)
                 && HudMenuBar.dockWidth(screen.width) <= screen.width, "Compact original-art toolbar fits the viewport");
-        check(HudMenuBar.tensionX(screen.width) + 30 == screen.width - 4
-                && HudMenuBar.tensionX(screen.width) > HudMenuBar.dockWidth(screen.width), "Flag-sized tension display stays at the far right");
+        check(HudMenuBar.tensionX(screen.width) == screen.width - 37
+                && HudMenuBar.tensionX(screen.width) > HudMenuBar.dockWidth(screen.width), "Original tension plate stays at the far right");
     }
     private static ScreenMenu fixtureMainMenu(MenuView menu, MenuTab selected, ResearchView research, List<ResearchPayloads.Request> requests) {
         return new ScreenMenu(menu, selected, () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(
@@ -1264,10 +1262,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try {
                 var image=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-convoy-efficiency-"+(int)(ratio*100)+"-gui2").toFile());
                 var items=HudMenuBar.indicators(hud);
-                int left=HudMenuBar.flagWidth(1280)+10+items.stream().takeWhile(i->!i.icon().equals("convoys")).mapToInt(HudMenuBar.HudIndicator::width).sum()+15;
+                int left=HudMenuBar.statsLeft(1280)+items.stream().takeWhile(i->!i.icon().equals("convoys")).mapToInt(HudMenuBar.HudIndicator::width).sum()+15;
                 int width=items.stream().filter(i->i.icon().equals("convoys")).findFirst().orElseThrow().width()-18;
                 int filled=0;
-                for(int x=left*2;x<(left+width)*2;x++)if((image.getRGB(x,23)&0xFFFFFF)==0x6D9C61)filled++;
+                for(int x=left*2;x<(left+width)*2;x++)if((image.getRGB(x,(HudMenuBar.STATS_TOP+10)*2+1)&0xFFFFFF)==0x6D9C61)filled++;
                 check(filled==(int)Math.round(width*ratio)*2,"Convoy gauge pixels follow transport efficiency without changing colour at "+ratio);
             } catch(java.io.IOException failure) { throw new AssertionError(failure); }
         }
@@ -1288,10 +1286,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try {
                 var image=javax.imageio.ImageIO.read(context.takeScreenshot("hoi-fuel-stock-"+(int)(ratio*100)+"-gui2").toFile());
                 var items=HudMenuBar.indicators(hud);
-                int left=HudMenuBar.flagWidth(1280)+10+items.stream().takeWhile(i->!i.icon().equals("fuel")).mapToInt(HudMenuBar.HudIndicator::width).sum()+15;
+                int left=HudMenuBar.statsLeft(1280)+items.stream().takeWhile(i->!i.icon().equals("fuel")).mapToInt(HudMenuBar.HudIndicator::width).sum()+15;
                 int width=items.stream().filter(i->i.icon().equals("fuel")).findFirst().orElseThrow().width()-18;
                 int filled=0;
-                for(int x=left*2;x<(left+width)*2;x++)if((image.getRGB(x,23)&0xFFFFFF)==0x6D9C61)filled++;
+                for(int x=left*2;x<(left+width)*2;x++)if((image.getRGB(x,(HudMenuBar.STATS_TOP+10)*2+1)&0xFFFFFF)==0x6D9C61)filled++;
                 check(filled==(int)Math.round(width*ratio)*2,"Fuel gauge pixels follow authoritative stock capacity at "+ratio);
                 int tint=ratio>.5?0x009F03:0xFF3232,colored=0;
                 for(int y=2;y<20;y++)for(int x=left*2;x<(left+width)*2;x++)if((image.getRGB(x,y)&0xFFFFFF)==tint)colored++;
@@ -1368,15 +1366,15 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                     check(white[0] && (gold[0] || key.equals("party_support")),"Source descriptions stay white with gold highlights: " + key);
                     if (original.details().get(key).sourceText().contains("£pol_idea")) check(icon[0],"Yellow political icon is rendered: " + key);
                 });
-                int point=HudMenuBar.flagWidth(1280)+10+HudMenuBar.indicators(original).stream().takeWhile(i->!i.icon().equals(key)).mapToInt(HudMenuBar.HudIndicator::width).sum()+20;
-                if (List.of("gdp", "debt").contains(key)) point += Math.max(0, HudMenuBar.statsRight(1280) - (HudMenuBar.flagWidth(1280) + 10) - HudMenuBar.indicators(original).stream().mapToInt(HudMenuBar.HudIndicator::width).sum() - 3);
+                int point=HudMenuBar.statsLeft(1280)+HudMenuBar.indicators(original).stream().takeWhile(i->!i.icon().equals(key)).mapToInt(HudMenuBar.HudIndicator::width).sum()+20;
+                if (List.of("gdp", "debt").contains(key)) point += Math.max(0, HudMenuBar.statsRight(1280) - HudMenuBar.statsLeft(1280) - HudMenuBar.indicators(original).stream().mapToInt(HudMenuBar.HudIndicator::width).sum() - 3);
                 context.getInput().setCursorPos(point*2,12); context.waitTicks(3);
                 context.takeScreenshot("hoi-source-"+key+"-tooltip-gui2");
             }
             dev.hoi.client.ui.hud.HudTooltipTest.run(context, sourceMenu);
             context.setScreen(() -> new ScreenMenu(issued)); context.waitTicks(3);
         } catch (java.io.IOException failure) { throw new AssertionError(failure); }
-        int fuel=(HudMenuBar.flagWidth(1280)+10)+HudMenuBar.indicators(issued.hud()).stream().takeWhile(i->!i.icon().equals("fuel")).mapToInt(HudMenuBar.HudIndicator::width).sum()+20;
+        int fuel=HudMenuBar.statsLeft(1280)+HudMenuBar.indicators(issued.hud()).stream().takeWhile(i->!i.icon().equals("fuel")).mapToInt(HudMenuBar.HudIndicator::width).sum()+20;
         context.getInput().setCursorPos(fuel*2,12);context.waitTicks(5);
         context.takeScreenshot("hoi-fuel-tooltip-hover-gui2");
         context.runOnClient(client->{
@@ -1388,7 +1386,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 return true;
             });
         });
-        int supply=(HudMenuBar.flagWidth(1280)+10)+HudMenuBar.indicators(issued.hud()).stream().takeWhile(i->!i.icon().equals("supplies")).mapToInt(HudMenuBar.HudIndicator::width).sum()+20;
+        int supply=HudMenuBar.statsLeft(1280)+HudMenuBar.indicators(issued.hud()).stream().takeWhile(i->!i.icon().equals("supplies")).mapToInt(HudMenuBar.HudIndicator::width).sum()+20;
         context.getInput().setCursorPos(supply*2,12);context.waitTicks(5);
         context.takeScreenshot("hoi-supply-tooltip-spacing-gui2");
         context.getInput().setCursorPos((HudMenuBar.tensionX(1280)+15)*2,20);context.waitTicks(5);

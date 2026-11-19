@@ -5,8 +5,15 @@ import dev.hoi.protocol.hud.HudDetail;
 public record CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                          Double gdpBillions, Double debtBillions, Double worldTension,
                          boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national,
-                         java.util.Map<String, HudDetail> details) {
+                         java.util.Map<String, HudDetail> details, Integer availableDecisions) {
     public static final CountryHud UNKNOWN = new CountryHud(null, null, null, null, null, null, false, null);
+    public CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
+                      Double gdpBillions, Double debtBillions, Double worldTension,
+                      boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national,
+                      java.util.Map<String, HudDetail> details) {
+        this(armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension,
+                nuclearResearched, nuclearStockpile, national, details, null);
+    }
     public CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                       Double gdpBillions, Double debtBillions, Double worldTension,
                       boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national) {
@@ -34,6 +41,11 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
             if (entry.getValue().sourceText() != null) characters += entry.getValue().sourceText().length();
         }
         if (characters > 24000) throw new IllegalArgumentException("HUD details exceed budget");
+        if (availableDecisions != null && availableDecisions < 0) throw new IllegalArgumentException("Invalid decision count");
+    }
+    public CountryHud withAvailableDecisions(Integer count) {
+        return new CountryHud(armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension,
+                nuclearResearched, nuclearStockpile, national, details, count);
     }
     public record NationalIndicators(Double politicalPower, Double stability, Double warSupport,
                                      Long factories, Double energyRatio, Double fuel, Double supplies,

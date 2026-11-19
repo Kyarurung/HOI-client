@@ -1,13 +1,16 @@
 package dev.hoi.client.ui.hud;
 
+import dev.hoi.client.ClientCampaignHud;
 import dev.hoi.client.screen.ScreenMenu;
 import dev.hoi.client.ui.tooltip.Tooltips;
+import dev.hoi.protocol.hud.HudPayloads;
 import dev.hoi.protocol.menu.MenuView;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 
 public final class HudTooltipTest {
     private HudTooltipTest() {}
     public static void run(ClientGameTestContext context, MenuView menu) {
+        decisions(context, menu);
         boolean before = "1".equals(System.getenv("HOI_CAPTURE_BEFORE"));
         for (int width : new int[]{2560, 1920, 1280}) {
             context.getInput().resizeWindow(width, width * 9 / 16);
@@ -40,6 +43,22 @@ public final class HudTooltipTest {
             if (!before) context.runOnClient(client -> { if (bounds() != null) throw new AssertionError("Leaving the indicator must clear the HUD tooltip scroll state"); });
         }
         context.getInput().resizeWindow(2560, 1440);
+    }
+    private static void decisions(ClientGameTestContext context, MenuView menu) {
+        context.getInput().resizeWindow(2560, 1440);
+        var previous = context.computeOnClient(client -> { client.options.guiScale().set(2); return HudPayloads.State.of(ClientCampaignHud.country().isEmpty() ? menu.country() : ClientCampaignHud.country(), ClientCampaignHud.hud()); });
+        boolean hidden = context.computeOnClient(client -> !ClientCampaignHud.visible());
+        for (int count : new int[]{18, 0}) {
+            context.runOnClient(client -> ClientCampaignHud.accept(HudPayloads.State.of(menu.country(), menu.hud().withAvailableDecisions(count))));
+            context.setScreen(() -> new ScreenMenu(menu)); context.waitTicks(3);
+            try {
+                var image = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-hud-decisions-badge-" + count + "-gui2").toFile());
+                int white = 0;
+                for (int y = 46; y < 72; y++) for (int x = 114; x < 140; x++) if ((image.getRGB(x, y) & 0xFFFFFF) == 0xFFFFFF) white++;
+                if ((count > 0) != (white > 0)) throw new AssertionError("Decisions badge shows only an available count: " + count + " white=" + white);
+            } catch (java.io.IOException failure) { throw new AssertionError(failure); }
+        }
+        context.runOnClient(client -> ClientCampaignHud.accept(hidden ? HudPayloads.State.HIDDEN : previous));
     }
     private static Tooltips.ScrolledTooltip bounds() {
         try {

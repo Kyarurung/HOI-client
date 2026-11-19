@@ -40,6 +40,8 @@ final class DiplomacyVolunteerActionsTest {
                         screen.mouseScrolled(screen.panelWidth() - 15, screen.height - 70, 0, -1);
                     }
                     check(seen.equals(new LinkedHashSet<>(names)), "Scrolling omitted or duplicated the authoritative action list");
+                    for (int step = 0; step <= names.size() && visible(screen, List.of("의용군 파병", "의용군 소환")).size() < 2; step++)
+                        screen.mouseScrolled(screen.panelWidth() - 15, screen.height - 70, 0, 1);
                     for (String title : List.of("의용군 파병", "의용군 소환"))
                         check(screen.children().stream().filter(child -> child instanceof Button button && button.getMessage().getString().equals(title)).count() == 1,
                                 "Visible volunteer title was duplicated or missing: " + title);
@@ -101,6 +103,8 @@ final class DiplomacyVolunteerActionsTest {
             var screen = (DiplomacyCountryScreen)client.gui.screen();
             screen.mouseScrolled(screen.panelWidth() - 15, screen.height - 70, 0, -50);
             var action = entries.stream().filter(entry -> entry.id().equals(id)).findFirst().orElseThrow();
+            for (int step = 0; step < entries.size() && screen.children().stream().noneMatch(child -> child instanceof Button button && button.getMessage().getString().equals(action.name())); step++)
+                screen.mouseScrolled(screen.panelWidth() - 15, screen.height - 70, 0, 1);
             var control = button(screen, action.name());
             click(screen, control, InputConstants.MOUSE_BUTTON_LEFT);
             if (id.equals("recall_volunteers")) {

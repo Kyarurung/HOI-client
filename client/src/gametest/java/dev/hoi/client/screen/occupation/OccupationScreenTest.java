@@ -25,23 +25,26 @@ public final class OccupationScreenTest {
         context.getInput().setCursorPos(1500,900); ResearchScreenTest.gui2Screenshot(context,"hoi-occupation");
         for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})){
             context.getInput().resizeWindow(size[0],size[1]);context.waitTicks(3);
-            var country=context.computeOnClient(client->{var button=(Button)client.gui.screen().children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("▸ 대한민국")).findFirst().orElseThrow();double scale=client.getWindow().getGuiScale();return new double[]{(button.getX()+button.getWidth()/2.0)*scale,(button.getY()+button.getHeight()/2.0)*scale};});
-            context.getInput().setCursorPos(country[0],country[1]);context.waitTicks(12);context.takeScreenshot("hoi-occupation-country-no-tooltip-"+size[0]+"x"+size[1]+"-gui2");
+            var country=context.computeOnClient(client->{var button=(Button)client.gui.screen().children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("대한민국")).findFirst().orElseThrow();double scale=client.getWindow().getGuiScale();return new double[]{(button.getX()+button.getWidth()/2.0)*scale,(button.getY()+button.getHeight()/2.0)*scale};});
+            context.getInput().setCursorPos(country[0],country[1]);context.waitTicks(12);context.takeScreenshot("hoi-occupation-country-zoom-tooltip-"+size[0]+"x"+size[1]+"-gui2");
         }
         context.getInput().resizeWindow(1600,900);context.waitTicks(3);
         context.runOnClient(client->{
             var screen=(OccupationScreen)client.gui.screen();
             if(screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("국가 해방")).map(w->(Button)w).anyMatch(b->b.active))throw new AssertionError("Country release must remain disabled");
             int closed=screen.children().size();
-            press(screen,"점령지 펼치기 · 대한민국");
-            if(screen.children().size()!=closed+4)throw new AssertionError("Only the two Korean states expand");
-            press(screen,"점령지 접기 · 대한민국");
+            press(screen,"▸ 대한민국");
+            if(screen.children().size()!=closed+6)throw new AssertionError("Only the two Korean states expand with their controls and zoom areas");
+            press(screen,"▾ 대한민국");
             if(screen.children().size()!=closed)throw new AssertionError("Collapse removes the state controls");
             if(requests.size()!=0)throw new AssertionError("Expansion must not mutate campaign state");
         });
-        var arrow=context.computeOnClient(client->{var screen=(OccupationScreen)client.gui.screen();var button=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("점령지 펼치기 · 대한민국")).findFirst().orElseThrow();double scale=client.getWindow().getGuiScale();return new double[]{(button.getX()+button.getWidth()/2.0)*scale,(button.getY()+button.getHeight()/2.0)*scale};});
+        var arrow=context.computeOnClient(client->{var screen=(OccupationScreen)client.gui.screen();var button=(Button)screen.children().stream().filter(w->w instanceof Button b&&b.getMessage().getString().equals("▸ 대한민국")).findFirst().orElseThrow();double scale=client.getWindow().getGuiScale();return new double[]{(button.getX()+button.getWidth()/2.0)*scale,(button.getY()+button.getHeight()/2.0)*scale};});
         context.getInput().setCursorPos(arrow[0],arrow[1]);context.getInput().pressMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);context.waitTicks(2);context.getInput().releaseMouse(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT);
-        context.runOnClient(client->{if(client.gui.screen().children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("점령지 접기 · 대한민국")))throw new AssertionError("The original arrow hitbox must expand its country");});
+        context.runOnClient(client->{if(client.gui.screen().children().stream().noneMatch(w->w instanceof Button b&&b.getMessage().getString().equals("▾ 대한민국")))throw new AssertionError("The original arrow hitbox must expand its country");});
+        context.runOnClient(client->{var screen=(OccupationScreen)client.gui.screen();int before=requests.size();press(screen,"대한민국");
+            if(requests.size()!=before+1||requests.getLast().action()!=dev.hoi.protocol.occupation.OccupationPayloads.Action.ZOOM||!requests.getLast().state().equals("country:KOR"))throw new AssertionError("Clicking the country band asks the server to zoom to its occupied state: "+requests);
+            screen.update(new dev.hoi.protocol.occupation.OccupationPayloads.View(token,view.revision()+1,view.country(),view.rows(),view.templates(),view.laws(),view.defaultTemplate(),view.defaultLaw(),"",view.labels()));});
         context.getInput().setCursorPos(1500,900); ResearchScreenTest.gui2Screenshot(context,"hoi-occupation-expanded");
         context.takeScreenshot("hoi-occupation-expanded-1600-gui2");
         var effectPosition=context.computeOnClient(client->{

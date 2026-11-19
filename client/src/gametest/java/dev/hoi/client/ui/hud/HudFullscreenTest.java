@@ -89,7 +89,8 @@ public final class HudFullscreenTest {
         context.takeScreenshot("hoi-fullscreen-indicator-tooltip-" + name + "-" + width + "-gui2");
         if (!name.startsWith("doctrine")) {
             context.runOnClient(client -> {
-                if (!click(screen, screen.width - 15, 44, InputConstants.MOUSE_BUTTON_LEFT, false))
+                var close = content.children().stream().filter(child -> child instanceof AbstractWidget widget && widget.getMessage().getString().equals("×")).map(child -> (AbstractWidget)child).min(java.util.Comparator.comparingInt(AbstractWidget::getY)).orElseThrow();
+                if (close.getX() + close.getWidth() <= HudMenuBar.tensionX(screen.width) || !click(screen, close.getX() + close.getWidth() / 2, close.getY() + 1, InputConstants.MOUSE_BUTTON_LEFT, false))
                     throw new AssertionError("The window close button must own the overlap: " + name);
                 if (DialogCoordinator.contentScreen() == content) throw new AssertionError("The covered close button did not close the window: " + name);
             });

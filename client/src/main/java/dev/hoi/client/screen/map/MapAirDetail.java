@@ -112,8 +112,7 @@ public final class MapAirDetail extends DialogScreen implements InputSidebarMove
         combat(g,tile("air_losses"),false);
         combat(g,tile("air_kills"),true);
         for(int i=0;i<3;i++) {
-            boolean over=mx>=x(207+45*i)&&mx<x(250+45*i)&&my>=y(236)&&my<y(270);
-            art(g,"air_detail/category_bg_"+(categories[i]?(over?1:2):(over?1:0)),207+45*i,236,43,34);
+            art(g,"air_detail/category_bg_"+(categories[i]?0:1),207+45*i,236,43,34);
             art(g,"air_detail/category_"+i,207+47*i,239,43,28);
             hover(tile("mission_filter_"+i),207+45*i,236,43,34);
         }
@@ -125,11 +124,10 @@ public final class MapAirDetail extends DialogScreen implements InputSidebarMove
             var missions=enemy?enemyMissions:ownMissions;
             for(int i=scroll;i<Math.min(missions.size(),scroll+3);i++) {
                 var t=missions.get(i);int px=enemy?412:15,py=275+(i-scroll)*50;
-                g.fill(x(px),y(py),x(px+125),y(py+48),0x9B10161E);
+                g.fill(x(px),y(py),x(px+125),y(py+50),0x9B10161E);
                 text(g,t.value(),px,py,125,14,true);art(g,t.icon(),px,py+14,125,32);hover(t,px,py,125,48);
             }
         }
-        if(maximum>3)g.fill(x(282),y(280+scroll*112/Math.max(1,maximum-3)),x(286),y(306+scroll*112/Math.max(1,maximum-3)),0xFF8A8A8A);
         for(boolean enemy:List.of(false,true)) {
             int px=enemy?332:155;
             var results=tiles(enemy?"enemy_result":"own_result");

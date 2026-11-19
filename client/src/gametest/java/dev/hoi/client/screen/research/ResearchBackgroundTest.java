@@ -28,7 +28,7 @@ public final class ResearchBackgroundTest {
                 context.runOnClient(client -> {
                     var screen = (ResearchScreen)client.gui.screen();
                     var slot = screen.children().stream().filter(ResearchSlotButton.class::isInstance)
-                            .map(ResearchSlotButton.class::cast).filter(button -> button.getMessage().getString().contains("연구 선택")).findFirst().orElseThrow();
+                            .map(ResearchSlotButton.class::cast).filter(button -> button.getMessage().getString().equals(dev.hoi.client.ui.UiCommandLabels.text("RESEARCH_NO_RESEARCH", "사용되지 않음"))).findFirst().orElseThrow();
                     activate(slot);
                     if (screen.allowsMovement()) throw new AssertionError("Slot did not open tree: " + slot.getX() + "," + slot.getY() + " in " + screen.width + "x" + screen.height);
                 });
@@ -75,6 +75,7 @@ public final class ResearchBackgroundTest {
                 } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
             });
             var node = nodes.getFirst();
+            context.getInput().setCursorPos(width - 2, width * 9 / 16 - 2); context.waitTicks(2);
             var before = javax.imageio.ImageIO.read(context.takeScreenshot("hoi-research-tree-before-detail-" + width + "-gui2").toFile());
             var area = context.computeOnClient(client -> {
                 var screen = (ResearchScreen)client.gui.screen();

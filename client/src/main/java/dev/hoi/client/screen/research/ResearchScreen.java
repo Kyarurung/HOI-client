@@ -54,7 +54,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         this(view, requests, HoiClient::openMenu);
     }
     public ResearchScreen(ResearchView view, java.util.function.Consumer<ResearchPayloads.Request> requests, java.util.function.Consumer<MenuTab> menus) {
-        super(Component.literal("HOI · 연구")); this.view = view; this.requests = requests; this.menus = menus;
+        super(Component.literal(UiCommandLabels.text("RESEARCH_RESEARCH", "연구"))); this.view = view; this.requests = requests; this.menus = menus;
     }
     public String session() { return view.session(); }
     public void update(ResearchView next) {
@@ -733,7 +733,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             y = detailText(g, otherUnlocks.stream().map(this::unlockName).toList(), panelX + 14, y + 4, panelW - 30, TEXT);
         }
         if (tech.source() != null && !tech.source().deferredEffects().isEmpty()) {
-            y = detailText(g, List.of(Component.empty(), Component.literal("원본 추가 효과 · 적용 대기")), panelX + 14, y, panelW - 30, MUTED);
+            y = detailText(g, List.of(Component.empty()), panelX + 14, y, panelW - 30, MUTED);
             y = detailText(g, tech.source().deferredEffects().stream().map(ResearchText::effect).toList(), panelX + 14, y, panelW - 30, TEXT);
         }
         return y;
@@ -837,8 +837,8 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         }
         if (tech.source() != null) {
             if (!tech.source().excludes().isEmpty()) {
-                result.add(ResearchText.white("택일 연구 · 아래 연구와 동시에 선택할 수 없습니다."));
-                for (var id : tech.source().excludes()) result.add(ResearchText.gold(researchName(id)));
+                result.add(ResearchText.white(UiCommandLabels.text("RESEARCH_EXCLUSIVE_INFO_TITLE_TOOLTIP", "")));
+                for (var id : tech.source().excludes()) result.add(ResearchText.white(UiCommandLabels.text("RESEARCH_EXCLUSIVE_INFO_ENTRY", "$TECH|Y$").replace("$TECH|Y$", "§Y" + researchName(id) + "§!")));
                 result.add(Component.empty());
             }
             tech.source().conditions().stream().map(ResearchText::white).forEach(result::add);
@@ -894,7 +894,6 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         tech.effects().stream().filter(text -> !ResearchText.zeroEffect(text)).map(ResearchText::effect).forEach(lines::add);
         for (String label : unlockNames(tech)) lines.add(ResearchText.white("사용 가능 ").append(unlockName(label)));
         if (tech.source() != null && !tech.source().deferredEffects().isEmpty()) {
-            lines.add(Component.literal("원본 추가 효과 · 적용 대기").withStyle(net.minecraft.ChatFormatting.GRAY));
             tech.source().deferredEffects().stream().map(ResearchText::effect).forEach(lines::add);
         }
         lines.add(Component.literal(UiCommandLabels.text("SEPARATION_LINE","--------------\n").stripTrailing()));

@@ -134,7 +134,7 @@ final class FocusDetail {
         progress(g,detail,completed);
         String duration=detail==null?"":detail.durationHours()==0?"0":days(detail.durationHours())+"일";
         drawCentered(g,font,completed?"완료됨":duration,time,TEXT_SCALE);
-        if(time.contains(mx,my) && detail!=null)Tooltips.drawExact(g,font,(detail.durationHours()==0?"소요 시간: 알 수 없음":duration+" · "+detail.durationHours()+"시간")+"\n경과: "+detail.elapsedHours()+"시간\n저장된 중점 시간: "+detail.bankedHours()+"시간\n정치력을 지불한 저장 시간: "+detail.paidBankedHours()+"시간\n일일 정치력 소모: "+BigDecimal.valueOf(detail.politicalPowerPerDay()).stripTrailingZeros().toPlainString(),mx,my);
+        if(time.contains(mx,my) && detail!=null && (completed || detail.durationHours()>0))Tooltips.drawExact(g,font,statusTooltip(detail,completed),mx,my);
         g.pose().pushMatrix();g.pose().translate(b.x()+102.5f,b.y()+46);g.pose().scale(.5f);
         UiAssets.draw(g,"focus/detail/prerequisites",0,0,307,113);g.pose().popMatrix();
         Object nextSource=detail==null?node:detail;
@@ -234,6 +234,12 @@ final class FocusDetail {
             y+=font.lineHeight*scale;
         }
         g.disableScissor();
+    }
+    private static String statusTooltip(FocusPayloads.Detail detail,boolean completed) {
+        if(completed)return dev.hoi.client.ui.UiCommandLabels.text("FOCUS_STATUS_COMPLETED_TOOLTIP","§G완료됨§!");
+        String total="§H"+Math.round(detail.durationHours()/24.0)+"§!";
+        if(detail.elapsedHours()<=0)return dev.hoi.client.ui.UiCommandLabels.text("FOCUS_STATUS_TOOLTIP","").replace("$DAYS|0H$",total);
+        return dev.hoi.client.ui.UiCommandLabels.text("FOCUS_STATUS_INPROGRESS_TOOLTIP","").replace("$DAYS|0H$",total).replace("$LEFT|0H$","§H"+(long)Math.ceil(Math.max(0,detail.durationHours()-detail.elapsedHours())/24.0)+"§!");
     }
     static String days(long hours){return BigDecimal.valueOf(hours).divide(BigDecimal.valueOf(24),3,RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();}
 }

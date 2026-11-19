@@ -718,10 +718,10 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         var active = balance.ranges().stream().filter(r -> r.progress() <= balance.value()).reduce((a,b) -> b).orElse(null);
         officerText(g, active == null ? "" : active.name(), x + 12, y + 66, w - 24, TEXT);
         if (mx >= bx && mx <= bx + bw && my >= by - 14 && my <= by + 16) {
-            var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
-            lines.addAll(font.split(Component.literal(balance.left() + " ↔ " + balance.right()),Tooltips.width(width,14)));
-            for (var range : balance.ranges()) lines.addAll(font.split(Component.literal(range.name() + " · " + range.value()),Tooltips.width(width,14)));
-            g.setTooltipForNextFrame(font, lines, mx, my);
+            String text = UiCommandLabels.text("BOP_TOOLTIP", "").replace("[root.GetPowerBalanceName]", balance.name())
+                    .replace("[?.root.power_balance_value|1%H]", "§H" + String.format(Locale.ROOT, "%.1f%%", Math.abs(balance.value()) * 100) + "§!")
+                    .replace("[root.GetActiveSideName]", balance.value() < 0 ? balance.left() : balance.right());
+            Tooltips.drawExact(g, font, text, mx, my);
         }
     }
     public PoliticsLayout politicsLayout() { return new PoliticsLayout(pane, top); }

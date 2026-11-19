@@ -23,7 +23,7 @@ public final class UiAssets {
     private static final Map<Identifier, Identifier> GRAYSCALE = new HashMap<>();
     private static com.google.gson.JsonObject eventImageSizes;
     private UiAssets() {}
-    public static void clear() { GRAYSCALE.values().forEach(id -> Minecraft.getInstance().getTextureManager().release(id)); GRAYSCALE.clear(); eventImageSizes = null; UiStoryAssets.clear(); UiCommandLabels.clear(); DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); TooltipKeywordIcons.clear(); HudMenuBar.clear(); IndustryEquipmentDesigns.clear(); Tooltips.clear(); dev.hoi.client.screen.decision.DecisionScreen.resourcesReloaded(); dev.hoi.client.screen.focus.FocusScreen.resourcesReloaded(); UiDiplomacyAssets.resourcesReloaded(); }
+    public static void clear() { GRAYSCALE.values().forEach(id -> Minecraft.getInstance().getTextureManager().release(id)); GRAYSCALE.clear(); dev.hoi.client.ui.country.CountryFlags.clear(); eventImageSizes = null; UiStoryAssets.clear(); UiCommandLabels.clear(); DIMENSIONS.clear(); CONTENT_BOUNDS.clear(); ResearchDetails.clear(); TooltipKeywordIcons.clear(); HudMenuBar.clear(); IndustryEquipmentDesigns.clear(); Tooltips.clear(); dev.hoi.client.screen.decision.DecisionScreen.resourcesReloaded(); dev.hoi.client.screen.focus.FocusScreen.resourcesReloaded(); UiDiplomacyAssets.resourcesReloaded(); }
     public static int[] eventImageSize(String path) {
         if (eventImageSizes == null) {
             eventImageSizes = new com.google.gson.JsonObject();
