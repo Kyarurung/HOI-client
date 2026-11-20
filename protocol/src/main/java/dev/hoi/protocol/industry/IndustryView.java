@@ -124,13 +124,13 @@ public record IndustryView(String session, long revision, String country, Countr
         public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds,Double minimumTraining) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,minimumTraining,Map.of());}
         public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,null);}
         public RecruitmentPolicy {
-            equipmentRatios=equipmentRatios==null?Map.of():boundedMap(equipmentRatios,6);equipmentTooltips=equipmentTooltips==null?Map.of():boundedMap(equipmentTooltips,6);
-            if(!Set.of("reinforcement","upgrade","supply","operation","garrison","raid").containsAll(equipmentRatios.keySet())
+            equipmentRatios=equipmentRatios==null?Map.of():boundedMap(equipmentRatios,9);equipmentTooltips=equipmentTooltips==null?Map.of():boundedMap(equipmentTooltips,6);
+            if(!Set.of("reinforcement","upgrade","supply","operation","garrison","raid","fuel_army","fuel_navy","fuel_air").containsAll(equipmentRatios.keySet())
                     ||!Set.of("reinforcement","upgrade","supply","operation","garrison","raid").containsAll(equipmentTooltips.keySet())
                     ||equipmentTooltips.values().stream().anyMatch(v->v==null||v.length()>4000)
                     ||equipmentRatios.values().stream().anyMatch(v->!Double.isFinite(v)||v<0||v>1))throw new IllegalArgumentException("Invalid equipment allocation ratio");
             if(minimumTraining!=null&&(!Double.isFinite(minimumTraining)||minimumTraining<0||minimumTraining>1)) throw new IllegalArgumentException("Invalid training threshold");
-            retiredTemplates=Set.copyOf(retiredTemplates);priorities=boundedMap(priorities,6);reinforcementNeeds=boundedMap(reinforcementNeeds,512);
+            retiredTemplates=Set.copyOf(retiredTemplates);priorities=boundedMap(priorities,9);reinforcementNeeds=boundedMap(reinforcementNeeds,512);
             if(retiredTemplates.size()>256||priorities.values().stream().anyMatch(p->p<0||p>2)
                     ||reinforcementRatio!=null&&(!Double.isFinite(reinforcementRatio)||reinforcementRatio<0||reinforcementRatio>1))throw new IllegalArgumentException("Invalid recruitment policy");
         }
@@ -183,8 +183,20 @@ public record IndustryView(String session, long revision, String country, Countr
             ports = ports == null ? List.of() : bounded(ports,4096);
         }
     }
+    public record FuelPoint(long day, double stored, double consumed) {
+        public FuelPoint { if (day < 0 || !(stored >= 0) || !Double.isFinite(stored) || !(consumed >= 0) || !Double.isFinite(consumed)) throw new IllegalArgumentException("Invalid fuel history"); }
+    }
     public record Economy(int military, int dockyards, int civilian, int freeCivilian, int consumer,
-            double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand) {}
+            double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand, List<FuelPoint> fuelDays, List<FuelPoint> fuelMonths) {
+        public Economy(int military, int dockyards, int civilian, int freeCivilian, int consumer,
+                double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand) {
+            this(military, dockyards, civilian, freeCivilian, consumer, fuel, gdp, debt, manpower, armyXp, energy, energyDemand, List.of(), List.of());
+        }
+        public Economy {
+            fuelDays = fuelDays == null ? List.of() : List.copyOf(fuelDays); fuelMonths = fuelMonths == null ? List.of() : List.copyOf(fuelMonths);
+            if (fuelDays.size() > 31 || fuelMonths.size() > 120) throw new IllegalArgumentException("Fuel history too long");
+        }
+    }
     public record Resource(String id, String name, double extracted, double imported, double exported,
             double available, double demand, Double fuelCurrent, Double fuelMaximum) {
         public Resource {

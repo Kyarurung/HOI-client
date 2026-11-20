@@ -143,6 +143,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try(var world=context.worldBuilder().create()){dev.hoi.client.screen.industry.IndustryTradeTest.run(context);}
             if(System.getProperty("hoi.testSuite","all").equals("trade"))return;
         }
+        if(Set.of("all","logistics").contains(System.getProperty("hoi.testSuite","all"))) {
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.industry.IndustryLogisticsTest.run(context);}
+            if(System.getProperty("hoi.testSuite","all").equals("logistics"))return;
+        }
         if(Set.of("all","queue-drag").contains(System.getProperty("hoi.testSuite","all"))) {
             try(var world=context.worldBuilder().create()){dev.hoi.client.screen.industry.IndustryQueueDragTest.run(context,fixtureMenu().hud());}
             if(System.getProperty("hoi.testSuite","all").equals("queue-drag"))return;

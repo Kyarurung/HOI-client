@@ -1,12 +1,26 @@
 package dev.hoi.client.screen.industry;
 
+import dev.hoi.client.ui.UiCommandLabels;
 import dev.hoi.client.ui.industry.IndustryEquipmentDesigns;
 import dev.hoi.protocol.ProtocolNumberBounds;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 final class IndustryLogisticsTooltips {
     private static final List<String> KEYS = List.of("EFFICIENCY", "EQUIPMENT_TYPE", "PRODUCED", "STATUS", "NEEDS", "BALANCE", "IN_STOCK", "RESOURCES");
+    private static final Map<String,String> SOURCE = Map.ofEntries(
+            Map.entry("TOPBAR_ARMY", "육군"), Map.entry("TOPBAR_NAVY", "해군"), Map.entry("TOPBAR_AIR", "공군"),
+            Map.entry("LOGISTICS_FUEL_PRIORITIZATION", "연료 우선순위"),
+            Map.entry("FUEL_LOW_PRIORITY_DESC", "연료 우선순위 낮음"), Map.entry("FUEL_MEDIUM_PRIORITY_DESC", "연료 우선순위 중간"),
+            Map.entry("FUEL_HIGH_PRIORITY_DESC", "연료 우선순위 높음"),
+            Map.entry("LOGISTICS_FUEL_PERCENTAGE", "§H$VALUE|0$%§!의 필요한 연료가 충족되었습니다."),
+            Map.entry("PRODUCTION_OUTPUT", "비축량"), Map.entry("LOGISTICS_MILITARY_FACTORIES_LABEL", "군수공장"),
+            Map.entry("LOGISTICS_NAVAL_FACTORIES_LABEL", "해군 조선소"), Map.entry("NUCLEAR_BOMB", "원자폭탄"),
+            Map.entry("LOGISTICS_FUEL_STORED", "비축량"), Map.entry("LOGISTICS_FUEL_CONSUMED", "소모된 양"),
+            Map.entry("LINECHART_DETAILS_DAYS", "일"), Map.entry("LINECHART_DETAILS_MONTHS", "월"), Map.entry("LINECHART_DETAILS_YEARS", "년"));
     private IndustryLogisticsTooltips() {}
+    static String text(String key) { return UiCommandLabels.text(key, Objects.requireNonNull(SOURCE.get(key), key)); }
     static String header(int column) {
         String key = "LOGISTICS_" + KEYS.get(column);
         String title = "§e" + IndustryEquipmentDesigns.tooltip(key + "_LABEL") + "§f";

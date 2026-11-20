@@ -675,10 +675,9 @@ public final class IndustryScreenChecks {
         context.getInput().resizeWindow(2560, 1440); context.waitTicks(3);
         for (int row : new int[]{0, 1}) {
             var point = context.computeOnClient(client -> {
-                var screen = (IndustryScreen) client.gui.screen();
-                int pane = screen.panelWidth(), x = 6 + (pane - 12) * 83 / 100;
+                var screen = (IndustryScreen) client.gui.screen(); var frame = screen.tradeFrame();
                 double scale = client.getWindow().getGuiScale();
-                return new double[]{(x + 8) * scale, (dev.hoi.client.ui.hud.HudMenuBar.height(screen.width) + 59 + row * 39) * scale};
+                return new double[]{frame.x(row == 0 ? 445.5 : 495.5) * scale, (screen.logisticsRowTop(row) + frame.size(row == 0 ? 17.5 : 42.5)) * scale};
             });
             context.getInput().setCursorPos(point[0], point[1]); context.waitTicks(3);
             context.takeScreenshot(row == 0 ? "hoi-logistics-resource-icon-hover-gui2" : "hoi-logistics-empty-resource-cell-gui2");
@@ -690,10 +689,9 @@ public final class IndustryScreenChecks {
                 String tooltip = IndustryLogisticsTooltips.header(column);
                 check(tooltip.startsWith("§e") && !tooltip.contains("LOGISTICS_"), "Original gold logistics title " + column);
                 check(column == 1 ? !tooltip.contains("\n") : tooltip.contains("§f\n\n"), "Original logistics blank line " + column);
-                int[] fractions = {0, 5, 29, 41, 55, 64, 74, 83, 100};
-                double scale = client.getWindow().getGuiScale();
-                return new double[]{(6 + (screen.panelWidth() - 12) * (fractions[column] + fractions[column + 1]) / 200.0) * scale,
-                        (dev.hoi.client.ui.hud.HudMenuBar.height(screen.width) + 37) * scale};
+                double[][] header = {{18, 53, 24, 21}, {48, 55, 125, 20}, {174, 53, 32, 21}, {201, 55, 70, 20}, {272, 56, 27, 16}, {313, 52, 30, 23}, {373, 52, 24, 23}, {423, 55, 100, 20}};
+                var frame = screen.tradeFrame(); double scale = client.getWindow().getGuiScale();
+                return new double[]{frame.x(header[column][0] + header[column][2] / 2) * scale, frame.y(header[column][1] + header[column][3] / 2) * scale};
             });
             context.getInput().setCursorPos(point[0], point[1]); context.waitTicks(2);
             context.takeScreenshot("hoi-logistics-header-" + col + "-gui2");
