@@ -73,7 +73,7 @@ final class IndustryProductionTooltips {
         if(!description.isBlank())text.append("\n\n").append(description);
         return text.toString();
     }
-    private static void appendStats(StringBuilder text,IndustryView.Equipment equipment) {
+    static void appendStats(StringBuilder text,IndustryView.Equipment equipment) {
         if(!equipment.stats().isEmpty())text.append("\n");
         var ordered=equipment.stats().stream().sorted(java.util.Comparator.comparingInt(stat->{int index=STAT_ORDER.indexOf(stat.id());return index<0?STAT_ORDER.size():index;})).toList();
         for(var stat:ordered)if(!stat.id().equals("build_cost_ic")) {

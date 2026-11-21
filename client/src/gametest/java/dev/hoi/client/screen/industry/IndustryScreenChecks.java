@@ -688,7 +688,7 @@ public final class IndustryScreenChecks {
                 var screen = (IndustryScreen) client.gui.screen();
                 String tooltip = IndustryLogisticsTooltips.header(column);
                 check(tooltip.startsWith("§e") && !tooltip.contains("LOGISTICS_"), "Original gold logistics title " + column);
-                check(column == 1 ? !tooltip.contains("\n") : tooltip.contains("§f\n\n"), "Original logistics blank line " + column);
+                check(tooltip.contains("§f\n\n") && (column == 2) != tooltip.contains("정렬"), "Original logistics blank line and sort hint " + column);
                 double[][] header = {{18, 53, 24, 21}, {48, 55, 125, 20}, {174, 53, 32, 21}, {201, 55, 70, 20}, {272, 56, 27, 16}, {313, 52, 30, 23}, {373, 52, 24, 23}, {423, 55, 100, 20}};
                 var frame = screen.tradeFrame(); double scale = client.getWindow().getGuiScale();
                 return new double[]{frame.x(header[column][0] + header[column][2] / 2) * scale, frame.y(header[column][1] + header[column][3] / 2) * scale};
@@ -713,7 +713,7 @@ public final class IndustryScreenChecks {
                 checkBounds(screen);
                 if (tab == MenuTab.LOGISTICS) {
                     check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:font/korean.json")).isEmpty(), "Cancelled Korean font override is absent");
-                    check(IndustryScreen.LOGISTICS_HEADERS.equals(List.of("평균 생산 효율","장비 유형","생산","상태","수요","균형","비축량","자원")), "Eight logistics columns follow the supplied order");
+                    check(java.util.stream.IntStream.range(0, 8).mapToObj(IndustryScreen::logisticsHeader).toList().equals(List.of("평균 £prod_eff 생산 효율","장비 유형","생산","상태","수요","균형","비축량","자원")), "Eight logistics columns use the official Korean labels in order");
                     for (String icon : List.of("efficiency","production","need","balance","stockpile"))
                         check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/logistics/"+icon+".png")).isPresent(), "Original logistics header icon " + icon);
                 }

@@ -183,18 +183,38 @@ public record IndustryView(String session, long revision, String country, Countr
             ports = ports == null ? List.of() : bounded(ports,4096);
         }
     }
-    public record FuelPoint(long day, double stored, double consumed) {
-        public FuelPoint { if (day < 0 || !(stored >= 0) || !Double.isFinite(stored) || !(consumed >= 0) || !Double.isFinite(consumed)) throw new IllegalArgumentException("Invalid fuel history"); }
+    public record FuelPoint(long day, double stored, double consumed, double army, double navy, double air, double produced) {
+        public FuelPoint(long day, double stored, double consumed) { this(day, stored, consumed, 0, 0, 0, 0); }
+        public FuelPoint {
+            for (double value : new double[]{stored, consumed, army, navy, air, produced})
+                if (!(value >= 0) || !Double.isFinite(value)) throw new IllegalArgumentException("Invalid fuel history");
+            if (day < 0) throw new IllegalArgumentException("Invalid fuel history");
+        }
+    }
+    public record EquipmentLedger(String equipment, double need, int needDays, long day, List<Long> days, List<Long> months) {
+        public EquipmentLedger {
+            text(equipment,128); days = days == null ? List.of() : List.copyOf(days); months = months == null ? List.of() : List.copyOf(months);
+            if (!(need >= 0) || !Double.isFinite(need) || needDays < 0 || needDays > 30 || day < 0 || days.size() > 31 || months.size() > 120)
+                throw new IllegalArgumentException("Invalid equipment ledger");
+        }
     }
     public record Economy(int military, int dockyards, int civilian, int freeCivilian, int consumer,
-            double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand, List<FuelPoint> fuelDays, List<FuelPoint> fuelMonths) {
+            double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand, List<FuelPoint> fuelDays, List<FuelPoint> fuelMonths, List<EquipmentLedger> equipmentLedger) {
         public Economy(int military, int dockyards, int civilian, int freeCivilian, int consumer,
                 double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand) {
             this(military, dockyards, civilian, freeCivilian, consumer, fuel, gdp, debt, manpower, armyXp, energy, energyDemand, List.of(), List.of());
         }
+        public Economy(int military, int dockyards, int civilian, int freeCivilian, int consumer,
+                double fuel, Double gdp, Double debt, long manpower, double armyXp, double energy, double energyDemand, List<FuelPoint> fuelDays, List<FuelPoint> fuelMonths) {
+            this(military, dockyards, civilian, freeCivilian, consumer, fuel, gdp, debt, manpower, armyXp, energy, energyDemand, fuelDays, fuelMonths, List.of());
+        }
         public Economy {
             fuelDays = fuelDays == null ? List.of() : List.copyOf(fuelDays); fuelMonths = fuelMonths == null ? List.of() : List.copyOf(fuelMonths);
-            if (fuelDays.size() > 31 || fuelMonths.size() > 120) throw new IllegalArgumentException("Fuel history too long");
+            equipmentLedger = equipmentLedger == null ? List.of() : List.copyOf(equipmentLedger);
+            if (fuelDays.size() > 31 || fuelMonths.size() > 120 || equipmentLedger.size() > 512) throw new IllegalArgumentException("Fuel history too long");
+        }
+        public Economy withEquipmentLedger(List<EquipmentLedger> value) {
+            return new Economy(military, dockyards, civilian, freeCivilian, consumer, fuel, gdp, debt, manpower, armyXp, energy, energyDemand, fuelDays, fuelMonths, value);
         }
     }
     public record Resource(String id, String name, double extracted, double imported, double exported,

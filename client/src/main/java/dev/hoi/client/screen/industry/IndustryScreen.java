@@ -205,6 +205,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if (focused != null && children().contains(focused)) setFocused(focused);
     }
     @Override protected void init() {
+        confirming = false;
         passiveWidgets.clear();
         productionScrollbar = null;
         productionPickerScrollbar = null;
@@ -816,17 +817,42 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 0, 0, filled, barWidth, 0, filled / (float)height, 0, 1);
         graphics.pose().popMatrix();
     }
-    static final List<String> LOGISTICS_HEADERS = List.of("평균 생산 효율", "장비 유형", "생산", "상태", "수요", "균형", "비축량", "자원");
-    private static final int LOGISTICS_ROW_Y = 77, LOGISTICS_ROW = 58, LOGISTICS_FUEL = 210;
+    private static final String[] LOGISTICS_KEYS = {"EFFICIENCY", "EQUIPMENT_TYPE", "PRODUCED", "STATUS", "NEEDS", "BALANCE", "IN_STOCK", "RESOURCES"};
+    static String logisticsHeader(int column) { return IndustryLogisticsTooltips.text("LOGISTICS_" + LOGISTICS_KEYS[column] + "_LABEL"); }
+    private static final int LOGISTICS_ROW_Y = 77, LOGISTICS_ROW = 58, LOGISTICS_FUEL = 210, VARIANT_ROW = 38, FUEL_LINE = 30, EQUIPMENT_LINE = 0xFF952523;
     private static final String[] FUEL_BRANCHES = {"fuel_army", "fuel_navy", "fuel_air"}, FUEL_TITLES = {"TOPBAR_ARMY", "TOPBAR_NAVY", "TOPBAR_AIR"},
             FUEL_LEVELS = {"FUEL_LOW_PRIORITY_DESC", "FUEL_MEDIUM_PRIORITY_DESC", "FUEL_HIGH_PRIORITY_DESC"}, FUEL_DOTS = {"recruitment/priority_low", "recruitment/priority_normal", "recruitment/priority_high"};
+    private static final String[][] FUEL_LINES = {{"fuel_line_grid_entry_6", "produced"}, {"fuel_line_grid_entry_1", "consumed"}, {"fuel_line_grid_entry_3", "navy"},
+            {"fuel_line_grid_entry_4", "air"}, {"fuel_line_grid_entry_2", "army"}, {"fuel_line_grid_entry_5", "other"}};
+    private static final int[] FUEL_COLORS = {0xFFCCCCCC, 0xFFCC0000, 0xFF0000CC, 0xFF00CCCC, 0xFF00CC00, 0xFFCCCC00};
+    private static final double[] RESOURCE_CELL_X = {1, 52, 102}, RESOURCE_CELL_W = {49, 48, 48}, RESOURCE_CELL_Y = {1, 33}, RESOURCE_CELL_H = {28, 30};
+    private int logisticsSort = -1, variantScroll, equipmentScale;
+    private boolean logisticsSortReverse, confirming;
+    private String logisticsInfo = "";
+    private final Set<String> hiddenFuelLines = new HashSet<>();
     int logisticsWindowHeight() { return windowHeight(); }
     int logisticsListTop() { return frame.iy(LOGISTICS_ROW_Y); }
     int logisticsListBottom() { return Math.min(height, frame.iy(windowHeight() - LOGISTICS_FUEL)); }
     int logisticsRowTop(int row) { return Math.round(frame.y(LOGISTICS_ROW_Y + LOGISTICS_ROW * row) - scroll); }
+    String logisticsInfo() { return logisticsInfo; }
+    List<IndustryLogisticsRows.IndustryLogisticsRow> logisticsRows() {
+        var rows = new ArrayList<>(IndustryLogisticsRows.create(view.equipment(), view.lines(), "all", view.economy().equipmentLedger()));
+        Comparator<IndustryLogisticsRows.IndustryLogisticsRow> order = switch (logisticsSort) {
+            case 0 -> Comparator.comparingDouble(row -> row.efficiency() == null ? -1 : row.efficiency());
+            case 1 -> Comparator.comparing(IndustryLogisticsRows.IndustryLogisticsRow::name);
+            case 3 -> Comparator.comparingDouble(IndustryLogisticsRows.IndustryLogisticsRow::coverage);
+            case 4 -> Comparator.comparingDouble(IndustryLogisticsRows.IndustryLogisticsRow::need);
+            case 5 -> Comparator.comparingDouble(IndustryLogisticsRows.IndustryLogisticsRow::balance);
+            case 6 -> Comparator.comparingLong(IndustryLogisticsRows.IndustryLogisticsRow::inStock);
+            case 7 -> Comparator.comparingInt(row -> row.resources().size());
+            default -> null;
+        };
+        if (order != null) rows.sort(logisticsSort == 1 ^ logisticsSortReverse ? order : order.reversed());
+        return rows;
+    }
     private void logistics() {
         tradeClipTop = 0; tradeClipBottom = Integer.MAX_VALUE;
-        var items = IndustryLogisticsRows.create(view.equipment(), view.lines(), "all");
+        var items = logisticsRows();
         int listTop = logisticsListTop(), listBottom = logisticsListBottom(), bottom = windowHeight();
         listScrollbar = new UiScrollBar(frame.ix(527), listTop, listBottom, listBottom - listTop, frame.len(LOGISTICS_ROW * items.size()));
         scroll = Math.clamp(scroll, 0, listScrollbar.maximum());
@@ -840,42 +866,56 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         String[] icons = {"logistics/efficiency", "", "logistics/production", "", "logistics/need", "logistics/balance", "logistics/stockpile", ""};
         double[][] header = {{18, 53, 24, 21}, {48, 55, 125, 20}, {174, 53, 32, 21}, {201, 55, 70, 20}, {272, 56, 27, 16}, {313, 52, 30, 23}, {373, 52, 24, 23}, {423, 55, 100, 20}};
         for (int i = 0; i < header.length; i++) {
+            final int column = i;
             if (graphics != null && !icons[i].isEmpty()) frame.art(graphics, icons[i], header[i][0], header[i][1]);
-            else if (graphics != null) tradeText(graphics, frame, Tooltips.officerText(LOGISTICS_HEADERS.get(i)), header[i][0], 64.5, header[i][2], TEXT, i == 1 ? -1 : 0);
+            else if (graphics != null) tradeText(graphics, frame, Tooltips.officerText(logisticsHeader(i)), header[i][0], 64.5, header[i][2], TEXT, i == 1 ? -1 : 0);
             productionTip(IndustryLogisticsTooltips.header(i), frame.ix(header[i][0]), frame.iy(header[i][1]), frame.len(header[i][2]), frame.len(header[i][3]));
+            if (column == 2) continue;
+            var sort = sourceButton(IndustryLogisticsTooltips.plain("LOGISTICS_" + LOGISTICS_KEYS[i] + "_SORT_BY"), frame, header[i][0], header[i][1], header[i][2], header[i][3], () -> {
+                if (logisticsSort == column) logisticsSortReverse = !logisticsSortReverse; else { logisticsSort = column; logisticsSortReverse = false; }
+                rebuildWidgets();
+            }, (g, b) -> {});
+            if (sort != null) sort.active = pending == 0;
         }
         var at = new UiMenuStyle.Frame(frame.x(), frame.y() - scroll, frame.scale());
         if (graphics != null) graphics.enableScissor(0, listTop, width, listBottom);
+        tradeClipTop = listTop; tradeClipBottom = listBottom;
         for (int i = 0; i < items.size(); i++) {
             var row = items.get(i); var e = row.representative(); double ry = LOGISTICS_ROW_Y + LOGISTICS_ROW * i;
             if (at.iy(ry + 57) <= listTop || at.iy(ry) >= listBottom) continue;
+            String rowId = e.id();
+            var select = sourceButton(row.name(), at, 13, ry, 510, 57, () -> { logisticsInfo = logisticsInfo.equals(rowId) ? "" : rowId; fuelWindow = false; variantScroll = 0; rebuildWidgets(); }, (g, b) -> {});
+            if (select != null) select.active = pending == 0;
             if (graphics != null) {
                 at.art(graphics, "logistics/ui/equipment_entry", 13, ry);
                 efficiencyBar(at.ix(29), at.iy(ry + 12), at.len(6), at.len(28), row.efficiency() == null ? 0 : row.efficiency());
                 int[] picture = UiAssets.imageSize(e.texture()); double scale = e.naval() ? .4 : .55;
                 if (picture[0] > 0) UiAssets.drawExact(graphics, e.texture(), at.x(105 - picture[0] * scale / 2), at.y(ry + 23 - picture[1] * scale / 2), at.size(picture[0] * scale), at.size(picture[1] * scale));
                 tradeText(graphics, at, Component.literal(familyName(e)), 50, ry + 45, 115, GOLD, -1);
-                Long demand = row.demand(); double coverage = demand == null || demand == 0 ? 0 : Math.clamp(row.stockpile() / (double) demand, 0, 1);
+                double coverage = row.coverage();
                 graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/logistics/status_bg.png"), at.ix(205), at.iy(ry + 19), at.ix(267), at.iy(ry + 33), 0, 1, 0, 1);
-                if (coverage > 0) graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/logistics/status_bar.png"), at.ix(205), at.iy(ry + 19), at.ix(205 + 62 * coverage), at.iy(ry + 33), 0, (float) coverage, 0, 1);
-                at.art(graphics, "logistics/ui/progress_marker", 200 + 62 * coverage, ry + 18);
-                tradeText(graphics, at, Component.literal(IndustryLogisticsRows.productionLabel(row.daily())), 166, ry + 27, 36, GOLD, 0);
-                tradeText(graphics, at, Component.literal(row.demandLabel()), 269, ry + 27, 36, GOLD, 0);
-                Long balance = row.balance();
-                tradeText(graphics, at, Component.literal(row.balanceLabel()), 303, ry + 27, 50, balance == null || balance == 0 ? GOLD : balance > 0 ? GOOD : BAD, 0);
-                tradeText(graphics, at, Component.literal(IndustryLogisticsRows.stockLabel(row.stockpile())), 360, ry + 27, 50, row.stockpile() > 0 ? GOOD : GOLD, 0);
+                if (coverage > 0) graphics.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/logistics/status_bar.png"), at.ix(205), at.iy(ry + 19), at.ix(205 + IndustryLogisticsRows.BAR * coverage), at.iy(ry + 33), 0, (float) coverage, 0, 1);
+                at.art(graphics, "logistics/ui/progress_marker", 205 + row.marker(), ry + 18);
+                tradeText(graphics, at, Component.literal(IndustryLogisticsRows.amount(row.daily())), 166, ry + 27, 36, GOLD, 0);
+                tradeText(graphics, at, Component.literal(IndustryLogisticsRows.amount(row.need())), 269, ry + 27, 36, GOLD, 0);
+                String balance = IndustryLogisticsRows.signedAmount(row.balance());
+                tradeText(graphics, at, Component.literal(balance), 303, ry + 27, 50, balance.startsWith("+") ? GOOD : balance.startsWith("-") ? BAD : GOLD, 0);
+                long stock = row.inStock();
+                tradeText(graphics, at, Component.literal(IndustryLogisticsRows.signedStock(stock)), 360, ry + 27, 50, stock > 0 ? GOOD : stock < 0 ? BAD : GOLD, 0);
             }
             int n = 0;
-            for (var resource : row.resources().entrySet()) {
-                double sx = 433 + 25 * (n % 3), sy = ry + 5 + 25 * (n / 3);
-                if (graphics != null) at.art(graphics, resourceArt(resource.getKey()), sx, sy, 25, 25);
-                if (mouseY >= listTop && mouseY < listBottom) productionTip("§e" + resourceName(resource.getKey()) + "§f\n\n" + decimal(resource.getValue()), at.ix(sx), at.iy(sy), at.len(25), at.len(25));
+            for (var resource : row.resources().keySet()) {
+                if (n == 6) break;
+                double cell = 89 / 3.0, cx = 430 + cell * (n % 3 + .5), cy = ry + 3 + 25 * (n / 3 + .5);
+                if (graphics != null) at.art(graphics, resourceArt(resource), cx - 13.5, cy - 13.5, 27, 27);
+                if (mouseY >= listTop && mouseY < listBottom) productionTip(IndustryLogisticsTooltips.resource(row, resource, resourceName(resource), view.lines(), equipmentById), at.ix(cx - cell / 2), at.iy(cy - 12.5), at.len(cell), at.len(25));
                 n++;
             }
             double[] columns = {21, 43, 164, 205, 257, 303, 360, 410};
             if (mouseY >= listTop && mouseY < listBottom) for (int column = 0; column < 7; column++)
-                productionTip(IndustryLogisticsTooltips.row(row, column), at.ix(columns[column]), at.iy(ry), at.ix(columns[column + 1]) - at.ix(columns[column]), at.len(57));
+                productionTip(IndustryLogisticsTooltips.row(row, column, view.lines()), at.ix(columns[column]), at.iy(ry), at.ix(columns[column + 1]) - at.ix(columns[column]), at.len(57));
         }
+        tradeClipTop = 0; tradeClipBottom = Integer.MAX_VALUE;
         if (graphics != null) { graphics.disableScissor(); if (listScrollbar.maximum() > 0) listScrollbar.draw(graphics, scroll); }
         if (items.isEmpty()) text("연구 완료 또는 비축된 장비가 없습니다.", frame.ix(20), frame.iy(LOGISTICS_ROW_Y + 10), frame.len(500), MUTED);
         double fuelTop = bottom - LOGISTICS_FUEL, boxTop = fuelTop + 33, factoryTop = bottom - 94;
@@ -889,7 +929,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             double bx = 20 + 127 * box;
             if (graphics != null) {
                 frame.tile(graphics, "commander/commands/mini_tooltip/frame_0", bx, boxTop + 3, 120, 68, 12, 32);
-                frame.art(graphics, "logistics/ui/fuel_types/frame_" + box, bx + 78, boxTop + 10);
+                if (box < 3) frame.art(graphics, "logistics/ui/fuel_types/frame_" + box, bx + 78, boxTop + 10);
             }
             double ratio = box < 3 ? policy == null ? 0 : policy.equipmentRatios().getOrDefault(FUEL_BRANCHES[box], 0.0) : fuelRatio();
             fuelBar(bx + 10, boxTop + 46, ratio);
@@ -905,76 +945,132 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                     if (dot != null) { dot.active &= policy != null && level != selected && !foreign(); dot.setTooltip(Tooltips.createOfficer(IndustryLogisticsTooltips.text(FUEL_LEVELS[level]))); }
                 }
             } else {
-                var stored = sourceButton(IndustryLogisticsTooltips.text("PRODUCTION_OUTPUT"), frame, bx + 7, boxTop + 13, 105, 23, () -> { fuelWindow = !fuelWindow; rebuildWidgets(); },
-                        (g, b) -> { frame.art(g, "recruitment/add", bx + 7, boxTop + 13); tradeText(g, frame, Tooltips.officerText(IndustryLogisticsTooltips.text("PRODUCTION_OUTPUT")), bx + 3, boxTop + 24.5, 75, TEXT, 0); });
+                var stored = sourceButton(IndustryLogisticsTooltips.text("PRODUCTION_OUTPUT"), frame, bx + 7, boxTop + 13, 105, 23, () -> { fuelWindow = !fuelWindow; logisticsInfo = ""; rebuildWidgets(); },
+                        (g, b) -> { frame.art(g, "recruitment/add", bx + 7, boxTop + 13); tradeText(g, frame, Tooltips.officerText(IndustryLogisticsTooltips.text("PRODUCTION_OUTPUT")), bx + 3, boxTop + 24.5, 75, TEXT, 0); frame.art(g, "logistics/ui/fuel_types/frame_3", bx + 78, boxTop + 10); });
                 if (stored != null) stored.active = true;
             }
         }
         int military = 0, naval = 0;
         for (var line : view.lines()) { var equipment = equipmentById.get(line.equipment()); if (equipment != null && equipment.naval()) naval += line.factories(); else military += line.factories(); }
-        String[] labels = {"LOGISTICS_MILITARY_FACTORIES_LABEL", "LOGISTICS_NAVAL_FACTORIES_LABEL", "NUCLEAR_BOMB"};
-        String[] factoryIcons = {"production/line/factory_0", "production/line/dockyard_0", "hud/nuclear"};
+        String[] labels = {"LOGISTICS_MILITARY_FACTORIES_LABEL", "LOGISTICS_NAVAL_FACTORIES_LABEL"};
+        String[] factoryIcons = {"production/line/factory_0", "production/line/dockyard_0"};
         double[] usage = {view.economy().military() == 0 ? 0 : (double) military / view.economy().military(), view.economy().dockyards() == 0 ? 0 : (double) naval / view.economy().dockyards()};
-        for (int box = 0; box < 3; box++) {
-            double bx = box == 2 ? 391 : 20 + 150 * box;
+        for (int box = 0; box < 2; box++) {
+            double bx = 20 + 150 * box;
             if (graphics != null) {
                 frame.tile(graphics, "commander/commands/mini_tooltip/frame_0", bx, factoryTop + 3, 130, 70, 12, 32);
                 tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.text(labels[box])), bx + 15, factoryTop + 20, 74, TEXT, -1);
                 frame.art(graphics, factoryIcons[box], bx + 89, factoryTop + 17);
-                if (box == 2) tradeText(graphics, frame, Component.literal(view.hud().nuclearStockpile() == null ? "0" : Long.toString(view.hud().nuclearStockpile())), bx + 15, factoryTop + 55, 100, GOLD, -1);
             }
-            if (box < 2) fuelBar(bx + 15, factoryTop + 48, usage[box]);
+            fuelBar(bx + 15, factoryTop + 48, usage[box]);
         }
-        if (graphics != null) frame.art(graphics, "logistics/ui/resources_bg", 366, bottom - 90);
+        resourceShortages(bottom);
         if (fuelWindow) fuelHistory();
+        else if (!logisticsInfo.isEmpty()) items.stream().filter(row -> row.representative().id().equals(logisticsInfo)).findFirst().ifPresentOrElse(this::equipmentHistory, () -> logisticsInfo = "");
+    }
+    private void resourceShortages(int bottom) {
+        double bgX = 366, bgY = bottom - 90;
+        if (graphics != null) frame.art(graphics, "logistics/ui/resources_bg", bgX, bgY);
+        var shortages = view.resources().stream().filter(r -> r.demand() > r.available() + 1e-9).limit(6).toList();
+        for (int i = 0; i < shortages.size(); i++) {
+            var r = shortages.get(i); int col = i / 2, row = i % 2;
+            double left = bgX + RESOURCE_CELL_X[col], top = bgY + RESOURCE_CELL_Y[row], w = RESOURCE_CELL_W[col], h = RESOURCE_CELL_H[row];
+            if (graphics != null) {
+                frame.art(graphics, resourceArt(r.id()), left + 2, top + (h - 27) / 2, 27, 27);
+                tradeText(graphics, frame, Component.literal(integer(r.demand() - r.available())), left + 29, top + h / 2, w - 31, BAD, 1);
+            }
+            productionTip(IndustryLogisticsTooltips.shortage(r.name(), r.available(), r.demand(), resourceBranches(r.id())), frame.ix(left), frame.iy(top), frame.len(w), frame.len(h));
+        }
+    }
+    private Map<String, Double> resourceBranches(String resource) {
+        var result = new HashMap<String, Double>();
+        for (var line : view.lines()) {
+            var equipment = equipmentById.get(line.equipment()); if (equipment == null) continue;
+            var resources = line.conversion() != null && line.conversion().source() != null ? line.conversion().resources() : equipment.resources();
+            double amount = resources.getOrDefault(resource, 0.0) * line.factories();
+            if (amount > 0) result.merge(equipment.naval() ? "NAVAL" : equipment.group().equals("air") ? "AIR" : "LAND", amount, Double::sum);
+        }
+        return result;
     }
     private static final double FUEL_WINDOW = 545;
     private static final String[] FUEL_SCALES = {"LINECHART_DETAILS_DAYS", "LINECHART_DETAILS_MONTHS", "LINECHART_DETAILS_YEARS"};
-    List<Double> fuelSeries() {
-        var economy = view.economy(); var points = new ArrayList<IndustryView.FuelPoint>();
-        if (fuelScale == 0) points.addAll(economy.fuelDays());
-        else if (fuelScale == 1) points.addAll(economy.fuelMonths().subList(Math.max(0, economy.fuelMonths().size() - 13), economy.fuelMonths().size()));
-        else {
-            var years = new TreeMap<Integer, IndustryView.FuelPoint>();
-            for (var point : economy.fuelMonths()) {
-                int year = java.time.LocalDate.of(2020, 1, 1).plusDays(point.day() - 1).getYear(); var previous = years.get(year);
-                years.put(year, new IndustryView.FuelPoint(point.day(), point.stored(), point.consumed() + (previous == null ? 0 : previous.consumed())));
-            }
-            points.addAll(years.values());
+    List<Double> fuelSeries() { return fuelSeries(fuelConsumed ? "consumed" : "stored"); }
+    List<Double> fuelSeries(String line) {
+        var economy = view.economy();
+        if (fuelScale == 0) return economy.fuelDays().stream().map(point -> fuelValue(point, line, 1)).toList();
+        var months = economy.fuelMonths();
+        if (fuelScale == 1) return months.subList(Math.max(0, months.size() - 13), months.size()).stream().map(point -> fuelValue(point, line, monthDays(point.day()))).toList();
+        var years = new TreeMap<Integer, double[]>();
+        for (var point : months) {
+            var year = years.computeIfAbsent(java.time.LocalDate.of(2020, 1, 1).plusDays(point.day() - 1).getYear(), key -> new double[3]);
+            year[0] = point.stored(); year[1] += fuelRaw(point, line); year[2] += monthDays(point.day());
         }
-        return points.stream().map(point -> fuelConsumed ? point.consumed() : point.stored()).toList();
+        return years.values().stream().map(year -> line.equals("stored") ? year[0] : year[1] / Math.max(1, year[2])).toList();
+    }
+    private static double fuelRaw(IndustryView.FuelPoint point, String line) {
+        return switch (line) {
+            case "stored" -> point.stored(); case "consumed" -> point.consumed(); case "army" -> point.army(); case "navy" -> point.navy(); case "air" -> point.air(); case "produced" -> point.produced();
+            default -> Math.max(0, point.consumed() - point.army() - point.navy() - point.air());
+        };
+    }
+    private static double fuelValue(IndustryView.FuelPoint point, String line, int days) { return line.equals("stored") ? point.stored() : fuelRaw(point, line) / days; }
+    private static int monthDays(long day) { return java.time.LocalDate.of(2020, 1, 1).plusDays(day).minusDays(1).lengthOfMonth(); }
+    private void lineChart(List<Double> values, double sx, double sy, double min, double max, int color) {
+        if (graphics == null || values.isEmpty()) return;
+        double range = max - min;
+        java.util.function.DoubleUnaryOperator place = value -> range <= 0 ? 147 : 3 + 144 * (1 - (value - min) / range);
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(frame.x(sx), frame.y(sy));
+        graphics.pose().scale(frame.scale());
+        for (int i = 0; i < values.size(); i++) {
+            double x = values.size() == 1 ? 112 : 224.0 * i / (values.size() - 1), y = place.applyAsDouble(values.get(i));
+            if (i == 0) { graphics.fill((int) Math.round(x), (int) Math.round(y), (int) Math.round(x) + 1, (int) Math.round(y) + 1, color); continue; }
+            double px = 224.0 * (i - 1) / (values.size() - 1), py = place.applyAsDouble(values.get(i - 1));
+            int steps = (int) Math.ceil(Math.max(Math.abs(x - px), Math.abs(y - py)));
+            for (int step = 0; step <= steps; step++) {
+                int dx = (int) Math.round(px + (x - px) * step / Math.max(1, steps)), dy = (int) Math.round(py + (y - py) * step / Math.max(1, steps));
+                graphics.fill(dx, dy, dx + 1, dy + 1, color);
+            }
+        }
+        graphics.pose().popMatrix();
+    }
+    private void chartWindow(double wx, int windowHeight, double chartHeight) {
+        if (graphics == null) return;
+        frame.tile(graphics, "diplomacy/dialog/panel_dark", wx, 0, 395, windowHeight, 64, 192);
+        frame.tile(graphics, "production/picker/panel", wx + 14, 33, 356, (int) chartHeight, 64, 192);
+        frame.art(graphics, "commander/commands/unit_list_header/frame_0", wx + 1, 7);
+        tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.text("PRODUCTION_OUTPUT")), wx + 89, 24.5, 200, TEXT, 0);
+        frame.tile(graphics, "commander/commands/tiled_window_1b_border/frame_0", wx, 290, 392, Math.max(64, windowHeight - 290), 64, 192);
+    }
+    private void chartScales(double wx, double sy, int selected, java.util.function.IntConsumer choose) {
+        for (int scale = 0; scale < 3; scale++) {
+            final int value = scale; final double bx = wx + new double[]{77, 156, 234}[scale]; final String label = IndustryLogisticsTooltips.text(FUEL_SCALES[scale]);
+            var button = sourceButton(label, frame, bx, sy, 76, 31, () -> { choose.accept(value); rebuildWidgets(); },
+                    (g, b) -> { frame.art(g, "commander/commands/chart_history_level_button/frame_" + (selected == value ? 1 : 0), bx, sy); tradeText(g, frame, Tooltips.officerText(label), bx, sy + 15.5, 76, TEXT, 0); });
+            if (button != null) button.active = true;
+        }
+    }
+    private void chartClose(double wx, Runnable close) {
+        var button = sourceButton("×", frame, wx + 360, 8, 31, 31, () -> { close.run(); rebuildWidgets(); }, (g, b) -> frame.art(g, "commander/commands/nv_btn_close/frame_0", wx + 360, 8));
+        if (button != null) button.active = true;
     }
     private void fuelHistory() {
         double wx = FUEL_WINDOW; int windowHeight = (int) Math.round(height / frame.scale() * .7);
-        var values = fuelSeries();
-        double max = values.stream().mapToDouble(Double::doubleValue).max().orElse(0), min = values.stream().mapToDouble(Double::doubleValue).min().orElse(0);
+        String[][] lines = fuelConsumed ? FUEL_LINES : new String[][]{{"fuel_line_grid_entry_0", "stored"}};
+        var series = new ArrayList<List<Double>>();
+        double max = 0;
+        for (var line : lines) { var values = fuelSeries(line[1]); series.add(values); if (!hiddenFuelLines.contains(line[0])) for (double value : values) max = Math.max(max, value); }
+        chartWindow(wx, windowHeight, 260);
         if (graphics != null) {
-            frame.tile(graphics, "diplomacy/dialog/panel_dark", wx, 0, 395, windowHeight, 64, 192);
-            frame.art(graphics, "commander/commands/unit_list_header/frame_0", wx + 1, 7);
-            tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.text("PRODUCTION_OUTPUT")), wx + 89, 24.5, 200, TEXT, 0);
-            frame.tile(graphics, "production/picker/panel", wx + 14, 33, 356, 260, 64, 192);
             frame.art(graphics, "logistics/fuel_window/linechart_bg", wx + 80, 108);
-            graphics.pose().pushMatrix();
-            graphics.pose().translate(frame.x(wx + 85), frame.y(105));
-            graphics.pose().scale(frame.scale());
-            for (int i = 0; i < values.size(); i++) {
-                double x = values.size() == 1 ? 112 : 224.0 * i / (values.size() - 1), y = max == min ? 75 : 150 * (1 - (values.get(i) - min) / (max - min));
-                if (i == 0) { graphics.fill((int) Math.round(x), (int) Math.round(y), (int) Math.round(x) + 1, (int) Math.round(y) + 1, 0xFFFFFFFF); continue; }
-                double px = 224.0 * (i - 1) / (values.size() - 1), py = max == min ? 75 : 150 * (1 - (values.get(i - 1) - min) / (max - min));
-                int steps = (int) Math.ceil(Math.max(Math.abs(x - px), Math.abs(y - py)));
-                for (int step = 0; step <= steps; step++) {
-                    int sx = (int) Math.round(px + (x - px) * step / Math.max(1, steps)), sy = (int) Math.round(py + (y - py) * step / Math.max(1, steps));
-                    graphics.fill(sx, sy, sx + 1, sy + 1, 0xFFFFFFFF);
-                }
-            }
-            graphics.pose().popMatrix();
+            for (int i = 0; i < lines.length; i++) if (!hiddenFuelLines.contains(lines[i][0])) lineChart(series.get(i), wx + 85, 105, 0, max, fuelConsumed ? FUEL_COLORS[i] : FUEL_COLORS[0]);
             frame.art(graphics, "logistics/fuel_window/linechart_frame", wx + 76, 103);
-            tradeText(graphics, frame, Component.literal(String.format(Locale.ROOT, "%.1f", max)), wx + 310, 112, 90, TEXT, -1);
-            tradeText(graphics, frame, Component.literal(String.format(Locale.ROOT, "%.1f", min)), wx + 310, 253, 90, TEXT, -1);
+            String top = IndustryLogisticsTooltips.format(fuelConsumed ? "LOGISTICS_VIEW_FUEL_CONSUMPTION_VALUE" : "LOGISTICS_VIEW_GRAPH_VALUE", Map.of("VALUE", max));
+            tradeText(graphics, frame, Tooltips.officerText(top), wx + 310, 112, 90, TEXT, -1);
+            tradeText(graphics, frame, Component.literal("0"), wx + 310, 253, 90, TEXT, -1);
             tradeText(graphics, frame, Component.literal("0"), wx + 79, 271, 30, TEXT, -1);
-            tradeText(graphics, frame, Component.literal(Integer.toString(Math.max(0, values.size() - 1))), wx + 278, 271, 30, TEXT, 1);
+            tradeText(graphics, frame, Component.literal(Integer.toString(Math.max(0, series.getFirst().size() - 1))), wx + 278, 271, 30, TEXT, 1);
             tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.text(FUEL_SCALES[fuelScale])), wx + 104, 271, 180, TEXT, 0);
-            frame.tile(graphics, "commander/commands/tiled_window_1b_border/frame_0", wx, 290, 392, Math.max(64, windowHeight - 290), 64, 192);
         }
         String[] types = {"LOGISTICS_FUEL_STORED", "LOGISTICS_FUEL_CONSUMED"};
         for (int type = 0; type < 2; type++) {
@@ -983,14 +1079,90 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                     (g, b) -> { frame.art(g, "logistics/fuel_window/type_button/frame_" + (fuelConsumed == consumed ? 1 : 0), bx, 39); tradeText(g, frame, Tooltips.officerText(label), bx, 54.5, 114, TEXT, 0); });
             if (button != null) button.active = true;
         }
-        for (int scale = 0; scale < 3; scale++) {
-            final int value = scale; final double bx = wx + new double[]{77, 156, 234}[scale]; final String label = IndustryLogisticsTooltips.text(FUEL_SCALES[scale]);
-            var button = sourceButton(label, frame, bx, 69, 76, 31, () -> { fuelScale = value; rebuildWidgets(); },
-                    (g, b) -> { frame.art(g, "commander/commands/chart_history_level_button/frame_" + (fuelScale == value ? 1 : 0), bx, 69); tradeText(g, frame, Tooltips.officerText(label), bx, 84.5, 76, TEXT, 0); });
-            if (button != null) button.active = true;
+        chartScales(wx, 69, fuelScale, value -> fuelScale = value);
+        chartClose(wx, () -> fuelWindow = false);
+        for (int i = 0; i < lines.length; i++) {
+            final String key = lines[i][0]; final double ex = wx + 18, ey = 308 + FUEL_LINE * i; final int color = fuelConsumed ? FUEL_COLORS[i] : FUEL_COLORS[0];
+            if (ey + FUEL_LINE > windowHeight - 15) break;
+            if (graphics != null) {
+                frame.art(graphics, "logistics/fuel_window/line_entry", ex, ey);
+                tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.text(key)), ex + 35, ey + 15, 154, TEXT, -1);
+            }
+            var toggle = sourceButton(IndustryLogisticsTooltips.text(key), frame, ex + 7, ey + 7, 15, 15, () -> { if (!hiddenFuelLines.remove(key)) hiddenFuelLines.add(key); rebuildWidgets(); },
+                    (g, b) -> { UiAssets.drawExact(g, "logistics/fuel_window/line_color", frame.x(ex + 7), frame.y(ey + 7), frame.size(15), frame.size(15), color); if (hiddenFuelLines.contains(key)) frame.art(g, "diplomacy/accept_decline/frame_0", ex + 3, ey + 4); });
+            if (toggle != null) toggle.active = true;
         }
-        var close = sourceButton("×", frame, wx + 360, 8, 31, 31, () -> { fuelWindow = false; rebuildWidgets(); }, (g, b) -> frame.art(g, "commander/commands/nv_btn_close/frame_0", wx + 360, 8));
-        if (close != null) close.active = true;
+    }
+    List<Double> equipmentSeries(IndustryLogisticsRows.IndustryLogisticsRow row) {
+        var ledger = row.ledger();
+        if (ledger == null) return List.of();
+        if (equipmentScale == 0) return ledger.days().stream().map(Long::doubleValue).toList();
+        var months = ledger.months();
+        if (equipmentScale == 1) return months.subList(Math.max(0, months.size() - 13), months.size()).stream().map(Long::doubleValue).toList();
+        var boundary = java.time.LocalDate.of(2020, 1, 1).plusDays(ledger.day()).withDayOfMonth(1);
+        var years = new TreeMap<Integer, Double>();
+        for (int i = 0; i < months.size(); i++) years.put(boundary.minusMonths(months.size() - 1 - i).minusDays(1).getYear(), months.get(i).doubleValue());
+        return List.copyOf(years.values());
+    }
+    private void equipmentHistory(IndustryLogisticsRows.IndustryLogisticsRow row) {
+        double wx = FUEL_WINDOW; int windowHeight = (int) Math.round(height / frame.scale() * .7);
+        var values = equipmentSeries(row);
+        double max = values.stream().mapToDouble(Math::abs).max().orElse(0);
+        chartWindow(wx, windowHeight, 230);
+        if (graphics != null) {
+            frame.art(graphics, "logistics/fuel_window/linechart_bg", wx + 80, 78);
+            lineChart(values, wx + 80, 78, -Math.max(1, max), Math.max(1, max), EQUIPMENT_LINE);
+            frame.art(graphics, "logistics/fuel_window/linechart_frame", wx + 76, 73);
+            tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.format("LOGISTICS_VIEW_GRAPH_VALUE", Map.of("VALUE", max))), wx + 316, 86, 60, TEXT, -1);
+            tradeText(graphics, frame, Component.literal("0"), wx + 316, 150, 60, TEXT, -1);
+            tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.format("LOGISTICS_VIEW_GRAPH_VALUE", Map.of("VALUE", -max))), wx + 316, 218, 60, TEXT, -1);
+            tradeText(graphics, frame, Component.literal("0"), wx + 79, 241, 30, TEXT, -1);
+            tradeText(graphics, frame, Component.literal(Integer.toString(Math.max(0, values.size() - 1))), wx + 278, 241, 30, TEXT, 1);
+            tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.text(FUEL_SCALES[equipmentScale])), wx + 104, 241, 180, TEXT, 0);
+            frame.art(graphics, "commander/commands/unit_list_header/frame_0", wx + 1, 261);
+            tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.text("LOGISTICS_EQUIPMENT_VARIANT_LABEL")), wx + 32, 278.5, 170, TEXT, -1);
+            tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.text("LOGISTICS_IN_STOCK_LABEL")), wx + 210, 278.5, 50, TEXT, 0);
+            tradeText(graphics, frame, Tooltips.officerText(IndustryLogisticsTooltips.text("LOGISTICS_WEEKLY_PRODUCTION_LABEL")), wx + 267, 278.5, 120, TEXT, 0);
+        }
+        chartScales(wx, 39, equipmentScale, value -> equipmentScale = value);
+        chartClose(wx, () -> logisticsInfo = "");
+        var variants = row.models().stream().filter(model -> model.stockpile() > 0 || view.lines().stream().anyMatch(line -> line.equipment().equals(model.id()))).toList();
+        int listTop = frame.iy(303), listBottom = Math.min(height, frame.iy(windowHeight - 15));
+        var bar = new UiScrollBar(frame.ix(wx + 375), listTop, listBottom, listBottom - listTop, frame.len(5 + VARIANT_ROW * variants.size()));
+        variantScroll = Math.clamp(variantScroll, 0, bar.maximum());
+        var at = new UiMenuStyle.Frame(frame.x(), frame.y() - variantScroll, frame.scale());
+        if (graphics != null) graphics.enableScissor(0, listTop, width, listBottom);
+        tradeClipTop = listTop; tradeClipBottom = listBottom;
+        for (int i = 0; i < variants.size(); i++) {
+            var model = variants.get(i); double ex = wx + 13, ey = 308 + VARIANT_ROW * i;
+            if (at.iy(ey + 40) <= listTop || at.iy(ey) >= listBottom) continue;
+            double weekly = view.lines().stream().filter(line -> line.equipment().equals(model.id())).mapToDouble(Line::daily).sum() * 7;
+            if (graphics != null) {
+                at.art(graphics, "logistics/info/variant_entry", ex, ey);
+                tradeText(graphics, at, Component.literal(model.name()), ex + 22, ey + 18.5, 154, GOLD, -1);
+                String stock = IndustryLogisticsTooltips.format("LOGISTICS_IN_STOCK_HIGH_VALUE", Map.of("AMOUNT", model.stockpile()));
+                tradeText(graphics, at, Tooltips.officerText(stock), ex + 198, ey + 18.5, 54, TEXT, 0);
+                tradeText(graphics, at, Tooltips.officerText(IndustryLogisticsTooltips.format("LOGISTICS_WEEKLY_SPEED_VALUE", Map.of("AMOUNT", weekly))), ex + 262, ey + 18.5, 54, TEXT, 0);
+            }
+            if (mouseY >= listTop && mouseY < listBottom) productionTip(IndustryLogisticsTooltips.variant(model, view.lines()), at.ix(ex), at.iy(ey), at.len(320), at.len(40));
+            var delete = sourceButton(IndustryLogisticsTooltips.plain("LOGISTICS_DELETE_EQUIPMENT"), at, ex + 322, ey + 6, 27.9, 27.9, () -> confirmDelete(model),
+                    (g, b) -> at.art(g, "commander/commands/nv_btn_delete/frame_0", ex + 322, ey + 6, 27.9, 27.9));
+            if (delete != null) { delete.active = pending == 0 && !foreign() && model.stockpile() > 0; delete.setTooltip(Tooltips.createOfficer(IndustryLogisticsTooltips.text("LOGISTICS_DELETE_EQUIPMENT"))); }
+        }
+        tradeClipTop = 0; tradeClipBottom = Integer.MAX_VALUE;
+        if (graphics != null) { graphics.disableScissor(); if (bar.maximum() > 0) bar.draw(graphics, variantScroll); }
+    }
+    private void confirmDelete(Equipment model) {
+        if (view == null || foreign()) return;
+        long revision = view.revision();
+        var dialog = new dev.hoi.protocol.dialog.DialogView(token, revision, dev.hoi.protocol.dialog.DialogView.Kind.COMMANDER, IndustryLogisticsTooltips.deleteTitle(), "",
+                IndustryLogisticsTooltips.deleteBody(model.name(), 90), "", "", "", List.of(),
+                List.of(new dev.hoi.protocol.dialog.DialogView.Choice("cancel", UiCommandLabels.text("PDXO_CANCEL", "취소"), ""), new dev.hoi.protocol.dialog.DialogView.Choice("ok", "OK", "")));
+        var screen = new dev.hoi.client.screen.commander.CommanderConfirmation(dialog, (ignored, choice) -> {
+            if (choice.equals("ok") && view != null && view.revision() >= revision && !foreign()) send(DELETE_EQUIPMENT, model.id(), "", 0);
+            minecraft.gui.setScreen(this);
+        });
+        screen.backdrop(this); confirming = true; minecraft.gui.setScreen(screen);
     }
     private double fuelRatio() {
         var national = view.hud().national();
@@ -3107,12 +3279,16 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         else if (!picker.isEmpty()) pickerScroll -= (int) (vertical * 55);
         else if (modal()) return super.mouseScrolled(x, y, horizontal, vertical);
         else if (tab == MenuTab.TRADE && tradeTab == 1) { if (listScrollbar != null && x < pane && y >= listScrollbar.top() && y < listScrollbar.bottom()) scroll -= (int) (vertical * frame.size(TRADE_ROW)); }
-        else if (tab == MenuTab.LOGISTICS && !fuelWindow) { if (listScrollbar != null && x < pane && y >= listScrollbar.top() && y < listScrollbar.bottom()) scroll -= (int) (vertical * frame.size(LOGISTICS_ROW)); }
+        else if (tab == MenuTab.LOGISTICS) {
+            if (!logisticsInfo.isEmpty() && x >= frame.x(FUEL_WINDOW) && x < frame.x(FUEL_WINDOW + 395) && y >= frame.y(290)) variantScroll -= (int) (vertical * frame.size(VARIANT_ROW));
+            else if (listScrollbar != null && x < pane && y >= listScrollbar.top() && y < listScrollbar.bottom()) scroll -= (int) (vertical * frame.size(LOGISTICS_ROW));
+        }
         else if (tab == MenuTab.RECRUITMENT && x >= pane) secondScroll -= (int) (vertical * 40);
         else scroll -= (int) (vertical * (tab == MenuTab.PRODUCTION ? frame.len(111) : tab == MenuTab.RECRUITMENT ? (compact() ? 85 : 93) : tab == MenuTab.LOGISTICS ? 68 : tradeTab == 0 ? 35 : 34));
         rebuildWidgets(); return true;
     }
     @Override public void removed() {
+        if (confirming) return;
         flagAssets.close();
         economyPanel.close();
         draggedProduction = "";
@@ -3262,7 +3438,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     @Override public boolean keyPressed(KeyEvent e) {
         if (!draggedProduction.isEmpty() && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { draggedProduction = ""; rebuildWidgets(); return true; }
         if (autoImportOpen() && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { autoImportWindow = false; draggedImport = ""; rebuildWidgets(); return true; }
-        if (fuelWindow && tab == MenuTab.LOGISTICS && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { fuelWindow = false; rebuildWidgets(); return true; }
+        if ((fuelWindow || !logisticsInfo.isEmpty()) && tab == MenuTab.LOGISTICS && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { fuelWindow = false; logisticsInfo = ""; rebuildWidgets(); return true; }
         if ((designerManufacturer || !manufacturerEquipment.isEmpty() || picker.equals("manufacturer")) && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { closeManufacturers(); return true; }
         if (designer && !divisionPicker.isEmpty() && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
             divisionPicker = ""; rebuildWidgets(); return true;

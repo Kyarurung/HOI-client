@@ -45,23 +45,50 @@ class IndustryLogisticsRowsTest {
         var rows = IndustryLogisticsRows.create(List.of(demand), List.of(), "all");
         assertTrue(rows.isEmpty());
     }
-    @Test void currentDemandDrivesStatusAndSignedBalanceAcrossGenerations() {
+    @Test void inStockSubtractsRequestsAndDailyNeedDrivesBalanceBarAndMarker() {
         var old = new IndustryView.Equipment("old", "old", "image/old", "infantry", false, false, 1, 1,
                 Map.of(), 10, 0, 0, 0, "new", "rifles", "보병 장비", 60L);
         var modern = new IndustryView.Equipment("new", "new", "image/new", "infantry", false, true, 1, 1,
                 Map.of(), 20, 0, 0, 0, "", "rifles", "보병 장비", 0L);
-        var rows = IndustryLogisticsRows.create(List.of(old, modern), List.of(), "all");
-        assertEquals(60L, rows.getFirst().demand());
-        assertEquals(-30L, rows.getFirst().balance());
-        assertEquals("부족", rows.getFirst().status());
+        var idle = IndustryLogisticsRows.create(List.of(old, modern), List.of(), "all").getFirst();
+        assertEquals(60, idle.demand());
+        assertEquals(-30, idle.inStock());
+        assertEquals("-30", IndustryLogisticsRows.signedStock(idle.inStock()));
+        assertEquals(0, idle.coverage());
+        assertEquals(0, idle.marker());
+        assertEquals("0.0", IndustryLogisticsRows.signedAmount(idle.balance()));
         var line = new IndustryView.Line("line", "new", 1, 1, 1, 10, 0, 0);
-        var producing = IndustryLogisticsRows.create(List.of(old, modern), List.of(line), "all").getFirst();
-        assertEquals("생산", producing.status());
-        assertTrue(producing.supplyDetail().contains("3일"));
-        assertNull(IndustryLogisticsRows.create(List.of(equipment("legacy", true, 10, "", "rifles")), List.of(), "all").getFirst().balance());
+        var ledger = new IndustryView.EquipmentLedger("old", 2.5, 30, 100, List.of(-30L), List.of());
+        var producing = IndustryLogisticsRows.create(List.of(old, modern), List.of(line), "all", List.of(ledger)).getFirst();
+        assertEquals(2.5, producing.need());
+        assertEquals("+7.5", IndustryLogisticsRows.signedAmount(producing.balance()));
+        assertEquals(1, producing.coverage());
+        assertEquals(IndustryLogisticsRows.SURPLUS_SHIFT * (2.5 - 10) / 12.5, producing.marker(), 1e-9);
+        var consuming = IndustryLogisticsRows.create(List.of(old, modern), List.of(), "all", List.of(ledger)).getFirst();
+        assertEquals(0, consuming.coverage());
+        assertEquals(IndustryLogisticsRows.BAR, consuming.marker());
+        assertEquals("-2.5", IndustryLogisticsRows.signedAmount(consuming.balance()));
+        var partial = IndustryLogisticsRows.create(List.of(old, modern), List.of(new IndustryView.Line("line", "new", 1, 1, 1, 1, 0, 0)), "all", List.of(ledger)).getFirst();
+        assertEquals(.4, partial.coverage(), 1e-9);
+        assertEquals(IndustryLogisticsRows.BAR * 1.5 / 3.5, partial.marker(), 1e-9);
+        assertEquals(10, IndustryLogisticsRows.create(List.of(equipment("legacy", true, 10, "", "rifles")), List.of(), "all").getFirst().inStock());
         var covered = IndustryLogisticsRows.create(List.of(modern), List.of(), "all").getFirst();
-        assertEquals("충족", covered.status());
-        assertEquals(20L, covered.balance());
+        assertEquals(20, covered.inStock());
+        assertEquals("+20", IndustryLogisticsRows.signedStock(covered.inStock()));
+    }
+    @Test void numberFormatsFollowTheOriginalLogisticsColumns() {
+        assertEquals("0.0", IndustryLogisticsRows.amount(0));
+        assertEquals("9.3", IndustryLogisticsRows.amount(9.3));
+        assertEquals("12", IndustryLogisticsRows.amount(12.4));
+        assertEquals("1.2K", IndustryLogisticsRows.amount(1234));
+        assertEquals("+8.1", IndustryLogisticsRows.signedAmount(8.1));
+        assertEquals("-0.2", IndustryLogisticsRows.signedAmount(-.2));
+        assertEquals("0.0", IndustryLogisticsRows.signedAmount(-.01));
+        assertEquals("-1.9K", IndustryLogisticsRows.signedStock(-1900));
+        assertEquals("+927", IndustryLogisticsRows.signedStock(927));
+        assertEquals("0", IndustryLogisticsRows.signedStock(0));
+        assertEquals("537.2K", IndustryLogisticsRows.chartLabel(537200));
+        assertEquals("9.9K", IndustryLogisticsRows.chartLabel(9900));
     }
     @Test void acquisitionHistoryKeepsAnExhaustedFamilyVisibleButAnEmptyLineDoesNot() {
         var never = equipment("new", true, 0, "", "rifles");
@@ -94,8 +121,8 @@ class IndustryLogisticsRowsTest {
             assertEquals(item.stockpile(), row.stockpile());
             assertEquals(item.reserved(), row.reserved());
             assertEquals(item.deployed(), row.deployed());
-            assertEquals(item.demand(), row.demand());
-            assertEquals(item.stockpile() - item.demand(), row.balance().longValue());
+            assertEquals((long) item.demand(), row.demand());
+            assertEquals(item.stockpile() - item.demand(), row.inStock());
         }
         assertEquals(1.25, rows.getFirst().daily());
         assertEquals(List.of("convoy", "harbor"), IndustryLogisticsRows.create(snapshot, lines, "navy").stream().map(r -> r.representative().id()).toList());
