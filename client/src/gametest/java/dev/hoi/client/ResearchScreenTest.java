@@ -101,6 +101,14 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try (var world = context.worldBuilder().create()) { hudHover(context, fixtureMenu()); }
             return;
         }
+        if (Set.of("all", "hud-time").contains(System.getProperty("hoi.testSuite", "all"))) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.ui.hud.HudTimeControlsTest.run(context, fixtureMenu()); }
+            if (System.getProperty("hoi.testSuite", "all").equals("hud-time")) return;
+        }
+        if (Set.of("all", "overview").contains(System.getProperty("hoi.testSuite", "all"))) {
+            try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.commander.CommanderOverviewTest.run(context, fixtureMenu()); }
+            if (System.getProperty("hoi.testSuite", "all").equals("overview")) return;
+        }
         if(Set.of("all","naval-invasion-map").contains(System.getProperty("hoi.testSuite","all"))){
             try(var world=context.worldBuilder().create()){dev.hoi.client.map.naval.NavalInvasionOrdersTest.run(context,fixtureMenu(),world.getServer()::runCommand);}
             if(System.getProperty("hoi.testSuite","all").equals("naval-invasion-map"))return;
@@ -732,7 +740,8 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             check(HudMenuBar.indicators(menu.hud()).stream().anyMatch(i -> i.icon().equals("nuclear") && i.label().equals("핵폭탄")), "Nuclear bombs appear from campaign start without research");
             var armed = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational());
             check(HudMenuBar.indicators(armed).stream().anyMatch(i -> i.icon().equals("nuclear") && i.value().equals("0")), "Completed nuclear research shows zero inventory");
-            check(HudMenuBar.maximumScroll(1024, armed) == 0, "All national and financial indicators fit the normal viewport");
+            check(HudMenuBar.maximumScroll(1280, armed) == 0, "All national and financial indicators fit the 2560x1440 GUI 2 viewport");
+            check(HudMenuBar.statsRight(1024) <= dev.hoi.client.ui.hud.HudTimeControls.left(1024) && HudMenuBar.maximumScroll(1024, armed) > 0, "Narrower viewports scroll the indicators instead of covering the time controls");
             context.runOnClient(client -> {
                 for (var item : HudMenuBar.indicators(armed)) {
                     if (item.icon().equals("political_power") || item.icon().equals("command_power")) {
@@ -1274,12 +1283,15 @@ public final class ResearchScreenTest implements FabricClientGameTest {
     }
     private static void checkToolbar(net.minecraft.client.gui.screens.Screen screen) {
         var tabs = screen.children().stream().filter(c -> c instanceof HudMenuBar.HudTabButton).map(c -> (HudMenuBar.HudTabButton)c).toList();
+        float scale = HudMenuBar.scale(screen.width);
         check(tabs.size() == MenuTab.ORDER.size() && tabs.stream().allMatch(b -> b.active && b.visible
-                && (b.getY() == 3 || b.getY() == 18) && b.getBottom() < HudMenuBar.height(screen.width)), "Common navigation stays usable below the resource strip");
+                && b.getY() == Math.round((b.getMessage().getString().equals(MenuTab.POLITICS.label() + " 메뉴") ? 6 : 35) * scale / 2)
+                && b.getBottom() < HudMenuBar.height(screen.width)), "Common navigation stays usable below the resource strip");
         check(tabs.getLast().getRight() < HudMenuBar.dockWidth(screen.width)
                 && HudMenuBar.dockWidth(screen.width) <= screen.width, "Compact original-art toolbar fits the viewport");
-        check(HudMenuBar.tensionX(screen.width) == screen.width - 37
+        check(HudMenuBar.tensionX(screen.width) == (int)Math.floor(screen.width - 73 * scale / 2)
                 && HudMenuBar.tensionX(screen.width) > HudMenuBar.dockWidth(screen.width), "Original tension plate stays at the far right");
+        check(tabs.getLast().getRight() <= dev.hoi.client.ui.hud.HudTimeControls.left(screen.width), "The time controls never cover a menu tab");
         String flag = HudMenuBar.flagTooltip("대한민국");
         check(flag.startsWith("대한민국\n") && flag.contains("정치") && flag.contains("외교") && !flag.contains("단축키") && !flag.contains("TOPBAR_"), "The flag tooltip uses TOPBAR_FLAG_DESC without the shortcut line: " + flag);
     }

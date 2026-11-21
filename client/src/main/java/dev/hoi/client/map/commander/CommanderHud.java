@@ -6,6 +6,7 @@ import dev.hoi.client.input.InputSidebarMovement;
 import dev.hoi.client.ui.*;
 import dev.hoi.protocol.commander.CommanderHudPayloads;
 import dev.hoi.protocol.commander.CommanderHudPayloads.*;
+import dev.hoi.protocol.commander.CommanderOverviewPayloads;
 import dev.hoi.client.map.agency.AgencyHud;
 import dev.hoi.client.map.naval.*;
 import dev.hoi.client.ui.hud.*;
@@ -91,11 +92,32 @@ public final class CommanderHud {
     static boolean running(){return view!=null&&Boolean.TRUE.equals(view.running());}
     static boolean hidesVanillaHud(){var client=Minecraft.getInstance();return view!=null&&client.level!=null&&!client.gui.hud.isHidden()&&view.country().equals(ClientCampaignHud.country())&&view.dimension().equals(client.level.dimension().identifier().toString());}
     public static boolean cardsVisible(){var client=Minecraft.getInstance();var screen=client.gui.screen();return view!=null&&client.level!=null&&!client.gui.hud.isHidden()&&view.country().equals(ClientCampaignHud.country())&&view.dimension().equals(client.level.dimension().identifier().toString())&&(screen==null||screen instanceof InputSidebarMovement.InputMovementScreen sidebar&&sidebar.allowsMovement());}
+    public static boolean overviewShown(CommanderOverviewPayloads.Tab tab){return dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.commander.CommanderOverview overview&&overview.tab()==tab;}
+    public static void toggleOverview(CommanderOverviewPayloads.Tab tab,int selector){
+        var client=Minecraft.getInstance();
+        if(dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.commander.CommanderOverview overview){boolean same=overview.tab()==tab;overview.onClose();if(same)return;}
+        if(client.player!=null)for(int i=0;i<9;i++){var stack=client.player.getInventory().getItem(i);
+            if(stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,net.minecraft.world.item.component.CustomData.EMPTY).copyTag().getIntOr("hoi_atlas_selector",0)==selector){client.player.getInventory().setSelectedSlot(i);break;}}
+        var screen=new dev.hoi.client.screen.commander.CommanderOverview(tab);dev.hoi.client.screen.dialog.DialogCoordinator.setContent(screen);screen.open();
+    }
+    public static void selectOverview(CommanderOverviewPayloads.Tab tab,String id,boolean additive){
+        switch(tab) {
+            case ARMY -> CommanderUnitHud.selectDivisions(List.of(id),additive);
+            case NAVY -> {var ids=new LinkedHashSet<>(additive?CommanderPanels.overviewSelection(true):Set.<String>of());if(!ids.remove(id)||ids.isEmpty())ids.add(id);CommanderPanels.selectForces(ids);}
+            case AIR -> {var ids=new LinkedHashSet<>(additive?CommanderPanels.overviewSelection(false):Set.<String>of());if(!ids.remove(id)||ids.isEmpty())ids.add(id);CommanderPanels.showWings(ids);}
+        }
+    }
+    public static Set<String> overviewSelection(CommanderOverviewPayloads.Tab tab){
+        return switch(tab){case ARMY->CommanderUnitHud.selectedKeys().stream().filter(key->key.startsWith("unit/")).map(key->key.substring(5)).collect(java.util.stream.Collectors.toSet());case NAVY->CommanderPanels.overviewSelection(true);case AIR->CommanderPanels.overviewSelection(false);};
+    }
+    public static String overviewMissionIcon(CommanderOverviewPayloads.Tab tab,String mission){return CommanderPanels.missionIcon(tab==CommanderOverviewPayloads.Tab.NAVY,mission);}
     public static void register(){
         CommanderHudPayloads.registerPayloadTypes();CommanderOrders.register();NavalSeaHover.register();
         ClientPlayNetworking.registerGlobalReceiver(Snapshot.TYPE,(packet,context)->{try{accept(packet.view());}catch(IllegalArgumentException error){reset();}});
         ClientPlayConnectionEvents.DISCONNECT.register((handler,client)->client.execute(CommanderHud::reset));
         ClientTickEvents.END_CLIENT_TICK.register(client->{NavalSeaHover.tick();if(view!=null&&(client.level==null||!view.dimension().equals(client.level.dimension().identifier().toString())||!view.country().equals(ClientCampaignHud.country())))reset();});
+        CommanderOverviewPayloads.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(CommanderOverviewPayloads.Snapshot.TYPE,(packet,context)->{if(dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.commander.CommanderOverview overview)overview.accept(packet.view());});
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR,Identifier.parse("hoi:commander_hud"),(g,delta)->{if(Minecraft.getInstance().gui.screen()==null)draw(g,0,g.guiWidth()/2,g.guiHeight()/2);});
         ScreenEvents.AFTER_INIT.register((client,screen,w,h)->{if(screen instanceof InputSidebarMovement.InputMovementScreen sidebar){if(screen instanceof dev.hoi.client.screen.commander.CommanderTraits)ScreenEvents.beforeExtract(screen).register((s,g,mx,my,delta)->{if(sidebar.allowsMovement()){draw(g,sidebar.unitHudLeft(),-1,-1);g.nextStratum();}});else ScreenEvents.afterExtract(screen).register((s,g,mx,my,delta)->{if(sidebar.allowsMovement())draw(g,sidebar.unitHudLeft(),mx,my);});}});
     }

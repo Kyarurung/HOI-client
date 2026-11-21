@@ -299,6 +299,13 @@ public final class CommanderPanels {
     private static void nativeButton(GuiGraphicsExtractor g,List<Hit> out,String icon,int x,int y,int w,int h,String tip,Runnable action,boolean grayscale){if(grayscale)UiAssets.drawGrayscale(g,source(icon),x,y,w,h);else UiAssets.draw(g,source(icon),x,y,w,h);out.add(new Hit(x,y,w,h,tip,action,null,grayscale?"":icon.equals("nv_btn_close")?"ui.close":icon.equals("army_select_wings_btn")?"ui.aircraft.select":"ui.click",icon));}
     private static String commanderName(Card card){return card.panel()!=null&&card.panel().commander().isEmpty()?UiCommandLabels.text("UNIT_LEADER_NO_LEADER","§R지휘관 없음§!"):card.leader();}
     private static Open units(Card card){return new Open(card.role()==Mode.ARMY_GROUP?Mode.ARMY_GROUP:current.branch()==Mode.NAVY_HQ?Mode.NAVAL_TASK_FORCES:Mode.ARMY_UNITS,card.id());}
+    static Set<String> overviewSelection(boolean navy){return navy?(specificForces?Set.copyOf(selectedForces):Set.of()):Set.copyOf(selectedWings);}
+    static boolean selectForces(Collection<String> ids){
+        if(current==null||current.branch()!=Mode.NAVY_HQ||ids.isEmpty())return false;
+        var cards=current.cards().stream().filter(c->c.panel()!=null&&c.panel().members().stream().anyMatch(m->ids.contains(m.id()))).map(Card::id).toList();if(cards.isEmpty())return false;
+        CommanderUnitHud.clearSelection();selected.clear();selected.addAll(cards);selectedForces.clear();selectedForces.addAll(ids);specificForces=true;scroll=0;hits=List.of();CommanderOrders.selectionChanged();return true;
+    }
+    static String missionIcon(boolean navy,String mission){if(navy)return source("nv_all_missions").replace("frame_0","frame_"+navalMissionFrame(mission));for(var air:AIR)if(air[0].equals(mission))return "commander/commands/strategicair_mission_types/frame_"+air[1];return "";}
     static boolean closeSelection(){if(templateCard.isEmpty()&&selected.isEmpty()&&selectedWings.isEmpty()&&!wingList&&CommanderUnitHud.selectedKeys().isEmpty())return false;close();return true;}
     private static void close(){airCardSelection=false;templateCard="";selected.clear();selectedForces.clear();specificForces=false;selectedWings.clear();CommanderUnitHud.clearSelection();wingList=false;postureMenu=false;navalTargetMenu=false;scroll=0;hits=List.of();CommanderOrders.selectionChanged();}
     static int actionbarTop(UiUnits units,boolean navy){return CommanderLayout.commandTop(units,navy);}

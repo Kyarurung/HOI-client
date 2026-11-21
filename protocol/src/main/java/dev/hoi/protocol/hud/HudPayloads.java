@@ -17,7 +17,18 @@ public final class HudPayloads {
     public static synchronized void registerPayloadTypes() {
         if (registered) return;
         PayloadTypeRegistry.clientboundPlay().register(State.TYPE, State.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(Clock.TYPE, Clock.CODEC);
         registered = true;
+    }
+    public record Clock(String date, String speed, boolean control) implements CustomPacketPayload {
+        public Clock {
+            if (date == null || date.length() > 64) throw new IllegalArgumentException("Invalid campaign clock");
+            dev.hoi.protocol.ProtocolCampaignStyle.requireSpeed(speed);
+        }
+        public static final Type<Clock> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "hud_clock_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, Clock> CODEC = StreamCodec.of(
+                (b,p) -> { b.writeUtf(p.date,64); b.writeUtf(p.speed,16); b.writeBoolean(p.control); }, b -> new Clock(b.readUtf(64),b.readUtf(16),b.readBoolean()));
+        @Override public Type<Clock> type() { return TYPE; }
     }
     public record State(String country, String json) implements CustomPacketPayload {
         public static final State HIDDEN = new State("", "");

@@ -24,7 +24,7 @@ public final class HudMenuBar {
     private static final int[] TAB_X = {109, 164, 220, 275, 331, 387, 442, 497, 553};
     private static final int TAB_Y = 35, TAB_WIDTH = 55, TAB_HEIGHT = 41, FLAG_X = 1, FLAG_Y = 6, FLAG_WIDTH = 98, FLAG_HEIGHT = 67;
     private static final int TENSION_WIDTH = 73, TENSION_HEIGHT = 93;
-    static float scale(int width) { return Math.min(1f, (width - 23f) * 2 / (TAB_X[TAB_X.length - 1] + TAB_WIDTH + TENSION_WIDTH)); }
+    public static float scale(int width) { return Math.min(1f, (width - 23f) * 2 / (TAB_X[TAB_X.length - 1] + TAB_WIDTH + HudTimeControls.DEFCON_X + TENSION_WIDTH)); }
     public static int height(int width) { return (int)Math.ceil(41 * scale(width)); }
     public static float windowTop(int width) { return 39 * scale(width); }
     public static int dockWidth(int width) { return Math.round(338 * scale(width)); }
@@ -32,9 +32,9 @@ public final class HudMenuBar {
     public static int flagWidth(int width) { return Math.round(FLAG_WIDTH * scale(width) / 2); }
     public static int statsLeft(int width) { return Math.round(48 * scale(width)); }
     public static boolean showingTensionTooltip;
-    private static float tensionLeft(int width) { return width - TENSION_WIDTH * scale(width) / 2; }
+    static float tensionLeft(int width) { return width - TENSION_WIDTH * scale(width) / 2; }
     public static int tensionX(int width) { return (int)Math.floor(tensionLeft(width)); }
-    public static int statsRight(int width) { return tensionX(width); }
+    public static int statsRight(int width) { return HudTimeControls.left(width); }
     public enum HudFormat { NUMBER, POLITICAL_POWER, COMMAND_POWER, EXPERIENCE, NUCLEAR, PERCENT, MONEY, FUEL_INCREASING, FUEL_DECREASING }
     public record HudIndicator(String icon, String label, Number raw, HudFormat format, String barLabel, Double ratio, String value) {
         public HudIndicator(String icon, String label, Number raw, HudFormat format, String barLabel, Double ratio) { this(icon, label, raw, format, barLabel, ratio, value(icon, raw, format)); }
@@ -111,6 +111,7 @@ public final class HudMenuBar {
             left += item.width();
         }
         g.disableScissor();
+        HudTimeControls.draw(g, width);
         drawTension(g, width, hud);
     }
     private static final Identifier TOPBAR = Identifier.parse("hoi:textures/gui/hud/topbar_background.png");
@@ -142,7 +143,6 @@ public final class HudMenuBar {
         finally { showingTensionTooltip = false; }
     }
     public static void drawPassive(GuiGraphicsExtractor g, int width, CountryHud hud, String country) {
-        HudMusicButton.draw(g, width);
         draw(g, width, hud, -1, -1, 0);
         for (var tab : MenuTab.ORDER) drawTab(g, tab, country, false, width, snapshot(hud));
     }
@@ -234,6 +234,7 @@ public final class HudMenuBar {
             });
         }
         buttons.add(new HudMusicButton(width));
+        buttons.addAll(HudTimeControls.buttons(width));
         return List.copyOf(buttons);
     }
     public static String flagTexture(String country) {
