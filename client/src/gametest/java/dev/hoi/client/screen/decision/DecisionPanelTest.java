@@ -454,6 +454,17 @@ public final class DecisionPanelTest {
             clearFrames(element.getAsJsonArray("children"));
         }
     }
+    public static void verifyVacantPortraitCaption(net.minecraft.client.gui.Font font) {
+        var text=new DecisionText();
+        text.assets(com.google.gson.JsonParser.parseString("{\"textImages\":{\"GFX_Vacant_Portrait\":{\"path\":\"decision/text/gfx_vacant_portrait\",\"width\":172,\"height\":258,\"source\":\"tfr/gfx/texticons/HoG/Vacant.png\"}}}").getAsJsonObject());
+        var blocks=text.blocks(font,"§Y대한민국 국회의장:§!\n\n£GFX_Vacant_Portrait\n\n§W          공석§!",200);
+        var portrait=blocks.stream().filter(b->b.image()!=null).findFirst().orElseThrow(()->new AssertionError("Vacant portrait image missing"));
+        java.util.function.Function<net.minecraft.util.FormattedCharSequence,String> plain=sequence->{var out=new StringBuilder();sequence.accept((index,style,codePoint)->{out.appendCodePoint(codePoint);return true;});return out.toString();};
+        if(portrait.text()==null||!plain.apply(portrait.text()).strip().equals("공석")
+                ||Math.abs(portrait.captionOffset()+font.width("          ")-(portrait.width()-font.width("공석"))/2)>1
+                ||blocks.stream().anyMatch(b->b.image()==null&&b.text()!=null&&plain.apply(b.text()).contains("공석")))
+            throw new AssertionError("The vacant seat caption must sit centred under the portrait without its source padding");
+    }
     public static void verifyTooltipSpacing(net.minecraft.client.gui.Font font,DecisionText text,String source) {
         for(int width:List.of(80,160,324)) {
             var blocks=text.blocks(font,source,width);

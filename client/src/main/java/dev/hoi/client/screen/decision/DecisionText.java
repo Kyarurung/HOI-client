@@ -56,7 +56,7 @@ public final class DecisionText {
             String path=value.get("path").getAsString();
             int width=value.get("width").getAsInt(),height=value.get("height").getAsInt();
             if(entry.getKey().matches("[A-Za-z0-9_]+") && path.matches("[a-z0-9_/.-]+") && !path.contains("..")
-                    && width>0 && height>0 && width<=4096 && height<=4096)next.put(entry.getKey(),new Image(path,width,height,value.has("source")&&value.get("source").getAsString().contains("/texticon_portraits/"),value.has("source")&&value.get("source").getAsString().contains("/texticons/banners/")));
+                    && width>0 && height>0 && width<=4096 && height<=4096)next.put(entry.getKey(),new Image(path,width,height,entry.getKey().endsWith("_Portrait")||value.has("source")&&value.get("source").getAsString().contains("/texticon_portraits/"),value.has("source")&&value.get("source").getAsString().contains("/texticons/banners/")));
         }
         images=Map.copyOf(next);
         sprites=root.get("sprites") instanceof JsonObject entries?Set.copyOf(entries.keySet()):Set.of();
