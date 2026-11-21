@@ -76,6 +76,26 @@ public final class ResearchTextChecks {
         try (var input = ResearchTextChecks.class.getResourceAsStream("/tfr-research-view.json")) {
             source = new ResearchPayloads.Response(new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).view();
         } catch (Exception e) { throw new AssertionError(e); }
+        var oilSource = source.technology("hoi:tfr/technology/advanced_oil_processing");
+        if (oilSource == null) throw new AssertionError("Research fixture lacks advanced_oil_processing");
+        var modifier = new ResearchView.Modifier("£fuel_gain_refinery_texticon 정유 공장당 연료 획득량", "§a+30.0%§r", "£fuel_gain_refinery_texticon 정유 공장당 연료 획득량: §a+30.00%§r");
+        var oil = new ResearchView.Tech(oilSource.id(), oilSource.category(), oilSource.name(), oilSource.year(), oilSource.tier(), oilSource.baseDays(), 0, 1,
+                oilSource.prerequisites(), List.of(), oilSource.unlocks(), ResearchView.Status.AVAILABLE, oilSource.source(), List.of(), oilSource.upgrades(), oilSource.units(), List.of(modifier));
+        var oilView = new ResearchView(source.session(), source.revision(), source.country(), source.countryName(), 0, source.date(), source.speed(), source.slots(),
+                source.technologies().stream().map(t -> t.id().equals(oil.id()) ? oil : t).toList(), "", source.hud(), source.benefits());
+        context.setScreen(() -> new ResearchScreen(oilView, request -> {}));
+        context.runOnClient(client -> {
+            var screen = (ResearchScreen)client.gui.screen(); screen.showDetail(oil.id());
+            var lines = screen.tooltipLines(oil);
+            var row = lines.stream().filter(c -> c.getString().contains("정유 공장당 연료 획득량")).findFirst().orElseThrow(() -> new AssertionError("Modifier tooltip line is missing"));
+            check(row.getString().endsWith(": +30.00%"), "Modifier tooltip keeps the source two decimal percentage: " + row.getString());
+            check(row.getString().codePoints().anyMatch(code -> code >= 0xe000 && code <= 0xf8ff), "Modifier tooltip keeps its source icon");
+            var colors = new ArrayList<Integer>(); var plain = new StringBuilder();
+            row.visit((style, part) -> { plain.append(part); for (int i = 0; i < part.length(); i++) colors.add(style.getColor() == null ? -1 : style.getColor().getValue()); return Optional.empty(); }, Style.EMPTY);
+            int at = plain.indexOf("+30.00%");
+            check(at >= 0 && colors.subList(at, at + 7).stream().allMatch(c -> c == dev.hoi.client.ui.tooltip.Tooltips.GOOD), "Modifier value uses the source green");
+        });
+        context.waitTicks(3); context.takeScreenshot("hoi-research-modifiers-detail");
         for (int[] size : new int[][]{{1600, 1000}, {854, 480}}) {
             context.getInput().resizeWindow(size[0], size[1]); context.waitTicks(2);
             for (String id : List.of("infantry_weapons1", "infantry_weapons2")) {

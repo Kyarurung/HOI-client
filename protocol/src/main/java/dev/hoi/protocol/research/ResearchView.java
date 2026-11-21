@@ -95,9 +95,16 @@ public record ResearchView(String session, long revision, String country, String
     public record UnitCard(String id, String name, List<StatLine> stats, List<TerrainValue> terrain) {
         public UnitCard { Objects.requireNonNull(id); Objects.requireNonNull(name); stats = List.copyOf(stats); terrain = List.copyOf(terrain); if (id.length() > 64 || name.length() > 160 || stats.size() > 16 || terrain.size() > 16) throw new IllegalArgumentException("Invalid research unit"); }
     }
+    public record Modifier(String name, String value, String tooltip) {
+        public Modifier { Objects.requireNonNull(name); Objects.requireNonNull(value); Objects.requireNonNull(tooltip); if (name.length() > 240 || value.length() > 64 || tooltip.length() > 400) throw new IllegalArgumentException("Invalid research modifier"); }
+    }
     public record Tech(String id, String category, String name, int year, int tier, int baseDays,
                        double progress, double dailyRate, List<String> prerequisites,
-                       List<String> effects, List<String> unlocks, Status status, Source source,List<String> tooltipOnlyEffects,List<Upgrade> upgrades,List<UnitCard> units) {
+                       List<String> effects, List<String> unlocks, Status status, Source source,List<String> tooltipOnlyEffects,List<Upgrade> upgrades,List<UnitCard> units,List<Modifier> modifiers) {
+        public Tech(String id,String category,String name,int year,int tier,int baseDays,double progress,double dailyRate,
+                List<String> prerequisites,List<String> effects,List<String> unlocks,Status status,Source source,List<String> tooltipOnlyEffects,List<Upgrade> upgrades,List<UnitCard> units) {
+            this(id,category,name,year,tier,baseDays,progress,dailyRate,prerequisites,effects,unlocks,status,source,tooltipOnlyEffects,upgrades,units,List.of());
+        }
         public Tech(String id,String category,String name,int year,int tier,int baseDays,double progress,double dailyRate,
                 List<String> prerequisites,List<String> effects,List<String> unlocks,Status status,Source source,List<String> tooltipOnlyEffects) {
             this(id,category,name,year,tier,baseDays,progress,dailyRate,prerequisites,effects,unlocks,status,source,tooltipOnlyEffects,List.of(),List.of());
@@ -112,7 +119,8 @@ public record ResearchView(String session, long revision, String country, String
         }
         public Tech {
             tooltipOnlyEffects=tooltipOnlyEffects==null?List.of():List.copyOf(tooltipOnlyEffects);upgrades=upgrades==null?List.of():List.copyOf(upgrades);units=units==null?List.of():List.copyOf(units);
-            if(upgrades.size()>16||units.size()>8) throw new IllegalArgumentException("Invalid research sections");
+            modifiers=modifiers==null?List.of():List.copyOf(modifiers);
+            if(upgrades.size()>16||units.size()>8||modifiers.size()>32) throw new IllegalArgumentException("Invalid research sections");
             if(tooltipOnlyEffects.size()>128||!effects.containsAll(tooltipOnlyEffects)) throw new IllegalArgumentException("Invalid tooltip effects");
             Objects.requireNonNull(id); Objects.requireNonNull(category); Objects.requireNonNull(name);
             Objects.requireNonNull(status);

@@ -694,6 +694,19 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         var intro = detailLines(tech);
         if (tech.source() != null && !tech.source().description().isBlank()) intro = intro.subList(2, intro.size());
         y = detailText(g, intro, panelX + 14, y, panelW - 30, TEXT);
+        if (!tech.modifiers().isEmpty()) {
+            y = sectionHeading(g, UiCommandLabels.text("RESEARCH_MODIFIERS_HEADER", "전체 효과"), y);
+            for (var modifier : tech.modifiers()) {
+                var label = TooltipKeywordIcons.decorateLines(Tooltips.officerText(modifier.name()));
+                var value = Tooltips.officerText(modifier.value());
+                var lines = font.split(label, panelW - 108);
+                if (g != null) {
+                    for (int i = 0; i < lines.size(); i++) g.text(font, lines.get(i), panelX + 38, y + i * 10, TEXT, false);
+                    g.text(font, value, panelX + panelW - 44 - font.width(value), y, TEXT, false);
+                }
+                y += Math.max(10, lines.size() * 10);
+            }
+        }
         var cards = ResearchDetails.cards(tech, view.country());
         if (!cards.isEmpty()) {
             for (var card : cards) if (!card.kind().equals("부대")) y = detailCard(g, card, y + 4);
@@ -890,6 +903,10 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         lines.add(Component.literal(" "));
         lines.add(ResearchText.gold("효과").append(ResearchText.white(":")));
         tech.effects().stream().filter(text -> !ResearchText.zeroEffect(text)).map(ResearchText::effect).forEach(lines::add);
+        if (!tech.modifiers().isEmpty()) {
+            if (tech.effects().stream().anyMatch(text -> !ResearchText.zeroEffect(text))) lines.add(Component.literal(" "));
+            tech.modifiers().stream().map(modifier -> Tooltips.officerText(modifier.tooltip())).forEach(lines::add);
+        }
         for (String label : unlockNames(tech)) lines.add(ResearchText.white("사용 가능 ").append(unlockName(label)));
         if (tech.source() != null && !tech.source().deferredEffects().isEmpty()) {
             tech.source().deferredEffects().stream().map(ResearchText::effect).forEach(lines::add);
