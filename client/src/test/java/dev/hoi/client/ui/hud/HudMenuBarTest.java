@@ -68,10 +68,13 @@ class HudMenuBarTest {
     }
     @Test void moneyUsesTrillionsWithAtMostThreeDecimalsAndRawNumbersKeepTwo() {
         assertEquals("123.46",HudMenuBar.number(123.456789));
-        assertEquals("0.704조",HudMenuBar.money(704.314));
+        assertEquals("7,043억",HudMenuBar.money(704.314));
         assertEquals("1.707조",HudMenuBar.money(1707.123456));
         assertEquals("10조",HudMenuBar.money(10000.0));
-        assertEquals("0조",HudMenuBar.money(0.0));
+        assertEquals("0억",HudMenuBar.money(0.0));
+        assertEquals("1조",HudMenuBar.money(999.96));
+        assertEquals("9,999억",HudMenuBar.money(999.94));
+        assertEquals("15억",HudMenuBar.money(1.5));
         assertEquals("0",HudMenuBar.money(null));
         assertEquals("9223372036854775807",HudMenuBar.rawNumber(Long.MAX_VALUE));
         assertEquals("-2.35",HudMenuBar.rawNumber(-2.345));

@@ -132,7 +132,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             if (team != null) {
                 int size = Math.round(64 * slotButton.sourceScale()), logoX = slotButton.sourceX(450) - size / 2, logoY = slotButton.sourceY(49) - size / 2;
                 var logo = new UiPanelButton(team.name(), logoX, logoY, size, size, () -> {}) {
-                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) { UiAssets.draw(g, team.icon(), getX(), getY(), getWidth(), getHeight()); if(isHovered())Tooltips.drawSourceScrollable(g,font,teamTooltip(team,slot.technology(),false),pane+2,getY()-7,ResearchScreen.this.width,ResearchScreen.this.height,0); }
+                    @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) { UiAssets.draw(g, team.icon(), getX(), getY(), getWidth(), getHeight()); if(isHovered())Tooltips.drawSourceScrollable(g,font,teamTooltip(team,slot.technology(),false),mx,my,ResearchScreen.this.width,ResearchScreen.this.height,0); }
                     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) { return false; }
                 };
                 logo.setTooltip(null); addRenderableWidget(logo);
@@ -451,7 +451,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         if (teamPicker) for (var widget : teamDetails) widget.extractRenderState(g,mouseX,mouseY,delta);
         if (teamPicker) for (var entry : teamRows.entrySet()) if (entry.getKey().isMouseOver(mouseX,mouseY) && teamDetails.stream().noneMatch(w -> w.isMouseOver(mouseX,mouseY))) {
             var team = view.designTeams().stream().filter(t -> t.id().equals(entry.getValue())).findFirst().orElseThrow();
-            Tooltips.drawSourceScrollable(g,font,teamTooltip(team,detail,true),teamX+teamWidth,mouseY,width,height,0);
+            Tooltips.drawSourceScrollable(g,font,teamTooltip(team,detail,true),mouseX,mouseY,width,height,0);
         }
         HudMenuBar.drawTooltip(g, width, view.hud(), mouseY < menuBottom() ? mouseX : -1, mouseY, hudScroll);
     }

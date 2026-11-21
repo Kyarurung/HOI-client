@@ -9,6 +9,7 @@
     "gui.GuiMenuTooltip",
     "gui.GuiTooltipLayer",
     "gui.GuiTooltip",
+    "gui.GuiWidgetTooltip",
     "gui.GuiFontBaseline",
     "gui.GuiMenuBackground",
     "audio.AudioMenuSound",

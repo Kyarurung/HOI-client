@@ -1267,6 +1267,8 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 && HudMenuBar.dockWidth(screen.width) <= screen.width, "Compact original-art toolbar fits the viewport");
         check(HudMenuBar.tensionX(screen.width) == screen.width - 37
                 && HudMenuBar.tensionX(screen.width) > HudMenuBar.dockWidth(screen.width), "Original tension plate stays at the far right");
+        String flag = HudMenuBar.flagTooltip("대한민국");
+        check(flag.startsWith("대한민국\n") && flag.contains("정치") && flag.contains("외교") && !flag.contains("단축키") && !flag.contains("TOPBAR_"), "The flag tooltip uses TOPBAR_FLAG_DESC without the shortcut line: " + flag);
     }
     private static ScreenMenu fixtureMainMenu(MenuView menu, MenuTab selected, ResearchView research, List<ResearchPayloads.Request> requests) {
         return new ScreenMenu(menu, selected, () -> net.minecraft.client.Minecraft.getInstance().gui.setScreen(

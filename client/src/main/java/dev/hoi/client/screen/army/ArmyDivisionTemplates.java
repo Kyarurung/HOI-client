@@ -43,7 +43,7 @@ public final class ArmyDivisionTemplates extends DialogScreen {
         scrollbar().draw(g,scroll);
         for(var b:buttons.values())b.extractRenderState(g,mx,my,delta);
 
-        for(var tile:view().tiles()){var b=buttons.get(tile.section());if(b!=null&&Tooltips.contains(b,mx,my))Tooltips.drawSourceScrollable(g,font,tile.detail(),left+pane-42,b.getY()-14,width,height,0);}
+        for(var tile:view().tiles()){var b=buttons.get(tile.section());if(b!=null&&Tooltips.contains(b,mx,my))Tooltips.drawSourceScrollable(g,font,tile.detail(),mx,my,width,height,0);}
     }
     @Override protected void choose(String id){if(pending||view().choices().stream().noneMatch(c->c.id().equals(id)))return;pending=true;buttons.values().forEach(b->b.active=false);super.choose(id);}
     @Override public void onClose(){choose("cancel");}

@@ -343,9 +343,7 @@ public final class AgencyHud {
         String text = hit == null ? "" : hit.tooltip();
         if (!text.equals(hovered)) { hovered = text; tooltipScroll = 0; }
         if (hit != null) {
-            tooltip = hit.y() > g.guiHeight() / 2
-                    ? Tooltips.drawSourceScrollableAbove(g, Minecraft.getInstance().font, text, mx, hit.y(), g.guiWidth(), g.guiHeight(), tooltipScroll)
-                    : Tooltips.drawSourceScrollable(g, Minecraft.getInstance().font, text, mx, my, g.guiWidth(), g.guiHeight(), tooltipScroll);
+            tooltip = Tooltips.drawSourceScrollable(g, Minecraft.getInstance().font, text, mx, my, g.guiWidth(), g.guiHeight(), tooltipScroll);
             tooltipScroll = tooltip.scroll();
         }
         OPERATIONS.tooltip(g, mx, my);

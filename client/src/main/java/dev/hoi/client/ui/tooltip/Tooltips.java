@@ -92,10 +92,6 @@ public final class Tooltips {
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, boolean gradient, boolean inferIcons) {
         return drawSourceScrollable(graphics,font,text,mouseX,mouseY,viewportWidth,viewportHeight,scroll,gradient,inferIcons,false);
     }
-    public static ScrolledTooltip drawSourceScrollableAbove(GuiGraphicsExtractor graphics, Font font, String text,
-            int anchorX, int anchorY, int viewportWidth, int viewportHeight, int scroll) {
-        return drawSourceScrollable(graphics,font,text,anchorX,anchorY,viewportWidth,viewportHeight,scroll,false,false,true);
-    }
     private static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, boolean gradient, boolean inferIcons, boolean above) {
         String content = officerCodes(text);

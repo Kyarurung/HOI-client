@@ -404,12 +404,13 @@ public final class AgencyPresentationTest {
                         if (style.isBold()) throw new AssertionError("Source §L prose must not become Minecraft bold");
                         return java.util.Optional.empty();
                     }, net.minecraft.network.chat.Style.EMPTY);
-                    return new int[]{(hitNumber(hit, "x") + hitNumber(hit, "width") / 2) * 2, (hitNumber(hit, "y") + hitNumber(hit, "height") - 3) * 2, hitNumber(hit, "y")};
+                    return new int[]{(hitNumber(hit, "x") + hitNumber(hit, "width") / 2) * 2, (hitNumber(hit, "y") + hitNumber(hit, "height") - 3) * 2};
                 });
                 context.getInput().setCursorPos(point[0], point[1]); context.waitTicks(2);
                 var bounds = context.computeOnClient(client -> (dev.hoi.client.ui.tooltip.Tooltips.ScrolledTooltip)field("tooltip"));
                 if (bounds == null || bounds.width() <= 0 || bounds.height() <= 0) throw new AssertionError("Hovered agency tooltip must actually render");
-                if (bounds.y() - 4 < 0 || bounds.y() + bounds.height() + 4 > point[2]) throw new AssertionError("Bottom HUD tooltip must fit above its complete control");
+                int screenHeight = context.computeOnClient(client -> client.getWindow().getGuiScaledHeight());
+                if (bounds.y() - 4 < 0 || bounds.y() + bounds.height() + 4 > screenHeight) throw new AssertionError("Bottom HUD tooltip must follow the cursor inside the screen");
                 var capture = context.takeScreenshot("hoi-agency-tooltip-" + (item.equals("operative") ? item : item.startsWith("dismiss:") ? "dismiss" : item.substring(item.lastIndexOf(':') + 1).toLowerCase(java.util.Locale.ROOT)) + "-" + width + "-gui2");
                 try {
                     var image = javax.imageio.ImageIO.read(capture.toFile());

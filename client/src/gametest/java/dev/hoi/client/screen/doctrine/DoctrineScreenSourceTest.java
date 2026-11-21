@@ -773,7 +773,7 @@ public final class DoctrineScreenSourceTest {
                     var screen=(DoctrineScreen)client.gui.screen();
                     if(!screen.hoveredDetail().equals(choice.advancedDetail()))throw new AssertionError("All branches preserve the exact server advanced-detail text");
                     var bounds=screen.tooltipBounds();
-                    if(bounds!=null&&bounds.y()+bounds.height()+4>detail[1]-10)throw new AssertionError("Doctrine details must end above their button");
+                    if(bounds!=null&&(bounds.y()-4<0||bounds.y()+bounds.height()+4>screen.height))throw new AssertionError("Doctrine details must follow the cursor inside the screen");
                     for(String token:List.of("unit_artillery_icon_small","unit_recce_icon_small","unit_category_all_infantry","trigger_no")) {
                         String glyph=TooltipKeywordIcons.decorateLines(Component.literal("£"+token),false).getString();
                         if(glyph.length()!=1||glyph.charAt(0)<0xe000||glyph.charAt(0)>0xf8ff)throw new AssertionError("Original doctrine glyph missing: "+token);

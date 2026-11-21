@@ -102,6 +102,12 @@ public final class HudTooltip {
         }
         return result.append(Component.literal(text.substring(start)).withColor(color));
     }
+    static boolean sourceTitled(String icon, String label, dev.hoi.protocol.hud.HudDetail detail) {
+        if (detail == null || detail.sourceText() == null) return false;
+        if (List.of("gdp", "debt").contains(icon)) return true;
+        String first = detail.sourceText().split("\\R", 2)[0].replaceAll("§(?:#[0-9a-fA-F]{6}|.)", "").strip();
+        return first.equals(label.strip());
+    }
     static void draw(GuiGraphicsExtractor g, int width, CountryHud hud, HudMenuBar.HudIndicator item, int mx, int my) {
         var client = Minecraft.getInstance();
         pendingGraphics = null; pendingTooltip = null;
@@ -111,7 +117,7 @@ public final class HudTooltip {
         var font = client.font;
         var content = body(font, width, hud, item);
         var visible = new ArrayList<FormattedCharSequence>();
-        if (!item.icon().equals("supplies") && !(hud.details().containsKey(item.icon()) && hud.details().get(item.icon()).sourceText() != null && List.of("gdp", "debt").contains(item.icon()))) {
+        if (!item.icon().equals("supplies") && !sourceTitled(item.icon(), item.label(), hud.details().get(item.icon()))) {
             visible.addAll(font.split(Component.literal(item.label()).withColor(Tooltips.GOLD), Tooltips.width(width,14)));
         }
         visible.addAll(content);

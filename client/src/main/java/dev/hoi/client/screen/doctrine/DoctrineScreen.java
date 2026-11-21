@@ -380,10 +380,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         String detail = scrollableTooltips.entrySet().stream().filter(e -> contains(e.getKey(), mx, my) && (!overPopup || popupButtons.contains(e.getKey())))
             .map(Map.Entry::getValue).findFirst().orElse("");
         if (!detail.equals(hoveredDetail)) { hoveredDetail = detail; tooltipScroll = 0; }
-        boolean overDetails = picking != null && mx >= popupX() + 250 && mx < popupX() + 271 && my >= popupY() + 260 && my < popupY() + 281;
-        tooltipBounds = detail.isEmpty() ? null : overDetails
-            ? Tooltips.drawSourceScrollableAbove(g, font, detail, popupX() + 250, popupY() + 260, width, height, tooltipScroll)
-            : Tooltips.drawSourceScrollable(g, font, detail, mx, my, width, height, tooltipScroll);
+        tooltipBounds = detail.isEmpty() ? null : Tooltips.drawSourceScrollable(g, font, detail, mx, my, width, height, tooltipScroll);
         if (tooltipBounds != null) tooltipScroll = tooltipBounds.scroll();
         HudMenuBar.drawTooltip(g, width, ClientCampaignHud.hud(), my < top ? mx : -1, my, 0);
     }

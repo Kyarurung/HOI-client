@@ -183,7 +183,10 @@ public final class HudMenuBar {
     private static String percent(double value) { return dev.hoi.protocol.ProtocolNumberBounds.percent(value, 0); }
     static String money(Double value) {
         if (value == null) return "0";
-        return java.math.BigDecimal.valueOf(value).movePointLeft(3).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + "조";
+        var billions = java.math.BigDecimal.valueOf(value);
+        long eok = billions.movePointRight(1).setScale(0, java.math.RoundingMode.HALF_UP).longValue();
+        if (Math.abs(eok) < 10000) return String.format(Locale.ROOT, "%,d억", eok);
+        return billions.movePointLeft(3).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + "조";
     }
     private static void stat(GuiGraphicsExtractor g, HudIndicator item, int x) {
         int w = item.width(), h = STATS_HEIGHT - STATS_TOP;
@@ -254,9 +257,25 @@ public final class HudMenuBar {
             drawTab(g, tab, country, selected, screenWidth, snapshot(null));
             if (tab == MenuTab.POLITICS && Tooltips.contains(this, mx, my)) {
                 String name = CountryDisplays.name(country, "");
-                if (!name.isBlank()) Tooltips.drawExact(g, Minecraft.getInstance().font, name, mx, my);
+                if (!name.isBlank()) Tooltips.drawExact(g, Minecraft.getInstance().font, flagTooltip(name), mx, my);
             }
         }
+        @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+            if (tab != MenuTab.POLITICS || event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT || !active || !visible || !isMouseOver(event.x(), event.y()))
+                return super.mouseClicked(event, doubleClick);
+            toggleOwnDiplomacy(country);
+            return true;
+        }
+    }
+    public static String flagTooltip(String name) {
+        return name + "\n" + dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("TOPBAR_FLAG_DESC");
+    }
+    public static void toggleOwnDiplomacy(String country) {
+        if (country == null || country.isBlank()) return;
+        if (dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.diplomacy.DiplomacyCountryScreen screen && country.equals(screen.target())) {
+            AudioUiSounds.play("ui.menu_tab"); screen.onClose(); return;
+        }
+        dev.hoi.client.network.NetworkScreens.openCountry(country);
     }
     private static int[] bounds(MenuTab tab, float s) {
         boolean flag = tab == MenuTab.POLITICS;

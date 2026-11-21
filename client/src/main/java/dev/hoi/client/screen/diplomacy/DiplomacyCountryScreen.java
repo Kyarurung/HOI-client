@@ -43,6 +43,7 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
     private int detailScroll, confirmationScroll, leaderTooltipScroll, spiritTooltipScroll;
     private MenuView.Entry hoveredSpirit;
     public DiplomacyCountryScreen(String target) { super(Component.literal("외교")); this.target = target; choosing = target.isEmpty(); }
+    public String target() { return target; }
     public DiplomacyCountryScreen(CountryView fixture) { this(fixture.target()); view = fixture; }
     public DiplomacyCountryScreen(CountryView fixture, java.util.function.Consumer<CountryPayloads.Action> transport) {
         this(fixture);
