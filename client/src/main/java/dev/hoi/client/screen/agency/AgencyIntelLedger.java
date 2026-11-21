@@ -202,6 +202,12 @@ public final class AgencyIntelLedger {
         }
         return "";
     }
+    public String doctrineFolder(double x, double y) {
+        if (y < viewportTop || y >= viewportBottom || x < at(415) || x >= at(506) || y < ideaY() + at(25) || y >= ideaY() + at(86)) return "";
+        for (var section : report.sections()) if (section.id().equals("doctrine") && section.state().equals("shown") && !section.rows().isEmpty())
+            return switch (domain) { case NAVY -> "naval"; case AIR -> "air"; case ARMY -> "land"; default -> ""; };
+        return "";
+    }
     private boolean sectionVisible(CountryView.Section section) {
         if (Set.of("ideas", "resources", "doctrine").contains(section.id())) return false;
         return domain != AgencyIntelDomain.CIVILIAN && domain != AgencyIntelDomain.ARMY || section.id().equals(selectedSection);

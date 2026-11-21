@@ -406,7 +406,15 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
         return null;
     }
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice) {
-        if (intelLedger != null && detail == null && confirmation == null && event.button() == InputConstants.MOUSE_BUTTON_LEFT && intelLedger.click(event.x(), event.y())) return true;
+        if (intelLedger != null && detail == null && confirmation == null && event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
+            String folder = intelLedger.doctrineFolder(event.x(), event.y());
+            if (!folder.isEmpty()) {
+                dev.hoi.client.audio.AudioUiSounds.play("ui.click");
+                dev.hoi.client.screen.doctrine.DoctrineScreen.open(this, folder, view.target());
+                return true;
+            }
+            if (intelLedger.click(event.x(), event.y())) return true;
+        }
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             var country=flagAt(event.x(),event.y());
             if(country!=null){select(country.tag());return true;}

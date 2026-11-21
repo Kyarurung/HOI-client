@@ -22,7 +22,7 @@ import java.util.function.LongSupplier;
 public final class DoctrineScreen extends Screen implements InputSidebarMovement.InputMovementScreen {
     private static final int SLOT = 212, TEXT = 0xFFE3E1D8, GOLD = 0xFFE7C779;
     private final Screen parent;
-    private final String token;
+    private final String token, target;
     private final Consumer<DoctrinePayloads.Request> transport;
     private final boolean fixture;
     private final LongSupplier clock;
@@ -43,10 +43,11 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
     private Tooltips.ScrolledTooltip tooltipBounds;
     Tooltips.ScrolledTooltip tooltipBounds() { return tooltipBounds; }
     String hoveredDetail() { return hoveredDetail; }
-    public DoctrineScreen(Screen parent, String folder) {
+    public DoctrineScreen(Screen parent, String folder) { this(parent, folder, ""); }
+    public DoctrineScreen(Screen parent, String folder, String target) {
         this(parent, folder, UUID.randomUUID().toString(), null, request -> {
             if (ClientPlayNetworking.canSend(DoctrinePayloads.Request.TYPE)) ClientPlayNetworking.send(request);
-        });
+        }, net.minecraft.util.Util::getMillis, target);
     }
     public DoctrineScreen(Screen parent, String folder, String token, DoctrineView view,
             Consumer<DoctrinePayloads.Request> transport) {
@@ -54,13 +55,20 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
     }
     DoctrineScreen(Screen parent, String folder, String token, DoctrineView view,
             Consumer<DoctrinePayloads.Request> transport, LongSupplier clock) {
+        this(parent, folder, token, view, transport, clock, "");
+    }
+    DoctrineScreen(Screen parent, String folder, String token, DoctrineView view,
+            Consumer<DoctrinePayloads.Request> transport, LongSupplier clock, String target) {
         super(Component.literal("교리")); this.parent = parent; this.folder = folder;
         this.token = token; this.view = view; this.transport = transport; fixture = view != null;
-        this.clock = clock;
+        this.clock = clock; this.target = target;
     }
-    public static void open(Screen parent, String folder) {
-        var screen = new DoctrineScreen(parent, folder); DialogCoordinator.setContent(screen); screen.open();
+    public static void open(Screen parent, String folder) { open(parent, folder, ""); }
+    public static void open(Screen parent, String folder, String target) {
+        var screen = new DoctrineScreen(parent, folder, target); DialogCoordinator.setContent(screen); screen.open();
     }
+    public String target() { return target; }
+    public String folder() { return folder; }
     public void open() { send(DoctrinePayloads.Kind.OPEN, "", ""); }
     public void update(DoctrineView next) {
         if (!next.session().equals(token)) return;
@@ -73,13 +81,13 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
     }
     private void send(DoctrinePayloads.Kind kind, String track, String item) {
         pendingKind = kind; pendingTicks = 100;
-        transport.accept(new DoctrinePayloads.Request(kind, token, view == null ? 0 : view.revision(), folder, track, item));
+        transport.accept(new DoctrinePayloads.Request(kind, token, view == null ? 0 : view.revision(), folder, track, item, target));
         rebuildWidgets();
     }
     @Override protected void init() {
         scrollableTooltips.clear(); popupButtons.clear(); tooltipBounds = null;
         InputSidebarMovement.release(minecraft); top = Math.max(41, HudMenuBar.height(width)); tracksTop = top + 100;
-        HudMenuBar.buttons(width, view == null ? "" : view.country(), MenuTab.OFFICER_CORPS, tab -> {
+        HudMenuBar.buttons(width, view == null ? "" : target.isEmpty() ? view.country() : ClientCampaignHud.country(), MenuTab.OFFICER_CORPS, tab -> {
             if (tab == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
         }, top).forEach(this::addRenderableWidget);
         if (view == null) return;
@@ -460,6 +468,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         UiText.marquee(g, font, caption, left + icon + gap, UiText.centeredY(font, caption.getVisualOrderText(), y, 17, scale), textWidth, scale, preview.enabled() ? TEXT : 0xFF91918E, true, -1);
     }
     private boolean canAfford(DoctrineView.Choice choice) {
+        if (!target.isEmpty()) return true;
         try { return new java.math.BigDecimal(view.experience()).compareTo(new java.math.BigDecimal(choice.cost())) >= 0; }
         catch (NumberFormatException unknown) { return false; }
     }
@@ -517,7 +526,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         g.pose().popMatrix();
     }
     @Override public void tick() {
-        if (!fixture && (!ClientCampaignHud.visible() || view != null && !view.country().equals(ClientCampaignHud.country()))) { revoke(); return; }
+        if (!fixture && (!ClientCampaignHud.visible() || view != null && !view.country().equals(target.isEmpty() ? ClientCampaignHud.country() : target))) { revoke(); return; }
         if (pendingTicks > 0 && --pendingTicks == 0) { pendingKind = null; rebuildWidgets(); }
         if (view != null && pendingTicks == 0 && ++refreshTicks >= 40) { refreshTicks = 0; send(DoctrinePayloads.Kind.REFRESH, "", ""); }
     }

@@ -14,16 +14,19 @@ public final class DoctrinePayloads {
     private static boolean registered;
     private DoctrinePayloads() {}
     public enum Kind { OPEN, REFRESH, SELECT_GRAND, SELECT_SUBDOCTRINE, CLOSE }
-    public record Request(Kind kind, String session, long revision, String folder, String track, String item) implements CustomPacketPayload {
+    public record Request(Kind kind, String session, long revision, String folder, String track, String item, String target) implements CustomPacketPayload {
+        public Request(Kind kind, String session, long revision, String folder, String track, String item) { this(kind, session, revision, folder, track, item, ""); }
         public Request {
             if (kind == null || revision < 0) throw new IllegalArgumentException("Invalid doctrine request");
             DoctrineView.text(session, 36); DoctrineView.text(folder, 32);
             DoctrineView.text(track, 96); DoctrineView.text(item, 96);
+            target = target == null ? "" : target;
+            if (!target.isEmpty() && !target.matches("[A-Z0-9]{3}")) throw new IllegalArgumentException("Invalid doctrine target");
         }
-        public static final Type<Request> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "doctrine_request_v1"));
+        public static final Type<Request> TYPE = new Type<>(Identifier.fromNamespaceAndPath("hoi", "doctrine_request_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf, Request> CODEC = StreamCodec.of(
-            (b, p) -> { b.writeEnum(p.kind); b.writeUtf(p.session, 36); b.writeVarLong(p.revision); b.writeUtf(p.folder, 32); b.writeUtf(p.track, 96); b.writeUtf(p.item, 96); },
-            b -> new Request(b.readEnum(Kind.class), b.readUtf(36), b.readVarLong(), b.readUtf(32), b.readUtf(96), b.readUtf(96)));
+            (b, p) -> { b.writeEnum(p.kind); b.writeUtf(p.session, 36); b.writeVarLong(p.revision); b.writeUtf(p.folder, 32); b.writeUtf(p.track, 96); b.writeUtf(p.item, 96); b.writeUtf(p.target, 3); },
+            b -> new Request(b.readEnum(Kind.class), b.readUtf(36), b.readVarLong(), b.readUtf(32), b.readUtf(96), b.readUtf(96), b.readUtf(3)));
         @Override public Type<Request> type() { return TYPE; }
     }
     public record Response(String json) implements CustomPacketPayload {

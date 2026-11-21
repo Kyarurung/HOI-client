@@ -225,6 +225,32 @@ public final class DiplomacyActionsTest {
                             });
                             context.getInput().setCursorPos(doctrinePoint[0] * 2, doctrinePoint[1] * 2); context.waitTicks(15);
                             context.takeScreenshot("hoi-intel-ledger-" + domain.name().toLowerCase(Locale.ROOT) + "-doctrine-tooltip-" + size[0] + "-gui2");
+                            String folder = switch (domain) { case NAVY -> "naval"; case AIR -> "air"; default -> "land"; };
+                            context.runOnClient(c -> {
+                                var screen = (DiplomacyCountryScreen)c.gui.screen();
+                                var section = view.report(domain).sections().stream().filter(s -> s.id().equals("doctrine")).findFirst().orElseThrow();
+                                if (!section.rows().getFirst().icon().equals("doctrine/gfx_" + folder + "_doctrine_folder_icon")) throw new AssertionError("Ledger doctrine button must use its own doctrine folder art: " + section.rows().getFirst().icon());
+                                if (section.state().equals("shown") != section.tooltip().contains("하여 교리 정보 보기")) throw new AssertionError("Doctrine tooltip click line follows the intel threshold");
+                                screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(doctrinePoint[0], doctrinePoint[1], new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
+                                if (section.state().equals("shown") == (c.gui.screen() == screen)) throw new AssertionError("Doctrine button opens the target doctrine only with enough intel");
+                            });
+                            var tree = com.google.gson.JsonParser.parseString(new com.google.gson.Gson().toJson(view)).getAsJsonObject();
+                            for (var report : tree.getAsJsonArray("reports")) if (report.getAsJsonObject().get("domain").getAsString().equals(domain.name()))
+                                for (var section : report.getAsJsonObject().getAsJsonArray("sections")) if (section.getAsJsonObject().get("id").getAsString().equals("doctrine")) section.getAsJsonObject().addProperty("state", "shown");
+                            var shown = new CountryPayloads.Response(UUID.randomUUID().toString(), tree.toString()).view();
+                            context.setScreen(() -> new DiplomacyCountryScreen(shown, requests::add));
+                            context.runOnClient(c -> press(button((DiplomacyCountryScreen)c.gui.screen(), "첩보 장부")));
+                            context.runOnClient(c -> press(button((DiplomacyCountryScreen)c.gui.screen(), domain.label + " 정보")));
+                            context.runOnClient(c -> ((DiplomacyCountryScreen)c.gui.screen()).mouseScrolled(5, c.gui.screen().height - 90, 0, -100));
+                            context.runOnClient(c -> {
+                                c.gui.screen().mouseClicked(new net.minecraft.client.input.MouseButtonEvent(doctrinePoint[0], doctrinePoint[1], new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
+                                if (!(c.gui.screen() instanceof dev.hoi.client.screen.doctrine.DoctrineScreen doctrine) || !doctrine.target().equals(shown.target()) || !doctrine.folder().equals(folder))
+                                    throw new AssertionError("Shown ledger doctrine opens the target's " + folder + " doctrine: " + c.gui.screen());
+                            });
+                            context.setScreen(() -> new DiplomacyCountryScreen(view, requests::add));
+                            context.runOnClient(c -> press(button((DiplomacyCountryScreen)c.gui.screen(), "첩보 장부")));
+                            context.runOnClient(c -> press(button((DiplomacyCountryScreen)c.gui.screen(), domain.label + " 정보")));
+                            context.runOnClient(c -> ((DiplomacyCountryScreen)c.gui.screen()).mouseScrolled(5, c.gui.screen().height - 90, 0, -100));
                         }
                     }
                     var point = context.computeOnClient(c -> {

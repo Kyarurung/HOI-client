@@ -15,6 +15,12 @@ class DoctrinePayloadsTest {
         assertThrows(IllegalArgumentException.class, () -> new DoctrinePayloads.Response("{\"revision\":-1}").view());
         assertThrows(IllegalArgumentException.class, () -> new DoctrinePayloads.Request(DoctrinePayloads.Kind.OPEN, "x".repeat(37), 0, "land", "", ""));
         assertThrows(IllegalArgumentException.class, () -> new DoctrinePayloads.Request(DoctrinePayloads.Kind.SELECT_SUBDOCTRINE, "", -1, "land", "", ""));
+        assertThrows(IllegalArgumentException.class, () -> new DoctrinePayloads.Request(DoctrinePayloads.Kind.OPEN, UUID.randomUUID().toString(), 0, "land", "", "", "prk"));
+        assertEquals("", new DoctrinePayloads.Request(DoctrinePayloads.Kind.OPEN, UUID.randomUUID().toString(), 0, "land", "", "").target());
+        var intel = new DoctrinePayloads.Request(DoctrinePayloads.Kind.OPEN, UUID.randomUUID().toString(), 0, "land", "", "", "PRK");
+        var buffer = new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(), net.minecraft.core.RegistryAccess.EMPTY);
+        DoctrinePayloads.Request.CODEC.encode(buffer, intel);
+        assertEquals(intel, DoctrinePayloads.Request.CODEC.decode(buffer));
     }
     @Test void sourceLabelsAndAdvancedDetailsRemainBoundedAndRoundTrip() {
         var base = view(List.of());
