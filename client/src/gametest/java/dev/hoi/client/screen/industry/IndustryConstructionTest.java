@@ -227,7 +227,12 @@ public final class IndustryConstructionTest {
             requests.clear();screen.update(new IndustryConstructionView(token,2007,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
             press(screen,"수동 배치 해제");
             if(requests.size()!=1||requests.getFirst().action()!=IndustryConstructionPayloads.Action.REPAIR_PLACEMENT_CLEAR)throw new AssertionError("Clear placement releases manual repair positions: "+requests);
-            requests.clear();screen.update(new IndustryConstructionView(token,2008,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines));
+            requests.clear();screen.update(new IndustryConstructionView(token,2008,"KOR",hud,"civilian_factory",summary,buildings,projects,"",List.of(),List.of("infrastructure","port"),repairLines.subList(0,1)));
+            if(screen.children().stream().anyMatch(w->w instanceof Button b&&b.getMessage().getString().equals("수동 배치 해제")&&b.active))throw new AssertionError("Clear placement is disabled without manual repair positions");
+        });
+        context.waitTicks(3);ResearchScreenTest.gui2Screenshot(context,"hoi-construction-repair-order-unpinned");
+        context.runOnClient(client->{
+            var screen=ref.get();requests.clear();
             var at=screen.repairFrame();
             int first=Math.round(at.y(206+26)),second=Math.round(at.y(206+53+26)),x=Math.round(at.x(200));
             screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(x,first,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false);

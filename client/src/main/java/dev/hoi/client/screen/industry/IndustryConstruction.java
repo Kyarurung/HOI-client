@@ -276,10 +276,11 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
         });
         reset.active=pending==0;reset.setTooltip(Tooltips.createExact(source("REPAIR_ORDER_RESET_QUEUE_TOOLTIP","수리 우선순위 대기열의 모든 항목을 제거합니다. 이미 진행 중인 수리는 현재 위치를 유지합니다.")));
         var clear=sourceButton(UiCommandLabels.text("REPAIR_ORDER_CLEAR_PLACEMENT","수동 배치 해제"),at,151,596,123,36,0,()->send(IndustryConstructionPayloads.Action.REPAIR_PLACEMENT_CLEAR,"",0,null),(g,b)->{
-            art(g,at,"completion/button",151,596,123,36,0,tint(b));
+            if(b.active)art(g,at,"completion/button",151,596,123,36,0,0xFFFFFFFF);
+            else UiAssets.drawGrayscale(g,"completion/button",Math.round(at.x(151)),Math.round(at.y(596)),Math.round(at.size(123)),Math.round(at.size(36)));
             label(g,UiCommandLabels.text("REPAIR_ORDER_CLEAR_PLACEMENT","수동 배치 해제"),at.x(151),at.y(614),at.size(123),UiMenuStyle.TEXT,0);
         });
-        clear.active=pending==0;clear.setTooltip(Tooltips.createExact(source("REPAIR_ORDER_CLEAR_PLACEMENT_TOOLTIP","모든 수동 배치를 해제하고 해당 수리 항목을 자동으로 지정된 위치로 되돌립니다.")));
+        clear.active=pending==0&&view.repairs().stream().anyMatch(Repair::pinned);clear.setTooltip(Tooltips.createExact(source("REPAIR_ORDER_CLEAR_PLACEMENT_TOOLTIP","모든 수동 배치를 해제하고 해당 수리 항목을 자동으로 지정된 위치로 되돌립니다.")));
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta) {
         UiMenuStyle.window(g,WINDOW,frame,height);
