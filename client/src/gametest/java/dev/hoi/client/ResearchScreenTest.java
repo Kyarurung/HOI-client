@@ -11,6 +11,7 @@ import dev.hoi.client.screen.research.ResearchSlotButton;
 import dev.hoi.client.screen.research.ResearchTabButton;
 import dev.hoi.client.screen.research.ResearchTextChecks;
 import dev.hoi.client.screen.research.ResearchTreeLabels;
+import dev.hoi.client.screen.research.ResearchTreeLines;
 import dev.hoi.client.screen.research.ResearchSourceLayout;
 import dev.hoi.client.screen.agency.AgencyScreen;
 import dev.hoi.client.screen.dialog.DialogCompletionChecks;
@@ -931,6 +932,53 @@ public final class ResearchScreenTest implements FabricClientGameTest {
         var requests=new ArrayList<ResearchPayloads.Request>();
         context.getInput().resizeWindow(1600,1000);context.waitTicks(3);
         context.setScreen(()->new ResearchScreen(view,requests::add));context.waitTicks(2);context.takeScreenshot("hoi-tfr-benefits-slots");
+        var ids = view.technologies().stream().map(ResearchView.Tech::id).collect(java.util.stream.Collectors.toSet());
+        var next = view.technologies().stream().filter(t -> t.category().equals("INFANTRY") && t.status() == ResearchView.Status.AVAILABLE && t.year() <= 2012 && t.source() != null && t.source().anyOf().stream().anyMatch(id -> ids.contains(id) && view.technology(id).category().equals("INFANTRY") && view.technology(id).year() < t.year())).min(java.util.Comparator.comparingInt(ResearchView.Tech::year)).orElseThrow(() -> new AssertionError("The TFR infantry tree has a technology with prerequisites"));
+        var researching = new ResearchView(view.session(), view.revision() + 1, view.country(), view.countryName(), view.day(), view.date(), view.speed(), view.slots(),
+                view.technologies().stream().map(t -> t.id().equals(next.id()) ? new ResearchView.Tech(t.id(), t.category(), t.name(), t.year(), t.tier(), t.baseDays(), 10, t.dailyRate(), t.prerequisites(), t.effects(), t.unlocks(), ResearchView.Status.ACTIVE, t.source(), t.tooltipOnlyEffects(), t.upgrades(), t.units()) : t).toList(),
+                view.message(), view.hud(), view.benefits(), view.designTeams(), view.designTeamText());
+        context.getInput().resizeWindow(2560,1440); context.waitTicks(3);
+        var ignored = new ArrayList<ResearchPayloads.Request>();
+        context.setScreen(()->new ResearchScreen(researching,ignored::add)); context.waitTicks(3);
+        clickSlot(context, 0); context.waitTicks(2); closeTop(context); context.waitTicks(2);
+        click(context, "보병"); context.getInput().setCursorPos(2550, 1430); context.waitTicks(3);
+        var first = context.takeScreenshot("hoi-research-researching-frame-0-gui2");
+        long frameBefore = context.computeOnClient(c -> (long) ResearchTreeLines.frame(net.minecraft.util.Util.getMillis()));
+        try { Thread.sleep(250); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        context.waitTicks(6);
+        long frameAfter = context.computeOnClient(c -> (long) ResearchTreeLines.frame(net.minecraft.util.Util.getMillis()));
+        check(frameBefore != frameAfter, "The connector frame advances with time: " + frameBefore + " -> " + frameAfter);
+        var second = context.takeScreenshot("hoi-research-researching-frame-1-gui2");
+        java.awt.image.BufferedImage before, after;
+        try { before = javax.imageio.ImageIO.read(first.toFile()); after = javax.imageio.ImageIO.read(second.toFile()); } catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+        int chevrons = 0, moved = 0;
+        for (int y = 0; y < before.getHeight(); y++) for (int x = 0; x < before.getWidth(); x++) {
+            int rgb = before.getRGB(x, y), r = rgb >> 16 & 255, g = rgb >> 8 & 255, b = rgb & 255;
+            if (Math.abs(r - 110) <= 6 && Math.abs(g - 133) <= 6 && Math.abs(b - 94) <= 6) { chevrons++; if (after.getRGB(x, y) != rgb) moved++; }
+        }
+        check(chevrons > 0, "The connector into the researching technology uses the original chevron strip");
+        check(moved > 0, "The researching chevrons move between frames");
+        var fill = java.util.Set.of(0x464C17, 0x75720E, 0x646613);
+        int band = 0;
+        for (int x = 0; x < before.getWidth(); x++) for (int y = 0, run = 0; y < before.getHeight(); y++) {
+            run = fill.contains(before.getRGB(x, y) & 0xFFFFFF) ? run + 1 : 0;
+            band = Math.max(band, run);
+        }
+        check(band >= 9 && band <= 11, "Lines into available technologies use the original yellow line frame at the source thickness: " + band);
+        context.runOnClient(c -> {
+            check(ResearchTreeLines.frame(0) == 0 && ResearchTreeLines.frame(83) == 1 && ResearchTreeLines.frame(83 * 12) == 0, "The researching connector cycles twelve frames at twelve per second");
+            var art = new ArrayList<String>();
+            for (int frame = 0; frame < 12; frame++) for (String direction : List.of("right", "left", "up", "down")) art.add("research/line/" + direction + "/frame_" + frame);
+            for (int frame = 0; frame <= 3; frame++) for (String axis : List.of("horizontal", "vertical")) art.add("research/line/" + axis + "/frame_" + frame);
+            for (String kind : List.of("all", "down", "up", "left", "right", "top_left", "top_right", "bottom_left", "bottom_right")) {
+                for (int frame = 0; frame <= 3; frame++) art.add("research/line/center/" + kind + "/frame_" + frame);
+                for (int frame = 0; frame < 12; frame++) art.add("research/line/center/" + kind + "/researching/frame_" + frame);
+            }
+            for (var path : art) check(c.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/" + path + ".png")).isPresent(), "Original research line art " + path);
+        });
+        context.getInput().resizeWindow(1600,1000); context.waitTicks(3);
+        requests.clear();
+        context.setScreen(()->new ResearchScreen(view,requests::add));context.waitTicks(2);
         context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(w -> w instanceof net.minecraft.client.gui.components.Button b && b.getMessage().getString().startsWith("제한된 혜택")),"Limited benefits is a passive indicator"));
         clickSlot(context, 0);context.waitTicks(2);
         closeTop(context);context.waitTicks(2);

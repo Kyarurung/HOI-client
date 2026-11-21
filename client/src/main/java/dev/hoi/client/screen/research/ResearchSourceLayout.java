@@ -13,7 +13,7 @@ public final class ResearchSourceLayout {
     record ResearchPosition(int centerX, int centerY, boolean hull) {}
     public record ResearchSourceLabel(String text, int x, int y) {}
     record ResearchSegment(int x1, int y1, int x2, int y2) {}
-    record ResearchConnection(Tech parent, List<ResearchSegment> segments) {}
+    record ResearchConnection(Tech parent, Tech child, List<ResearchSegment> segments) {}
     record ResearchChoice(int x, int y, boolean horizontal) {}
     record ResearchGroup(int x, int y, int width, int height, String caption) {}
     private ResearchSourceLayout() {}
@@ -184,11 +184,11 @@ public final class ResearchSourceLayout {
             }
             if (segments.stream().anyMatch(line -> ResearchRoutes.blocked(line, layout.nodes())))
                 segments = new ArrayList<>(ResearchRoutes.around(parent, child, layout));
-            result.add(new ResearchConnection(parent.tech(), List.copyOf(segments)));
+            result.add(new ResearchConnection(parent.tech(), child.tech(), List.copyOf(segments)));
         }
         return List.copyOf(result);
     }
-    private static void segment(List<ResearchSegment> segments, int x1, int y1, int x2, int y2) {
+    static void segment(List<ResearchSegment> segments, int x1, int y1, int x2, int y2) {
         if (x1 != x2 || y1 != y2) segments.add(new ResearchSegment(x1, y1, x2, y2));
     }
     static List<ResearchChoice> choices(ResearchLayout layout) {

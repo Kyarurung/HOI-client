@@ -188,7 +188,9 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         return dev.hoi.client.ui.tooltip.TooltipText.spacing(String.join("\n",lines));
     }
     private final Map<String, ResearchLayout.ResearchNode> nodesById = new HashMap<>();
+    private Map<String, Integer> lineStates = Map.of();
     private void relayout() {
+        lineStates = ResearchTreeLines.states(view.technologies());
         layout = ResearchPresentation.apply(ResearchLayout.create(view.technologies(), category, ""), minecraft.getResourceManager(), width);
         referenceLabels = ResearchSourceLayout.applies(layout) ? ResearchTreeLabels.create(layout, font::width, font.lineHeight) : List.of();
         treePadding = layout.sourceTree() ? 0 : font.lineHeight + 3;
@@ -495,25 +497,23 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         }
         var byId = nodesById;
         if (reference) drawReferenceConnections(g);
-        if (!reference) for (var node : layout.nodes()) for (var parentId : ResearchLayout.parents(node.tech())) {
-            var parent = byId.get(parentId); if (parent == null) continue;
-            int x1 = (int)(parent.x() + parent.width() - scrollX), y1 = (int)(treeTop + parent.y() + parent.height()/2 - scrollY);
-            int x2 = (int)(node.x() - scrollX), y2 = (int)(treeTop + node.y() + node.height()/2 - scrollY);
-            if(layout.vertical()) {
-                x1=(int)(parent.x()+parent.width()/2-scrollX);y1=(int)(treeTop+parent.y()+parent.height()-scrollY);
-                x2=(int)(node.x()+node.width()/2-scrollX);y2=(int)(treeTop+node.y()-scrollY);
-                int midY=(y1+y2)/2;
-                int tint=parent.tech().status()==ResearchView.Status.COMPLETED?0xFF567D57:0xFF49525A;
-                g.fill(x1,Math.min(y1,midY),x1+2,Math.max(y1,midY)+2,tint);
-                g.fill(Math.min(x1,x2),midY,Math.max(x1,x2)+2,midY+2,tint);
-                g.fill(x2,Math.min(midY,y2),x2+2,Math.max(midY,y2)+2,tint);
-                continue;
+        if (!reference) {
+            var paths = new ArrayList<ResearchTreeLines.ResearchPath>();
+            for (var node : layout.nodes()) for (var parentId : ResearchLayout.parents(node.tech())) {
+                var parent = byId.get(parentId); if (parent == null) continue;
+                var segments = new ArrayList<ResearchSourceLayout.ResearchSegment>();
+                if (layout.vertical()) {
+                    int x1 = (int)(parent.x() + parent.width() / 2 - scrollX), y1 = (int)(treeTop + parent.y() + parent.height() - scrollY);
+                    int x2 = (int)(node.x() + node.width() / 2 - scrollX), y2 = (int)(treeTop + node.y() - scrollY), midY = (y1 + y2) / 2;
+                    ResearchSourceLayout.segment(segments, x1, y1, x1, midY); ResearchSourceLayout.segment(segments, x1, midY, x2, midY); ResearchSourceLayout.segment(segments, x2, midY, x2, y2);
+                } else {
+                    int x1 = (int)(parent.x() + parent.width() - scrollX), y1 = (int)(treeTop + parent.y() + parent.height() / 2 - scrollY);
+                    int x2 = (int)(node.x() - scrollX), y2 = (int)(treeTop + node.y() + node.height() / 2 - scrollY), mid = Math.max(x1 + 10, (x1 + x2) / 2);
+                    ResearchSourceLayout.segment(segments, x1, y1, mid, y1); ResearchSourceLayout.segment(segments, mid, y1, mid, y2); ResearchSourceLayout.segment(segments, mid, y2, x2, y2);
+                }
+                paths.add(new ResearchTreeLines.ResearchPath(lineStates.getOrDefault(node.tech().id(), ResearchTreeLines.LOCKED), segments));
             }
-            int mid = Math.max(x1 + 10, (x1 + x2) / 2);
-            int line = parent.tech().status() == ResearchView.Status.COMPLETED ? 0xFF567D57 : 0xFF49525A;
-            g.fill(Math.min(x1, mid), y1, Math.max(x1, mid) + 2, y1 + 2, line);
-            g.fill(mid, Math.min(y1, y2), mid + 2, Math.max(y1, y2) + 2, line);
-            g.fill(Math.min(mid, x2), y2, Math.max(mid, x2) + 2, y2 + 2, line);
+            ResearchTreeLines.draw(g, paths, layout.nodes().isEmpty() ? 1 : layout.nodes().getFirst().scale(), net.minecraft.util.Util.getMillis());
         }
         ResearchLayout.ResearchNode hovered = null;
         String hoveredTeams = "";
@@ -641,14 +641,10 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
             g.fill(x,y,x+group.width(),y+group.height(),0x552E210B);
             g.outline(x,y,group.width(),group.height(),0xFF9F8153);
         }
-        for (var connection : referenceConnections) {
-            int tint = connection.parent().status() == ResearchView.Status.COMPLETED ? 0xFF567D57 : 0xFF49525A;
-            for (var segment : connection.segments()) {
-                int x1 = (int)(segment.x1() - scrollX), y1 = (int)(treeTop + segment.y1() - scrollY);
-                int x2 = (int)(segment.x2() - scrollX), y2 = (int)(treeTop + segment.y2() - scrollY);
-                g.fill(Math.min(x1, x2) - 1, Math.min(y1, y2) - 1, Math.max(x1, x2) + 1, Math.max(y1, y2) + 1, tint);
-            }
-        }
+        var paths = new ArrayList<ResearchTreeLines.ResearchPath>();
+        for (var connection : referenceConnections) paths.add(new ResearchTreeLines.ResearchPath(lineStates.getOrDefault(connection.child().id(), ResearchTreeLines.LOCKED), connection.segments().stream()
+                .map(s -> new ResearchSourceLayout.ResearchSegment((int)(s.x1() - scrollX), (int)(treeTop + s.y1() - scrollY), (int)(s.x2() - scrollX), (int)(treeTop + s.y2() - scrollY))).toList()));
+        ResearchTreeLines.draw(g, paths, ResearchSourceLayout.scale(layout), net.minecraft.util.Util.getMillis());
         for (var choice : ResearchSourceLayout.choices(layout)) {
             int x = (int)(choice.x() - scrollX), y = (int)(treeTop + choice.y() - scrollY);
             int size = (int)Math.round(24 * ResearchSourceLayout.scale(layout));
@@ -997,6 +993,6 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     private static int color(ResearchView.Status status) {
-        return switch (status) { case LOCKED -> 0xFF77838C; case AVAILABLE -> GOLD; case ACTIVE -> 0xFF74BCD8; case COMPLETED -> 0xFF8DBD81; };
+        return switch (status) { case LOCKED -> 0xFF77838C; case AVAILABLE -> GOLD; case ACTIVE, COMPLETED -> 0xFF8DBD81; };
     }
 }
