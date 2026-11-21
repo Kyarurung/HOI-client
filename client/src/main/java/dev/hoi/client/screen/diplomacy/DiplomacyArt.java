@@ -11,10 +11,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Util;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 final class DiplomacyArt {
-    private record Row(FormattedCharSequence text, String image, int imageX) {}
+    record Row(FormattedCharSequence text, String image, int imageX, FormattedCharSequence caption) {}
+    static final int PORTRAIT_WIDTH = 86, PORTRAIT_HEIGHT = 129;
+    private static final Pattern PORTRAIT = Pattern.compile("£GFX_PRK_(?:cabinet_premier_(?:kim_jae_ryong|kim_tok_hun|pak_tae_song)|eternal_leader_(?:kim_il_sung|kim_jong_il))");
     private CountryView.Art hovered;
     private long enteredAt;
     private int scroll;
@@ -46,8 +50,41 @@ final class DiplomacyArt {
     }
     boolean scroll(CountryView view, int pane, int top, double x, double y, double amount) {
         if (at(view, pane, top, x, y) == null) return false;
-        scroll = Math.max(0, scroll - (int)(amount * 3));
+        scroll = Math.max(0, scroll - (int)(amount * 30));
         return true;
+    }
+    static String text(CountryView.Art art, boolean delayed) {
+        String text = art.title() + (delayed ? "\n\n" + art.tooltip() : "");
+        return text.replace("§A", "§#CD3737").replace("§L", "§#A2B9CF").replace("§H", "§e").replace("§!", "§r");
+    }
+    static List<Row> rows(Font font, String text, int width) {
+        var rows = new ArrayList<Row>();
+        for (String line : TooltipText.colorLines(text)) {
+            String plain = line.replaceAll("§(?:#[0-9a-fA-F]{6}|.)", "");
+            int portrait = rows.size() - 1;
+            while (portrait >= 0 && blank(rows.get(portrait))) portrait--;
+            if (PORTRAIT.matcher(plain.strip()).matches()) {
+                rows.add(new Row(FormattedCharSequence.EMPTY, "diplomacy/tfrkp/" + plain.strip().substring(1).toLowerCase(java.util.Locale.ROOT), font.width(plain.substring(0, plain.indexOf('£'))), null));
+            } else if (TooltipText.blank(line)) rows.add(new Row(FormattedCharSequence.EMPTY, "", 0, null));
+            else if (portrait >= 0 && !rows.get(portrait).image().isEmpty() && rows.get(portrait).caption() == null && plain.startsWith(" ")) {
+                var image = rows.get(portrait);
+                rows.subList(portrait, rows.size()).clear();
+                rows.add(new Row(FormattedCharSequence.EMPTY, image.image(), image.imageX(), styled(line.replaceFirst("^((?:§(?:#[0-9a-fA-F]{6}|.))*)\\s+", "$1")).getVisualOrderText()));
+            } else for (var wrapped : font.split(styled(line), width)) rows.add(new Row(wrapped, "", 0, null));
+        }
+        return Tooltips.collapseBlankLines(rows, DiplomacyArt::blank);
+    }
+    static int height(Row row, int lineHeight) {
+        return row.image().isEmpty() ? lineHeight : PORTRAIT_HEIGHT;
+    }
+    static int captionY(Font font) {
+        return Math.round(PORTRAIT_HEIGHT * 235f / 258) - font.lineHeight / 2;
+    }
+    private static boolean blank(Row row) {
+        return row.image().isEmpty() && Tooltips.blank(row.text());
+    }
+    private static Component styled(String line) {
+        return TooltipKeywordIcons.decorateLines(Tooltips.styled(Component.literal(line.replaceAll("(£[A-Za-z0-9_]+) ", "$1£")), false), false);
     }
     void tooltip(GuiGraphicsExtractor g, Font font, CountryView view, int pane, int top, int mx, int my) {
         if(dev.hoi.client.ui.tooltip.TooltipLayer.defer(g,()->tooltip(g,font,view,pane,top,mx,my)))return;
@@ -58,30 +95,22 @@ final class DiplomacyArt {
             scroll = 0;
         }
         if (art == null || Util.getMillis() - enteredAt < 50) return;
-        String text = art.title() + (Util.getMillis() - enteredAt >= 1000 ? "\n\n" + art.tooltip() : "");
-        text = text.replace("§A", "§#CD3737").replace("§L", "§#A2B9CF").replace("§H", "§e").replace("§!", "§r");
         int width = Tooltips.width(g.guiWidth(), 14), lineHeight = font.lineHeight + 1;
-        var rows = new ArrayList<Row>();
-        for (String line : TooltipText.colorLines(text)) {
-            String plain = line.replaceAll("§(?:#[0-9a-fA-F]{6}|.)", "");
-            if (plain.strip().matches("£GFX_PRK_(?:cabinet_premier_(?:kim_jae_ryong|kim_tok_hun|pak_tae_song)|eternal_leader_(?:kim_il_sung|kim_jong_il))")) {
-                int marker = plain.indexOf('£');
-                rows.add(new Row(FormattedCharSequence.EMPTY, "diplomacy/tfrkp/" + plain.strip().substring(1).toLowerCase(java.util.Locale.ROOT), font.width(plain.substring(0, marker))));
-            } else if (line.isEmpty()) rows.add(new Row(FormattedCharSequence.EMPTY, "", 0));
-            else for (var wrapped : font.split(TooltipKeywordIcons.decorateLines(Tooltips.styled(Component.literal(line), false), false), width)) rows.add(new Row(wrapped, "", 0));
-        }
-        int total = rows.size() * lineHeight, height = Math.min(total, g.guiHeight() - 20);
-        scroll = Math.clamp(scroll, 0, Math.max(0, (total - height + lineHeight - 1) / lineHeight));
+        var rows = rows(font, text(art, Util.getMillis() - enteredAt >= 1000), width);
+        int total = rows.stream().mapToInt(row -> height(row, lineHeight)).sum(), height = Math.min(total, g.guiHeight() - 20);
+        scroll = Math.clamp(scroll, 0, total - height);
         var position = Tooltips.position(g.guiWidth(), g.guiHeight(), mx, my, width, height);
-        int x = position.x(), y = position.y();
+        int x = position.x(), y = position.y(), rowY = y - scroll;
         g.nextStratum();
         Tooltips.background(g, x - 4, y - 4, width + 8, height + 8);
         g.enableScissor(x, y, x + width, y + height);
-        for (int index = 0; index < rows.size(); index++) {
-            var row = rows.get(index);
-            int rowY = y + (index - scroll) * lineHeight;
+        for (var row : rows) {
             if (row.image().isEmpty()) g.text(font, row.text(), x, rowY, 0xFFE0E0E0);
-            else UiAssets.draw(g, row.image(), x + row.imageX(), rowY - (129 - lineHeight) / 2, 86, 129);
+            else {
+                UiAssets.draw(g, row.image(), x + row.imageX(), rowY, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
+                if (row.caption() != null) g.text(font, row.caption(), x + row.imageX() + (PORTRAIT_WIDTH - font.width(row.caption())) / 2, rowY + captionY(font), 0xFFFFFFFF);
+            }
+            rowY += height(row, lineHeight);
         }
         g.disableScissor();
     }
