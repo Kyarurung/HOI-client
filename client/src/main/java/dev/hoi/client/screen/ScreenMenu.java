@@ -291,7 +291,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 dev.hoi.client.ui.UiText.marquee(g, font, Component.literal(deployed.value()), frame.x(243), frame.y(148.5) - font.lineHeight / 2f, frame.size(60), 1, TEXT, true, -1);
             }
             dev.hoi.client.ui.UiText.marquee(g, font, Tooltips.officerText("포획된 지휘관"), frame.x(361), frame.y(147) - font.lineHeight / 2f, frame.size(155), 1, TEXT, true, 0);
-            dev.hoi.client.ui.UiText.marquee(g, font, Component.literal(held), frame.x(341), dev.hoi.client.ui.UiText.centeredY(font, held, frame.y(163) - font.lineHeight / 2f, font.lineHeight, 1), frame.size(20), 1, GOLD, false, 0);
+            dev.hoi.client.ui.UiText.marquee(g, font, Component.literal(held), frame.x(346), dev.hoi.client.ui.UiText.centeredY(font, held, frame.y(161.5) - font.lineHeight / 2f, font.lineHeight, 1), frame.size(19), 1, GOLD, false, 0);
         }
         if (widgets) {
             var headquarters=new UiMenuButton("육군 사령부 편제",frame.ix(23),frame.iy(121),frame.len(200),frame.len(49),()->{var screen=new ArmyHeadquarters(this);DialogCoordinator.setContent(screen);screen.open();}).caption("").background("none");
@@ -623,11 +623,11 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 UiMenuStyle.heading(g, font, section.title(), Math.round(layout.x(102)), Math.round(y + (float)(20.5 * scale) - 4.5f * (font.lineHeight + 2f) / font.lineHeight) + 1, (int)Math.round(300 * scale), TEXT);
             }
             var entries = section.entries();
-            int count = Math.max(1, Math.min(POLITICS_COLUMNS, entries.size()));
+            int count = Math.max(1, Math.min(POLITICS_COLUMNS, entries.size())), firstColumn = section.icon().equals("research_production") ? 1 : 0;
             if (g != null) for (int j = 0; j < Math.min(count, entries.size()); j++) if (entries.get(j).alert())
-                alertGlow(g, Math.round(layout.x(104 + 80 * j)), Math.round(y + (float)(44 * scale)), iconSize, iconSize);
+                alertGlow(g, Math.round(layout.x(104 + 80 * (j + firstColumn))), Math.round(y + (float)(44 * scale)), iconSize, iconSize);
             for (int j = 0; j < count; j++) {
-                int x = Math.round(layout.x(104 + 80 * j)), cy = Math.round(y + (float)(44 * scale));
+                int x = Math.round(layout.x(104 + 80 * (j + firstColumn))), cy = Math.round(y + (float)(44 * scale));
                 var entry = entries.isEmpty() ? new MenuView.Entry(section.title(), "정보 없음", "서버가 이 구역의 상태를 제공하지 않습니다.") : entries.get(j);
                 if (g != null) {
                     String icon = entry.icon().isEmpty() ? "menu/politics" : entry.icon();

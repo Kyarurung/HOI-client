@@ -12,7 +12,7 @@ public final class TooltipKeywordIcons {
     private record TooltipIconBinding(String label, String glyph) {}
     private static List<TooltipIconBinding> bindings;
     private static Map<String,String> tokens=Map.of();
-    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)£?");
+    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)(?:(?<=\\|[0-9]{1,4})\\.+)?£?");
     private TooltipKeywordIcons() {}
     public static void clear() { bindings = null; tokens=Map.of(); }
     public static Component decorateLines(Component text) {

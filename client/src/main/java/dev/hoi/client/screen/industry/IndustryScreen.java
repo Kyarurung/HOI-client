@@ -1331,7 +1331,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                     long[] needs = {Math.round(r.available() - r.demand() - r.fuelCurrent()), Math.round(r.available() - r.demand() - r.fuelMaximum())};
                     double pitch = font.lineHeight / at.scale();
                     for (int k = 0; k < needs.length; k++) {
-                        double center = 282.5 + (k - .5) * pitch;
+                        double center = 282.5 + (k - .5) * pitch + 1 / at.scale();
                         if (k < labels.length) tradeText(graphics, at, Component.literal(labels[k]), ex + 5, center, 20, TEXT, -1);
                         tradeText(graphics, at, Component.literal(Long.toString(needs[k])), ex + 22, center, 49, needs[k] < 0 ? BAD : TEXT, 1);
                     }

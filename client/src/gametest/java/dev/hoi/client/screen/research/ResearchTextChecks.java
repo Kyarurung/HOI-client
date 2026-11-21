@@ -179,6 +179,7 @@ public final class ResearchTextChecks {
                 screen.showDetail(tech.get().id());
                 var effects = screen.detailLines(tech.get()).stream().map(Component::getString).toList();
                 check(effects.stream().noneMatch(line -> line.endsWith(" 해금") || ResearchText.zeroEffect(line)), "Detail effects omit duplicate unlocks and zero values");
+                check(!effects.contains("효과:") && !effects.contains("효과"), "The detail panel lists effects without the tooltip header like the original");
                 for(String effect:tech.get().tooltipOnlyEffects()) {
                     check(effects.stream().noneMatch(line -> line.equals(ResearchText.effect(effect).getString())), "Completion rewards stay outside detail effects");
                     check(screen.tooltipLines(tech.get()).stream().anyMatch(line -> line.getString().equals(ResearchText.effect(effect).getString())), "Completion rewards remain in tooltips");

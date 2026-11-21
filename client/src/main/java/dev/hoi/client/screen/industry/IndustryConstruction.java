@@ -203,7 +203,13 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
                 };
                 button.active=pending==0&&(repairWindow?repairable:b.enabled());
                 String tooltip=b.tooltip()==null?b.name()+"\n"+b.reason():b.tooltip();
-                if(repairWindow&&repairable)tooltip=b.name()+"\n\n"+source("REPAIR_ORDER_CLICK_ADD","§G클릭§!하여 §Y수리 우선순위 대기열에 추가§!")+(order.contains(id)?"\n"+source("REPAIR_ORDER_RIGHT_CLICK_REMOVE","§G우클릭§!하여 §Y수리 우선순위 대기열에서 제거§!"):"");
+                if(repairWindow&&repairable) {
+                    boolean sourced=b.tooltip()!=null&&b.tooltip().startsWith("§e");
+                    String full=sourced?b.tooltip():b.name();
+                    int instruction=full.lastIndexOf("\n\n");
+                    tooltip=(sourced&&b.enabled()&&instruction>=0?full.substring(0,instruction):full)+"\n"+source("REPAIR_ORDER_CLICK_ADD","§G클릭§!하여 §Y수리 우선순위 대기열에 추가§!")
+                            +(order.contains(id)?"\n"+source("REPAIR_ORDER_RIGHT_CLICK_REMOVE","§G우클릭§!하여 §Y수리 우선순위 대기열에서 제거§!"):"");
+                }
                 button.setTooltip(Tooltips.createExact(tooltip));addRenderableWidget(button);
             }
         }

@@ -843,7 +843,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         }
         var effects = tech.effects().stream().filter(text -> !ResearchText.zeroEffect(text) && !text.endsWith(" 해금") && !tech.tooltipOnlyEffects().contains(text)).toList();
         if (!effects.isEmpty() && tech.upgrades().isEmpty()) {
-            result.add(ResearchText.gold("효과:")); effects.stream().map(ResearchText::effect).forEach(result::add); result.add(Component.empty());
+            effects.stream().map(ResearchText::effect).forEach(result::add); result.add(Component.empty());
         }
         return result;
     }

@@ -28,6 +28,7 @@ public final class FocusScreen extends Screen {
     private final Map<String,FocusPayloads.Detail> hoverDetails=new HashMap<>();
     private String hoverTarget="",hoverQuery="";
     private EditBox search;
+    private UiMenuButton searchClear;
     private Button detailClose,detailStart;
     private String query="",selected="",completionTarget="";
     private float zoom=1,panX,panY;
@@ -110,16 +111,17 @@ public final class FocusScreen extends Screen {
                 .caption("").background("menu/close").art(width-48*unit,windowTop+13*unit,32*unit,33*unit).sound("ui.close"));
         int split=Math.round(center+17.5f*unit),artTop=Math.round(middle-17.5f*unit),artBottom=Math.round(middle+17.5f*unit),minusLeft=Math.round(center-21*unit);
         var zoomTip=Tooltips.createOfficer(UiCommandLabels.text("FOCUS_ZOOM_SLIDER_TOOLTIP","클릭하거나 §G마우스 휠§!을 사용하여 중점 계통도를 확대/축소"));
-        var zoomIn=new UiMenuButton("+",split,artTop,Math.round(center+56*unit)-split,artBottom-artTop,() -> zoom(1.15,width/2.0,(height+top)/2.0)).caption("").background("focus/zoom_in").art(center+14*unit,middle-17.5f*unit,42*unit,35*unit);
-        var zoomOut=new UiMenuButton("−",minusLeft,artTop,split-minusLeft,artBottom-artTop,() -> zoom(1/1.15,width/2.0,(height+top)/2.0)).caption("").background("focus/zoom_out").art(center-21*unit,middle-17.5f*unit,42*unit,35*unit);
+        var zoomIn=new UiMenuButton("+",split,artTop,Math.round(center+56*unit)-split,artBottom-artTop,() -> zoom(1.15,width/2.0,(height+top)/2.0)).caption("").background("none");
+        var zoomOut=new UiMenuButton("−",minusLeft,artTop,split-minusLeft,artBottom-artTop,() -> zoom(1/1.15,width/2.0,(height+top)/2.0)).caption("").background("none");
         zoomIn.setTooltip(zoomTip);zoomOut.setTooltip(zoomTip);
         addRenderableWidget(zoomIn);addRenderableWidget(zoomOut);
-        int searchWidth=Math.min(140,Math.max(65,width/5));
         if(search==null) {
-            search=new EditBox(font,0,0,searchWidth,18,Component.literal("중점 검색"));
-            search.setMaxLength(128);search.setHint(Component.literal("입력하여 검색"));search.setValue(query);search.setResponder(s -> query=s);
+            search=new EditBox(font,0,0,1,font.lineHeight,Component.literal("중점 검색"));
+            search.setMaxLength(128);search.setHint(Component.literal(UiCommandLabels.text("FOCUS_SEARCH_TYPE_TEXT","입력하여 검색")).withStyle(net.minecraft.ChatFormatting.WHITE));search.setValue(query);search.setResponder(s -> query=s);
         }
-        search.setPosition(width-82-searchWidth,top-24);search.setWidth(searchWidth);addRenderableWidget(search);
+        search.setBordered(false);search.setPosition(Math.round(width-306*unit),Math.round(middle-font.lineHeight/2f));search.setWidth(Math.round(150*unit));addRenderableWidget(search);
+        searchClear=new UiMenuButton("검색 지우기",Math.round(width-171*unit),Math.round(windowTop+20*unit),Math.round(18*unit),Math.round(18*unit),() -> search.setValue("")).caption("").background("focus/clear_text");
+        searchClear.setTooltip(null);searchClear.visible=!query.isEmpty();addRenderableWidget(searchClear);
         if(view!=null && !centered)centerTree();
         if(!selected.isEmpty()) {
             var n=selectedNode();
@@ -157,6 +159,8 @@ public final class FocusScreen extends Screen {
         g.nextStratum();
         var heading=Tooltips.officerText((view==null?"":view.name()+" ")+"중점 계통도",true);
         dev.hoi.client.ui.UiText.marquee(g,font,heading,10,HudMenuBar.height(width)+4,Math.max(30,width-245),1,UiMenuStyle.TEXT,true,-1);
+        drawHeaderArt(g);
+        if(searchClear!=null)searchClear.visible=!query.isEmpty();
         g.enableScissor(4,top,width-4,height-5);
         if(view!=null) {
             FocusInlays.draw(g,view.inlays(),panX,panY,zoom);
@@ -164,8 +168,6 @@ public final class FocusScreen extends Screen {
                 var n=view.nodes().get(i);
                 for(var group:n.parents())for(int parent:group)link(g,view.nodes().get(parent),n);
             }
-            for(var n:view.nodes())drawNode(g,n);
-            g.nextStratum();
             var exclusivePairs=new HashSet<Set<Integer>>();
             for(int i=0;i<view.nodes().size();i++)for(int other:view.nodes().get(i).exclusive()) {
                 if(other==i||!exclusivePairs.add(Set.of(i,other)))continue;
@@ -177,6 +179,7 @@ public final class FocusScreen extends Screen {
                 UiAssets.draw(g,"mio/ui/gfx_focus_link_exclusive/frame_2",right-size,linkY,size,size);
                 UiAssets.draw(g,"mio/ui/gfx_focus_link_exclusive/frame_0",(left+right-size)/2,linkY,size,size);
             }
+            for(var n:view.nodes())drawNode(g,n);
             g.nextStratum();
             for(var n:view.nodes())drawLabel(g,n);
         } else g.centeredText(font,"중점 계통도 불러오는 중…",width/2,top+36,UiMenuStyle.TEXT);
@@ -220,12 +223,12 @@ public final class FocusScreen extends Screen {
         float left=x(n)-NODE_W*zoom/2,upper=y(n);
         if(left>width || left+NODE_W*zoom<0 || upper>height || upper+NODE_H*zoom<top)return;
         g.pose().pushMatrix();g.pose().translate(left,upper);g.pose().scale(zoom);
+        String state=n.status().equals("완료")?"completed":n.enabled()||n.status().equals("진행 중")?"available":"unavailable";
+        UiAssets.draw(g,"focus/"+state,0,54,NODE_W,25);
         String art=n.icon().matches("[A-Za-z0-9_]+")?"politics/art/"+n.icon().toLowerCase(Locale.ROOT):"";
         boolean drawn=!art.isEmpty() && UiAssets.draw(g,art,2,0,NODE_W-4,60);
         if(!drawn && !art.isEmpty() && !n.icon().startsWith("GFX_"))drawn=UiAssets.draw(g,"politics/art/gfx_"+n.icon().toLowerCase(Locale.ROOT),2,0,NODE_W-4,60);
         if(!drawn)UiAssets.draw(g,"politics/empty/focus",2,0,NODE_W-4,60);
-        String state=n.status().equals("완료")?"completed":n.enabled()||n.status().equals("진행 중")?"available":"unavailable";
-        UiAssets.draw(g,"focus/"+state,0,54,NODE_W,25);
         boolean match=query.isBlank() || n.name().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
         if(!match)g.fill(0,0,NODE_W,NODE_H,0xA0000000);
         g.pose().popMatrix();
@@ -249,6 +252,21 @@ public final class FocusScreen extends Screen {
             g.fill((int)left,(int)(upper+54*zoom),(int)(left+NODE_W*zoom),(int)(upper+54*zoom)+1,0xFFFFCC33);
             g.fill((int)left,(int)(upper+79*zoom)-1,(int)(left+NODE_W*zoom),(int)(upper+79*zoom),0xFFFFCC33);
         }
+    }
+    private void drawHeaderArt(GuiGraphicsExtractor g) {
+        float unit=HudMenuBar.windowTop(width)/78f,windowTop=HudMenuBar.windowTop(width),center=width-114*unit,middle=windowTop+28.5f*unit;
+        UiAssets.drawExact(g,"focus/find_editbox",width-346*unit,windowTop+9*unit,200*unit,39*unit);
+        zoomHalf(g,"focus/zoom_in",center+14*unit,middle-17.5f*unit,unit,8,28,8,27,31,3);
+        zoomHalf(g,"focus/zoom_out",center-21*unit,middle-17.5f*unit,unit,13,32,14,22,34,-3);
+    }
+    private static void zoomHalf(GuiGraphicsExtractor g,String art,float x,float y,float unit,int left,int right,int upper,int lower,int column,int shift) {
+        if(UiAssets.imageSize(art)[0]!=42)return;
+        var id=net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+art+".png");
+        g.pose().pushMatrix();g.pose().translate(x,y);g.pose().scale(unit);
+        g.blit(id,0,0,42,35,0,1,0,1);
+        g.blit(id,left,upper,right,lower,column/42f,(column+1)/42f,upper/35f,lower/35f);
+        g.blit(id,left+shift,upper,right+shift,lower,left/42f,right/42f,upper/35f,lower/35f);
+        g.pose().popMatrix();
     }
     private void zoom(double factor,double mx,double my) {
         float next=(float)Math.clamp(zoom*factor,.35,1.8);float ratio=next/zoom;panX=(float)(mx-(mx-panX)*ratio);panY=(float)(my-(my-panY)*ratio);zoom=next;

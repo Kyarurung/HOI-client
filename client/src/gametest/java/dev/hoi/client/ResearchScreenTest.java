@@ -778,6 +778,12 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             DiplomacyCountryScreenChecks.politicsHover(context, menu);
             click(context, "정부 선택 0 · 미지정"); context.waitTicks(2); context.takeScreenshot("hoi-politics-slot-detail");
             context.runOnClient(client -> client.gui.screen().keyPressed(ESCAPE));
+            context.runOnClient(client -> {
+                java.util.function.ToIntFunction<String> column = name -> client.gui.screen().children().stream().filter(c -> c instanceof net.minecraft.client.gui.components.AbstractWidget w && w.getMessage().getString().startsWith(name + " · "))
+                        .map(c -> ((net.minecraft.client.gui.components.AbstractWidget)c).getX()).findFirst().orElseThrow(() -> new AssertionError("Missing politics slot " + name));
+                check(column.applyAsInt("연구 & 생산 선택 0") == column.applyAsInt("경제법 선택 1") && column.applyAsInt("연구 & 생산 선택 3") == column.applyAsInt("경제법 선택 4"),
+                        "Industrial organizations fill the second to fifth politics columns");
+            });
             click(context, "연구 & 생산 선택 0 · 적용 중");
             context.runOnClient(client -> check(client.gui.screen().children().stream().filter(c -> c instanceof Button b
                     && b.getMessage().getString().equals("세부 사항")).count() == 1, "Armor manufacturer filter"));
@@ -1404,6 +1410,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 check(dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("GDP 대비 부채: +4.52%")).getString().equals("GDP 대비 부채: +4.52%"), "A non-stat debt row receives no inferred icon in other tooltips either");
                 var inflation = dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£inflation 인플레이션: -0.95%"), false);
                 check(!inflation.getString().contains("£") && inflation.getString().codePoints().anyMatch(c -> c >= 0xe000 && c <= 0xf8ff), "Original inflation token renders its actual icon");
+                String refinery = dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("합성 정제소의 자원 생산량 변동치: +2£resources_strip|1."), false).getString();
+                check(!refinery.contains("£") && !refinery.endsWith(".") && refinery.codePoints().anyMatch(c -> c >= 0xe000 && c <= 0xf8ff), "A framed texticon consumes the period after its frame number like the original: " + refinery);
+                String particle = dev.hoi.client.ui.tooltip.TooltipKeywordIcons.decorateLines(net.minecraft.network.chat.Component.literal("£resources_strip|1(으)로부터, £resources_strip|2, 끝."), false).getString();
+                check(particle.contains("(으)로부터, ") && particle.endsWith(", 끝.") && !particle.contains("£"), "Other characters after a framed texticon stay visible: " + particle);
             });
             var sourceMenu = new MenuView(menu.country(),menu.countryName(),menu.date(),menu.speed(),menu.pages(),original);
             context.setScreen(() -> new ScreenMenu(sourceMenu)); context.waitTicks(3);
