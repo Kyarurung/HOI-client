@@ -12,8 +12,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -237,9 +235,10 @@ final class FocusDetail {
     }
     private static String statusTooltip(FocusPayloads.Detail detail,boolean completed) {
         if(completed)return dev.hoi.client.ui.UiCommandLabels.text("FOCUS_STATUS_COMPLETED_TOOLTIP","§G완료됨§!");
-        String total="§H"+Math.round(detail.durationHours()/24.0)+"§!";
+        String total="§H"+days(detail.durationHours())+"§!";
         if(detail.elapsedHours()<=0)return dev.hoi.client.ui.UiCommandLabels.text("FOCUS_STATUS_TOOLTIP","").replace("$DAYS|0H$",total);
-        return dev.hoi.client.ui.UiCommandLabels.text("FOCUS_STATUS_INPROGRESS_TOOLTIP","").replace("$DAYS|0H$",total).replace("$LEFT|0H$","§H"+(long)Math.ceil(Math.max(0,detail.durationHours()-detail.elapsedHours())/24.0)+"§!");
+        return dev.hoi.client.ui.UiCommandLabels.text("FOCUS_STATUS_INPROGRESS_TOOLTIP","").replace("$DAYS|0H$",total).replace("$LEFT|0H$","§H"+daysLeft(detail.durationHours()-detail.elapsedHours())+"§!");
     }
-    static String days(long hours){return BigDecimal.valueOf(hours).divide(BigDecimal.valueOf(24),3,RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();}
+    static String days(long hours){return Long.toString(Math.round(hours/24.0));}
+    static String daysLeft(long hours){return Long.toString((long)Math.ceil(Math.max(0,hours)/24.0));}
 }

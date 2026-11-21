@@ -33,6 +33,7 @@ public final class FocusHoverTest {
             var activeDetail=new FocusPayloads.Detail(detail.id(),detail.name(),detail.description(),504,264,0,0,0,detail.source(),detail.line(),detail.requirements(),detail.rewards(),false,"",false);
             var activeView=new FocusPayloads.View(view.country(),view.name(),view.tree(),view.session(),2,"",view.hud(),List.of(active),false,activeDetail,null);
             game.runOnClient(c->{screen.update(FocusPayloads.Response.of(screen.token(),activeView));assertTooltip(screen,active,"완료 시간: §H21§!일. (§H10§!일 남음)",c.font);});
+            if(!FocusDetail.daysLeft(228).equals("10")||!FocusDetail.days(516).equals("22")||!FocusDetail.daysLeft(0).equals("0"))throw new AssertionError("Focus day counts are shown as whole days");
             game.waitTicks(3);game.takeScreenshot("hoi-focus-hover-source-inprogress-"+width+"-gui2");
             var completeNode=new FocusPayloads.Node(node.id(),node.name(),node.description(),node.icon(),node.x(),node.y(),node.parents(),node.exclusive(),"완료",240,false);
             var completeView=new FocusPayloads.View(view.country(),view.name(),view.tree(),view.session(),3,"",view.hud(),List.of(completeNode),false,detail,null);

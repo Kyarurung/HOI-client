@@ -201,7 +201,7 @@ public final class FocusScreen extends Screen {
         var source=hoverDetails.get(node.id());
         if(source!=null) {
             String status=node.status().equals("완료")?UiCommandLabels.text("FOCUS_STATUS_COMPLETED_TOOLTIP","§G완료됨§!"):node.remaining()>0?UiCommandLabels.text("FOCUS_STATUS_INPROGRESS_TOOLTIP","완료 시간: $DAYS|0H$일. ($LEFT|0H$일 남음)"):UiCommandLabels.text("FOCUS_STATUS_TOOLTIP","완료 시간: $DAYS|0H$일");
-            result.append("\n\n").append(status.replace("$DAYS|0H$","§H"+FocusDetail.days(source.durationHours())+"§!").replace("$LEFT|0H$","§H"+FocusDetail.days(node.remaining())+"§!"));
+            result.append("\n\n").append(status.replace("$DAYS|0H$","§H"+FocusDetail.days(source.durationHours())+"§!").replace("$LEFT|0H$","§H"+FocusDetail.daysLeft(node.remaining())+"§!"));
             if(!source.requirements().isEmpty())result.append('\n');
             for(var row:source.requirements())result.append('\n').append(" ".repeat(row.depth()*2)).append(row.text());
             if(!source.rewards().isEmpty()) {
