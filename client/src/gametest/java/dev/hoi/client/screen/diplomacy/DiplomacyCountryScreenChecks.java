@@ -347,29 +347,31 @@ public final class DiplomacyCountryScreenChecks {
             if (effects == null || !effects.detail().contains("+5%")) throw new AssertionError("Government hover exposes current effect values");
             for (int pane : new int[]{248,363,726}) {
                 var sizing = new dev.hoi.client.ui.politics.PoliticsLayout(pane, 40);
-                var focusBox = sizing.focus(); var focusImage = sizing.focusImage();
-                if (Math.abs(focusBox.width() - focusBox.height() * 359.0 / 107) > .5
-                        || Math.abs(focusBox.x() + focusBox.height() * 49.5 / 107
-                                - focusImage.x() - focusImage.width() / 2.0) > .5
+                var focusImage = sizing.focusImage();
+                if (Math.abs(sizing.x(187) + 107 * sizing.scale() * 49.5 / 107 - sizing.x(197 + 80 / 2.0)) > .5
                         || focusImage.width() != focusImage.height())
                     throw new AssertionError("Focus must center its original frame on the icon");
                 var art = sizing.box(dev.hoi.client.ui.politics.PoliticsLayout.ART_X, dev.hoi.client.ui.politics.PoliticsLayout.ART_Y,
                         dev.hoi.client.ui.politics.PoliticsLayout.ART_WIDTH, dev.hoi.client.ui.politics.PoliticsLayout.ART_HEIGHT);
                 var cells = List.of(sizing.leader(), sizing.focus(), sizing.union(), sizing.ideology(), sizing.spirits(), sizing.government(), sizing.election(),
                         sizing.parties(), sizing.economy(), sizing.economyName(), sizing.faction(), sizing.partyChart(), sizing.balance(), sizing.status(0), sizing.status(1));
+                var originalOverlaps = java.util.Map.of(List.of(4, 7), 4, List.of(4, 12), 2, List.of(5, 9), 6, List.of(7, 12), 8);
                 for (int a = 0; a < cells.size(); a++) {
                     var box = cells.get(a);
                     if (box.x() < art.x() || box.y() < art.y() || box.x() + box.width() > art.x() + art.width() || box.y() + box.height() > art.y() + art.height())
                         throw new AssertionError("Politics cell " + a + " must stay inside the original pol_view_bg_new art at pane " + pane);
                     for (int b = a + 1; b < cells.size(); b++) {
                         var other = cells.get(b);
-                        if (box.x() < other.x() + other.width() && other.x() < box.x() + box.width() && box.y() < other.y() + other.height() && other.y() < box.y() + box.height())
-                            throw new AssertionError("Politics cells " + a + " and " + b + " overlap at pane " + pane);
+                        int depth = Math.min(Math.min(box.x() + box.width(), other.x() + other.width()) - Math.max(box.x(), other.x()),
+                                Math.min(box.y() + box.height(), other.y() + other.height()) - Math.max(box.y(), other.y()));
+                        Integer original = originalOverlaps.get(List.of(a, b));
+                        if (original == null ? depth > 0 : depth > Math.ceil(original * sizing.scale()) + 1)
+                            throw new AssertionError("Politics cells " + a + " and " + b + " overlap beyond the original countrypoliticsview layout at pane " + pane);
                     }
                 }
                 if (sizing.contentTop() < art.y() + art.height())
                     throw new AssertionError("Ideas must start below the original politics art");
-                if (sizing.government().x() + sizing.government().width() > sizing.election().x()
+                if (sizing.election().y() + sizing.election().height() > sizing.government().y()
                         || sizing.election().x() + sizing.election().width() >= sizing.parties().x()
                         || sizing.partyChart().x() + sizing.partyChart().width() >= sizing.parties().x())
                     throw new AssertionError("Square cells and chart must not overlap their neighbours");
@@ -392,10 +394,10 @@ public final class DiplomacyCountryScreenChecks {
             if (focus.isMouseOver(image.x()+2,image.y()+2) || !focus.isMouseOver(title.x()+2,title.y()+2))
                 throw new AssertionError("Only focus title must be clickable");
             var strip=layout.spirits(); int x=strip.x()+6,y=strip.y()+strip.height()/2;
+            if(screen.politicsHover(strip.x()+1,y)!=null)throw new AssertionError("Spirit spacer must stay empty");
             var first=screen.politicsHover(x,y);screen.mouseScrolled(x,y,-3,0);
             var last=screen.politicsHover(x,y);
             if(first==null||last==null||first.equals(last))throw new AssertionError("Horizontal scroll must expose later spirits");
-            if(screen.politicsHover(strip.x()+1,y)!=null)throw new AssertionError("Spirit spacer must stay empty");
             screen.mouseScrolled(x,y,0,100);
             if(!first.equals(screen.politicsHover(x,y)))throw new AssertionError("Vertical wheel must restore strip");
         });

@@ -133,9 +133,8 @@ public final class ResearchTextChecks {
             double[] cursor=context.computeOnClient(client -> {
                 var screen=(ResearchScreen)client.gui.screen();
                 int pane=dev.hoi.client.ui.UiPanelLayout.width(dev.hoi.protocol.menu.MenuTab.RESEARCH,screen.width);
-                int top=dev.hoi.client.ui.hud.HudMenuBar.height(screen.width);
-                int banner=Math.max(1,Math.min((pane-12)*138/532,screen.height-top-80-6*17));
-                return new double[]{(pane*(half==0?.25:.75))*client.getWindow().getGuiScale(),(top+72+banner-16)*client.getWindow().getGuiScale()};
+                var frame=dev.hoi.client.ui.UiMenuStyle.frame(dev.hoi.client.ui.UiMenuStyle.window(dev.hoi.protocol.menu.MenuTab.RESEARCH),screen.width,pane);
+                return new double[]{(pane*(half==0?.25:.75))*client.getWindow().getGuiScale(),frame.y(241.5)*client.getWindow().getGuiScale()};
             });
             context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);
             context.takeScreenshot("hoi-research-overview-tooltip-"+index+"-gui2");

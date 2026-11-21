@@ -121,7 +121,7 @@ public final class IndustryOrganizationTest {
     private static void filterButtons(ClientGameTestContext game,ScreenMenu menu,java.awt.image.BufferedImage shot){
         var names=List.of("특성 점수 보유","군수품","전차","비행기","함선");
         var buttons=game.computeOnClient(c->names.stream().map(n->named(menu,n)).toList());
-        var close=game.computeOnClient(c->menu.children().stream().filter(w->w instanceof AbstractWidget b&&b.getMessage().getString().equals("×")&&b.getWidth()==16).map(w->(AbstractWidget)w).findFirst().orElseThrow());
+        var close=game.computeOnClient(c->menu.children().stream().filter(w->w instanceof AbstractWidget b&&b.getMessage().getString().equals("×")&&b.getWidth()==16).map(w->(AbstractWidget)w).max(java.util.Comparator.comparingInt(AbstractWidget::getX)).orElseThrow());
         int left=close.getX()-256,top=close.getY()-2;
         for(int i=0;i<names.size();i++){var b=buttons.get(i);if(b.getX()!=left+152+21*i||b.getY()!=top+(i==0?25:24)||b.getWidth()!=23||b.getHeight()!=16)throw new AssertionError("Organization filters must keep the original filter_options slots: "+names.get(i));}
         var upgrade=buttons.getFirst();int gold=0,frame=0;

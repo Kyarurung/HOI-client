@@ -47,7 +47,8 @@ public final class AgencyCapitalMapTest {
             player.teleportTo(map,.5,map.getHeight(Heightmap.Types.WORLD_SURFACE,0,0),.5,java.util.Set.of(),0,0,false);
             return blocks;
         });context.waitFor(client->move.isDone());var blocks=move.join();
-        context.waitFor(client->client.level.dimension().identifier().toString().equals("hoi:atlas_ui_test")&&Math.abs(client.player.getX()-.5)<.1&&client.level.hasChunk(0,0));context.waitTicks(5);
+        context.waitFor(client->client.level.dimension().identifier().toString().equals("hoi:atlas_ui_test")&&Math.abs(client.player.getX()-.5)<.1&&client.level.hasChunk(0,0)
+                    &&blocks.keySet().stream().filter(pos->pos.getX()==0).allMatch(pos->client.level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.STONE)));context.waitTicks(5);
         try { runOnMap(context); }
         finally {
             context.setScreen(()->null);

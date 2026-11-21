@@ -836,7 +836,9 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 checkToolbar(client.gui.screen());
                 var slots = client.gui.screen().children().stream().filter(c -> c instanceof ResearchSlotButton).map(c -> (ResearchSlotButton)c).toList();
                 check(slots.size() == 5, "Only the five slots supplied by the server are displayed");
-                check(slots.getFirst().getY() > HudMenuBar.height(client.gui.screen().width) + 88, "Spare vertical space enlarges the top research banner");
+                int screenWidth = client.gui.screen().width;
+                var frame = dev.hoi.client.ui.UiMenuStyle.frame(dev.hoi.client.ui.UiMenuStyle.window(MenuTab.RESEARCH), screenWidth, UiPanelLayout.width(MenuTab.RESEARCH, screenWidth));
+                check(Math.abs(slots.getFirst().getY() - frame.iy(255)) <= 1, "Research slots start at the original countrytechtreeview slot position below the banner");
                 check(slots.getLast().getBottom() <= client.gui.screen().height - 8, "Slots fit below persistent menu");
                 check(client.gui.screen().children().stream().noneMatch(c -> c instanceof Button b
                         && List.of("<", ">", "1 / 1").contains(b.getMessage().getString())), "No page count or page navigation buttons");
