@@ -219,6 +219,12 @@ public final class Tooltips {
     public static void drawExact(GuiGraphicsExtractor graphics,Font font,String text,int x,int y) {
         graphics.setTooltipForNextFrame(font,exactLines(font,text,width(graphics.guiWidth(),14)+24),x,y);
     }
+    public static int wideWidth(int viewportWidth) {
+        return Math.max(1, Math.min(300, viewportWidth - 24));
+    }
+    public static void drawWide(GuiGraphicsExtractor graphics,Font font,String text,int x,int y) {
+        graphics.setTooltipForNextFrame(font,sourceLines(font,text,wideWidth(graphics.guiWidth())+24),x,y);
+    }
     public static List<FormattedCharSequence> exactLines(Font font,String text,int viewportWidth) {
         return formattedLines(font,text,viewportWidth,true,false);
     }

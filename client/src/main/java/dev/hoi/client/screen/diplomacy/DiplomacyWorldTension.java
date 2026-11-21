@@ -174,7 +174,7 @@ public final class DiplomacyWorldTension extends Screen {
         scrollbars(g);
         super.extractRenderState(g,mx,my,delta);
         String tip=tooltip((mx-x)/scale,(my-y)/scale);
-        if(!tip.isEmpty()) Tooltips.drawExact(g,font,tip,mx,my);
+        if(!tip.isEmpty()) Tooltips.drawWide(g,font,tip,mx,my);
     }
     String tooltip(double px,double py) {
         String header=war()==null?"":headerTooltip(px,py);

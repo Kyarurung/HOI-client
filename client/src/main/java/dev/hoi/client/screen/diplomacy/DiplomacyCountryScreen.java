@@ -126,8 +126,7 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
                 var report = view.report(d);
                 var button = new UiMenuButton(d.label + " 정보", 8 + d.ordinal() * cell, DiplomacyHeader.tabs(top) + 25, cell, 30,
                         () -> { ledgerOpenedAt = net.minecraft.util.Util.getMillis(); domain = d; scroll = 0; detail = null; rebuildWidgets(); }).caption("").background("none");
-                String tips = report.tooltip();
-                button.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.createExact(tips)); addRenderableWidget(button);
+                addRenderableWidget(button);
             }
             intelLedger = new AgencyIntelLedger(view.report(domain), domain, pane, DiplomacyHeader.tabs(top) + 55, height - 33, ledgerOpenedAt, assets);
             intelLedger.addHoverRegions(this::addRenderableWidget);
@@ -367,8 +366,9 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
         String relationTooltip = relationTooltipAt(mx, my);
         if (!relationTooltip.isEmpty()) dev.hoi.client.ui.tooltip.Tooltips.drawExact(g, font, relationTooltip, mx, my);
         if (intelLedger != null && detail == null && confirmation == null) {
-            String tooltip = intelLedger.detailAt(mx, my);
-            if (!tooltip.isEmpty()) dev.hoi.client.ui.tooltip.Tooltips.drawExact(g, font, tooltip, mx, my);
+            int cell = (pane - 16) / 4, tabs = DiplomacyHeader.tabs(top) + 25;
+            String tooltip = my >= tabs && my < tabs + 30 && mx >= 8 && mx < 8 + 4 * cell ? view.report(AgencyIntelDomain.values()[(int)((mx - 8) / cell)]).tooltip() : intelLedger.detailAt(mx, my);
+            if (!tooltip.isEmpty()) dev.hoi.client.ui.tooltip.Tooltips.drawWide(g, font, tooltip, mx, my);
         }
         if (view != null && !ledger && !choosing && detail == null && confirmation == null) {
             art.draw(g, view, pane, top);

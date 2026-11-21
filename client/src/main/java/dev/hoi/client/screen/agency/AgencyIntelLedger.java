@@ -27,6 +27,7 @@ public final class AgencyIntelLedger {
     private final List<Art> art = new ArrayList<>();
     private final UiDiplomacyAssets assets;
     private final List<AbstractWidget> widgets = new ArrayList<>();
+    private final Map<AbstractWidget, String> tips = new LinkedHashMap<>();
     private String selectedSection;
     private final Map<String, Integer> offsets = new HashMap<>();
     private CountryView.Section dragging;
@@ -140,7 +141,7 @@ public final class AgencyIntelLedger {
                         if (!icon.isEmpty()) UiAssets.draw(g, icon, getX() + at(6), getY() + at(4), at(28), at(24));
                     }
                 };
-                button.setTooltip(Tooltips.createExact(section.tooltip())); add.accept(button);
+                tips.put(button, section.tooltip()); add.accept(button);
             }
             String[] periods = {"3_MONTHS", "1_YEAR", "3_YEARS"};
             String[] labels = {"3개월", "1년", "3년"};
@@ -159,12 +160,13 @@ public final class AgencyIntelLedger {
         }
         for (var cell : cells) {
             var hover = new UiHoverRegion(cell.entry().name(), at(cell.x()), top + at(cell.y()), at(cell.width()), at(cell.height()));
-            hover.setTooltip(Tooltips.createExact(cell.entry().detail()));
+            tips.put(hover, cell.entry().detail());
             add.accept(hover);
         }
     }
     public String detailAt(double x, double y) {
         if (y < viewportTop || y >= viewportBottom) return "";
+        for (var tip : tips.entrySet()) if (Tooltips.contains(tip.getKey(), x, y)) return tip.getValue();
         for (var section : report.sections()) {
             if (section.id().equals("ideas") && x >= at(20) && x < at(20 + ideaWidth()) && y >= ideaY() && y < ideaY() + at(59 + (ideaRows() - 1) * 50)) {
                 int column = (int)(x - at(25) + offsets.getOrDefault("ideas", 0)) / Math.max(1, at(60));

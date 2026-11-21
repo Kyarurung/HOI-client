@@ -277,7 +277,43 @@ public final class DiplomacyActionsTest {
                 }
                 if (!requests.isEmpty()) throw new AssertionError("Intel ledger inspection must not send diplomatic actions");
             }
+            var knownPath=java.nio.file.Path.of(directory,"kor-diplomacy-JAP.json");
+            if(java.nio.file.Files.exists(knownPath)) {
+                var known=new CountryPayloads.Response(UUID.randomUUID().toString(),java.nio.file.Files.readString(knownPath)).view();
+                context.getInput().resizeWindow(2560,1440);
+                context.runOnClient(c->{c.options.guiScale().set(2);dev.hoi.client.ClientCampaignHud.accept(HudPayloads.State.of(known.viewer(),known.hud()));});
+                context.setScreen(()->new DiplomacyCountryScreen(known,a->{}));
+                context.runOnClient(c->press(button((DiplomacyCountryScreen)c.gui.screen(),"첩보 장부")));
+                for(var domain:AgencyIntelDomain.values()) {
+                    context.runOnClient(c->press(button((DiplomacyCountryScreen)c.gui.screen(),domain.label+" 정보")));
+                    context.getInput().setCursorPos(2558,80);context.waitTicks(2);
+                    context.takeScreenshot("hoi-intel-ledger-known-"+domain.name().toLowerCase(Locale.ROOT)+"-2560-gui2");
+                    var research=known.report(domain).entries().stream().filter(entry->entry.detail().contains("계통도")).findFirst().orElseThrow();
+                    if(!research.value().contains("/"))throw new AssertionError("A known country shows its research count: "+research.value());
+                    context.runOnClient(c->((DiplomacyCountryScreen)c.gui.screen()).mouseScrolled(5,c.gui.screen().height-90,0,-100));context.waitTicks(2);
+                    var at=context.computeOnClient(c->{
+                        var screen=(DiplomacyCountryScreen)c.gui.screen();
+                        var hover=screen.children().stream().filter(child->child instanceof dev.hoi.client.ui.UiHoverRegion widget&&widget.getMessage().getString().equals(research.name())).map(dev.hoi.client.ui.UiHoverRegion.class::cast).findFirst().orElseThrow();
+                        int x=hover.getX()+hover.getWidth()/2,y=hover.getY()+hover.getHeight()/2;
+                        if(!screen.ledgerDetailAt(x,y).equals(research.detail()))throw new AssertionError("Known research tooltip keeps the server wording");
+                        if(!colors(c.font,research.detail()).contains(dev.hoi.client.ui.tooltip.Tooltips.GOLD)||!colors(c.font,known.report(domain).tooltip()).contains(dev.hoi.client.ui.tooltip.Tooltips.GOLD))throw new AssertionError("Ledger tooltips keep the original highlight colour");
+                        var wide=dev.hoi.client.ui.tooltip.Tooltips.sourceLines(c.font,research.detail(),dev.hoi.client.ui.tooltip.Tooltips.wideWidth(screen.width)+24);
+                        var narrow=dev.hoi.client.ui.tooltip.Tooltips.sourceLines(c.font,research.detail(),dev.hoi.client.ui.tooltip.Tooltips.width(screen.width,14)+24);
+                        if(wide.size()>=narrow.size()||wide.stream().anyMatch(line->c.font.width(line)>dev.hoi.client.ui.tooltip.Tooltips.wideWidth(screen.width)))throw new AssertionError("Ledger research tooltips use the wider layout: "+wide.size()+" / "+narrow.size());
+                        var unknown=view.report(domain).entries().stream().filter(entry->entry.detail().contains("계통도")).findFirst().orElseThrow();
+                        if(unknown.detail().contains("§R")&&!colors(c.font,unknown.detail()).contains(dev.hoi.client.ui.tooltip.Tooltips.BAD))throw new AssertionError("Ledger tooltips keep the original red warning colour");
+                        return new int[]{x,y};
+                    });
+                    context.getInput().setCursorPos(at[0]*2,at[1]*2);context.waitTicks(15);
+                    context.takeScreenshot("hoi-intel-ledger-known-"+domain.name().toLowerCase(Locale.ROOT)+"-research-tooltip-2560-gui2");
+                }
+            }
         }catch(java.io.IOException error){throw new AssertionError("Actual KOR to PRK fixture unavailable",error);}
+    }
+    private static Set<Integer> colors(net.minecraft.client.gui.Font font, String text) {
+        var result = new HashSet<Integer>();
+        for (var line : dev.hoi.client.ui.tooltip.Tooltips.sourceLines(font, text, 400)) line.accept((index, style, code) -> { if (style.getColor() != null) result.add(style.getColor().getValue()); return true; });
+        return result;
     }
     private static Button button(DiplomacyCountryScreen screen, String name) {
         return (Button)screen.children().stream().filter(w -> w instanceof Button b && b.getMessage().getString().equals(name)).findFirst().orElseThrow();

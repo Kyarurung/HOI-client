@@ -43,7 +43,7 @@ public final class HudTooltip {
     }
     public static List<FormattedCharSequence> body(Font font, int width, CountryHud hud, HudMenuBar.HudIndicator item) {
         if (font == cachedFont && hud == cachedHud && item.equals(cachedItem) && width == cachedWidth) return cachedBody;
-        int wrap = Tooltips.width(width, 14);
+        int wrap = wrap(width, item);
         var lines = new ArrayList<FormattedCharSequence>();
         var original = hud.details().get(item.icon());
         if (original != null && original.sourceText() != null) {
@@ -80,6 +80,7 @@ public final class HudTooltip {
         cachedFont = font; cachedHud = hud; cachedItem = item; cachedWidth = width;
         cachedBody = Tooltips.collapseBlankLines(lines); return cachedBody;
     }
+    static int wrap(int width, HudMenuBar.HudIndicator item) { return item.icon().equals("world_tension") ? Tooltips.wideWidth(width) : Tooltips.width(width, 14); }
     private static Component fuelNumbers(String text,int color) {
         var result=Component.empty();
         var matcher=java.util.regex.Pattern.compile("£resources_strip\\|[0-9]+|[0-9]+(?:\\.[0-9]+)?[KM]?(?:일)?|연료|저장고|보급선").matcher(text);
@@ -118,7 +119,7 @@ public final class HudTooltip {
         var content = body(font, width, hud, item);
         var visible = new ArrayList<FormattedCharSequence>();
         if (!item.icon().equals("supplies") && !sourceTitled(item.icon(), item.label(), hud.details().get(item.icon()))) {
-            visible.addAll(font.split(Component.literal(item.label()).withColor(Tooltips.GOLD), Tooltips.width(width,14)));
+            visible.addAll(font.split(Component.literal(item.label()).withColor(Tooltips.GOLD), wrap(width, item)));
         }
         visible.addAll(content);
         var lines = Tooltips.collapseBlankLines(visible);
