@@ -532,6 +532,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.raid.RaidScreenTest.run(context); }
             if (System.getProperty("hoi.testSuite", "all").equals("raids")) return;
         }
+        if (Set.of("all", "supply-hub").contains(System.getProperty("hoi.testSuite", "all"))) {
+            dev.hoi.client.map.supply.SupplyHubHoverTest.run(context);
+            if (System.getProperty("hoi.testSuite", "all").equals("supply-hub")) return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("agency")) {
             try (var world = context.worldBuilder().create()) {
                 agency(context);

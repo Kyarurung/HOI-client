@@ -63,20 +63,23 @@ public final class DialogPayloads {
                 (b, p) -> { b.writeUtf(p.section, 24); b.writeVarInt(p.slot); }, b -> new PoliticsOpen(b.readUtf(24), b.readVarInt()));
         @Override public Type<PoliticsOpen> type() { return TYPE; }
     }
-    public record MapClick(double x, double y, double z) implements CustomPacketPayload {
+    public record MapClick(double x, double y, double z, int modifiers) implements CustomPacketPayload {
+        public static final int SHIFT=1, CONTROL=2;
         public static final MapClick INSTANCE=new MapClick(0,0,0);
         public MapClick {
             double length=x*x+y*y+z*z;
-            if(!Double.isFinite(length)||length!=0&&Math.abs(length-1)>.001)throw new IllegalArgumentException("Invalid map ray");
+            if(!Double.isFinite(length)||length!=0&&Math.abs(length-1)>.001||modifiers<0||modifiers>(SHIFT|CONTROL))throw new IllegalArgumentException("Invalid map ray");
         }
-        public static final Type<MapClick> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","map_state_click_v2"));
+        public MapClick(double x, double y, double z){this(x,y,z,0);}
+        public static final Type<MapClick> TYPE=new Type<>(Identifier.fromNamespaceAndPath("hoi","map_state_click_v3"));
         public static final StreamCodec<RegistryFriendlyByteBuf,MapClick> CODEC=StreamCodec.of(
-                (b,p)->{b.writeDouble(p.x());b.writeDouble(p.y());b.writeDouble(p.z());},b->new MapClick(b.readDouble(),b.readDouble(),b.readDouble()));
+                (b,p)->{b.writeDouble(p.x());b.writeDouble(p.y());b.writeDouble(p.z());b.writeByte(p.modifiers());},b->new MapClick(b.readDouble(),b.readDouble(),b.readDouble(),b.readByte()));
         @Override public Type<MapClick> type(){return TYPE;}
     }
     public static synchronized void registerPayloadTypes() {
         if(registered)return;
         CommanderHudPayloads.registerPayloadTypes();
+        dev.hoi.protocol.map.MapSupplyHover.registerPayloadTypes();
         PayloadTypeRegistry.clientboundPlay().register(Show.TYPE,Show.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Close.TYPE,Close.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(Details.TYPE,Details.CODEC);

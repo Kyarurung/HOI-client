@@ -16,7 +16,7 @@ public final class InputMapInfo {
                     if (consumed || client.gui.screen() != current || !sidebar.allowsMovement()
                             || event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
                             || event.x() < sidebar.unitHudLeft() || event.y() < dev.hoi.client.ui.hud.HudMenuBar.height(current.width)) return consumed;
-                    return clickAt(client, event.x(), event.y(), current.width, current.height);
+                    return clickAt(client, event.x(), event.y(), current.width, current.height, modifiers(event));
                 });
             }
         });
@@ -28,7 +28,13 @@ public final class InputMapInfo {
             dev.hoi.client.screen.dialog.DialogCoordinator.setContent(new dev.hoi.client.screen.map.MapCursor());
         }
     }
+    public static int modifiers(net.minecraft.client.input.MouseButtonEvent event) {
+        return (event.hasShiftDown() ? DialogPayloads.MapClick.SHIFT : 0) | (event.hasControlDown() ? DialogPayloads.MapClick.CONTROL : 0);
+    }
     public static boolean clickAt(Minecraft client, double x, double y, int width, int height) {
+        return clickAt(client, x, y, width, height, 0);
+    }
+    public static boolean clickAt(Minecraft client, double x, double y, int width, int height, int modifiers) {
         var previous = dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen();
         if(dev.hoi.client.map.commander.CommanderHud.clickAt(x,y)){closeContent(previous);return true;}
         if(dev.hoi.client.map.commander.CommanderUnitHud.selectAt(x,y)){closeContent(previous);return true;}
@@ -36,7 +42,7 @@ public final class InputMapInfo {
         var matrix=client.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
         var ray=matrix.transformProject(new org.joml.Vector3f((float)(x/width*2-1),(float)(1-y/height*2),1)).normalize();
         closeContent(previous);
-        ClientPlayNetworking.send(new DialogPayloads.MapClick(ray.x,ray.y,ray.z));return true;
+        ClientPlayNetworking.send(new DialogPayloads.MapClick(ray.x,ray.y,ray.z,modifiers));return true;
     }
     public static boolean click(Minecraft client) {
         if (client.player == null || client.gui.screen() != null) return false;

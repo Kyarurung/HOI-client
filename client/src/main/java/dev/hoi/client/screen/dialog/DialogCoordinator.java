@@ -66,7 +66,8 @@ public final class DialogCoordinator {
         ClientPlayNetworking.registerGlobalReceiver(DialogPayloads.Show.TYPE, (p, c) -> receive(p));
         ClientPlayNetworking.registerGlobalReceiver(DialogPayloads.Close.TYPE, (p, c) -> close(p.token()));
         ClientPlayNetworking.registerGlobalReceiver(DialogPayloads.Details.TYPE, (p, c) -> details(p));
-        ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> c.execute(DialogCoordinator::reset));
+        dev.hoi.client.map.supply.SupplyHubHover.register();
+        ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> c.execute(() -> {reset(); dev.hoi.client.map.supply.SupplyHubHover.reset();}));
         ClientTickEvents.END_CLIENT_TICK.register(c -> {
             if (canOverlay(c.gui.screen())) {
                 for (var view : List.copyOf(pending.values())) show(view);
