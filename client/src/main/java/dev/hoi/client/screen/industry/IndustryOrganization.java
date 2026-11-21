@@ -72,12 +72,12 @@ public final class IndustryOrganization extends DialogScreen {
         for(var t:tiles("trait/"))if(t.traitNode()!=null)nodes.put(t.section().substring(6),t);
         if(!confirmation.isEmpty()){button("cancel-confirm","취소",width/2-90,height/2+51,80,18,true,()->{confirmation="";rebuildWidgets();});button("ok-confirm","OK",width/2+10,height/2+51,80,18,!pending,()->{String id=confirmation;confirmation="";send(id);rebuildWidgets();});return;}
         if(queueOpen){
-            int x=queueX(),y=queueY();button("close-queue","×",x+228,y,19,19,true,()->{queueOpen=false;rebuildWidgets();});((UiMenuButton)buttons.get("close-queue")).background("none");
+            int x=queueX(),y=queueY();button("close-queue","×",x+228,y,19,19,true,()->{queueOpen=false;rebuildWidgets();});((UiMenuButton)buttons.get("close-queue")).caption("").background("menu/close").art(x+229.5f,y+2,16,16.5f).sound("ui.close");
             var order=queued();queueScroll=Math.clamp(queueScroll,0,Math.max(0,order.size()*27-(queueHeight()-78)));
             for(int i=0;i<order.size();i++){var t=order.get(i);String token=t.section().substring(6);int row=queueRow(i);if(row<y+72||row+27>y+queueHeight()-6)continue;button("unqueue/"+token,"×",x+218,row+3,19,19,!pending&&offered("unqueue/"+token),()->send("unqueue/"+token));((UiMenuButton)buttons.get("unqueue/"+token)).background("none");button("queue-row/"+token,t.name(),x+10,row,208,27,false,()->{});}
             return;
         }
-        button("close","×",left+pane-22,top+3,18,18,true,this::onClose);
+        button("close","×",left+pane-22,top+2,18,18,true,this::onClose);((UiMenuButton)buttons.get("close")).caption("").background("menu/close").art(left+pane-(policies()?18:19),top+2,16,16.5f).sound("ui.close");
         if(policies())buttons.put("back",buttons.get("close"));
         if(policies()){
             var rows=tiles("policy/");scroll=Math.clamp(scroll,0,Math.max(0,rows.size()*48-(panelHeight-70)));

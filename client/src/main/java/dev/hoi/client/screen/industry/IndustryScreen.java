@@ -2155,7 +2155,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         double scale=w/375.0;
         panel(x,y,w,end-y);
         heading(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOY_LIST"),x+9,y+7,w-38,TEXT);
-        button("목록 닫기","×",x+w-23,y+2,19,19,true,()->{picker="";rebuildWidgets();});
+        var closeFrame=new UiMenuStyle.Frame(x,y,(float)scale);
+        sourceButton("×",closeFrame,w/scale-43,9,32,33,()->{picker="";rebuildWidgets();},(g,b)->closeFrame.art(g,"menu/close",w/scale-43,9,32,33));
         var deployment=view.navalDeployment();
         if(deployment==null)return;
         int start=y+Math.round((float)(57*scale)),row=Math.max(18,Math.round((float)(36*scale)));
@@ -2200,7 +2201,9 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             art("production/picker/repair_title",x+3,y+2,w-6,Math.round((w-6)*41f/430));
             heading("수리 대기열",x+18,y+7,w-48,TEXT);
         }
-        button("목록 닫기","×",x+w-23,y+2,19,19,true,()->{picker="";rebuildWidgets();});
+        double closeScale=w/(repair?444.0:495.0),closeX=repair?396:w/closeScale-50,closeY=repair?10:5;
+        var closeFrame=new UiMenuStyle.Frame(x,y,(float)closeScale);
+        sourceButton("×",closeFrame,closeX,closeY,32,33,()->{picker="";rebuildWidgets();},(g,b)->closeFrame.art(g,"menu/close",closeX,closeY,32,33));
         if(repair) { layoutRepairPorts(x,y,w,end); return; }
         if(graphics==null) {
             var toggle=new UiPanelButton("구형 장비 표시",x+63,y+5,w-91,16,()->{showOutdated=!showOutdated;pickerScroll=0;rebuildWidgets();}) {

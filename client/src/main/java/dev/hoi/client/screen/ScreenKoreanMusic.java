@@ -25,7 +25,7 @@ public final class ScreenKoreanMusic extends Screen {
         visible=Math.max(1,(h-top-12)/rowHeight);
         var p=AudioKoreanMusic.PLAYBACK;source=p.tracks();stationShown=AudioKoreanMusic.stationEnabled();tracks=stationShown?source:List.of();
         offset=Math.clamp(offset,0,Math.max(0,tracks.size()-visible));
-        addRenderableWidget(new UiPanelButton("×",x+w-19,y+3,16,16,this::onClose));
+        addRenderableWidget(dev.hoi.client.ui.UiMenuStyle.close("raids/gfx_closebutton_small/frame_0",x+w-40f*w/780,y+10f*w/780,26f*w/780,26f*w/780,this::onClose));
         var station=new UiPanelButton("TFR Korea Plus ON/OFF",x+7,y+top+6,left-14,(left-14)*130/162,AudioKoreanMusic::toggleStation){
             @Override protected void extractContents(GuiGraphicsExtractor g,int mx,int my,float delta){
                 UiAssets.draw(g,AudioKoreanMusic.stationEnabled()?"music/station_on":"music/station",getX(),getY(),getWidth(),getHeight());

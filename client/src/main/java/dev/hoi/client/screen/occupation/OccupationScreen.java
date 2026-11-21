@@ -46,7 +46,7 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
     @Override protected void init(){
         pane=Math.max(180,UiPanelLayout.width(MenuTab.CONSTRUCTION,width));top=HudMenuBar.height(width);controls.clear();
         HudMenuBar.buttons(width,view==null?"":view.country(),MenuTab.POLITICS,t->{if(t==MenuTab.RESEARCH)HoiClient.open();else HoiClient.openMenu(t);}).forEach(this::addRenderableWidget);
-        addRenderableWidget(new UiMenuButton("×",pane-s(43),top+s(7),s(34),s(34),this::onClose));
+        addRenderableWidget(UiMenuStyle.close("menu/close",pane-45*pane/550f,top+8*pane/550f,32*pane/550f,33*pane/550f,this::onClose));
         if(view==null)return;
         rebuildEntries();
         add("주둔 사단 편제","occupation/template_button",templateIcon(view.defaultTemplate()),"",s(13),headerControlsY(),s(76),s(31),false,()->select("*",true)).setTooltip(Tooltips.createExact(templateTooltip(null)));
@@ -146,7 +146,7 @@ public final class OccupationScreen extends Screen implements InputSidebarMoveme
     private void buildPopup(){
         for(var control:controls)control.button().active=false;
         int x=popupX(),y=popupY(),w=popupWidth(),h=popupHeight();
-        addRenderableWidget(new UiMenuButton("×",x+w-s(42),y+s(7),s(34),s(34),()->{target=null;rebuildWidgets();}));
+        addRenderableWidget(UiMenuStyle.close("menu/close",x+w-44*pane/550f,y+8*pane/550f,32*pane/550f,33*pane/550f,()->{target=null;rebuildWidgets();}));
         var options=options();int available=h-s(52);optionScroll=Math.clamp(optionScroll,0,Math.max(0,s(options.size()*38+(target.equals("*")?0:38))-available));
         if(!target.equals("*")){
             String label="기본 ("+(templates?templateName(view.defaultTemplate()):law(view.defaultLaw()))+") 사용";

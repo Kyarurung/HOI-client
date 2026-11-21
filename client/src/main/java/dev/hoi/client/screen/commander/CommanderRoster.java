@@ -101,7 +101,7 @@ public final class CommanderRoster extends DialogScreen implements dev.hoi.clien
         nativeRows=view().tiles().stream().anyMatch(t->t.leader()!=null);rowHeight=nativeRows?49:62;
         if(nativeRows){pane=Math.min(275,width-12);left=Math.clamp(width/2-113,6,Math.max(6,width-pane-6));top=Math.max(HudMenuBar.height(width),height/2-148);bottom=Math.min(height-8,top+304);listTop=top+38;}
         else{left=parent==null?0:UiPanelLayout.width(MenuTab.OFFICER_CORPS,width);top=HudMenuBar.height(width);pane=Math.min(290,width-left-6);if(pane<180){pane=Math.min(290,width-12);left=Math.max(0,width-pane-6);}bottom=Math.min(height-8,top+360);listTop=top+52;}
-        addRenderableWidget(new UiMenuButton("×",left+pane-18,top+3,14,14,this::onClose));
+        addRenderableWidget(UiMenuStyle.close(left+pane-19,top+2,this::onClose));
         rows=view().tiles().stream().filter(t->!t.section().startsWith("configuration/")||!t.detail().isBlank()).toList();
         if(nativeRows&&!promoting()){
             var assigned=new UiMenuButton("임명된 지휘관 보기",left+pane-101,top+3,80,14,()->{showAssigned=!showAssigned;scroll=0;rebuildWidgets();}).caption(view().tiles().stream().anyMatch(t->t.leader()!=null&&t.leader().role().equals("제독"))?"":"임명된 지…").background("none").sound("ui.checkbox");

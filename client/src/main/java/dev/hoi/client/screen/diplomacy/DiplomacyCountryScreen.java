@@ -111,7 +111,7 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
         HudMenuBar.buttons(width, view == null ? "" : view.viewer(), null, tab -> {
             if (tab == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(tab);
         }).forEach(this::addRenderableWidget);
-        addRenderableWidget(new UiMenuButton("×", pane - 25, top + 3, 19, 19, this::onClose));
+        addRenderableWidget(UiMenuStyle.close(pane - 21.5f, top + 4.5f, this::onClose));
         if (view == null) return;
         header = new DiplomacyHeader(view, pane);
         int half = (pane - 18) / 2;

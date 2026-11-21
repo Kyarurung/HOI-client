@@ -217,7 +217,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
         overlayStart = children().size();
         if (group.equals("upgrades")) {
             for (var child : children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget button) button.active = false;
-            addRenderableWidget(new UiMenuButton("개선 창 닫기", upgradeX() + upgradeWidth() - 26, upgradeY() + 4, 20, 19, () -> changeGroup("operations")).caption("").background("menu/close").sound("ui.close"));
+            addRenderableWidget(UiMenuStyle.close("개선 창 닫기", "menu/close", upgradeX() + upgradeWidth() - 22, upgradeY() + 3, 16, 16.5f, () -> changeGroup("operations")));
         }
         var items = visibleItems();
         boolean grid = group.equals("upgrades");

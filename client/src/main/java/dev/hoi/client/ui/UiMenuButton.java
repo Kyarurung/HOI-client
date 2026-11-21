@@ -45,6 +45,7 @@ public final class UiMenuButton extends Button {
     @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { AudioUiSounds.play(isClose(caption == null ? getMessage().getString() : caption) ? "ui.close" : sound); }
     @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
         int x = getX(), y = getY(), w = getWidth(), h = getHeight();
+        if (background == null && icon == null && isClose(caption == null ? getMessage().getString() : caption)) { UiAssets.draw(g, "menu/close", x, y, w, h); return; }
         if (art != null && background != null) UiAssets.drawExact(g, background, art[0], art[1], art[2], art[3]);
         else if (wrapLabel && ("events/leader/choice".equals(background) || "events/frame/spacebar".equals(background)) && h > UiAssets.imageHeight(background, w)) UiAssets.nineSlice(g, background, x, y, w, h, 4, w / ("events/frame/spacebar".equals(background) ? 300.0 : 352.0));
         else if (background != null && background.startsWith("agency/ui/tab")) UiAssets.nineSlice(g, background, x, y, w, h, 20, .5);

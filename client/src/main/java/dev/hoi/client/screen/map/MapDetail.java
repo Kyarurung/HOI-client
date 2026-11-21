@@ -65,7 +65,7 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
                 addRenderableWidget(button);
             }
         }
-        addRenderableWidget(new UiMenuButton("×", x(sea()?398:425), y(sea()?5:9), n(25), n(25), this::onClose));
+        addRenderableWidget(dev.hoi.client.ui.UiMenuStyle.close("raids/gfx_closebutton_small/frame_0", (float)(left + (sea() ? 398 : 425) * scale), (float)(top + (sea() ? 5 : 9) * scale), (float)(26 * scale), (float)(26 * scale), this::onClose));
         if(dev.hoi.client.ClientCampaignHud.visible())HudMenuBar.buttons(width,dev.hoi.client.ClientCampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
     }
     private int x(double n) { return left + (int)Math.round(n * scale); }

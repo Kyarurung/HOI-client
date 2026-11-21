@@ -37,7 +37,7 @@ public final class CommanderOfficerRoster extends DialogScreen {
     private void sorted(int column){descending=sort==column?!descending:column!=1;sort=column;scroll=0;rebuildWidgets();}
     @Override protected void init(){
         pane=Math.min(275,width-12);left=Math.min(UiPanelLayout.width(MenuTab.OFFICER_CORPS,width)+4,width-pane-6);top=HudMenuBar.height(width);bottom=Math.min(height-8,top+295);buttons.clear();
-        addRenderableWidget(new UiMenuButton("×",left+pane-19,top+2,15,14,this::onClose));
+        addRenderableWidget(UiMenuStyle.close(left+pane-19,top+2,this::onClose));
         String[] keys={"DIVISION_COMMANDER_EXPERIENCE_SORT","DIVISION_COMMANDER_TYPE_SORT","DIVISION_COMMANDER_MEDALS_SORT","DIVISION_COMMANDER_TOTAL_EXPERIENCE_SORT"};
         int[] xs={7,48,167,219},ws={41,41,52,48};
         for(int i=0;i<4;i++){int index=i;addRenderableWidget(new UiMenuButton(UiCommandLabels.text(keys[i],""),left+xs[i],top+20,ws[i],14,()->sorted(index)).caption(i==0?"":UiCommandLabels.text(keys[i],"")).background("mio/ui/gfx_sort_up_down_button_83x29/frame_0").sound("ui.scroll"));}

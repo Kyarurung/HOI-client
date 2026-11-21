@@ -99,7 +99,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
                         category = CATEGORIES[index]; scrollX = 0; scrollY = 0; focusedTech = null; detail = null; teamPicker = false; rebuildWidgets();
                     })));
         }
-        baseButtons.add(button("×", width - 25, menuBottom() + 5, 17, 17, this::onClose));
+        baseButtons.add(addRenderableWidget(UiMenuStyle.close(width - 26.5f, menuBottom() + 5.5f, this::onClose)));
         treeTop = menuBottom() + 4 + ResearchTabButton.heightFor(tabWidth);
         treeBottom = Math.max(treeTop + 16, height - 6);
         relayout();
@@ -247,7 +247,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
         var tech = view.technology(detail);
         detailHeader=106;
         panelH = Math.min(panelH, Math.max(267, detailBody(null, tech, 0) + detailHeader + 12));
-        button("×", panelX + panelW - 22, panelY + 5, 14, 14, () -> { detail = null; rebuildWidgets(); });
+        addRenderableWidget(UiMenuStyle.close(panelX + panelW - 21.5f, panelY + 5, () -> { detail = null; rebuildWidgets(); }));
         var activeSlot = view.slots().stream().filter(s -> s.technology().equals(detail)).findFirst();
         String action = tech.status() == ResearchView.Status.ACTIVE ? "연구 중단"
                 : tech.status() == ResearchView.Status.COMPLETED ? "연구 완료"
@@ -392,7 +392,7 @@ public final class ResearchScreen extends Screen implements InputSidebarMovement
     private void initTeams() {
         for (var child : children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget && !baseButtons.contains(widget)) { widget.active = false; if(widget.visible)teamBackdrop.add(widget); widget.visible=false; }
         teamWidth = Math.min(IndustryOrganizationList.WIDTH, width - 16); teamY = panelY; teamHeight = Math.min(IndustryOrganizationList.HEIGHT, height - teamY - 4);
-        teamX = Math.max(8, Math.min(width - teamWidth - 25, panelX + panelW - 2));
+        teamX = Math.max(8, Math.min(width - teamWidth - 27, panelX + panelW - 2));
         addRenderableWidget(IndustryOrganizationList.close(teamX, teamY, teamWidth, () -> { teamPicker = false; rebuildWidgets(); }));
         String[] sorts = {"size", "name", "cost"};
         String[] labels = {"규모", UiCommandLabels.text("mio_sorting_name", "이름"), UiCommandLabels.text("mio_sorting_task_cost", "비용")};

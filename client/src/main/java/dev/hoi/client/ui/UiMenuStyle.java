@@ -82,6 +82,12 @@ public final class UiMenuStyle {
         return new UiMenuButton("×", frame.ix(window.closeX()), frame.iy(window.closeY()), frame.len(32), frame.len(33), action)
                 .caption("").background("menu/close").art(frame.x(window.closeX()), frame.y(window.closeY()), frame.size(32), frame.size(33)).sound("ui.close");
     }
+    public static UiMenuButton close(float x, float y, Runnable action) { return close("×", "menu/close", x, y, 16, 16.5f, action); }
+    public static UiMenuButton close(String sprite, float x, float y, float w, float h, Runnable action) { return close("×", sprite, x, y, w, h, action); }
+    public static UiMenuButton close(String label, String sprite, float x, float y, float w, float h, Runnable action) {
+        int left = (int)Math.floor(x), upper = (int)Math.floor(y);
+        return new UiMenuButton(label, left, upper, (int)Math.ceil(x + w) - left, (int)Math.ceil(y + h) - upper, action).caption("").background(sprite).art(x, y, w, h).sound("ui.close");
+    }
     public static void window(GuiGraphicsExtractor g, Window window, int x, int y, int w, int h) {
         g.enableScissor(x, y, x + w, y + h);
         UiAssets.tiledNineSlice(g, window.tile(), x - 32, y, w + 32, h + 32, 64, .5);

@@ -79,7 +79,7 @@ public final class PoliticsChoice extends DialogScreen {
         pane = Math.min(250, width - left - 6);
         if (pane < 170) { pane = Math.min(250, width - 12); left = width - pane - 6; }
         bottom = Math.min(height - 10, top + (advisor() ? 295 : spirit() ? 329 : 300));
-        addRenderableWidget(new UiMenuButton("×", left + pane - 23, top + 3, 19, 19, this::onClose));
+        addRenderableWidget(UiMenuStyle.close(left + pane - (spirit() ? 21 : 25), top + (spirit() ? 2.5f : advisor() ? 6 : 5), this::onClose));
         int start = top + headerHeight();
         scroll = Math.clamp(scroll, 0, Math.max(0, ((view().tiles().size() + columns() - 1) / columns()) * rowStep() - (bottom - start)));
         for (int i = 0; i < view().tiles().size(); i++) {

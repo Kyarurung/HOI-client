@@ -30,7 +30,7 @@ public final class MapAirDetail extends DialogScreen implements InputSidebarMove
         scale=Math.min(Math.max(.75,width*1.5/2560.0),(height-HudMenuBar.height(width)-8)/436.0);
         scale=Math.min(scale,(width-8)/552.0);
         pane=n(552);tall=n(436);left=(width-pane)/2;top=Math.max(HudMenuBar.height(width)+2,(height-tall)/2);
-        button("×",516,3,28,26,this::onClose);
+        addRenderableWidget(dev.hoi.client.ui.UiMenuStyle.close("raids/gfx_closebutton_small/frame_0",(float)(left+511*scale),(float)(top+scale),(float)(26*scale),(float)(26*scale),this::onClose));
         for(int i=0;i<3;i++) {
             int index=i;
             var b=new UiMenuButton(title("mission_filter_"+i,"임무"),x(207+i*45),y(236),n(43),n(34),()->toggleCategory(index,UiPriorityControls.shifted()));

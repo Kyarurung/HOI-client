@@ -61,7 +61,7 @@ public final class CommanderTraits extends DialogScreen implements dev.hoi.clien
     }
     @Override protected void init() {
         scale=Math.min(1,Math.min((width-12)/671.5f,(height-HudMenuBar.height(width)-12)/391.5f));left=(width-size(671.5))/2;top=Math.max(HudMenuBar.height(width)+6,(height-size(391.5))/2);choices.clear();nodeButtons.clear();
-        addRenderableWidget(new UiMenuButton("×",x(648),y(5.5),size(15),size(15),this::onClose));
+        addRenderableWidget(UiMenuStyle.close("menu/close",x(648),y(5.5),size(16),size(16.5),this::onClose));
         if(confirming()) {
             if(view().choices().stream().anyMatch(c->c.id().equals("confirm")))button("confirm","확인",310,238,60,17);
             button("cancel","취소",380,238,60,17);

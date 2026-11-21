@@ -372,7 +372,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
             UiAssets.draw(g, milestone.texture() + "/frame_" + (!grandPreview() && milestone.unlocked() ? 0 : 1), x + 80, tracksTop + 2, 53, 42);
         }
         g.disableScissor();
-        UiMenuStyle.close(g, width - 22, top + 25, 17, 17, TEXT);
+        UiAssets.drawExact(g, "menu/close", width - 22, top + 25, 16, 16.5f);
         if (picking != null) drawPopup(g);
         for (var child : children()) if (child instanceof net.minecraft.client.gui.components.Renderable renderable)
             renderable.extractRenderState(g, mx, my, delta);
@@ -449,7 +449,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         }
         UiAssets.draw(g, "doctrine/gfx_focus_filter_icon_bg", x + 250, y + 260, 21, 21);
         UiAssets.draw(g, "doctrine/gfx_focus_filter_historical", x + 254, y + 264, 14, 14);
-        UiMenuStyle.close(g, x + 257, y + 6, 17, 17, TEXT);
+        UiAssets.drawExact(g, "menu/close", x + 257.5f, y + 6.5f, 16, 16.5f);
     }
     private void drawUnlockLabel(GuiGraphicsExtractor g, DoctrineView.Choice preview, int x, int y) {
         var caption = Component.literal(preview.cost() + " 잠금 해제");

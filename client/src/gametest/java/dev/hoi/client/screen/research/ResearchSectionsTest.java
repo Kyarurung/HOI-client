@@ -140,7 +140,7 @@ public final class ResearchSectionsTest {
             if(row.getWidth()!=260||row.getHeight()!=50||empty.getWidth()!=260||empty.getHeight()!=50||row.getX()!=empty.getX()||row.getY()!=empty.getY()+50)throw new AssertionError("Organization entries must use the original 520x100 entry and 100 px pitch");
             if(details.getX()!=row.getX()+200||details.getY()!=row.getY()+25||details.getWidth()!=46||details.getHeight()!=16)throw new AssertionError("Details button must use the original x400/y50 90x31 slot");
             if(c.font.width(details.getMessage())>details.getWidth()-6)throw new AssertionError("Details label must fit its button without clipping");
-            if(size.getX()-8+275>screen.width-25)throw new AssertionError("Organization list must not cover the research close button");
+            if(size.getX()-8+275>screen.width-27)throw new AssertionError("Organization list must not cover the research close button");
             if(size.getX()!=empty.getX()||name.getX()!=size.getX()+15||cost.getX()!=name.getX()+42||size.getY()!=name.getY()||cost.getY()!=name.getY()||empty.getY()-size.getY()!=24)throw new AssertionError("Size, name and cost sort buttons must keep the original sorting_options row");
         });
         int titleWhite=0,titleYellow=0;

@@ -137,7 +137,7 @@ public final class AgencyOperation extends Screen {
         if (!positioned) { x = (width - w) / 2; y = Math.max(HudMenuBar.height(width) + 4, (height - h) / 2); positioned = true; }
         x = Math.clamp(x, 0, Math.max(0, width - w));
         y = Math.clamp(y, HudMenuBar.height(width), Math.max(HudMenuBar.height(width), height - h));
-        addRenderableWidget(new UiMenuButton("×", x + w - 21, y + 2, 18, 18, this::onClose).caption("").background("menu/close").sound("ui.close"));
+        addRenderableWidget(UiMenuStyle.close(x + w - 19, y + 3, this::onClose));
         for (int i = 0; i < item.parameters().size(); i++) {
             if (i == startParameter()) continue;
             int index = i;

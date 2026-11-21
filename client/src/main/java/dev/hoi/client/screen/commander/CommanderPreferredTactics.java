@@ -54,7 +54,7 @@ public final class CommanderPreferredTactics extends DialogScreen {
         if(left+size(196)>width-size(3))left=Math.max(size(3),width-size(199));
         if(top+size(306.5)>height-size(3))top=Math.max(size(3),height-size(309.5));
         bodyLineCount=Tooltips.split(font,TooltipKeywordIcons.decorateLines(Tooltips.officerText(view().body()),false),size(174)).size();rowsTop=Math.max(y(62.5),y(33)+bodyLineCount*(font.lineHeight+1)+3);
-        buttons.clear();tooltipBounds=null;addRenderableWidget(new UiMenuButton("×",x(180.5),y(2.5),size(12),size(12),this::onClose));
+        buttons.clear();tooltipBounds=null;addRenderableWidget(UiMenuStyle.close("raids/gfx_closebutton_small/frame_0",x(180.5),y(2.5),size(13),size(13),this::onClose));
         for(int i=0;i<3;i++) {
             int next=i;var tab=new UiMenuButton(List.of("모두","공격","방어").get(i),x(7.5+52.5*i),y(17.5),size(50),size(14.5),()->{filter=next;scroll=0;rebuildWidgets();}).caption("");
             buttons.put("filter/"+i,tab);addRenderableWidget(tab);

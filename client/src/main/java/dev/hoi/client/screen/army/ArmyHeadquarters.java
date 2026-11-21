@@ -109,7 +109,7 @@ public final class ArmyHeadquarters extends Screen implements InputSidebarMoveme
         scrollingTip(save,hq().saveReason().isEmpty()?experienceLabel("DESIGNER_ARMY_SAVE",hq().experience()):hq().saveReason());
     }
     private void listWidgets(){
-        var closeList=button("HQ 목록 닫기",listLeft+listWidth-22,top+5,17,17,()->requestClose(true)).caption("×");listButtons.add(closeList);
+        var closeList=addRenderableWidget(UiMenuStyle.close("HQ 목록 닫기","menu/close",listLeft+listWidth-21.5f,top+5,16,16.5f,()->requestClose(true)));closeList.active=!pending;listButtons.add(closeList);
         if(hq()==null)return;
         var fresh=button("새 설계",listLeft+94,top+28,83,17,()->send(HQ_NEW,"","",0)).background("officer/hq/open_designer").caption("육군 사령부 설계");listButtons.add(fresh);
         scroll=Math.clamp(scroll,0,listScrollBar().maximum());

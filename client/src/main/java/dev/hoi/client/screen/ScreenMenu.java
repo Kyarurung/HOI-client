@@ -131,7 +131,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             spirits = view.page(MenuTab.POLITICS).sections().stream().filter(s -> s.title().equals("국가 정신"))
                     .flatMap(s -> s.entries().stream()).filter(e -> !e.name().equals("없음")).toList();
             spiritScroll = Math.clamp(spiritScroll, 0, maximumSpiritScroll());
-            addRenderableWidget(new UiMenuButton("×", selectionLeft() + pane - 25, top + 3, 19, 19, this::onClose));
+            addRenderableWidget(UiMenuStyle.close(selectionLeft() + pane - 21.5f, top + 3, this::onClose));
             return;
         }
         HudMenuBar.buttons(width, view.country(), selected, tab -> {
@@ -164,7 +164,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 addRenderableWidget(new ScreenInvisibleButton("권력의 균형", box.x(), box.y(), box.width(), box.height(), () -> {balanceOpen = !balanceOpen; rebuildWidgets();}));
                 if (balanceOpen) {
                     int x = balancePanelX(), w = balancePanelWidth();
-                    addRenderableWidget(new UiMenuButton("×", x + w - 24, top + 3, 19, 19, () -> {balanceOpen = false; rebuildWidgets();}));
+                    addRenderableWidget(UiMenuStyle.close(x + w - 20, top + 3.5f, () -> {balanceOpen = false; rebuildWidgets();}));
                 }
             }
             preparePartyChart();
