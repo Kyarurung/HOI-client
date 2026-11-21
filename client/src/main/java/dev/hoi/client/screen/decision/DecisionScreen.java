@@ -507,15 +507,16 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         g.disableScissor();
         return width;
     }
-    private String rowCost(DecisionPayloads.Row row) {
+    static String rowCost(DecisionPayloads.Row row) {
         String cost=row.remainingHours()>0?(row.remainingHours()+23)/24+"일":row.costText().isEmpty()?format(row.cost()):row.costText();
         return political(row)?"£pol_power "+cost:cost;
     }
-    private boolean political(DecisionPayloads.Row row) {
+    private static boolean political(DecisionPayloads.Row row) {
         return row.remainingHours()==0 && (row.costText().isEmpty() || row.costText().matches("[0-9]+(?:\\.[0-9]+)?"));
     }
     private static int rowHeight(DecisionPayloads.Row row) { return row.target()!=null?40:39; }
-    private String tooltip(DecisionPayloads.Row row) {
+    private String tooltip(DecisionPayloads.Row row) { return tooltip(text,row); }
+    static String tooltip(DecisionText text,DecisionPayloads.Row row) {
         String body=row.tooltip().isEmpty()?row.description():row.tooltip();
         if(!row.costText().isEmpty() && text.component(body).getString().equals(text.component(row.costText()).getString()))body=row.costText();
         var result=new StringBuilder("§H").append(rowName(row)).append("§!");
@@ -547,7 +548,8 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         };
         button.active=enabled;addRenderableWidget(button);
     }
-    private String asset(String name,String kind) {
+    private String asset(String name,String kind) { return asset(assets,name,kind); }
+    static String asset(Map<String,String> assets,String name,String kind) {
         if(name.isEmpty())return "";
         String mapped=assets.get(name);
         return mapped!=null?(mapped.equals("menu/decisions")?"":mapped):name.matches("[A-Za-z0-9_]+")?"decision/"+kind+"/"+name.toLowerCase(Locale.ROOT):"";

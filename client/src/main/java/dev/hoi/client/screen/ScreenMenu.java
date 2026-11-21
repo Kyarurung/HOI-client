@@ -43,7 +43,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private int[] captivityCounts;
     public void captivityCounts(int missing,int held){captivityCounts=new int[]{missing,held};}
     private void openCaptivity(boolean ours){var screen=new CommanderCaptivity(this,ours);DialogCoordinator.setContent(screen);screen.open();}
-    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(manufacturerGroup!=null&&detail==null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&manufacturerScrollbar().contains(event.x(),event.y())){if(manufacturerScrollbar().arrow(event.y())){manufacturerScroll=manufacturerScrollbar().step(event.y(),manufacturerScroll,IndustryOrganizationList.ENTRY_HEIGHT);rebuildWidgets();}else{manufacturerDragging=true;dragManufacturer(event.y());}return true;}if(!selectionPreview&&selected==MenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}if(!selectionPreview&&detail==null&&(selected==MenuTab.POLITICS||selected==MenuTab.OFFICER_CORPS)&&listScrollbar().contains(event.x(),event.y())){if(event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return true;var bar=listScrollbar();if(bar.arrow(event.y()))scroll=bar.step(event.y(),scroll,40);else{listDragging=true;scroll=bar.offset(event.y());}rebuildWidgets();return true;}return super.mouseClicked(event,twice);}
+    @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event,boolean twice){if(balanceOpen&&selected==MenuTab.POLITICS&&view.balance()!=null&&balanceWindow.contains(balanceFrame(),event.x(),event.y())){if(super.mouseClicked(event,twice))return true;if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)balanceWindow.click(event.x(),event.y());return true;}if(manufacturerGroup!=null&&detail==null&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT&&manufacturerScrollbar().contains(event.x(),event.y())){if(manufacturerScrollbar().arrow(event.y())){manufacturerScroll=manufacturerScrollbar().step(event.y(),manufacturerScroll,IndustryOrganizationList.ENTRY_HEIGHT);rebuildWidgets();}else{manufacturerDragging=true;dragManufacturer(event.y());}return true;}if(!selectionPreview&&selected==MenuTab.OFFICER_CORPS&&capturedButton!=null&&capturedButton.active&&capturedButton.isMouseOver(event.x(),event.y())&&event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT){AudioUiSounds.play("ui.click");openCaptivity(false);return true;}if(!selectionPreview&&detail==null&&(selected==MenuTab.POLITICS||selected==MenuTab.OFFICER_CORPS)&&listScrollbar().contains(event.x(),event.y())){if(event.button()!=com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)return true;var bar=listScrollbar();if(bar.arrow(event.y()))scroll=bar.step(event.y(),scroll,40);else{listDragging=true;scroll=bar.offset(event.y());}rebuildWidgets();return true;}return super.mouseClicked(event,twice);}
     private MenuView view;
     private boolean selectionPreview;
     private final Runnable researchOpen;
@@ -62,6 +62,10 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private final Map<net.minecraft.client.gui.components.AbstractWidget,String> manufacturerTooltips=new LinkedHashMap<>();
     private int spiritScroll, tooltipScroll, partyScroll;
     private boolean balanceOpen;
+    private final dev.hoi.client.screen.decision.DecisionBalanceWindow balanceWindow = new dev.hoi.client.screen.decision.DecisionBalanceWindow();
+    public dev.hoi.client.screen.decision.DecisionBalanceWindow balanceWindow() { return balanceWindow; }
+    public boolean decisionResponse(dev.hoi.protocol.decision.DecisionPayloads.Response packet) { return balanceOpen && balanceWindow.update(packet); }
+    public UiMenuStyle.Frame balanceFrame() { return dev.hoi.client.screen.decision.DecisionBalanceWindow.frame(politicsLayout(), width); }
     private MenuView.Entry hoveredPolitics;
     private List<MenuView.Entry> spirits = List.of();
     private record ScreenPolicyHover(PoliticsLayout.PoliticsBox box, MenuView.Entry entry) {}
@@ -104,7 +108,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         var old = detail;
         boolean sameCountry = view.country().equals(next.country());
         view = next;captivityCounts=null;
-        if (!sameCountry || next.balance() == null) balanceOpen = false;
+        if (!sameCountry || next.balance() == null) { balanceOpen = false; balanceWindow.close(); }
+        else if (balanceOpen && !next.balance().category().equals(balanceWindow.category())) balanceWindow.open(next.balance().category(), minecraft.getResourceManager());
         if (old != null) {
             if (!sameCountry) detail = null;
             else if (manufacturerDetailId != null) detail = next.manufacturers().stream().filter(m -> m.id().equals(manufacturerDetailId)).map(MenuView.Manufacturer::entry).findFirst().orElse(null);
@@ -141,7 +146,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             if (tab == MenuTab.CONSTRUCTION && ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryConstructionPayloads.Request.TYPE)) { HoiClient.openConstruction(); return; }
             if (IndustryScreen.supports(tab) && ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryPayloads.Request.TYPE)) { HoiClient.openIndustry(tab); return; }
             HoiClient.cancelOpen();
-            selected = tab; balanceOpen = false; scroll = 0; collapsed.clear(); detail = null; manufacturerGroup = null; manufacturerDetailId = null; rebuildWidgets();
+            selected = tab; balanceOpen = false; balanceWindow.close(); scroll = 0; collapsed.clear(); detail = null; manufacturerGroup = null; manufacturerDetailId = null; rebuildWidgets();
         }).forEach(this::addRenderableWidget);
         addRenderableWidget(UiMenuStyle.close(UiMenuStyle.window(selected), frame, this::onClose));
         if (focusTarget != null) {
@@ -161,10 +166,14 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             }
             if (view.balance() != null) {
                 var box = balanceButton();
-                addRenderableWidget(new ScreenInvisibleButton("권력의 균형", box.x(), box.y(), box.width(), box.height(), () -> {balanceOpen = !balanceOpen; rebuildWidgets();}));
+                addRenderableWidget(new ScreenInvisibleButton("권력의 균형", box.x(), box.y(), box.width(), box.height(), () -> {
+                    balanceOpen = !balanceOpen;
+                    if (balanceOpen) balanceWindow.open(view.balance().category(), minecraft.getResourceManager()); else balanceWindow.close();
+                    rebuildWidgets();
+                }));
                 if (balanceOpen) {
-                    int x = balancePanelX(), w = balancePanelWidth();
-                    addRenderableWidget(UiMenuStyle.close(x + w - 20, top + 3.5f, () -> {balanceOpen = false; rebuildWidgets();}));
+                    var at = balanceFrame();
+                    addRenderableWidget(UiMenuStyle.close("menu/close", at.x(510), at.y(7), at.size(32), at.size(33), () -> {balanceOpen = false; balanceWindow.close(); rebuildWidgets();}));
                 }
             }
             preparePartyChart();
@@ -661,6 +670,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     }
     @Override public void tick() {
         if (!selectionPreview && ++refreshTicks % 40 == 0) requestRefresh();
+        if (balanceOpen) balanceWindow.tick();
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         if (selectionPreview) {
@@ -704,6 +714,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         if (detail != null) drawDetail(g);
         if (balanceOpen && selected == MenuTab.POLITICS && view.balance() != null) drawBalance(g, mx, my);
         super.extractRenderState(g, mx, my, delta);
+        if (balanceOpen && selected == MenuTab.POLITICS && view.balance() != null) balanceWindow.drawTooltip(g, font, mx, my);
         drawPoliticsTooltip(g, mx, my, mx);
         if(manufacturerGroup!=null&&detail==null&&children().stream().noneMatch(c->c instanceof dev.hoi.client.ui.UiMenuButton b&&b.getMessage().getString().equals("세부 사항")&&b.isMouseOver(mx,my)))manufacturerTooltips.entrySet().stream().filter(e->Tooltips.contains(e.getKey(),mx,my)).findFirst().ifPresent(e->Tooltips.drawSourceScrollable(g,font,e.getValue(),mx,my,width,height,0));
         if (selected == MenuTab.OFFICER_CORPS && detail == null) {
@@ -741,34 +752,12 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
     private PoliticsLayout.PoliticsBox balanceButton() {
         return politicsLayout().balance();
     }
-    private int balancePanelWidth() { return Math.min(UiPanelLayout.width(MenuTab.INTELLIGENCE, width), width - 8); }
-    private int balancePanelX() { return Math.min(pane + 3, width - balancePanelWidth()); }
     private void drawBalance(GuiGraphicsExtractor g, int mx, int my) {
-        var balance = view.balance(); int x = balancePanelX(), w = balancePanelWidth(), y = top + 30;
-        UiMenuStyle.panel(g, x, top, w, Math.min(height - top, 300));
-        UiMenuStyle.heading(g, font, "권력의 균형", x + 9, top + 9, w - 44, TEXT);
-        officerText(g, balance.name(), x + 10, y + 4, w - 20, TEXT);
-        UiAssets.draw(g, balance.leftIcon(), x + 8, y + 22, 36, 36);
-        UiAssets.draw(g, balance.rightIcon(), x + w - 44, y + 22, 36, 36);
-        int bx = x + 48, bw = w - 96, by = y + 43;
-        UiAssets.draw(g, "bop/bar_bg", bx, by, bw, 12);
-        int center = bx + bw / 2, length = (int)Math.round(Math.abs(balance.value()) * bw / 2);
-        g.enableScissor(balance.value() < 0 ? center - length : center, by, balance.value() < 0 ? center : center + length, by + 12);
-        UiAssets.draw(g, balance.value() < 0 ? "bop/bar_orange_light" : "bop/bar_blue_light", bx, by, bw, 12);
-        g.disableScissor();
-        UiAssets.draw(g, "bop/bar_frame", bx - 2, by - 2, bw + 4, 16);
-        for (var range : balance.ranges()) {
-            int px = bx + (int)Math.round((range.progress() + 1) * bw / 2);
-            UiAssets.draw(g, balance.value() >= range.progress() ? "bop/bulb_active" : "bop/bulb", px - 4, by - 11, 8, 10);
-        }
-        var active = balance.ranges().stream().filter(r -> r.progress() <= balance.value()).reduce((a,b) -> b).orElse(null);
-        officerText(g, active == null ? "" : active.name(), x + 12, y + 66, w - 24, TEXT);
-        if (mx >= bx && mx <= bx + bw && my >= by - 14 && my <= by + 16) {
-            String text = UiCommandLabels.text("BOP_TOOLTIP", "").replace("[root.GetPowerBalanceName]", balance.name())
-                    .replace("[?.root.power_balance_value|1%H]", "§H" + String.format(Locale.ROOT, "%.1f%%", Math.abs(balance.value()) * 100) + "§!")
-                    .replace("[root.GetActiveSideName]", balance.value() < 0 ? balance.left() : balance.right());
-            Tooltips.drawExact(g, font, text, mx, my);
-        }
+        var balance = view.balance();
+        String tooltip = UiCommandLabels.text("BOP_TOOLTIP", "").replace("[root.GetPowerBalanceName]", balance.name())
+                .replace("[?.root.power_balance_value|1%H]", "§H" + String.format(Locale.ROOT, "%.1f%%", Math.abs(balance.value()) * 100) + "§!")
+                .replace("[root.GetActiveSideName]", balance.value() < 0 ? balance.left() : balance.right());
+        balanceWindow.draw(g, font, balanceFrame(), balance, tooltip, mx, my);
     }
     public PoliticsLayout politicsLayout() { return new PoliticsLayout(pane, top, selectionPreview || frame == null ? 0 : frame.x()); }
     int spiritPitch() { return Math.max(1, (int)Math.round(68 * politicsLayout().scale())); }
@@ -872,6 +861,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         }
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
+        if (balanceOpen && selected == MenuTab.POLITICS && view.balance() != null && balanceWindow.scroll(balanceFrame(), x, y, vertical)) return true;
         final double hoverX = x, hoverY = y;
         if (selected == MenuTab.OFFICER_CORPS && officerTooltips.keySet().stream().anyMatch(widget -> widget.isMouseOver(hoverX, hoverY))
                 && com.mojang.blaze3d.platform.InputConstants.isKeyDown(com.mojang.blaze3d.platform.InputConstants.KEY_LSHIFT)) {

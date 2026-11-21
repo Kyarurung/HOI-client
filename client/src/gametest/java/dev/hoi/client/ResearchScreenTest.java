@@ -575,6 +575,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try (var world = context.worldBuilder().create()) { DiplomacyCountryScreenChecks.authoritativePoliticsTooltips(context); dev.hoi.client.screen.ScreenAlertGlowTest.run(context, fixtureMenu()); dev.hoi.client.screen.ScreenOfficerSpiritTest.run(context, fixtureMenu()); }
             return;
         }
+        if (System.getProperty("hoi.testSuite", "all").equals("power-balance")) {
+            try (var world = context.worldBuilder().create()) { powerBalance(context, fixtureMenu()); }
+            return;
+        }
         if (System.getProperty("hoi.testSuite", "all").equals("occupation")) {
             try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.occupation.OccupationScreenTest.run(context); dev.hoi.client.screen.ScreenPoliticsTooltipsTest.run(context,fixtureMenu()); dev.hoi.client.map.MapOccupationHudTest.run(context); }
             return;
@@ -770,10 +774,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             context.setScreen(() -> new ScreenMenu(menu)); context.waitTicks(2);
             context.takeScreenshot("hoi-menu-politics"); gui2Screenshot(context, "hoi-menu-politics");
             context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(child -> child instanceof Button b && b.getMessage().getString().equals("권력의 균형")), "Inactive power balance remains hidden"));
-            var balance = new MenuView.Balance("PRC_Liberal_Conservative_power_balance", "민주주의의 바람", "보수파", "개혁파", "bop/prc_conservate_side", "bop/prc_liberal_side", .985,
-                    List.of(new MenuView.Entry("보수파의 통제", "-100% ~ -15%", "", -1), new MenuView.Entry("균형", "-15% ~ 15%", "", -.15), new MenuView.Entry("개혁파의 통제", "15% ~ 100%", "", .15)));
-            context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), menu.hud(), menu.manufacturers(), balance)));
-            click(context, "권력의 균형"); context.waitTicks(2); gui2Screenshot(context, "hoi-politics-power-balance");
+            powerBalance(context, menu);
             context.runOnClient(c -> ((ScreenMenu)c.gui.screen()).update(menu));
             context.waitTicks(2);
             context.runOnClient(c -> check(c.gui.screen().children().stream().noneMatch(child -> child instanceof Button b && b.getMessage().getString().equals("권력의 균형")), "Revoked power balance closes its controls"));
@@ -1486,4 +1487,34 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 0L, fixtureNational()));
     }
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }
+    static void powerBalance(ClientGameTestContext context, MenuView menu) {
+        var balance = new MenuView.Balance("PRC_Liberal_Conservative_power_balance", "민주주의의 바람", "보수파", "개혁파", "bop/prc_conservate_side", "bop/prc_liberal_side", .33,
+                List.of(new MenuView.Entry("보수파의 통제", "-100% ~ -15%", "", -1), new MenuView.Entry("균형", "-15% ~ 15%", "", -.15), new MenuView.Entry("§R개혁§!파 우세", "15% ~ 100%", "", .15)),
+                "PRC_balance_of_power_category");
+        var balanceRequests = new ArrayList<dev.hoi.protocol.decision.DecisionPayloads.Request>();
+        dev.hoi.client.screen.decision.DecisionBalanceWindow.requestObserver = balanceRequests::add;
+        context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), menu.hud(), menu.manufacturers(), balance)));
+        click(context, "권력의 균형"); context.waitTicks(2);
+        check(balanceRequests.size() == 1 && balanceRequests.getFirst().action() == dev.hoi.protocol.decision.DecisionPayloads.Action.OPEN
+                && balanceRequests.getFirst().id().equals("category:PRC_balance_of_power_category"), "Opening the balance asks for its decision category");
+        var balanceRows = new ArrayList<dev.hoi.protocol.decision.DecisionPayloads.Row>();
+        String[][] decisions = {{"사교육 금지","50"},{"특허학교 확대","50"},{"CEO 통제","75"},{"정부 고용 계획","100"},{"금융 투기 규제","75"},{"알타이 석유 계약","90"},{"호탄 석유 계약","90"},{"카슈가르 석유 계약","50"},{"신장 석유 계약","40"}};
+        for (int i = 0; i < decisions.length; i++) balanceRows.add(new dev.hoi.protocol.decision.DecisionPayloads.Row("PRC_bop_decision_" + i, "PRC_balance_of_power_category", "", "",
+                decisions[i][0], "", "GFX_decision_unknown", Double.parseDouble(decisions[i][1]), 0, "", true, "", "", "", null));
+        var balanceView = new dev.hoi.protocol.decision.DecisionPayloads.View(menu.country(), java.util.UUID.randomUUID().toString(), 1, "", 0, balanceRows.size(), menu.hud(), balanceRows, List.of(), 1);
+        context.runOnClient(c -> check(((ScreenMenu)c.gui.screen()).decisionResponse(dev.hoi.protocol.decision.DecisionPayloads.Response.of(balanceRequests.getFirst().token(), balanceView)), "The balance window accepts its category response"));
+        context.runOnClient(c -> check(!((ScreenMenu)c.gui.screen()).decisionResponse(dev.hoi.protocol.decision.DecisionPayloads.Response.of(java.util.UUID.randomUUID().toString(), balanceView)), "Responses for other tokens stay with their own screen"));
+        context.waitTicks(2); gui2Screenshot(context, "hoi-politics-power-balance");
+        context.runOnClient(c -> {
+            var screen = (ScreenMenu)c.gui.screen(); var at = screen.balanceFrame(); var window = screen.balanceWindow();
+            check(window.rows().size() == decisions.length, "Every category decision is listed");
+            check(window.tooltip(at.x(13 + 200), at.y(215 + 20)).contains("사교육 금지"), "Decision rows show their tooltip");
+            check(window.tooltip(at.x(95 + 180), at.y(125 + 8)).contains("민주주의의 바람"), "The bar keeps the BOP_TOOLTIP text");
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(at.x(13 + 485), at.y(215 + 20), new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
+            check(balanceRequests.getLast().action() == dev.hoi.protocol.decision.DecisionPayloads.Action.TAKE && balanceRequests.getLast().id().equals("PRC_bop_decision_0"), "The select button takes the decision");
+            screen.mouseScrolled(at.x(200), at.y(400), 0, -1);
+        });
+        context.waitTicks(1); gui2Screenshot(context, "hoi-politics-power-balance-scrolled");
+        dev.hoi.client.screen.decision.DecisionBalanceWindow.requestObserver = null;
+    }
 }

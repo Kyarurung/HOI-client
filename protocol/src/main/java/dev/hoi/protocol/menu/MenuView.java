@@ -14,10 +14,14 @@ public record MenuView(String country, String countryName, String date, String s
     public MenuView(String country, String countryName, String date, String speed, List<Page> pages, CountryHud hud, List<Manufacturer> manufacturers) {
         this(country, countryName, date, speed, pages, hud, manufacturers, null);
     }
-    public record Balance(String id, String name, String left, String right, String leftIcon, String rightIcon, double value, List<Entry> ranges) {
+    public record Balance(String id, String name, String left, String right, String leftIcon, String rightIcon, double value, List<Entry> ranges, String category) {
+        public Balance(String id, String name, String left, String right, String leftIcon, String rightIcon, double value, List<Entry> ranges) {
+            this(id, name, left, right, leftIcon, rightIcon, value, ranges, "");
+        }
         public Balance {
+            category = category == null ? "" : category;
             bounded(id, 128); bounded(name, 256); bounded(left, 256); bounded(right, 256);
-            bounded(leftIcon, 160); bounded(rightIcon, 160);
+            bounded(leftIcon, 160); bounded(rightIcon, 160); bounded(category, 128);
             if (!Double.isFinite(value) || value < -1 || value > 1) throw new IllegalArgumentException("Invalid power balance");
             ranges = List.copyOf(ranges);
             if (ranges.size() > 64) throw new IllegalArgumentException("Too many power ranges");

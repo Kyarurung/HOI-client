@@ -58,7 +58,7 @@ public final class NetworkScreens {
             if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.decision.DecisionScreen screen) {
                 try { screen.update(packet); }
                 catch (IllegalArgumentException error) { DialogCoordinator.setContent(null); LOGGER.warn("결정 정보를 읽을 수 없습니다.", error); }
-            }
+            } else if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.ScreenMenu menu) menu.decisionResponse(packet);
         });
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.decision.DecisionDetailPayloads.Response.TYPE, (packet, context) -> {
             if (DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.decision.DecisionScreen screen) screen.update(packet);
