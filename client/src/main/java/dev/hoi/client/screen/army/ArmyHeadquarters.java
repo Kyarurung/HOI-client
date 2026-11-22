@@ -74,7 +74,7 @@ public final class ArmyHeadquarters extends Screen implements InputSidebarMoveme
         if(picker>=0&&draft()!=null){pickerWidgets();statsWidgets();adjustmentWidgets();return;}
         if(draft()==null)return;
         designerButton("HQ 설계 닫기",1156,6,32,33,()->requestClose(false)).background("menu/close").caption("").sound("ui.close");
-        name=new EditBox(font,x(195),y(92),s(180),Math.max(10,s(20)),Component.literal("HQ 편제 이름"));name.setBordered(false);name.setMaxLength(80);name.setValue(draftName);name.setResponder(value->draftName=value);name.active=!pending;addRenderableWidget(name);
+        name=new EditBox(font,x(195),y(92),s(160),Math.max(10,s(20)),Component.literal("HQ 편제 이름"));name.setBordered(false);name.setMaxLength(80);name.setValue(draftName);name.setResponder(value->draftName=value);name.active=!pending;addRenderableWidget(name);
         for(int index=0;index<hq().slots().size();index++){
             var slot=hq().slots().get(index);int selected=index;int sx=slot.support()?50+82*slot.index():slot.index()==0?156:50+106*(slot.index()-1);int sy=slot.support()?541:slot.index()==0?311:415;
             String texture=slot.current().isEmpty()?"production/design/division/"+(slot.reason().isEmpty()?"add":"locked"):unitIcon(slot.current());
@@ -121,7 +121,7 @@ public final class ArmyHeadquarters extends Screen implements InputSidebarMoveme
         for(var control:listButtons)control.active&=!templatePicker&&picker<0;
     }
     private void headerWidgets(){
-        button("HQ 편제 목록",x(381),y(91),s(22),s(22),()->{templatePicker=true;templateScroll=0;rebuildWidgets();}).background("production/design/division/expand").caption("");
+        button("HQ 편제 목록",x(357),y(92),s(22),s(22),()->{templatePicker=true;templateScroll=0;rebuildWidgets();}).background("production/design/division/expand").caption("");
         for(int priority=0;priority<3;priority++){
             int value=priority;String key="TEMPLATE_PRIO_"+value;
             var control=button("HQ 우선순위 · "+value,x(499+36*value),y(value==2?103:104),s(36),s(37),()->send(HQ_PRIORITY,"","",value)).background("production/design/division/priority_"+(value+(draft().priority()==value?3:0))).caption("");
@@ -131,7 +131,7 @@ public final class ArmyHeadquarters extends Screen implements InputSidebarMoveme
         var special=new UiHoverRegion("HQ 특수부대",x(430),y(120),s(26),s(24));special.setTooltip(Tooltips.createExact(draft().specialForcesTooltip()));addRenderableWidget(special);
     }
     private void templateWidgets(){
-        button("HQ 편제 목록",x(381),y(91),s(22),s(22),()->{templatePicker=false;rebuildWidgets();}).background("production/design/division/expand").caption("");
+        button("HQ 편제 목록",x(357),y(92),s(22),s(22),()->{templatePicker=false;rebuildWidgets();}).background("production/design/division/expand").caption("");
         templateScroll=Math.clamp(templateScroll,0,Math.max(0,hq().templates().size()-6));
         for(int i=templateScroll;i<Math.min(hq().templates().size(),templateScroll+6);i++){
             var row=hq().templates().get(i);
@@ -270,7 +270,7 @@ public final class ArmyHeadquarters extends Screen implements InputSidebarMoveme
     private void drawDesigner(GuiGraphicsExtractor g){
         UiAssets.draw(g,"officer/hq/designer",left,designerTop,designerWidth,designerHeight);UiAssets.draw(g,"officer/hq/header",x(12),y(45),s(637),s(110));UiAssets.draw(g,"officer/hq/composition",x(12),y(255),s(386),s(354));UiAssets.draw(g,"officer/hq/modifiers",x(396),y(255),s(252),s(354));
         UiAssets.nineSlice(g,"commander/commands/tiled_header_1/frame_0",x(12),y(224),s(637),s(32),4,scale);
-        UiText.centered(g,font,Tooltips.officerText("육군 사령부 설계",true),x(340),y(3),s(490),s(35),UiMenuStyle.TEXT);UiAssets.drawAlignedContent(g,icon(draft()),icon(draft()),x(38),y(80),s(76),s(42));if(name==null)UiText.left(g,font,draftName,x(195),y(92),s(180),s(20),UiMenuStyle.TEXT);
+        UiText.centered(g,font,Tooltips.officerText("육군 사령부 설계",true),x(340),y(3),s(490),s(35),UiMenuStyle.TEXT);UiAssets.drawAlignedContent(g,icon(draft()),icon(draft()),x(38),y(80),s(76),s(42));if(name==null)UiText.left(g,font,draftName,x(195),y(92),s(160),s(20),UiMenuStyle.TEXT);
         UiAssets.draw(g,"production/design/division/priority_icon_"+draft().priority(),x(93),y(70),s(16),s(35));
         UiAssets.draw(g,"production/design/division/priority_bg",x(490),y(101),s(128),s(44));
         UiAssets.draw(g,"production/design/division/paradrop_"+(draft().paradrop()?1:0),x(405),y(120),s(26),s(24));
