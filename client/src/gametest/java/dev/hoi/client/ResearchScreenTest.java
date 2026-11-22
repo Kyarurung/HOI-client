@@ -407,6 +407,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try(var world=context.worldBuilder().create()){dev.hoi.client.map.commander.CommanderBattleTest.run(context,fixtureMenu());}
             return;
         }
+        if(System.getProperty("hoi.testSuite","all").equals("air-region")){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.screen.map.MapAirDetailChecks.run(context);}
+            return;
+        }
         if(System.getProperty("hoi.testSuite","all").equals("army-layout")){
             try(var world=context.worldBuilder().create()){dev.hoi.client.map.commander.CommanderPresentationTest.run(context,fixtureMenu());dev.hoi.client.screen.commander.CommanderRosterTest.run(context);dev.hoi.client.map.commander.CommanderHudTest.runArmyLayout(context,fixtureMenu());}
             return;

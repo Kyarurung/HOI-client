@@ -113,10 +113,10 @@ ext.hoiRendererFixtureGroups = [
             'dev.hoi.fabric.army.ArmyAbilityOffersTest', 'dev.hoi.fabric.naval.NavalHudTest',
             'dev.hoi.fabric.naval.NavalAirTheatersTest', 'dev.hoi.fabric.commander.CommanderMissionWaitingFixturesTest', 'dev.hoi.fabric.naval.NavalRightClickTest',
             'dev.hoi.fabric.commander.CommanderShipSnapshotsTest', 'dev.hoi.fabric.commander.CommanderUnitOfficerOffersTest',
-            'dev.hoi.fabric.commander.CommanderCombatLogTest', 'dev.hoi.fabric.commander.CommanderLandBattleTest', 'dev.hoi.fabric.commander.CommanderNavalBattleTest'
+            'dev.hoi.fabric.commander.CommanderCombatLogTest', 'dev.hoi.fabric.commander.CommanderLandBattleTest', 'dev.hoi.fabric.commander.CommanderNavalBattleTest', 'dev.hoi.map.unit.UnitAirDetailsTest'
         ],
         fixtures: [
-            'kor-ship', 'kor-ship-submarine', 'kor-ship-force', 'kor-ship-captain-promote', 'kor-combat-log', 'kor-land-battle', 'kor-naval-battle', 'kor-naval-result',
+            'kor-ship', 'kor-ship-submarine', 'kor-ship-force', 'kor-ship-captain-promote', 'kor-combat-log', 'kor-land-battle', 'kor-naval-battle', 'kor-naval-result', 'kor-air-region', 'kor-air-region-details',
             'kor-promote-confirm', 'kor-army-appointment-advisors', 'kor-army-group-marshal', 'kor-navy-admirals-source',
             'kor-air-mission-waiting-context', 'kor-air-mission-waiting-hud', 'kor-air-mission-waiting-availability', 'kor-air-mission-region-hud',
             'kor-navy-mission-waiting-context', 'kor-navy-mission-waiting-hud', 'kor-navy-mission-waiting-availability', 'kor-navy-mission-region-hud',

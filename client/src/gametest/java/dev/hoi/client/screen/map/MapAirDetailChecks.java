@@ -1,151 +1,225 @@
 package dev.hoi.client.screen.map;
 
+import com.google.gson.Gson;
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.hoi.client.screen.dialog.DialogCoordinator;
+import dev.hoi.client.ui.UiMenuStyle;
+import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.protocol.dialog.*;
-import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.minecraft.resources.Identifier;
-import net.minecraft.client.gui.components.Button;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
+import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
+import net.minecraft.resources.Identifier;
 
 public final class MapAirDetailChecks {
-    public static void show(DialogView view) {DialogCoordinator.receive(DialogPayloads.Show.of(view,true));}
-    public static void run(ClientGameTestContext context) {
-        var tiles=new ArrayList<DialogView.Tile>();
-        for(int i=0;i<4;i++) {
-            tiles.add(t("own",List.of("현재 활동 중인 전투기","현재 활동 중인 폭격기","현재 활동 중인 근접항공지원기","대공 화기").get(i),i==0?"199":i==2?"200":"0","air_detail/own_"+i));
-            tiles.add(t("enemy",List.of("현재 활동 중인 전투기","현재 활동 중인 폭격기","현재 활동 중인 근접항공지원기","대공 화기").get(i),i==0?"191":i==1?"12":i==2?"53":"0","air_detail/enemy_"+i));
+    private static final int[][] SIZES = {{2560, 1440}, {1600, 1000}, {854, 480}};
+    private MapAirDetailChecks() {}
+    public static void show(DialogView view) { DialogCoordinator.receive(DialogPayloads.Show.of(view, true)); }
+    public static void run(ClientGameTestContext game) {
+        var region = read("kor-air-region.json");
+        var details = read("kor-air-region-details.json");
+        for (int[] size : SIZES) {
+            game.runOnClient(client -> client.options.guiScale().set(2));
+            game.getInput().resizeWindow(size[0], size[1]);
+            game.waitTicks(3);
+            game.setScreen(() -> null);
+            String suffix = "-" + size[0] + "-gui2";
+            layout(game, region.issued(UUID.randomUUID().toString(), 1), size, "hoi-air-detail" + suffix);
+            layout(game, details.issued(UUID.randomUUID().toString(), 1), size, "hoi-air-details-open" + suffix);
+            if (size[0] == 2560) {
+                clicks(game, region);
+                tooltips(game, region);
+                filters(game, region);
+                chart(game, details);
+                control(game, region);
+            }
+            renderers(game, region.issued(UUID.randomUUID().toString(), 1));
         }
-        tiles.add(new DialogView.Tile("balance","공중 우세","65%","air_detail/progress_good","공중 우세: §a65%§r",new DialogView.Gauge(.65,"65%")));
-        tiles.add(t("weather","비","","air_detail/weather_light_rain"));
-        tiles.add(t("weather_icon","비","","map_detail/weather_rain"));
-        tiles.add(t("detection","아군 항공 탐지력","28%","air_detail/air_detection_strip_1"));
-        tiles.add(t("enemy_efficiency","적의 평균 임무 효율","88%","air_detail/air_mission_efficiency_strip_3"));
-        tiles.add(t("enemy_detection","적 항공 탐지력","5%","air_detail/air_detection_strip_1"));
-        tiles.add(t("efficiency","아군의 평균 임무 효율","97%","air_detail/air_mission_efficiency_strip_1"));
-        tiles.add(new DialogView.Tile("air_losses","아군 공군 부대 손실","50","air_detail/damage_skull","§e아군 공군 부대 손실§r\n이 공역에서 집계 시작 이후 누적: §e50§r\n대한민국 · 근접항공지원기: §c50§r\n  공중전: §c50§r"));
-        tiles.add(t("air_kills","적 공군 부대 격추","12","air_detail/damage_skull"));
-        tiles.add(t("air_loss_art","현재 아군 전투기","199","production/equipment/fighter"));
-        tiles.add(t("air_kill_art","현재 적군 전투기","191","production/equipment/fighter"));
-        tiles.add(t("mission_0","공중 우세","199","production/equipment/fighter"));
-        tiles.add(t("mission_0","근접항공지원","200","production/equipment/cas"));
-        tiles.add(t("mission_0","병참 체계 공습","100","production/equipment/strategic_bomber"));
-        tiles.add(t("enemy_mission_0","공중 우세","191","production/equipment/fighter"));
-        tiles.add(t("enemy_mission_0","근접항공지원","53","production/equipment/cas"));
-        tiles.add(t("enemy_mission_0","전략폭격","12","production/equipment/strategic_bomber"));
-        tiles.add(t("mission_1","해상 타격","20","production/equipment/naval_bomber"));
-        tiles.add(t("mission_2","전략폭격","100","production/equipment/strategic_bomber"));
-        for(String side:List.of("own_result","enemy_result")) {
-            tiles.add(t(side,"지원기 격추",side.equals("own_result")?"50":"12","air_detail/result_4"));
-            tiles.add(t(side,"대공포 격추","2","air_detail/result_5"));
-            tiles.add(t(side,"사단 피해","63.38","air_detail/result_2"));
-            tiles.add(t(side,"건물 피해","1.5","air_detail/result_0"));
-        }
-        for(int[] size:new int[][]{{2560,1440},{1600,1000},{854,480}}) {
-            context.runOnClient(c->c.options.guiScale().set(2));context.getInput().resizeWindow(size[0],size[1]);context.waitTicks(3);
-            context.setScreen(()->null);
-            var view=new DialogView(UUID.randomUUID().toString(),1,DialogView.Kind.STATE,"화베이 평원","","","","air_detail/background","",tiles,List.of());
-            context.runOnClient(c->{
-                DialogCoordinator.receive(DialogPayloads.Show.of(view,true));
-                if(!(c.gui.screen() instanceof MapAirDetail screen))throw new AssertionError("Air marker must open air details");
-                if(Math.abs(screen.panelLeft()*2+screen.panelWidth()-screen.width)>1)throw new AssertionError("Air detail must be centered");
-                if(screen.panelTop()<dev.hoi.client.ui.hud.HudMenuBar.height(screen.width)||screen.panelTop()+screen.panelHeight()>screen.height)throw new AssertionError("Air panel escaped viewport");
-                for(var child:screen.children())if(child instanceof Button b&&(b.getX()<0||b.getY()<0||b.getRight()>screen.width||b.getBottom()>screen.height))throw new AssertionError("Air button escaped viewport");
-                if(size[0]==2560&&screen.panelWidth()!=414)throw new AssertionError("Air panel must grow 50 percent at GUI2");
-                for(var child:screen.children())if(child instanceof Button b&&List.of("아군 임무","세부 사항","적군 임무").contains(b.getMessage().getString()))throw new AssertionError("Removed air buttons remain");
-                for(var line:dev.hoi.client.ui.tooltip.Tooltips.lines(c.font,"이동: 95.0%",300,false))line.accept((index,style,code)->{
-                    if(code>=0xe000&&code<=0xf8ff)throw new AssertionError("Air tooltip must not inject icons");
-                    return true;
-                });
-                for(var tile:tiles)if(!tile.icon().isBlank()&&c.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/"+tile.icon()+".png")).isEmpty())throw new AssertionError("Missing air asset: "+tile.icon());
-            });
-            context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-detail-"+size[0]+"-gui2");
-            if(size[0]==2560) {
-                context.runOnClient(c->((MapAirDetail)c.gui.screen()).toggleCategory(1,false));context.waitTicks(2);
-                var off=context.takeScreenshot("hoi-air-category-off-gui2");
-                var dots=context.computeOnClient(c->{var screen=(MapAirDetail)c.gui.screen();double scale=screen.panelWidth()/552.0,gui=c.getWindow().getGuiScale();int[][] result=new int[3][2];for(int i=0;i<3;i++){result[i][0]=(int)Math.round((screen.panelLeft()+(207+45*i+6)*scale)*gui);result[i][1]=(int)Math.round((screen.panelTop()+244*scale)*gui);}return result;});
-                try {
-                    var image=javax.imageio.ImageIO.read(off.toFile());
-                    for(int i=0;i<3;i++){boolean green=false;for(int dy=-3;dy<=3;dy++)for(int dx=-3;dx<=3;dx++){int rgb=image.getRGB(dots[i][0]+dx,dots[i][1]+dy),r=rgb>>16&255,g=rgb>>8&255,bl=rgb&255;green|=g>r+40&&g>bl+40;}if(green!=(i!=1))throw new AssertionError("Mission filter "+i+" must use the original "+(i!=1?"ON":"OFF")+" frame at "+dots[i][0]+","+dots[i][1]);}
-                } catch(java.io.IOException error){throw new AssertionError(error);}
-                context.runOnClient(c->((MapAirDetail)c.gui.screen()).toggleCategory(1,false));context.waitTicks(2);
-            }
-            if(size[0]==2560)for(int[] point:new int[][]{{169,204},{353,204},{45,126},{113,126},{164,66},{25,52},{25,88},{94,52},{94,88},{280,55},{280,91}}) {
-                var cursor=context.computeOnClient(c->{var screen=(MapAirDetail)c.gui.screen();double scale=screen.panelWidth()/552.0,gui=c.getWindow().getGuiScale();return new double[]{(screen.panelLeft()+point[0]*scale)*gui,(screen.panelTop()+point[1]*scale)*gui};});
-                context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);context.takeScreenshot("hoi-air-tooltip-"+point[0]+"-"+point[1]+"-gui2");
-            }
-            if(size[0]==2560) {
-                var scenario=new ArrayList<>(tiles);
-                scenario.replaceAll(t->t.section().equals("air_losses")||t.section().equals("air_kills")?new DialogView.Tile(t.section(),t.name(),"0",t.icon(),t.detail()):t);
-                var preview=new DialogView(UUID.randomUUID().toString(),1,view.kind(),view.title(),"","","","air_detail/background","",scenario,List.of());
-                context.setScreen(()->new MapAirDetail(preview));
-                context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-current-aircraft-no-losses-gui2");
-            }
-            if(size[0]==2560)for(String mode:List.of("cas-only","bombing-fallback")) {
-                var scenario=new ArrayList<>(tiles);
-                scenario.removeIf(t->t.section().equals("mission_0")&&(mode.equals("cas-only")?!t.name().equals("근접항공지원"):t.name().equals("병참 체계 공습")));
-                if(mode.equals("bombing-fallback"))scenario.add(t("mission_0","전략폭격","100","production/equipment/strategic_bomber"));
-                var preview=new DialogView(UUID.randomUUID().toString(),1,view.kind(),view.title(),"","","","air_detail/background","",scenario,List.of());
-                context.setScreen(()->new MapAirDetail(preview));
-                context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-missions-"+mode+"-gui2");
-            }
-            if(size[0]==2560)for(String mode:List.of("interception","logistics","four-logistics-rows","railway-priority","train-fallback","aa-only-first-row","naval","port")) {
-                var scenario=new ArrayList<>(tiles);scenario.removeIf(t->t.section().endsWith("_result"));
-                for(String side:List.of("own_result","enemy_result")) {
-                    int[] frames=switch(mode) {
-                        case "interception" -> new int[]{4,5,3};
-                        case "four-logistics-rows" -> new int[]{4,6,10,7};
-                        case "railway-priority" -> new int[]{4,5,6,7};
-                        case "train-fallback" -> new int[]{4,5,6,10};
-                        case "aa-only-first-row" -> new int[]{5};
-                        case "naval" -> new int[]{4,5,1};
-                        default -> new int[]{6,10,7};
-                    };
-                    for(int frame:frames)scenario.add(frame<0?new DialogView.Tile(side,"","","",""):t(side,"공중전 결과",frame==3?"22%":"5","air_detail/result_"+frame));
-                    if(mode.equals("port")){scenario.removeIf(t->t.section().equals(side));scenario.add(t(side,"항구 습격","18.2","air_detail/result_1"));}
-                }
-                var preview=new DialogView(UUID.randomUUID().toString(),1,view.kind(),view.title(),"","","","air_detail/background","",scenario,List.of());
-                context.setScreen(()->new MapAirDetail(preview));
-                context.getInput().setCursorPos(0,0);context.waitTicks(3);context.takeScreenshot("hoi-air-results-"+mode+"-gui2");
-            }
-            if(size[0]==2560)for(int state=0;state<3;state++) {
-                var scenario=new ArrayList<>(tiles);
-                scenario.removeIf(t->t.section().equals("balance"));
-                double fraction=state==0?0:state==1?.8:.2;
-                String value=state==0?"통제 없음":state==1?"80%":"20%";
-                scenario.add(new DialogView.Tile("balance","공중 우세",value,"air_detail/progress_"+(state==0?"disabled":"good"),"공중 우세: "+value,new DialogView.Gauge(fraction,value)));
-                if(state==0) {
-                    scenario.removeIf(t->t.section().startsWith("air_")||t.section().startsWith("mission_")||t.section().startsWith("enemy_mission_")||t.section().endsWith("_result"));
-                    scenario.replaceAll(t->t.section().equals("own")||t.section().equals("enemy")?new DialogView.Tile(t.section(),t.name(),"0",t.icon(),t.detail()):t);
-                }
-                var preview=new DialogView(UUID.randomUUID().toString(),1,view.kind(),view.title(),"","","","air_detail/background","",scenario,List.of());
-                context.setScreen(()->new MapAirDetail(preview));
-                context.getInput().setCursorPos(0,0);context.waitTicks(3);
-                context.takeScreenshot("hoi-air-control-"+List.of("none","friendly","enemy").get(state)+"-gui2");
-            }
-            if(size[0]==2560)for(int state=0;state<3;state++) {
-                var scenario=new ArrayList<>(tiles);
-                scenario.removeIf(t->List.of("weather","weather_icon","efficiency","detection").contains(t.section()));
-                String name=List.of("맑음","폭풍","눈보라").get(state);
-                String image=List.of("none","heavy_rain","heavy_snow_night").get(state);
-                String detail="§e"+name+"§r\n공군 작전 효율: §c"+(state==0?"0%":"-30%")+"§r\n대공 탐지: §c"+(state==0?"0%":state==1?"-20%":"-30%")+"§r\n항공기 사고 확률: §c+"+(state==0?"0%":"3%")+"§r";
-                scenario.add(new DialogView.Tile("weather",name,"","air_detail/weather_"+image,detail));
-                if(state!=0)scenario.add(new DialogView.Tile("weather_icon",name,"","map_detail/weather_"+(state==1?"storm":"blizzard"),detail));
-                scenario.add(t("efficiency","아군의 평균 임무 효율",state==0?"100%":"70%","air_detail/air_mission_efficiency_strip_1"));
-                scenario.add(t("detection","아군 항공 탐지력",state==0?"30%":state==1?"24%":"21%","air_detail/air_detection_strip_1"));
-                var preview=new DialogView(UUID.randomUUID().toString(),1,view.kind(),view.title(),"","","","air_detail/background","",scenario,List.of());
-                context.setScreen(()->new MapAirDetail(preview));
-                var cursor=context.computeOnClient(c->{var screen=(MapAirDetail)c.gui.screen();double scale=screen.panelWidth()/552.0,gui=c.getWindow().getGuiScale();return new double[]{(screen.panelLeft()+280*scale)*gui,(screen.panelTop()+60*scale)*gui};});
-                context.getInput().setCursorPos(cursor[0],cursor[1]);context.waitTicks(3);
-                context.takeScreenshot("hoi-air-weather-"+List.of("clear","storm","blizzard-night").get(state)+"-gui2");
-            }
-            context.runOnClient(c->{
-                var state=new DialogView(view.token(),2,view.kind(),view.title(),"","","","map_detail/state","",List.of(),List.of());
-                DialogCoordinator.receive(DialogPayloads.Show.of(state,true));if(!(c.gui.screen() instanceof MapDetail))throw new AssertionError("Map mode refresh must switch renderer");
-                DialogCoordinator.receive(DialogPayloads.Show.of(view.issued(view.token(),3),true));if(!(c.gui.screen() instanceof MapAirDetail))throw new AssertionError("Air mode refresh must switch renderer");
-                DialogCoordinator.receive(DialogPayloads.Show.of(state,true));if(!(c.gui.screen() instanceof MapAirDetail))throw new AssertionError("Stale state view replaced air view");
-            });
-        }
-        context.setScreen(()->null);
+        game.setScreen(() -> null);
     }
-    private static DialogView.Tile t(String section,String name,String value,String icon){return new DialogView.Tile(section,name,value,icon,"§e"+name+"§r\n"+value);}
+    private static DialogView read(String name) {
+        String directory = Objects.requireNonNull(System.getenv("HOI_COMMANDER_PREVIEW"), "Authoritative commander fixtures are required for the air region window");
+        try { return new Gson().fromJson(Files.readString(Path.of(directory, name)), DialogView.class); } catch (IOException error) { throw new UncheckedIOException(error); }
+    }
+    private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }
+    private static void away(ClientGameTestContext game) { game.getInput().setCursorPos(0, 0); game.waitTicks(3); }
+    private static void layout(ClientGameTestContext game, DialogView view, int[] size, String shot) {
+        game.runOnClient(client -> {
+            DialogCoordinator.receive(DialogPayloads.Show.of(view, true));
+            check(client.gui.screen() instanceof MapAirDetail, "Air marker must open air details");
+            var screen = (MapAirDetail)client.gui.screen();
+            check(screen.panelTop() >= HudMenuBar.height(screen.width) && screen.panelTop() + screen.panelHeight() <= screen.height && screen.panelLeft() >= 0 && screen.panelLeft() + screen.panelWidth() <= screen.width, "Air panel escaped viewport");
+            for (var child : screen.children()) if (child instanceof Button button) check(button.getX() >= 0 && button.getY() >= 0 && button.getRight() <= screen.width && button.getBottom() <= screen.height, "Air button escaped viewport at " + button.getX() + "," + button.getY());
+            if (screen.detailsOpen()) check(screen.details().x(513) <= screen.width + 1 && screen.details().y(495) <= screen.height + 1 && screen.details().y(0) >= 0, "Air details escaped viewport");
+            else check(Math.abs(screen.panelLeft() * 2 + screen.panelWidth() - screen.width) <= 1, "Air detail must be centered");
+            if (size[0] == 2560) check(screen.panelWidth() == 414, "Air panel must keep 1.5 times the original size at GUI2: " + screen.panelWidth());
+            for (var tile : view.tiles()) if (!tile.icon().isBlank()) check(client.getResourceManager().getResource(Identifier.parse("hoi:textures/gui/" + tile.icon() + ".png")).isPresent(), "Missing air asset: " + tile.icon());
+        });
+        away(game);
+        game.takeScreenshot(shot);
+    }
+    private static List<String> sent(ClientGameTestContext game, DialogView view) {
+        var sent = new ArrayList<String>();
+        game.setScreen(() -> new MapAirDetail(view, (shown, choice) -> sent.add(choice)));
+        game.waitTicks(2);
+        return sent;
+    }
+    private static void press(ClientGameTestContext game, boolean details, double px, double py) {
+        game.runOnClient(client -> {
+            var screen = (MapAirDetail)client.gui.screen();
+            UiMenuStyle.Frame area = details ? screen.details() : screen.frame();
+            var event = new MouseButtonEvent(area.x(px), area.y(py), new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
+            screen.mouseClicked(event, false);
+            screen.mouseReleased(event);
+        });
+    }
+    private static void clicks(ClientGameTestContext game, DialogView view) {
+        var sent = sent(game, view);
+        press(game, false, 272, 126); press(game, false, 80, 241); press(game, false, 464, 241);
+        press(game, false, 227, 240); press(game, false, 272, 240); press(game, false, 317, 240);
+        check(sent.equals(List.of("air/details", "air/missions/own", "air/missions/enemy", "air/group/FIGHTER_SUPPORT", "air/group/NAVAL", "air/group/BOMBING_LOGISTICS")), "Air buttons send their choices: " + sent);
+        sent.clear();
+        game.getInput().holdShift();
+        game.waitTicks(1);
+        press(game, false, 272, 240);
+        game.getInput().releaseShift();
+        game.waitTicks(1);
+        game.getInput().holdControl();
+        game.waitTicks(1);
+        press(game, false, 272, 240);
+        game.getInput().releaseControl();
+        game.waitTicks(1);
+        check(sent.equals(List.of("air/only/NAVAL", "air/all")), "Shift and Ctrl clicks keep the original filter actions: " + sent);
+        game.runOnClient(client -> {
+            var screen = (MapAirDetail)client.gui.screen();
+            int left = screen.panelLeft(), top = screen.panelTop();
+            var down = new MouseButtonEvent(screen.frame().x(60), screen.frame().y(12), new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
+            screen.mouseClicked(down, false);
+            screen.mouseDragged(new MouseButtonEvent(down.x() - 60, down.y() + 20, down.buttonInfo()), -60, 20);
+            check(screen.panelLeft() == left - 60 && screen.panelTop() == top + 20, "Dragging an empty place moves the window");
+            screen.mouseDragged(new MouseButtonEvent(down.x() - 9000, down.y() + 9000, down.buttonInfo()), -9000, 9000);
+            check(screen.panelLeft() == 0 && screen.panelTop() + screen.panelHeight() <= screen.height, "A dragged window stays inside the screen");
+            screen.mouseDragged(new MouseButtonEvent(down.x(), down.y(), down.buttonInfo()), 10, 0);
+            check(screen.panelLeft() == 10, "Dragging back starts from the edge");
+            screen.mouseReleased(down);
+        });
+    }
+    private static String hovered(ClientGameTestContext game, double px, double py) {
+        var cursor = game.computeOnClient(client -> {
+            var screen = (MapAirDetail)client.gui.screen();
+            double gui = client.getWindow().getGuiScale();
+            return new double[]{screen.frame().x(px) * gui, screen.frame().y(py) * gui};
+        });
+        game.getInput().setCursorPos(cursor[0], cursor[1]);
+        game.waitTicks(3);
+        return game.computeOnClient(client -> ((MapAirDetail)client.gui.screen()).tooltipText());
+    }
+    private static void tooltips(ClientGameTestContext game, DialogView view) {
+        sent(game, view);
+        var expected = new LinkedHashMap<String, double[]>();
+        expected.put("details", new double[]{272, 126}); expected.put("missions_own", new double[]{80, 241}); expected.put("missions_enemy", new double[]{464, 241});
+        expected.put("balance", new double[]{272, 88}); expected.put("weather", new double[]{272, 50}); expected.put("detection", new double[]{30, 126}); expected.put("enemy_efficiency", new double[]{411, 126});
+        expected.put("own_fighters", new double[]{130, 162}); expected.put("enemy_planes", new double[]{445, 277}); expected.put("mission_filter_1", new double[]{272, 240});
+        expected.put("fighter_area", new double[]{60, 200}); expected.put("mission_area", new double[]{60, 320}); expected.put("own_damage", new double[]{225, 279}); expected.put("enemy_damage", new double[]{355, 279});
+        expected.forEach((section, point) -> {
+            var tile = view.tiles().stream().filter(row -> row.section().equals(section)).findFirst().orElseThrow(() -> new AssertionError(section));
+            String shown = hovered(game, point[0], point[1]);
+            check(shown.equals(tile.detail()), section + " shows its own tooltip: " + shown);
+            if (Set.of("balance", "weather", "detection", "own_damage", "mission_filter_1").contains(section)) game.takeScreenshot("hoi-air-tooltip-" + section + "-gui2");
+        });
+        var enemies = view.tiles().stream().filter(row -> row.section().equals("enemy")).toList();
+        for (int i = 0; i < 4; i++) check(hovered(game, i < 2 ? 484 : 413, i % 2 == 0 ? 47 : 82).equals(enemies.get(i).detail()), "Enemy aircraft count " + i + " shows the enemy text");
+        away(game);
+    }
+    private static void filters(ClientGameTestContext game, DialogView view) {
+        var tiles = new ArrayList<>(view.tiles());
+        tiles.replaceAll(tile -> tile.section().equals("mission_filter_1") ? new DialogView.Tile(tile.section(), tile.name(), "0", tile.icon(), tile.detail()) : tile);
+        sent(game, new DialogView(UUID.randomUUID().toString(), 1, view.kind(), view.title(), "", "", "", view.image(), "", tiles, view.choices()));
+        away(game);
+        var shot = game.takeScreenshot("hoi-air-category-off-gui2");
+        var dots = game.computeOnClient(client -> {
+            var screen = (MapAirDetail)client.gui.screen();
+            double gui = client.getWindow().getGuiScale();
+            int[][] result = new int[3][2];
+            for (int i = 0; i < 3; i++) { result[i][0] = (int)Math.round(screen.frame().x(205 + 45 * i + 6) * gui); result[i][1] = (int)Math.round(screen.frame().y(231) * gui); }
+            return result;
+        });
+        var image = image(shot);
+        for (int i = 0; i < 3; i++) {
+            boolean green = false;
+            for (int dy = -4; dy <= 4; dy++) for (int dx = -4; dx <= 4; dx++) {
+                int rgb = image.getRGB(dots[i][0] + dx, dots[i][1] + dy), r = rgb >> 16 & 255, g = rgb >> 8 & 255, b = rgb & 255;
+                green |= g > r + 40 && g > b + 40;
+            }
+            check(green == (i != 1), "Mission filter " + i + " must use the original " + (i != 1 ? "ON" : "OFF") + " frame");
+        }
+    }
+    private static java.awt.image.BufferedImage image(Path shot) { try { return javax.imageio.ImageIO.read(shot.toFile()); } catch (IOException error) { throw new UncheckedIOException(error); } }
+    private static void chart(ClientGameTestContext game, DialogView view) {
+        var sent = sent(game, view);
+        press(game, true, 256, 215); press(game, true, 346, 215); press(game, true, 166, 215);
+        check(sent.equals(List.of("air/span/MONTH", "air/span/YEAR", "air/span/DAY")), "Chart tabs send their spans: " + sent);
+        away(game);
+        var plain = image(game.takeScreenshot("hoi-air-chart-empty-gui2"));
+        press(game, true, 120, 235 + 22 * 3 + 10); press(game, true, 266 + 120, 235 + 22 + 10); press(game, true, 266 + 120, 235 + 22 * 3 + 10); press(game, true, 266 + 120, 235 + 22 * 3 + 10);
+        game.runOnClient(client -> check(((MapAirDetail)client.gui.screen()).channels().equals(Set.of(3, 13)), "Channel buttons toggle their own line"));
+        game.waitTicks(2);
+        var drawn = image(game.takeScreenshot("hoi-air-chart-lines-gui2"));
+        var area = game.computeOnClient(client -> {
+            var screen = (MapAirDetail)client.gui.screen();
+            double gui = client.getWindow().getGuiScale();
+            return new int[]{(int)(screen.details().x(54) * gui), (int)(screen.details().y(25) * gui), (int)(screen.details().x(434) * gui), (int)(screen.details().y(175) * gui)};
+        });
+        boolean red = false, yellow = false, before = false;
+        for (int y = area[1]; y < area[3]; y++) for (int x = area[0]; x < area[2]; x++) {
+            red |= line(drawn.getRGB(x, y), 255, 38, 0);
+            yellow |= line(drawn.getRGB(x, y), 242, 255, 0);
+            before |= line(plain.getRGB(x, y), 255, 38, 0) || line(plain.getRGB(x, y), 242, 255, 0);
+        }
+        check(red && yellow && !before, "Selected channels draw the original line colours: " + red + " " + yellow + " " + before);
+        game.runOnClient(client -> {
+            var screen = (MapAirDetail)client.gui.screen();
+            screen.update(new DialogView(view.token(), view.revision(), view.kind(), view.title(), "", "", "", view.image(), "", view.tiles(), view.choices()));
+            check(screen.channels().equals(Set.of(3, 13)), "Refreshing the view keeps the selected channels");
+        });
+    }
+    private static boolean line(int rgb, int red, int green, int blue) { return Math.abs((rgb >> 16 & 255) - red) < 4 && Math.abs((rgb >> 8 & 255) - green) < 4 && Math.abs((rgb & 255) - blue) < 4; }
+    private static void control(ClientGameTestContext game, DialogView view) {
+        for (String state : List.of("none", "friendly", "enemy")) {
+            double share = state.equals("none") ? 0 : state.equals("friendly") ? .8 : .2;
+            var tiles = new ArrayList<>(view.tiles());
+            tiles.replaceAll(tile -> tile.section().equals("balance") ? new DialogView.Tile("balance", tile.name(), "", "air_detail/progress_" + (state.equals("none") ? "disabled" : "good"), tile.detail(), new DialogView.Gauge(share, "")) : tile);
+            sent(game, new DialogView(UUID.randomUUID().toString(), 1, view.kind(), view.title(), "", "", "", view.image(), "", tiles, view.choices()));
+            away(game);
+            var image = image(game.takeScreenshot("hoi-air-control-" + state + "-gui2"));
+            var bar = game.computeOnClient(client -> {
+                var screen = (MapAirDetail)client.gui.screen();
+                double gui = client.getWindow().getGuiScale();
+                return new int[]{(int)(screen.frame().x(147) * gui), (int)(screen.frame().x(397) * gui), (int)(screen.frame().y(87) * gui)};
+            });
+            int green = 0;
+            for (int x = bar[0]; x < bar[1]; x++) { int rgb = image.getRGB(x, bar[2]), r = rgb >> 16 & 255, g = rgb >> 8 & 255; if (g > r + 30) green++; }
+            check(Math.abs(green / (double)(bar[1] - bar[0]) - share) < .04, "Air superiority bar fills our share: " + state + " " + green);
+        }
+    }
+    private static void renderers(ClientGameTestContext game, DialogView view) {
+        game.setScreen(() -> null);
+        game.runOnClient(client -> {
+            DialogCoordinator.receive(DialogPayloads.Show.of(view, true));
+            var state = new DialogView(view.token(), 2, view.kind(), view.title(), "", "", "", "map_detail/state", "", List.of(), List.of());
+            DialogCoordinator.receive(DialogPayloads.Show.of(state, true));
+            check(client.gui.screen() instanceof MapDetail, "Map mode refresh must switch renderer");
+            DialogCoordinator.receive(DialogPayloads.Show.of(view.issued(view.token(), 3), true));
+            check(client.gui.screen() instanceof MapAirDetail, "Air mode refresh must switch renderer");
+            DialogCoordinator.receive(DialogPayloads.Show.of(state, true));
+            check(client.gui.screen() instanceof MapAirDetail, "Stale state view replaced air view");
+        });
+        game.setScreen(() -> null);
+    }
 }
