@@ -22,15 +22,18 @@ public final class FocusPayloads {
         PayloadTypeRegistry.clientboundPlay().register(Response.TYPE,Response.CODEC);registered=true;
     }
     public enum Action {OPEN,REFRESH,START,CANCEL}
-    public record Request(Action action,String token,String session,long revision,String id) implements CustomPacketPayload {
+    public record Request(Action action,String token,String session,long revision,String id,String target) implements CustomPacketPayload {
+        public Request(Action action,String token,String session,long revision,String id) {this(action,token,session,revision,id,"");}
         public Request {
+            target=target==null?"":target;
             Objects.requireNonNull(action);UUID.fromString(token);if(!session.isEmpty())UUID.fromString(session);CountryView.text(id,256);
             if(revision<0)throw new IllegalArgumentException("Invalid focus revision");
+            if(!target.isEmpty() && !target.matches("[A-Z0-9]{3}"))throw new IllegalArgumentException("Invalid focus target");
         }
-        public static final Type<Request> TYPE=new Type<>(Identifier.parse("hoi:focus_request_v1"));
+        public static final Type<Request> TYPE=new Type<>(Identifier.parse("hoi:focus_request_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Request> CODEC=StreamCodec.of(
-                (b,p) -> {b.writeEnum(p.action);b.writeUtf(p.token,36);b.writeUtf(p.session,36);b.writeVarLong(p.revision);b.writeUtf(p.id,256);},
-                b -> new Request(b.readEnum(Action.class),b.readUtf(36),b.readUtf(36),b.readVarLong(),b.readUtf(256)));
+                (b,p) -> {b.writeEnum(p.action);b.writeUtf(p.token,36);b.writeUtf(p.session,36);b.writeVarLong(p.revision);b.writeUtf(p.id,256);b.writeUtf(p.target,3);},
+                b -> new Request(b.readEnum(Action.class),b.readUtf(36),b.readUtf(36),b.readVarLong(),b.readUtf(256),b.readUtf(3)));
         @Override public Type<Request> type(){return TYPE;}
     }
     public record Node(String id,String name,String description,String icon,double x,double y,List<List<Integer>> parents,List<Integer> exclusive,String status,long remaining,boolean enabled) {

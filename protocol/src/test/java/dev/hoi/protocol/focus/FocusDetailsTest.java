@@ -9,6 +9,17 @@ import static dev.hoi.protocol.focus.FocusPayloads.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FocusDetailsTest {
+    @Test void foreignTargetRequestIsBoundedAndRoundTrips() {
+        var own=new Request(Action.OPEN,UUID.randomUUID().toString(),"",0,"focus");
+        assertEquals("",own.target());assertEquals("hoi:focus_request_v2",Request.TYPE.id().toString());
+        var request=new Request(Action.REFRESH,UUID.randomUUID().toString(),UUID.randomUUID().toString(),3,"focus","KOR");
+        var buffer=new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),net.minecraft.core.RegistryAccess.EMPTY);
+        try {
+            Request.CODEC.encode(buffer,request);assertEquals(request,Request.CODEC.decode(buffer));
+            buffer.clear();Request.CODEC.encode(buffer,own);assertEquals(own,Request.CODEC.decode(buffer));
+        } finally {buffer.release();}
+        for(String bad:List.of("prk","KORE","KO","K R"))assertThrows(IllegalArgumentException.class,() -> new Request(Action.OPEN,UUID.randomUUID().toString(),"",0,"",bad));
+    }
     private static final String SESSION=UUID.randomUUID().toString();
     private static Detail detail(String id,List<DetailLine> requirements) {
         return new Detail(id,"§Y연기§!","첫째\n\n§G둘째§! £pol_power $CHARACTER$ [?amount|.2]",84,12,24,12,1,

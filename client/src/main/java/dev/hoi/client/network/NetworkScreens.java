@@ -247,6 +247,10 @@ public final class NetworkScreens {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.focus.FocusPayloads.Request.TYPE)) return;
         cancelOpen();DialogCoordinator.setContent(new dev.hoi.client.screen.focus.FocusScreen(id));
     }
+    public static void openForeignFocus(net.minecraft.client.gui.screens.Screen parent, String target) {
+        if (!ClientPlayNetworking.canSend(dev.hoi.protocol.focus.FocusPayloads.Request.TYPE)) return;
+        cancelOpen(); DialogCoordinator.setContent(new dev.hoi.client.screen.focus.FocusScreen(parent, target));
+    }
     public static void openFocusDetail(String id) {
         openMenu(dev.hoi.protocol.menu.MenuTab.POLITICS);
         if (pendingMenu.waiting()) pendingMenu.target(id);

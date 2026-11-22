@@ -1,5 +1,6 @@
 package dev.hoi.client.screen.focus;
 
+import dev.hoi.client.ClientCampaignHud;
 import dev.hoi.client.HoiClient;
 import dev.hoi.client.ui.*;
 import dev.hoi.protocol.country.*;
@@ -22,6 +23,8 @@ public final class FocusScreen extends Screen {
     private final String token=UUID.randomUUID().toString();
     private final Consumer<FocusPayloads.Request> sender;
     private final boolean fixture;
+    private final String target;
+    private final Screen parent;
     private final FocusDetail detailPanel=new FocusDetail();
     private FocusPayloads.View view;
     private FocusPayloads.Detail detail;
@@ -35,11 +38,14 @@ public final class FocusScreen extends Screen {
     private boolean centered,panning,draggingDetail,detailDirty,extended;
     private int top,ticks=999,pendingTicks;
     private FocusPayloads.Request pending,queryRequest,recoveryRequest;
-    public FocusScreen(){this(null,ClientPlayNetworking::send,false);}
+    public FocusScreen(){this(null,ClientPlayNetworking::send,false,"",null);}
+    public FocusScreen(Screen parent,String target){this(null,ClientPlayNetworking::send,false,target.equals(ClientCampaignHud.country())?"":target,parent);}
     public FocusScreen(String completedFocus){this();completionTarget=completedFocus;}
-    public FocusScreen(FocusPayloads.View view,Consumer<FocusPayloads.Request> sender){this(view,sender,true);}
-    private FocusScreen(FocusPayloads.View view,Consumer<FocusPayloads.Request> sender,boolean fixture){super(Component.literal("중점 계통도"));this.view=view;this.sender=sender;this.fixture=fixture;extended=view!=null && (view.ack()!=null || view.detail()!=null);}
+    public FocusScreen(FocusPayloads.View view,Consumer<FocusPayloads.Request> sender){this(view,sender,true,"",null);}
+    FocusScreen(FocusPayloads.View view,Consumer<FocusPayloads.Request> sender,String target,Screen parent){this(view,sender,true,target,parent);}
+    private FocusScreen(FocusPayloads.View view,Consumer<FocusPayloads.Request> sender,boolean fixture,String target,Screen parent){super(Component.literal("중점 계통도"));this.view=view;this.sender=sender;this.fixture=fixture;this.target=target;this.parent=parent;extended=view!=null && (view.ack()!=null || view.detail()!=null);}
     public String token(){return token;}
+    public String target(){return target;}
     public static void resourcesReloaded(){FocusInlays.clear();}
     String searchText(){return query;}
     float zoomLevel(){return zoom;}
@@ -57,7 +63,7 @@ public final class FocusScreen extends Screen {
         if(!packet.token().equals(token))return;
         if(packet.json().isEmpty()){minecraft.gui.setScreen(null);return;}
         var next=packet.view();
-        if(view!=null && !view.country().equals(next.country())){minecraft.gui.setScreen(null);return;}
+        if(view!=null && !view.country().equals(next.country()) || !target.isEmpty() && !next.country().equals(target)){minecraft.gui.setScreen(null);return;}
         boolean acknowledged=matches(pending,next.ack()),recovered=matches(recoveryRequest,next.ack());
         if(view!=null && view.session().equals(next.session()) && next.revision()<view.revision()) {
             if(acknowledged){pending=null;recoveryRequest=null;rebuildWidgets();}
@@ -90,7 +96,7 @@ public final class FocusScreen extends Screen {
         if(!fixture && !ClientPlayNetworking.canSend(FocusPayloads.Request.TYPE))return;
         boolean mutation=action==FocusPayloads.Action.START || action==FocusPayloads.Action.CANCEL;
         if(mutation && pending!=null)return;
-        var packet=new FocusPayloads.Request(action,token,view==null?"":view.session(),view==null?0:view.revision(),id);
+        var packet=new FocusPayloads.Request(action,token,view==null?"":view.session(),view==null?0:view.revision(),id,target);
         if(mutation){pending=packet;pendingTicks=0;}
         else {queryRequest=packet;detailDirty=false;if(pending!=null && pendingTicks>=120)recoveryRequest=packet;}
         ticks=0;sender.accept(packet);
@@ -104,10 +110,10 @@ public final class FocusScreen extends Screen {
     @Override protected void init() {
         detailClose=null;detailStart=null;
         top=HudMenuBar.height(width)+29;
-        HudMenuBar.buttons(width,view==null?"":view.country(),null,HoiClient::openMenu,HudMenuBar.height(width)).forEach(this::addRenderableWidget);
+        HudMenuBar.buttons(width,view==null?"":target.isEmpty()?view.country():ClientCampaignHud.country(),null,HoiClient::openMenu,HudMenuBar.height(width)).forEach(this::addRenderableWidget);
         float unit=HudMenuBar.windowTop(width)/78f,windowTop=HudMenuBar.windowTop(width),center=width-114*unit,middle=windowTop+28.5f*unit;
         int closeLeft=Math.round(width-48*unit),closeTop=Math.round(windowTop+13*unit);
-        addRenderableWidget(new UiMenuButton("×",closeLeft,closeTop,Math.round(width-16*unit)-closeLeft,Math.round(windowTop+46*unit)-closeTop,() -> super.onClose())
+        addRenderableWidget(new UiMenuButton("×",closeLeft,closeTop,Math.round(width-16*unit)-closeLeft,Math.round(windowTop+46*unit)-closeTop,this::onClose)
                 .caption("").background("menu/close").art(width-48*unit,windowTop+13*unit,32*unit,33*unit).sound("ui.close"));
         int split=Math.round(center+17.5f*unit),artTop=Math.round(middle-17.5f*unit),artBottom=Math.round(middle+17.5f*unit),minusLeft=Math.round(center-21*unit);
         var zoomTip=Tooltips.createOfficer(UiCommandLabels.text("FOCUS_ZOOM_SLIDER_TOOLTIP","클릭하거나 §G마우스 휠§!을 사용하여 중점 계통도를 확대/축소"));
@@ -131,7 +137,8 @@ public final class FocusScreen extends Screen {
             detailStart=detailPanel.button(false,() -> {request(cancel?FocusPayloads.Action.CANCEL:FocusPayloads.Action.START,n.id());rebuildWidgets();});
             detailStart.setMessage(Component.literal(cancel?"중점 취소":"중점 시작"));
             detailStart.setTooltip(Tooltips.createOfficer(cancel?view.cancelTooltip():view.startTooltip()));
-            detailStart.active=pending==null && (cancel?view.cancelable():n.enabled() && (!extended || detail!=null && detail.executable()));
+            detailStart.visible=target.isEmpty();
+            detailStart.active=target.isEmpty() && pending==null && (cancel?view.cancelable():n.enabled() && (!extended || detail!=null && detail.executable()));
             addRenderableWidget(detailStart);
         }
     }
@@ -222,7 +229,7 @@ public final class FocusScreen extends Screen {
         float left=x(n)-NODE_W*zoom/2,upper=y(n);
         if(left>width || left+NODE_W*zoom<0 || upper>height || upper+NODE_H*zoom<top)return;
         g.pose().pushMatrix();g.pose().translate(left,upper);g.pose().scale(zoom);
-        String state=n.status().equals("완료")?"completed":n.enabled()||n.status().equals("진행 중")?"available":"unavailable";
+        String state=n.status().equals("완료")?"completed":n.enabled()||n.status().equals("진행 중")||n.status().equals("선택 가능")?"available":"unavailable";
         UiAssets.draw(g,"focus/"+state,0,54,NODE_W,25);
         String art=n.icon().matches("[A-Za-z0-9_]+")?"politics/art/"+n.icon().toLowerCase(Locale.ROOT):"";
         boolean drawn=!art.isEmpty() && UiAssets.draw(g,art,2,0,NODE_W-4,60);
@@ -290,6 +297,7 @@ public final class FocusScreen extends Screen {
     @Override public boolean mouseReleased(MouseButtonEvent event){panning=false;draggingDetail=false;detailPanel.release();return super.mouseReleased(event);}
     @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical){if(!selected.isEmpty() && detailPanel.scroll(x,y,vertical))return true;if(y>=top){zoom(Math.pow(1.1,vertical),x,y);return true;}return super.mouseScrolled(x,y,horizontal,vertical);}
     @Override public boolean keyPressed(KeyEvent event){if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE && !selected.isEmpty()){clearSelection();rebuildWidgets();return true;}if(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_PAGEUP || event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_PAGEDOWN){zoom(event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_PAGEUP?1.15:1/1.15,width/2.0,(height+top)/2.0);return true;}if(!selected.isEmpty() && getFocused()!=search && (event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key()==com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER)){if(detailStart.active)detailStart.onPress(event);return true;}return super.keyPressed(event);}
+    @Override public void onClose(){if(parent==null)super.onClose();else dev.hoi.client.screen.dialog.DialogCoordinator.setContent(parent);}
     @Override public boolean isPauseScreen(){return false;}
     @Override public void removed(){detailPanel.release();detailPanel.closeResources();super.removed();}
 }

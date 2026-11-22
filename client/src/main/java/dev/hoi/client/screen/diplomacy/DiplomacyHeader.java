@@ -51,13 +51,7 @@ final class DiplomacyHeader {
         UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(entry(view, "집권 정당").value()), textX, textY + 1, textW, UiText.scale(font), UiMenuStyle.TEXT, true, -1);
         UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(entry(view, "이념").value()), textX, textY + 13, textW, UiText.scale(font), UiMenuStyle.TEXT, true, -1);
         UiText.marquee(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(entry(view, "다음 선거").value()), textX, textY + 25, textW, UiText.scale(font), UiMenuStyle.TEXT, true, -1);
-        int focusH = Math.max(28, scaled(64, pane));
-        int focusY = y + leaderH - focusH - 3, focusX = right + scaled(100, pane);
-        var focus = view.focuses().stream().filter(e -> !e.value().equals("완료")).findFirst().orElse(new MenuView.Entry("선택된 중점 없음", "", ""));
-        UiAssets.draw(g, focus.name().equals("알려지지 않은 중점") ? AgencyIntelLedger.source("goal_unknown", 0)
-            : focus.icon().isEmpty() ? "politics/empty/focus" : focus.icon(), right + 4, focusY, scaled(90, pane), focusH);
-        UiAssets.nineSlice(g, "diplomacy/focus", focusX, focusY, pane - focusX - 12, focusH, 5, pane / 550.0);
-        UiText.centered(g, font, focus.name(), focusX + 4, focusY + 3, pane - focusX - 20, focusH - 6, UiMenuStyle.TEXT);
+        drawFocus(g, font, focus(view), pane, top);
         int spiritY = spiritsTop(top, pane), spiritH = Math.max(32, scaled(92, pane)), spiritInset = scaled(14, pane);
         UiAssets.nineSlice(g, "diplomacy/spirits", scaled(15, pane), spiritY, pane - scaled(30, pane), spiritH, 5, pane / 550.0);
         UiText.text(g, font, "국민정신", scaled(20, pane), spiritY + spiritInset, UiMenuStyle.TEXT);
@@ -80,14 +74,44 @@ final class DiplomacyHeader {
             g.fill(trackX, thumbY, trackX + 2, thumbY + thumbH, 0xFFD5D5D0);
         }
     }
+    private static MenuView.Entry focus(CountryView view) {
+        return view.focuses().stream().filter(entry -> !entry.value().equals("완료")).findFirst().orElse(new MenuView.Entry("", "", ""));
+    }
+    static int[] focusBox(int pane, int top) {
+        int height = Math.max(28, scaled(64, pane)), left = scaled(147, pane) + scaled(100, pane);
+        return new int[]{left, politicsTop(top) + leaderHeight(pane) - height - 3, pane - left - 12, height};
+    }
+    private static void drawFocus(GuiGraphicsExtractor g, Font font, MenuView.Entry focus, int pane, int top) {
+        var box = focusBox(pane, top);
+        float unit = pane / 550f;
+        UiAssets.nineSlice(g, "diplomacy/focus", box[0], box[1], box[2], box[3], 5, unit);
+        String art = focus.icon().isEmpty() ? AgencyIntelLedger.source("goal_unknown", 0) : focus.icon();
+        var size = UiAssets.imageSize(art);
+        float width = size[0] * .9f * unit, height = size[1] * .9f * unit;
+        UiAssets.drawExact(g, art, box[0] - 55 * unit - width / 2, box[1] + box[3] / 2f - height / 2, width, height);
+        UiText.centered(g, font, dev.hoi.client.ui.tooltip.Tooltips.officerText(focus.name()), box[0] + 4, box[1], box[2] - 8, Math.round(box[3] * 54 / 64f), UiMenuStyle.TEXT);
+        if (focus.progress() < 0) return;
+        float barLeft = box[0] + box[2] * 26 / 285f, barTop = box[1] + box[3] * 41 / 64f, barWidth = box[2] * 212 / 285f, barHeight = box[3] * 6 / 64f;
+        UiAssets.drawExact(g, "politics/focus_progress_bg", barLeft, barTop, barWidth, barHeight);
+        float fraction = (float)Math.clamp(focus.progress(), 0, 1);
+        if (fraction <= 0) return;
+        g.pose().pushMatrix(); g.pose().translate(barLeft, barTop); g.pose().scale(barWidth / 212, barHeight / 6);
+        g.blit(net.minecraft.resources.Identifier.fromNamespaceAndPath("hoi", "textures/gui/politics/focus_progress.png"), 0, 0, Math.round(212 * fraction), 6, 0, fraction, 3f / 18, 15f / 18);
+        g.pose().popMatrix();
+    }
+    static boolean focusButton(double x, double y, int pane, int top) {
+        var box = focusBox(pane, top);
+        return x >= box[0] && x < box[0] + box[2] && y >= box[1] && y < box[1] + box[3];
+    }
     MenuView.Entry partyAt(CountryView view, double x, double mouseY, int pane, int top) {
         var chart = chartBox(pane, top);
         return dev.hoi.client.screen.politics.PoliticsPartyChart.at(parties, x - chart[0] - chart[2] / 2, mouseY - chart[1] - chart[2] / 2, chart[2] * 30 / 71);
     }
     MenuView.Entry focusAt(CountryView view, double x, double mouseY, int pane, int top) {
-        int height = Math.max(28, scaled(64, pane)), y = politicsTop(top) + leaderHeight(pane) - height - 3;
-        if (x < scaled(147, pane) || x >= pane - 12 || mouseY < y || mouseY >= y + height) return null;
-        return view.focuses().stream().filter(entry -> !entry.value().equals("완료")).findFirst().orElse(null);
+        var box = focusBox(pane, top);
+        if (x < scaled(147, pane) || x >= box[0] + box[2] || mouseY < box[1] || mouseY >= box[1] + box[3]) return null;
+        var focus = focus(view);
+        return focus.detail().isEmpty() || focus.value().equals("진행 중") && focusButton(x, mouseY, pane, top) ? null : focus;
     }
     boolean leaderAt(double x, double y, int pane, int top) {
         int left = scaled(13, pane), upper = politicsTop(top);

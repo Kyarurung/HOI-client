@@ -406,6 +406,12 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
             if (tag != null && !tag.isEmpty()) select(tag);
             return tag != null;
         }
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && view != null && !ledger && !choosing && detail == null && confirmation == null
+                && DiplomacyHeader.focusButton(event.x(), event.y(), pane, top)) {
+            dev.hoi.client.audio.AudioUiSounds.play("ui.click");
+            dev.hoi.client.network.NetworkScreens.openForeignFocus(this, view.target());
+            return true;
+        }
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             var country=flagAt(event.x(),event.y());
             if(country!=null){select(country.tag());return true;}

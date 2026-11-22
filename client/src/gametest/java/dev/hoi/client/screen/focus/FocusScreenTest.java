@@ -37,6 +37,7 @@ public final class FocusScreenTest {
             exactDetailText(context, source, size[0]);
             progressStates(context, source, size[0]);
             stackedMenu(context, source, size[0]);
+            FocusForeignTest.run(context, size[0]);
             selectionPreservesTree(context, source, size[0]);
             pixelFailures.addAll(FocusScreenPixelsTest.run(context, size[0]));
         }
