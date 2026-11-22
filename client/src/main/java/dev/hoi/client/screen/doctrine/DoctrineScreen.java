@@ -286,7 +286,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         for (int i = 0; i < view.folders().size(); i++) {
             var f = view.folders().get(i); int x = 8 + i * 128;
             UiAssets.draw(g, f.texture() + "/frame_" + tabFrame(f.id(), view.folder()), x, top, 128, 31);
-            UiText.centered(g, font, Tooltips.officerText(f.name(), true), x + 42, top + 7, 77, 17, TEXT);
+            UiMenuStyle.title(g, font, UiMenuStyle.SCREEN, f.name(), x + 42, top + (tabFrame(f.id(), view.folder()) == 0 ? 15.5 : 13), 77, 0, TEXT);
         }
         UiAssets.draw(g, "doctrine/gfx_grand_doctrine_frame/frame_" + frame, width / 2 - 112, top + 38, 225, 65);
         var grand = view.grands().stream().filter(DoctrineView.Choice::selected).findFirst();
@@ -320,7 +320,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
             String visibleChoice = preview() != null && track.id().equals(picking) ? preview().id() : track.selected();
             track.candidates().stream().filter(choice -> choice.id().equals(visibleChoice)).findFirst()
                 .ifPresent(choice -> drawTrackAsset(g, choice.texture(), x + 91, tracksTop + 82, 31, 31));
-            UiText.centered(g, font, track.nameplate(), x + 53, tracksTop + 116, 106, 15, TEXT);
+            UiText.centered(g, font, track.nameplate(), x + 53, tracksTop + 112, 106, 15, TEXT);
             drawTrackAsset(g, "doctrine/gfx_mastery_amount_frame_big", x + 121, tracksTop + 89, 37, 14);
             boolean banking=track.selected().isEmpty()||!track.rewards().isEmpty()&&track.rewards().stream().allMatch(DoctrineView.Reward::unlocked);
             var masteryIcon=TooltipKeywordIcons.decorateLines(Component.literal("£doctrine_mastery"),false);
@@ -423,7 +423,7 @@ public final class DoctrineScreen extends Screen implements InputSidebarMovement
         var preview = preview();
         String heading = preview != null ? preview.name() : view.uiText().getOrDefault(picking.equals("grand") ? "GRAND_DOCTRINE_SELECTION_TITLE" : "SUB_DOCTRINE_SELECTION_TITLE",
             picking.equals("grand") ? "대교리 선택" : "하위 교리 선택");
-        centeredHeading(g, heading, x + 15, y + 12, 250, 20, 1.5f);
+        centeredHeading(g, heading, x + 15, y + 11, 250, 20, 1.5f);
         UiAssets.tiledNineSlice(g, "doctrine/gfx_tiled_paper_bg", x + 15, y + 33, 250, 49, 64, .5);
         UiAssets.tiledNineSlice(g, "doctrine/gfx_tiled_paper_small_bg", x + 10, y + 85, 260, 173, 64, .5);
         String description = preview != null ? preview.description() : view.uiText().getOrDefault(picking.equals("grand") ? "GRAND_DOCTRINE_DESCRIPTION" : "SUBDOCTRINE_DESCRIPTION", "");

@@ -24,7 +24,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 public final class CommanderOverview extends Screen implements InputSidebarMovement.InputMovementScreen {
-    static final UiMenuStyle.Window WINDOW = new UiMenuStyle.Window("commander/commands/tiled_window_1b_border/frame_0", 550, -6, 5, 7, 45, 18, 370, 507, 10, true);
+    static final UiMenuStyle.Window WINDOW = new UiMenuStyle.Window("commander/commands/tiled_window_1b_border/frame_0", 550, -6, 5, 7, 45, 370, 507, 10, true);
     static final int ROW_X = 13, ROW_WIDTH = 511, ROW_HEIGHT = 35, LIST_MARGIN = 40;
     record Layout(int strip, int typesX, int typesY, int slotHeight, int sortY, int panelY, int rowY, List<Column> columns) {}
     record Column(String label, String sort, int x, int width) {}

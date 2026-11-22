@@ -231,7 +231,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
         int y=LIST_Y-scroll;
         if(g!=null) {
             frame.art(g,"decision/ui/event_header",GRID_X,y);
-            line(g,text.component("사건"),34,y+23.5,240,UiMenuStyle.TEXT,false,true);
+            UiMenuStyle.title(g,font,frame,"사건",34,y+40,78,-1,UiMenuStyle.TEXT);
         }
         popup(g,widgets,"minor","중요하지 않은 알림",116,y+10,104);
         popup(g,widgets,"events","사건 팝업",256,y+10,110);

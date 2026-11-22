@@ -5,8 +5,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public final class UiMenuStyle {
     public static final int TEXT = 0xFFE3E1D8, ACCENT = 0xFFB8BDB6, MUTED = 0xFF9B9D97;
-    public record Window(String tile, int width, int originX, int headerX, int headerY, int titleX, int titleCenter, int titleWidth, int closeX, int closeY, boolean clip) {
-        public Window(String tile, int width, int headerX, int titleX) { this(tile, width, 0, headerX, 0, titleX, 0, 0, 0, 0, true); }
+    public record Window(String tile, int width, int originX, int headerX, int headerY, int titleX, int titleWidth, int closeX, int closeY, boolean clip) {
+        public Window(String tile, int width, int headerX, int titleX) { this(tile, width, 0, headerX, 0, titleX, 0, 0, 0, true); }
     }
     public record Frame(float x, float y, float scale) {
         private static float pixel(float value) {
@@ -35,24 +35,25 @@ public final class UiMenuStyle {
         }
     }
     public static final int NO_HEADER = Integer.MIN_VALUE, TILE = 192;
-    private static final int HEADER_WIDTH = 794, HEADER_HEIGHT = 21, HEADER_SOURCE_HEIGHT = 41;
+    public static final Frame SCREEN = new Frame(0, 0, 1);
+    private static final int HEADER_WIDTH = 794, HEADER_SOURCE_HEIGHT = 41, HEADER_CENTER = 19;
     private static final net.minecraft.resources.Identifier HEADER = net.minecraft.resources.Identifier.parse("hoi:textures/gui/decision/ui/window_header.png");
     private static final String THIN_BORDER = "commander/commands/tiled_window_thin_border2/frame_0", TILED_BG = "commander/commands/tiled_bg/frame_0";
-    public static final Window DIPLOMACY = new Window(TILED_BG, 550, NO_HEADER, 14), OCCUPATION = new Window(TILED_BG, 550, -249, 45),
+    public static final Window DIPLOMACY = new Window(TILED_BG, 550, 0, -248, 6, 14, 0, 0, 0, true), OCCUPATION = new Window(TILED_BG, 550, -249, 45),
             TEMPLATES = new Window("commander/commands/tiled_window_1b_thin_border/frame_0", 550, NO_HEADER, 45);
     private UiMenuStyle() {}
     public static Window window(dev.hoi.protocol.menu.MenuTab tab) {
         return switch (tab) {
-            case POLITICS -> new Window(THIN_BORDER, 726, -5, -70, 4, 40, 21, 400, 683, 6, true);
-            case TRADE -> new Window("commander/commands/tiled_window_1b_border/frame_0", 620, -6, -170, 6, 332, 18, 217, 582, 8, false);
-            case CONSTRUCTION -> new Window(THIN_BORDER, 550, -9, -248, 7, 45, 19, 240, 507, 9, true);
-            case PRODUCTION -> new Window("commander/commands/tiled_plain_bg/frame_0", 550, -6, -245, 7, 45, 20, 440, 507, 9, true);
-            case RECRUITMENT -> new Window("commander/commands/tiled_window/frame_0", 550, -6, -248, 7, 45, 19, 440, 507, 9, true);
-            case LOGISTICS -> new Window(THIN_BORDER, 560, -6, -240, 7, 45, 19, 240, 514, 10, true);
-            case INTELLIGENCE -> new Window(TILED_BG, 550, -6, -245, 7, 45, 19, 440, 507, 9, true);
-            case OFFICER_CORPS -> new Window(TILED_BG, 550, -6, 5, 7, 45, 20, 440, 507, 10, true);
-            case DECISIONS -> new Window("diplomacy/dialog/panel_dark", 550, -6, -248, 7, 45, 19, 440, 507, 9, true);
-            case RESEARCH -> new Window(THIN_BORDER, 550, -6, -245, 7, 45, 19, 440, 507, 9, true);
+            case POLITICS -> new Window(THIN_BORDER, 726, -5, -70, 4, 40, 400, 683, 6, true);
+            case TRADE -> new Window("commander/commands/tiled_window_1b_border/frame_0", 620, -6, -170, 6, 332, 217, 582, 8, false);
+            case CONSTRUCTION -> new Window(THIN_BORDER, 550, -9, -248, 7, 45, 240, 507, 9, true);
+            case PRODUCTION -> new Window("commander/commands/tiled_plain_bg/frame_0", 550, -6, -245, 7, 45, 440, 507, 9, true);
+            case RECRUITMENT -> new Window("commander/commands/tiled_window/frame_0", 550, -6, -248, 7, 45, 440, 507, 9, true);
+            case LOGISTICS -> new Window(THIN_BORDER, 560, -6, -240, 7, 45, 240, 514, 10, true);
+            case INTELLIGENCE -> new Window(TILED_BG, 550, -6, -245, 7, 45, 440, 507, 9, true);
+            case OFFICER_CORPS -> new Window(TILED_BG, 550, -6, 5, 7, 45, 440, 507, 10, true);
+            case DECISIONS -> new Window("diplomacy/dialog/panel_dark", 550, -6, -248, 7, 45, 440, 507, 9, true);
+            case RESEARCH -> new Window(THIN_BORDER, 550, -6, -245, 7, 45, 440, 507, 9, true);
         };
     }
     public static Frame frame(Window window, int screenWidth, int pane) {
@@ -62,6 +63,9 @@ public final class UiMenuStyle {
     public static void window(GuiGraphicsExtractor g, Window window, Frame frame, int bottom) {
         int height = (int)Math.ceil((bottom - frame.y()) / frame.scale());
         frame.tile(g, window.tile(), 0, 0, window.width(), height, 64, TILE);
+        header(g, window, frame);
+    }
+    private static void header(GuiGraphicsExtractor g, Window window, Frame frame) {
         if (window.headerX() == NO_HEADER) return;
         int start = Math.max(0, -window.headerX()), end = window.clip() ? Math.min(HEADER_WIDTH, window.width() - window.headerX()) : HEADER_WIDTH;
         if (end <= start) return;
@@ -72,7 +76,7 @@ public final class UiMenuStyle {
         g.pose().popMatrix();
     }
     public static void title(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font, Window window, Frame frame, String text) {
-        title(g, font, frame, text, window.titleX() + 2, window.titleCenter(), window.titleWidth() - 2, -1, TEXT);
+        title(g, font, frame, text, window.titleX() + 2, window.headerY() + HEADER_CENTER, window.titleWidth() - 2, -1, TEXT);
     }
     public static void title(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font, Frame frame, String text, int x, double center, int width, int align, int color) {
         float scale = (font.lineHeight + 2f) / font.lineHeight;
@@ -92,13 +96,11 @@ public final class UiMenuStyle {
         g.enableScissor(x, y, x + w, y + h);
         UiAssets.tiledNineSlice(g, window.tile(), x - 32, y, w + 32, h + 32, 64, .5);
         g.disableScissor();
-        if (window.headerX() == NO_HEADER) return;
-        int start = Math.max(0, -window.headerX()), end = Math.min(HEADER_WIDTH, window.width() - window.headerX());
-        g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/decision/ui/window_header.png"), x + Math.max(0, window.headerX()) / 2, y, x + w, y + HEADER_HEIGHT,
-                (float)start / HEADER_WIDTH, (float)end / HEADER_WIDTH, 0, 1);
+        header(g, window, new Frame(x, y, w / (float)window.width()));
     }
     public static void title(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font, Window window, String text, int x, int y, int width) {
-        heading(g, font, text, x + window.titleX() / 2, y + (window.headerX() == NO_HEADER ? 9 : 6), width - window.titleX() / 2 - 22, TEXT);
+        if (window.headerX() == NO_HEADER) { heading(g, font, text, x + window.titleX() / 2, y + 9, width - window.titleX() / 2 - 22, TEXT); return; }
+        title(g, font, new Frame(x, y, width / (float)window.width()), text, window.titleX(), window.headerY() + HEADER_CENTER, window.width() - window.titleX() - 44, -1, TEXT);
     }
     public static void close(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
         UiAssets.draw(g, "menu/close", x + 2, y + 2, w - 4, h - 4);

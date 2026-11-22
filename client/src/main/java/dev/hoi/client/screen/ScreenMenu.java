@@ -629,7 +629,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 String icon = "politics/header/" + new int[]{2, 1, 4, 5, 6, 7, 8}[i];
                 int[] size = UiAssets.imageSize(icon);
                 UiAssets.drawExact(g, icon, layout.x(36), y + (float)(8 * scale), (float)(size[0] * scale), (float)(size[1] * scale));
-                UiMenuStyle.heading(g, font, section.title(), Math.round(layout.x(102)), Math.round(y + (float)(20.5 * scale) - 4.5f * (font.lineHeight + 2f) / font.lineHeight) + 1, (int)Math.round(300 * scale), TEXT);
+                UiMenuStyle.heading(g, font, section.title(), Math.round(layout.x(102)), Math.round(y + (float)(25.5 * scale) - 4.5f * (font.lineHeight + 2f) / font.lineHeight) + 1, (int)Math.round(300 * scale), TEXT);
             }
             var entries = section.entries();
             int count = Math.max(1, Math.min(POLITICS_COLUMNS, entries.size())), firstColumn = section.icon().equals("research_production") ? 1 : 0;

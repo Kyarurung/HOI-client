@@ -725,7 +725,7 @@ public final class AgencyScreen extends Screen implements InputSidebarMovement.I
     }
     private void sectionHeader(GuiGraphicsExtractor g, String text, int y) {
         frame.art(g, "agency/ui/section", 10, y);
-        UiText.marquee(g, font, Tooltips.officerText(text, true), frame.x(27), frame.y(y + 19) - font.lineHeight / 2f, frame.size(160), 1, TEXT, true, 0);
+        UiMenuStyle.title(g, font, frame, text, 31, y + 21, 157, 0, TEXT);
     }
     private void drawOperationsChrome(GuiGraphicsExtractor g) {
         sectionHeader(g, "정보기관", 153);
