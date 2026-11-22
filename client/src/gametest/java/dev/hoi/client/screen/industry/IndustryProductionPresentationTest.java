@@ -35,7 +35,8 @@ final class IndustryProductionPresentationTest {
             }
             if(matching<total*.98)throw new AssertionError("Opening designer changed production image pixels: "+matching+"/"+total);
             context.runOnClient(client->{
-                if(client.gui.screen().children().stream().anyMatch(w->w instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().endsWith(" · 장비 교체")))throw new AssertionError("Background production image must not receive modal clicks");
+                var screen=(IndustryScreen)client.gui.screen();
+                if(screen.children().stream().anyMatch(w->w instanceof net.minecraft.client.gui.components.Button b&&b.getMessage().getString().endsWith(" · 장비 교체")&&screen.coveredByOverlay(b.getX(),b.getY(),b.getWidth(),b.getHeight())))throw new AssertionError("Production image under the designer must not receive clicks");
             });
         } catch(java.io.IOException error) {throw new java.io.UncheckedIOException(error);}
         for(String file:List.of("production-source-fixture.json","production-china-fixture.json")) {

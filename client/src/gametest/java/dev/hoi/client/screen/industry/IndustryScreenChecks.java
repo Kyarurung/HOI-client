@@ -927,6 +927,7 @@ public final class IndustryScreenChecks {
             click(context, v.templates().getFirst().name() + " 연속 훈련 횟수 증가");
             context.runOnClient(client -> check(requests.getLast().action() == IndustryPayloads.Action.SERIES && requests.getLast().amount() == 1, "Infinity increments to one, without adding a line"));
         }
+        colonialTemplates(context, v, requests);
         context.getInput().resizeWindow(1600, 1000);
         context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, v.session(), v, requests::add));
         context.waitTicks(2);
@@ -1285,6 +1286,57 @@ public final class IndustryScreenChecks {
         click(context,"수리 항구: 부산");context.waitTicks(2);
         click(context,"수리 목록 펼치기/접기");context.waitTicks(2);
         context.runOnClient(client->check(button((IndustryScreen)client.gui.screen(),"수리 항구: 진해").getY()>collapsed,"Repeated individual toggles preserve the global expand action"));
+    }
+    private static void colonialTemplates(ClientGameTestContext context, IndustryView v, List<IndustryPayloads.Request> requests) {
+        var subjectTemplate = new IndustryView.SubjectTemplate("hoi:division/prk/subject-test", "Batalyon Dobrovolchev", "production/units/infantry", 0);
+        var subject = new IndustryView.Subject("PRK", "북한", "autonomy_puppet", .9, new IndustryView.SpecialForces(0, 13), "이 편제는 종속국인 §H북한§!의 것입니다.", List.of(subjectTemplate));
+        var texts = Map.of("COPY", "복사", "VIEW", "보기", "DEPLOYMENT_TEMPLATE_ITEM_COPY", "§G클릭§!하여 배치 가능 편제 복사", "DEPLOYMENT_TEMPLATE_ITEM_VIEW", "§G클릭§!하여 사단 편제 보기",
+                "DO_NOT_CONTAINS_TEMPLATE", "§R이 편제는 삭제할 수 없습니다. 국가가 이 편제를 포함하고 있지 않습니다.§!", "COLONIAL_FORCES_GENERAL_DESCRIPTION", "종속국과 망명 정부의 편제를 보려면 §G클릭§!하세요", "COLONIAL_FORCES_NO_SUBJECTS", "§R징병할 수 있는 종속국 또는 망명 정부의 편제가 없음§!");
+        var copy = v.templates().getFirst();
+        var policy = new IndustryView.RecruitmentPolicy(Set.of(), Map.of(), 1.0, Map.of(), null, Map.of(), Map.of(), List.of(subject),
+                Map.of(copy.id(), new IndustryView.Colonial("PRK", "§H북한§!의 식민 편제입니다.")), texts);
+        var view = new IndustryView(v.session(), v.revision(), v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), List.of(), List.of(), null, "", v.navalRepairs(), v.specialForces(), policy);
+        context.getInput().resizeWindow(1600, 1000);
+        context.setScreen(() -> new IndustryScreen(MenuTab.RECRUITMENT, view.session(), view, requests::add));
+        context.waitTicks(3);
+        ResearchScreenTest.gui2Screenshot(context, "hoi-recruitment-colonial-copy");
+        click(context, "종속국 편제 목록");
+        context.waitTicks(2);
+        ResearchScreenTest.gui2Screenshot(context, "hoi-recruitment-subject-dropdown");
+        context.runOnClient(client -> {
+            var screen = (IndustryScreen)client.gui.screen();
+            var item = button(screen, "북한");
+            check(screen.children().stream().anyMatch(w -> w instanceof Button b && b.getY() < item.getY() && b.getX() == item.getX()), "The own country is listed above its subjects");
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(item.getX() + item.getWidth() / 2.0, item.getY() + item.getHeight() / 2.0,
+                    new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
+            check(screen.children().stream().noneMatch(w -> w instanceof Button b && b.getMessage().getString().equals("북한")), "Choosing a subject closes the dropdown");
+            var delete = button(screen, "Batalyon Dobrovolchev " + texts.get("DO_NOT_CONTAINS_TEMPLATE"));
+            check(!delete.active, "Subject templates cannot be deleted");
+            check(button(screen, "Batalyon Dobrovolchev 보기").active, "Subject templates can be viewed");
+            checkBounds(screen);
+        });
+        context.waitTicks(2);
+        ResearchScreenTest.gui2Screenshot(context, "hoi-recruitment-subject-templates");
+        click(context, "Batalyon Dobrovolchev 복사");
+        context.runOnClient(client -> {
+            var last = requests.getLast();
+            check(last.action() == IndustryPayloads.Action.FOREIGN_TEMPLATE && last.item().equals(subjectTemplate.id()) && last.amount() == 0, "Copy requests the issued subject template");
+        });
+        var copied = new IndustryView(v.session(), v.revision() + 1, v.country(), v.hud(), v.economy(), v.resources(), v.modifiers(), v.equipment(), v.lines(), v.partners(), v.trades(), v.templates(), v.battalions(), v.companies(), v.locations(), List.of(), List.of(), null, "", v.navalRepairs(), v.specialForces(), policy);
+        context.runOnClient(client -> {
+            var screen = (IndustryScreen)client.gui.screen();
+            screen.update(copied);
+            check(button(screen, copy.name() + " 훈련").active && button(screen, copy.name() + " 편제").active, "After copying, the own list returns with an editable colonial copy");
+        });
+        context.runOnClient(client -> {
+            var screen = (IndustryScreen)client.gui.screen();
+            button(screen, "종속국 편제 목록").onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+            var train = button(screen, copy.name() + " 훈련");
+            screen.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(train.getX() + 2, train.getY() + 2,
+                    new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
+            check(requests.getLast().action() == IndustryPayloads.Action.RECRUIT && requests.getLast().item().equals(copy.id()), "A click outside the open dropdown still reaches the template list");
+            check(screen.children().stream().noneMatch(w -> w instanceof Button b && b.getMessage().getString().equals("북한")), "A click outside closes the dropdown");
+        });
     }
     private static void click(ClientGameTestContext context, String name) {
         context.runOnClient(client -> { var b = button((IndustryScreen)client.gui.screen(), name); check(b.active, "Enabled control: " + name); b.onPress(new KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0)); });

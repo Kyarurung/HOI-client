@@ -70,10 +70,11 @@ public final class IndustryProductionOfferTest {
                         var blank = new MouseButtonEvent((int)field(screen, "manufacturerX") + 5, (int)field(screen, "manufacturerY") + 24, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
                         int requestCount = requests.size(); screen.mouseClicked(blank, false); screen.mouseReleased(blank);
                         if (requests.size() != requestCount || ((String)field(screen, "manufacturerEquipment")).isEmpty()) throw new AssertionError("Blank popup space must not dismiss or send a request");
-                        screen.mouseScrolled(0, 0, 0, -100);
+                        double insideX = (int)field(screen, "manufacturerX") + 10, insideY = (int)field(screen, "manufacturerY") + 60;
+                        screen.mouseScrolled(insideX, insideY, 0, -100);
                         var last = named(screen, equipment.manufacturers().getLast().name());
                         if (last.getBottom() > screen.height) throw new AssertionError("Last manufacturer must be reachable");
-                        screen.mouseScrolled(0, 0, 0, 100);
+                        screen.mouseScrolled(insideX, insideY, 0, 100);
                         var empty = named(screen, "군수산업체 없이 생산");
                         var choice = named(screen, equipment.manufacturers().getFirst().name());
                         for (var widget : List.of(empty, choice)) if (widget.getX() < 0 || widget.getRight() > screen.width || widget.getY() < 0 || widget.getBottom() > screen.height) throw new AssertionError("Offer choice outside viewport");

@@ -23,6 +23,7 @@ import dev.hoi.client.screen.dialog.DialogCoordinator;
 import dev.hoi.protocol.industry.*;
 import dev.hoi.protocol.menu.*;
 import static dev.hoi.protocol.industry.IndustryPayloads.Action.*;
+import dev.hoi.client.ui.country.CountryFlags;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -48,6 +49,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private boolean foreign() { return !foreignTarget.isEmpty() || view != null && view.viewing() != null; }
     private IndustryView view;
     private final List<net.minecraft.client.gui.components.Renderable> passiveWidgets = new ArrayList<>();
+    private final List<net.minecraft.client.gui.components.AbstractWidget> pendingBackground = new ArrayList<>();
+    private final List<int[]> overlays = new ArrayList<>();
     private final Map<String,Equipment> equipmentById=new HashMap<>();
     private final Map<String,Equipment> equipmentBySource=new HashMap<>();
     private final Map<String,String> navalFamilyByTexture=new HashMap<>();
@@ -91,7 +94,12 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private double autoImportX, autoImportY, autoImportGrabX, autoImportGrabY, importGrabY, importPointerY, importStartY;
     private int autoImportBudget = -1, tradeClipTop, tradeClipBottom = Integer.MAX_VALUE;
     private UiScrollBar listScrollbar;
-    private boolean openingDesigner;
+    private boolean openingDesigner, showRetiredTemplates, foreignTemplatesOpen;
+    private int foreignTemplatesScroll;
+    private int[] foreignWindow;
+    private UiScrollBar foreignScrollbar;
+    private boolean foreignDragging;
+    private String foreignSubject = "";
     private String location = "", locationRecruit = "", draftName = "";
     private record IndustryDeploymentLocation(int x,int y,int width,int height,String recruit,String label) {}
     private final List<IndustryDeploymentLocation> deploymentLocations = new ArrayList<>();
@@ -206,7 +214,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     }
     @Override protected void init() {
         confirming = false;
-        passiveWidgets.clear();
+        passiveWidgets.clear(); pendingBackground.clear(); overlays.clear(); foreignWindow = null; foreignScrollbar = null;
         productionScrollbar = null;
         productionPickerScrollbar = null;
         listScrollbar = null;
@@ -220,8 +228,9 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (next == tab) return;
             if (next == MenuTab.RESEARCH) HoiClient.open(); else HoiClient.openMenu(next);
         }).stream().filter(button -> !foreign() || button.getMessage().getString().equals(MenuTab.LOGISTICS.label() + " 메뉴")).forEach(this::addRenderableWidget);
+        background = modal() && !dockedProductionPicker();
+        var close = UiMenuStyle.close(UiMenuStyle.window(tab), frame, this::onClose); close.active = pending == 0; addRenderableWidget(close);
         background = false;
-        if (!modal() || dockedProductionPicker()) { var close = UiMenuStyle.close(UiMenuStyle.window(tab), frame, this::onClose); close.active = pending == 0; addRenderableWidget(close); }
         if (view != null) {
             background = modal() && !dockedProductionPicker();
             layout();
@@ -232,8 +241,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             else if (!picker.isEmpty()) layoutPicker();
         }
         if (designerManufacturer) layoutManufacturers();
+        settleBackground();
         if (!manufacturerEquipment.isEmpty() || designerManufacturer) for (var child : children()) {
-            if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget && !manufacturerWidgets.contains(widget)) { widget.active = false; widget.setTooltip(null); }
+            if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget && !manufacturerWidgets.contains(widget)
+                    && widget.getX() < manufacturerX + manufacturerWidth && widget.getRight() > manufacturerX && widget.getY() < manufacturerBottom && widget.getBottom() > manufacturerY) { widget.active = false; widget.setTooltip(null); }
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
@@ -245,8 +256,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         UiMenuStyle.window(g, UiMenuStyle.window(tab), frame, height);
         if (tab == MenuTab.TRADE) {
             frame.art(g, "trade/ui/econ_switch/frame_" + (tradeTab == 0 ? 0 : 1), 70, 4);
-            UiMenuStyle.title(g, font, frame, UiCommandLabels.text("TRADE_ECON", "경제"), 78, 21, 210, 0, UiMenuStyle.TEXT);
-            UiMenuStyle.title(g, font, frame, UiCommandLabels.text("TRADE_TRADE", "무역"), 335, 21, 210, 0, UiMenuStyle.TEXT);
+            UiMenuStyle.title(g, font, frame, UiCommandLabels.text("TRADE_ECON", "경제"), 78, 21.5, 210, 0, UiMenuStyle.TEXT);
+            UiMenuStyle.title(g, font, frame, UiCommandLabels.text("TRADE_TRADE", "무역"), 335, 21.5, 210, 0, UiMenuStyle.TEXT);
         } else UiMenuStyle.title(g, font, UiMenuStyle.window(tab), frame, title(tab));
         if (view == null) {
             HudMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, hudScroll);
@@ -301,12 +312,23 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     }
     @Override protected <T extends net.minecraft.client.gui.components.events.GuiEventListener & net.minecraft.client.gui.components.Renderable & net.minecraft.client.gui.narration.NarratableEntry> T addRenderableWidget(T widget) {
         if (!background) return super.addRenderableWidget(widget);
-        if (widget instanceof net.minecraft.client.gui.components.AbstractWidget button) {
-            button.active = false;
-            button.setTooltip(null);
-        }
-        passiveWidgets.add(widget);
+        if (widget instanceof net.minecraft.client.gui.components.AbstractWidget button) pendingBackground.add(button);
+        else passiveWidgets.add(widget);
         return widget;
+    }
+    private void overlay(int x, int y, int w, int h) { if (graphics == null) overlays.add(new int[]{x, y, w, h}); }
+    private boolean outsideOverlays(double x, double y, double w, double h) {
+        for (var r : overlays) if (x < r[0] + r[2] && x + w > r[0] && y < r[1] + r[3] && y + h > r[1]) return false;
+        return true;
+    }
+    private boolean behindOverlay(double x, double y) { return modal() && !overlays.isEmpty() && outsideOverlays(x, y, 1, 1); }
+    public boolean coveredByOverlay(int x, int y, int w, int h) { return !overlays.isEmpty() && !outsideOverlays(x, y, w, h); }
+    private void settleBackground() {
+        for (var widget : pendingBackground) {
+            if (!overlays.isEmpty() && outsideOverlays(widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight())) super.addRenderableWidget(widget);
+            else { widget.active = false; widget.setTooltip(null); passiveWidgets.add(widget); }
+        }
+        pendingBackground.clear();
     }
     private static final String[] FILTERS = {"inf_art", "armour", "air", "capital_ships", "screen_ships", "other_ships", "refit", "resources", "outdated", "stockpiling", "reinforcing", "upgrading"};
     private static final String[][] FILTER_TEXT = {{"PRODUCTION_EQUIPMENT_FILTER", "보병 및 포병 장비"}, {"PRODUCTION_ARMOR_FILTER", "기갑 차량"}, {"PRODUCTION_AIR_FILTER", "항공기"},
@@ -1528,7 +1550,6 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private void recruitment() {
         int secondX = pane + 3, secondW = rightWidth(), start = top + 28;
         if (graphics != null) UiAssets.tiledNineSlice(graphics, UiMenuStyle.TEMPLATES.tile(), secondX, top, secondW, height - top, 64, .5);
-        heading("사단 편제", secondX + (secondW - (int)(font.width(Tooltips.officerText("사단 편제", true)) * (font.lineHeight + 2f) / font.lineHeight)) / 2, top + 8, secondW - 16, TEXT);
         var groups = new LinkedHashMap<String, List<Recruit>>();
         for (var r : view.recruits()) groups.computeIfAbsent(r.template() + "|" + r.location(), key -> new ArrayList<>()).add(r);
         double scale = (pane - 14) / 493.0;
@@ -1637,30 +1658,128 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 textureButton("훈련 취소", "", "recruitment/cancel_line", lineX + (int)(484 * gs), y + (int)(7 * gs), (int)(26 * gs), (int)(26 * gs), true, () -> send(CANCEL_RECRUIT, r.id(), "", 0), UiCommandLabels.text("CONVEYOR_LINE_CANCEL_DESC", ""));
             }
         }
-        var special = view.specialForces();
-        art("recruitment/special", secondX + 11, top + 30, 20, 20);
-        text(special == null ? "—/—" : special.used() + "/" + special.capacity(), secondX + 35, top + 35, secondW - 128, TEXT);
-        if (special != null) tip("특수부대 대대 · 사용량 / 한도\n" + special.used() + " / " + special.capacity(), secondX + 7, top + 28, secondW - 100, 23);
-        button("새 사단 편제 설계", "사단 설계", secondX + secondW - 90, top + 29, 83, 22, true,
-                () -> { selectedSlot=-1; designerScroll=0; picker=""; openingDesigner=true; send(NEW_TEMPLATE,"","",0); });
-        var retired = view.recruitmentPolicy() == null ? Set.<String>of() : view.recruitmentPolicy().retiredTemplates();
-        var templates = view.templates().stream().filter(t -> !retired.contains(t.id())).toList();
-        int ts = top + 55, th = Math.max(36, (secondW - 10) * 78 / 344); secondScroll = clampScroll(secondScroll, templates.size(), th + 3, ts);
-        for (int i = 0; i < templates.size(); i++) {
-            var t = templates.get(i); int y = ts + i * (th + 3) - secondScroll;
-            if (!visible(y, th, ts)) continue;
-            art("recruitment/queue", secondX + 5, y, secondW - 10, th);
-            double cardScale = (secondW - 10) / 346.0;
-            int iconWidth = (int)(72 * cardScale), nameX = secondX + 5 + (int)(97 * cardScale), nameWidth = (int)(234 * cardScale);
-            if (!t.line().isEmpty()) art(unitTexture(t.line().getFirst(), false), secondX + 7 + (int)(9 * cardScale), y + (int)(12 * cardScale), iconWidth, (int)(52 * cardScale));
-            art("production/design/division/deployment_priority_" + t.priority(), secondX + 5 + (int)(60 * cardScale), y + (int)(16 * cardScale), Math.max(1, (int)(16 * cardScale)), Math.max(1, (int)(52 * cardScale)));
-            centeredCompactText(t.name(), nameX, y + (int)(32 * cardScale) - 5, nameWidth, TEXT);
-            int buttonWidth = (int)(71 * cardScale), buttonY = y + (int)(49 * cardScale), buttonHeight = Math.max(10, (int)(26 * cardScale));
-            textureButton(t.name() + " 훈련", "훈련", "recruitment/button", secondX + 5 + (int)(158 * cardScale), buttonY, buttonWidth, buttonHeight, !retired.contains(t.id()), () -> send(RECRUIT, t.id(), "", 0));
-            textureButton(t.name() + " 편제", "편제", "recruitment/button", secondX + 5 + (int)(229 * cardScale), buttonY, buttonWidth, buttonHeight, true, () -> loadDesigner(t.id()));
-            textureButton(t.name() + " 편제를 목록에서 삭제", "", "recruitment/delete_template", secondX + 5 + (int)(300 * cardScale), y + (int)(48 * cardScale), (int)(26 * cardScale), (int)(26 * cardScale), true, () -> send(RETIRE_TEMPLATE, t.id(), "", 1));
-            tip(t.name() + " · " + manpower(t.manpower()) + "명 · " + integer(t.days()) + "일\n" + equipmentList(t.equipment(), Map.of()), nameX, y, nameWidth, th - 14);
+        var policy = view.recruitmentPolicy();
+        var subjects = policy == null ? List.<IndustryView.Subject>of() : policy.subjects();
+        var texts = policy == null ? Map.<String,String>of() : policy.foreignTexts();
+        var shown = subjects.stream().filter(s -> s.tag().equals(foreignSubject)).findFirst().orElse(null);
+        if (shown == null) foreignSubject = "";
+        var special = shown == null ? view.specialForces() : shown.specialForces();
+        var head = new UiMenuStyle.Frame(secondX, top, secondW / 375f);
+        if (graphics != null) {
+            head.art(graphics, "officer/hq/list_header", 1, 0);
+            UiMenuStyle.title(graphics, font, head, UiCommandLabels.text("DEPLOYMENT_TEMPLATE_LABEL", "사단 편제"), 20, 26, 336, 0, TEXT);
+            head.art(graphics, "recruitment/special", 74, 63);
+            head.tile(graphics, "commander/commands/tiled_plain_bg_small/frame_0", 1, 96, 373, 44, 16, 48);
+            head.art(graphics, "commander/commands/generic_checkbox/frame_" + (showRetiredTemplates ? 1 : 0), 19, 103);
+            UiText.cell(graphics, font, special == null ? "—/—" : special.used() + "/" + special.capacity(), head.ix(104), head.iy(63), head.len(80), head.len(23), TEXT, false);
+            UiText.cell(graphics, font, UiCommandLabels.text("SHOW_DECOMMISSIONED_TEMPLATES", "§H퇴역된 편제§! 보기"), head.ix(60), head.iy(96), head.len(288), head.len(44), TEXT, false);
         }
+        if (special != null) tip("특수부대 대대 · 사용량 / 한도\n" + special.used() + " / " + special.capacity(), head.ix(74), head.iy(63), head.len(110), head.len(23));
+        textureButton("새 사단 편제 설계", UiCommandLabels.text("DEPLOYMENT_DESIGNER", "사단 설계"), "officer/hq/open_designer", head.ix(188), head.iy(56), head.len(166), head.len(33), true,
+                () -> { selectedSlot=-1; designerScroll=0; picker=""; openingDesigner=true; send(NEW_TEMPLATE,"","",0); });
+        textureButton("퇴역된 편제 보기", "", "none", head.ix(1), head.iy(96), head.len(373), head.len(44), true,
+                () -> { showRetiredTemplates = !showRetiredTemplates; secondScroll = 0; rebuildWidgets(); });
+        foreignWindow = null;
+        if (subjects.isEmpty() || modal()) foreignTemplatesOpen = false;
+        textureButton("종속국 편제 목록", "", "recruitment/ui/foreign_templates/frame_0", head.ix(10), head.iy(49), head.len(46.5), head.len(46.5), !subjects.isEmpty() && !modal(),
+                () -> { foreignTemplatesOpen = !foreignTemplatesOpen; foreignTemplatesScroll = 0; rebuildWidgets(); },
+                texts.getOrDefault(subjects.isEmpty() ? "COLONIAL_FORCES_NO_SUBJECTS" : "COLONIAL_FORCES_GENERAL_DESCRIPTION", ""));
+        var retired = policy == null ? Set.<String>of() : policy.retiredTemplates();
+        var colonial = policy == null ? Map.<String,IndustryView.Colonial>of() : policy.colonialTemplates();
+        double cardScale = (secondW - 10) / 346.0;
+        int ts = head.iy(140), th = Math.max(36, (secondW - 10) * 78 / 344);
+        int buttonWidth = (int)(71 * cardScale), buttonHeight = Math.max(10, (int)(26 * cardScale)), nameWidth = (int)(234 * cardScale);
+        if (shown != null) {
+            var subjectTemplates = shown.templates();
+            secondScroll = clampScroll(secondScroll, subjectTemplates.size(), th + 3, ts);
+            for (int i = 0; i < subjectTemplates.size(); i++) {
+                var t = subjectTemplates.get(i); int y = ts + i * (th + 3) - secondScroll;
+                if (!visible(y, th, ts)) continue;
+                art("recruitment/queue", secondX + 5, y, secondW - 10, th);
+                if (!t.texture().isEmpty()) art(t.texture(), secondX + 7 + (int)(9 * cardScale), y + (int)(12 * cardScale), (int)(72 * cardScale), (int)(52 * cardScale));
+                templateFlag(shown.tag(), shown.templateTooltip(), secondX, y, cardScale);
+                art("production/design/division/deployment_priority_" + t.priority(), secondX + 5 + (int)(60 * cardScale), y + (int)(16 * cardScale), Math.max(1, (int)(16 * cardScale)), Math.max(1, (int)(52 * cardScale)));
+                centeredCompactText(t.name(), secondX + 5 + (int)(97 * cardScale), y + (int)(32 * cardScale) - 5, nameWidth, TEXT);
+                int buttonY = y + (int)(49 * cardScale);
+                textureButton(t.name() + " " + texts.getOrDefault("COPY", ""), texts.getOrDefault("COPY", ""), "recruitment/button", secondX + 5 + (int)(158 * cardScale), buttonY, buttonWidth, buttonHeight, true,
+                        () -> { foreignSubject = ""; secondScroll = 0; send(FOREIGN_TEMPLATE, t.id(), "", 0); }, texts.getOrDefault("DEPLOYMENT_TEMPLATE_ITEM_COPY", ""));
+                textureButton(t.name() + " " + texts.getOrDefault("VIEW", ""), texts.getOrDefault("VIEW", ""), "recruitment/button", secondX + 5 + (int)(229 * cardScale), buttonY, buttonWidth, buttonHeight, true,
+                        () -> loadDesigner(t.id()), texts.getOrDefault("DEPLOYMENT_TEMPLATE_ITEM_VIEW", ""));
+                textureButton(t.name() + " " + texts.getOrDefault("DO_NOT_CONTAINS_TEMPLATE", ""), "", "recruitment/delete_template", secondX + 5 + (int)(300 * cardScale), y + (int)(48 * cardScale), (int)(26 * cardScale), (int)(26 * cardScale), false,
+                        () -> {}, texts.getOrDefault("DO_NOT_CONTAINS_TEMPLATE", ""));
+            }
+        } else {
+            var templates = view.templates().stream().filter(t -> showRetiredTemplates || !retired.contains(t.id())).toList();
+            secondScroll = clampScroll(secondScroll, templates.size(), th + 3, ts);
+            for (int i = 0; i < templates.size(); i++) {
+                var t = templates.get(i); int y = ts + i * (th + 3) - secondScroll;
+                if (!visible(y, th, ts)) continue;
+                art(retired.contains(t.id()) ? "recruitment/ui/obsolete_template" : "recruitment/queue", secondX + 5, y, secondW - 10, th);
+                int iconWidth = (int)(72 * cardScale), nameX = secondX + 5 + (int)(97 * cardScale);
+                if (!t.line().isEmpty()) art(unitTexture(t.line().getFirst(), false), secondX + 7 + (int)(9 * cardScale), y + (int)(12 * cardScale), iconWidth, (int)(52 * cardScale));
+                var marker = colonial.get(t.id());
+                if (marker != null) templateFlag(marker.country(), marker.tooltip(), secondX, y, cardScale);
+                art("production/design/division/deployment_priority_" + t.priority(), secondX + 5 + (int)(60 * cardScale), y + (int)(16 * cardScale), Math.max(1, (int)(16 * cardScale)), Math.max(1, (int)(52 * cardScale)));
+                centeredCompactText(t.name(), nameX, y + (int)(32 * cardScale) - 5, nameWidth, TEXT);
+                int buttonY = y + (int)(49 * cardScale);
+                textureButton(t.name() + " 훈련", "훈련", "recruitment/button", secondX + 5 + (int)(158 * cardScale), buttonY, buttonWidth, buttonHeight, !retired.contains(t.id()), () -> send(RECRUIT, t.id(), "", 0));
+                textureButton(t.name() + " 편제", "편제", "recruitment/button", secondX + 5 + (int)(229 * cardScale), buttonY, buttonWidth, buttonHeight, true, () -> loadDesigner(t.id()));
+                if (retired.contains(t.id())) textureButton(t.name() + " 편제 재취역", "", "recruitment/delete_template", secondX + 5 + (int)(300 * cardScale), y + (int)(48 * cardScale), (int)(26 * cardScale), (int)(26 * cardScale), true, () -> send(RETIRE_TEMPLATE, t.id(), "", 0), UiCommandLabels.text("DECOMMISSION_TEMPLATE_TOGGLE_OFF_DESC", "§G클릭§!하여 해당 사단 편제를 재취역시킵니다"));
+                else textureButton(t.name() + " 편제를 목록에서 삭제", "", "recruitment/delete_template", secondX + 5 + (int)(300 * cardScale), y + (int)(48 * cardScale), (int)(26 * cardScale), (int)(26 * cardScale), true, () -> send(RETIRE_TEMPLATE, t.id(), "", 1));
+                tip(t.name() + " · " + manpower(t.manpower()) + "명 · " + integer(t.days()) + "일\n" + equipmentList(t.equipment(), Map.of()), nameX, y, nameWidth, th - 14);
+            }
+        }
+        if (foreignTemplatesOpen) foreignTemplateWindow(head, subjects);
+    }
+    private void templateFlag(String country, String tooltip, int secondX, int y, double cardScale) {
+        float left = (float)(secondX + 5 + 5 * cardScale);
+        if (graphics != null) {
+            CountryFlags.draw(graphics, "country/" + country.toLowerCase(Locale.ROOT) + "/flag", "small", (float)(left + 7 * cardScale), (float)(y + 15 * cardScale), (float)(20 * cardScale), (float)(17 * cardScale));
+            int[] frame = UiAssets.imageSize("recruitment/foreign/template_flag_frame");
+            UiAssets.drawExact(graphics, "recruitment/foreign/template_flag_frame", (float)(left + 9 * cardScale), (float)(y + 8 * cardScale), (float)(frame[0] * cardScale), (float)(frame[1] * cardScale));
+        }
+        tip(tooltip, (int)(left + 7 * cardScale), (int)(y + 8 * cardScale), (int)Math.ceil(25 * cardScale), (int)Math.ceil(27 * cardScale));
+    }
+    private void foreignTemplateWindow(UiMenuStyle.Frame head, List<IndustryView.Subject> subjects) {
+        int x = head.ix(373), y = head.iy(95), w = head.len(300), h = Math.min(head.len(430), height - y - 4);
+        foreignWindow = new int[]{x, y, w, h};
+        var countries = new ArrayList<String[]>();
+        countries.add(new String[]{"", view.country(), dev.hoi.client.ui.country.CountryDisplays.name(view.country(), view.country()), ""});
+        for (var subject : subjects) countries.add(new String[]{subject.tag(), subject.tag(), subject.name(), subject.autonomy()});
+        int clipTop = y + head.len(7), clipBottom = y + h - head.len(7);
+        foreignScrollbar = new UiScrollBar(x + w - head.len(6) - 9, clipTop, clipBottom, clipBottom - clipTop, head.len(70 * countries.size()));
+        foreignTemplatesScroll = Math.clamp(foreignTemplatesScroll, 0, foreignScrollbar.maximum());
+        if (graphics != null) {
+            graphics.nextStratum();
+            UiAssets.tiledNineSlice(graphics, "commander/commands/tiled_window_1b_thin_border/frame_0", x, y, w, h, 64, head.scale());
+            foreignScrollbar.draw(graphics, foreignTemplatesScroll);
+            graphics.enableScissor(x, clipTop, foreignScrollbar.x(), clipBottom);
+        }
+        float unit = head.scale(), left = head.x(373 + 8);
+        for (int i = 0; i < countries.size(); i++) {
+            var country = countries.get(i);
+            float top = head.y(95 + 7 + 70 * i) - foreignTemplatesScroll;
+            if (graphics != null) {
+                UiAssets.tiledNineSlice(graphics, "commander/commands/mini_tooltip/frame_0", Math.round(left), Math.round(top), Math.round(270 * unit), Math.round(66 * unit), 12, unit);
+                CountryFlags.draw(graphics, "country/" + country[1].toLowerCase(Locale.ROOT) + "/flag", "small2", left + 13 * unit, top + 24 * unit, 41 * unit, 26 * unit);
+                if (!country[0].isEmpty()) {
+                    int[] frame = UiAssets.imageSize("recruitment/foreign/flag_frame");
+                    UiAssets.drawExact(graphics, "recruitment/foreign/flag_frame", left + 11 * unit, top + 6 * unit, frame[0] * unit, frame[1] * unit);
+                    String icon = "recruitment/foreign/autonomy/" + country[3];
+                    if (UiAssets.imageSize(icon)[0] <= 0) icon = "recruitment/foreign/autonomy/autonomy_unknown";
+                    int[] size = UiAssets.imageSize(icon);
+                    UiAssets.drawExact(graphics, icon, left + 220 * unit, top + 15 * unit, size[0] * unit, size[1] * unit);
+                }
+                UiText.left(graphics, font, country[2], Math.round(left + 65 * unit), Math.round(top + 9 * unit), Math.round(150 * unit), Math.round(48 * unit), TEXT);
+            }
+            int itemTop = Math.round(top), itemBottom = Math.round(top + 66 * unit);
+            if (itemBottom > clipTop && itemTop < clipBottom) {
+                var control = textureButton(country[2], "", "none", Math.round(left), Math.max(itemTop, clipTop), Math.round(270 * unit), Math.min(itemBottom, clipBottom) - Math.max(itemTop, clipTop), true,
+                        () -> { foreignSubject = country[0]; foreignTemplatesOpen = false; secondScroll = 0; rebuildWidgets(); });
+                if (control != null) control.setTooltip(null);
+            }
+        }
+        if (graphics != null) graphics.disableScissor();
     }
     private static String priorityName(int priority) {return switch(priority) {case 0 -> "낮음"; case 1 -> "보통"; default -> "높음";};}
     private static String priorityTexture(int priority, boolean selected) {return "recruitment/priority" + (selected ? switch(priority) {case 0 -> "_low"; case 1 -> "_normal"; default -> "_high";} : "");}
@@ -1694,6 +1813,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         var design = t.designer();
         if (graphics != null) graphics.nextStratum();
         int w = Math.min(600, width), h = Math.min(360, height), x = (width - w) / 2, y = (height - h) / 2, left = 326;
+        overlay(x, y, w, h);
         boolean compact = w < 600;
         if (compact) {
             if (graphics != null) UiAssets.nineSlice(graphics, "officer/hq/list_background", x, y, w, h, 32, 0.5);
@@ -2076,6 +2196,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         }
         if (designTeam != null) { x = Math.min(width - w - 8, 133); y = Math.max(hudBottom() + 3, 40); end = Math.min(height - 4, y + h); }
         manufacturerX = x; manufacturerY = y; manufacturerWidth = w; manufacturerBottom = end;
+        overlay(x, y, w, end - y);
         if (graphics != null) { graphics.nextStratum(); IndustryOrganizationList.frame(graphics, font, x, y, w, end - y); }
         else addRenderableWidget(IndustryOrganizationList.close(x, y, w, this::closeManufacturers));
         var sortSize=originalButton("규모 정렬","mio/ui/gfx_sort_skill/frame_"+(manufacturerSorted&&!manufacturerName?manufacturerReverse?2:1:0),x+8,y+24,15,15,true,()->{manufacturerReverse=!manufacturerSorted||manufacturerName||!manufacturerReverse;manufacturerName=false;manufacturerSorted=true;rebuildWidgets();});
@@ -2135,6 +2256,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         if(picker.equals("naval_ports")){layoutNavalPorts();return;}
         if (picker.equals("equipment") || picker.equals("repairs")) { layoutProductionPicker(); return; }
         int w = Math.min(270, width - 16), x = width - pane >= w + 8 ? pane + 4 : (width - w) / 2, y = hudBottom() + 3;
+        overlay(x, y, w, height - y - 27);
         panel(x, y, w, height - y - 27);
         text("배치 장소 지정", x + 9, y + 8, w - 40, TEXT);
         button("목록 닫기", "×", x + w - 25, y + 3, 19, 19, true, () -> { picker = ""; rebuildWidgets(); });
@@ -2153,6 +2275,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     private void layoutNavalPorts() {
         int w=productionPickerWidth(),x=width-pane>=w+4?pane+2:(width-w)/2,y=hudBottom()+3,end=Math.min(bottom(),y+Math.round(height*.7f));
         double scale=w/375.0;
+        overlay(x,y,w,end-y);
         panel(x,y,w,end-y);
         heading(dev.hoi.client.ui.industry.IndustryEquipmentDesigns.tooltip("PRODUCTION_NAVAL_DEPLOY_LIST"),x+9,y+7,w-38,TEXT);
         var closeFrame=new UiMenuStyle.Frame(x,y,(float)scale);
@@ -2196,6 +2319,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         int x=width-pane>=w+4?pane+2:(width-w)/2,y=hudBottom()+3;
         if (!manufacturerEquipment.isEmpty()) x = Math.max(4, Math.min(x, width - w - 278));
         int end=repair?Math.min(bottom(),y+Math.round(w*600f/444)):bottom();
+        overlay(x,y,w,end-y);
         if(graphics!=null)UiAssets.nineSlice(graphics,"production/picker/panel",x,y,w,end-y,64,w/(repair?444.0:495.0));
         if(repair) {
             art("production/picker/repair_title",x+3,y+2,w-6,Math.round((w-6)*41f/430));
@@ -2429,6 +2553,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         int minY=hudBottom()+font.lineHeight+8;
         int w=Math.min(Math.min(width-24,Math.max(780,width*5/8)),(height-minY-12)*1092/553);
         int h=w*553/1092,x=(width-w)/2,y=Math.max(minY,(height-h)/2);
+        overlay(x,y,w,h);
         java.util.function.IntUnaryOperator size=n->Math.max(1,n*w/1092);
         java.util.function.IntUnaryOperator px=n->x+n*w/1092,py=n->y+n*w/1092;
         var preview=new HashMap<String,Double>();
@@ -3135,6 +3260,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         long needed=p.convoys()==null||p.convoys()<0?-1:(long)p.convoys()*tradeAmount;
         int w=Math.min(316,Math.min(width-16,(height-hudBottom()-8)*527/437)),h=w*437/527;
         int x=(width-w)/2,y=Math.max(hudBottom()+4,(height-h)/2);
+        overlay(x,y,w,h);
         java.util.function.IntUnaryOperator size=n->Math.max(1,n*w/527);
         java.util.function.IntUnaryOperator px=n->x+n*w/527,py=n->y+n*w/527;
         art("trade/offer",x,y,w,h);
@@ -3252,16 +3378,25 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             send(view == null ? foreign() ? FOREIGN_LOGISTICS : OPEN : REFRESH, view == null ? foreignTarget : "", "", 0);
         } else if (++refresh % 60 == 0 && pending == 0) send(view == null ? foreign() ? FOREIGN_LOGISTICS : OPEN : REFRESH, view == null ? foreignTarget : "", "", 0);
     }
+    private boolean insideForeignWindow(double x, double y) {
+        return foreignWindow != null && x >= foreignWindow[0] && x < foreignWindow[0] + foreignWindow[2] && y >= foreignWindow[1] && y < foreignWindow[1] + foreignWindow[3];
+    }
+    private boolean overForeignButton(double x, double y) {
+        var head = new UiMenuStyle.Frame(pane + 3, top, rightWidth() / 375f);
+        return x >= head.ix(10) && x < head.ix(10) + head.len(46.5) && y >= head.iy(49) && y < head.iy(49) + head.len(46.5);
+    }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
-        if (designerManufacturer || picker.equals("manufacturer") || !manufacturerEquipment.isEmpty()) { manufacturerScroll -= (int)(vertical * IndustryOrganizationList.ENTRY_HEIGHT); rebuildWidgets(); return true; }
-        if (designer && !divisionPicker.isEmpty()) {
+        if (insideForeignWindow(x, y)) { foreignTemplatesScroll -= Math.round(vertical * 40 * rightWidth() / 375f); rebuildWidgets(); return true; }
+        boolean behind = behindOverlay(x, y);
+        if (!behind && (designerManufacturer || picker.equals("manufacturer") || !manufacturerEquipment.isEmpty())) { manufacturerScroll -= (int)(vertical * IndustryOrganizationList.ENTRY_HEIGHT); rebuildWidgets(); return true; }
+        if (!behind && designer && !divisionPicker.isEmpty()) {
             divisionPickerScroll -= (int) vertical; rebuildWidgets(); return true;
         }
         if (y < hudBottom() && view != null) { hudScroll = HudMenuBar.scroll(width, view.hud(), hudScroll, horizontal, vertical); return true; }
         if (insideAutoImport(x, y)) return true;
-        if (tankDesigner()) tankScroll -= (int) vertical;
-        else if (designer && selectedSlot >= 0) pickerScroll -= (int) vertical;
-        else if (designer) {
+        if (!behind && tankDesigner()) tankScroll -= (int) vertical;
+        else if (!behind && designer && selectedSlot >= 0) pickerScroll -= (int) vertical;
+        else if (!behind && designer) {
             boolean overStats = false;
             for (int i = 0; i < divisionStatBars.length; i++) {
                 var bar = divisionStatBars[i];
@@ -3272,15 +3407,15 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             }
             if (!overStats) designerScroll -= (int) (vertical * 25);
         }
-        else if (tab == MenuTab.PRODUCTION && (!modal() || dockedProductionPicker()) && x < pane) {
+        else if (tab == MenuTab.PRODUCTION && (!modal() || dockedProductionPicker() || behind) && x < pane) {
             if (productionScrollbar != null && y >= productionScrollbar.top() && y < productionScrollbar.bottom()) scroll -= (int)(vertical*20);
         }
-        else if (productionPickerScrollbar != null && !picker.isEmpty() && !picker.equals("manufacturer")) {
+        else if (!behind && productionPickerScrollbar != null && !picker.isEmpty() && !picker.equals("manufacturer")) {
             if (x >= productionPickerScrollbar.x() - productionPickerWidth() && x < productionPickerScrollbar.x() + 9
                     && y >= productionPickerScrollbar.top() && y < productionPickerScrollbar.bottom()) pickerScroll -= (int)(vertical*20);
         }
-        else if (!picker.isEmpty()) pickerScroll -= (int) (vertical * 55);
-        else if (modal()) return super.mouseScrolled(x, y, horizontal, vertical);
+        else if (!behind && !picker.isEmpty()) pickerScroll -= (int) (vertical * 55);
+        else if (!behind && modal()) return super.mouseScrolled(x, y, horizontal, vertical);
         else if (tab == MenuTab.TRADE && tradeTab == 1) { if (listScrollbar != null && x < pane && y >= listScrollbar.top() && y < listScrollbar.bottom()) scroll -= (int) (vertical * frame.size(TRADE_ROW)); }
         else if (tab == MenuTab.LOGISTICS) {
             if (!logisticsInfo.isEmpty() && x >= frame.x(FUEL_WINDOW) && x < frame.x(FUEL_WINDOW + 395) && y >= frame.y(290)) variantScroll -= (int) (vertical * frame.size(VARIANT_ROW));
@@ -3319,6 +3454,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             rebuildWidgets(); return true;
         }
         if (listDragging && listScrollbar != null) { scroll = listScrollbar.offset(event.y()); rebuildWidgets(); return true; }
+        if (foreignDragging && foreignScrollbar != null) { foreignTemplatesScroll = foreignScrollbar.offset(event.y()); rebuildWidgets(); return true; }
         if(divisionPickerDragging&&divisionPickerBar!=null){divisionPickerScroll=divisionPickerBar.offset(event.y());rebuildWidgets();return true;}if(productionDragging&&productionScrollbar!=null){scroll=productionScrollbar.offset(event.y());rebuildWidgets();return true;}if(productionPickerDragging&&productionPickerScrollbar!=null){pickerScroll=productionPickerScrollbar.offset(event.y());rebuildWidgets();return true;}if(manufacturerDragging){manufacturerScroll=manufacturerScrollbar.offset(event.y());rebuildWidgets();return true;}return super.mouseDragged(event,dx,dy);
     }
     @Override public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event){
@@ -3341,11 +3477,21 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         }
         if (autoImportMoving) { autoImportMoving = false; return true; }
         if (listDragging) { listDragging = false; return true; }
+        if (foreignDragging) { foreignDragging = false; return true; }
         if(divisionPickerDragging){divisionPickerDragging=false;return true;}if(productionDragging||productionPickerDragging){productionDragging=false;productionPickerDragging=false;return true;}if(manufacturerDragging){manufacturerDragging=false;return true;}return super.mouseReleased(event);
     }
     @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean twice) {
         if (!draggedProduction.isEmpty()) { draggedProduction = ""; rebuildWidgets(); return true; }
         if (!draggedImport.isEmpty()) { draggedImport = ""; importMoved = false; rebuildWidgets(); return true; }
+        if (insideForeignWindow(event.x(), event.y())) {
+            if (foreignScrollbar != null && foreignScrollbar.contains(event.x(), event.y())) {
+                if (foreignScrollbar.arrow(event.y())) foreignTemplatesScroll = foreignScrollbar.step(event.y(), foreignTemplatesScroll, Math.round(70 * rightWidth() / 375f));
+                else { foreignDragging = true; foreignTemplatesScroll = foreignScrollbar.offset(event.y()); }
+                rebuildWidgets(); return true;
+            }
+            super.mouseClicked(event, twice); return true;
+        }
+        if (foreignTemplatesOpen && !overForeignButton(event.x(), event.y())) { foreignTemplatesOpen = false; rebuildWidgets(); }
         if (insideAutoImport(event.x(), event.y())) {
             if (super.mouseClicked(event, twice)) return true;
             if (event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) return true;
@@ -3358,7 +3504,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             autoImportMoving = true; autoImportGrabX = event.x() - at.x(0); autoImportGrabY = event.y() - at.y(0);
             return true;
         }
-        if (tab == MenuTab.PRODUCTION && !modal() && view != null && pending == 0 && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
+        boolean behind = behindOverlay(event.x(), event.y());
+        if (tab == MenuTab.PRODUCTION && (!modal() || behind) && view != null && pending == 0 && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             float scale = (pane - 22) / 511f;
             if (event.x() >= 6 + Math.round(48 * scale) && event.x() < 6 + Math.round(193 * scale)) {
                 for (var row : productionLines) if (event.y() >= row.y() && event.y() < row.y() + Math.round(24 * scale)) {
@@ -3375,10 +3522,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 rebuildWidgets(); return true;
             }
             for (var widget : List.copyOf(manufacturerWidgets)) if (widget.isMouseOver(event.x(), event.y())) { widget.mouseClicked(event, twice); return true; }
-            if (event.x() < manufacturerX || event.x() >= manufacturerX + manufacturerWidth || event.y() < manufacturerY || event.y() >= manufacturerBottom) closeManufacturers();
+            if (event.x() < manufacturerX || event.x() >= manufacturerX + manufacturerWidth || event.y() < manufacturerY || event.y() >= manufacturerBottom) { closeManufacturers(); return super.mouseClicked(event, twice); }
             return true;
         }
-        if (tab == MenuTab.PRODUCTION && !modal() && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT
+        if (tab == MenuTab.PRODUCTION && (!modal() || behind) && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT
                 && event.x() >= 6 && event.x() < pane - 16) {
             for (var row : productionLines) if (event.y() >= row.y() && event.y() < row.y() + row.height()) {
                 if (pending == 0 && row.line().manufacturer() != null) {
@@ -3389,12 +3536,12 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             }
         }
         if(event.button()==com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
-            if(tab==MenuTab.PRODUCTION&&(!modal()||dockedProductionPicker())&&productionScrollbar!=null&&productionScrollbar.maximum()>0&&productionScrollbar.contains(event.x(),event.y())) {
+            if(tab==MenuTab.PRODUCTION&&(!modal()||dockedProductionPicker()||behind)&&productionScrollbar!=null&&productionScrollbar.maximum()>0&&productionScrollbar.contains(event.x(),event.y())) {
                 if(productionScrollbar.arrow(event.y()))scroll=productionScrollbar.step(event.y(),scroll,28);
                 else {productionDragging=true;scroll=productionScrollbar.offset(event.y());}
                 rebuildWidgets();return true;
             }
-            if((tab==MenuTab.TRADE&&tradeTab==1||tab==MenuTab.LOGISTICS)&&!modal()&&listScrollbar!=null&&listScrollbar.maximum()>0&&listScrollbar.contains(event.x(),event.y())) {
+            if((tab==MenuTab.TRADE&&tradeTab==1||tab==MenuTab.LOGISTICS)&&(!modal()||behind)&&listScrollbar!=null&&listScrollbar.maximum()>0&&listScrollbar.contains(event.x(),event.y())) {
                 if(listScrollbar.arrow(event.y()))scroll=listScrollbar.step(event.y(),scroll,frame.len(tab==MenuTab.TRADE?TRADE_ROW:LOGISTICS_ROW));
                 else {listDragging=true;scroll=listScrollbar.offset(event.y());}
                 rebuildWidgets();return true;
@@ -3413,9 +3560,9 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
                 rebuildWidgets(); return true;
             }
             for (var option : List.copyOf(divisionOptions)) if (option.isMouseOver(event.x(), event.y())) { option.mouseClicked(event, twice); return true; }
-            divisionPicker = ""; rebuildWidgets(); return true;
+            divisionPicker = ""; rebuildWidgets(); return behind ? super.mouseClicked(event, twice) : true;
         }
-        if (!modal() && (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT || event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT) && view != null && pending == 0) {
+        if ((!modal() || behind) && (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT || event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT) && view != null && pending == 0) {
             for (var slot : deploymentLocations) if (event.x() >= slot.x() && event.x() < slot.x() + slot.width() && event.y() >= slot.y() && event.y() < slot.y() + slot.height()) {
                 locationRecruit = slot.recruit();
                 selectingDeployment = event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT;
@@ -3441,6 +3588,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
     @Override public boolean keyPressed(KeyEvent e) {
         if (!draggedProduction.isEmpty() && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { draggedProduction = ""; rebuildWidgets(); return true; }
         if (autoImportOpen() && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { autoImportWindow = false; draggedImport = ""; rebuildWidgets(); return true; }
+        if (foreignTemplatesOpen && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { foreignTemplatesOpen = false; rebuildWidgets(); return true; }
         if ((fuelWindow || !logisticsInfo.isEmpty()) && tab == MenuTab.LOGISTICS && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { fuelWindow = false; logisticsInfo = ""; rebuildWidgets(); return true; }
         if ((designerManufacturer || !manufacturerEquipment.isEmpty() || picker.equals("manufacturer")) && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) { closeManufacturers(); return true; }
         if (designer && !divisionPicker.isEmpty() && e.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {

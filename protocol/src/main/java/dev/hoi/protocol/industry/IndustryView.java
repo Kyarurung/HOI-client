@@ -119,7 +119,20 @@ public record IndustryView(String session, long revision, String country, Countr
         this(session, revision, country, hud, economy, resources, modifiers, equipment, lines, partners, trades,
                 templates, battalions, companies, locations, recruits, deployed, draft, message, navalRepairs, null);
     }
-    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds, Double minimumTraining, Map<String,Double> equipmentRatios, Map<String,String> equipmentTooltips) {
+    public record SubjectTemplate(String id,String name,String texture,int priority) {
+        public SubjectTemplate {text(id,256);text(name,128);text(texture,256);if(priority<0||priority>2)throw new IllegalArgumentException("Invalid subject template priority");}
+    }
+    public record Subject(String tag,String name,String autonomy,double manpowerShare,SpecialForces specialForces,String templateTooltip,List<SubjectTemplate> templates) {
+        public Subject {
+            text(tag,16);text(name,128);text(autonomy,64);text(templateTooltip,2000);Objects.requireNonNull(specialForces);templates=templates==null?List.of():List.copyOf(templates);
+            if(!Double.isFinite(manpowerShare)||manpowerShare<=0||manpowerShare>1||templates.size()>128)throw new IllegalArgumentException("Invalid subject templates");
+        }
+    }
+    public record Colonial(String country,String tooltip) {
+        public Colonial {text(country,16);text(tooltip,2000);}
+    }
+    public record RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds, Double minimumTraining, Map<String,Double> equipmentRatios, Map<String,String> equipmentTooltips, List<Subject> subjects, Map<String,Colonial> colonialTemplates, Map<String,String> foreignTexts) {
+        public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds,Double minimumTraining,Map<String,Double> equipmentRatios,Map<String,String> equipmentTooltips) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,minimumTraining,equipmentRatios,equipmentTooltips,List.of(),Map.of(),Map.of());}
         public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds,Double minimumTraining,Map<String,Double> equipmentRatios) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,minimumTraining,equipmentRatios,Map.of());}
         public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds,Double minimumTraining) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,minimumTraining,Map.of());}
         public RecruitmentPolicy(Set<String> retiredTemplates,Map<String,Integer> priorities,Double reinforcementRatio,Map<String,Long> reinforcementNeeds) {this(retiredTemplates,priorities,reinforcementRatio,reinforcementNeeds,null);}
@@ -131,7 +144,10 @@ public record IndustryView(String session, long revision, String country, Countr
                     ||equipmentRatios.values().stream().anyMatch(v->!Double.isFinite(v)||v<0||v>1))throw new IllegalArgumentException("Invalid equipment allocation ratio");
             if(minimumTraining!=null&&(!Double.isFinite(minimumTraining)||minimumTraining<0||minimumTraining>1)) throw new IllegalArgumentException("Invalid training threshold");
             retiredTemplates=Set.copyOf(retiredTemplates);priorities=boundedMap(priorities,9);reinforcementNeeds=boundedMap(reinforcementNeeds,512);
-            if(retiredTemplates.size()>256||priorities.values().stream().anyMatch(p->p<0||p>2)
+            subjects=subjects==null?List.of():List.copyOf(subjects);colonialTemplates=colonialTemplates==null?Map.of():boundedMap(colonialTemplates,128);
+            foreignTexts=foreignTexts==null?Map.of():boundedMap(foreignTexts,8);
+            if(foreignTexts.values().stream().anyMatch(v->v.length()>2000))throw new IllegalArgumentException("Invalid foreign template text");
+            if(retiredTemplates.size()>256||subjects.size()>64||priorities.values().stream().anyMatch(p->p<0||p>2)
                     ||reinforcementRatio!=null&&(!Double.isFinite(reinforcementRatio)||reinforcementRatio<0||reinforcementRatio>1))throw new IllegalArgumentException("Invalid recruitment policy");
         }
     }
