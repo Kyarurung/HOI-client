@@ -28,7 +28,10 @@ public final class CommanderOverviewPayloads {
     public record Count(String key,String icon,int count,String tooltip) {
         public Count {identifier(key);asset(icon);text(tooltip,2000);if(count<0||count>1000000)throw new IllegalArgumentException("Invalid overview count");}
     }
-    public record Row(String id,String type,String icon,String name,String location,String group,Integer color,Integer insignia,double organization,double strength,int level,boolean fighting,boolean obsolete,String leader,String amount,List<String> missions,String tooltip,String selection) {
+    public record Row(String id,String type,String icon,String name,String location,String group,Integer color,Integer insignia,double organization,double strength,int level,boolean fighting,boolean obsolete,String leader,String amount,List<String> missions,String tooltip,String selection,boolean carrier,boolean afloat) {
+        public Row(String id,String type,String icon,String name,String location,String group,Integer color,Integer insignia,double organization,double strength,int level,boolean fighting,boolean obsolete,String leader,String amount,List<String> missions,String tooltip,String selection) {
+            this(id,type,icon,name,location,group,color,insignia,organization,strength,level,fighting,obsolete,leader,amount,missions,tooltip,selection,false,false);
+        }
         public Row {identifier(id);identifier(type);asset(icon);text(name,160);text(location,160);text(group,160);asset(leader);text(amount,32);text(tooltip,4000);selection=selection==null?"":selection;identifier(selection);missions=List.copyOf(missions);missions.forEach(CommanderOverviewPayloads::identifier);
             if(color!=null&&(color<0||color>0xffffff)||insignia!=null&&(insignia<0||insignia>80)||!ratio(organization)||!ratio(strength)||level<0||level>4||missions.size()>4)throw new IllegalArgumentException("Invalid overview row");}
     }

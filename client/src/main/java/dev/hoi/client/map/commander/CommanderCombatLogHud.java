@@ -22,6 +22,7 @@ public final class CommanderCombatLogHud {
     static void register() {
         CommanderRecordPayloads.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(LogSnapshot.TYPE, (packet, context) -> accept(packet.log()));
+        ClientPlayNetworking.registerGlobalReceiver(EquipmentSnapshot.TYPE, (packet, context) -> { if (DialogCoordinator.contentScreen() instanceof CommanderOverview overview) overview.accept(packet.equipment()); });
         ClientPlayNetworking.registerGlobalReceiver(LossesSnapshot.TYPE, (packet, context) -> { if (DialogCoordinator.contentScreen() instanceof CommanderOverview overview) overview.accept(packet.losses()); });
         HudElementRegistry.attachElementAfter(Identifier.parse("hoi:ship_window"), Identifier.parse("hoi:combat_log"), (g, delta) -> {
             if (Minecraft.getInstance().gui.screen() == null) draw(g, g.guiWidth() / 2, g.guiHeight() / 2);

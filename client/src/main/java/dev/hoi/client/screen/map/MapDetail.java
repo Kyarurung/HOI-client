@@ -64,6 +64,10 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
                 button.active = authorized && accessPendingRevision < 0;
                 addRenderableWidget(button);
             }
+            var losses = tiles("losses");
+            if (!losses.isEmpty()) addRenderableWidget(new UiPanelButton(losses.getFirst().name(), x(378), y(245), n(37), n(36), () -> { choose(""); dev.hoi.client.map.commander.CommanderHud.openNavalLosses(); }) {
+                @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) { UiAssets.draw(g, losses.getFirst().icon(), getX(), getY(), getWidth(), getHeight()); }
+            });
         }
         addRenderableWidget(dev.hoi.client.ui.UiMenuStyle.close("raids/gfx_closebutton_small/frame_0", (float)(left + (sea() ? 398 : 425) * scale), (float)(top + (sea() ? 5 : 9) * scale), (float)(26 * scale), (float)(26 * scale), this::onClose));
         if(dev.hoi.client.ClientCampaignHud.visible())HudMenuBar.buttons(width,dev.hoi.client.ClientCampaignHud.country(),null,dev.hoi.client.HoiClient::openMenu).forEach(this::addRenderableWidget);
@@ -276,16 +280,24 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
         int barWidth=n(183),barHeight=n(11),barLeft=frameLeft+(frameWidth-barWidth)/2,barTop=frameTop+(n(19)-barHeight)/2;
         g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/map_detail/progress_disabled.png"),barLeft,barTop,barLeft+barWidth,barTop+barHeight,0,1,0,1);
         var supremacy=tiles("supremacy");
-        String value=supremacy.isEmpty()?"—":supremacy.getFirst().value();
-        double fraction=value.endsWith("%")?Math.clamp(Double.parseDouble(value.substring(0,value.length()-1))/100,0,1):0;
-        g.enableScissor(barLeft,barTop,barLeft+(int)Math.round(barWidth*fraction),barTop+barHeight);
-        g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/map_detail/progress_good.png"),barLeft,barTop,barLeft+barWidth,barTop+barHeight,0,1,0,1);g.disableScissor();
+        var dominance=tiles("dominance");
+        if(!dominance.isEmpty()&&dominance.getFirst().gauge()!=null) {
+            var bar=dominance.getFirst();
+            g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+bar.overlay()+".png"),barLeft,barTop,barLeft+barWidth,barTop+barHeight,0,1,0,1);
+            g.enableScissor(barLeft,barTop,barLeft+(int)Math.round(barWidth*bar.gauge().fraction()),barTop+barHeight);
+            g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/"+bar.icon()+".png"),barLeft,barTop,barLeft+barWidth,barTop+barHeight,0,1,0,1);g.disableScissor();
+        }
         UiAssets.draw(g,"map_detail/progress_frame",frameLeft,frameTop,frameWidth,frameHeight);
-        int markerWidth=n(16),markerHeight=n(12),markerLeft=barLeft+(int)Math.round(barWidth*.6)-markerWidth/2,markerY=barTop+(barHeight-markerHeight)/2;
+        int markerWidth=n(16),markerHeight=n(12),markerLeft=frameLeft+n(116),markerY=barTop+(barHeight-markerHeight)/2;
         g.blit(net.minecraft.resources.Identifier.parse("hoi:textures/gui/map_detail/marker.png"),markerLeft,markerY,markerLeft+markerWidth,markerY+markerHeight,0,1,0,1);
         var marker=tiles("marker");
         if(!marker.isEmpty())hovers.add(new MapHover(marker.getFirst(),markerLeft,markerY,markerWidth,markerHeight));
         if(!supremacy.isEmpty())hovers.add(new MapHover(supremacy.getFirst(),x(90),y(106),n(221),n(37)));
+        var dominant=tiles("dominant");
+        if(!dominant.isEmpty()) {
+            CountryFlags.draw(g,dominant.getFirst().icon(),"small",x(362),y(115),n(22),n(17));
+            hovers.add(new MapHover(dominant.getFirst(),x(360),y(112),n(26),n(23)));
+        }
         var environmentIcons=new ArrayList<>(tiles("weather_icon"));
         environmentIcons.addAll(tiles("sea_condition"));
         for(int i=0;i<environmentIcons.size();i++) {
@@ -312,6 +324,8 @@ public final class MapDetail extends DialogScreen implements InputSidebarMovemen
                 hovers.add(new MapHover(t,x(px[i]),y(py),n(i==0||i==3?109:88),n(33)));
             }
         }
+        var losses=tiles("losses");
+        if(!losses.isEmpty())hovers.add(new MapHover(losses.getFirst(),x(378),y(245),n(37),n(36)));
         label(g,"접근",21,225,70,23,UiMenuStyle.TEXT,12,false);
         var access=tiles("access");
         for(int i=0;i<3;i++) {

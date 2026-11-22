@@ -100,6 +100,10 @@ public final class CommanderHud {
             if(stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,net.minecraft.world.item.component.CustomData.EMPTY).copyTag().getIntOr("hoi_atlas_selector",0)==selector){client.player.getInventory().setSelectedSlot(i);break;}}
         var screen=new dev.hoi.client.screen.commander.CommanderOverview(tab);dev.hoi.client.screen.dialog.DialogCoordinator.setContent(screen);screen.open();
     }
+    public static void openNavalLosses(){
+        if(!overviewShown(CommanderOverviewPayloads.Tab.NAVY))toggleOverview(CommanderOverviewPayloads.Tab.NAVY,2);
+        if(dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.commander.CommanderOverview overview)overview.openLosses();
+    }
     public static void selectOverview(CommanderOverviewPayloads.Tab tab,String id,boolean additive){
         switch(tab) {
             case ARMY -> CommanderUnitHud.selectDivisions(List.of(id),additive);

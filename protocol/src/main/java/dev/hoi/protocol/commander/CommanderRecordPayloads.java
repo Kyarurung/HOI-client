@@ -14,7 +14,7 @@ public final class CommanderRecordPayloads {
     private static boolean registered;
     public static final int ROWS=24,MONTHS=60,FILTERS=64,BYTES=200000;
     private CommanderRecordPayloads() {}
-    public enum Action { LOG, CLOSE_LOG, NAVY, CLOSE_NAVY, FOCUS }
+    public enum Action { LOG, CLOSE_LOG, NAVY, CLOSE_NAVY, FOCUS, EQUIPMENT, CLOSE_EQUIPMENT }
     public record Request(String token,Action action,String target,int months,int offset,List<String> filters) implements CustomPacketPayload {
         public Request {
             UUID.fromString(token);Objects.requireNonNull(action);identifier(target);filters=List.copyOf(filters);filters.forEach(CommanderRecordPayloads::identifier);
@@ -80,6 +80,22 @@ public final class CommanderRecordPayloads {
         }
         public String label(String key){return labels.getOrDefault(key,"");}
     }
+    public record Total(String icon,String value,String tooltip) {
+        public Total {asset(icon);text(value,64);text(tooltip,800);}
+    }
+    public record Item(String name,String image,String amount) {
+        public Item {text(name,160);asset(image);text(amount,32);}
+    }
+    public record Archetype(String id,String name,String amount,boolean carrier,List<Item> items) {
+        public Archetype {identifier(id);text(name,160);text(amount,64);items=List.copyOf(items);if(items.size()>64)throw new IllegalArgumentException("Invalid equipment archetype");}
+    }
+    public record FieldEquipment(String token,String target,List<Total> totals,List<Archetype> rows,Map<String,String> labels,String error) {
+        public FieldEquipment {
+            UUID.fromString(token);identifier(target);totals=List.copyOf(totals);rows=List.copyOf(rows);labels=texts(labels);text(error,400);
+            if(totals.size()>3||rows.size()>128)throw new IllegalArgumentException("Invalid field equipment");
+        }
+        public String label(String key){return labels.getOrDefault(key,"");}
+    }
     public record LogSnapshot(String json) implements CustomPacketPayload {
         public LogSnapshot {bounded(json);}
         public static final Type<LogSnapshot> TYPE=new Type<>(Identifier.parse("hoi:commander_combat_log_v1"));
@@ -96,9 +112,17 @@ public final class CommanderRecordPayloads {
         public Losses losses(){return ProtocolJsonCodec.read(JSON,json,Losses.class);}
         @Override public Type<LossesSnapshot> type(){return TYPE;}
     }
+    public record EquipmentSnapshot(String json) implements CustomPacketPayload {
+        public EquipmentSnapshot {bounded(json);}
+        public static final Type<EquipmentSnapshot> TYPE=new Type<>(Identifier.parse("hoi:commander_field_equipment_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf,EquipmentSnapshot> CODEC=StreamCodec.of((b,p)->b.writeUtf(p.json,BYTES),b->new EquipmentSnapshot(b.readUtf(BYTES)));
+        public static EquipmentSnapshot of(FieldEquipment equipment){return new EquipmentSnapshot(JSON.toJson(equipment));}
+        public FieldEquipment equipment(){return ProtocolJsonCodec.read(JSON,json,FieldEquipment.class);}
+        @Override public Type<EquipmentSnapshot> type(){return TYPE;}
+    }
     public static synchronized void registerPayloadTypes(){
         if(registered)return;
-        PayloadTypeRegistry.serverboundPlay().register(Request.TYPE,Request.CODEC);PayloadTypeRegistry.clientboundPlay().register(LogSnapshot.TYPE,LogSnapshot.CODEC);PayloadTypeRegistry.clientboundPlay().register(LossesSnapshot.TYPE,LossesSnapshot.CODEC);registered=true;
+        PayloadTypeRegistry.serverboundPlay().register(Request.TYPE,Request.CODEC);PayloadTypeRegistry.clientboundPlay().register(LogSnapshot.TYPE,LogSnapshot.CODEC);PayloadTypeRegistry.clientboundPlay().register(LossesSnapshot.TYPE,LossesSnapshot.CODEC);PayloadTypeRegistry.clientboundPlay().register(EquipmentSnapshot.TYPE,EquipmentSnapshot.CODEC);registered=true;
     }
     private static Map<String,String> texts(Map<String,String> labels){
         if(labels.size()>48)throw new IllegalArgumentException("Invalid record labels");

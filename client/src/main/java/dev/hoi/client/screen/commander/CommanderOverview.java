@@ -12,6 +12,7 @@ import dev.hoi.client.ui.UiScrollBar;
 import dev.hoi.client.ui.UiStatCell;
 import dev.hoi.client.ui.UiText;
 import dev.hoi.client.ui.hud.HudMenuBar;
+import dev.hoi.client.ui.tooltip.TooltipDelay;
 import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.commander.CommanderOverviewPayloads.*;
 import java.util.*;
@@ -51,6 +52,8 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
     private int scroll;
     private CommanderDivisionWindow details;
     private CommanderNavalLossWindow losses;
+    private CommanderFieldEquipmentWindow equipment;
+    private CommanderNavalHeadquartersWindow headquarters;
     public CommanderOverview(Tab tab) { this(tab, request -> { if (ClientPlayNetworking.canSend(Request.TYPE)) ClientPlayNetworking.send(request); }); }
     CommanderOverview(Tab tab, Consumer<Request> transport) {
         super(Component.literal(tab == Tab.ARMY ? "육군 개요" : tab == Tab.NAVY ? "해군 개요" : "공군 개요"));
@@ -86,15 +89,38 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
     private void closeDetails() { if (details != null) { details.close(); details = null; } }
     CommanderNavalLossWindow losses() { return losses; }
     public void accept(dev.hoi.protocol.commander.CommanderRecordPayloads.Losses next) { if (losses != null && !losses.accept(next)) closeLosses(); }
+    public void openLosses() { if (losses == null) toggleLosses(); }
     private void toggleLosses() {
         if (losses != null) { closeLosses(); return; }
+        closeEquipment();
         losses = new CommanderNavalLossWindow();
         losses.layout(frame, width, height);
         losses.open();
     }
     private void closeLosses() { if (losses != null) { losses.close(); losses = null; } }
+    CommanderFieldEquipmentWindow equipment() { return equipment; }
+    CommanderNavalHeadquartersWindow headquarters() { return headquarters; }
+    public void accept(dev.hoi.protocol.commander.CommanderRecordPayloads.FieldEquipment next) { if (equipment != null && !equipment.accept(next)) closeEquipment(); }
+    private void toggleEquipment() {
+        if (equipment != null) { closeEquipment(); return; }
+        closeLosses();
+        equipment = new CommanderFieldEquipmentWindow(tab);
+        equipment.layout(frame, width, height);
+        equipment.request();
+    }
+    private void closeEquipment() { if (equipment != null) { equipment.close(); equipment = null; } }
+    private void toggleHeadquarters() {
+        if (headquarters != null) { headquarters = null; return; }
+        headquarters = new CommanderNavalHeadquartersWindow();
+        headquarters.layout(width, height, frame.scale());
+    }
     static Box lossesBox() { return new Box(419, 8, 37, 36); }
-    private boolean lossesAt(double x, double y) { return tab == Tab.NAVY && view != null && view.error().isEmpty() && gui(lossesBox()).contains(x, y); }
+    static Box equipmentBox() { return new Box(459, 8, 37, 36); }
+    static Box headquartersBox() { return new Box(379, 8, 37, 36); }
+    private boolean shown() { return view != null && view.error().isEmpty(); }
+    private boolean lossesAt(double x, double y) { return tab == Tab.NAVY && shown() && gui(lossesBox()).contains(x, y); }
+    private boolean equipmentAt(double x, double y) { return shown() && gui(equipmentBox()).contains(x, y); }
+    private boolean headquartersAt(double x, double y) { return tab == Tab.NAVY && shown() && gui(headquartersBox()).contains(x, y); }
     private void send(Action action, String target) {
         var request = new Request(token, action, tab, target);
         if (requestObserver != null) requestObserver.accept(request); else transport.accept(request);
@@ -113,17 +139,32 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         addRenderableWidget(filter);
         if (details != null) details.layout(width, height, frame.scale());
         if (losses != null) losses.layout(frame, width, height);
-        if (suspended) { suspended = false; send(Action.OPEN, ""); if (details != null) details.request(); if (losses != null) losses.request(); }
+        if (equipment != null) equipment.layout(frame, width, height);
+        if (headquarters != null) headquarters.layout(width, height, frame.scale());
+        if (suspended) { suspended = false; send(Action.OPEN, ""); if (details != null) details.request(); if (losses != null) losses.request(); if (equipment != null) equipment.request(); }
         refresh();
     }
     private String filterTooltipKey() { return tab == Tab.ARMY ? "ARMY_DIVISONS_FILTER_DESC" : tab == Tab.NAVY ? "ARMY_NAVIES_FILTER_DESC" : "ARMY_AIR_FILTER_DESC"; }
-    @Override public void removed() { InputSidebarMovement.release(minecraft); if (details != null) details.close(); if (losses != null) losses.close(); send(Action.CLOSE, ""); suspended = true; }
+    @Override public void removed() { InputSidebarMovement.release(minecraft); if (details != null) details.close(); if (losses != null) losses.close(); if (equipment != null) equipment.close(); send(Action.CLOSE, ""); suspended = true; }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     @Override public boolean allowsMovement() { return !(getFocused() instanceof EditBox); }
     @Override public int unitHudLeft() { return frame == null ? 0 : frame.ix(550); }
-    @Override public boolean covers(double x, double y) { return details != null && details.contains(x, y) || losses != null && losses.contains(x, y); }
+    @Override public boolean covers(double x, double y) { return details != null && details.contains(x, y) || losses != null && losses.contains(x, y) || equipment != null && equipment.contains(x, y) || headquarters != null && headquarters.contains(x, y); }
+    private void tooltipOver(GuiGraphicsExtractor g, String text, int mx, int my) {
+        if (text.isEmpty()) return;
+        g.nextStratum();
+        Tooltips.drawSourceScrollable(g, font, text, mx, my, g.guiWidth(), g.guiHeight(), 0);
+    }
     @Override public void drawOver(GuiGraphicsExtractor g, int mx, int my) {
+        if (equipment != null) {
+            equipment.draw(g, font);
+            if ((headquarters == null || !headquarters.contains(mx, my)) && (details == null || !details.contains(mx, my))) tooltipOver(g, equipment.tooltip(mx, my), mx, my);
+        }
+        if (headquarters != null) {
+            headquarters.draw(g, font, view);
+            tooltipOver(g, TooltipDelay.visible(headquarters.source(mx, my, view)), mx, my);
+        }
         if (losses != null) {
             losses.draw(g, font, mx, my);
             String text = losses.tooltip(mx, my);
@@ -178,7 +219,8 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         frame.tile(g, "commander/commands/tiled_bg/frame_0", 0, 40, 550, (int)Math.ceil(bottom - 40), 64, 192);
         frame.tile(g, WINDOW.tile(), 0, l.panelY(), 550, (int)Math.ceil(bottom - l.panelY()), 64, 190);
         UiMenuStyle.title(g, font, WINDOW, frame, label(tab == Tab.ARMY ? "ARMY_ARMY_LABEL" : tab == Tab.NAVY ? "ARMY_NAVY_LABEL" : "ARMY_AIR_LABEL"));
-        if (tab == Tab.NAVY) frame.art(g, "commander/losses/button", lossesBox().x(), lossesBox().y());
+        if (tab == Tab.NAVY) { frame.art(g, "commander/equipment/headquarters", headquartersBox().x(), headquartersBox().y()); frame.art(g, "commander/losses/button", lossesBox().x(), lossesBox().y()); }
+        frame.art(g, "commander/equipment/button", equipmentBox().x(), equipmentBox().y());
         frame.art(g, "commander/overview/top_strip/frame_" + l.strip(), 14, 55);
         frame.art(g, "commander/overview/edit_box", 333, 80);
         text(g, label("ARMY_FILTER_LABEL"), 343, 62, 180, 20, false);
@@ -268,12 +310,14 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
             case AIR -> {
                 art(g, "commander/overview/air_entry", x, y, 509, 35);
                 if (!row.icon().isEmpty()) UiAssets.drawContent(g, row.icon(), frame.ix(x + 4), frame.iy(y + 1), frame.len(82), frame.len(33));
+                if (row.carrier()) art(g, "commander/commands/airwing_carrier_icon/frame_0", x + 5, y + 15.2, 20, 17.6);
                 bar(g, STRENGTH, x + 88, y + 30, row.strength());
                 int slash = row.amount().indexOf('/');
                 textRight(g, slash < 0 ? row.amount() : row.amount().substring(0, slash), x + 51, y + 1, 35, 16);
                 textRight(g, slash < 0 ? "" : row.amount().substring(slash + 1), x + 51, y + 17, 35, 16);
                 text(g, row.name(), x + 142, y + 6, 130, 23, false);
-                text(g, row.location(), x + 268, y + 6, 124, 23, true);
+                if (row.afloat()) frame.art(g, "commander/overview/on_carrier", x + 299.5, y + 24);
+                text(g, row.location(), x + 268, y + (row.afloat() ? 1 : 6), 124, 23, true);
                 text(g, row.group(), x + 397, y, 120, 16, false);
                 if (!row.missions().isEmpty()) { String mission = CommanderHud.overviewMissionIcon(tab, row.missions().getFirst()); if (!mission.isEmpty()) art(g, mission, x + 395, y + 15, 29.4, 20.3); }
             }
@@ -297,7 +341,7 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
     private void tooltip(GuiGraphicsExtractor g, int mx, int my) {
         hovered = "";
         if (view == null || mx >= frame.x(550)) return;
-        String text = lossesAt(mx, my) ? label("SUNK_SHIP_DETAILS") : "";
+        String text = lossesAt(mx, my) ? label("SUNK_SHIP_DETAILS") : equipmentAt(mx, my) ? label("EQUIPMENT_DETAILS") : headquartersAt(mx, my) ? label("naval_headquarters") : "";
         if (!view.special().isEmpty() && gui(new Box(287, 82, 50, 23)).contains(mx, my)) text = view.specialTooltip();
         for (int i = 0; i < view.modifiers().size(); i++) if (gui(modifierBox(i)).contains(mx, my)) text = view.modifiers().get(i).tooltip();
         for (int i = 0; i < Math.min(12, view.types().size()); i++) if (gui(typeBox(i)).contains(mx, my)) text = view.types().get(i).tooltip();
@@ -307,6 +351,7 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
             var row = rows.get(i);
             if (row.fighting() && gui(new Box(box.x() + (tab == Tab.NAVY ? 3 : 0), box.y() + 3, 20.3, 18.2)).contains(mx, my)) text = label("IN_COMBAT");
             else if (row.obsolete() && gui(new Box(box.x() + 16, box.y() + 6, 16, 14)).contains(mx, my)) text = label("DECOMMISSIONED_TEMPLATE_WARNING_TOOLTIP");
+            else if (row.carrier() && gui(new Box(box.x() + 5, box.y() + 15, 20, 18)).contains(mx, my)) text = label("AIR_CARRIER_CAPABLE");
             else text = label(tab == Tab.ARMY ? "ARMY_DIVISIONS_BUTTON" : tab == Tab.NAVY ? "ARMY_NAVIES_BUTTON" : "ARMY_AIR_BUTTON");
             break;
         }
@@ -315,9 +360,12 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
     }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
         if (details != null && details.mouseClicked(event, twice, font, this::closeDetails)) return true;
-        if (losses != null && losses.mouseClicked(event, this::closeLosses)) return true;
+        if (headquarters != null && headquarters.mouseClicked(event, () -> headquarters = null)) return true;
+        if (losses != null && losses.mouseClicked(event, this::closeLosses) || equipment != null && equipment.mouseClicked(event)) return true;
         if (super.mouseClicked(event, twice)) return true;
         if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && lossesAt(event.x(), event.y())) { AudioUiSounds.play("ui.click"); toggleLosses(); return true; }
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && equipmentAt(event.x(), event.y())) { AudioUiSounds.play("ui.click"); toggleEquipment(); return true; }
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && headquartersAt(event.x(), event.y())) { AudioUiSounds.play("ui.click"); toggleHeadquarters(); return true; }
         if (view == null || event.x() >= frame.x(550)) return false;
         var l = layout();
         if (bar().contains(event.x(), event.y())) {
@@ -350,19 +398,21 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         return true;
     }
     @Override public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
-        if (details != null && details.mouseDragged(event) || losses != null && losses.mouseDragged(event)) return true;
+        if (details != null && details.mouseDragged(event) || headquarters != null && headquarters.mouseDragged(event) || losses != null && losses.mouseDragged(event) || equipment != null && equipment.mouseDragged(event)) return true;
         if (dragging) { scroll = Math.round(bar().offset(event.y()) / frame.scale()); return true; }
         return super.mouseDragged(event, dx, dy);
     }
-    @Override public boolean mouseReleased(MouseButtonEvent event) { dragging = false; if (details != null) details.mouseReleased(); if (losses != null) losses.mouseReleased(); return super.mouseReleased(event); }
+    @Override public boolean mouseReleased(MouseButtonEvent event) { dragging = false; if (details != null) details.mouseReleased(); if (losses != null) losses.mouseReleased(); if (equipment != null) equipment.mouseReleased(); if (headquarters != null) headquarters.mouseReleased(); return super.mouseReleased(event); }
     @Override public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         if (details != null && details.keyPressed(event)) return true;
         if (details != null && event.key() == InputConstants.KEY_ESCAPE) { closeDetails(); return true; }
+        if (headquarters != null && event.key() == InputConstants.KEY_ESCAPE) { headquarters = null; return true; }
         if (losses != null && event.key() == InputConstants.KEY_ESCAPE) { if (!losses.closeMenu()) closeLosses(); return true; }
+        if (equipment != null && event.key() == InputConstants.KEY_ESCAPE) { closeEquipment(); return true; }
         return super.keyPressed(event);
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
-        if (details != null && details.mouseScrolled(x, y, vertical) || losses != null && losses.mouseScrolled(x, y, vertical)) return true;
+        if (details != null && details.mouseScrolled(x, y, vertical) || headquarters != null && headquarters.mouseScrolled(x, y, vertical) || losses != null && losses.mouseScrolled(x, y, vertical) || equipment != null && equipment.mouseScrolled(x, y, vertical)) return true;
         if (frame != null && x < frame.x(550) && y >= frame.y(layout().rowY()) && y < frame.y(listBottom())) { scroll = Math.clamp(scroll - (int)Math.round(vertical * ROW_HEIGHT * 2), 0, maxScroll()); return true; }
         return super.mouseScrolled(x, y, horizontal, vertical);
     }

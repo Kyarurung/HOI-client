@@ -38,6 +38,7 @@ public final class CommanderOverviewTest {
                 });
                 game.takeScreenshot("hoi-overview-" + tab.name().toLowerCase(Locale.ROOT) + "-gui2");
                 modifiers(game, screen, views.get(tab), tab);
+                CommanderFieldEquipmentWindowTest.run(game, screen, views.get(tab), directory, "-2560x1440-gui2");
             }
             var army = open(game, requests, views.get(Tab.ARMY), Tab.ARMY, true);
             game.runOnClient(c -> check(army.rows().getFirst().fighting(), "The fixture marks the first listed division as fighting"));
@@ -91,9 +92,11 @@ public final class CommanderOverviewTest {
                 open(game, requests, views.get(Tab.NAVY), Tab.NAVY, false);
                 game.takeScreenshot("hoi-overview-navy-" + size[0] + "x" + size[1] + "-gui" + size[2]);
             }
+            carriers(game, requests, new Snapshot(Files.readString(Path.of(directory, "kor-overview-air-carrier.json"))).view());
             for (int[] size : new int[][]{{1280, 720, 2}, {854, 480, 2}}) {
                 game.getInput().resizeWindow(size[0], size[1]);
                 game.runOnClient(c -> c.options.guiScale().set(size[2]));
+                for (var tab : Tab.values()) CommanderFieldEquipmentWindowTest.run(game, open(game, requests, views.get(tab), tab, false), views.get(tab), directory, "-" + size[0] + "x" + size[1] + "-gui" + size[2]);
                 CommanderNavalLossWindowTest.run(game, open(game, requests, views.get(Tab.NAVY), Tab.NAVY, false), directory, views.get(Tab.NAVY).label("SUNK_SHIP_DETAILS"), "-" + size[0] + "x" + size[1] + "-gui" + size[2]);
             }
         } catch (IOException error) { throw new AssertionError(error); }
@@ -102,6 +105,19 @@ public final class CommanderOverviewTest {
             game.runOnClient(c -> { c.options.guiScale().set(2); CommanderOverview.requestObserver = null; CommanderHud.reset(); ClientCampaignHud.accept(previous); });
             game.setScreen(() -> null);
         }
+    }
+    private static void carriers(ClientGameTestContext game, List<Request> requests, View fixture) {
+        game.getInput().resizeWindow(2560, 1440);
+        game.runOnClient(c -> c.options.guiScale().set(2));
+        var screen = open(game, requests, fixture, Tab.AIR, false);
+        int index = game.computeOnClient(c -> screen.rows().indexOf(screen.rows().stream().filter(Row::afloat).findFirst().orElseThrow()));
+        var row = game.computeOnClient(c -> screen.rows().get(index));
+        check(row.carrier() && !row.location().isBlank() && !row.location().equals("공군기지"), "A carrier wing shows its ship: " + row);
+        game.runOnClient(c -> screen.mouseScrolled(screen.frame().x(200), screen.frame().y(600), 0, -index / 2.0 + 2));
+        double y = CommanderOverview.LAYOUTS.get(Tab.AIR).rowY() + index * CommanderOverview.ROW_HEIGHT - game.computeOnClient(c -> screen.scroll());
+        hover(game, screen, 13 + 15, y + 24); game.waitTicks(3);
+        check(game.computeOnClient(c -> screen.hoveredTooltip()).equals(fixture.label("AIR_CARRIER_CAPABLE")) && !fixture.label("AIR_CARRIER_CAPABLE").isBlank(), "The carrier icon shows its original tooltip");
+        game.takeScreenshot("hoi-overview-air-carrier-gui2");
     }
     private static void modifiers(ClientGameTestContext game, CommanderOverview screen, View fixture, Tab tab) throws IOException {
         check(fixture.modifiers().size() == (tab == Tab.NAVY ? 7 : 14), tab + " overview receives the original cells of its branch");

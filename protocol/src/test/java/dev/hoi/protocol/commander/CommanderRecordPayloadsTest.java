@@ -68,4 +68,21 @@ class CommanderRecordPayloadsTest {
         assertThrows(IllegalArgumentException.class,()->new Section("bad id","이름",0,0,List.of(),List.of()));
         assertThrows(IllegalArgumentException.class,()->new LossesSnapshot("x".repeat(CommanderRecordPayloads.BYTES+1)));
     }
+    private static FieldEquipment equipment(int totals,List<Archetype> rows,Map<String,String> labels) {
+        return new FieldEquipment(TOKEN,"AIR",Collections.nCopies(totals,new Total("commander/equipment/planes","608","항공기 총수")),rows,labels,"");
+    }
+    private static Archetype archetype(List<Item> items) {return new Archetype("305b5f0","공격기 (함재/대수상전)","109/120",true,items);}
+    @Test void fieldEquipmentRoundTripsAndStaysBounded(){
+        var item=new Item("FA-50","production/source/a","140");var equipment=equipment(3,List.of(archetype(List.of(item))),Map.of("EQUIPMENT_IN_USE_HEADER","야전 장비"));
+        assertEquals(equipment,EquipmentSnapshot.of(equipment).equipment());assertEquals("야전 장비",equipment.label("EQUIPMENT_IN_USE_HEADER"));assertEquals("",equipment.label("MISSING"));
+        var buffer=new RegistryFriendlyByteBuf(Unpooled.buffer(),RegistryAccess.EMPTY);
+        try{EquipmentSnapshot.CODEC.encode(buffer,EquipmentSnapshot.of(equipment));assertEquals(equipment,EquipmentSnapshot.CODEC.decode(buffer).equipment());assertEquals(0,buffer.readableBytes());}finally{buffer.release();}
+        assertThrows(IllegalArgumentException.class,()->equipment(4,List.of(),Map.of()));
+        assertThrows(IllegalArgumentException.class,()->equipment(1,Collections.nCopies(129,archetype(List.of())),Map.of()));
+        assertThrows(IllegalArgumentException.class,()->archetype(Collections.nCopies(65,item)));
+        assertThrows(IllegalArgumentException.class,()->new Archetype("bad id","이름","1",false,List.of()));
+        assertThrows(IllegalArgumentException.class,()->new Item("이름","Bad Image","1"));
+        assertThrows(IllegalArgumentException.class,()->new Total("Bad Icon","1",""));
+        assertThrows(IllegalArgumentException.class,()->new EquipmentSnapshot("x".repeat(CommanderRecordPayloads.BYTES+1)));
+    }
 }
