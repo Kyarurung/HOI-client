@@ -9,12 +9,13 @@ import net.minecraft.resources.Identifier;
 
 public final class TooltipKeywordIcons {
     static final FontDescription FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("hoi", "keywords"));
+    static final FontDescription FLAGS = new FontDescription.Resource(Identifier.fromNamespaceAndPath("hoi", "decision_flags"));
     private record TooltipIconBinding(String label, String glyph) {}
     private static List<TooltipIconBinding> bindings;
-    private static Map<String,String> tokens=Map.of();
-    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)(?:(?<=\\|[0-9]{1,4})\\.+)?£?");
+    private static Map<String,String> tokens=Map.of(),flags;
+    private static final java.util.regex.Pattern TOKENS = java.util.regex.Pattern.compile("£([A-Za-z0-9_]+(?:\\|[0-9]+)?)(?:(?<=\\|[0-9]{1,4})\\.+)?£?|\\[([A-Z][A-Z0-9]{2})\\.GetFlag\\]");
     private TooltipKeywordIcons() {}
-    public static void clear() { bindings = null; tokens=Map.of(); }
+    public static void clear() { bindings = null; tokens=Map.of(); flags=null; }
     public static Component decorateLines(Component text) {
         return decorateLines(text, true);
     }
@@ -35,13 +36,20 @@ public final class TooltipKeywordIcons {
         return Tooltips.sourceSpacing(result.append(decorateSource(line[0], inferIcons)));
     }
     private static Component decorateSource(Component text, boolean inferIcons) {
-        if(!text.getString().contains("£"))return inferIcons ? decorate(text) : text;
+        if(!text.getString().contains("£")&&!text.getString().contains(".GetFlag]"))return inferIcons ? decorate(text) : text;
         if(bindings==null)bindings=load();
+        if(flags==null)flags=flags();
         var result=Component.empty();
         var matcher=TOKENS.matcher(text.getString());
         int start=0;
         while(matcher.find()) {
             appendRange(result,text,start,matcher.start());
+            if(matcher.group(2)!=null) {
+                String flag=flags.get(matcher.group(2));
+                if(flag!=null)result.append(Component.literal(flag).withStyle(s->s.withFont(FLAGS).withColor(0xFFFFFF).withBold(false).withItalic(false)));
+                start=matcher.end();
+                continue;
+            }
             String token=matcher.group(1).replaceFirst("^GFX_","");
             String glyph=tokens.get(token.equals("pol_power_icon")?"pol_power":token);
             if(glyph!=null)result.append(Component.literal(glyph).withStyle(s->s.withFont(FONT).withColor(0xFFFFFF).withBold(false).withItalic(false)));
@@ -80,6 +88,22 @@ public final class TooltipKeywordIcons {
                     .append(Component.literal(" ")).append(trimmed);
         }
         return text;
+    }
+    private static Map<String,String> flags() {
+        var resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "ui/decision_flags.json"));
+        if (resource.isEmpty()) return Map.of();
+        try (var input = resource.get().open()) {
+            byte[] data = input.readNBytes(262145);
+            if (data.length > 262144) return Map.of();
+            var root = JsonParser.parseString(new String(data, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+            if (root.get("version").getAsInt() != 1 || !(root.get("flags") instanceof com.google.gson.JsonObject entries)) return Map.of();
+            var result = new HashMap<String,String>();
+            for (var entry : entries.entrySet()) {
+                String glyph = entry.getValue().getAsString();
+                if (entry.getKey().matches("[A-Z][A-Z0-9]{2}") && glyph.length() == 1 && glyph.charAt(0) >= 0xe000 && glyph.charAt(0) <= 0xf8ff) result.put(entry.getKey(), glyph);
+            }
+            return Map.copyOf(result);
+        } catch (Exception invalidPack) { return Map.of(); }
     }
     private static List<TooltipIconBinding> load() {
         var resource = Minecraft.getInstance().getResourceManager().getResource(Identifier.fromNamespaceAndPath("hoi", "ui/keyword_icons.json"));

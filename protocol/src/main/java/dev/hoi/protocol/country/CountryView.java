@@ -5,7 +5,15 @@ import dev.hoi.protocol.menu.MenuView;
 import java.util.*;
 
 public record CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
-        List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations, Opinion opinion, List<Art> art) {
+        List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations, Opinion opinion, List<Art> art, String player, CountryList list) {
+    public CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
+            List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations, Opinion opinion, List<Art> art, String player) {
+        this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, actions, relations, opinion, art, player, null);
+    }
+    public CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
+            List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations, Opinion opinion, List<Art> art) {
+        this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, actions, relations, opinion, art, "");
+    }
     public CountryView(String viewer, CountryHud hud, String target, String name, boolean shared,
             List<Choice> countries, List<MenuView.Entry> diplomacy, List<MenuView.Entry> focuses, List<Report> reports, Actions actions, List<Relation> relations, Opinion opinion) {
         this(viewer, hud, target, name, shared, countries, diplomacy, focuses, reports, actions, relations, opinion, List.of());
@@ -28,9 +36,10 @@ public record CountryView(String viewer, CountryHud hud, String target, String n
     public record AmountInput(String equipmentName, long stock) {
         public AmountInput {text(equipmentName,128);if(stock<0)throw new IllegalArgumentException("Invalid equipment stock");}
     }
-    public record Action(String id, String name, String detail, boolean enabled, AmountInput amountInput, List<Cost> costs, boolean declined) {
+    public record Action(String id, String name, String detail, boolean enabled, AmountInput amountInput, List<Cost> costs, boolean declined, boolean human) {
         public Action(String id,String name,String detail,boolean enabled) {this(id,name,detail,enabled,null);}
         public Action(String id,String name,String detail,boolean enabled,AmountInput amountInput) {this(id,name,detail,enabled,amountInput,List.of(),false);}
+        public Action(String id,String name,String detail,boolean enabled,AmountInput amountInput,List<Cost> costs,boolean declined) {this(id,name,detail,enabled,amountInput,costs,declined,false);}
         public Action { text(id, 64); text(name, 128); text(detail, 1000); costs = costs == null ? List.of() : bounded(costs, 4); }
     }
     public record Cost(String icon, String amount) {
@@ -51,6 +60,7 @@ public record CountryView(String viewer, CountryHud hud, String target, String n
         countries = bounded(countries, 64); diplomacy = bounded(diplomacy, 64); focuses = bounded(focuses, 64); reports = bounded(reports, 4);
         relations = relations == null ? List.of() : bounded(relations, 24);
         art = art == null ? List.of() : bounded(art, 8);
+        player = player == null ? "" : player; text(player, 64);
         if (reports.size() != 4 || new HashSet<>(reports.stream().map(Report::domain).toList()).size() != 4)
             throw new IllegalArgumentException("Missing intelligence domains");
     }
@@ -65,7 +75,38 @@ public record CountryView(String viewer, CountryHud hud, String target, String n
             if (countries.stream().map(Choice::tag).distinct().count() != countries.size()) throw new IllegalArgumentException("Duplicate relation country");
         }
     }
-    public record Choice(String tag, String name) { public Choice { CountryView.tag(tag); text(name, 128); } }
+    public record Choice(String tag, String name, Listing listing) {
+        public Choice(String tag, String name) { this(tag, name, null); }
+        public Choice { CountryView.tag(tag); text(name, 128); }
+    }
+    public record Listing(String open, Integer ours, Integer theirs, String oursDetail, String theirsDetail, List<String> filters, List<Mark> marks) {
+        public Listing {
+            text(open, 600);
+            if ((ours == null) != (theirs == null) || ours != null && (Math.abs(ours) > 100 || Math.abs(theirs) > 100)) throw new IllegalArgumentException("Invalid listed opinion");
+            oursDetail = oursDetail == null ? "" : oursDetail; theirsDetail = theirsDetail == null ? "" : theirsDetail;
+            text(oursDetail, 2000); text(theirsDetail, 2000);
+            filters = filters == null ? List.of() : bounded(filters, 8);
+            for (var filter : filters) if (filter == null || !filter.matches(Filter.ID)) throw new IllegalArgumentException("Invalid list filter");
+            marks = marks == null ? List.of() : bounded(marks, 12);
+        }
+    }
+    public record Mark(String icon, String detail) {
+        public Mark { text(icon, 160); text(detail, 600); if (!icon.matches("[a-z0-9_/]+")) throw new IllegalArgumentException("Invalid relation mark"); }
+    }
+    public record Filter(String id, String group, String name) {
+        public static final String ID = "major|(?:continent|ideology):[a-z_]{1,48}|faction:[^\\p{Cntrl}]{1,96}";
+        public static final List<String> GROUPS = List.of("continent", "ideology", "faction");
+        public Filter { text(name, 128); if (id == null || !id.matches(ID) || !GROUPS.contains(group)) throw new IllegalArgumentException("Invalid list filter"); }
+    }
+    public record CountryList(List<Filter> filters, Map<String, String> texts) {
+        public CountryList {
+            filters = bounded(filters, 64);
+            if (filters.stream().map(Filter::id).distinct().count() != filters.size()) throw new IllegalArgumentException("Duplicate list filter");
+            texts = Map.copyOf(texts);
+            if (texts.size() > 16) throw new IllegalArgumentException("List text limit");
+            texts.forEach((key, value) -> { text(key, 64); text(value, 400); });
+        }
+    }
     public record Report(AgencyIntelDomain domain, double percent, List<MenuView.Entry> entries, String tooltip, List<Section> sections) {
         public Report(AgencyIntelDomain domain, double percent, List<MenuView.Entry> entries, String tooltip) { this(domain, percent, entries, tooltip, List.of()); }
         public Report(AgencyIntelDomain domain, double percent, List<MenuView.Entry> entries) { this(domain, percent, entries, ""); }
@@ -94,6 +135,7 @@ public record CountryView(String viewer, CountryHud hud, String target, String n
         }
     }
     public Report report(AgencyIntelDomain domain) { return reports.stream().filter(r -> r.domain() == domain).findFirst().orElseThrow(); }
+    public CountryView withPlayer(String name) { return new CountryView(viewer, hud, target, this.name, shared, countries, diplomacy, focuses, reports, actions, relations, opinion, art, name, list); }
     public static void tag(String value) { if (value == null || !value.matches("[A-Z0-9_]{1,16}")) throw new IllegalArgumentException("Invalid country"); }
     public static void text(String value, int max) { if (value == null || value.length() > max) throw new IllegalArgumentException("Text limit"); }
     public static <T> List<T> bounded(List<T> value, int max) {
