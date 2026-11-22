@@ -36,13 +36,15 @@ public record CountryView(String viewer, CountryHud hud, String target, String n
     public record AmountInput(String equipmentName, long stock) {
         public AmountInput {text(equipmentName,128);if(stock<0)throw new IllegalArgumentException("Invalid equipment stock");}
     }
-    public record Action(String id, String name, String detail, boolean enabled, AmountInput amountInput, List<Cost> costs, boolean declined, boolean human) {
+    public record Action(String id, String name, String detail, boolean enabled, AmountInput amountInput, List<Cost> costs, boolean declined, boolean human, String prediction, String confirmation) {
+        public Action(String id,String name,String detail,boolean enabled,AmountInput amountInput,List<Cost> costs,boolean declined,boolean human) {this(id,name,detail,enabled,amountInput,costs,declined,human,"","");}
         public Action(String id,String name,String detail,boolean enabled) {this(id,name,detail,enabled,null);}
         public Action(String id,String name,String detail,boolean enabled,AmountInput amountInput) {this(id,name,detail,enabled,amountInput,List.of(),false);}
         public Action(String id,String name,String detail,boolean enabled,AmountInput amountInput,List<Cost> costs,boolean declined) {this(id,name,detail,enabled,amountInput,costs,declined,false);}
-        public Action { text(id, 64); text(name, 128); text(detail, 1000); costs = costs == null ? List.of() : bounded(costs, 4); }
+        public Action { text(id, 64); text(name, 128); text(detail, 2000); prediction = prediction == null ? "" : prediction; text(prediction, 2000); confirmation = confirmation == null ? "" : confirmation; text(confirmation, 2000); costs = costs == null ? List.of() : bounded(costs, 4); }
     }
-    public record Cost(String icon, String amount) {
+    public record Cost(String icon, String amount, boolean lacking) {
+        public Cost(String icon, String amount) {this(icon,amount,false);}
         public static final List<String> ICONS = List.of("political_power", "command_power");
         public Cost { text(amount, 16); if (!ICONS.contains(icon)) throw new IllegalArgumentException("Invalid action cost"); }
     }
@@ -128,9 +130,12 @@ public record CountryView(String viewer, CountryHud hud, String target, String n
             rows = bounded(rows, 96);
         }
     }
-    public record Row(String group, boolean header, String name, String value, String detail, String icon) {
+    public record Row(String group, boolean header, String name, String value, String detail, String icon, String source) {
+        public Row(String group, boolean header, String name, String value, String detail, String icon) { this(group, header, name, value, detail, icon, ""); }
         public Row {
-            text(group, 64); text(name, 128); text(value, 64); text(detail, 1000); text(icon, 128);
+            source = source == null ? "" : source;
+            text(group, 64); text(name, 128); text(value, 64); text(detail, 2000); text(icon, 128); text(source, 128);
+            if (!source.matches("[A-Za-z0-9_]*")) throw new IllegalArgumentException("Invalid intelligence row source");
             if (!icon.matches("[a-z0-9_:./-]*")) throw new IllegalArgumentException("Invalid intelligence row icon");
         }
     }

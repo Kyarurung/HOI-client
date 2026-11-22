@@ -125,6 +125,7 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
         var dip = new UiMenuButton("외교", 7, DiplomacyHeader.tabs(top), half, 20, () -> { ledger = false; choosing = false; scroll = 0; detail = null; rebuildWidgets(); });
         var intel = new UiMenuButton("첩보 장부", 11 + half, DiplomacyHeader.tabs(top), half, 20, () -> { ledgerOpenedAt = net.minecraft.util.Util.getMillis(); ledger = true; choosing = false; scroll = 0; detail = null; rebuildWidgets(); });
         dip.background("none"); intel.background("none");
+        dip.setTooltip(null); intel.setTooltip(null);
         addRenderableWidget(dip); addRenderableWidget(intel);
         if (ledger) {
             int cell = (pane - 16) / 4;
@@ -132,9 +133,10 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
                 var report = view.report(d);
                 var button = new UiMenuButton(d.label + " 정보", 8 + d.ordinal() * cell, DiplomacyHeader.tabs(top) + 25, cell, 30,
                         () -> { ledgerOpenedAt = net.minecraft.util.Util.getMillis(); domain = d; scroll = 0; detail = null; rebuildWidgets(); }).caption("").background("none");
+                button.setTooltip(null);
                 addRenderableWidget(button);
             }
-            intelLedger = new AgencyIntelLedger(view.report(domain), domain, pane, DiplomacyHeader.tabs(top) + 55, height - 33, ledgerOpenedAt, assets);
+            intelLedger = new AgencyIntelLedger(view.report(domain), view.target(), domain, pane, DiplomacyHeader.tabs(top) + 55, height - 33, ledgerOpenedAt, assets);
             intelLedger.addHoverRegions(this::addRenderableWidget);
         }
         addRenderableWidget(new UiMenuButton("국가 목록 열기", DiplomacyHeader.scaled(50, pane), height - DiplomacyHeader.scaled(48, pane), DiplomacyHeader.scaled(221, pane), DiplomacyHeader.scaled(34, pane), () -> { choosing = true; list.reset(); detail = null; confirmation = null; rebuildWidgets(); }).background("agency/operations/gfx_button_221x34/frame_0"));
@@ -161,7 +163,6 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
                 var button = new DiplomacyActionButton(action, pane / 2 + 3, actionY, pane / 2 - 12, pitch - 1,
                         () -> { confirmation = action; amountText = "1"; confirmationScroll = 0; if (action.id().startsWith("page_") || leaseAction(action.id()) || action.id().equals("volunteers")) { actionScroll = 0; sendAction(); } else rebuildWidgets(); });
                 button.active = action.enabled() && !pending && confirmation == null && detail == null;
-                button.setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(action.name() + "\n" + action.detail())));
                 addRenderableWidget(button);
             }
         }
@@ -323,7 +324,7 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
                 int x = detailX(), w = detailWidth();
                 g.nextStratum(); UiMenuStyle.panel(g, x, top, w, 207);
                 UiMenuStyle.heading(g, font, confirmation.name(), x + 10, top + 9, w - 20, UiMenuStyle.TEXT);
-                var lines = dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(dev.hoi.client.ui.country.CountryDisplays.name(view.target(), view.name()) + "\n\n" + confirmation.detail()), w - 24);
+                var lines = dev.hoi.client.ui.tooltip.Tooltips.split(font,Component.literal(dev.hoi.client.ui.country.CountryDisplays.name(view.target(), view.name()) + "\n\n" + (confirmation.confirmation().isEmpty() ? dev.hoi.client.ui.tooltip.TooltipDelay.summary(confirmation.detail()) : confirmation.confirmation())), w - 24);
                 confirmationScroll = Math.clamp(confirmationScroll, 0, Math.max(0, lines.size() * 13 - (confirmation.amountInput() == null ? 127 : 84)));
                 g.enableScissor(x + 7, top + 36, x + w - 7, top + (confirmation.amountInput() == null ? 165 : 122));
                 int y = top + 38 - confirmationScroll;
@@ -472,24 +473,38 @@ public final class DiplomacyCountryScreen extends Screen implements InputSidebar
     private final class DiplomacyActionButton extends Button {
         @Override public void playDownSound(net.minecraft.client.sounds.SoundManager manager) { dev.hoi.client.audio.AudioUiSounds.play("ui.click"); }
         private final CountryView.Action definition;
+        private final net.minecraft.client.gui.components.Tooltip detailTooltip, predictionTooltip;
+        private boolean predicted;
         DiplomacyActionButton(CountryView.Action definition, int x, int y, int w, int h, Runnable action) {
             super(x, y, w, h, Component.literal(definition.name()), b -> action.run(), DEFAULT_NARRATION);
             this.definition = definition;
+            detailTooltip = definition.detail().isEmpty() ? null : dev.hoi.client.ui.tooltip.Tooltips.createExact(definition.detail());
+            predictionTooltip = definition.prediction().isEmpty() ? null : dev.hoi.client.ui.tooltip.Tooltips.createExact(definition.prediction());
+            setTooltip(detailTooltip);
+        }
+        private boolean answered() { return definition.declined() || definition.human(); }
+        private float iconX() { return getX() + getWidth() - 26 * pane / 550f; }
+        private float iconY() { return getY() + (getHeight() - 21 * pane / 550f) / 2; }
+        boolean predictionAt(double x, double y) {
+            float s = pane / 550f;
+            return answered() && x >= iconX() && x < iconX() + 24 * s && y >= iconY() && y < iconY() + 21 * s;
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
+            boolean prediction = predictionTooltip != null && predictionAt(mx, my);
+            if (prediction != predicted) { predicted = prediction; setTooltip(prediction ? predictionTooltip : detailTooltip); }
             UiAssets.nineSlice(g, "diplomacy/" + (active ? "action" : "action_disabled"), getX(), getY(), getWidth(), getHeight(), 3, pane / 550.0);
             int iconSize = DiplomacyHeader.scaled(20, pane);
             int costWidth = definition.costs().stream().mapToInt(cost -> font.width(cost.amount()) + iconSize + 2).sum();
             int right = getX() + getWidth() - 4;
-            if (definition.declined() || definition.human()) {
-                float s = pane / 550f, iconX = getX() + getWidth() - 26 * s;
-                UiAssets.drawExact(g, "commander/commands/accept_decline_icon/frame_" + (definition.human() ? 2 : 0), iconX, getY() + (getHeight() - 21 * s) / 2, 24 * s, 21 * s);
-                right = Math.min(right, (int)Math.floor(iconX) - 1);
+            if (answered()) {
+                float s = pane / 550f;
+                UiAssets.drawExact(g, "commander/commands/accept_decline_icon/frame_" + (definition.human() ? 2 : 0), iconX(), iconY(), 24 * s, 21 * s);
+                right = Math.min(right, (int)Math.floor(iconX()) - 1);
             }
             int costX = right - costWidth;
             for (var cost : definition.costs()) {
                 UiAssets.draw(g, cost.icon().equals("command_power") ? "keywords/modifier_command_power_gain" : "politics/choice/political_power/frame_0", costX, getY() + (getHeight() - iconSize) / 2, iconSize, iconSize);
-                dev.hoi.client.ui.UiText.centered(g, font, cost.amount(), costX + iconSize, getY(), font.width(cost.amount()), getHeight(), UiMenuStyle.TEXT);
+                dev.hoi.client.ui.UiText.centered(g, font, cost.amount(), costX + iconSize, getY(), font.width(cost.amount()), getHeight(), 0xFF000000 | (cost.lacking() ? dev.hoi.client.ui.tooltip.Tooltips.BAD : dev.hoi.client.ui.tooltip.Tooltips.GOLD));
                 costX += iconSize + font.width(cost.amount()) + 2;
             }
             int textRight = definition.costs().isEmpty() ? right : right - costWidth - 2;

@@ -26,7 +26,7 @@ final class DiplomacyInputTest {
                 };
                 var rows = new ArrayList<CountryView.Row>();
                 rows.add(new CountryView.Row("days", true, "", "2022-12-29", days, ""));
-                rows.add(new CountryView.Row(main, false, "", "178", String.join(" ", IntStream.range(0, 79).mapToObj(i -> String.valueOf(100 + i)).toList()), ""));
+                rows.add(new CountryView.Row(main, false, "§G전체 공장:§! $NUM|H$", "178", String.join(" ", IntStream.range(0, 79).mapToObj(i -> String.valueOf(100 + i)).toList()), ""));
                 if (main.equals("industry") || main.endsWith("_produced")) rows.add(new CountryView.Row(main.replace("_produced", "") + "_lost", false, "", "18", String.join(" ", IntStream.range(0, 79).mapToObj(i -> String.valueOf(i % 20)).toList()), ""));
                 return new CountryView.Section(section.id(), "shown", "", section.tooltip(), rows);
             }).toList();
@@ -59,6 +59,15 @@ final class DiplomacyInputTest {
                     if (green < 100 || red < 100) throw new AssertionError("Issued chart series did not render both original colors: " + green + "/" + red);
                 } catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
             }
+            var hovered = context.computeOnClient(client -> {
+                var screen = (DiplomacyCountryScreen)client.gui.screen();
+                int x = Math.round(screen.panelWidth() * 279f / 550);
+                for (int y = 60; y < screen.height - 40; y++) if (screen.ledgerDetailAt(x, y).matches("§H20[0-9]{2}년 [0-9]+월 [0-9]+일§!\n\n§G전체 공장:§! §H[0-9]+§!")) return new int[]{x, y + 5};
+                throw new AssertionError("Chart hover shows the sampled date and value");
+            });
+            context.getInput().setCursorPos(hovered[0] * 2, hovered[1] * 2);
+            context.waitTicks(5);
+            context.takeScreenshot("hoi-intel-graph-hover-" + width + "-gui2");
         }
     }
     private static void press(DiplomacyCountryScreen screen, String label) {

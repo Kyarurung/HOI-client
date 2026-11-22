@@ -106,7 +106,7 @@ public final class DiplomacyActionsTest {
         if(directory==null)directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
         try {
             var view=new CountryPayloads.Response(UUID.randomUUID().toString(),java.nio.file.Files.readString(java.nio.file.Path.of(directory,"kor-diplomacy-PRK.json"))).view();
-            if(!view.viewer().equals("KOR")||!view.target().equals("PRK")||view.actions().entries().size()!=24||!view.actions().entries().getLast().id().equals("open_logistics"))throw new AssertionError("Actual KOR to PRK response must retain the source action order in one list");
+            if(!view.viewer().equals("KOR")||!view.target().equals("PRK")||view.actions().entries().size()!=25||!view.actions().entries().getLast().id().equals("open_logistics"))throw new AssertionError("Actual KOR to PRK response must retain the source action order in one list");
             DiplomacyVolunteerActionsTest.run(context, view);
             DiplomacyInputTest.run(context, view);
             var spirit=view.diplomacy().stream().filter(e->e.name().equals("자립경제")).findFirst().orElseThrow();
@@ -146,6 +146,7 @@ public final class DiplomacyActionsTest {
                         context.runOnClient(c -> {
                             var screen = (DiplomacyCountryScreen)c.gui.screen();
                             for (var entry : view.report(domain).entries()) {
+                                if (entry.name().startsWith("period_")) continue;
                                 if (screen.children().stream().noneMatch(child -> child instanceof dev.hoi.client.ui.UiHoverRegion region && region.getMessage().getString().equals(entry.name()))) throw new AssertionError("Issued civilian field is missing: " + entry.name());
                             }
                             screen.mouseScrolled(30, screen.height - 90, 0, -100);
@@ -173,7 +174,7 @@ public final class DiplomacyActionsTest {
                                 var graph = button(screen, section.id());
                                 var click = new net.minecraft.client.input.MouseButtonEvent(graph.getX() + 5, graph.getY() + 5, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0));
                                 screen.mouseClicked(click, false); screen.mouseReleased(click);
-                                if (!screen.ledgerDetailAt(graph.getRight() + 20, graph.getY() + 5).equals(section.tooltip())) throw new AssertionError("Civilian graph selection lost its issued tooltip: " + section.id());
+                                if (!screen.ledgerDetailAt(graph.getX() + 5, graph.getY() + 5).equals(section.tooltip())) throw new AssertionError("Civilian graph selection lost its issued tooltip: " + section.id());
                             }
                             press(button(screen, "graph_industry"));
                         });
@@ -187,7 +188,8 @@ public final class DiplomacyActionsTest {
                             var event = new net.minecraft.client.input.MouseButtonEvent(tab.getX() + 5, tab.getY() + 5, new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0));
                             screen.mouseClicked(event, false); screen.mouseReleased(event);
                             String expected = view.report(domain).sections().stream().filter(section -> section.id().equals("stockpiles")).findFirst().orElseThrow().tooltip();
-                            if (!screen.ledgerDetailAt(tab.getX() + 5, tab.getBottom() + 15).equals(expected)) throw new AssertionError("Stockpile tab did not retain issued section tooltip");
+                            if (!screen.ledgerDetailAt(tab.getX() + 5, tab.getY() + 5).equals(expected)) throw new AssertionError("Stockpile tab did not retain issued section tooltip");
+                            if (screen.ledgerDetailAt(tab.getX() + 5, tab.getBottom() + 15).equals(expected)) throw new AssertionError("The stockpile list area must not repeat the tab tooltip");
                         });
                         context.getInput().setCursorPos(size[0] - 2, 80); context.waitTicks(2);
                         context.takeScreenshot("hoi-intel-ledger-stockpiles-" + size[0] + "-gui2");
@@ -201,7 +203,7 @@ public final class DiplomacyActionsTest {
                             float scale = screen.panelWidth() / 550f;
                             int x = Math.round(45 * scale), y = screen.height - 33 - Math.round((domain == AgencyIntelDomain.CIVILIAN ? 115 : 155) * scale);
                             var section = view.report(domain).sections().stream().filter(s -> s.id().equals("ideas")).findFirst().orElseThrow();
-                            if (!screen.ledgerDetailAt(x, y).contains(section.rows().getFirst().name()) || !screen.ledgerDetailAt(x, y).contains(section.tooltip())) throw new AssertionError("Advisor tooltip lost source effects or intel thresholds");
+                            if (!screen.ledgerDetailAt(x, y).equals(section.rows().getFirst().detail()) || !screen.ledgerDetailAt(x, y).startsWith("§H" + section.rows().getFirst().name() + "§!")) throw new AssertionError("Advisor tooltip lost its original name and effects: " + screen.ledgerDetailAt(x, y));
                             return new int[]{x, y};
                         });
                         context.getInput().setCursorPos(ideaPoint[0] * 2, ideaPoint[1] * 2); context.waitTicks(15);
