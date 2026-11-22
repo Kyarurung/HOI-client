@@ -50,6 +50,7 @@ public final class CommanderUnitHud {
                 if(mx>=worldLeft()&&!sidebar.covers(mx,my))tooltip(g,mx,my);
             });
         });
+        CommanderBattleMarkers.register();
     }
     private static int worldLeft() {
         var screen=Minecraft.getInstance().gui.screen();

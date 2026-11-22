@@ -37,6 +37,7 @@ public final class InputMapInfo {
     public static boolean clickAt(Minecraft client, double x, double y, int width, int height, int modifiers) {
         var previous = dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen();
         if(dev.hoi.client.map.commander.CommanderHud.clickAt(x,y)){closeContent(previous);return true;}
+        if(dev.hoi.client.map.commander.CommanderBattleMarkers.click(x,y,com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT)){closeContent(previous);return true;}
         if(dev.hoi.client.map.commander.CommanderUnitHud.selectAt(x,y)){closeContent(previous);return true;}
         if(client.player==null||!ClientPlayNetworking.canSend(DialogPayloads.MapClick.TYPE)||!client.options.getCameraType().isFirstPerson())return false;
         var matrix=client.gameRenderer.mainCamera().getViewRotationProjectionMatrix(new org.joml.Matrix4f()).invert();
@@ -53,9 +54,11 @@ public final class InputMapInfo {
             client.gui.setScreen(new dev.hoi.client.screen.map.MapCursor()); return true;
         }
         var centre=new net.minecraft.client.input.MouseButtonEvent(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));
+        if(dev.hoi.client.map.commander.CommanderBattleHud.click(centre)){dev.hoi.client.map.commander.CommanderBattleHud.release();return true;}
         if(dev.hoi.client.map.commander.CommanderCombatLogHud.click(centre)){dev.hoi.client.map.commander.CommanderCombatLogHud.release();return true;}
         if(dev.hoi.client.map.commander.CommanderShipHud.click(centre)){dev.hoi.client.map.commander.CommanderShipHud.release();return true;}
         if(dev.hoi.client.map.commander.CommanderHud.clickAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
+        if(dev.hoi.client.map.commander.CommanderBattleMarkers.click(centre.x(),centre.y(),centre.button()))return true;
         if(dev.hoi.client.map.commander.CommanderUnitHud.selectAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
         if(!ClientPlayNetworking.canSend(DialogPayloads.MapClick.TYPE))return false;
         var item = client.player.getMainHandItem();

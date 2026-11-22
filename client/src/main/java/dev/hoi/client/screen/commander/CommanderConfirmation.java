@@ -50,7 +50,7 @@ public final class CommanderConfirmation extends DialogScreen implements dev.hoi
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
-        if((division(view())||parent instanceof MapCursor)&&!(parent instanceof ArmyDivisionTemplates)&&!(parent instanceof CommanderOverview)){dev.hoi.client.map.commander.CommanderHud.drawBackdrop(g);dev.hoi.client.map.commander.CommanderShipHud.drawBackdrop(g);dev.hoi.client.map.commander.CommanderCombatLogHud.drawBackdrop(g);g.nextStratum();}
+        if((division(view())||parent instanceof MapCursor)&&!(parent instanceof ArmyDivisionTemplates)&&!(parent instanceof CommanderOverview)){dev.hoi.client.map.commander.CommanderHud.drawBackdrop(g);dev.hoi.client.map.commander.CommanderShipHud.drawBackdrop(g);dev.hoi.client.map.commander.CommanderCombatLogHud.drawBackdrop(g);dev.hoi.client.map.commander.CommanderBattleHud.drawBackdrop(g);g.nextStratum();}
         if(parent!=null){var background=parent instanceof AgencyScreen agency?agency.dismissalBackdrop():parent;background.extractRenderState(g,-1,-1,delta);if(background instanceof MapCursor&&parent instanceof AgencyScreen)dev.hoi.client.map.agency.AgencyHud.drawBackdrop(g);if(parent instanceof CommanderOverview overview){dev.hoi.client.map.commander.CommanderHud.drawBackdrop(g,overview.unitHudLeft());overview.drawOver(g,-1,-1);}g.nextStratum();}
         if(parent instanceof AgencyScreen){
             UiAssets.nineSlice(g,"occupation/header_frame",left,top,pane,panelHeight,5,.5);

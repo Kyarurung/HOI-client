@@ -39,6 +39,7 @@ public final class CommanderHudTest {
         CommanderPanelsTest.run(context,menu);
         CommanderGroupsRenderTest.run(context,menu);
         CommanderCombatLogTest.run(context,menu);
+        CommanderBattleTest.run(context,menu);
         CommanderAirBasePanelsTest.run(context,menu);
         var hud=menu.hud();
         context.getInput().resizeWindow(2560,1440);context.runOnClient(client->client.options.guiScale().set(2));
