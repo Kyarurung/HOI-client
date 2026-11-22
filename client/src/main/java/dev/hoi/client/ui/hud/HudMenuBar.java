@@ -20,7 +20,10 @@ public final class HudMenuBar {
     private static CountryHud cachedHud;
     private static List<HudIndicator> cachedIndicators = List.of();
     private HudMenuBar() {}
-    public static void clear() { cachedHud = null; cachedIndicators = List.of(); HudTooltip.clear(); }
+    public static void clear() { cachedHud = null; cachedIndicators = List.of(); seenDecisions = null; seenUnlocked = null; pressedTab = null; HudTooltip.clear(); }
+    private static java.util.Set<String> seenDecisions;
+    private static Integer seenUnlocked;
+    private static MenuTab pressedTab;
     private static final int[] TAB_X = {109, 164, 220, 275, 331, 387, 442, 497, 553};
     private static final int TAB_Y = 35, TAB_WIDTH = 55, TAB_HEIGHT = 41, FLAG_X = 1, FLAG_Y = 6, FLAG_WIDTH = 98, FLAG_HEIGHT = 67;
     private static final int TENSION_WIDTH = 73, TENSION_HEIGHT = 93;
@@ -144,7 +147,7 @@ public final class HudMenuBar {
     }
     public static void drawPassive(GuiGraphicsExtractor g, int width, CountryHud hud, String country) {
         draw(g, width, hud, -1, -1, 0);
-        for (var tab : MenuTab.ORDER) drawTab(g, tab, country, false, width, snapshot(hud));
+        for (var tab : MenuTab.ORDER) drawTab(g, tab, country, false, false, false, width, snapshot(hud));
     }
     private static void drawTension(GuiGraphicsExtractor g, int width, CountryHud hud) {
         float s = scale(width), k = s / 2, left = tensionLeft(width);
@@ -252,20 +255,25 @@ public final class HudMenuBar {
         private HudTabButton(MenuTab tab, String country, boolean selected, int screenWidth, int[] bounds, Runnable action) {
             super(bounds[0], bounds[1], bounds[2], bounds[3], Component.literal(tab.label() + " 메뉴"), b -> action.run(), DEFAULT_NARRATION);
             this.tab = tab; this.country = country; this.selected = selected; this.screenWidth = screenWidth;
-            if (tab != MenuTab.POLITICS) setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(tab.label())));
+            if (tab != MenuTab.POLITICS && tab != MenuTab.DECISIONS) setTooltip(dev.hoi.client.ui.tooltip.Tooltips.create(Component.literal(tab.label())));
         }
         @Override protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float delta) {
-            drawTab(g, tab, country, selected, screenWidth, snapshot(null));
-            if (tab == MenuTab.POLITICS && Tooltips.contains(this, mx, my)) {
+            boolean hovered = Tooltips.contains(this, mx, my);
+            boolean pressed = hovered && pressedTab == tab && Minecraft.getInstance().mouseHandler.isLeftPressed();
+            drawTab(g, tab, country, selected, hovered, pressed, screenWidth, snapshot(null));
+            if (tab == MenuTab.POLITICS && hovered) {
                 String name = CountryDisplays.name(country, "");
                 if (!name.isBlank()) Tooltips.drawExact(g, Minecraft.getInstance().font, flagTooltip(name), mx, my);
             }
+            if (tab == MenuTab.DECISIONS && hovered) Tooltips.drawExact(g, Minecraft.getInstance().font, decisionTooltip(snapshot(null), country), mx, my);
         }
         @Override public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
-            if (tab != MenuTab.POLITICS || event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT || !active || !visible || !isMouseOver(event.x(), event.y()))
-                return super.mouseClicked(event, doubleClick);
-            toggleOwnDiplomacy(country);
-            return true;
+            boolean right = event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT;
+            if (!active || !visible || !isMouseOver(event.x(), event.y())) return super.mouseClicked(event, doubleClick);
+            if (tab == MenuTab.POLITICS && right) { toggleOwnDiplomacy(country); return true; }
+            if (tab == MenuTab.DECISIONS && right) { muteDecisions(snapshot(null), country); return true; }
+            if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) pressedTab = tab;
+            return super.mouseClicked(event, doubleClick);
         }
     }
     public static String flagTooltip(String name) {
@@ -302,23 +310,101 @@ public final class HudMenuBar {
         }
         UiAssets.draw(g, "menu/flag_overlay", x, y, w, h);
     }
-    private static void drawTab(GuiGraphicsExtractor g, MenuTab tab, String country, boolean selected, int width, CountryHud hud) {
+    private static void drawTab(GuiGraphicsExtractor g, MenuTab tab, String country, boolean selected, boolean hovered, boolean pressed, int width, CountryHud hud) {
         if (dev.hoi.client.screen.dialog.DialogCoordinator.renderingContent()) return;
         float s = scale(width), k = s / 2;
         boolean drawn = true;
         g.pose().pushMatrix();
         g.pose().scale(k, k);
         if (tab == MenuTab.POLITICS) flag(g, country, FLAG_X, FLAG_Y, FLAG_WIDTH, FLAG_HEIGHT);
-        else drawn = UiAssets.draw(g, "menu/" + tab.id() + (selected ? "_selected" : ""), TAB_X[tab.ordinal() - 1], TAB_Y, TAB_WIDTH, TAB_HEIGHT);
+        else {
+            int x = TAB_X[tab.ordinal() - 1];
+            if (!selected && added(tab, hud, country)) glow(g, tab == MenuTab.DECISIONS ? "decisions" : "production", x - 1, TAB_Y - (tab == MenuTab.DECISIONS ? 3 : 4));
+            drawn = UiAssets.draw(g, "menu/" + tab.id() + (selected ? "_selected" : "") + (pressed ? "_down" : hovered ? "_over" : ""), x, TAB_Y, TAB_WIDTH, TAB_HEIGHT);
+        }
         g.pose().popMatrix();
         var font = Minecraft.getInstance().font;
         int[] bounds = bounds(tab, s);
         if (!drawn) g.centeredText(font, "◇", bounds[0] + bounds[2] / 2, bounds[1] + (bounds[3] - 8) / 2, UiMenuStyle.ACCENT);
-        Integer count = hud.availableDecisions();
-        if (tab == MenuTab.DECISIONS && count != null && count > 0) {
-            int x = Math.round(57 * s), y = Math.round(36 * s) - 13;
-            UiAssets.draw(g, "mio/ui/gfx_topbar_alert_bg/frame_0", x, y, 13, 13);
-            UiText.centered(g, font, Integer.toString(count), x - 4, y, 21, 13, 0xFFFFFFFF, false);
+        if (selected) seen(tab, hud);
+        if (tab != MenuTab.DECISIONS) return;
+        var alerts = hud.decisionAlerts();
+        int timeouts = alerts == null ? 0 : alerts.timeouts().size();
+        Integer count = alerts == null ? hud.availableDecisions() : (Integer) trackedDecisions(alerts, country).size();
+        int x = Math.round(57 * s), size = Math.round(10 * s);
+        if (timeouts > 0) badge(g, font, 1, timeouts, x, Math.round(18 * s), size, 0xFF000000 | Tooltips.BAD);
+        if (count != null && count > 0) badge(g, font, 0, count, x, Math.round(28 * s), size, 0xFFFFFFFF);
+    }
+    private static void badge(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font, int frame, int amount, int x, int y, int size, int color) {
+        UiAssets.draw(g, "mio/ui/gfx_topbar_alert_bg/frame_" + frame, x, y, size, size);
+        UiText.centered(g, font, Integer.toString(amount), x - 6, y, size + 12, size, color, false);
+    }
+    private static void glow(GuiGraphicsExtractor g, String kind, int x, int y) {
+        float phase = (System.currentTimeMillis() % 2000) / 1000f, blend = phase < 1 ? phase : 2 - phase;
+        UiAssets.drawExact(g, "menu/glow/" + kind + "/frame_0", x, y, TAB_WIDTH, TAB_HEIGHT, (Math.round(255 * (1 - blend)) << 24) | 0xFFFFFF);
+        UiAssets.drawExact(g, "menu/glow/" + kind + "/frame_1", x, y, TAB_WIDTH, TAB_HEIGHT, (Math.round(255 * blend) << 24) | 0xFFFFFF);
+    }
+    private static String decisionCountry(String country) {
+        return country == null || country.isBlank() ? dev.hoi.client.ClientCampaignHud.country() : country;
+    }
+    private static List<CountryHud.DecisionAlerts.Item> trackedDecisions(CountryHud.DecisionAlerts alerts, String country) {
+        var preferences = dev.hoi.client.screen.decision.DecisionPreferences.current();
+        String owner = decisionCountry(country);
+        return alerts.available().stream().filter(item -> preferences.tracked(owner, item.id())).toList();
+    }
+    public static boolean added(MenuTab tab, CountryHud hud, String country) {
+        if (tab == MenuTab.DECISIONS && hud.decisionAlerts() != null) {
+            if (seenDecisions == null) seen(tab, hud);
+            return trackedDecisions(hud.decisionAlerts(), country).stream().anyMatch(item -> !seenDecisions.contains(item.id()));
         }
+        if (tab == MenuTab.PRODUCTION && hud.unlockedEquipment() != null) {
+            if (seenUnlocked == null) seen(tab, hud);
+            return hud.unlockedEquipment() > seenUnlocked;
+        }
+        return false;
+    }
+    private static void seen(MenuTab tab, CountryHud hud) {
+        if (tab == MenuTab.DECISIONS && hud.decisionAlerts() != null) {
+            if (seenDecisions == null) seenDecisions = new java.util.HashSet<>();
+            hud.decisionAlerts().available().forEach(item -> seenDecisions.add(item.id()));
+        }
+        if (tab == MenuTab.PRODUCTION && hud.unlockedEquipment() != null) seenUnlocked = hud.unlockedEquipment();
+    }
+    public static String decisionTooltip(CountryHud hud, String country) {
+        var alerts = hud.decisionAlerts();
+        if (alerts == null) return MenuTab.DECISIONS.label();
+        var texts = alerts.texts();
+        var text = new StringBuilder("§Y").append(texts.getOrDefault("TOPBAR_DECISIONVIEW", MenuTab.DECISIONS.label())).append("§!\n").append(texts.getOrDefault("TOPBAR_DECISIONVIEW_DESC", ""));
+        var sections = new StringBuilder();
+        if (!alerts.timeouts().isEmpty()) {
+            var list = alerts.timeouts().stream().map(item -> fill(texts.getOrDefault("TOPBAR_TIMEOUT_ITEM_LOC", "$NAME$"), java.util.Map.of("NAME", item.name(), "DAYS", Integer.toString(item.days())))).toList();
+            sections.append(fill(texts.getOrDefault("TOPBAR_DECISIONS_TIMEOUT_DESC", ""), java.util.Map.of("AMOUNT", Integer.toString(list.size()), "LIST", String.join("\n", list))));
+        }
+        var tracked = trackedDecisions(alerts, country);
+        if (!tracked.isEmpty())
+            sections.append(fill(texts.getOrDefault("TOPBAR_DECISIONS_CAN_TAKE_DESC", ""), java.util.Map.of("AMOUNT", Integer.toString(tracked.size()), "LIST", String.join("\n", tracked.stream().map(CountryHud.DecisionAlerts.Item::name).toList()))));
+        if (!sections.isEmpty()) text.append('\n').append(sections);
+        String hint = texts.getOrDefault("TOPBAR_DECISIONS_DESC", "");
+        if (!hint.isEmpty()) text.append('\n').append(hint);
+        return text.toString().replaceAll("\\n+$", "");
+    }
+    private static void muteDecisions(CountryHud hud, String country) {
+        var alerts = hud.decisionAlerts();
+        if (alerts == null || alerts.available().isEmpty()) return;
+        AudioUiSounds.play("ui.click");
+        dev.hoi.client.screen.decision.DecisionPreferences.current().mute(decisionCountry(country), alerts.available().stream().map(CountryHud.DecisionAlerts.Item::id).toList());
+    }
+    static String fill(String template, java.util.Map<String, String> values) {
+        var matcher = java.util.regex.Pattern.compile("\\$([A-Za-z_]+)(\\|[^$]*)?\\$").matcher(template);
+        var out = new StringBuilder();
+        while (matcher.find()) {
+            String value = values.get(matcher.group(1)), format = matcher.group(2) == null ? "" : matcher.group(2);
+            char color = 0;
+            for (char c : format.toCharArray()) if ("HYRG".indexOf(c) >= 0) { color = c; break; }
+            String replacement = value == null ? matcher.group() : color == 0 ? value : "§" + color + value + "§!";
+            matcher.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(out);
+        return out.toString();
     }
 }

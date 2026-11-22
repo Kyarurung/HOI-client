@@ -5,8 +5,33 @@ import dev.hoi.protocol.hud.HudDetail;
 public record CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                          Double gdpBillions, Double debtBillions, Double worldTension,
                          boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national,
-                         java.util.Map<String, HudDetail> details, Integer availableDecisions) {
+                         java.util.Map<String, HudDetail> details, Integer availableDecisions, DecisionAlerts decisionAlerts, Integer unlockedEquipment) {
     public static final CountryHud UNKNOWN = new CountryHud(null, null, null, null, null, null, false, null);
+    public record DecisionAlerts(java.util.List<Item> available, java.util.List<Item> timeouts, java.util.Map<String, String> texts) {
+        public record Item(String id, String name, int days) {
+            public Item {
+                if (id == null || id.isBlank() || id.length() > 256 || name == null || name.length() > 200 || days < 0) throw new IllegalArgumentException("Invalid decision alert");
+            }
+        }
+        public DecisionAlerts {
+            available = available == null ? java.util.List.of() : java.util.List.copyOf(available);
+            timeouts = timeouts == null ? java.util.List.of() : java.util.List.copyOf(timeouts);
+            texts = texts == null ? java.util.Map.of() : java.util.Map.copyOf(texts);
+            int characters = 0;
+            for (var item : available) characters += item.id().length() + item.name().length();
+            for (var item : timeouts) characters += item.id().length() + item.name().length();
+            for (var text : texts.values()) characters += text.length();
+            if (available.size() > 128 || timeouts.size() > 64 || texts.size() > 8 || characters > 12000)
+                throw new IllegalArgumentException("Decision alerts exceed budget");
+        }
+    }
+    public CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
+                      Double gdpBillions, Double debtBillions, Double worldTension,
+                      boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national,
+                      java.util.Map<String, HudDetail> details, Integer availableDecisions) {
+        this(armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension,
+                nuclearResearched, nuclearStockpile, national, details, availableDecisions, null, null);
+    }
     public CountryHud(Double armyExperience, Double navyExperience, Double airExperience,
                       Double gdpBillions, Double debtBillions, Double worldTension,
                       boolean nuclearResearched, Long nuclearStockpile, NationalIndicators national,
@@ -41,11 +66,19 @@ public record CountryHud(Double armyExperience, Double navyExperience, Double ai
             if (entry.getValue().sourceText() != null) characters += entry.getValue().sourceText().length();
         }
         if (characters > 24000) throw new IllegalArgumentException("HUD details exceed budget");
-        if (availableDecisions != null && availableDecisions < 0) throw new IllegalArgumentException("Invalid decision count");
+        if (availableDecisions != null && availableDecisions < 0 || unlockedEquipment != null && unlockedEquipment < 0) throw new IllegalArgumentException("Invalid decision count");
+    }
+    public CountryHud withDecisionAlerts(int count, DecisionAlerts alerts) {
+        return new CountryHud(armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension,
+                nuclearResearched, nuclearStockpile, national, details, count, alerts, unlockedEquipment);
+    }
+    public CountryHud withUnlockedEquipment(Integer count) {
+        return new CountryHud(armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension,
+                nuclearResearched, nuclearStockpile, national, details, availableDecisions, decisionAlerts, count);
     }
     public CountryHud withAvailableDecisions(Integer count) {
         return new CountryHud(armyExperience, navyExperience, airExperience, gdpBillions, debtBillions, worldTension,
-                nuclearResearched, nuclearStockpile, national, details, count);
+                nuclearResearched, nuclearStockpile, national, details, count, decisionAlerts, unlockedEquipment);
     }
     public record NationalIndicators(Double politicalPower, Double stability, Double warSupport,
                                      Long factories, Double energyRatio, Double fuel, Double supplies,

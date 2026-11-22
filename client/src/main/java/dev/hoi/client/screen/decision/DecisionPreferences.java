@@ -36,6 +36,8 @@ public final class DecisionPreferences {
         String decision=suffix<0?id:id.substring(0,suffix);
         return "track."+java.util.Base64.getUrlEncoder().withoutPadding().encodeToString((server+"\n"+country+"\n"+decision).getBytes(StandardCharsets.UTF_8));
     }
+    public boolean tracked(String country,String id) { return tracking(server(),country,id); }
+    public void mute(String country,java.util.Collection<String> ids) { tracking(server(),country,ids,false); }
     boolean tracking(String server,String country,String id) { return Boolean.parseBoolean(values.getProperty(key(server,country,id),"true")); }
     void tracking(String server,String country,String id,boolean enabled) { set(key(server,country,id),enabled); }
     void tracking(String server,String country,java.util.Collection<String> ids,boolean enabled) {

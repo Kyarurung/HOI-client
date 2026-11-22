@@ -766,6 +766,35 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             var stocked = new CountryHud(150.0, 119.0, 209.0, 1707.0, 704.314, .36, true, 12L, fixtureNational());
             context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), stocked)));
             context.waitTicks(2); context.takeScreenshot("hoi-hud-nuclear-stockpile");
+            var texts = java.util.Map.of("TOPBAR_DECISIONVIEW", "결정", "TOPBAR_DECISIONVIEW_DESC", "결정을 내리고 국가에 일어나는 사건에 대응합니다.\n",
+                    "TOPBAR_DECISIONS_TIMEOUT_DESC", "§Y사건 혹은 결정의 시간제한§! ($AMOUNT|R$)\n$LIST$\n", "TOPBAR_DECISIONS_CAN_TAKE_DESC", "§Y내릴 수 있는 결정§! ($AMOUNT|G$)\n$LIST$\n",
+                    "TOPBAR_TIMEOUT_ITEM_LOC", "$NAME$ ($DAYS|R0$일 남음)", "TOPBAR_DECISIONS_DESC", "§G우클릭§!하여 현재 내릴 수 있는 모든 결정의 알림을 끕니다");
+            var alerts = new CountryHud.DecisionAlerts(List.of(new CountryHud.DecisionAlerts.Item("hoi-test-alert-a", "가 결정", 0), new CountryHud.DecisionAlerts.Item("hoi-test-alert-b", "나 결정", 0)),
+                    List.of(new CountryHud.DecisionAlerts.Item("hoi-test-mission", "공적들의 움직임", 20)), texts);
+            var alerted = stocked.withDecisionAlerts(2, alerts).withUnlockedEquipment(10);
+            var previousHud = new dev.hoi.protocol.hud.HudPayloads.State[1];
+            context.setScreen(() -> new ScreenMenu(new MenuView(menu.country(), menu.countryName(), menu.date(), menu.speed(), menu.pages(), alerted)));
+            context.runOnClient(client -> {
+                previousHud[0] = ClientCampaignHud.visible() ? dev.hoi.protocol.hud.HudPayloads.State.of(ClientCampaignHud.country(), ClientCampaignHud.hud()) : dev.hoi.protocol.hud.HudPayloads.State.HIDDEN;
+                ClientCampaignHud.accept(dev.hoi.protocol.hud.HudPayloads.State.of(menu.country(), alerted));
+            });
+            context.waitTicks(2); context.takeScreenshot("hoi-hud-decision-alerts");
+            context.runOnClient(client -> {
+                ClientCampaignHud.accept(dev.hoi.protocol.hud.HudPayloads.State.of(menu.country(), alerted));
+                HudMenuBar.clear();
+                check(HudMenuBar.decisionTooltip(alerted, menu.country()).equals("§Y결정§!\n결정을 내리고 국가에 일어나는 사건에 대응합니다.\n\n§Y사건 혹은 결정의 시간제한§! (§R1§!)\n공적들의 움직임 (§R20§!일 남음)\n§Y내릴 수 있는 결정§! (§G2§!)\n가 결정\n나 결정\n\n§G우클릭§!하여 현재 내릴 수 있는 모든 결정의 알림을 끕니다"),
+                        "Decisions tooltip follows the original sections, red timeout values and one blank line per separator");
+                for (String asset : List.of("decisions_over", "decisions_down", "decisions_selected_over", "decisions_selected_down", "officer_corps_over", "officer_corps_selected_down", "glow/decisions/frame_1", "glow/production/frame_1"))
+                    check(client.getResourceManager().getResource(net.minecraft.resources.Identifier.parse("hoi:textures/gui/menu/" + asset + ".png")).isPresent(), "Original top bar button state " + asset);
+                check(!HudMenuBar.added(MenuTab.PRODUCTION, alerted, menu.country()), "The first unlocked-equipment count is the seen baseline");
+                check(HudMenuBar.added(MenuTab.PRODUCTION, alerted.withUnlockedEquipment(12), menu.country()), "Newly unlocked equipment lights the production glow");
+                var decisions = client.gui.screen().children().stream().filter(c -> c instanceof HudMenuBar.HudTabButton b && b.getMessage().getString().equals(MenuTab.DECISIONS.label() + " 메뉴")).map(c -> (HudMenuBar.HudTabButton)c).findFirst().orElseThrow();
+                decisions.mouseClicked(new net.minecraft.client.input.MouseButtonEvent(decisions.getX() + decisions.getWidth() / 2.0, decisions.getY() + decisions.getHeight() / 2.0,
+                        new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT, 0)), false);
+                check(!HudMenuBar.decisionTooltip(alerted, menu.country()).contains("내릴 수 있는 결정"), "Right-click turns off the alerts of every decision that can currently be taken");
+                check(client.gui.screen() instanceof ScreenMenu, "Right-clicking the decisions button does not open the panel");
+                ClientCampaignHud.accept(previousHud[0]);
+            });
             check(HudMenuBar.defconFrame(null) == -1, "Unknown tension must not imply DEFCON 5");
             check(HudMenuBar.defconFrame(0.0) == 0 && HudMenuBar.defconFrame(1.0) == 9,
                     "DEFCON endpoints use the first and final original frames");
