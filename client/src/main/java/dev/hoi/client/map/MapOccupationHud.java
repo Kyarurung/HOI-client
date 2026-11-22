@@ -40,9 +40,9 @@ public final class MapOccupationHud {
         ClientPlayConnectionEvents.DISCONNECT.register((h,c)->c.execute(MapOccupationHud::reset));
         ClientTickEvents.END_CLIENT_TICK.register(c->{if(++age>60&&view!=null)reset();});
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR,Identifier.parse("hoi:occupation_hud"),(g,d)->{if(Minecraft.getInstance().gui.screen()==null){draw(g,0);tooltip(g,g.guiWidth()/2,g.guiHeight()/2);}});
-        ScreenEvents.AFTER_INIT.register((c,s,w,h)->{if(s instanceof InputSidebarMovement.InputMovementScreen){
+        ScreenEvents.AFTER_INIT.register((c,s,w,h)->{if(s instanceof InputSidebarMovement.InputMovementScreen sidebar){
             ScreenEvents.afterBackground(s).register((a,g,mx,my,d)->draw(g,left()));
-            ScreenEvents.afterExtract(s).register((a,g,mx,my,d)->{if(mx>=left())tooltip(g,mx,my);});
+            ScreenEvents.afterExtract(s).register((a,g,mx,my,d)->{if(mx>=left()&&!sidebar.covers(mx,my))tooltip(g,mx,my);});
         }});
     }
     public static void open(){var screen=new OccupationScreen();Minecraft.getInstance().gui.setScreen(screen);screen.open();}

@@ -280,6 +280,14 @@ public final class NetworkScreens {
         if (!ClientPlayNetworking.canSend(dev.hoi.protocol.industry.IndustryPayloads.Request.TYPE)) return;
         cancelOpen(); var screen = new IndustryScreen(tab); DialogCoordinator.setContent(screen); screen.open();
     }
+    public static void openDesigner(String template) {
+        openIndustry(dev.hoi.protocol.menu.MenuTab.RECRUITMENT);
+        if (DialogCoordinator.contentScreen() instanceof IndustryScreen screen) screen.design(template);
+    }
+    public static void openShipDesigner(String equipment) {
+        openIndustry(dev.hoi.protocol.menu.MenuTab.PRODUCTION);
+        if (DialogCoordinator.contentScreen() instanceof IndustryScreen screen) screen.designEquipment(equipment);
+    }
     public static void openAgency() {
         dev.hoi.client.map.agency.AgencyHud.reset();
         if (!ClientPlayNetworking.canSend(AgencyPayloads.Request.TYPE)) return;

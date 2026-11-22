@@ -29,6 +29,7 @@ public final class HoiClient implements ClientModInitializer {
         dev.hoi.client.map.agency.AgencyRaidHud.register();
         dev.hoi.client.map.commander.CommanderUnitHud.register();
         dev.hoi.client.map.MapOccupationHud.register();
+        InputSidebarMovement.register();
         DialogCoordinator.register();
         dev.hoi.protocol.audio.AudioPayloads.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.audio.AudioPayloads.Signal.TYPE, (packet, context) -> AudioUiSounds.receive(packet.cue()));

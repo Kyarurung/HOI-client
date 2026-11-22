@@ -44,10 +44,10 @@ public final class CommanderUnitHud {
             }
         });
         ScreenEvents.AFTER_INIT.register((client,screen,w,h)-> {
-            if(!(screen instanceof InputSidebarMovement.InputMovementScreen))return;
+            if(!(screen instanceof InputSidebarMovement.InputMovementScreen sidebar))return;
             ScreenEvents.afterBackground(screen).register((s,g,mx,my,delta)->draw(g,worldLeft()));
             ScreenEvents.afterExtract(screen).register((s,g,mx,my,delta)-> {
-                if(mx>=worldLeft())tooltip(g,mx,my);
+                if(mx>=worldLeft()&&!sidebar.covers(mx,my))tooltip(g,mx,my);
             });
         });
     }

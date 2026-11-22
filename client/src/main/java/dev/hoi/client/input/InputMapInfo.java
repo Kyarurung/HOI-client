@@ -13,7 +13,7 @@ public final class InputMapInfo {
         net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
             if (screen instanceof InputSidebarMovement.InputMovementScreen sidebar) {
                 net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.afterMouseClick(screen).register((current, event, consumed) -> {
-                    if (consumed || client.gui.screen() != current || !sidebar.allowsMovement()
+                    if (consumed || client.gui.screen() != current || !sidebar.allowsMovement() || sidebar.covers(event.x(), event.y())
                             || event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
                             || event.x() < sidebar.unitHudLeft() || event.y() < dev.hoi.client.ui.hud.HudMenuBar.height(current.width)) return consumed;
                     return clickAt(client, event.x(), event.y(), current.width, current.height, modifiers(event));
@@ -52,6 +52,7 @@ public final class InputMapInfo {
                         client.player.isShiftKeyDown() ? com.mojang.blaze3d.platform.InputConstants.MOD_SHIFT : 0)), false)) {
             client.gui.setScreen(new dev.hoi.client.screen.map.MapCursor()); return true;
         }
+        if(dev.hoi.client.map.commander.CommanderShipHud.click(new net.minecraft.client.input.MouseButtonEvent(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)))){dev.hoi.client.map.commander.CommanderShipHud.release();return true;}
         if(dev.hoi.client.map.commander.CommanderHud.clickAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
         if(dev.hoi.client.map.commander.CommanderUnitHud.selectAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
         if(!ClientPlayNetworking.canSend(DialogPayloads.MapClick.TYPE))return false;

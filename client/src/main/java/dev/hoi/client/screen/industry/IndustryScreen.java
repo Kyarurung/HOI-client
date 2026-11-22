@@ -143,6 +143,9 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             case LOGISTICS -> "군수"; case RECRUITMENT -> "모병 및 배치"; default -> "산업"; };
     }
     public void open() { send(foreign() ? FOREIGN_LOGISTICS : OPEN, foreignTarget, "", 0); }
+    public void design(String template) { requestedDesign = template; }
+    public void designEquipment(String equipment) { requestedEquipment = equipment; }
+    private String requestedDesign = "", requestedEquipment = "";
     public void update(IndustryView next) {
         if (closed || !next.session().equals(token)) return;
         if (next.country().isEmpty() || view != null && !next.country().equals(view.country())) {
@@ -159,6 +162,8 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         draggedProduction = "";
         autoImportBudget = -1; draggedImport = ""; importMoved = false;
         view = next; pending = 0; indexView();
+        if (!requestedDesign.isEmpty()) { String id = requestedDesign; requestedDesign = ""; if (templatesById.containsKey(id)) loadDesigner(id); }
+        if (!requestedEquipment.isEmpty()) { String id = requestedEquipment; requestedEquipment = ""; view.equipment().stream().filter(row -> row.id().equals(id) && row.unlocked()).findFirst().ifPresent(this::openTank); }
         if (!tankDesigner() || view.tankDesigner().designTeam() == null) designerManufacturer = false;
         if (!manufacturerEquipment.isEmpty() && (equipmentById.get(manufacturerEquipment) == null || equipment(manufacturerEquipment).manufacturers().isEmpty())) manufacturerEquipment = "";
         if (selectingDeployment && (next.message().equals("배치 장소를 지정했습니다.") || next.recruits().stream().noneMatch(r -> r.id().equals(locationRecruit)))) {

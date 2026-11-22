@@ -22,6 +22,9 @@ public final class CommanderOverviewPayloads {
         public static final StreamCodec<RegistryFriendlyByteBuf,Request> CODEC=StreamCodec.of((b,p)->{b.writeUtf(p.token,36);b.writeEnum(p.action);b.writeEnum(p.tab);b.writeUtf(p.target,160);},b->new Request(b.readUtf(36),b.readEnum(Action.class),b.readEnum(Tab.class),b.readUtf(160)));
         @Override public Type<Request> type(){return TYPE;}
     }
+    public record Modifier(String icon,String value,String tooltip) {
+        public Modifier {asset(icon);text(value,64);text(tooltip,2000);}
+    }
     public record Count(String key,String icon,int count,String tooltip) {
         public Count {identifier(key);asset(icon);text(tooltip,2000);if(count<0||count>1000000)throw new IllegalArgumentException("Invalid overview count");}
     }
@@ -29,9 +32,9 @@ public final class CommanderOverviewPayloads {
         public Row {identifier(id);identifier(type);asset(icon);text(name,160);text(location,160);text(group,160);asset(leader);text(amount,32);text(tooltip,4000);selection=selection==null?"":selection;identifier(selection);missions=List.copyOf(missions);missions.forEach(CommanderOverviewPayloads::identifier);
             if(color!=null&&(color<0||color>0xffffff)||insignia!=null&&(insignia<0||insignia>80)||!ratio(organization)||!ratio(strength)||level<0||level>4||missions.size()>4)throw new IllegalArgumentException("Invalid overview row");}
     }
-    public record View(String token,Tab tab,String country,String total,String secondary,String special,String specialTooltip,List<Count> types,List<Row> rows,String footer,Map<String,String> labels,String error) {
-        public View {UUID.fromString(token);Objects.requireNonNull(tab);text(country,8);text(total,80);text(secondary,80);text(special,32);text(specialTooltip,2000);text(footer,160);text(error,400);types=List.copyOf(types);rows=List.copyOf(rows);labels=Map.copyOf(labels);
-            if(types.size()>32||rows.size()>ROWS||labels.size()>32)throw new IllegalArgumentException("Invalid overview size");labels.forEach((key,value)->{identifier(key);text(value,2000);});}
+    public record View(String token,Tab tab,String country,String total,String secondary,String special,String specialTooltip,List<Modifier> modifiers,List<Count> types,List<Row> rows,String footer,Map<String,String> labels,String error) {
+        public View {UUID.fromString(token);Objects.requireNonNull(tab);text(country,8);text(total,80);text(secondary,80);text(special,32);text(specialTooltip,2000);text(footer,160);text(error,400);modifiers=modifiers==null?List.of():List.copyOf(modifiers);types=List.copyOf(types);rows=List.copyOf(rows);labels=Map.copyOf(labels);
+            if(modifiers.size()>14||types.size()>32||rows.size()>ROWS||labels.size()>32)throw new IllegalArgumentException("Invalid overview size");labels.forEach((key,value)->{identifier(key);text(value,2000);});}
         public String label(String key){return labels.getOrDefault(key,"");}
     }
     public record Snapshot(String json) implements CustomPacketPayload {

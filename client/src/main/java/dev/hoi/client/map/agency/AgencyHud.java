@@ -72,7 +72,8 @@ public final class AgencyHud {
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
             if (screen instanceof InputSidebarMovement.InputMovementScreen sidebar) {
                 ScreenEvents.afterExtract(screen).register((s, g, mx, my, delta) -> {
-                    if (sidebar.allowsMovement() || screen instanceof dev.hoi.client.screen.map.MapCursor) draw(g, sidebar.unitHudLeft(), mx, my);
+                    boolean covered = sidebar.covers(mx, my);
+                    if (sidebar.allowsMovement() || screen instanceof dev.hoi.client.screen.map.MapCursor) draw(g, sidebar.unitHudLeft(), covered ? -1 : mx, covered ? -1 : my);
                 });
             }
         });

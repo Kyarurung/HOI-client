@@ -78,6 +78,7 @@ public final class CommanderNavyLayoutTest {
             CommanderTheaterCardsTest.run(game,menu,directory);
             tenForces(game,menu,directory);
             admiralTraits(game,menu,directory);
+            CommanderShipWindowTest.run(game,menu,directory);
         }catch(java.io.IOException e){throw new AssertionError("Cannot read authoritative navy fixture",e);}
     }
     private static void admiralTraits(ClientGameTestContext game,MenuView menu,String directory)throws java.io.IOException {

@@ -92,7 +92,7 @@ public final class DialogStack extends Screen {
             if (screen == backdrop) {
                 if (y < dev.hoi.client.ui.hud.HudMenuBar.height(width)) continue;
                 if (!(screen instanceof dev.hoi.client.input.InputSidebarMovement.InputMovementScreen sidebar) || !sidebar.allowsMovement()
-                        || x < sidebar.unitHudLeft()) return screen;
+                        || x < sidebar.unitHudLeft() || sidebar.covers(x, y)) return screen;
             } else if (screen instanceof DialogScreen window && x >= window.panelLeft() && x < window.panelLeft() + window.panelWidth()
                     && y >= window.panelTop() && y < window.panelTop() + window.panelHeight()) return window;
         }
@@ -125,7 +125,7 @@ public final class DialogStack extends Screen {
         pressedTarget = inputAt(event.x(), event.y());
         boolean consumed = pressedTarget == null ? super.mouseClicked(event, twice) : pressedTarget.mouseClicked(event, twice);
         if (!consumed && (pressedTarget == null || pressedTarget == backdrop) && backdrop instanceof dev.hoi.client.input.InputSidebarMovement.InputMovementScreen sidebar
-                && sidebar.allowsMovement() && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
+                && sidebar.allowsMovement() && !sidebar.covers(event.x(), event.y()) && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT
                 && event.x() >= sidebar.unitHudLeft() && event.y() >= dev.hoi.client.ui.hud.HudMenuBar.height(width)) {
             return dev.hoi.client.input.InputMapInfo.clickAt(minecraft, event.x(), event.y(), width, height);
         }

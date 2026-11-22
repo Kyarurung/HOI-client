@@ -377,9 +377,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
                 double sx = statsX + i % columns * statsPitch, sy = t + (special ? 67 : 189) + i / columns * 33;
                 int left = Math.round(officerX(sx)), upper = Math.round(officerY(sy)), w = frame.len(74), cellHeight = frame.len(32);
                 if (g != null) {
-                    officerArt(g, "officer/stats/background", sx, sy, 74, 32);
-                    UiAssets.drawContent(g, statistic.icon(), left + frame.len(4), upper + frame.len(6), frame.len(24), frame.len(20));
-                    officerStatText(g, statistic.value(), left + frame.len(28), upper, w - frame.len(32), cellHeight);
+                    dev.hoi.client.ui.UiStatCell.draw(g, font, statistic.icon(), statistic.value(), officerX(sx), officerY(sy), frame.scale());
                 }
                 if (widgets && upper >= contentTop() && upper + cellHeight <= contentBottom()) {
                     var button = new dev.hoi.client.ui.UiHoverRegion(statistic.name(), left, upper, w, cellHeight);
@@ -410,10 +408,6 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
         officerTooltips.put(button, slot < 0 || advisor && vacant ? entry.detail() : "§e" + title + "§r\n" + entry.detail());
         button.active = detail == null;
         addRenderableWidget(button);
-    }
-    private void officerStatText(GuiGraphicsExtractor g, String value, int x, int y, int available, int height) {
-        var text = Tooltips.styled(Component.literal(value), false);
-        dev.hoi.client.ui.UiText.marquee(g, font, text.getVisualOrderText(), x, dev.hoi.client.ui.UiText.centeredY(font, text.getVisualOrderText(), y, height, 1), available, 1, GOLD, true, 1);
     }
     private void officerText(GuiGraphicsExtractor g, String value, int x, int y, int available, int color) {
         float scale = dev.hoi.client.ui.UiText.scale(font);

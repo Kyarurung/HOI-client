@@ -4,12 +4,24 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.ToggleKeyMapping;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.KeyEvent;
 import java.util.List;
 import java.util.function.Predicate;
 
 public final class InputSidebarMovement {
-    public interface InputMovementScreen { boolean allowsMovement(); default int unitHudLeft(){return Integer.MAX_VALUE;} }
+    public interface InputMovementScreen {
+        boolean allowsMovement();
+        default int unitHudLeft(){return Integer.MAX_VALUE;}
+        default boolean covers(double x,double y){return false;}
+        default void drawOver(GuiGraphicsExtractor g,int mx,int my){}
+    }
+    public static void register() {
+        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
+            if (screen instanceof InputMovementScreen sidebar)
+                net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.afterExtract(screen).register((current, g, mx, my, delta) -> sidebar.drawOver(g, mx, my));
+        });
+    }
     private static boolean controlled;
     private InputSidebarMovement() {}
     private static List<KeyMapping> keys(Minecraft client) {

@@ -1,8 +1,11 @@
 package dev.hoi.client.screen.commander;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.platform.NativeImage;
 import dev.hoi.client.ClientCampaignHud;
 import dev.hoi.client.map.commander.CommanderHud;
+import dev.hoi.client.ui.UiStatCell;
+import dev.hoi.client.ui.tooltip.Tooltips;
 import dev.hoi.protocol.commander.CommanderOverviewPayloads.*;
 import dev.hoi.protocol.hud.HudPayloads;
 import dev.hoi.protocol.menu.MenuView;
@@ -34,6 +37,7 @@ public final class CommanderOverviewTest {
                     check(screen.rows().equals(fixture.rows().stream().sorted(Comparator.comparing(Row::type).thenComparing(Row::name).thenComparing(Row::id)).toList()), tab + " rows start sorted by type like the original");
                 });
                 game.takeScreenshot("hoi-overview-" + tab.name().toLowerCase(Locale.ROOT) + "-gui2");
+                modifiers(game, screen, views.get(tab), tab);
             }
             var army = open(game, requests, views.get(Tab.ARMY), Tab.ARMY, true);
             game.runOnClient(c -> check(army.rows().getFirst().fighting(), "The fixture marks the first listed division as fighting"));
@@ -79,6 +83,7 @@ public final class CommanderOverviewTest {
                 filter.setValue("");
                 check(army.rows().size() == views.get(Tab.ARMY).rows().size(), "Clearing the filter restores every division");
             });
+            CommanderDivisionWindowTest.run(game, army, directory);
             for (int[] size : new int[][]{{1920, 1080, 2}, {2560, 1440, 3}, {854, 480, 2}}) {
                 game.getInput().resizeWindow(size[0], size[1]);
                 game.runOnClient(c -> c.options.guiScale().set(size[2]));
@@ -92,6 +97,35 @@ public final class CommanderOverviewTest {
             game.setScreen(() -> null);
         }
     }
+    private static void modifiers(ClientGameTestContext game, CommanderOverview screen, View fixture, Tab tab) throws IOException {
+        check(fixture.modifiers().size() == (tab == Tab.NAVY ? 7 : 14), tab + " overview receives the original cells of its branch");
+        var shown = NativeImage.read(Files.newInputStream(game.takeScreenshot("hoi-overview-modifiers-" + tab.name().toLowerCase(Locale.ROOT) + "-gui2")));
+        game.runOnClient(c -> screen.accept(without(screen, fixture)));
+        game.waitTicks(2);
+        var empty = NativeImage.read(Files.newInputStream(game.takeScreenshot("hoi-overview-no-modifiers-" + tab.name().toLowerCase(Locale.ROOT) + "-gui2")));
+        game.runOnClient(c -> screen.accept(fixture(screen, fixture)));
+        for (int i = 0; i < fixture.modifiers().size(); i++) {
+            double x = 15 + i % 7 * 74, y = 114 + i / 7 * 33;
+            String value = fixture.modifiers().get(i).value();
+            int[] area = game.computeOnClient(c -> new int[]{(int)Math.ceil(screen.frame().x(x + 2) * 2), (int)Math.ceil(screen.frame().y(y + 4) * 2), (int)Math.floor((screen.frame().x(x + 71) - UiStatCell.textWidth(c.font, value, screen.frame().scale())) * 2), (int)Math.floor(screen.frame().x(x + 71) * 2), (int)Math.floor(screen.frame().y(y + 28) * 2)});
+            check(value.endsWith("시간§r") || game.computeOnClient(c -> UiStatCell.textWidth(c.font, value, screen.frame().scale()) >= c.font.width(Tooltips.officerText(value))), tab + " overview cell " + i + " shows its whole value");
+            int icon = 0, text = 0;
+            for (int py = area[1]; py < area[4]; py++) for (int px = area[0]; px < area[3]; px++) if (bright(shown.getPixel(px, py)) && !bright(empty.getPixel(px, py))) { if (px < area[2]) icon++; else text++; }
+            check(icon >= 8 && text >= 8, tab + " overview draws the icon and the value of cell " + i + ": " + icon + ", " + text);
+        }
+        shown.close(); empty.close();
+        int last = fixture.modifiers().size() - 1;
+        for (int i : new int[]{0, last}) {
+            hover(game, screen, 15 + i % 7 * 74 + 37, 114 + i / 7 * 33 + 16); game.waitTicks(3);
+            check(game.computeOnClient(c -> screen.hoveredTooltip()).equals(fixture.modifiers().get(i).tooltip()), tab + " overview cell " + i + " shows its original tooltip");
+            game.takeScreenshot("hoi-overview-" + tab.name().toLowerCase(Locale.ROOT) + "-modifier-" + i + "-gui2");
+        }
+        game.waitTicks(25);
+        game.takeScreenshot("hoi-overview-" + tab.name().toLowerCase(Locale.ROOT) + "-modifier-delayed-gui2");
+    }
+    private static boolean bright(int argb) { return Math.max(argb >> 16 & 255, Math.max(argb >> 8 & 255, argb & 255)) > 110; }
+    private static View fixture(CommanderOverview screen, View view) { return new View(screen.token(), view.tab(), view.country(), view.total(), view.secondary(), view.special(), view.specialTooltip(), view.modifiers(), view.types(), view.rows(), view.footer(), view.labels(), view.error()); }
+    private static View without(CommanderOverview screen, View view) { return new View(screen.token(), view.tab(), view.country(), view.total(), view.secondary(), view.special(), view.specialTooltip(), List.of(), view.types(), view.rows(), view.footer(), view.labels(), view.error()); }
     private static CommanderOverview open(ClientGameTestContext game, List<Request> requests, View fixture, Tab tab, boolean fighting) {
         var screen = game.computeOnClient(c -> new CommanderOverview(tab));
         game.setScreen(() -> screen);
@@ -104,7 +138,7 @@ public final class CommanderOverviewTest {
                 var row = rows.stream().min(Comparator.comparing(Row::type).thenComparing(Row::name).thenComparing(Row::id)).orElseThrow();
                 rows.set(rows.indexOf(row), new Row(row.id(), row.type(), row.icon(), row.name(), row.location(), row.group(), row.color(), row.insignia(), row.organization() / 3, row.strength(), row.level(), true, row.obsolete(), row.leader(), row.amount(), row.missions(), row.tooltip(), row.selection()));
             }
-            screen.accept(new View(open.token(), fixture.tab(), fixture.country(), fixture.total(), fixture.secondary(), fixture.special(), fixture.specialTooltip(), fixture.types(), rows, fixture.footer(), fixture.labels(), fixture.error()));
+            screen.accept(new View(open.token(), fixture.tab(), fixture.country(), fixture.total(), fixture.secondary(), fixture.special(), fixture.specialTooltip(), fixture.modifiers(), fixture.types(), rows, fixture.footer(), fixture.labels(), fixture.error()));
         });
         game.getInput().setCursorPos(game.computeOnClient(c -> c.getWindow().getWidth()) - 4, game.computeOnClient(c -> c.getWindow().getHeight()) - 4);
         game.waitTicks(3);

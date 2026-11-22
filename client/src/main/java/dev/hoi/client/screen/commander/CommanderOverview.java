@@ -9,6 +9,7 @@ import dev.hoi.client.map.commander.CommanderPanels;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiScrollBar;
+import dev.hoi.client.ui.UiStatCell;
 import dev.hoi.client.ui.UiText;
 import dev.hoi.client.ui.hud.HudMenuBar;
 import dev.hoi.client.ui.tooltip.Tooltips;
@@ -45,16 +46,20 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
     private List<Row> rows = List.of();
     private UiMenuStyle.Frame frame;
     private EditBox filter;
-    private String query = "", typeFilter = "", sort = "TYPE";
-    private boolean descending, dragging;
+    private String query = "", typeFilter = "", sort = "TYPE", hovered = "";
+    private boolean descending, dragging, suspended;
     private int scroll;
+    private CommanderDivisionWindow details;
     public CommanderOverview(Tab tab) { this(tab, request -> { if (ClientPlayNetworking.canSend(Request.TYPE)) ClientPlayNetworking.send(request); }); }
     CommanderOverview(Tab tab, Consumer<Request> transport) {
         super(Component.literal(tab == Tab.ARMY ? "육군 개요" : tab == Tab.NAVY ? "해군 개요" : "공군 개요"));
         this.tab = tab; this.transport = transport;
     }
     public Tab tab() { return tab; }
+    String token() { return token; }
+    String hoveredTooltip() { return hovered; }
     public List<Row> rows() { return rows; }
+    CommanderDivisionWindow details() { return details; }
     UiMenuStyle.Frame frame() { return frame; }
     int scroll() { return scroll; }
     public void open() { AudioUiSounds.play("ui.window_open"); send(Action.OPEN, ""); }
@@ -62,6 +67,22 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         if (!next.token().equals(token) || next.tab() != tab) return;
         view = next; refresh();
     }
+    public void accept(dev.hoi.protocol.commander.CommanderDivisionPayloads.View next) {
+        if (details == null) return;
+        boolean shown = details.view() != null && details.view().error().isEmpty();
+        details.accept(next);
+        if (shown && !details.view().error().isEmpty()) closeDetails();
+    }
+    private void openDetails(String division) {
+        closeDetails();
+        details = new CommanderDivisionWindow(division, new CommanderDivisionWindow.Host() {
+            @Override public void edit(EditBox box) { addWidget(box); setFocused(box); }
+            @Override public void release(EditBox box) { if (getFocused() == box) setFocused(null); removeWidget(box); }
+        });
+        details.layout(width, height, frame.scale());
+        details.open();
+    }
+    private void closeDetails() { if (details != null) { details.close(); details = null; } }
     private void send(Action action, String target) {
         var request = new Request(token, action, tab, target);
         if (requestObserver != null) requestObserver.accept(request); else transport.accept(request);
@@ -78,14 +99,23 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         filter.setResponder(value -> { query = value; scroll = 0; refresh(); });
         if (!label(filterTooltipKey()).isEmpty()) filter.setTooltip(Tooltips.createOfficer(label(filterTooltipKey())));
         addRenderableWidget(filter);
+        if (details != null) details.layout(width, height, frame.scale());
+        if (suspended) { suspended = false; send(Action.OPEN, ""); if (details != null) details.request(); }
         refresh();
     }
     private String filterTooltipKey() { return tab == Tab.ARMY ? "ARMY_DIVISONS_FILTER_DESC" : tab == Tab.NAVY ? "ARMY_NAVIES_FILTER_DESC" : "ARMY_AIR_FILTER_DESC"; }
-    @Override public void removed() { InputSidebarMovement.release(minecraft); send(Action.CLOSE, ""); }
+    @Override public void removed() { InputSidebarMovement.release(minecraft); if (details != null) details.close(); send(Action.CLOSE, ""); suspended = true; }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
-    @Override public boolean allowsMovement() { return true; }
+    @Override public boolean allowsMovement() { return !(getFocused() instanceof EditBox); }
     @Override public int unitHudLeft() { return frame == null ? 0 : frame.ix(550); }
+    @Override public boolean covers(double x, double y) { return details != null && details.contains(x, y); }
+    @Override public void drawOver(GuiGraphicsExtractor g, int mx, int my) {
+        if (details == null) return;
+        details.draw(g, font, mx, my);
+        String text = details.contains(mx, my) ? details.tooltip(mx, my) : "";
+        if (!text.isEmpty()) { g.nextStratum(); Tooltips.drawSourceScrollable(g, font, text, mx, my, g.guiWidth(), g.guiHeight(), 0); }
+    }
     void refresh() {
         if (view == null) { rows = List.of(); return; }
         String text = query.strip().toLowerCase(Locale.ROOT);
@@ -115,14 +145,17 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
     private Box gui(Box box) { return new Box(frame.x(box.x()), frame.y(box.y()), frame.size(box.w()), frame.size(box.h())); }
     private Box typeBox(int index) {
         var l = layout(); double x = l.typesX() + index % 6 * 86, y = l.typesY() + index / 6 * l.slotHeight();
-        return tab == Tab.ARMY ? new Box(x - 14, y + 6, 85, 29) : new Box(x, y, 85, 27);
+        return tab == Tab.ARMY ? new Box(x - 14, y + 6, 86, 29) : new Box(x, y, 86, 27);
     }
+    private static Box modifierBox(int index) { return new Box(15 + index % 7 * 74, 114 + index / 7 * 33, UiStatCell.WIDTH, UiStatCell.HEIGHT); }
     private UiScrollBar bar() {
         int top = Math.round(frame.y(layout().rowY())), bottom = Math.round(frame.y(listBottom()));
         return new UiScrollBar(frame.ix(527), top, bottom, Math.round(frame.size(visibleUnits())), Math.round(frame.size(rows.size() * ROW_HEIGHT)));
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         double bottom = bottomUnits(); var l = layout();
+        boolean covered = covers(mx, my);
+        HudMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), covered ? -1 : mx, covered ? -1 : my, 0);
         UiMenuStyle.window(g, WINDOW, frame, height);
         frame.tile(g, "commander/commands/tiled_bg/frame_0", 0, 40, 550, (int)Math.ceil(bottom - 40), 64, 192);
         frame.tile(g, WINDOW.tile(), 0, l.panelY(), 550, (int)Math.ceil(bottom - l.panelY()), 64, 190);
@@ -134,6 +167,7 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
             text(g, view.total(), 183, 66, 140, 20, false);
             if (!view.secondary().isEmpty()) text(g, view.secondary(), 183, 83, 140, 20, false);
             if (!view.special().isEmpty()) { frame.art(g, "recruitment/special", 287, 82); text(g, view.special(), 311, 83, 25, 20, false); }
+            for (int i = 0; i < view.modifiers().size(); i++) { var box = modifierBox(i); UiStatCell.draw(g, font, view.modifiers().get(i).icon(), view.modifiers().get(i).value(), frame.x(box.x()), frame.y(box.y()), frame.scale()); }
             for (int i = 0; i < Math.min(12, view.types().size()); i++) drawType(g, view.types().get(i), typeBox(i));
             int listTop = Math.round(frame.y(l.rowY())), listBottom = Math.round(frame.y(listBottom()));
             g.enableScissor(frame.ix(ROW_X), listTop, frame.ix(ROW_X + ROW_WIDTH), listBottom);
@@ -152,9 +186,8 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
             sortButton(g, column.x(), l.sortY(), column.width());
             text(g, label(column.label()), column.x(), l.sortY(), column.width(), 23, true);
         }
-        super.extractRenderState(g, mx, my, delta);
-        HudMenuBar.draw(g, width, dev.hoi.client.ClientCampaignHud.hud(), mx, my, 0);
-        tooltip(g, mx, my);
+        super.extractRenderState(g, covered ? -1 : mx, covered ? -1 : my, delta);
+        if (!covered) tooltip(g, mx, my);
     }
     private void text(GuiGraphicsExtractor g, String value, double x, double y, double w, double h, boolean centered) {
         if (value == null || value.isEmpty()) return;
@@ -163,13 +196,13 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         UiText.marquee(g, font, line, frame.x(x), UiText.centeredY(font, line, frame.y(y), frame.size(h), scale), frame.size(w), scale, UiMenuStyle.TEXT, false, centered ? 0 : -1);
     }
     private void drawType(GuiGraphicsExtractor g, Count count, Box box) {
-        UiAssets.drawExact(g, "production/picker/filter_bg", frame.x(box.x()), frame.y(box.y()), frame.size(box.w()), frame.size(box.h()));
-        if (count.key().equals(typeFilter)) UiAssets.drawExact(g, "production/picker/filter_highlight", frame.x(box.x()), frame.y(box.y()), frame.size(box.w()), frame.size(box.h()));
+        art(g, "production/picker/filter_bg", box.x(), box.y(), 90, 29);
+        if (count.key().equals(typeFilter)) art(g, "production/picker/filter_highlight", box.x(), box.y(), 90, 29);
         String icon = tab == Tab.ARMY ? CommanderPanels.armyUnitIcon(count.icon()) : count.icon();
         int[] size = UiAssets.imageSize(icon); double scale = tab == Tab.ARMY ? .7 : .9, w = size[0] * scale, h = size[1] * scale;
-        double cx = tab == Tab.ARMY ? box.x() + 43 : tab == Tab.NAVY ? box.x() + 44 : box.x() + box.w() - 2 - w / 2, cy = tab == Tab.ARMY ? box.y() + 16 : box.y() + 16;
+        double cx = box.x() + (tab == Tab.ARMY ? 43 : tab == Tab.NAVY ? 44 : 58), cy = box.y() + 16;
         if (size[0] > 0) UiAssets.drawExact(g, icon, frame.x(cx - w / 2), frame.y(cy - h / 2), frame.size(w), frame.size(h));
-        text(g, Integer.toString(count.count()), box.x() + (tab == Tab.ARMY ? 2 : 4), box.y(), 40, 18, false);
+        text(g, Integer.toString(count.count()), box.x() + (tab == Tab.ARMY ? 10 : tab == Tab.NAVY ? 4 : 6), box.y(), 40, 22, false);
     }
     private void sortButton(GuiGraphicsExtractor g, double x, double y, double w) {
         int width = (int)Math.round(w);
@@ -201,7 +234,8 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
             }
             case NAVY -> {
                 art(g, "commander/overview/navy_entry", x, y, 509, 35);
-                art(g, row.icon(), x + 9, y + 9, 46, 18);
+                int[] size = UiAssets.imageSize(row.icon());
+                art(g, row.icon(), x + 9, y + 9, size[0], size[1]);
                 if (row.fighting()) art(g, "diplomacy/relations/war_relation", x + 3, y + 3, 20.3, 18.2);
                 bar(g, ORGANIZATION, x + 119, y + 30, row.organization());
                 bar(g, STRENGTH, x + 127, y + 30, row.strength());
@@ -242,9 +276,11 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         g.pose().popMatrix();
     }
     private void tooltip(GuiGraphicsExtractor g, int mx, int my) {
+        hovered = "";
         if (view == null || mx >= frame.x(550)) return;
         String text = "";
         if (!view.special().isEmpty() && gui(new Box(287, 82, 50, 23)).contains(mx, my)) text = view.specialTooltip();
+        for (int i = 0; i < view.modifiers().size(); i++) if (gui(modifierBox(i)).contains(mx, my)) text = view.modifiers().get(i).tooltip();
         for (int i = 0; i < Math.min(12, view.types().size()); i++) if (gui(typeBox(i)).contains(mx, my)) text = view.types().get(i).tooltip();
         var l = layout();
         if (my >= frame.y(l.rowY()) && my < frame.y(listBottom())) for (int i = 0; i < rows.size(); i++) {
@@ -255,9 +291,11 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
             else text = label(tab == Tab.ARMY ? "ARMY_DIVISIONS_BUTTON" : tab == Tab.NAVY ? "ARMY_NAVIES_BUTTON" : "ARMY_AIR_BUTTON");
             break;
         }
+        hovered = text;
         if (!text.isEmpty()) { g.nextStratum(); Tooltips.drawSourceScrollable(g, font, text, mx, my, g.guiWidth(), g.guiHeight(), 0); }
     }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
+        if (details != null && details.mouseClicked(event, twice, font, this::closeDetails)) return true;
         if (super.mouseClicked(event, twice)) return true;
         if (view == null || event.x() >= frame.x(550)) return false;
         var l = layout();
@@ -283,6 +321,7 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
             var row = rows.get(i);
             if (event.button() == InputConstants.MOUSE_BUTTON_RIGHT) { send(Action.FOCUS, row.id()); return true; }
             if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return true;
+            if (tab == Tab.ARMY && gui(new Box(ROW_X + 1, rowBox(i).y() + 2, 76, 31)).contains(event.x(), event.y())) { openDetails(row.id()); return true; }
             AudioUiSounds.play(tab == Tab.ARMY ? "ui.division.select" : tab == Tab.NAVY ? "ui.fleet.select" : "ui.aircraft.select");
             CommanderHud.selectOverview(tab, row.id(), event.hasShiftDown());
             return true;
@@ -290,11 +329,18 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         return true;
     }
     @Override public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+        if (details != null && details.mouseDragged(event)) return true;
         if (dragging) { scroll = Math.round(bar().offset(event.y()) / frame.scale()); return true; }
         return super.mouseDragged(event, dx, dy);
     }
-    @Override public boolean mouseReleased(MouseButtonEvent event) { dragging = false; return super.mouseReleased(event); }
+    @Override public boolean mouseReleased(MouseButtonEvent event) { dragging = false; if (details != null) details.mouseReleased(); return super.mouseReleased(event); }
+    @Override public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        if (details != null && details.keyPressed(event)) return true;
+        if (details != null && event.key() == InputConstants.KEY_ESCAPE) { closeDetails(); return true; }
+        return super.keyPressed(event);
+    }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
+        if (details != null && details.mouseScrolled(x, y, vertical)) return true;
         if (frame != null && x < frame.x(550) && y >= frame.y(layout().rowY()) && y < frame.y(listBottom())) { scroll = Math.clamp(scroll - (int)Math.round(vertical * ROW_HEIGHT * 2), 0, maxScroll()); return true; }
         return super.mouseScrolled(x, y, horizontal, vertical);
     }

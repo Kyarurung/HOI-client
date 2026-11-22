@@ -118,12 +118,15 @@ public final class CommanderHud {
         ClientTickEvents.END_CLIENT_TICK.register(client->{NavalSeaHover.tick();if(view!=null&&(client.level==null||!view.dimension().equals(client.level.dimension().identifier().toString())||!view.country().equals(ClientCampaignHud.country())))reset();});
         CommanderOverviewPayloads.registerPayloadTypes();
         ClientPlayNetworking.registerGlobalReceiver(CommanderOverviewPayloads.Snapshot.TYPE,(packet,context)->{if(dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.commander.CommanderOverview overview)overview.accept(packet.view());});
-        HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR,Identifier.parse("hoi:commander_hud"),(g,delta)->{if(Minecraft.getInstance().gui.screen()==null)draw(g,0,g.guiWidth()/2,g.guiHeight()/2);});
-        ScreenEvents.AFTER_INIT.register((client,screen,w,h)->{if(screen instanceof InputSidebarMovement.InputMovementScreen sidebar){if(screen instanceof dev.hoi.client.screen.commander.CommanderTraits)ScreenEvents.beforeExtract(screen).register((s,g,mx,my,delta)->{if(sidebar.allowsMovement()){draw(g,sidebar.unitHudLeft(),-1,-1);g.nextStratum();}});else ScreenEvents.afterExtract(screen).register((s,g,mx,my,delta)->{if(sidebar.allowsMovement())draw(g,sidebar.unitHudLeft(),mx,my);});}});
+        dev.hoi.protocol.commander.CommanderDivisionPayloads.registerPayloadTypes();
+        ClientPlayNetworking.registerGlobalReceiver(dev.hoi.protocol.commander.CommanderDivisionPayloads.Snapshot.TYPE,(packet,context)->{if(dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.commander.CommanderOverview overview)overview.accept(packet.view());});
+        HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR,Identifier.parse("hoi:commander_hud"),(g,delta)->{if(Minecraft.getInstance().gui.screen()==null){int mx=g.guiWidth()/2,my=g.guiHeight()/2;boolean covered=CommanderShipHud.covers(mx,my);draw(g,0,covered?-1:mx,covered?-1:my);}});
+        CommanderShipHud.register();
+        ScreenEvents.AFTER_INIT.register((client,screen,w,h)->{if(screen instanceof InputSidebarMovement.InputMovementScreen sidebar){if(screen instanceof dev.hoi.client.screen.commander.CommanderTraits)ScreenEvents.beforeExtract(screen).register((s,g,mx,my,delta)->{if(sidebar.allowsMovement()){draw(g,sidebar.unitHudLeft(),-1,-1);g.nextStratum();}});else if(!(screen instanceof dev.hoi.client.screen.commander.CommanderConfirmation))ScreenEvents.afterExtract(screen).register((s,g,mx,my,delta)->{boolean covered=sidebar.covers(mx,my);if(sidebar.allowsMovement())draw(g,sidebar.unitHudLeft(),covered?-1:mx,covered?-1:my);});}});
     }
     public static void accept(View received){var next=visibleCards(received);var client=Minecraft.getInstance();if(next.country().isEmpty()||client.level==null||!next.dimension().equals(client.level.dimension().identifier().toString())||!next.country().equals(ClientCampaignHud.country())){reset();return;}if(view==null||!view.country().equals(next.country())||!view.dimension().equals(next.dimension())||view.branch()!=next.branch()){NavalSeaHover.reset();CommanderTheaters.reset();page=0;paletteGroup="";}if(next.cards().stream().noneMatch(c->c.id().equals(paletteGroup)))paletteGroup="";CommanderCardDrag.accept(next);groups.accept(next);theaters.selected(next);view=next;CommanderPanels.accept(next);if(next.cards().stream().noneMatch(card->CommanderPanels.selected(card.id())))selectedCard="";boxes=List.of();}
     static View visibleCards(View view){var cards=view.cards().stream().filter(card->card.role()!=Mode.ASSIGN_ARMY||card.count()>0).toList();return new View(view.country(),view.dimension(),view.branch(),cards,view.wings(),view.running(),view.theaters(),view.armyTheaters(),view.orderToken(),view.orderRevision());}
-    public static void reset(){theaters.clear();NavalSeaHover.reset();CommanderTheaters.reset();CommanderCardDrag.reset();paletteGroup="";groups.clear();bands=List.of();tooltipBounds=null;renderedTooltip="";hovered="";CommanderOrders.reset();CommanderPanels.reset();selectedCard="";view=null;boxes=List.of();page=0;}
+    public static void reset(){CommanderShipRows.reset();CommanderShipHud.reset();theaters.clear();NavalSeaHover.reset();CommanderTheaters.reset();CommanderCardDrag.reset();paletteGroup="";groups.clear();bands=List.of();tooltipBounds=null;renderedTooltip="";hovered="";CommanderOrders.reset();CommanderPanels.reset();selectedCard="";view=null;boxes=List.of();page=0;}
     public static void open(Open request){if(request.mode()==Mode.AIR_ATTACH){CommanderOrders.route(request);return;}if(requestObserver!=null){requestObserver.accept(request);return;}if(CommanderOrders.route(request))return;if(ClientPlayNetworking.canSend(Open.TYPE))ClientPlayNetworking.send(request);}
     public static boolean pressAt(double x,double y,int button,boolean twice){if(AgencyHud.active())return AgencyHud.clickAt(x,y,button);if(button==InputConstants.MOUSE_BUTTON_LEFT&&view!=null&&!Minecraft.getInstance().gui.hud.isHidden()&&view.country().equals(ClientCampaignHud.country())&&(CommanderPanels.pressScroll(x,y)||CommanderCardDrag.begin(view,boxes,x,y)))return true;return clickAt(x,y,button,twice);}
     public static boolean dragAt(double x,double y){return CommanderPanels.dragScroll(y)||CommanderCardDrag.move(x);}
@@ -131,7 +134,7 @@ public final class CommanderHud {
     public static boolean releaseAt(double x,int button){return button==InputConstants.MOUSE_BUTTON_LEFT&&(CommanderPanels.releaseScroll()||CommanderCardDrag.release(x));}
     public static void cancelDrag(){CommanderCardDrag.cancel();}
     static void reconcileCardOrder(){if(view!=null)CommanderCardDrag.reconcile(view);}
-    public static boolean closeSelection(){if(AgencyHud.active())return AgencyHud.deselect();boolean closed=CommanderTheaters.closeSettings()||CommanderPanels.closeSelection();if(closed)dev.hoi.client.audio.AudioUiSounds.play("ui.close");return closed;}
+    public static boolean closeSelection(){if(AgencyHud.active())return AgencyHud.deselect();boolean closed=CommanderShipHud.closeWindow()||CommanderTheaters.closeSettings()||CommanderPanels.closeSelection();if(closed)dev.hoi.client.audio.AudioUiSounds.play("ui.close");return closed;}
     public static boolean scrollAt(double x,double y,double amount){
         if(AgencyHud.active())return AgencyHud.scrollAt(x,y,amount);
         CommanderCardDrag.cancel();
@@ -162,7 +165,8 @@ public final class CommanderHud {
     static boolean updateHover(String key){boolean entered=!key.isEmpty()&&!key.equals(hovered);hovered=key;return entered;}
     private static boolean backdropPass;
     static boolean backdropPass(){return backdropPass;}
-    public static void drawBackdrop(GuiGraphicsExtractor g){backdropPass=true;try{draw(g,0,-1,-1);}finally{backdropPass=false;}}
+    public static void drawBackdrop(GuiGraphicsExtractor g){drawBackdrop(g,0);}
+    public static void drawBackdrop(GuiGraphicsExtractor g,int left){backdropPass=true;try{draw(g,left,-1,-1);}finally{backdropPass=false;}}
     private static int[] offsets(UiUnits units,List<Card> cards){int[] offsets=new int[cards.size()+1];for(int i=0;i<cards.size();i++){boolean group=cards.get(i).role()==Mode.ARMY_GROUP,nextGroup=i+1<cards.size()&&cards.get(i+1).role()==Mode.ARMY_GROUP;offsets[i+1]=offsets[i]+units.size(group?45:42)-units.size(group?2:.5)-units.size(nextGroup?2:.5);}return offsets;}
     private static void draw(GuiGraphicsExtractor g,int left,int mx,int my){
         if(AgencyHud.active()){boxes=List.of();CommanderCardDrag.cancel();return;}
@@ -292,7 +296,7 @@ public final class CommanderHud {
         if(!tooltip.isEmpty())drawTooltip(g,mx,my,dev.hoi.client.ui.tooltip.TooltipDelay.visible(tooltip));
         String hover=CommanderPanels.hoverKey(mx,my);if(hover.isEmpty())for(var box:boxes)if(box.contains(mx,my)){hover="hud/"+box.x()+"/"+box.y()+"/"+box.width()+"/"+box.height();break;}if(updateHover(hover))dev.hoi.client.audio.AudioUiSounds.play("ui.menu_over");
     }
-    private static void drawTooltip(GuiGraphicsExtractor g,int mx,int my,String tooltip){
+    static void drawTooltip(GuiGraphicsExtractor g,int mx,int my,String tooltip){
         if(dev.hoi.client.ui.tooltip.TooltipLayer.defer(g,()->drawTooltip(g,mx,my,tooltip)))return;
         var client=Minecraft.getInstance();
         var lines=Tooltips.tooltipLines(client.font,tooltip,g.guiWidth());int textWidth=lines.stream().mapToInt(client.font::width).max().orElse(0),lineHeight=client.font.lineHeight,textHeight=lines.size()*lineHeight;var position=tooltipPosition(g.guiWidth(),g.guiHeight(),mx,my,textWidth,textHeight);

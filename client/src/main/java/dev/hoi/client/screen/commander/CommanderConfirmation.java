@@ -13,18 +13,22 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.resources.Identifier;
 
-public final class CommanderConfirmation extends DialogScreen {
+public final class CommanderConfirmation extends DialogScreen implements dev.hoi.client.input.InputSidebarMovement.InputMovementScreen {
     private int left,top,pane,panelHeight,scroll,offsetX,offsetY;
     private boolean pending,dragging,moving;
-    private net.minecraft.client.gui.screens.Screen parent;
-    public void backdrop(net.minecraft.client.gui.screens.Screen value){parent=value;}
+    private net.minecraft.client.gui.screens.Screen parent,restored;
+    public void backdrop(net.minecraft.client.gui.screens.Screen value){parent=value;restored=value instanceof CommanderOverview||value instanceof MapCursor?value:null;}
+    public net.minecraft.client.gui.screens.Screen restored(){return restored;}
     public net.minecraft.client.gui.screens.Screen backdrop(){return parent;}
     @Override public void tick(){if(parent instanceof AgencyScreen agency)agency.tick();}
+    @Override public boolean allowsMovement(){return parent instanceof CommanderOverview overview&&overview.allowsMovement();}
+    @Override public int unitHudLeft(){return parent instanceof CommanderOverview overview?overview.unitHudLeft():Integer.MAX_VALUE;}
+    @Override public boolean covers(double x,double y){return true;}
     private List<net.minecraft.util.FormattedCharSequence> lines=List.of();
     private final Map<String,UiMenuButton> buttons=new HashMap<>();
     public CommanderConfirmation(DialogView view){super(view);}
     public CommanderConfirmation(DialogView view,BiConsumer<DialogView,String> send){super(view,send);}
-    static boolean division(DialogView view){return view.image().isEmpty()&&view.tiles().isEmpty()&&List.of("CONFIRMDELETEUNIT","CONFIRMDELETEUNITS","CONFIRMCHANGE_UNIT_TEMPLATE").stream().anyMatch(key->view.title().equals(UiCommandLabels.text(key,"")));}
+    static boolean division(DialogView view){return view.image().isEmpty()&&view.tiles().isEmpty()&&List.of("CONFIRMDELETEUNIT","CONFIRMDELETEUNITS","CONFIRMDELETESHIP","CONFIRMCHANGE_UNIT_TEMPLATE").stream().anyMatch(key->view.title().equals(UiCommandLabels.text(key,"")));}
     public static boolean matches(DialogView view){return view.kind()==DialogView.Kind.COMMANDER&&(division(view)||Set.of("commander/advisor-confirm","commander/advisor-promote").contains(view.image())||view.tiles().size()==1&&view.tiles().getFirst().section().equals("promote")&&view.choices().stream().anyMatch(c->c.id().equals("cancel")));}
     public AbstractWidget choiceButton(String id){return buttons.get(id);}
     @Override public net.minecraft.network.chat.Component bodyText(){return TooltipKeywordIcons.decorateLines(Tooltips.sourceSpacing(parent instanceof AgencyScreen?Tooltips.officerText(view().body(),false):confirmationText(view().body())),false);}
@@ -46,8 +50,8 @@ public final class CommanderConfirmation extends DialogScreen {
         }
     }
     @Override public void extractRenderState(GuiGraphicsExtractor g,int mx,int my,float delta){
-        if(division(view())&&!(parent instanceof ArmyDivisionTemplates)){dev.hoi.client.map.commander.CommanderHud.drawBackdrop(g);g.nextStratum();}
-        if(parent!=null){var background=parent instanceof AgencyScreen agency?agency.dismissalBackdrop():parent;background.extractRenderState(g,-1,-1,delta);if(background instanceof MapCursor&&parent instanceof AgencyScreen)dev.hoi.client.map.agency.AgencyHud.drawBackdrop(g);g.nextStratum();}
+        if((division(view())||parent instanceof MapCursor)&&!(parent instanceof ArmyDivisionTemplates)&&!(parent instanceof CommanderOverview)){dev.hoi.client.map.commander.CommanderHud.drawBackdrop(g);dev.hoi.client.map.commander.CommanderShipHud.drawBackdrop(g);g.nextStratum();}
+        if(parent!=null){var background=parent instanceof AgencyScreen agency?agency.dismissalBackdrop():parent;background.extractRenderState(g,-1,-1,delta);if(background instanceof MapCursor&&parent instanceof AgencyScreen)dev.hoi.client.map.agency.AgencyHud.drawBackdrop(g);if(parent instanceof CommanderOverview overview){dev.hoi.client.map.commander.CommanderHud.drawBackdrop(g,overview.unitHudLeft());overview.drawOver(g,-1,-1);}g.nextStratum();}
         if(parent instanceof AgencyScreen){
             UiAssets.nineSlice(g,"occupation/header_frame",left,top,pane,panelHeight,5,.5);
             UiAssets.draw(g,"completion/header",left+1,top+4,pane-2,43);

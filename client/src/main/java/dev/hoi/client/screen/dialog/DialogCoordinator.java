@@ -166,11 +166,12 @@ public final class DialogCoordinator {
             return;
         }
         if (notifications != null && notifications.backdrop() instanceof DialogScreen screen && screen.view().token().equals(token)) {
-            notifications.backdrop(screen instanceof IndustryOrganization organization ? organization.backdrop() : screen instanceof CommanderPreferredTactics tactics ? tactics.backdrop() : screen instanceof PoliticsChoice politics ? politics.backdrop() : screen instanceof CommanderRoster commander ? commander.backdrop() : screen instanceof CommanderTraits traits ? traits.backdrop() : null);
+            notifications.backdrop(screen instanceof CommanderConfirmation confirmation ? confirmation.restored() : screen instanceof IndustryOrganization organization ? organization.backdrop() : screen instanceof CommanderPreferredTactics tactics ? tactics.backdrop() : screen instanceof PoliticsChoice politics ? politics.backdrop() : screen instanceof CommanderRoster commander ? commander.backdrop() : screen instanceof CommanderTraits traits ? traits.backdrop() : null);
             return;
         }
         if (client.gui.screen() instanceof DialogScreen screen && screen.view().token().equals(token)) {
-            if (screen instanceof CommanderOfficerRoster officers) officers.dismiss();
+            if (screen instanceof CommanderConfirmation confirmation) client.gui.setScreen(confirmation.restored());
+            else if (screen instanceof CommanderOfficerRoster officers) officers.dismiss();
             else if (screen instanceof IndustryOrganization organization) organization.dismiss();
             else if (screen instanceof DialogCompletion completion) completion.dismiss();
             else if (screen instanceof CommanderPreferredTactics tactics) tactics.dismiss();
