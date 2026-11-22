@@ -128,7 +128,7 @@ public final class CommanderRosterTest {
             for(String file:List.of("kor-army-appointment-advisors","kor-army-group-marshal","kor-navy-admirals-source")) {
                 var view=new DialogPayloads.Show(java.nio.file.Files.readString(java.nio.file.Path.of(directory,file+".json")),true).view().issued(UUID.randomUUID().toString(),7);
                 var candidates=view.tiles().stream().filter(t->t.leader()!=null&&t.leader().traitDetails().stream().anyMatch(ti->ti.icon().equals("commander/traits/trait_add_new"))).toList();
-                if(candidates.size()!=(file.contains("navy")?9:11))throw new AssertionError("Selectable source trait count changed");
+                if(candidates.size()!=(file.contains("navy")?10:11))throw new AssertionError("Selectable source trait count changed");
                 if(view.tiles().stream().filter(t->Set.of("전동진","손식").contains(t.name())).anyMatch(candidates::contains))throw new AssertionError("Unavailable trait choices must not show plus");
                 var candidate=candidates.stream().filter(t->t.name().equals("이두희")).findFirst().orElse(candidates.getFirst());
                 var detail=candidate.leader().traitDetails().getLast();

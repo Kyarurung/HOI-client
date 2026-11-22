@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
 final class CommanderTheaters {
+    private static final float[] SUCCESSFUL={.043f,.86f,.043f},MIN_FAILED={.3153f,.86f,.043f},MID_FAILED={.86f,.7238f,.043f},MAX_FAILED={.86f,.043f,.043f};
     private static int scroll,maximum,left,top,right,bottom;
     private static String settings="";
     private CommanderTheaters() {}
@@ -27,12 +28,12 @@ final class CommanderTheaters {
         int settingsY=top;Theater settingsTheater=null;
         var cards=new HashMap<String,Card>();view.cards().forEach(c->cards.put(c.id(),c));g.enableScissor(left,top,right,bottom);
         for(var theater:view.theaters()){
-            int header=y;UiAssets.draw(g,art("theater_group_bg").replace("frame_0","frame_1"),left,y,u.size(152.5),u.size(38.5));
+            int header=y;UiAssets.draw(g,art("theater_group_bg"),left,y,u.size(152.5),u.size(38.5));
             if(theater.id().equals(settings)){settingsY=y;settingsTheater=theater;}
             label(g,theater.name(),left+u.size(19),y+u.size(3.5),u.size(84),u.size(16),false);
             if(view.branch()!=Mode.AIR)out.add(new CommanderPanels.Hit(left+u.size(19),y+u.size(3.5),u.size(84),u.size(16),theater.name(),()->choose(view,theater.id()),null,dev.hoi.client.audio.AudioUiSounds.selection(view.branch()),"theater_title/"+theater.id()));
             icon(g,u,out,theater,"THEATER_SETTINGS","theater_group_settings_btn",0,left+u.size(4.5),y+u.size(5.5),11.5,11.5);
-            icon(g,u,out,theater,"THEATER_LOG","theatre_combat_log_icon",0,left+u.size(104.5),y+u.size(2.5),13.05,17.1);
+            icon(g,u,out,theater,"THEATER_LOG","theatre_combat_log_icon",CommanderCombatLogHud.shows(theater.id())?1:0,left+u.size(104.5),y+u.size(2.5),13.05,17.1);
             battle(g,u,out,theater,"THEATER_OFFENSIVE",0,left+u.size(116),y+u.size(6.5));
             battle(g,u,out,theater,"THEATER_DEFENSIVE",1,left+u.size(134.5),y+u.size(6.5));
             var assign=control(theater,"THEATER_ASSIGN");
@@ -137,13 +138,20 @@ final class CommanderTheaters {
     }
     private static void icon(GuiGraphicsExtractor g,UiUnits u,List<CommanderPanels.Hit> out,Theater theater,String id,String name,int frame,int x,int y,double width,double height){
         var control=control(theater,id);String asset=art(name).replace("frame_0","frame_"+frame);if(id.equals("THEATER_SETTINGS")&&(control==null||!control.enabled()))UiAssets.drawGrayscale(g,asset,x,y,u.size(width),u.size(height));else UiAssets.draw(g,asset,x,y,u.size(width),u.size(height));
-        out.add(new CommanderPanels.Hit(x,y,u.size(width),u.size(height),control==null?"":control.tooltip(),()->{if(control!=null&&control.enabled()&&id.equals("THEATER_SETTINGS"))settings=settings.equals(theater.id())?"":theater.id();},null,control!=null&&control.enabled()?"ui.click":"",id.toLowerCase(Locale.ROOT)));
+        out.add(new CommanderPanels.Hit(x,y,u.size(width),u.size(height),control==null?"":control.tooltip(),()->{if(control==null||!control.enabled())return;if(id.equals("THEATER_LOG"))CommanderCombatLogHud.open(theater.id());else settings=settings.equals(theater.id())?"":theater.id();},null,control!=null&&control.enabled()?"ui.click":"",id.toLowerCase(Locale.ROOT)));
+    }
+    static int combatColor(int total,int problems){
+        float[] color={.8f,.8f,.8f};
+        if(total>0&&problems<=0)color=SUCCESSFUL;
+        else if(total>0){float ratio=Math.min(1,problems/(float)total);float[] from=ratio<.5f?MIN_FAILED:MID_FAILED,to=ratio<.5f?MID_FAILED:MAX_FAILED;color=new float[3];for(int i=0;i<3;i++)color[i]=from[i]+(to[i]-from[i])*2*(ratio<.5f?ratio:ratio-.5f);}
+        int tint=0xFF000000;for(int i=0;i<3;i++)tint|=Math.round((float)Math.pow(color[i],2.2)*255)<<16-8*i;
+        return tint;
     }
     private static void battle(GuiGraphicsExtractor g,UiUnits u,List<CommanderPanels.Hit> out,Theater theater,String id,int frame,int x,int y){
         var control=control(theater,id);int total=-1,problems=-1;
         if(control!=null){String[] parts=control.id().split("/");if(parts.length==3)try{total=Integer.parseInt(parts[1]);problems=Integer.parseInt(parts[2]);}catch(NumberFormatException ignored){}}
         String asset=art("theatre_battle_indicator").replace("frame_0","frame_"+frame);
-        if(total<=0)UiAssets.drawGrayscale(g,asset,x,y,u.size(15.3),u.size(15.3));else UiAssets.drawTinted(g,asset,x,y,u.size(15.3),u.size(15.3),problems>0?0xffff3030:0xff30d040);
+        UiAssets.drawTinted(g,asset,x,y,u.size(15.3),u.size(15.3),combatColor(total,problems));
         if(total>0){var font=Minecraft.getInstance().font;String value=Integer.toString(total);float tx=frame==0?x+u.length(2.5):x+u.length(13.5)-font.width(value)*UiText.scale(font);g.pose().pushMatrix();g.pose().translate(tx,y-u.length(2.5));UiText.text(g,font,value,0,0,UiMenuStyle.TEXT);g.pose().popMatrix();}
         out.add(new CommanderPanels.Hit(x,y-u.size(4),u.size(16),u.size(19.3),control==null?"":control.tooltip(),()->{},null,"",id.toLowerCase(Locale.ROOT)));
     }

@@ -52,7 +52,9 @@ public final class InputMapInfo {
                         client.player.isShiftKeyDown() ? com.mojang.blaze3d.platform.InputConstants.MOD_SHIFT : 0)), false)) {
             client.gui.setScreen(new dev.hoi.client.screen.map.MapCursor()); return true;
         }
-        if(dev.hoi.client.map.commander.CommanderShipHud.click(new net.minecraft.client.input.MouseButtonEvent(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)))){dev.hoi.client.map.commander.CommanderShipHud.release();return true;}
+        var centre=new net.minecraft.client.input.MouseButtonEvent(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));
+        if(dev.hoi.client.map.commander.CommanderCombatLogHud.click(centre)){dev.hoi.client.map.commander.CommanderCombatLogHud.release();return true;}
+        if(dev.hoi.client.map.commander.CommanderShipHud.click(centre)){dev.hoi.client.map.commander.CommanderShipHud.release();return true;}
         if(dev.hoi.client.map.commander.CommanderHud.clickAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
         if(dev.hoi.client.map.commander.CommanderUnitHud.selectAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
         if(!ClientPlayNetworking.canSend(DialogPayloads.MapClick.TYPE))return false;

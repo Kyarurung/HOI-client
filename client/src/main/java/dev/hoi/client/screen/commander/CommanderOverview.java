@@ -50,6 +50,7 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
     private boolean descending, dragging, suspended;
     private int scroll;
     private CommanderDivisionWindow details;
+    private CommanderNavalLossWindow losses;
     public CommanderOverview(Tab tab) { this(tab, request -> { if (ClientPlayNetworking.canSend(Request.TYPE)) ClientPlayNetworking.send(request); }); }
     CommanderOverview(Tab tab, Consumer<Request> transport) {
         super(Component.literal(tab == Tab.ARMY ? "육군 개요" : tab == Tab.NAVY ? "해군 개요" : "공군 개요"));
@@ -83,6 +84,17 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         details.open();
     }
     private void closeDetails() { if (details != null) { details.close(); details = null; } }
+    CommanderNavalLossWindow losses() { return losses; }
+    public void accept(dev.hoi.protocol.commander.CommanderRecordPayloads.Losses next) { if (losses != null && !losses.accept(next)) closeLosses(); }
+    private void toggleLosses() {
+        if (losses != null) { closeLosses(); return; }
+        losses = new CommanderNavalLossWindow();
+        losses.layout(frame, width, height);
+        losses.open();
+    }
+    private void closeLosses() { if (losses != null) { losses.close(); losses = null; } }
+    static Box lossesBox() { return new Box(419, 8, 37, 36); }
+    private boolean lossesAt(double x, double y) { return tab == Tab.NAVY && view != null && view.error().isEmpty() && gui(lossesBox()).contains(x, y); }
     private void send(Action action, String target) {
         var request = new Request(token, action, tab, target);
         if (requestObserver != null) requestObserver.accept(request); else transport.accept(request);
@@ -100,17 +112,23 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         if (!label(filterTooltipKey()).isEmpty()) filter.setTooltip(Tooltips.createOfficer(label(filterTooltipKey())));
         addRenderableWidget(filter);
         if (details != null) details.layout(width, height, frame.scale());
-        if (suspended) { suspended = false; send(Action.OPEN, ""); if (details != null) details.request(); }
+        if (losses != null) losses.layout(frame, width, height);
+        if (suspended) { suspended = false; send(Action.OPEN, ""); if (details != null) details.request(); if (losses != null) losses.request(); }
         refresh();
     }
     private String filterTooltipKey() { return tab == Tab.ARMY ? "ARMY_DIVISONS_FILTER_DESC" : tab == Tab.NAVY ? "ARMY_NAVIES_FILTER_DESC" : "ARMY_AIR_FILTER_DESC"; }
-    @Override public void removed() { InputSidebarMovement.release(minecraft); if (details != null) details.close(); send(Action.CLOSE, ""); suspended = true; }
+    @Override public void removed() { InputSidebarMovement.release(minecraft); if (details != null) details.close(); if (losses != null) losses.close(); send(Action.CLOSE, ""); suspended = true; }
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean isInGameUi() { return true; }
     @Override public boolean allowsMovement() { return !(getFocused() instanceof EditBox); }
     @Override public int unitHudLeft() { return frame == null ? 0 : frame.ix(550); }
-    @Override public boolean covers(double x, double y) { return details != null && details.contains(x, y); }
+    @Override public boolean covers(double x, double y) { return details != null && details.contains(x, y) || losses != null && losses.contains(x, y); }
     @Override public void drawOver(GuiGraphicsExtractor g, int mx, int my) {
+        if (losses != null) {
+            losses.draw(g, font, mx, my);
+            String text = losses.tooltip(mx, my);
+            if (!text.isEmpty()) { g.nextStratum(); Tooltips.drawSourceScrollable(g, font, text, mx, my, g.guiWidth(), g.guiHeight(), 0); }
+        }
         if (details == null) return;
         details.draw(g, font, mx, my);
         String text = details.contains(mx, my) ? details.tooltip(mx, my) : "";
@@ -160,6 +178,7 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         frame.tile(g, "commander/commands/tiled_bg/frame_0", 0, 40, 550, (int)Math.ceil(bottom - 40), 64, 192);
         frame.tile(g, WINDOW.tile(), 0, l.panelY(), 550, (int)Math.ceil(bottom - l.panelY()), 64, 190);
         UiMenuStyle.title(g, font, WINDOW, frame, label(tab == Tab.ARMY ? "ARMY_ARMY_LABEL" : tab == Tab.NAVY ? "ARMY_NAVY_LABEL" : "ARMY_AIR_LABEL"));
+        if (tab == Tab.NAVY) frame.art(g, "commander/losses/button", lossesBox().x(), lossesBox().y());
         frame.art(g, "commander/overview/top_strip/frame_" + l.strip(), 14, 55);
         frame.art(g, "commander/overview/edit_box", 333, 80);
         text(g, label("ARMY_FILTER_LABEL"), 343, 62, 180, 20, false);
@@ -278,7 +297,7 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
     private void tooltip(GuiGraphicsExtractor g, int mx, int my) {
         hovered = "";
         if (view == null || mx >= frame.x(550)) return;
-        String text = "";
+        String text = lossesAt(mx, my) ? label("SUNK_SHIP_DETAILS") : "";
         if (!view.special().isEmpty() && gui(new Box(287, 82, 50, 23)).contains(mx, my)) text = view.specialTooltip();
         for (int i = 0; i < view.modifiers().size(); i++) if (gui(modifierBox(i)).contains(mx, my)) text = view.modifiers().get(i).tooltip();
         for (int i = 0; i < Math.min(12, view.types().size()); i++) if (gui(typeBox(i)).contains(mx, my)) text = view.types().get(i).tooltip();
@@ -296,7 +315,9 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
     }
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean twice) {
         if (details != null && details.mouseClicked(event, twice, font, this::closeDetails)) return true;
+        if (losses != null && losses.mouseClicked(event, this::closeLosses)) return true;
         if (super.mouseClicked(event, twice)) return true;
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && lossesAt(event.x(), event.y())) { AudioUiSounds.play("ui.click"); toggleLosses(); return true; }
         if (view == null || event.x() >= frame.x(550)) return false;
         var l = layout();
         if (bar().contains(event.x(), event.y())) {
@@ -329,18 +350,19 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
         return true;
     }
     @Override public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
-        if (details != null && details.mouseDragged(event)) return true;
+        if (details != null && details.mouseDragged(event) || losses != null && losses.mouseDragged(event)) return true;
         if (dragging) { scroll = Math.round(bar().offset(event.y()) / frame.scale()); return true; }
         return super.mouseDragged(event, dx, dy);
     }
-    @Override public boolean mouseReleased(MouseButtonEvent event) { dragging = false; if (details != null) details.mouseReleased(); return super.mouseReleased(event); }
+    @Override public boolean mouseReleased(MouseButtonEvent event) { dragging = false; if (details != null) details.mouseReleased(); if (losses != null) losses.mouseReleased(); return super.mouseReleased(event); }
     @Override public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         if (details != null && details.keyPressed(event)) return true;
         if (details != null && event.key() == InputConstants.KEY_ESCAPE) { closeDetails(); return true; }
+        if (losses != null && event.key() == InputConstants.KEY_ESCAPE) { if (!losses.closeMenu()) closeLosses(); return true; }
         return super.keyPressed(event);
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
-        if (details != null && details.mouseScrolled(x, y, vertical)) return true;
+        if (details != null && details.mouseScrolled(x, y, vertical) || losses != null && losses.mouseScrolled(x, y, vertical)) return true;
         if (frame != null && x < frame.x(550) && y >= frame.y(layout().rowY()) && y < frame.y(listBottom())) { scroll = Math.clamp(scroll - (int)Math.round(vertical * ROW_HEIGHT * 2), 0, maxScroll()); return true; }
         return super.mouseScrolled(x, y, horizontal, vertical);
     }

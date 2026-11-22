@@ -84,11 +84,17 @@ public final class CommanderOverviewTest {
                 check(army.rows().size() == views.get(Tab.ARMY).rows().size(), "Clearing the filter restores every division");
             });
             CommanderDivisionWindowTest.run(game, army, directory);
+            CommanderNavalLossWindowTest.run(game, open(game, requests, views.get(Tab.NAVY), Tab.NAVY, false), directory, views.get(Tab.NAVY).label("SUNK_SHIP_DETAILS"), "-2560x1440-gui2");
             for (int[] size : new int[][]{{1920, 1080, 2}, {2560, 1440, 3}, {854, 480, 2}}) {
                 game.getInput().resizeWindow(size[0], size[1]);
                 game.runOnClient(c -> c.options.guiScale().set(size[2]));
                 open(game, requests, views.get(Tab.NAVY), Tab.NAVY, false);
                 game.takeScreenshot("hoi-overview-navy-" + size[0] + "x" + size[1] + "-gui" + size[2]);
+            }
+            for (int[] size : new int[][]{{1280, 720, 2}, {854, 480, 2}}) {
+                game.getInput().resizeWindow(size[0], size[1]);
+                game.runOnClient(c -> c.options.guiScale().set(size[2]));
+                CommanderNavalLossWindowTest.run(game, open(game, requests, views.get(Tab.NAVY), Tab.NAVY, false), directory, views.get(Tab.NAVY).label("SUNK_SHIP_DETAILS"), "-" + size[0] + "x" + size[1] + "-gui" + size[2]);
             }
         } catch (IOException error) { throw new AssertionError(error); }
         finally {

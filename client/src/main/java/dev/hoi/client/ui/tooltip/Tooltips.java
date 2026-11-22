@@ -142,6 +142,15 @@ public final class Tooltips {
         officerText(text).visit((style,part)->{result.append(Component.literal(part).withStyle(style.withBold(bold&&!TooltipKeywordIcons.FONT.equals(style.getFont()))));return java.util.Optional.empty();},net.minecraft.network.chat.Style.EMPTY);
         return result;
     }
+    public static Component panelText(String text) {
+        var result = Component.empty();
+        officerText(text).visit((style, part) -> {
+            int color = style.getColor() == null ? -1 : style.getColor().getValue();
+            result.append(Component.literal(part).withStyle(color == GOLD ? style.withColor(0xEEC923) : color == GOOD ? style.withColor(0x56AC5B) : color == BAD ? style.withColor(0xDE5646) : style));
+            return java.util.Optional.empty();
+        }, net.minecraft.network.chat.Style.EMPTY);
+        return result;
+    }
     private static String officerCodes(String text) {
         return text.replace("§g", "§#8893A5").replace("§G", "§a").replace("§R", "§4")
                 .replace("§Y", "§e").replace("§H", "§e").replace("§W", "§f")

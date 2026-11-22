@@ -22,7 +22,7 @@ public final class CommanderHudTest {
         CommanderHierarchySelectionTest.run(context,menu);CommanderSelectionDetailsTest.run(context,menu);CommanderRightClickTest.run(context,command);
     }
     public static void runArmyGroups(ClientGameTestContext context,MenuView menu){CommanderGroupsRenderTest.run(context,menu);}
-    public static void runArmyLayout(ClientGameTestContext context,MenuView menu){CommanderPanelsTest.runArmyLayout(context,menu);CommanderGroupsRenderTest.run(context,menu);}
+    public static void runArmyLayout(ClientGameTestContext context,MenuView menu){CommanderPanelsTest.runArmyLayout(context,menu);CommanderGroupsRenderTest.run(context,menu);CommanderCombatLogTest.run(context,menu);}
     public static void runHeadquartersLayout(ClientGameTestContext context,MenuView menu){CommanderGroupsRenderTest.run(context,menu);}
     public static void runTraitOverlay(ClientGameTestContext game,MenuView menu){
         String directory=System.getenv("HOI_COMMANDER_PREVIEW");if(directory==null)return;
@@ -38,6 +38,7 @@ public final class CommanderHudTest {
     public static void run(ClientGameTestContext context,MenuView menu) {
         CommanderPanelsTest.run(context,menu);
         CommanderGroupsRenderTest.run(context,menu);
+        CommanderCombatLogTest.run(context,menu);
         CommanderAirBasePanelsTest.run(context,menu);
         var hud=menu.hud();
         context.getInput().resizeWindow(2560,1440);context.runOnClient(client->client.options.guiScale().set(2));
