@@ -405,7 +405,7 @@ public final class DecisionScreen extends Screen implements InputSidebarMovement
             y-=reserved;
             var result=panels.render(g,font,category.panel(),assets,text,frame.ix(TEXT_X),frame.iy(y),frame.len(PANEL_WIDTH));
             if(widgets)for(var hit:result.hits()) {
-                String tooltip=hit.immediate()+hit.delayed();
+                String tooltip=dev.hoi.protocol.ProtocolTooltip.delayed(hit.immediate(),"",hit.delayed());
                 if(!tooltip.isEmpty())hits.add(new DecisionHit("panel/"+category.id()+"/"+hit.id(),tooltip,hit.x(),hit.y(),hit.width(),hit.height()));
             }
             if(widgets)for(var hit:result.hits().reversed()) {

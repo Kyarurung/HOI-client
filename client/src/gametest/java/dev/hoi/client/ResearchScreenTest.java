@@ -361,7 +361,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             return;
         }
         if(Set.of("all","cursor-tooltips").contains(System.getProperty("hoi.testSuite","all"))){
-            try(var world=context.worldBuilder().create()){dev.hoi.client.ui.tooltip.TooltipCursorTest.run(context);dev.hoi.client.map.commander.CommanderCursorTooltipTest.run(context,fixtureMenu());dev.hoi.client.screen.commander.CommanderTraitTreeTest.run(context);}
+            try(var world=context.worldBuilder().create()){dev.hoi.client.ui.tooltip.TooltipCursorTest.run(context);dev.hoi.client.ui.tooltip.TooltipDelayTest.run(context);dev.hoi.client.map.commander.CommanderCursorTooltipTest.run(context,fixtureMenu());dev.hoi.client.screen.commander.CommanderTraitTreeTest.run(context);}
             if(System.getProperty("hoi.testSuite","all").equals("cursor-tooltips"))return;
         }
         if(System.getProperty("hoi.testSuite","all").equals("diplomacy-actions")){

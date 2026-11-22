@@ -286,7 +286,7 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             officerControl(widgets, tactic, "preferred_tactic", 0, frame.ix(405), frame.iy(50), frame.len(101), frame.len(60), false);
         }
         var captured=sections.stream().filter(v->v.icon().equals("captivity")).flatMap(v->v.entries().stream()).toList();String missing=captivityCounts!=null?Integer.toString(captivityCounts[0]):captured.isEmpty()?"—":captured.getFirst().value(),held=captivityCounts!=null?Integer.toString(captivityCounts[1]):captured.size()<2?"—":captured.get(1).value();
-        String capturedTip="§e포획된 지휘관§r\n§a클릭§r하여 우리의 실종된 지휘관 확인\n§a우클릭§r하여 우리가 포획한 지휘관 확인\n\n우리의 실종된 지휘관: §e"+missing+"§r\n우리에게 포획된 지휘관: §e"+held+"§r\n\n"+dev.hoi.client.ui.UiCommandLabels.text("CAPTURED_GENERALS_DELAYED_OPERATIVES","전투 중에 지휘관이 포로로 잡힐 수 있습니다. 포획된 지휘관은 습격이나 첩보 작전을 통해 구출할 수 있습니다.");
+        String capturedTip="§e포획된 지휘관§r\n§a클릭§r하여 우리의 실종된 지휘관 확인\n§a우클릭§r하여 우리가 포획한 지휘관 확인\n\n우리의 실종된 지휘관: §e"+missing+"§r\n우리에게 포획된 지휘관: §e"+held+"§r"+dev.hoi.protocol.ProtocolTooltip.DELAYED+"\n\n"+dev.hoi.client.ui.UiCommandLabels.text("CAPTURED_GENERALS_DELAYED_OPERATIVES","전투 중에 지휘관이 포로로 잡힐 수 있습니다. 포획된 지휘관은 습격이나 첩보 작전을 통해 구출할 수 있습니다.");
         var deployed=sections.stream().filter(v->v.icon().equals("army_hq")).flatMap(v->v.entries().stream()).findFirst().orElse(null);
         if (g != null) {
             g.enableScissor(frame.ix(13), frame.iy(116), frame.ix(536), frame.iy(201));
@@ -742,7 +742,8 @@ public final class ScreenMenu extends Screen implements InputSidebarMovement.Inp
             var lines = new ArrayList<net.minecraft.util.FormattedCharSequence>();
             lines.addAll(font.split(Component.literal(title).withColor(Tooltips.GOLD),Tooltips.width(width,14)));
             if (party) lines.addAll(font.split(Component.literal(hovered.value()),Tooltips.width(width,14)));
-            if (!hovered.detail().isBlank()) lines.addAll(spirits.contains(hovered) ? Tooltips.tooltipLines(font, hovered.detail(), width) : Tooltips.lines(font, hovered.detail(), Tooltips.width(width,14)+24));
+            String detail = dev.hoi.client.ui.tooltip.TooltipDelay.visible(hovered.detail());
+            if (!detail.isBlank()) lines.addAll(spirits.contains(hovered) ? Tooltips.tooltipLines(font, detail, width) : Tooltips.lines(font, detail, Tooltips.width(width,14)+24));
             lines=new ArrayList<>(Tooltips.collapseBlankLines(lines));
             int count = Math.max(1, (height - 48) / (font.lineHeight + 1));
             tooltipScroll = Math.clamp(tooltipScroll, 0, Math.max(0, lines.size() - count));

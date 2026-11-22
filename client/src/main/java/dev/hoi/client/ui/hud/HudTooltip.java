@@ -16,6 +16,7 @@ public final class HudTooltip {
     private static CountryHud cachedHud;
     private static HudMenuBar.HudIndicator cachedItem;
     private static int cachedWidth;
+    private static String cachedSource;
     private static List<FormattedCharSequence> cachedBody = List.of();
     private static CountryHud activeHud;
     private static HudMenuBar.HudIndicator activeItem;
@@ -42,12 +43,14 @@ public final class HudTooltip {
         draw.run();
     }
     public static List<FormattedCharSequence> body(Font font, int width, CountryHud hud, HudMenuBar.HudIndicator item) {
-        if (font == cachedFont && hud == cachedHud && item.equals(cachedItem) && width == cachedWidth) return cachedBody;
+        var original = hud.details().get(item.icon());
+        String source = original == null || original.sourceText() == null ? null : TooltipDelay.visible(original.sourceText());
+        if (font == cachedFont && hud == cachedHud && item.equals(cachedItem) && width == cachedWidth && java.util.Objects.equals(source, cachedSource)) return cachedBody;
         int wrap = wrap(width, item);
         var lines = new ArrayList<FormattedCharSequence>();
-        var original = hud.details().get(item.icon());
-        if (original != null && original.sourceText() != null) {
-            for (String line : TooltipText.colorLines(UiCommandLabels.withoutShortcuts(original.sourceText()))) {
+        cachedSource = source;
+        if (source != null) {
+            for (String line : TooltipText.colorLines(UiCommandLabels.withoutShortcuts(source))) {
                 if (TooltipText.blank(line)) lines.add(FormattedCharSequence.EMPTY);
                 else lines.addAll(Tooltips.split(font,TooltipKeywordIcons.decorateLines(Tooltips.styled(Component.literal(line).withColor(0xFFFFFF), false), false), wrap));
             }

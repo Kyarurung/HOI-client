@@ -289,7 +289,7 @@ public final class CommanderHud {
         NavalSeaHover.update(view,mx,my,g.guiWidth(),g.guiHeight(),mx>=sidebar&&my>=HudMenuBar.height(g.guiWidth())&&boxes.stream().noneMatch(b->b.contains(mx,my))&&CommanderPanels.hits().stream().noneMatch(h->h.contains(mx,my)));
         if(tooltip.isEmpty())tooltip=NavalInvasionOverlay.tooltip(mx,my);
         if(tooltip.isEmpty())tooltip=NavalSeaHover.text();
-        if(!tooltip.isEmpty())drawTooltip(g,mx,my,tooltip);
+        if(!tooltip.isEmpty())drawTooltip(g,mx,my,dev.hoi.client.ui.tooltip.TooltipDelay.visible(tooltip));
         String hover=CommanderPanels.hoverKey(mx,my);if(hover.isEmpty())for(var box:boxes)if(box.contains(mx,my)){hover="hud/"+box.x()+"/"+box.y()+"/"+box.width()+"/"+box.height();break;}if(updateHover(hover))dev.hoi.client.audio.AudioUiSounds.play("ui.menu_over");
     }
     private static void drawTooltip(GuiGraphicsExtractor g,int mx,int my,String tooltip){

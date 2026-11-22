@@ -634,10 +634,10 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
         int priorityHeight=dy.applyAsInt(104)-priorityDownY;
         var priorityUp = originalButton("생산 라인 한 칸 위로", "construction/ui/up", controlsX, priorityDownY-priorityBaseHeight, priorityWidth, priorityBaseHeight, index > 0,
                 () -> send(UP, line.id(), "", dev.hoi.client.ui.UiPriorityControls.shifted() ? 1 : 0), "construction/ui/up_disabled");
-        if (priorityUp != null) priorityUp.setTooltip(Tooltips.create(dev.hoi.client.ui.UiPriorityControls.tooltip(true)));
+        if (priorityUp != null) priorityUp.setTooltip(Tooltips.create(dev.hoi.client.ui.UiPriorityControls.summary(true)));
         var priorityDown = originalButton("생산 라인 한 칸 아래로", "construction/ui/down", controlsX, priorityDownY, priorityWidth, priorityHeight, index < view.lines().size() - 1,
                 () -> send(DOWN, line.id(), "", dev.hoi.client.ui.UiPriorityControls.shifted() ? 1 : 0), "construction/ui/down_disabled");
-        if (priorityDown != null) priorityDown.setTooltip(Tooltips.create(dev.hoi.client.ui.UiPriorityControls.tooltip(false)));
+        if (priorityDown != null) priorityDown.setTooltip(Tooltips.delayed(dev.hoi.client.ui.UiPriorityControls.summary(false),dev.hoi.client.ui.UiPriorityControls.tooltip(false)));
         if(!e.naval())productionStock(line, e, infoX, dy.applyAsInt(78)+demandOffset, x.applyAsInt(275) - infoX, Math.round(22 * scale));
         if(!e.naval()&&line.needState()!=null) {
             int target=line.needState();
@@ -1539,7 +1539,7 @@ public final class IndustryScreen extends Screen implements InputSidebarMovement
             if (hovered == null && !(hit.immediate() + hit.delayed()).isEmpty() && mouseX >= x0 && mouseX < x1 && mouseY >= y0 && mouseY < y1) hovered = hit;
         }
         if (graphics != null && !background && hovered != null)
-            economyText.tooltip(graphics, font, hovered.immediate() + hovered.delayed(), mouseX, mouseY, width, height, 0);
+            economyText.tooltip(graphics, font, dev.hoi.client.ui.tooltip.TooltipDelay.visible(dev.hoi.protocol.ProtocolTooltip.delayed(hovered.immediate(), "", hovered.delayed())), mouseX, mouseY, width, height, 0);
     }
     private void tradeValue(Component value,int x,int y,int width,int height,int color) {
         if(graphics==null)return;

@@ -61,13 +61,19 @@ public final class Tooltips {
         return result.getString().contains("£")?TooltipKeywordIcons.decorateLines(result,false):result;
     }
     public static net.minecraft.client.gui.components.Tooltip create(Component text) {
+        String plain = text.getString();
+        if (TooltipDelay.delayed(plain)) return TooltipDelay.pair(create(Component.literal(TooltipDelay.summary(plain))), create(Component.literal(TooltipDelay.full(plain))));
         return net.minecraft.client.gui.components.Tooltip.create(TooltipKeywordIcons.decorateLines(styled(format(sourceSpacing(text,true)),false)));
     }
     public static net.minecraft.client.gui.components.Tooltip createExact(String text) {
+        if (TooltipDelay.delayed(text)) return TooltipDelay.pair(createExact(TooltipDelay.summary(text)), createExact(TooltipDelay.full(text)));
         return net.minecraft.client.gui.components.Tooltip.create(TooltipKeywordIcons.decorateLines(styled(sourceSpacing(Component.literal(text),true),false),false));
     }
     public static net.minecraft.client.gui.components.Tooltip createOfficer(String text) {
         return createExact(officerCodes(text));
+    }
+    public static net.minecraft.client.gui.components.Tooltip delayed(Component summary, Component full) {
+        return TooltipDelay.pair(create(summary), create(full));
     }
     public static int width(int viewportWidth, int horizontalPadding) {
         return Math.max(1, Math.min(181, viewportWidth - 10) - horizontalPadding);
@@ -94,7 +100,7 @@ public final class Tooltips {
     }
     private static ScrolledTooltip drawSourceScrollable(GuiGraphicsExtractor graphics, Font font, String text,
             int mouseX, int mouseY, int viewportWidth, int viewportHeight, int scroll, boolean gradient, boolean inferIcons, boolean above) {
-        String content = officerCodes(text);
+        String content = officerCodes(TooltipDelay.visible(text));
         var lines = formattedLines(font, content, width(viewportWidth, 8) + 24, true, inferIcons);
         return drawLinesScrollable(graphics, font, lines, mouseX, mouseY, viewportWidth, viewportHeight, scroll, gradient, above);
     }
@@ -217,13 +223,13 @@ public final class Tooltips {
         UiAssets.nineSlice(graphics,"production/tooltip",x,y,width,height,6,.5);
     }
     public static void drawExact(GuiGraphicsExtractor graphics,Font font,String text,int x,int y) {
-        graphics.setTooltipForNextFrame(font,exactLines(font,text,width(graphics.guiWidth(),14)+24),x,y);
+        graphics.setTooltipForNextFrame(font,exactLines(font,TooltipDelay.visible(text),width(graphics.guiWidth(),14)+24),x,y);
     }
     public static int wideWidth(int viewportWidth) {
         return Math.max(1, Math.min(300, viewportWidth - 24));
     }
     public static void drawWide(GuiGraphicsExtractor graphics,Font font,String text,int x,int y) {
-        graphics.setTooltipForNextFrame(font,sourceLines(font,text,wideWidth(graphics.guiWidth())+24),x,y);
+        graphics.setTooltipForNextFrame(font,sourceLines(font,TooltipDelay.visible(text),wideWidth(graphics.guiWidth())+24),x,y);
     }
     public static List<FormattedCharSequence> exactLines(Font font,String text,int viewportWidth) {
         return formattedLines(font,text,viewportWidth,true,false);
@@ -281,6 +287,6 @@ public final class Tooltips {
         return result;
     }
     public static void draw(GuiGraphicsExtractor graphics, Font font, String text, int x, int y) {
-        graphics.setTooltipForNextFrame(font, lines(font, text, width(graphics.guiWidth(),14)+24), x, y);
+        graphics.setTooltipForNextFrame(font, lines(font, TooltipDelay.visible(text), width(graphics.guiWidth(),14)+24), x, y);
     }
 }

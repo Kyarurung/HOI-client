@@ -58,7 +58,7 @@ final class IndustryLogisticsTooltips {
         return switch (column) {
             case 0 -> row.efficiency() == null
                     ? format("LOGISTICS_NO_EQUIPMENT_PRODUCTION", equipment)
-                    : format("LOGISTICS_AVERAGE_EFFICIENCY", Map.of("EQUIPMENT", name, "EFFICIENCY", row.efficiency())) + "\n\n" + text("LOGISTICS_AVERAGE_EFFICIENCY_DELAYED");
+                    : dev.hoi.protocol.ProtocolTooltip.delayed(format("LOGISTICS_AVERAGE_EFFICIENCY", Map.of("EQUIPMENT", name, "EFFICIENCY", row.efficiency())), "\n\n", text("LOGISTICS_AVERAGE_EFFICIENCY_DELAYED"));
             case 1 -> format("LOGISTICS_EQUIPMENT_VALUE", equipment);
             case 2 -> produced(row, lines);
             case 3 -> format(low(row.need()) ? "LOGISTICS_STATUS_LOW_VALUE" : "LOGISTICS_STATUS_HIGH_VALUE", Map.of("EQUIPMENT", name, "NEED", row.need()));

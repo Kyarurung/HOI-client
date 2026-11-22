@@ -234,7 +234,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
                         ()->send(kind,p.id(),(kind==IndustryConstructionPayloads.Action.CANCEL?UiPriorityControls.controlled():UiPriorityControls.shifted())?1:0,null),
                         (g,b)->art(g,frame,path+(b.active?"":"_disabled"),sx,base+14,sw,sh,offset,0xFFFFFFFF));
                 button.active=pending==0&&(action!=0||index>0)&&(action!=1||index<view.projects().size()-1);
-                button.setTooltip(Tooltips.create(action<2?UiPriorityControls.tooltip(action==0):Component.literal("§a클릭하면 §e건설이 취소§a됩니다.\nCtrl + 클릭하면 §e건설 모두 취소§a됩니다.")));widgets.add(button);
+                button.setTooltip(action<2?Tooltips.delayed(UiPriorityControls.summary(action==0),UiPriorityControls.tooltip(action==0)):Tooltips.create(Component.literal("§a클릭하면 §e건설이 취소§a됩니다.\nCtrl + 클릭하면 §e건설 모두 취소§a됩니다.")));widgets.add(button);
             }
             boolean amount=!p.building().startsWith("convert_")&&!p.building().equals("railway");
             if(amount)for(int step=0;step<2;step++) {
@@ -243,7 +243,7 @@ public final class IndustryConstruction extends Screen implements InputSidebarMo
                         ()->send(IndustryConstructionPayloads.Action.AMOUNT,p.id(),increase?UiPriorityControls.shifted()?2:1:0,null),
                         (g,b)->art(g,frame,increase?"diplomacy/dialog/increase/frame_0":"diplomacy/dialog/decrease/frame_0",14+214,base+(increase?3:27),24.3,24.3,offset,tint(b)));
                 button.active=pending==0;
-                button.setTooltip(Tooltips.createExact(increase?source("CONSTRUCTION_INCREASE_AMOUNT_LABEL","§T수량 증가§!")+"\n"+source("CONSTRUCTION_MAXIMIZE","§GShift+클릭§!하면 §H최대화§!됩니다."):source("CONSTRUCTION_DECREASE_AMOUNT_LABEL","§T수량 감소§!")));
+                button.setTooltip(Tooltips.createExact(increase?dev.hoi.protocol.ProtocolTooltip.delayed(source("CONSTRUCTION_INCREASE_AMOUNT_LABEL","§T수량 증가§!"),"\n",source("CONSTRUCTION_MAXIMIZE","§GShift+클릭§!하면 §H최대화§!됩니다.")):source("CONSTRUCTION_DECREASE_AMOUNT_LABEL","§T수량 감소§!")));
                 widgets.add(button);
             }
         }
