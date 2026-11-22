@@ -78,7 +78,7 @@ final class IndustryProductionTooltips {
         var ordered=equipment.stats().stream().sorted(java.util.Comparator.comparingInt(stat->{int index=STAT_ORDER.indexOf(stat.id());return index<0?STAT_ORDER.size():index;})).toList();
         for(var stat:ordered)if(!stat.id().equals("build_cost_ic")) {
             String caption=IndustryEquipmentDesigns.statCaption(stat.id(),stat.name()).strip();
-            text.append("\n").append(caption).append(caption.endsWith(":")?" ":": ").append("§e")
+            text.append("\n").append(caption).append(caption.endsWith(":")?" ":": ").append(!IndustryEquipmentDesigns.signed(stat.id())?"§e":IndustryEquipmentDesigns.beneficial(stat.id(),stat.value())?"§a":"§c")
                     .append(IndustryEquipmentDesigns.statValue(stat,stat.value())).append("§r");
         }
     }

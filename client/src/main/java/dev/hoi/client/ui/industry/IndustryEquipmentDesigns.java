@@ -184,7 +184,11 @@ public final class IndustryEquipmentDesigns {
         var precision=java.util.regex.Pattern.compile("\\|[^$]*?([0-9])").matcher(format);
         int decimals=precision.find()?Integer.parseInt(precision.group(1)):1;
         String unit=stat.percent()?"%":stat.id().equals("maximum_speed")?"km/h":stat.id().equals("naval_speed")?"kn":java.util.Set.of("air_range","naval_range").contains(stat.id())?"km":"";
-        return number(value*(stat.percent()?100:1),decimals)+unit;
+        return (signed(stat.id())&&value>0?"+":"")+number(value*(stat.percent()?100:1),decimals)+unit;
+    }
+    public static boolean signed(String id) {
+        var formats=object(details(),"statValueFormats");
+        return formats.has(id)&&formats.get(id).getAsString().contains("+=");
     }
     public static String signedValue(IndustryTankDesigner.Stat stat,double value) {
         int decimals=java.util.Set.of("supply_consumption","fuel_consumption","build_cost_ic").contains(stat.id())?2:1;

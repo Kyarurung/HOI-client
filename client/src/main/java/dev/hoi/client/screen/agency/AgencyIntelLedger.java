@@ -1,6 +1,8 @@
 package dev.hoi.client.screen.agency;
 
 import dev.hoi.client.ui.*;
+import dev.hoi.client.ui.industry.IndustryEquipmentDesigns;
+import dev.hoi.protocol.ProtocolTooltip;
 import dev.hoi.protocol.agency.*;
 import dev.hoi.protocol.country.*;
 import dev.hoi.protocol.menu.*;
@@ -18,6 +20,7 @@ public final class AgencyIntelLedger {
     private static final List<String> RESEARCH_ORDER = List.of("산업", "공학", "보병", "지상 & 항공 지원", "기갑", "포", "해군", "해군 지원 장비", "공군");
     private static final List<String> RESOURCES = List.of("석유", "알루미늄", "고무", "텅스텐", "강철", "크롬", "에너지");
     private final CountryView.Report report;
+    private final String target;
     private final AgencyIntelDomain domain;
     private final float scale;
     private int top, bottom;
@@ -33,10 +36,12 @@ public final class AgencyIntelLedger {
     private CountryView.Section dragging;
     private boolean draggingBody;
     private int history;
-    private record Cell(MenuView.Entry entry, int x, int y, int width, int height, boolean left) {}
+    private record Cell(MenuView.Entry entry, int x, int y, int width, int height, boolean left, Box hover) {}
+    private record Box(int x, int y, int width, int height) {}
     private record Art(String icon, int x, int y, int width, int height, boolean disabled) {}
-    public AgencyIntelLedger(CountryView.Report report, AgencyIntelDomain domain, int pane, int top, int bottom, long openedAt, UiDiplomacyAssets assets) {
+    public AgencyIntelLedger(CountryView.Report report, String target, AgencyIntelDomain domain, int pane, int top, int bottom, long openedAt, UiDiplomacyAssets assets) {
         this.report = report;
+        this.target = target;
         this.domain = domain;
         this.scale = pane / 550f;
         this.top = top;
@@ -49,7 +54,7 @@ public final class AgencyIntelLedger {
         if (domain == AgencyIntelDomain.CIVILIAN) {
             for (int i = 0; i < RESOURCES.size(); i++) {
                 image(source("resources_strip", i), 46 + i * 69, 10, 27, 27);
-                add(RESOURCES.get(i), 31 + i * 69, 36, 56, 24, false);
+                add(RESOURCES.get(i), 31 + i * 69, 36, 56, 24, false, new Box(31 + i * 69, 10, 56, 71));
             }
             String[] names = {"총 공장", "가용 인력", "사용 가능한 연료", "총 수송선", "트럭 비축량", "열차 비축량", "보급 충족"};
             String[] icons = {source("industrial_capacity_icon", 0), source("manpower_icon", 0), source("fuel_state", 0), source("topbar_convoys", 0), source("intel_ledger_truck_icon", 0), source("intel_ledger_train_icon", 0), source("equipment_icon", 0)};
@@ -57,7 +62,7 @@ public final class AgencyIntelLedger {
                 int x = 30 + i * 50;
                 image(source("vanilla_diplo_unity_bg", 0), x, 101, 42, 62);
                 image(icons[i], x + 3, 105, 36, 25);
-                add(names[i], x + 1, 130, 40, 31, false);
+                add(names[i], x + 1, 130, 40, 31, false, new Box(x, 101, 42, 62));
             }
             String[] factories = {"민간공장", "군수공장", "조선소"};
             String[] factoryIcons = {"endgame_civ_industry_button", "endgame_industry_button", "endgame_naval_industry_button"};
@@ -65,7 +70,7 @@ public final class AgencyIntelLedger {
                 int y = 190 + i * 60;
                 image(source("generic_text_bg_108", 0), 40, y, 108, 27);
                 image(source(factoryIcons[i], 0), 25, y - 10, 51, 52);
-                add(factories[i], 80, y, 65, 27, false);
+                add(factories[i], 80, y, 65, 27, false, new Box(25, y - 10, 123, 52));
                 field("손상된 " + factories[i] + " 비율", source("building_status_overlay", 2), 150, y, 60, 20);
             }
             field("무역에 사용 중인 민간공장", "", 415, 190, 88, 0);
@@ -75,18 +80,21 @@ public final class AgencyIntelLedger {
         } else if (domain == AgencyIntelDomain.ARMY) {
             image(source("generic_text_bg_108", 0), 50, 37, 108, 27);
             image(source("endgame_army_button", 0), 30, 25, 51, 52);
+            add("icon", 30, 25, 51, 52, false);
             add("총 사단 수", 85, 37, 70, 27, false);
             field("총 특수부대 수", source("special_forces_icon", 2), 200, 37, 88, 25);
             field("배치한 병력", source("manpower_icon", 0), 300, 37, 108, 25);
             field("배치한 육군 장비", source("equipment_icon", 0), 420, 37, 88, 25);
         } else if (domain == AgencyIntelDomain.NAVY) {
             image(source("endgame_navy_button", 0), 30, 33, 51, 52);
+            add("icon", 30, 33, 51, 52, false);
             add("함대 수", 90, 37, 190, 20, true);
             add("태스크 포스 수", 90, 57, 190, 20, true);
             field("배치한 인력", source("manpower_icon", 0), 280, 43, 108, 25);
             field("총 함선 수", source("repair_ships_icon", 0), 400, 43, 88, 25);
         } else {
             image(source("endgame_air_button", 0), 30, 33, 51, 52);
+            add("icon", 30, 33, 51, 52, false);
             add("총 항공기 수", 90, 47, 240, 27, true);
             field("배치한 공군 인력", source("manpower_icon", 0), 380, 43, 108, 25);
         }
@@ -95,17 +103,18 @@ public final class AgencyIntelLedger {
             int y = Math.round((this.bottom - top) / scale) - 65, x = 70 + i++ * 80;
             String icon = name.equals("해군 지원 장비") ? "diplomacy/tfrkp/gfx_mtgnavalsupportfolder_icon" : source(RESEARCH.get(name) + "_folder_icon", 0);
             art.add(new Art(icon, x, y, 91, 61, entry.value().equals("정보가 충분하지 않음")));
-            cells.add(new Cell(entry, x, y, 91, 61, false));
+            cells.add(new Cell(entry, x, y, 91, 61, false, new Box(x, y, 91, 61)));
         }
     }
     public static String source(String name, int frame) { return "intel/source/gfx_" + name + "/frame_" + frame; }
     private int at(int value) { return Math.round(value * scale); }
-    private void add(String name, int x, int y, int width, int height, boolean left) {
+    private void add(String name, int x, int y, int width, int height, boolean left) { add(name, x, y, width, height, left, new Box(x, y, width, height)); }
+    private void add(String name, int x, int y, int width, int height, boolean left, Box hover) {
         report.entries().stream().filter(entry -> entry.name().equals(name)).findFirst()
             .ifPresent(entry -> {
                 var header = report.sections().stream().filter(section -> section.id().equals("resources")).flatMap(section -> section.rows().stream()).filter(row -> row.header() && row.name().equals(name)).findFirst();
                 var displayed = header.isEmpty() ? entry : new MenuView.Entry(entry.name(), header.get().value(), entry.detail(), entry.progress(), entry.icon());
-                cells.add(new Cell(displayed, x, y, width, height, left));
+                cells.add(new Cell(displayed, x, y, width, height, left, hover));
             });
     }
     private void image(String icon, int x, int y, int width, int height) { art.add(new Art(icon, x, y, width, height, false)); }
@@ -113,7 +122,7 @@ public final class AgencyIntelLedger {
         if (report.entries().stream().noneMatch(entry -> entry.name().equals(name))) return;
         image(source("generic_text_bg_" + width, 0), x, y, width, 27);
         if (!icon.isEmpty()) image(icon, x + 2, y, iconWidth, 27);
-        add(name, x + iconWidth + 2, y, width - iconWidth - 5, 27, false);
+        add(name, x + iconWidth + 2, y, width - iconWidth - 5, 27, false, new Box(x, y, width, 27));
     }
     public void addHoverRegions(Consumer<AbstractWidget> consumer) {
         Consumer<AbstractWidget> add = widget -> { widgets.add(widget); widget.visible = widget.getY() >= viewportTop && widget.getBottom() <= viewportBottom; consumer.accept(widget); };
@@ -127,7 +136,9 @@ public final class AgencyIntelLedger {
                         UiText.centered(g, net.minecraft.client.Minecraft.getInstance().font, label, getX(), getY(), getWidth(), getHeight(), UiMenuStyle.TEXT);
                     }
                 };
-                button.setTooltip(null); add.accept(button);
+                button.setTooltip(null);
+                report.sections().stream().filter(section -> section.id().equals(id)).findFirst().ifPresent(section -> tips.put(button, section.tooltip()));
+                add.accept(button);
             }
         } else if (domain == AgencyIntelDomain.CIVILIAN) {
             int i = 0;
@@ -141,6 +152,7 @@ public final class AgencyIntelLedger {
                         if (!icon.isEmpty()) UiAssets.draw(g, icon, getX() + at(6), getY() + at(4), at(28), at(24));
                     }
                 };
+                button.setTooltip(null);
                 tips.put(button, section.tooltip()); add.accept(button);
             }
             String[] periods = {"3_MONTHS", "1_YEAR", "3_YEARS"};
@@ -155,11 +167,13 @@ public final class AgencyIntelLedger {
                         UiText.centered(g, net.minecraft.client.Minecraft.getInstance().font, label, getX(), getY(), getWidth(), getHeight(), UiMenuStyle.TEXT);
                     }
                 };
+                button.setTooltip(null);
+                report.entries().stream().filter(entry -> entry.name().equals("period_" + periods[period].toLowerCase(Locale.ROOT))).findFirst().ifPresent(entry -> tips.put(button, entry.detail()));
                 add.accept(button);
             }
         }
         for (var cell : cells) {
-            var hover = new UiHoverRegion(cell.entry().name(), at(cell.x()), top + at(cell.y()), at(cell.width()), at(cell.height()));
+            var hover = new UiHoverRegion(cell.entry().name().equals("icon") ? cell.entry().detail() : cell.entry().name(), at(cell.hover().x()), top + at(cell.hover().y()), at(cell.hover().width()), at(cell.hover().height()));
             tips.put(hover, cell.entry().detail());
             add.accept(hover);
         }
@@ -173,20 +187,20 @@ public final class AgencyIntelLedger {
                 int row = (int)(y - ideaY() - at(5)) / Math.max(1, at(50));
                 int index = column * ideaRows() + row;
                 if (x >= at(25) && y >= ideaY() + at(5) && index >= 0 && index < section.rows().size()) {
-                    var idea = section.rows().get(index);
-                    return idea.name() + (idea.detail().isBlank() ? "" : "\n" + idea.detail()) + "\n\n" + section.tooltip();
+                    return section.rows().get(index).detail();
                 }
                 return section.tooltip();
             }
             if (section.id().equals("doctrine") && !section.rows().isEmpty() && x >= at(400) && x < at(520) && y >= ideaY() && y < ideaY() + at(109)) return section.tooltip();
         }
-        for (var cell : cells) if (x >= at(cell.x()) && x < at(cell.x() + cell.width())
-                && y >= top + at(cell.y()) && y < top + at(cell.y() + cell.height())) return cell.entry().detail();
+        for (var cell : cells) if (x >= at(cell.hover().x()) && x < at(cell.hover().x() + cell.hover().width())
+                && y >= top + at(cell.hover().y()) && y < top + at(cell.hover().y() + cell.hover().height())) return cell.entry().detail();
         for (var section : report.sections()) {
             if (!sectionVisible(section)) continue;
             int sy = sectionY(section), sh = sectionHeight(section);
             if (x >= at(20) && x < at(520) && y >= sy && y < sy + sh) {
-                if (!section.rows().isEmpty() && !section.id().startsWith("graph_")) {
+                if (section.id().startsWith("graph_")) return y < sy + at(10) || y >= sy + at(161) ? "" : AgencyIntelChart.read(section, history).tooltip((x - at(89)) / (380 * scale));
+                if (!section.rows().isEmpty()) {
                     if (types(section)) {
                         int row = (int)((y - sy - at(8)) / Math.max(1, at(28))) * 5 + (int)((x - at(30)) / Math.max(1, at(95)));
                         if (x >= at(30) && y >= sy + at(8) && row >= 0 && row < section.rows().size()) return section.rows().get(row).detail();
@@ -194,15 +208,19 @@ public final class AgencyIntelLedger {
                         int rowY = sy + at(8) - offsets.getOrDefault(section.id(), 0);
                         for (var row : section.rows()) {
                             int height = rowHeight(section, row);
-                            if (y >= rowY && y < rowY + height) return row.detail();
+                            if (y >= rowY && y < rowY + height) return described(row);
                             rowY += height;
                         }
                     }
                 }
-                return section.tooltip();
+                return domain == AgencyIntelDomain.ARMY ? "" : section.tooltip();
             }
         }
         return "";
+    }
+    private String described(CountryView.Row row) {
+        String description = row.source().isEmpty() ? "" : IndustryEquipmentDesigns.equipmentDescription(target, row.source());
+        return description.isBlank() || row.detail().contains(ProtocolTooltip.DELAYED) ? row.detail() : ProtocolTooltip.delayed(row.detail(), "\n\n", description);
     }
     public String doctrineFolder(double x, double y) {
         if (y < viewportTop || y >= viewportBottom || x < at(415) || x >= at(506) || y < ideaY() + at(25) || y >= ideaY() + at(86)) return "";

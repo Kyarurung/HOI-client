@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 record AgencyIntelChart(List<String> days, List<Series> series, double maximum) {
-    record Series(List<Double> values, int color) {}
+    record Series(List<Double> values, int color, String label) {}
     static AgencyIntelChart read(CountryView.Section section, int history) {
         if (!section.state().equals("shown")) return new AgencyIntelChart(List.of(), List.of(), 0);
         var dates = section.rows().stream().filter(row -> row.header() && row.group().equals("days")).findFirst();
@@ -36,13 +36,23 @@ record AgencyIntelChart(List<String> days, List<Series> series, double maximum) 
                     values.add(value);
                     maximum = Math.max(maximum, value);
                 }
-                lines.add(new Series(List.copyOf(values), row.group().endsWith("_lost") ? 0x99FF0000 : 0x9900FF00));
+                lines.add(new Series(List.copyOf(values), row.group().endsWith("_lost") ? 0x99FF0000 : 0x9900FF00, row.name()));
             }
             return new AgencyIntelChart(List.copyOf(allDays.subList(start, allDays.size())), List.copyOf(lines), maximum);
         } catch (IllegalArgumentException | java.time.format.DateTimeParseException error) {
             return new AgencyIntelChart(List.of(), List.of(), 0);
         }
     }
+    String tooltip(double position) {
+        if (days.isEmpty() || series.isEmpty() || position < 0 || position > 1) return "";
+        int index = (int)Math.round(position * (days.size() - 1));
+        var day = LocalDate.parse(days.get(index));
+        var lines = new ArrayList<String>(List.of("§H" + day.getYear() + "년 " + day.getMonthValue() + "월 " + day.getDayOfMonth() + "일§!", ""));
+        for (var line : series) if (!line.label().isBlank()) lines.add(line.label().replace("$NUM|H$", "§H" + number(line.values().get(index)) + "§!")
+                .replace("$UNTIL_TODAY|H$", "§H" + number(line.values().stream().skip(index).mapToDouble(Double::doubleValue).sum()) + "§!"));
+        return lines.size() == 2 ? "" : String.join("\n", lines);
+    }
+    private static String number(double value) { return java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString(); }
     void draw(GuiGraphicsExtractor g, Font font, int x, int y, double scale) {
         if (days.isEmpty() || series.isEmpty()) return;
         double divisor = Math.max(1, maximum);
@@ -64,7 +74,7 @@ record AgencyIntelChart(List<String> days, List<Series> series, double maximum) 
             }
         }
         g.pose().popMatrix();
-        String max = java.math.BigDecimal.valueOf(maximum).stripTrailingZeros().toPlainString();
+        String max = number(maximum);
         UiText.scrollingCell(g, font, net.minecraft.network.chat.Component.literal(max), x + (int)Math.round(385 * scale), y - (int)Math.round(20 * scale), (int)Math.round(42 * scale), (int)Math.round(30 * scale), UiMenuStyle.TEXT, false);
         UiText.text(g, font, "0", x + (int)Math.round(385 * scale), y + (int)Math.round(105 * scale), UiMenuStyle.TEXT);
         UiText.scrollingCell(g, font, net.minecraft.network.chat.Component.literal(days.getFirst()), x, y + (int)Math.round(130 * scale), (int)Math.round(82 * scale), (int)Math.round(20 * scale), UiMenuStyle.TEXT, false);
