@@ -301,6 +301,7 @@ public final class AgencyIntelLedger {
         String icon = row.icon();
         if (icon.isEmpty() || icon.contains(":")) return "";
         if (icon.contains("/")) return icon;
+        if (section.id().equals("templates")) return dev.hoi.client.map.commander.CommanderPanels.armyUnitIcon("unit_hud/" + icon);
         return "unit_hud/" + (section.id().startsWith("ship") ? "navy_" : section.id().startsWith("air") ? "air_" : "") + icon;
     }
     private void value(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height) {
@@ -347,7 +348,8 @@ public final class AgencyIntelLedger {
             if (!icon.isEmpty() && !(row.header() && section.id().equals("airwings"))) {
                 int iconX = army ? 30 : row.header() ? 41 : 35;
                 int iconWidth = army || row.header() ? 55 : section.id().equals("ships") ? 200 : 100;
-                UiAssets.draw(g, icon, at(iconX), rowY + at(5), at(iconWidth), height - at(10));
+                if (section.id().equals("templates")) UiAssets.drawContent(g, icon, at(iconX), rowY + at(5), at(iconWidth), height - at(10));
+                else UiAssets.draw(g, icon, at(iconX), rowY + at(5), at(iconWidth), height - at(10));
             }
             if (army) UiAssets.draw(g, source("generic_text_bg_108", 0), at(395), rowY + at(12), at(108), at(27));
             UiText.scrollingCell(g, font, net.minecraft.network.chat.Component.literal(row.name()), at(nameX), rowY + at(4), at(385 - nameX), height - at(8), UiMenuStyle.TEXT, false, net.minecraft.util.Util.getMillis() - openedAt);

@@ -290,7 +290,7 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
         for (int index = 0; index < row.unitCounts().size(); index++) {
             var unit = row.unitCounts().get(index);
             int itemX = rowX + s(284) + (int)Math.round(index * step * scale);
-            UiAssets.draw(g, asset(unit.icon()), itemX + s(1), rowTop + s(7), s(30), s(12));
+            UiAssets.drawContent(g, dev.hoi.client.map.commander.CommanderPanels.armyUnitIcon(asset(unit.icon())), itemX + s(1), rowTop + s(7), s(30), s(12));
             text(g, unit.text(), itemX, rowTop + s(16), s(31), s(16), 0xFFFFFFFF);
         }
     }
