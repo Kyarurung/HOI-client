@@ -303,8 +303,7 @@ public final class DiplomacyActionsTest {
                         if(!screen.ledgerDetailAt(x,y).equals(research.detail()))throw new AssertionError("Known research tooltip keeps the server wording");
                         if(!colors(c.font,research.detail()).contains(dev.hoi.client.ui.tooltip.Tooltips.GOLD)||!colors(c.font,known.report(domain).tooltip()).contains(dev.hoi.client.ui.tooltip.Tooltips.GOLD))throw new AssertionError("Ledger tooltips keep the original highlight colour");
                         var wide=dev.hoi.client.ui.tooltip.Tooltips.sourceLines(c.font,research.detail(),dev.hoi.client.ui.tooltip.Tooltips.wideWidth(screen.width)+24);
-                        var narrow=dev.hoi.client.ui.tooltip.Tooltips.sourceLines(c.font,research.detail(),dev.hoi.client.ui.tooltip.Tooltips.width(screen.width,14)+24);
-                        if(wide.size()>=narrow.size()||wide.stream().anyMatch(line->c.font.width(line)>dev.hoi.client.ui.tooltip.Tooltips.wideWidth(screen.width)))throw new AssertionError("Ledger research tooltips use the wider layout: "+wide.size()+" / "+narrow.size());
+                        if(wide.stream().anyMatch(line->c.font.width(line)>dev.hoi.client.ui.tooltip.Tooltips.wideWidth(screen.width)))throw new AssertionError("Ledger research tooltips stay inside the common width: "+wide.size());
                         var unknown=view.report(domain).entries().stream().filter(entry->entry.detail().contains("계통도")).findFirst().orElseThrow();
                         if(unknown.detail().contains("§R")&&!colors(c.font,unknown.detail()).contains(dev.hoi.client.ui.tooltip.Tooltips.BAD))throw new AssertionError("Ledger tooltips keep the original red warning colour");
                         return new int[]{x,y};

@@ -22,8 +22,10 @@ public final class HudTooltipTest {
             context.takeScreenshot("hoi-hud-gdp-scroll-top-" + width + "-gui2");
             if (!before) context.runOnClient(client -> {
                 var bounds = bounds();
-                if (width <= 1920 && bounds == null) throw new AssertionError("Long GDP tooltip must have a bounded scroll viewport");
-                if (bounds != null && (bounds.width() + 8 > 181 || bounds.y() < 4 || bounds.y() + bounds.height() + 4 > client.gui.screen().height || bounds.scroll() != 0))
+                var gdp = HudMenuBar.indicators(menu.hud()).stream().filter(item -> item.icon().equals("gdp")).findFirst().orElseThrow();
+                int content = HudTooltip.body(client.font, width / 2, menu.hud(), gdp).size() * (client.font.lineHeight + 1);
+                if (bounds == null && content + 8 > client.gui.screen().height) throw new AssertionError("A GDP tooltip taller than the screen must have a bounded scroll viewport");
+                if (bounds != null && (bounds.width() + 8 > dev.hoi.client.ui.tooltip.Tooltips.MAX_WIDTH || bounds.y() < 4 || bounds.y() + bounds.height() + 4 > client.gui.screen().height || bounds.scroll() != 0))
                     throw new AssertionError("HUD tooltip initial width, height or offset: " + bounds);
             });
             context.runOnClient(client -> client.gui.screen().mouseScrolled(x, 6, 0, -1000));

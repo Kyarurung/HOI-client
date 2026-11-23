@@ -1483,7 +1483,7 @@ public final class ResearchScreenTest implements FabricClientGameTest {
                 context.runOnClient(client -> {
                     var indicator = HudMenuBar.indicators(original).stream().filter(i -> i.icon().equals(key)).findFirst().orElseThrow();
                     var body = dev.hoi.client.ui.hud.HudTooltip.body(client.font,1280,original,indicator);
-                    check(body.stream().allMatch(line -> client.font.width(line) + 14 <= 181), "HUD tooltip retains the source maximum width: " + key);
+                    check(body.stream().allMatch(line -> client.font.width(line) + 14 <= dev.hoi.client.ui.tooltip.Tooltips.MAX_WIDTH), "HUD tooltip keeps the common maximum width: " + key);
                     long expected = original.details().get(key).sourceText().strip().lines().filter(String::isEmpty).count();
                     check(body.stream().filter(line -> line == net.minecraft.util.FormattedCharSequence.EMPTY).count() == expected,"Original HUD paragraph breaks survive rendering: " + key);
                     var text = new StringBuilder();

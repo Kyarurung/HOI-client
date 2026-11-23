@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 
 public final class Tooltips {
-    public static final int GOLD = 0xFFBD00, GOOD = 0x009F03, BAD = 0xFF3232;
+    public static final int GOLD = 0xFFBD00, GOOD = 0x009F03, BAD = 0xFF3232, MAX_WIDTH = 300;
     private record LayoutKey(Font font,String text,int width,boolean icons,boolean inferIcons) {}
     private static final java.util.LinkedHashMap<LayoutKey,List<FormattedCharSequence>> LAYOUTS = new java.util.LinkedHashMap<>(64,.75f,true);
     private static final java.util.regex.Pattern SENTENCES = java.util.regex.Pattern.compile("([.!?。！？](?:§.)*)\\h+(?=\\S)");
@@ -76,7 +76,7 @@ public final class Tooltips {
         return TooltipDelay.pair(create(summary), create(full));
     }
     public static int width(int viewportWidth, int horizontalPadding) {
-        return Math.max(1, Math.min(181, viewportWidth - 10) - horizontalPadding);
+        return Math.max(1, Math.min(MAX_WIDTH, viewportWidth - 10) - horizontalPadding);
     }
     public static List<FormattedCharSequence> tooltipLines(Font font, String text, int viewportWidth) {
         return sourceLines(font, text, width(viewportWidth, 14) + 24);
@@ -235,7 +235,7 @@ public final class Tooltips {
         graphics.setTooltipForNextFrame(font,exactLines(font,TooltipDelay.visible(text),width(graphics.guiWidth(),14)+24),x,y);
     }
     public static int wideWidth(int viewportWidth) {
-        return Math.max(1, Math.min(300, viewportWidth - 24));
+        return Math.max(1, Math.min(MAX_WIDTH, viewportWidth - 24));
     }
     public static void drawWide(GuiGraphicsExtractor graphics,Font font,String text,int x,int y) {
         graphics.setTooltipForNextFrame(font,sourceLines(font,TooltipDelay.visible(text),wideWidth(graphics.guiWidth())+24),x,y);
@@ -276,7 +276,7 @@ public final class Tooltips {
     }
     private static List<FormattedCharSequence> formattedLines(Font font,String text,int viewportWidth,boolean icons,boolean inferIcons) {
         text=UiCommandLabels.withoutShortcuts(text);
-        int width = Math.max(80, Math.min(300, viewportWidth - 24));
+        int width = Math.max(80, Math.min(MAX_WIDTH, viewportWidth - 24));
         var key = new LayoutKey(font,text,width,icons,inferIcons);
         var cached = LAYOUTS.get(key);
         if(cached!=null)return cached;
@@ -285,7 +285,7 @@ public final class Tooltips {
             if (sourceBlank(line)) lines.add(Component.empty().getVisualOrderText());
             else {
                 var value = styled(Component.literal(line),false);
-                lines.addAll(font.split(icons ? TooltipKeywordIcons.decorateLines(value,inferIcons) : value, width));
+                lines.addAll(balanced(font, icons ? TooltipKeywordIcons.decorateLines(value,inferIcons) : value, width));
             }
         }
         var result = collapseBlankLines(lines);
@@ -294,6 +294,13 @@ public final class Tooltips {
             LAYOUTS.put(key,result);
         }
         return result;
+    }
+    static List<FormattedCharSequence> balanced(Font font,net.minecraft.network.chat.FormattedText text,int width) {
+        var lines=font.split(text,width);
+        if(lines.size()<2||font.width(lines.getLast())*4>=width)return lines;
+        var best=lines;int low=Math.max(1,width/2),high=width;
+        while(low<high){int middle=(low+high)/2;var trial=font.split(text,middle);if(trial.size()==lines.size()){best=trial;high=middle;}else low=middle+1;}
+        return best;
     }
     public static void draw(GuiGraphicsExtractor graphics, Font font, String text, int x, int y) {
         graphics.setTooltipForNextFrame(font, lines(font, TooltipDelay.visible(text), width(graphics.guiWidth(),14)+24), x, y);

@@ -15,7 +15,7 @@ public final class TooltipSpacingTest {
             var before=new ArrayList<FormattedCharSequence>();
             for(String line:TooltipText.colorLines(UiCommandLabels.withoutShortcuts(text))) {
                 if(TooltipText.blank(line))before.add(FormattedCharSequence.EMPTY);
-                else before.addAll(font.split(TooltipKeywordIcons.decorateLines(Tooltips.officerText(line),false),300));
+                else before.addAll(Tooltips.balanced(font,TooltipKeywordIcons.decorateLines(Tooltips.officerText(line),false),300));
             }
             var after=Tooltips.sourceLines(font,text,324);
             if(!visible(before).equals(visible(after)))throw new AssertionError("Spacing changed visible text, styles or line order");
