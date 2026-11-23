@@ -128,12 +128,13 @@ public final class CommanderHud {
         CommanderShipHud.register();
         CommanderCombatLogHud.register();
         CommanderBattleHud.register();
+        CommanderInsigniaWindow.register();
         ScreenEvents.AFTER_INIT.register((client,screen,w,h)->{if(screen instanceof InputSidebarMovement.InputMovementScreen sidebar){if(screen instanceof dev.hoi.client.screen.commander.CommanderTraits)ScreenEvents.beforeExtract(screen).register((s,g,mx,my,delta)->{if(sidebar.allowsMovement()){draw(g,sidebar.unitHudLeft(),-1,-1);g.nextStratum();}});else if(!(screen instanceof dev.hoi.client.screen.commander.CommanderConfirmation))ScreenEvents.afterExtract(screen).register((s,g,mx,my,delta)->{boolean covered=sidebar.covers(mx,my);if(sidebar.allowsMovement())draw(g,sidebar.unitHudLeft(),covered?-1:mx,covered?-1:my);});}});
     }
     public static void accept(View received){var next=visibleCards(received);var client=Minecraft.getInstance();if(next.country().isEmpty()||client.level==null||!next.dimension().equals(client.level.dimension().identifier().toString())||!next.country().equals(ClientCampaignHud.country())){reset();return;}if(view==null||!view.country().equals(next.country())||!view.dimension().equals(next.dimension())||view.branch()!=next.branch()){NavalSeaHover.reset();CommanderTheaters.reset();page=0;paletteGroup="";}if(next.cards().stream().noneMatch(c->c.id().equals(paletteGroup)))paletteGroup="";CommanderCardDrag.accept(next);groups.accept(next);theaters.selected(next);view=next;CommanderPanels.accept(next);if(next.cards().stream().noneMatch(card->CommanderPanels.selected(card.id())))selectedCard="";boxes=List.of();}
     static View visibleCards(View view){var cards=view.cards().stream().filter(card->card.role()!=Mode.ASSIGN_ARMY||card.count()>0).toList();return new View(view.country(),view.dimension(),view.branch(),cards,view.wings(),view.running(),view.theaters(),view.armyTheaters(),view.orderToken(),view.orderRevision());}
     static View view(){return view;}
-    public static void reset(){CommanderShipRows.reset();CommanderShipHud.reset();CommanderCombatLogHud.reset();CommanderBattleHud.reset();theaters.clear();NavalSeaHover.reset();CommanderTheaters.reset();CommanderCardDrag.reset();paletteGroup="";groups.clear();bands=List.of();tooltipBounds=null;renderedTooltip="";hovered="";CommanderOrders.reset();CommanderPanels.reset();selectedCard="";view=null;boxes=List.of();page=0;}
+    public static void reset(){CommanderInsigniaWindow.reset();CommanderShipRows.reset();CommanderShipHud.reset();CommanderCombatLogHud.reset();CommanderBattleHud.reset();theaters.clear();NavalSeaHover.reset();CommanderTheaters.reset();CommanderCardDrag.reset();paletteGroup="";groups.clear();bands=List.of();tooltipBounds=null;renderedTooltip="";hovered="";CommanderOrders.reset();CommanderPanels.reset();selectedCard="";view=null;boxes=List.of();page=0;}
     public static void open(Open request){if(request.mode()==Mode.AIR_ATTACH){CommanderOrders.route(request);return;}if(requestObserver!=null){requestObserver.accept(request);return;}if(CommanderOrders.route(request))return;if(ClientPlayNetworking.canSend(Open.TYPE))ClientPlayNetworking.send(request);}
     public static boolean pressAt(double x,double y,int button,boolean twice){if(AgencyHud.active())return AgencyHud.clickAt(x,y,button);if(button==InputConstants.MOUSE_BUTTON_LEFT&&view!=null&&!Minecraft.getInstance().gui.hud.isHidden()&&view.country().equals(ClientCampaignHud.country())&&(CommanderPanels.pressScroll(x,y)||CommanderCardDrag.begin(view,boxes,x,y)))return true;return clickAt(x,y,button,twice);}
     public static boolean dragAt(double x,double y){return CommanderPanels.dragScroll(y)||CommanderCardDrag.move(x);}
@@ -141,7 +142,7 @@ public final class CommanderHud {
     public static boolean releaseAt(double x,int button){return button==InputConstants.MOUSE_BUTTON_LEFT&&(CommanderPanels.releaseScroll()||CommanderCardDrag.release(x));}
     public static void cancelDrag(){CommanderCardDrag.cancel();}
     static void reconcileCardOrder(){if(view!=null)CommanderCardDrag.reconcile(view);}
-    public static boolean closeSelection(){if(AgencyHud.active())return AgencyHud.deselect();boolean closed=CommanderBattleHud.closeWindow()||CommanderCombatLogHud.closeWindow()||CommanderShipHud.closeWindow()||CommanderTheaters.closeSettings()||CommanderPanels.closeSelection();if(closed)dev.hoi.client.audio.AudioUiSounds.play("ui.close");return closed;}
+    public static boolean closeSelection(){if(AgencyHud.active())return AgencyHud.deselect();boolean closed=CommanderInsigniaWindow.closeWindow()||CommanderBattleHud.closeWindow()||CommanderCombatLogHud.closeWindow()||CommanderShipHud.closeWindow()||CommanderTheaters.closeSettings()||CommanderPanels.closeSelection();if(closed)dev.hoi.client.audio.AudioUiSounds.play("ui.close");return closed;}
     public static boolean scrollAt(double x,double y,double amount){
         if(AgencyHud.active())return AgencyHud.scrollAt(x,y,amount);
         CommanderCardDrag.cancel();
@@ -254,10 +255,6 @@ public final class CommanderHud {
                 if(card.panel()!=null)CommanderPanels.progress(g,"plan_unit_power",3,1,59,6,card.panel().forces(),0xff008000,0xff020305);
                 UiAssets.draw(g,"commander/commands/plan_frame/frame_0",0,0,65,9);g.pose().popMatrix();
             }
-            if(!naval&&!wing&&card.panel()!=null){
-                int sx=bx+units.size(group?.5:1.5),sy=by+units.size(group?19.5:18),sh=units.size(group?14.5:11.5);
-                if(group&&CommanderPanels.selected(card.id())&&!card.panel().palette().isEmpty())list.add(new Box(sx,sy,units.size(3.5),sh,null,0,UiCommandLabels.text("SELECT_COLOR","지도 색상 선택"),()->{paletteGroup=paletteGroup.equals(card.id())?"":card.id();boxes=List.of();}));
-            }
             if(!wing&&!group&&card.role()!=Mode.NAVY_HQ){
                 int controlX=bx+units.size(31.5),closeY=by+units.size(3.5),controlWidth=units.size(naval?9:8),controlHeight=units.size(naval?9:8);
                 float pixelShift=1f/(float)client.getWindow().getGuiScale();g.pose().pushMatrix();g.pose().translate(-pixelShift,pixelShift);UiAssets.draw(g,"commander/commands/lg_disband_group_btn/frame_0",controlX,closeY,units.size(8),units.size(8));g.pose().popMatrix();
@@ -289,10 +286,10 @@ public final class CommanderHud {
             }
         }
         if(navalBranch){g.pose().popMatrix();g.disableScissor();list.replaceAll(box->new Box(box.x(),box.y(),box.width(),Math.min(box.height(),bottom-box.y()),box.request(),box.pageDelta(),box.tip(),box.action(),box.horizontalInset(),box.pixelShift()));}
-        var colorCard=view.cards().stream().filter(c->c.id().equals(paletteGroup)&&c.panel()!=null&&CommanderPanels.selected(c.id())).findFirst().orElse(null);
+        var colorCard=navalBranch?view.cards().stream().filter(c->c.id().equals(paletteGroup)&&c.panel()!=null&&CommanderPanels.selected(c.id())).findFirst().orElse(null):null;
         if(colorCard!=null&&!colorCard.panel().palette().isEmpty()){
             int cell=units.size(14),pw=colorCard.panel().palette().size()*cell,px=Math.max(units.size(4),(g.guiWidth()-pw)/2),py=CommanderLayout.popupBottom(units,false)-cell-units.size(5);g.fill(px-units.size(3),py-units.size(3),px+pw+units.size(3),py+cell+units.size(3),0xee101418);
-            for(int index=0;index<colorCard.panel().palette().size();index++){int rgb=colorCard.panel().palette().get(index),cx=px+index*cell;g.fill(cx+1,py+1,cx+cell-1,py+cell-1,0xff000000|rgb);list.add(0,new Box(cx,py,cell,cell,null,0,(navalBranch?"함대":colorCard.role()==Mode.ASSIGN_ARMY?"군":"집단군")+" 색상 #"+String.format(Locale.ROOT,"%06X",rgb),()->{CommanderOrders.send(navalBranch?"FLEET_COLOR":colorCard.role()==Mode.ASSIGN_ARMY?"ARMY_COLOR":"GROUP_COLOR",List.of(colorCard.id(),"rgb/"+rgb),List.of());paletteGroup="";boxes=List.of();}));}
+            for(int index=0;index<colorCard.panel().palette().size();index++){int rgb=colorCard.panel().palette().get(index),cx=px+index*cell;g.fill(cx+1,py+1,cx+cell-1,py+cell-1,0xff000000|rgb);list.add(0,new Box(cx,py,cell,cell,null,0,"함대 색상 #"+String.format(Locale.ROOT,"%06X",rgb),()->{CommanderOrders.send("FLEET_COLOR",List.of(colorCard.id(),"rgb/"+rgb),List.of());paletteGroup="";boxes=List.of();}));}
         }
         boxes=List.copyOf(list);
         CommanderPanels.draw(g,sidebar,mx,my,list.stream().mapToInt(Box::y).min().orElse(y));
