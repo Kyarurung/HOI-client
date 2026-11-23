@@ -33,7 +33,7 @@ public final class CommanderOrders {
     private static ModeRequest afterHeld;
     private CommanderOrders() {}
     public static void register(){
-        CommanderOrderPayloads.registerPayloadTypes();CommanderAvailability.register();NavalInvasionOrders.register();
+        CommanderOrderPayloads.registerPayloadTypes();CommanderAvailability.register();NavalInvasionOrders.register();dev.hoi.client.map.air.AirParadropOverlay.register();
         ClientPlayNetworking.registerGlobalReceiver(Context.TYPE,(packet,receiver)->accept(packet));
         ClientPlayNetworking.registerGlobalReceiver(Details.TYPE,(packet,receiver)->{try{acceptDetails(packet.page());}catch(IllegalArgumentException ignored){}});
         ClientTickEvents.END_CLIENT_TICK.register(client->{CommanderCardDrag.tick();if(context!=null&&!valid())reset();else selectionChanged();});
@@ -59,7 +59,7 @@ public final class CommanderOrders {
     }
     public static boolean valid(){var client=Minecraft.getInstance();return context!=null&&client.level!=null&&context.country().equals(ClientCampaignHud.country())&&context.dimension().equals(client.level.dimension().identifier().toString());}
     static void scopeChanged(View previous,View next){generation++;if(context!=null&&(!context.country().equals(next.country())||!context.dimension().equals(next.dimension())||previous.dimension().equals(next.dimension())&&previous.branch()!=next.branch()))reset();}
-    static void reset(){NavalInvasionOrders.reset();CommanderCardDrag.reset();CommanderAvailability.reset();heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;queuedMove=null;latched=null;resume=null;if(context!=null)retired.add(context.token());context=null;sequence=0;detailGeneration=-1;detailPages.clear();published=null;waitingRevision=-1;cancelQueued=false;generation++;}
+    static void reset(){NavalInvasionOrders.reset();dev.hoi.client.map.air.AirParadropOverlay.reset();CommanderCardDrag.reset();CommanderAvailability.reset();heldAction="";heldOwned=false;heldClosing=false;afterHeld=null;heldMap=null;queuedMove=null;latched=null;resume=null;if(context!=null)retired.add(context.token());context=null;sequence=0;detailGeneration=-1;detailPages.clear();published=null;waitingRevision=-1;cancelQueued=false;generation++;}
     public static boolean ready(){return valid()&&waitingRevision<0;}
     public static String pending(){if(!valid())return "";if(heldAction.isEmpty())return context.pending();return heldOwned&&(context.pending().startsWith(heldAction+"/")||heldAction.equals("LAND/EDIT_PLAN")&&context.pending().equals("LAND/AREA_STATES"))?context.pending():heldAction;}
     static void held(String type){
@@ -77,7 +77,7 @@ public final class CommanderOrders {
         if(heldClosing&&context.pending().isEmpty()){if(afterHeld!=null){var command=afterHeld;if(CommanderAvailability.waiting(command.action(),command.selection()))return;heldClosing=false;afterHeld=null;resume=null;send(command.action(),command.selection(),List.of());return;}heldClosing=false;}
         if(heldAction.isEmpty()&&resume!=null&&context.pending().isEmpty()){var saved=resume;if(CommanderAvailability.waiting(saved.action(),saved.selection()))return;resume=null;send(saved.action(),saved.selection(),List.of());}
     }
-    public static boolean pointMode(){return Set.of("LAND/INVASION","LAND/INVASION/TARGET","LAND/DELETE_PLAN","LAND/ASSIGN_UNITS","LAND/EDIT_PLAN","LAND/AREA_STATES","NAVAL_AREAS/REMOVE").contains(pending());}
+    public static boolean pointMode(){return Set.of("LAND/INVASION","LAND/INVASION/TARGET","LAND/PARADROP","LAND/PARADROP/TARGET","LAND/DELETE_PLAN","LAND/ASSIGN_UNITS","LAND/EDIT_PLAN","LAND/AREA_STATES","NAVAL_AREAS/REMOVE").contains(pending());}
     public static boolean clicksBorder(){return pending().equals("LAND/FRONT");}
     public static boolean editsPoint(){return pending().startsWith("LAND/EDIT_PLAN/");}
     public static boolean confirmDraft(){return CommanderPanels.armyCommandVisible()&&pending().equals("LAND/AREA_STATES")&&send("CONFIRM",List.of(),List.of());}

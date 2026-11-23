@@ -113,6 +113,10 @@ public final class ResearchScreenTest implements FabricClientGameTest {
             try(var world=context.worldBuilder().create()){dev.hoi.client.map.naval.NavalInvasionOrdersTest.run(context,fixtureMenu(),world.getServer()::runCommand);}
             if(System.getProperty("hoi.testSuite","all").equals("naval-invasion-map"))return;
         }
+        if(Set.of("all","paradrop-map").contains(System.getProperty("hoi.testSuite","all"))){
+            try(var world=context.worldBuilder().create()){dev.hoi.client.map.air.AirParadropOverlayTest.run(context,fixtureMenu(),world.getServer()::runCommand);}
+            if(System.getProperty("hoi.testSuite","all").equals("paradrop-map"))return;
+        }
         if (Set.of("all", "campaign-source").contains(System.getProperty("hoi.testSuite", "all")) && System.getenv("HOI_CAMPAIGN_PREVIEW") != null) {
             try (var world = context.worldBuilder().create()) { dev.hoi.client.screen.ScreenCampaignSourceTest.run(context); }
             if (System.getProperty("hoi.testSuite", "all").equals("campaign-source")) return;

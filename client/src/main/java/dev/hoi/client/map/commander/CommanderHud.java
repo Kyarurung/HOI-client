@@ -180,6 +180,7 @@ public final class CommanderHud {
         tooltipBounds=null;renderedTooltip="";cardArea=null;int sidebar=left;left=0;
         boxes=List.of();bands=List.of();var client=Minecraft.getInstance();if(view==null||client.level==null||client.gui.hud.isHidden()||!view.country().equals(ClientCampaignHud.country())||!view.dimension().equals(client.level.dimension().identifier().toString())||left>=g.guiWidth()-65){updateHover("");return;}
         var units=CommanderLayout.units(g.guiWidth(),g.guiHeight());
+        if(!backdropPass)dev.hoi.client.map.air.AirParadropOverlay.labels(g);
         boolean navalBranch=view.branch()==Mode.NAVY_HQ;
         int cardWidth=units.size(42),cardHeight=units.size(58.5),footHeight=units.size(14),pitch=units.size(45);
         int creationSlots=navalBranch?1:2;
@@ -299,6 +300,7 @@ public final class CommanderHud {
         if(tooltip.isEmpty()){for(var box:boxes)if(box.contains(mx,my)){tooltip=box.tip();break;}}
         NavalSeaHover.update(view,mx,my,g.guiWidth(),g.guiHeight(),mx>=sidebar&&my>=HudMenuBar.height(g.guiWidth())&&boxes.stream().noneMatch(b->b.contains(mx,my))&&CommanderPanels.hits().stream().noneMatch(h->h.contains(mx,my)));
         if(tooltip.isEmpty())tooltip=NavalInvasionOverlay.tooltip(mx,my);
+        if(tooltip.isEmpty())tooltip=dev.hoi.client.map.air.AirParadropOverlay.tooltip(mx,my);
         if(tooltip.isEmpty())tooltip=NavalSeaHover.text();
         if(!tooltip.isEmpty())drawTooltip(g,mx,my,dev.hoi.client.ui.tooltip.TooltipDelay.visible(tooltip));
         String hover=CommanderPanels.hoverKey(mx,my);if(hover.isEmpty())for(var box:boxes)if(box.contains(mx,my)){hover="hud/"+box.x()+"/"+box.y()+"/"+box.width()+"/"+box.height();break;}if(updateHover(hover))dev.hoi.client.audio.AudioUiSounds.play("ui.menu_over");

@@ -266,7 +266,7 @@ public final class CommanderPanels {
         String reason=CommanderAvailability.reason("LAND/"+type);if(!reason.isEmpty())return reason;
         var armies=selectedArmies();var controls=armies.stream().flatMap(c->c.panel().controls().stream()).filter(c->c.id().equals(type)).toList();
         if(armies.isEmpty()||controls.size()!=armies.size()||controls.stream().anyMatch(c->!c.enabled()))return "선택한 군 중 이 명령을 지정할 수 없는 군이 있습니다.";
-        return type.equals("INVASION")&&armies.size()!=1?"상륙 계획 초안을 편집할 군 하나를 선택하세요.":"";
+        return type.equals("INVASION")&&armies.size()!=1?"상륙 계획 초안을 편집할 군 하나를 선택하세요.":type.equals("PARADROP")&&armies.size()!=1?"공수 계획을 지정할 군 하나를 선택하세요.":"";
     }
     private static void openArmyControl(String type){if(!armyControlReason(type).isEmpty())return;var armies=selectedArmies();CommanderOrders.land(type,armies.stream().map(Card::id).toList());}
     private static String source(String id){return "commander/commands/"+id+"/frame_0";}
@@ -698,8 +698,11 @@ public final class CommanderPanels {
                 String reason=armyControlReason(type);
                 out.add(new Hit(cell.x(),cell.y(),cell.width(),cell.height(),CommanderAvailability.explain(UiCommandLabels.withoutShortcuts(type.equals("FRONT")&&cards.stream().anyMatch(c->c.role()==Mode.ARMY_GROUP)?UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_DEFENCE_ARMY_GROUP",first.tooltip()):first.tooltip()),reason),()->{openArmyControl(type);},null,"ui.battleplan"));bx+=u.size(21);
             }
-            var airborne=CommanderLayout.armyCell(u,x,y,4);commandIcon(g,u,source("bpt_order_draw_paradrop_btn"),airborne.x(),airborne.y(),airborne.width(),airborne.height());out.add(new Hit(airborne.x(),airborne.y(),airborne.width(),airborne.height(),UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_PARADROP","")+"\n\n공수 작전 실행은 아직 지원하지 않습니다.",()->{}));
-            var harbor=CommanderLayout.armyCell(u,x,y,6);commandIcon(g,u,source("bpt_order_draw_naval_inv_with_harbor_btn"),harbor.x(),harbor.y(),harbor.width(),harbor.height());out.add(new Hit(harbor.x(),harbor.y(),harbor.width(),harbor.height(),UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_NAVAL_INV_WITH_HARBOR","")+"\n\n부유항을 이용한 해상 침공은 아직 지원하지 않습니다.",()->{}));
+            var paradrop=controls.stream().filter(c->c.id().equals("PARADROP")).toList();var airborne=CommanderLayout.armyCell(u,x,y,4);
+            if(paradrop.isEmpty()){commandIcon(g,u,source("bpt_order_draw_paradrop_btn"),airborne.x(),airborne.y(),airborne.width(),airborne.height());out.add(new Hit(airborne.x(),airborne.y(),airborne.width(),airborne.height(),UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_PARADROP","")+"\n\n명령을 지정할 군을 선택하세요.",()->{}));}
+            else {var blocked=paradrop.stream().filter(c->!c.enabled()).findFirst().orElse(null);var shown=blocked==null?paradrop.getFirst():blocked;commandIcon(g,u,shown.icon(),airborne.x(),airborne.y(),airborne.width(),airborne.height());
+                out.add(new Hit(airborne.x(),airborne.y(),airborne.width(),airborne.height(),blocked!=null?UiCommandLabels.withoutShortcuts(blocked.tooltip()):CommanderAvailability.explain(UiCommandLabels.withoutShortcuts(shown.tooltip()),armyControlReason("PARADROP")),()->{if(blocked==null)openArmyControl("PARADROP");},null,"ui.battleplan"));}
+            var harbor=CommanderLayout.armyCell(u,x,y,6);commandIcon(g,u,source("bpt_order_draw_naval_inv_with_harbor_btn"),harbor.x(),harbor.y(),harbor.width(),harbor.height());out.add(new Hit(harbor.x(),harbor.y(),harbor.width(),harbor.height(),UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_NAVAL_INV_WITH_HARBOR","")+"\n"+UiCommandLabels.text("UNITS_VIEW_BTN_DRAW_NAVAL_INV_WITH_HARBOR_NO_HARBOR",""),()->{}));
             armyButton(g,u,out,"bpt_order_unassign_units_btn",x,y,13,UiCommandLabels.text(selectedDivisions().size()==1?"CONFIRMUNASSIGNUNIT":"CONFIRMUNASSIGNUNITS",""),()->landSettings("UNASSIGN_UNITS"));
             armyButton(g,u,out,"bpt_order_assign_units_btn",x,y,12,UiCommandLabels.text("UNITS_VIEW_BTN_UNITS_ASSIGN", "사단 배정 모드"),CommanderOrders::assignSelected);
             var armies=current.cards().stream().filter(c->c.panel()!=null&&c.role()!=Mode.ARMY_GROUP&&cards.stream().anyMatch(chosen->chosen.id().equals(c.id())||chosen.id().equals(c.panel().parent()))).map(Card::id).distinct().toList();

@@ -59,7 +59,7 @@ public final class SceneRenderer {
             Map.entry(Material.AIR_RIVER, Identifier.parse("minecraft:block/light_gray_concrete")),
             Map.entry(Material.GRAY, Identifier.parse("minecraft:block/gray_concrete")), Map.entry(Material.DEPLOYMENT, Identifier.parse("minecraft:block/lime_concrete")));
     private record SceneRaidTile(SceneTile tile, int color) {}
-    private record SceneRenderFrame(List<SceneTile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city,List<SceneTile> decision,int decisionColor,AirRangeOverlay.Frame ranges,List<AirArrowOverlay.Mesh> air,List<SceneTile> networks,List<NavalInvasionOverlay.Mesh> invasions,List<SceneRaidTile> raids) {}
+    private record SceneRenderFrame(List<SceneTile> tiles, Map<Material, TextureAtlasSprite> sprites, ItemStackRenderState city,List<SceneTile> decision,int decisionColor,AirRangeOverlay.Frame ranges,List<AirArrowOverlay.Mesh> air,List<SceneTile> networks,List<NavalInvasionOverlay.Mesh> invasions,List<dev.hoi.client.map.air.AirParadropOverlay.Mesh> paradrops,List<SceneRaidTile> raids) {}
     public static void register() {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_LOAD.register((world,chunk)->{AirRangeOverlay.clear();AgencyNetworks.invalidate();});
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_UNLOAD.register((world,chunk)->{AirRangeOverlay.clear();AgencyNetworks.invalidate();});
@@ -93,10 +93,11 @@ public final class SceneRenderer {
                     ? raid.sources() : AgencyRaidHud.sources();
             var raidMeshes = raidSources == null ? Map.<String, SceneMesh>of() : raidSources.meshes();
             var invasions=NavalInvasionOverlay.extract();NavalInvasionOverlay.project(invasions);
+            var paradrops=dev.hoi.client.map.air.AirParadropOverlay.extract();dev.hoi.client.map.air.AirParadropOverlay.project(paradrops);
             if(!(dev.hoi.client.screen.dialog.DialogCoordinator.contentScreen() instanceof dev.hoi.client.screen.decision.DecisionScreen screen)
                     || !screen.mapDimension().equals(dimension))decision=null;
             if (!(Minecraft.getInstance().gui.screen() instanceof dev.hoi.client.screen.industry.IndustryScreen screen) || !screen.selectingDeployment()) clearDeployment();
-            if ((scene == null || !dimension.equals(scene.dimension())) && (deployment == null || !dimension.equals(deployment.dimension())) && (occupation == null || !dimension.equals(occupation.dimension())) && (plans == null || !dimension.equals(plans.dimension())) && decision==null && agency==null && ranges.outline().isEmpty() && networks.isEmpty() && invasions.isEmpty() && raidMeshes.isEmpty()) {
+            if ((scene == null || !dimension.equals(scene.dimension())) && (deployment == null || !dimension.equals(deployment.dimension())) && (occupation == null || !dimension.equals(occupation.dimension())) && (plans == null || !dimension.equals(plans.dimension())) && decision==null && agency==null && ranges.outline().isEmpty() && networks.isEmpty() && invasions.isEmpty() && paradrops.isEmpty() && raidMeshes.isEmpty()) {
                 visibleTiles=0;context.levelState().setData(FRAME, null); return;
             }
             var camera = context.levelState().cameraRenderState;
@@ -132,7 +133,7 @@ public final class SceneRenderer {
                 mesh.collect(camera.pos, candidates);
                 for (var tile : candidates) if (camera.cullFrustum.isVisible(tile.bounds())) raidTiles.add(new SceneRaidTile(tile, raidSources.color(state)));
             });
-            context.levelState().setData(FRAME, new SceneRenderFrame(tiles, sprites, city,highlighted,decisionColor,ranges,airMeshes,networkMeshes,invasions,raidTiles));
+            context.levelState().setData(FRAME, new SceneRenderFrame(tiles, sprites, city,highlighted,decisionColor,ranges,airMeshes,networkMeshes,invasions,paradrops,raidTiles));
         });
         LevelRenderEvents.COLLECT_SUBMITS.register(SceneRenderer::draw);
     }
@@ -199,6 +200,8 @@ public final class SceneRenderer {
         for(var mesh:frame.air()){var texture=AirArrowOverlay.texture(mesh.kind());if(texture!=null)context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(texture),(matrix,consumer)->emit(mesh.tile(),null,matrix,consumer,AirArrowOverlay.color(mesh.state())));}
         var invasionTexture=frame.invasions().isEmpty()?null:NavalInvasionOverlay.texture();
         if(invasionTexture!=null)for(var mesh:frame.invasions())context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(invasionTexture),(matrix,consumer)->emit(mesh.tile(),null,matrix,consumer,NavalInvasionOverlay.color(mesh.plan())));
+        var paradropTexture=frame.paradrops().isEmpty()?null:NavalInvasionOverlay.texture();
+        if(paradropTexture!=null)for(var mesh:frame.paradrops())context.submitNodeCollector().submitCustomGeometry(pose,RenderTypes.entityTranslucentEmissive(paradropTexture),(matrix,consumer)->emit(mesh.tile(),null,matrix,consumer,dev.hoi.client.map.air.AirParadropOverlay.color(mesh.plan())));
         var networkTexture = frame.networks().isEmpty() ? null : AgencyNetworks.texture();
         if (networkTexture != null) for (var tile : frame.networks()) context.submitNodeCollector().submitCustomGeometry(pose,
             RenderTypes.entityTranslucentEmissive(networkTexture), (matrix, consumer) -> emit(tile, null, matrix, consumer, 0xFFFFFFFF));

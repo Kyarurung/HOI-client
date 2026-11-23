@@ -767,6 +767,8 @@ Task-force settings project only stored optional repair policy, auto-split, rein
 
 상륙 계획은 `UNITS_VIEW_BTN_DRAW_NAVAL_INV`, 군집단 선택의 전선은 `UNITS_VIEW_BTN_DRAW_DEFENCE_ARMY_GROUP`, 공군 취소는 `HOLD_WINGS` 원문을 사용한다. 상륙 계획의 현재 초안 저장 범위 안내는 원문 뒤 빈줄로 구분한다. 육군 훈련은 서버가 원본 장비 소모·국가 경험치 본문과 Shift 클릭 설명을 제공하며 색상·경험치 아이콘·빈줄을 보존한다. `CommanderPanelsTest`는 군·군집단·공군에서 실제 컨트롤을 호버하여 전달 문구와 렌더된 툴팁의 일치 및 GUI2 두 해상도의 배경 경계를 검사한다. 이 렌더 검증은 운영 캠페인 접속 검증과 별개다.
 
+공수 계획 단추는 서버가 보낸 `PARADROP` 컨트롤의 원문 `UNITS_VIEW_BTN_DRAW_PARADROP`을 그대로 쓴다. 군에 공수부대가 없으면 서버가 줄바꿈 + `UNITS_VIEW_BTN_DRAW_PARADROP_NO_PARATROOPERS`를 붙여 보내고, 클라이언트는 다른 안내를 덧붙이지 않으며 눌러도 그리기를 시작하지 않는다. 쓸 수 있으면 누를 때 `LAND/PARADROP` 지도 입력(출발 공군기지 → 목표 프로빈스)을 시작한다. 그리는 동안 커서 아래 프로빈스의 원본 툴팁은 해역 마우스오버와 같은 `SeaHover` 요청에 서버가 `PARADROP` 영역으로 돌려준 문구다. 공수 계획은 `hoi:paradrop_plans_v1`로 받아 `AirParadropOverlay`가 상륙 화살표 원본 무늬의 아치로 그리고, 화살표 가운데에 원본 라벨(예 `타이중 - 3개 공수사단 - 9 군 - 수송기 50기`)을 화살표 방향으로 기울인 화면 글자로 쓴다. 화살표 위에서는 라벨과 서버가 보낸 첫 실행 불가 사유를 툴팁으로 보인다. 부유항 상륙 단추는 기능이 없어 원문 `UNITS_VIEW_BTN_DRAW_NAVAL_INV_WITH_HARBOR` + 줄바꿈 + `UNITS_VIEW_BTN_DRAW_NAVAL_INV_WITH_HARBOR_NO_HARBOR`만 보인다. 검사: `CommanderPanelsTest`(공수·부유항 단추), `AirParadropOverlayTest`(`-PhoiTestSuite=paradrop-map`, GUI2 2560×1440·1280×720 화면).
+
 ### 비행단 작전 범위
 
 공군 지도에서 선택된 비행단의 서버 `AirRange`만 표시한다. km는 표시용이며 원의 중심·반지름은 서버의 월드 좌표와 블록 반지름을 그대로 쓴다. 같은 중심과 반지름은 한 번만 그린다. 단일 범위는 원본 장면 `20261009024944_1.jpg`의 초록, 서로 다른 여러 범위는 `20261009025946_1.jpg`의 노랑으로 표시하며 내부 지형을 밝힌다. 선택 해제·국가 권한 해제·지도 모드 전환 시 사라진다.
