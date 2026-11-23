@@ -27,7 +27,6 @@ public final class CommanderInsigniaWindow {
     private static double grabX,grabY;
     private static Integer pendingColor,pendingFrame;
     private static int[] saturationRamp;
-    private static final Map<String,Boolean> GRAYSCALE=new HashMap<>();
     private CommanderInsigniaWindow() {}
     static void register() {
         HudElementRegistry.attachElementAfter(Identifier.parse("hoi:combat_log"),Identifier.parse("hoi:insignia_window"),(g,delta)->{if(Minecraft.getInstance().gui.screen()==null)draw(g,g.guiWidth()/2,g.guiHeight()/2);});
@@ -47,23 +46,28 @@ public final class CommanderInsigniaWindow {
     }
     static int frame(Card card) {
         if(card.id().equals(target)&&pendingFrame!=null)return pendingFrame;
-        return card.panel()==null||card.panel().insignia()==null?0:card.panel().insignia();
+        return card.panel()==null||card.panel().insignia()==null?kind(card).equals("fleet")?3:0:card.panel().insignia();
     }
-    static String shield(Card card) {return ART+(group(card)?"theatre_army_group_shield":"theatre_army_shield")+"/frame_"+frame(card);}
-    static int tint(String path,int color){return GRAYSCALE.computeIfAbsent(path,CommanderInsigniaWindow::grayscale)?0xff000000|color:0xffffffff;}
-    private static boolean grayscale(String path) {
-        var resource=Minecraft.getInstance().getResourceManager().getResource(Identifier.parse("hoi:textures/gui/"+path+".png"));
-        if(resource.isEmpty())return true;
-        try(var input=resource.get().open();var image=com.mojang.blaze3d.platform.NativeImage.read(input)){
-            for(int y=0;y<image.getHeight();y++)for(int x=0;x<image.getWidth();x++){int pixel=image.getPixel(x,y),a=pixel>>16&255,b=pixel>>8&255,c=pixel&255;if((pixel>>>24)>32&&Math.max(Math.abs(a-b),Math.max(Math.abs(b-c),Math.abs(a-c)))>24)return false;}
-            return true;
-        }catch(java.io.IOException failure){return true;}
+    static String kind(Card card){return switch(card.role()){case ARMY_GROUP->"army_group";case NAVY_FLEET,NAVY_HQ->"fleet";default->"army";};}
+    static Insignia set(String kind) {
+        var view=CommanderHud.view();var set=view==null?null:view.insignia().get(kind);
+        return set!=null?set:new Insignia(ART+(kind.equals("fleet")?"theatre_task_force_shield":"theatre_"+kind+"_shield"),1,List.of(),List.of());
     }
-    private static boolean group(Card card){return card.role()==Mode.ARMY_GROUP;}
-    private static Integer authoritative(Card card){var panel=card.panel();if(panel==null)return null;Integer color=group(card)?panel.color():panel.armyColor();return color!=null?color:group(card)?Integer.valueOf(0x806000):null;}
+    static String shield(Card card){return set(kind(card)).sprite()+"/frame_"+frame(card);}
+    static String selected(Card card){return set(kind(card)).sprite()+"_selected/frame_"+frame(card);}
+    static int tint(Card card,int color){return tint(set(kind(card)),frame(card),color);}
+    public static String armyShield(int icon){return set("army").sprite()+"/frame_"+icon;}
+    public static int armyTint(int icon,int color){return tint(set("army"),icon,color);}
+    private static int tint(Insignia set,int icon,int color){return set.plain().contains(icon)?0xffffffff:0xff000000|color;}
+    private static Integer authoritative(Card card) {
+        var panel=card.panel();if(panel==null)return null;String kind=kind(card);
+        if(kind.equals("army"))return panel.armyColor();
+        return panel.color()!=null?panel.color():kind.equals("army_group")?Integer.valueOf(0x806000):null;
+    }
+    private static String command(Card card,String field){return switch(kind(card)){case "army_group"->"GROUP_";case "fleet"->"FLEET_";default->"ARMY_";}+field;}
     private static int rgb(){return java.awt.Color.HSBtoRGB(hue,saturation,value)&0xffffff;}
     private static void sync(Integer color){if(color==null)return;float[] hsb=java.awt.Color.RGBtoHSB(color>>16&255,color>>8&255,color&255,null);hue=hsb[0];saturation=hsb[1];value=hsb[2];}
-    private static Card card(){var view=CommanderHud.view();return view==null||target.isEmpty()?null:view.cards().stream().filter(c->c.id().equals(target)&&c.panel()!=null&&(c.role()==Mode.ASSIGN_ARMY||c.role()==Mode.ARMY_GROUP)).findFirst().orElse(null);}
+    private static Card card(){var view=CommanderHud.view();return view==null||target.isEmpty()?null:view.cards().stream().filter(c->c.id().equals(target)&&c.panel()!=null&&Set.of(Mode.ASSIGN_ARMY,Mode.ARMY_GROUP,Mode.NAVY_FLEET,Mode.NAVY_HQ).contains(c.role())).findFirst().orElse(null);}
     private static boolean visible() {
         var client=Minecraft.getInstance();
         return !target.isEmpty()&&client.level!=null&&!client.gui.hud.isHidden()&&!AgencyHud.active()&&(client.gui.screen()==null||client.gui.screen() instanceof MapCursor);
@@ -77,15 +81,15 @@ public final class CommanderInsigniaWindow {
     }
     public static boolean covers(double x,double y){return visible()&&frame!=null&&inside(x,y,0,0,WIDTH,HEIGHT);}
     private static boolean inside(double x,double y,double px,double py,double pw,double ph){return x>=frame.x(px)&&x<frame.x(px+pw)&&y>=frame.y(py)&&y<frame.y(py+ph);}
-    private static int count(Card card){return group(card)?6:81;}
+    private static int count(Card card){return set(kind(card)).choices().size();}
     private static int maximum(Card card){return Math.max(0,(count(card)+COLUMNS-1)/COLUMNS*SLOT_H-GRID_H);}
     private static UiScrollBar bar(Card card){return new UiScrollBar(frame.ix(279),frame.iy(83),frame.iy(306),GRID_H,maximum(card)+GRID_H);}
     private static void settle(Card card) {
-        if(unsentColor&&CommanderOrders.send(group(card)?"GROUP_COLOR":"ARMY_COLOR",List.of(target,"rgb/"+pendingColor),List.of()))unsentColor=false;
-        if(unsentFrame&&CommanderOrders.send(group(card)?"GROUP_INSIGNIA":"ARMY_INSIGNIA",List.of(target,"frame/"+pendingFrame),List.of()))unsentFrame=false;
+        if(unsentColor&&CommanderOrders.send(command(card,"COLOR"),List.of(target,"rgb/"+pendingColor),List.of()))unsentColor=false;
+        if(unsentFrame&&CommanderOrders.send(command(card,"INSIGNIA"),List.of(target,"frame/"+pendingFrame),List.of()))unsentFrame=false;
         var view=CommanderHud.view();Integer current=authoritative(card);boolean answered=CommanderOrders.ready()&&view!=null&&CommanderOrders.currentHud(view);
         if(pendingColor!=null&&!unsentColor&&(pendingColor.equals(current)||answered))pendingColor=null;
-        Integer insignia=card.panel().insignia();if(pendingFrame!=null&&!unsentFrame&&(pendingFrame.equals(insignia==null?0:insignia)||answered))pendingFrame=null;
+        if(pendingFrame!=null&&!unsentFrame&&(pendingFrame.equals(card.panel().insignia())||answered))pendingFrame=null;
         if(dragging<0&&pendingColor==null&&current!=null&&current!=rgb())sync(current);
     }
     public static void draw(GuiGraphicsExtractor g,int mx,int my) {
@@ -95,14 +99,13 @@ public final class CommanderInsigniaWindow {
         UiMenuStyle.title(g,font,frame,UiCommandLabels.text("CHOOSE_INSIGNIA",""),18,20,256,-1,UiMenuStyle.TEXT);
         frame.art(g,ART+"nv_btn_close/frame_0",282,4);
         frame.art(g,ART+"group_name_bg/frame_0",25,44);
-        int color=rgb();
-        UiAssets.drawExact(g,shield(card),frame.x(18),frame.y(41),frame.size(33),frame.size(32),tint(shield(card),color));
+        int color=rgb();var set=set(kind(card));
+        UiAssets.drawExact(g,shield(card),frame.x(18),frame.y(41),frame.size(33),frame.size(32),tint(card,color));
         float scale=UiText.scale(font);UiText.marquee(g,font,card.name(),frame.x(57),frame.y(56.5)-font.lineHeight*scale/2,frame.size(231),scale,UiMenuStyle.TEXT,true,-1);
         frame.art(g,ART+"parch_bg/frame_0",14,73);
         offset=Math.clamp(offset,0,maximum(card));
         g.enableScissor(frame.ix(GRID_X),frame.iy(GRID_Y),frame.ix(GRID_X+GRID_W),frame.iy(GRID_Y+GRID_H));
-        String set=group(card)?"theatre_army_group_shield":"theatre_army_shield";
-        for(int i=0;i<count(card);i++){double x=GRID_X+i%COLUMNS*SLOT_W,y=GRID_Y+i/COLUMNS*SLOT_H-offset;if(y+SLOT_H<GRID_Y||y>GRID_Y+GRID_H)continue;String path=ART+set+"/frame_"+i;UiAssets.drawExact(g,path,frame.x(x),frame.y(y),frame.size(33),frame.size(32),tint(path,color));}
+        for(int i=0;i<set.choices().size();i++){double x=GRID_X+i%COLUMNS*SLOT_W,y=GRID_Y+i/COLUMNS*SLOT_H-offset;if(y+SLOT_H<GRID_Y||y>GRID_Y+GRID_H)continue;int icon=set.choices().get(i);UiAssets.drawExact(g,set.sprite()+"/frame_"+icon,frame.x(x),frame.y(y),frame.size(33),frame.size(32),tint(set,icon,color));}
         g.disableScissor();
         bar(card).draw(g,offset);
         var presets=card.panel().palette();
@@ -139,7 +142,8 @@ public final class CommanderInsigniaWindow {
         if(event.button()!=InputConstants.MOUSE_BUTTON_LEFT)return true;
         if(inside(mx,my,282,4,31,31)){AudioUiSounds.play("ui.close");close();return true;}
         var scroll=bar(card);if(scroll.contains(mx,my)){if(scroll.arrow(my))offset=Math.clamp(offset+(my<frame.y(83)+8?-SLOT_H:SLOT_H),0,maximum(card));else{listDrag=true;drag(card,my);}return true;}
-        if(inside(mx,my,GRID_X,GRID_Y,GRID_W,GRID_H))for(int i=0;i<count(card);i++){double x=GRID_X+i%COLUMNS*SLOT_W,y=GRID_Y+i/COLUMNS*SLOT_H-offset;if(!inside(mx,my,x,y,33,32))continue;AudioUiSounds.play("ui.click");if(frame(card)!=i){pendingFrame=i;unsentFrame=true;settle(card);}return true;}
+        var choices=set(kind(card)).choices();
+        if(inside(mx,my,GRID_X,GRID_Y,GRID_W,GRID_H))for(int i=0;i<choices.size();i++){double x=GRID_X+i%COLUMNS*SLOT_W,y=GRID_Y+i/COLUMNS*SLOT_H-offset;if(!inside(mx,my,x,y,33,32))continue;AudioUiSounds.play("ui.click");int icon=choices.get(i);if(frame(card)!=icon){pendingFrame=icon;unsentFrame=true;settle(card);}return true;}
         for(int i=0;i<3;i++)if(inside(mx,my,4,BARS[i],232,KNOB)){dragging=i;set(i,mx);return true;}
         var presets=card.panel().palette();
         for(int i=0;i<Math.min(9,presets.size());i++)if(inside(mx,my,223+25*(i%3),315+25*(i/3),24,24)){AudioUiSounds.play("ui.click");sync(presets.get(i));send(card);return true;}

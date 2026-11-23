@@ -78,7 +78,7 @@ public final class CommanderOfficerRoster extends DialogScreen {
             UiAssets.draw(g,"commander/officers/gfx_clip/frame_0",left+33,y,9,5);
             label(g,officer.title()+" "+tile.name(),left+70,y+4,122);
             label(g,officer.unit(),left+70,y+14,122);
-            if(officer.insignia()!=null)UiAssets.draw(g,"commander/officers/gfx_theatre_army_shield/frame_"+officer.insignia(),left+203,y+8,14,14);
+            if(officer.insignia()!=null)UiAssets.draw(g,dev.hoi.client.map.commander.CommanderInsigniaWindow.armyShield(officer.insignia()),left+203,y+8,14,14);
             UiText.centered(g,font,String.format(Locale.ROOT,"%.0f",officer.experience()),left+222,y+7,33,14,UiMenuStyle.TEXT,false);
             if(mx>=left+6&&mx<left+261&&my>=y&&my<y+49)tooltip=tile.detail();
             if(officer.insignia()!=null&&mx>=left+203&&mx<left+217&&my>=y+8&&my<y+22)tooltip=officer.type();

@@ -9,6 +9,13 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 
 final class CommanderInsigniaWindowTest {
     private CommanderInsigniaWindowTest() {}
+    static final List<Integer> ARMY_CHOICES=java.util.stream.Stream.concat(java.util.stream.IntStream.range(0,14).boxed(),java.util.stream.Stream.concat(java.util.stream.Stream.of(61),java.util.stream.IntStream.range(64,74).boxed())).toList();
+    static Map<String,Insignia> sets() {
+        return Map.of("army",new Insignia("commander/commands/theatre_army_shield",81,java.util.stream.IntStream.range(14,81).boxed().toList(),ARMY_CHOICES),
+                "army_group",new Insignia("commander/commands/theatre_army_group_shield_kp",14,java.util.stream.IntStream.range(1,14).boxed().toList(),java.util.stream.IntStream.range(0,14).boxed().toList()),
+                "fleet",new Insignia("commander/commands/theatre_task_force_shield",31,List.of(),java.util.stream.IntStream.range(0,31).boxed().toList()));
+    }
+    static View withSets(View view){return new View(view.country(),view.dimension(),view.branch(),view.cards(),view.wings(),view.running(),view.theaters(),view.armyTheaters(),view.orderToken(),view.orderRevision(),sets());}
     static View with(View view,String id,String field,int value) {
         var gson=new com.google.gson.Gson();var json=gson.toJsonTree(view).getAsJsonObject();
         for(var item:json.getAsJsonArray("cards")){var card=item.getAsJsonObject();if(!card.get("id").getAsString().equals(id))continue;var panel=card.getAsJsonObject("panel");panel.addProperty(field,value);if(field.equals("armyColor"))for(var member:panel.getAsJsonArray("members"))member.getAsJsonObject().getAsJsonObject("data").addProperty("armyColor",value);}
@@ -58,6 +65,11 @@ final class CommanderInsigniaWindowTest {
         game.runOnClient(client->expect(commands,"ARMY_INSIGNIA",List.of("A","frame/5"),"Insignia entry must send the exact army insignia"));
         answer(game,source,commands,"A","insignia",5);
         game.runOnClient(client->{var card=CommanderHud.view().cards().stream().filter(c->c.id().equals("A")).findFirst().orElseThrow();if(!CommanderInsigniaWindow.shield(card).endsWith("theatre_army_shield/frame_5"))throw new AssertionError("Header shield must use the authoritative insignia");});
+        click(game,at(game,27+2*42+16,88+2*44+16),InputConstants.MOUSE_BUTTON_LEFT);
+        game.runOnClient(client->expect(commands,"ARMY_INSIGNIA",List.of("A","frame/61"),"The fifteenth entry is the fifteenth offered frame, not frame 14"));
+        answer(game,source,commands,"A","insignia",61);
+        game.runOnClient(client->{var card=CommanderHud.view().cards().stream().filter(c->c.id().equals("A")).findFirst().orElseThrow();if(!CommanderInsigniaWindow.shield(card).endsWith("theatre_army_shield/frame_61")||CommanderPanels.shieldTint(card)!=0xffffffff)throw new AssertionError("A colour_override = no insignia keeps its own colours");});
+        game.takeScreenshot("hoi-army-insignia-plain-"+size[0]+"x"+size[1]+"-gui2");
         var knob=at(game,24+192*.5,316+8);move(game,knob);game.getInput().holdMouse(InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(1);move(game,at(game,260,316+8));
         game.runOnClient(client->{if(!commands.isEmpty())throw new AssertionError("Dragging a slider must wait for release");});
         game.takeScreenshot("hoi-army-insignia-hue-drag-"+size[0]+"x"+size[1]+"-gui2");
@@ -65,7 +77,7 @@ final class CommanderInsigniaWindowTest {
         game.runOnClient(client->{float[] hsb=java.awt.Color.RGBtoHSB(0x0b,0xdb,0xdb,null);int expected=java.awt.Color.HSBtoRGB(1f,hsb[1],hsb[2])&0xffffff;expect(commands,"ARMY_COLOR",List.of("A","rgb/"+expected),"Hue slider release must send one colour");});
         answer(game,source,commands,"A","armyColor",java.awt.Color.HSBtoRGB(1f,java.awt.Color.RGBtoHSB(0x0b,0xdb,0xdb,null)[1],java.awt.Color.RGBtoHSB(0x0b,0xdb,0xdb,null)[2])&0xffffff);
         move(game,at(game,150,200));game.getInput().scroll(-1);game.waitTicks(2);
-        game.runOnClient(client->{if(CommanderInsigniaWindow.listOffset()!=CommanderInsigniaWindow.SLOT_H)throw new AssertionError("Wheel scrolls the 81 army insignia by one row");});
+        game.runOnClient(client->{if(CommanderInsigniaWindow.listOffset()!=5*CommanderInsigniaWindow.SLOT_H-CommanderInsigniaWindow.GRID_H)throw new AssertionError("Wheel scrolls the 25 offered insignia to their last row");});
         game.takeScreenshot("hoi-army-insignia-scrolled-"+size[0]+"x"+size[1]+"-gui2");
         var before=at(game,0,0);var grab=at(game,150,420);move(game,grab);game.getInput().holdMouse(InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(1);move(game,new double[]{grab[0]+40,grab[1]+30});game.getInput().releaseMouse(InputConstants.MOUSE_BUTTON_LEFT);game.waitTicks(2);
         var after=at(game,0,0);if(Math.abs(after[0]-before[0]-40)>1||Math.abs(after[1]-before[1]-30)>1)throw new AssertionError("Window background drag must move the window: "+Arrays.toString(before)+" -> "+Arrays.toString(after));
@@ -82,7 +94,7 @@ final class CommanderInsigniaWindowTest {
         click(game,tab(game,"G1"),InputConstants.MOUSE_BUTTON_LEFT);
         game.runOnClient(client->{if(!CommanderInsigniaWindow.target().equals("G1"))throw new AssertionError("Army group colour tab must open the insignia window");});
         game.takeScreenshot("hoi-army-group-insignia-window-"+size[0]+"x"+size[1]+"-gui2");
-        game.runOnClient(client->{if(CommanderInsigniaWindow.listOffset()!=0)throw new AssertionError("Six group insignia need no scroll");});
+        game.runOnClient(client->{if(CommanderInsigniaWindow.listOffset()!=0)throw new AssertionError("Fourteen group insignia need no scroll");});
         click(game,at(game,223+25+12,315+12),InputConstants.MOUSE_BUTTON_LEFT);
         game.runOnClient(client->{expect(commands,"GROUP_COLOR",List.of("G1","rgb/"+0x0bdbdb),"Group preset must send the exact group colour");if(CommanderHud.groups.color("G1",source[0])!=0xff730bdb)throw new AssertionError("Group colour must wait for the server");});
         answer(game,source,commands,"G1","color",0x0bdbdb);
@@ -90,7 +102,7 @@ final class CommanderInsigniaWindowTest {
         click(game,at(game,27+3*42+16,88+16),InputConstants.MOUSE_BUTTON_LEFT);
         game.runOnClient(client->expect(commands,"GROUP_INSIGNIA",List.of("G1","frame/3"),"Group insignia entry must send the exact group insignia"));
         answer(game,source,commands,"G1","insignia",3);
-        game.runOnClient(client->{var card=CommanderHud.view().cards().stream().filter(c->c.id().equals("G1")).findFirst().orElseThrow();if(!CommanderInsigniaWindow.shield(card).endsWith("theatre_army_group_shield/frame_3")||CommanderPanels.shieldTint(card)!=0xffffffff)throw new AssertionError("Group shield must use the authoritative insignia and keep coloured insignia art");if(CommanderHud.bands().stream().filter(b->b.owner().equals("G1")).anyMatch(b->b.color()!=0xff0bdbdb))throw new AssertionError("Group metadata must use received RGB exactly");});
+        game.runOnClient(client->{var card=CommanderHud.view().cards().stream().filter(c->c.id().equals("G1")).findFirst().orElseThrow();if(!CommanderInsigniaWindow.shield(card).endsWith("theatre_army_group_shield_kp/frame_3")||CommanderPanels.shieldTint(card)!=0xffffffff)throw new AssertionError("Group shield must use the authoritative insignia and keep coloured insignia art");if(CommanderHud.bands().stream().filter(b->b.owner().equals("G1")).anyMatch(b->b.color()!=0xff0bdbdb))throw new AssertionError("Group metadata must use received RGB exactly");});
         game.takeScreenshot("hoi-army-group-insignia-authoritative-"+size[0]+"x"+size[1]+"-gui2");
         game.getInput().pressKey(InputConstants.KEY_ESCAPE);game.waitTicks(2);
     }

@@ -30,7 +30,6 @@ public final class CommanderHud {
     static List<Band> bands(){return bands;}
     static java.util.function.Consumer<Open> requestObserver;
     private static int page;
-    private static String paletteGroup="";
     private static String selectedCard="",hovered="",renderedTooltip="";
     public static String renderedTooltip(){return renderedTooltip;}
     public record TooltipBounds(int x,int y,int width,int height) {}
@@ -86,7 +85,6 @@ public final class CommanderHud {
         if(area!=null&&x>=area[0]&&x<area[0]+area[2]&&y>=area[1]&&y<area[1]+area[3])return true;
         return CommanderPanels.hits().stream().anyMatch(hit->x>=hit.x()&&x<hit.x()+hit.w()&&y>=hit.y()&&y<hit.y()+hit.h());
     }
-    static void togglePalette(String id){paletteGroup=paletteGroup.equals(id)?"":id;boxes=List.of();}
     private static List<Box> boxes=List.of();
     private CommanderHud() {}
     static boolean running(){return view!=null&&Boolean.TRUE.equals(view.running());}
@@ -131,10 +129,10 @@ public final class CommanderHud {
         CommanderInsigniaWindow.register();
         ScreenEvents.AFTER_INIT.register((client,screen,w,h)->{if(screen instanceof InputSidebarMovement.InputMovementScreen sidebar){if(screen instanceof dev.hoi.client.screen.commander.CommanderTraits)ScreenEvents.beforeExtract(screen).register((s,g,mx,my,delta)->{if(sidebar.allowsMovement()){draw(g,sidebar.unitHudLeft(),-1,-1);g.nextStratum();}});else if(!(screen instanceof dev.hoi.client.screen.commander.CommanderConfirmation))ScreenEvents.afterExtract(screen).register((s,g,mx,my,delta)->{boolean covered=sidebar.covers(mx,my);if(sidebar.allowsMovement())draw(g,sidebar.unitHudLeft(),covered?-1:mx,covered?-1:my);});}});
     }
-    public static void accept(View received){var next=visibleCards(received);var client=Minecraft.getInstance();if(next.country().isEmpty()||client.level==null||!next.dimension().equals(client.level.dimension().identifier().toString())||!next.country().equals(ClientCampaignHud.country())){reset();return;}if(view==null||!view.country().equals(next.country())||!view.dimension().equals(next.dimension())||view.branch()!=next.branch()){NavalSeaHover.reset();CommanderTheaters.reset();page=0;paletteGroup="";}if(next.cards().stream().noneMatch(c->c.id().equals(paletteGroup)))paletteGroup="";CommanderCardDrag.accept(next);groups.accept(next);theaters.selected(next);view=next;CommanderPanels.accept(next);if(next.cards().stream().noneMatch(card->CommanderPanels.selected(card.id())))selectedCard="";boxes=List.of();}
-    static View visibleCards(View view){var cards=view.cards().stream().filter(card->card.role()!=Mode.ASSIGN_ARMY||card.count()>0).toList();return new View(view.country(),view.dimension(),view.branch(),cards,view.wings(),view.running(),view.theaters(),view.armyTheaters(),view.orderToken(),view.orderRevision());}
+    public static void accept(View received){var next=visibleCards(received);var client=Minecraft.getInstance();if(next.country().isEmpty()||client.level==null||!next.dimension().equals(client.level.dimension().identifier().toString())||!next.country().equals(ClientCampaignHud.country())){reset();return;}if(view==null||!view.country().equals(next.country())||!view.dimension().equals(next.dimension())||view.branch()!=next.branch()){NavalSeaHover.reset();CommanderTheaters.reset();page=0;}CommanderCardDrag.accept(next);groups.accept(next);theaters.selected(next);view=next;CommanderPanels.accept(next);if(next.cards().stream().noneMatch(card->CommanderPanels.selected(card.id())))selectedCard="";boxes=List.of();}
+    static View visibleCards(View view){var cards=view.cards().stream().filter(card->card.role()!=Mode.ASSIGN_ARMY||card.count()>0).toList();return new View(view.country(),view.dimension(),view.branch(),cards,view.wings(),view.running(),view.theaters(),view.armyTheaters(),view.orderToken(),view.orderRevision(),view.insignia());}
     static View view(){return view;}
-    public static void reset(){CommanderInsigniaWindow.reset();CommanderShipRows.reset();CommanderShipHud.reset();CommanderCombatLogHud.reset();CommanderBattleHud.reset();theaters.clear();NavalSeaHover.reset();CommanderTheaters.reset();CommanderCardDrag.reset();paletteGroup="";groups.clear();bands=List.of();tooltipBounds=null;renderedTooltip="";hovered="";CommanderOrders.reset();CommanderPanels.reset();selectedCard="";view=null;boxes=List.of();page=0;}
+    public static void reset(){CommanderInsigniaWindow.reset();CommanderShipRows.reset();CommanderShipHud.reset();CommanderCombatLogHud.reset();CommanderBattleHud.reset();theaters.clear();NavalSeaHover.reset();CommanderTheaters.reset();CommanderCardDrag.reset();groups.clear();bands=List.of();tooltipBounds=null;renderedTooltip="";hovered="";CommanderOrders.reset();CommanderPanels.reset();selectedCard="";view=null;boxes=List.of();page=0;}
     public static void open(Open request){if(request.mode()==Mode.AIR_ATTACH){CommanderOrders.route(request);return;}if(requestObserver!=null){requestObserver.accept(request);return;}if(CommanderOrders.route(request))return;if(ClientPlayNetworking.canSend(Open.TYPE))ClientPlayNetworking.send(request);}
     public static boolean pressAt(double x,double y,int button,boolean twice){if(AgencyHud.active())return AgencyHud.clickAt(x,y,button);if(button==InputConstants.MOUSE_BUTTON_LEFT&&view!=null&&!Minecraft.getInstance().gui.hud.isHidden()&&view.country().equals(ClientCampaignHud.country())&&(CommanderPanels.pressScroll(x,y)||CommanderCardDrag.begin(view,boxes,x,y)))return true;return clickAt(x,y,button,twice);}
     public static boolean dragAt(double x,double y){return CommanderPanels.dragScroll(y)||CommanderCardDrag.move(x);}
@@ -286,11 +284,6 @@ public final class CommanderHud {
             }
         }
         if(navalBranch){g.pose().popMatrix();g.disableScissor();list.replaceAll(box->new Box(box.x(),box.y(),box.width(),Math.min(box.height(),bottom-box.y()),box.request(),box.pageDelta(),box.tip(),box.action(),box.horizontalInset(),box.pixelShift()));}
-        var colorCard=navalBranch?view.cards().stream().filter(c->c.id().equals(paletteGroup)&&c.panel()!=null&&CommanderPanels.selected(c.id())).findFirst().orElse(null):null;
-        if(colorCard!=null&&!colorCard.panel().palette().isEmpty()){
-            int cell=units.size(14),pw=colorCard.panel().palette().size()*cell,px=Math.max(units.size(4),(g.guiWidth()-pw)/2),py=CommanderLayout.popupBottom(units,false)-cell-units.size(5);g.fill(px-units.size(3),py-units.size(3),px+pw+units.size(3),py+cell+units.size(3),0xee101418);
-            for(int index=0;index<colorCard.panel().palette().size();index++){int rgb=colorCard.panel().palette().get(index),cx=px+index*cell;g.fill(cx+1,py+1,cx+cell-1,py+cell-1,0xff000000|rgb);list.add(0,new Box(cx,py,cell,cell,null,0,"함대 색상 #"+String.format(Locale.ROOT,"%06X",rgb),()->{CommanderOrders.send("FLEET_COLOR",List.of(colorCard.id(),"rgb/"+rgb),List.of());paletteGroup="";boxes=List.of();}));}
-        }
         boxes=List.copyOf(list);
         CommanderPanels.draw(g,sidebar,mx,my,list.stream().mapToInt(Box::y).min().orElse(y));
         String tooltip=CommanderPanels.tooltipAt(mx,my);

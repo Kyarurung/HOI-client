@@ -273,7 +273,7 @@ public final class DiplomacyVolunteers extends Screen implements InputSidebarMov
     private void row(GuiGraphicsExtractor g, DiplomacyVolunteerView.ArmyRow row, int rowY) {
         int rowX = x(13), rowTop = y(rowY);
         UiAssets.draw(g, "diplomacy/volunteers/row/frame_" + (view.selectedArmyKeys().contains(row.key()) ? 1 : 0), rowX, rowTop, s(489), s(38));
-        if (row.insignia() != null && row.color() != null) UiAssets.drawTinted(g, "diplomacy/volunteers/shield/frame_" + row.insignia(), rowX + s(5), rowTop + s(4), s(33), s(32), 0xFF000000 | row.color());
+        if (row.insignia() != null && row.color() != null) UiAssets.drawTinted(g, dev.hoi.client.map.commander.CommanderInsigniaWindow.armyShield(row.insignia()), rowX + s(5), rowTop + s(4), s(33), s(32), dev.hoi.client.map.commander.CommanderInsigniaWindow.armyTint(row.insignia(), row.color()));
         text(g, row.divisionText(), rowX + s(5), rowTop + s(4), s(33), s(32), 0xFFFFFFFF);
         if (!row.commanderSkillText().isEmpty()) {
             UiAssets.draw(g, "diplomacy/volunteers/skill", rowX + s(43), rowTop + s(2), s(25), s(35));

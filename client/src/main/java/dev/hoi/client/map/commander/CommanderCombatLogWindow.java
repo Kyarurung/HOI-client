@@ -152,9 +152,9 @@ public final class CommanderCombatLogWindow {
         var armies = armies();
         for (int i = 0; i < armies.size(); i++) {
             var card = armies.get(i); var box = armyBox(i, armies.size());
-            int shield = card.panel() == null || card.panel().insignia() == null ? 0 : card.panel().insignia(), tint = card.panel() == null || card.panel().armyColor() == null ? 0xFFFFFFFF : 0xFF000000 | card.panel().armyColor();
-            UiAssets.drawExact(g, "commander/commands/theatre_army_shield/frame_" + shield, frame.x(box.x()), frame.y(box.y()), frame.size(33), frame.size(32), tint);
-            if (!excluded.contains(card.id())) frame.art(g, "commander/commands/theatre_army_shield_selected/frame_" + shield, box.x() - 1, box.y() - 1, 35, 34);
+            int shield = card.panel() == null || card.panel().insignia() == null ? 0 : card.panel().insignia(), tint = card.panel() == null || card.panel().armyColor() == null ? 0xFFFFFFFF : CommanderInsigniaWindow.armyTint(shield, card.panel().armyColor());
+            UiAssets.drawExact(g, CommanderInsigniaWindow.armyShield(shield), frame.x(box.x()), frame.y(box.y()), frame.size(33), frame.size(32), tint);
+            if (!excluded.contains(card.id())) frame.art(g, CommanderInsigniaWindow.set("army").sprite() + "_selected/frame_" + shield, box.x() - 1, box.y() - 1, 35, 34);
             if (i == armies.size() - 1 || armyBox(i + 1, armies.size()).x() - box.x() >= 30) text(g, font, Integer.toString(card.count()), box.x() + 8, box.y() + 12, 28, 20, 0);
         }
     }
