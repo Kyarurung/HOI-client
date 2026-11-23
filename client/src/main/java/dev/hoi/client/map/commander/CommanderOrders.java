@@ -111,12 +111,13 @@ public final class CommanderOrders {
     static boolean sendFromHud(dev.hoi.protocol.commander.CommanderHudPayloads.View view,String action,List<String> selection){
         return currentHud(view)&&send(action,selection,List.of());
     }
-    public static boolean send(String action,List<String> selection,List<Ray> rays){
+    public static boolean send(String action,List<String> selection,List<Ray> rays){return send(action,selection,rays,"");}
+    public static boolean send(String action,List<String> selection,List<Ray> rays,String text){
         if(!valid())return false;
         if(waitingRevision>=0)return false;
         if(selection.size()>2048||rays.size()>64)return false;
         if(commandObserver==null&&!ClientPlayNetworking.canSend(Command.TYPE))return false;
-        selectionChanged();if(waitingRevision>=0||!CommanderAvailability.allow(action,selection))return false;var packet=new Command(context.token(),context.revision(),action,selection,rays);waitingRevision=context.revision();
+        selectionChanged();if(waitingRevision>=0||!CommanderAvailability.allow(action,selection))return false;var packet=new Command(context.token(),context.revision(),action,selection,rays,text);waitingRevision=context.revision();
         if(commandObserver!=null)commandObserver.accept(packet);else ClientPlayNetworking.send(packet);return true;
     }
     public static boolean map(List<Ray> rays){return map(rays,false);}

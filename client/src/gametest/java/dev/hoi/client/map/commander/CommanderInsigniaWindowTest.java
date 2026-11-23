@@ -36,6 +36,10 @@ final class CommanderInsigniaWindowTest {
         game.runOnClient(client->{var issued=CommanderOrders.currentContext();CommanderOrders.accept(new CommanderOrderPayloads.Context(issued.token(),issued.revision()+1,issued.country(),issued.dimension(),""));commands.clear();source[0]=with(source[0],id,field,value);CommanderHud.accept(source[0]);});
         game.waitTicks(2);
     }
+    private static void named(ClientGameTestContext game,View[] source,List<CommanderOrderPayloads.Command> commands,String id,String name) {
+        game.runOnClient(client->{var issued=CommanderOrders.currentContext();CommanderOrders.accept(new CommanderOrderPayloads.Context(issued.token(),issued.revision()+1,issued.country(),issued.dimension(),""));commands.clear();var gson=new com.google.gson.Gson();var json=gson.toJsonTree(source[0]).getAsJsonObject();for(var item:json.getAsJsonArray("cards"))if(item.getAsJsonObject().get("id").getAsString().equals(id))item.getAsJsonObject().addProperty("name",name);source[0]=gson.fromJson(json,View.class);CommanderHud.accept(source[0]);});
+        game.waitTicks(2);
+    }
     private static void expect(List<CommanderOrderPayloads.Command> commands,String action,List<String> selection,String message){if(commands.size()!=1||!commands.getFirst().action().equals(action)||!commands.getFirst().selection().equals(selection)||!commands.getFirst().rays().isEmpty())throw new AssertionError(message+": "+commands);}
     static void army(ClientGameTestContext game,View[] source,List<CommanderOrderPayloads.Command> commands,int[] size) {
         game.runOnClient(client->{source[0]=with(source[0],"A","armyColor",0xdb0b0b);CommanderHud.accept(source[0]);});game.waitTicks(2);
@@ -88,6 +92,23 @@ final class CommanderInsigniaWindowTest {
         game.runOnClient(client->{if(!CommanderInsigniaWindow.target().isEmpty())throw new AssertionError("A second tab click must close the window");});
         click(game,tab,InputConstants.MOUSE_BUTTON_LEFT);game.getInput().pressKey(InputConstants.KEY_ESCAPE);game.waitTicks(2);
         game.runOnClient(client->{if(!CommanderInsigniaWindow.target().isEmpty())throw new AssertionError("Escape must close the insignia window");if(!commands.isEmpty())throw new AssertionError("Closing must not send a command");});
+        click(game,tab,InputConstants.MOUSE_BUTTON_LEFT);click(game,at(game,55+100,47+11),InputConstants.MOUSE_BUTTON_RIGHT);
+        game.runOnClient(client->{if(CommanderInsigniaWindow.editing())throw new AssertionError("Right click must not start editing the name");});
+        click(game,at(game,55+100,47+11),InputConstants.MOUSE_BUTTON_LEFT);
+        game.runOnClient(client->{if(!CommanderInsigniaWindow.editing())throw new AssertionError("The original name box must start editing");});
+        for(int i=0;i<12;i++)game.getInput().pressKey(InputConstants.KEY_BACKSPACE);game.getInput().typeChars("수도 방위군");game.waitTicks(2);
+        game.takeScreenshot("hoi-army-insignia-rename-"+size[0]+"x"+size[1]+"-gui2");
+        game.runOnClient(client->{if(!commands.isEmpty())throw new AssertionError("Typing must not send before Enter");});
+        game.getInput().pressKey(InputConstants.KEY_RETURN);game.waitTicks(2);
+        game.runOnClient(client->{if(commands.size()!=1||!commands.getFirst().action().equals("ARMY_NAME")||!commands.getFirst().selection().equals(List.of("A"))||!commands.getFirst().text().equals("수도 방위군"))throw new AssertionError("Enter must send the typed army name: "+commands);var card=CommanderHud.view().cards().stream().filter(c->c.id().equals("A")).findFirst().orElseThrow();if(CommanderInsigniaWindow.editing()||!CommanderInsigniaWindow.name(card).equals("수도 방위군"))throw new AssertionError("The window previews the sent name");});
+        named(game,source,commands,"A","수도 방위군");
+        game.takeScreenshot("hoi-army-insignia-renamed-"+size[0]+"x"+size[1]+"-gui2");
+        click(game,at(game,55+100,47+11),InputConstants.MOUSE_BUTTON_LEFT);game.getInput().typeChars("취소");game.getInput().pressKey(InputConstants.KEY_ESCAPE);game.waitTicks(2);
+        game.runOnClient(client->{var card=CommanderHud.view().cards().stream().filter(c->c.id().equals("A")).findFirst().orElseThrow();if(CommanderInsigniaWindow.editing()||!commands.isEmpty()||!CommanderInsigniaWindow.target().equals("A")||!CommanderInsigniaWindow.name(card).equals("수도 방위군"))throw new AssertionError("Escape cancels the edit and keeps the window open");});
+        click(game,at(game,55+100,47+11),InputConstants.MOUSE_BUTTON_LEFT);for(int i=0;i<12;i++)game.getInput().pressKey(InputConstants.KEY_BACKSPACE);game.getInput().pressKey(InputConstants.KEY_BACKSPACE);click(game,at(game,300,60),InputConstants.MOUSE_BUTTON_LEFT);
+        game.runOnClient(client->{if(CommanderInsigniaWindow.editing()||!commands.isEmpty())throw new AssertionError("Clicking elsewhere ends the edit and an empty name is not sent");});
+        game.getInput().pressKey(InputConstants.KEY_ESCAPE);game.waitTicks(2);
+        game.runOnClient(client->{if(!CommanderInsigniaWindow.target().isEmpty())throw new AssertionError("Escape closes the window after editing");});
     }
     static void group(ClientGameTestContext game,View[] source,List<CommanderOrderPayloads.Command> commands,int[] size) {
         game.runOnClient(client->CommanderPanels.select("G1",false));game.waitTicks(2);

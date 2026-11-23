@@ -12,6 +12,8 @@ import java.util.*;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.resources.Identifier;
 
@@ -26,6 +28,8 @@ public final class CommanderInsigniaWindow {
     private static boolean moving,listDrag,unsentColor,unsentFrame;
     private static double grabX,grabY;
     private static Integer pendingColor,pendingFrame;
+    private static String pendingName;
+    private static EditBox editor;
     private static int[] saturationRamp;
     private CommanderInsigniaWindow() {}
     static void register() {
@@ -37,7 +41,7 @@ public final class CommanderInsigniaWindow {
     static void open(Card card) {
         if(card.panel()==null)return;
         if(target.equals(card.id())){close();return;}
-        target=card.id();left=Float.NaN;offset=0;dragging=-1;moving=listDrag=unsentColor=unsentFrame=false;pendingColor=pendingFrame=null;sync(authoritative(card));
+        cancelName();target=card.id();left=Float.NaN;offset=0;dragging=-1;moving=listDrag=unsentColor=unsentFrame=false;pendingColor=pendingFrame=null;pendingName=null;sync(authoritative(card));
     }
     static Integer color(Card card) {
         if(card.panel()==null)return null;
@@ -48,6 +52,8 @@ public final class CommanderInsigniaWindow {
         if(card.id().equals(target)&&pendingFrame!=null)return pendingFrame;
         return card.panel()==null||card.panel().insignia()==null?kind(card).equals("fleet")?3:0:card.panel().insignia();
     }
+    static String name(Card card){return card.id().equals(target)&&pendingName!=null?pendingName:card.name();}
+    static boolean editing(){return editor!=null;}
     static String kind(Card card){return switch(card.role()){case ARMY_GROUP->"army_group";case NAVY_FLEET,NAVY_HQ->"fleet";default->"army";};}
     static Insignia set(String kind) {
         var view=CommanderHud.view();var set=view==null?null:view.insignia().get(kind);
@@ -90,6 +96,7 @@ public final class CommanderInsigniaWindow {
         var view=CommanderHud.view();Integer current=authoritative(card);boolean answered=CommanderOrders.ready()&&view!=null&&CommanderOrders.currentHud(view);
         if(pendingColor!=null&&!unsentColor&&(pendingColor.equals(current)||answered))pendingColor=null;
         if(pendingFrame!=null&&!unsentFrame&&(pendingFrame.equals(card.panel().insignia())||answered))pendingFrame=null;
+        if(pendingName!=null&&(pendingName.equals(card.name())||answered))pendingName=null;
         if(dragging<0&&pendingColor==null&&current!=null&&current!=rgb())sync(current);
     }
     public static void draw(GuiGraphicsExtractor g,int mx,int my) {
@@ -101,7 +108,8 @@ public final class CommanderInsigniaWindow {
         frame.art(g,ART+"group_name_bg/frame_0",25,44);
         int color=rgb();var set=set(kind(card));
         UiAssets.drawExact(g,shield(card),frame.x(18),frame.y(41),frame.size(33),frame.size(32),tint(card,color));
-        float scale=UiText.scale(font);UiText.marquee(g,font,card.name(),frame.x(57),frame.y(56.5)-font.lineHeight*scale/2,frame.size(231),scale,UiMenuStyle.TEXT,true,-1);
+        if(editor!=null)editor.extractRenderState(g,mx,my,0);
+        else{float scale=UiText.scale(font);UiText.marquee(g,font,name(card),frame.x(57),frame.y(56.5)-font.lineHeight*scale/2,frame.size(231),scale,UiMenuStyle.TEXT,true,-1);}
         frame.art(g,ART+"parch_bg/frame_0",14,73);
         offset=Math.clamp(offset,0,maximum(card));
         g.enableScissor(frame.ix(GRID_X),frame.iy(GRID_Y),frame.ix(GRID_X+GRID_W),frame.iy(GRID_Y+GRID_H));
@@ -137,9 +145,11 @@ public final class CommanderInsigniaWindow {
     private static void set(int bar,double x){float v=slide(x);if(bar==0)hue=v;else if(bar==1)saturation=v;else value=v;}
     private static void send(Card card){pendingColor=rgb();unsentColor=true;settle(card);}
     public static boolean click(MouseButtonEvent event) {
-        if(!visible()||frame==null)return false;double mx=event.x(),my=event.y();if(!inside(mx,my,0,0,WIDTH,HEIGHT))return false;
+        if(!visible()||frame==null)return false;double mx=event.x(),my=event.y();if(!inside(mx,my,0,0,WIDTH,HEIGHT)){commitName();return false;}
         var card=card();if(card==null){close();return true;}
+        if(editor!=null){if(inside(mx,my,55,47,235,23)){editor.mouseClicked(event,false);return true;}commitName();}
         if(event.button()!=InputConstants.MOUSE_BUTTON_LEFT)return true;
+        if(inside(mx,my,55,47,235,23)){AudioUiSounds.play("ui.click");editName(card);return true;}
         if(inside(mx,my,282,4,31,31)){AudioUiSounds.play("ui.close");close();return true;}
         var scroll=bar(card);if(scroll.contains(mx,my)){if(scroll.arrow(my))offset=Math.clamp(offset+(my<frame.y(83)+8?-SLOT_H:SLOT_H),0,maximum(card));else{listDrag=true;drag(card,my);}return true;}
         var choices=set(kind(card)).choices();
@@ -167,7 +177,25 @@ public final class CommanderInsigniaWindow {
         if(card!=null&&inside(x,y,22,83,280,223))offset=Math.clamp(offset-(int)Math.round(Math.signum(vertical))*SLOT_H,0,maximum(card));
         return true;
     }
+    public static boolean keyPressed(KeyEvent event) {
+        if(editor==null)return false;
+        if(event.key()==InputConstants.KEY_ESCAPE){cancelName();return true;}
+        if(event.key()==InputConstants.KEY_RETURN||event.key()==InputConstants.KEY_NUMPADENTER){commitName();return true;}
+        editor.keyPressed(event);return true;
+    }
+    private static void editName(Card card) {
+        var client=Minecraft.getInstance();if(!(client.gui.screen() instanceof MapCursor cursor))return;var font=client.font;
+        editor=new EditBox(font,frame.ix(57),frame.iy(56.5)-font.lineHeight/2,frame.len(231),font.lineHeight+1,net.minecraft.network.chat.Component.literal(name(card)));
+        editor.setBordered(false);editor.setMaxLength(dev.hoi.protocol.commander.CommanderOrderPayloads.Command.TEXT_LIMIT);editor.setValue(name(card));
+        editor.setResponder(value->{String clean=value.replaceAll("[§£$]","");if(editor!=null&&!clean.equals(value))editor.setValue(clean);});
+        cursor.edit(editor);
+    }
+    private static void cancelName(){if(editor==null)return;var box=editor;editor=null;if(Minecraft.getInstance().gui.screen() instanceof MapCursor cursor)cursor.release(box);}
+    private static void commitName() {
+        if(editor==null)return;String value=editor.getValue().strip();var card=card();cancelName();
+        if(card!=null&&!value.isEmpty()&&!value.equals(name(card))&&CommanderOrders.send(command(card,"NAME"),List.of(card.id()),List.of(),value))pendingName=value;
+    }
     static boolean closeWindow(){if(!visible())return false;close();return true;}
-    private static void close(){target="";dragging=-1;moving=listDrag=false;}
-    static void reset(){close();pendingColor=pendingFrame=null;unsentColor=unsentFrame=false;}
+    private static void close(){cancelName();target="";dragging=-1;moving=listDrag=false;}
+    static void reset(){close();pendingColor=pendingFrame=null;pendingName=null;unsentColor=unsentFrame=false;}
 }
