@@ -1272,7 +1272,7 @@ GUI2 두 해상도에서 회색 배치 행, 색 띠 없는 집단군 카드·펼
 
 해군 임무 `Decision.details`는 완전한 원문이므로 기존 설명에 덧붙이지 않고 그대로 표시한다. 경고 `Decision.warning`은 원본 노란 glow로 표시한다. 경고 아이콘·국기·활동 토큰과 단축키 키캡은 외부 팩의 원본 그림을 사용하며 툴팁 문자열·색·빈줄·순서를 보존한다. 키캡은 표시이며 기존 미등록 키 바인딩을 실제 사용 가능 단축키로 검증하지 않는다.
 
-바다 hover는 현재 해군 지도에서 HUD 밖 커서 광선을 `SeaHover`로 보낸다. 위치·카메라·국가·차원·화면 변경은 이전 응답을 무효화한다. 응답이 없으면 3클라이언트 틱마다 마지막 위치를 다시 보내 서버의 2틱 제한으로 버려진 요청을 복구하고, 응답 후 정지 커서는 20틱마다 갱신한다. 빈 region/text는 툴팁을 지운다. `SeaHoverTooltip.text`의 지배율·현재 지배·초계 기본값과 추가 기여 줄은 서버값 그대로이며 클라이언트 계산을 하지 않는다. 기준 원본 세 장에 없는 최소 지배력 줄과 이 서버가 제공하지 않는 일수별 증감 줄은 넣지 않는다.
+바다 hover는 현재 해군 지도에서 HUD 밖 커서 광선을 `SeaHover`로 보낸다. 위치·카메라·국가·차원·화면 변경은 이전 응답을 무효화한다. 응답이 없으면 3클라이언트 틱마다 마지막 위치를 다시 보내 서버의 2틱 제한으로 버려진 요청을 복구하고, 응답 후 정지 커서는 20틱마다 갱신한다. 빈 region/text는 툴팁을 지운다. `SeaHoverTooltip.text`의 지배율·현재 지배·증감 일수·초계 기본값과 추가 기여 줄은 서버값 그대로이며 클라이언트 계산을 하지 않는다. 최소 지배력과 국가별 지배값은 원본처럼 지연 설명(`ProtocolTooltip.DELAYED`)으로 1초 뒤에 이어 표시하므로, 즉시 화면인 기준 원본 세 장과 같다. 임무 단추의 설명도 이름·경고가 먼저 나오고 본문은 지연 표시하며, 사용할 수 없는 사유는 `CommanderAvailability.explain`이 요약 쪽에 붙인다.
 
 집중 재현은 팩 빌드 후 Java 25에서 `test runGameTest remapJar -PhoiTestSuite=navy-layout -PhoiServerSource=<검증 서버 사본> -PhoiProtocolSource=<같은 사본>/protocol/src/main/java --console=plain --no-daemon`이다. `armyHud` 생산자가 기존 입력과 `NavalHudTest`의 임무 판정·초계/예비 함대·바다 툴팁 입력 및 출처를 생성하고 같은 프로토콜을 확인한다. `CommanderNavyLayoutTest`는 GUI2 2560×1440·1280×720의 실제 화면 선택·우클릭 무동작·선택 해제·모두 선택·초계 대상·함대 가로 드래그와 기존 수리 정책 반복 클릭을 검사한다. HUD/Context 주입·요청 관찰자 검증이므로 운영 접속·소켓·저장/재접속·멀티플레이·직접 음향 청취를 대신하지 않는다.
 
@@ -1286,7 +1286,7 @@ GUI2 두 해상도에서 회색 배치 행, 색 띠 없는 집단군 카드·펼
 
 정박·할당 해역 없음·임무 수행·위치 유지의 원형 그림은 `NV_all_missions`이며 정박은 frame0 닻이다. 이동·수리·교전·분리 증원은 기존 `ship_activity_*`를 유지한다. 소속 함대 배지는 `army_shield_bg` 위 원본 해군 선택 휘장에 금색을 적용하고 하단 띠 첫 닻에도 같은 해군 그림을 쓴다. 서버의 구형 31 이상 휘장 ID는 기존 육군 휘장 자산으로 보존한다. 오른쪽 설정 단추 셋에는 `NV_btn_base_partial_toggle` 틀을 표시한다.
 
-`NavalData.dominance`가 양수일 때만 지배 기여 아이콘 frame1을 쓰고 나머지는 frame0이다. 툴팁은 `dominanceTooltip` 그대로다. 연료통은 머리줄과 같은 frame0이며 단계별 프레임 규칙은 미확정이다. 값·설명은 `ClientCampaignHud`의 국가 연료를 읽는 `CommanderAirBases.fuelTooltip`을 재사용하고 기동부대 연료로 추정하지 않는다. 정박 임무의 선택 그림은 체크 삼각형인 frame1 대신 초록 불의 frame2이며, 임무 배경 중앙은 원본 그물 무늬를 늘이지 않고 타일링한다. 수리 단추는 원본 `btn_repair_now_small.dds` 64×31 중 첫32×31 셀을 사용한다. 두 번째 셀은 렌치와 빨간 X로, 방어 태세 스트립의 일부가 아니다.
+기동부대 줄의 지배 아이콘은 frame0이다. 실행 파일(`0x141eb1c00`)은 지원함이 필요한 기동부대만 frame1을 쓰며 TFR에는 지원함 정의가 없다. 툴팁은 `dominanceTooltip` 그대로다. 초계·타격 부대·수송선 습격 단추 위 그림 셋은 서버 판정 `NAVAL_DOMINANCE/<임무>`의 설명을 보인다. 연료통은 머리줄과 같은 frame0이며 단계별 프레임 규칙은 미확정이다. 값·설명은 `ClientCampaignHud`의 국가 연료를 읽는 `CommanderAirBases.fuelTooltip`을 재사용하고 기동부대 연료로 추정하지 않는다. 정박 임무의 선택 그림은 체크 삼각형인 frame1 대신 초록 불의 frame2이며, 임무 배경 중앙은 원본 그물 무늬를 늘이지 않고 타일링한다. 수리 단추는 원본 `btn_repair_now_small.dds` 64×31 중 첫32×31 셀을 사용한다. 두 번째 셀은 렌치와 빨간 X로, 방어 태세 스트립의 일부가 아니다.
 
 계약4판의 기동부대 함종 막대는 `NavalData.hullStrength/hullOrganization`의 `unit_hud/navy_<함종>`별 실제 비율을 읽어 함대 머리줄과 같은 위 주황·아래 초록 배치로 채운다. 구형 snapshot의 누락 값은 미상으로 유지하며 전체 평균을 각 함종으로 복제하지 않는다. 334칸은 선택 중 `carrierStance`가 있는 항모 기동부대의 다수 태세를 frame0~4로 표시하며 동률은 서버에 발행한 선택 순서(ID 정렬)를 따른다. 항모 없는 기동부대도 일괄 요청에 `stance/none`으로 포함한다. 항모가 없으면 같은 칸에 수리 atlas의 오른쪽32×31 셀을 표시하고 `NAVAL_TB/REPAIR_CANCEL` 원문·판정과 `NAVAL_SETTING/REPAIR_CANCEL_BATCH`에 연결한다. 오른쪽 셀은 기존 `frame_0`64×31 안에 이미 보존되어 있어 별도 원본 추출은 하지 않는다. 비활성 도구는 공용 `UiAssets.drawGrayscale`의 원본 disabled 변환을 쓰며 단순 검은 덮개를 쓰지 않는다.
 

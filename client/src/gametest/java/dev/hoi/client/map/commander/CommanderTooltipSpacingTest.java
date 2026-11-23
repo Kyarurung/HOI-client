@@ -2,6 +2,7 @@ package dev.hoi.client.map.commander;
 
 import dev.hoi.client.ClientCampaignHud;
 import dev.hoi.client.screen.map.MapCursor;
+import dev.hoi.client.ui.tooltip.TooltipDelay;
 import dev.hoi.client.ui.tooltip.TooltipSpacingTest;
 import dev.hoi.protocol.commander.CommanderHudPayloads.*;
 import dev.hoi.protocol.commander.*;
@@ -19,7 +20,7 @@ public final class CommanderTooltipSpacingTest {
             var source=new Snapshot(Files.readString(directory.resolve("kor-command-panel-navy.json"))).view();
             var actions=new CommanderOrderPayloads.Availability(Files.readString(directory.resolve("kor-navy-assessment.json"))).assessment().actions();
             String detail=actions.get("NAVY/MINELAYING").details();
-            TooltipSpacingTest.verify(game,detail);
+            TooltipSpacingTest.verify(game,TooltipDelay.summary(detail));TooltipSpacingTest.verify(game,TooltipDelay.full(detail));
             for(int[] size:List.of(new int[]{2560,1440},new int[]{1280,720})) {
                 game.getInput().resizeWindow(size[0],size[1]);
                 game.runOnClient(client->{
@@ -34,7 +35,9 @@ public final class CommanderTooltipSpacingTest {
                 for(String mission:List.of("PATROL","MINELAYING","HOLD")) {
                     var point=game.computeOnClient(client->{var hit=CommanderPanels.hits().stream().filter(h->h.icon().equals("naval_mission_"+mission)).findFirst().orElseThrow();if(!hit.tip().equals(CommanderAvailability.tooltip("NAVY/"+mission,"")))throw new AssertionError("Mission must keep source detail and its authoritative disabled reason");return new int[]{hit.x()+hit.w()/2,hit.y()+hit.h()/2};});
                     game.getInput().setCursorPos(point[0]*2,point[1]*2);game.waitTicks(3);
-                    game.runOnClient(client->{if(!CommanderHud.renderedTooltip().equals(CommanderAvailability.tooltip("NAVY/"+mission,"")))throw new AssertionError("Mission hover did not retain the issued source");var rendered=new StringBuilder();for(var line:dev.hoi.client.ui.tooltip.Tooltips.sourceLines(client.font,CommanderHud.renderedTooltip(),324))line.accept((i,s,c)->{rendered.appendCodePoint(c);return true;});if(rendered.toString().contains("단축키")||rendered.toString().contains("£"))throw new AssertionError("Mission tooltip leaked shortcut labels or tokens");});
+                    game.runOnClient(client->{if(!CommanderHud.renderedTooltip().equals(TooltipDelay.summary(CommanderAvailability.tooltip("NAVY/"+mission,""))))throw new AssertionError("Mission hover must start with its summary");});
+                    for(int step=0;step<12;step++){try{Thread.sleep(TooltipDelay.DELAY/10);}catch(InterruptedException error){Thread.currentThread().interrupt();throw new AssertionError(error);}game.waitTicks(1);}
+                    game.runOnClient(client->{if(!CommanderHud.renderedTooltip().equals(TooltipDelay.full(CommanderAvailability.tooltip("NAVY/"+mission,""))))throw new AssertionError("Mission hover did not retain the issued source");var rendered=new StringBuilder();for(var line:dev.hoi.client.ui.tooltip.Tooltips.sourceLines(client.font,CommanderHud.renderedTooltip(),324))line.accept((i,s,c)->{rendered.appendCodePoint(c);return true;});if(rendered.toString().contains("단축키")||rendered.toString().contains("£"))throw new AssertionError("Mission tooltip leaked shortcut labels or tokens");});
                     var image=game.takeScreenshot("hoi-spacing-"+mission.toLowerCase(Locale.ROOT)+"-"+size[0]+"x"+size[1]+"-gui2");
                     var evidence=game.computeOnClient(client->Map.of("source",CommanderHud.renderedTooltip(),"bounds",CommanderHud.tooltipBounds(),"cursor",List.of(point[0]*2,point[1]*2)));
                     Files.writeString(image.resolveSibling(image.getFileName()+".json"),new com.google.gson.Gson().toJson(evidence));
