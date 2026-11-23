@@ -61,17 +61,40 @@ public final class ResearchTreeLines {
                 ? y == s.y1() && x > Math.min(s.x1(), s.x2()) && x < Math.max(s.x1(), s.x2())
                 : x == s.x1() && y > Math.min(s.y1(), s.y2()) && y < Math.max(s.y1(), s.y2());
     }
+    static List<ResearchPath> drawn = List.of();
+    static int drawnThickness;
+    static int[] texels(int size) {
+        int[] texel = new int[size];
+        if (size < 8) { for (int row = 0; row < size; row++) texel[row] = (2 * row + 1) * 16 / (2 * size); return texel; }
+        int shadow = Math.max(2, size / 8), inner = size - 2 * shadow;
+        for (int row = 0; row < shadow; row++) { texel[row] = (2 * row + 1) * 2 / (2 * shadow); texel[size - 1 - row] = 15 - texel[row]; }
+        for (int row = 0; row < (inner + 1) / 2; row++) { texel[shadow + row] = 2 + (2 * row + 1) * 12 / (2 * inner); texel[size - 1 - shadow - row] = 15 - texel[shadow + row]; }
+        return texel;
+    }
+    static int[][] cross(int size) {
+        int[] texel = texels(size); var runs = new ArrayList<int[]>();
+        for (int row = 0; row < size;) {
+            int end = row + 1; boolean stretched = end < size && texel[end] == texel[row];
+            while (end < size && texel[end] == (stretched ? texel[row] : texel[end - 1] + 1)) end++;
+            runs.add(new int[]{row, end - row, texel[row], stretched ? 1 : end - row}); row = end;
+        }
+        return runs.toArray(int[][]::new);
+    }
     static void draw(GuiGraphicsExtractor g, List<ResearchPath> paths, double scale, long millis) {
-        int thick = Math.max(2, (int)Math.round(16 * .4 * scale)), frame = frame(millis);
+        int thick = Math.max(2, (int)Math.round(16 * .4 * scale)), frame = frame(millis), gui = Math.max(1, (int)Math.round(net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale()));
         double tile = 36 * .4 * scale;
         var ordered = paths.stream().sorted(Comparator.comparingInt(ResearchPath::state)).toList();
-        for (var path : ordered) for (var s : path.segments()) if (straight(s)) strip(g, s, path.state(), thick, tile, frame);
+        drawn = ordered; drawnThickness = thick;
+        g.pose().pushMatrix(); g.pose().scale(1f / gui);
+        for (var path : ordered) for (var s : path.segments()) if (straight(s)) strip(g, s, path.state(), thick, tile, frame, gui);
         for (var joint : joints(ordered)) {
             String art = "research/line/center/" + joint.kind() + (joint.state() == ACTIVE ? "/researching/frame_" + frame : "/frame_" + joint.state());
-            if (UiAssets.imageSize(art)[0] > 0) blit(g, art, joint.x() - thick / 2, joint.y() - thick / 2, thick, thick, 0, 1, 0, 1);
+            if (UiAssets.imageSize(art)[0] > 0) for (var row : cross(thick * gui)) for (var column : cross(thick * gui))
+                blit(g, art, (joint.x() - thick / 2) * gui + column[0], (joint.y() - thick / 2) * gui + row[0], column[1], row[1], column[2] / 16f, (column[2] + column[3]) / 16f, row[2] / 16f, (row[2] + row[3]) / 16f);
         }
+        g.pose().popMatrix();
     }
-    private static void strip(GuiGraphicsExtractor g, ResearchSegment s, int state, int thick, double tile, int frame) {
+    private static void strip(GuiGraphicsExtractor g, ResearchSegment s, int state, int thick, double tile, int frame, int gui) {
         boolean horizontal = s.y1() == s.y2();
         int start = horizontal ? s.x1() : s.y1(), end = horizontal ? s.x2() : s.y2(), sign = end > start ? 1 : -1, length = Math.abs(end - start);
         String art = state == ACTIVE
@@ -85,8 +108,11 @@ public final class ResearchTreeLines {
             float cut = last ? (float)((length - i * tile) / tile) : 1;
             int a = start + sign * near, b = start + sign * far;
             float t0 = sign > 0 ? 0 : 1 - cut, t1 = sign > 0 ? cut : 1;
-            if (horizontal) blit(g, art, Math.min(a, b), across, Math.abs(b - a), thick, t0, t1, 0, 1);
-            else blit(g, art, across, Math.min(a, b), thick, Math.abs(b - a), 0, 1, t0, t1);
+            for (var c : cross(thick * gui)) {
+                float c0 = c[2] / 16f, c1 = (c[2] + c[3]) / 16f;
+                if (horizontal) blit(g, art, Math.min(a, b) * gui, across * gui + c[0], Math.abs(b - a) * gui, c[1], t0, t1, c0, c1);
+                else blit(g, art, across * gui + c[0], Math.min(a, b) * gui, c[1], Math.abs(b - a) * gui, c0, c1, t0, t1);
+            }
         }
     }
     private static void blit(GuiGraphicsExtractor g, String art, int x, int y, int w, int h, float u0, float u1, float v0, float v1) {

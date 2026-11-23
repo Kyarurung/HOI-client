@@ -38,9 +38,70 @@ public final class ResearchSectionsTest {
                     if(requests.stream().anyMatch(r->r.action()==ResearchPayloads.Action.START||r.action()==ResearchPayloads.Action.CANCEL))throw new AssertionError("Inspecting sections mutated research");
                     referenceShell(game,teams,size[0]);
                     navalTerrain(game,teams,size[0]);
+                    lineEdges(game,teams,size[0]);
                 }
             }finally{game.setScreen(()->null);game.runOnClient(c->c.options.guiScale().set(scale));}
         }catch(java.io.IOException e){throw new java.io.UncheckedIOException(e);}
+    }
+    private static Object field(ResearchScreen screen,String name){try{var field=ResearchScreen.class.getDeclaredField(name);field.setAccessible(true);return field.get(screen);}catch(ReflectiveOperationException error){throw new AssertionError(error);}}
+    private static void scroll(ResearchScreen screen,double x,double y){try{for(var name:List.of("scrollX","scrollY")){var field=ResearchScreen.class.getDeclaredField(name);field.setAccessible(true);field.setDouble(screen,name.equals("scrollX")?x:y);}}catch(ReflectiveOperationException error){throw new AssertionError(error);}}
+    private static void lineEdges(ClientGameTestContext game,ResearchView view,int width)throws java.io.IOException{
+        var screen=game.computeOnClient(c->new ResearchScreen(view,request->{}));game.setScreen(()->screen);game.waitTicks(3);
+        game.runOnClient(c->{screen.showDetail(view.technologies().getFirst().id());screen.keyPressed(new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE,0,0));});game.waitTicks(2);
+        String[] labels={"보병","지상 & 항공 지원","기갑","포","해군","해군 지원 장비","공군","공학","산업"};
+        int checked=0;
+        for(int tab=0;tab<labels.length;tab++){
+            String label=labels[tab];
+            game.runOnClient(c->{var button=screen.children().stream().filter(w->w instanceof ResearchTabButton b&&b.getMessage().getString().equals(label)).map(ResearchTabButton.class::cast).findFirst().orElseThrow();var event=new net.minecraft.client.input.MouseButtonEvent(button.getX()+button.getWidth()/2.,button.getY()+button.getHeight()/2.,new net.minecraft.client.input.MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0));screen.mouseClicked(event,false);screen.mouseReleased(event);});
+            game.waitTicks(2);
+            var pages=game.computeOnClient(c->{
+                var layout=(ResearchLayout)field(screen,"layout");int top=(int)field(screen,"treeTop"),bottom=(int)field(screen,"treeBottom");
+                double maxX=ResearchLayout.clampScroll(Double.MAX_VALUE,layout.width(),screen.width),maxY=ResearchLayout.clampScroll(Double.MAX_VALUE,layout.height(),bottom-top),stepX=screen.width*.75,stepY=(bottom-top)*.75;
+                var result=new ArrayList<double[]>();for(double y=0;;y=Math.min(maxY,y+stepY)){for(double x=0;;x=Math.min(maxX,x+stepX)){result.add(new double[]{x,y});if(x>=maxX)break;}if(y>=maxY)break;}
+                return result;
+            });
+            for(int index=0;index<pages.size();index++){
+                double[] page=pages.get(index);
+                game.runOnClient(c->scroll(screen,page[0],page[1]));
+                game.getInput().setCursorPos(width-10,10);game.waitTicks(2);
+                var image=javax.imageio.ImageIO.read(game.takeScreenshot("hoi-research-line-edges-"+tab+"-"+index+"-"+width+"-gui2").toFile());
+                String where=label+" "+index;
+                checked+=game.computeOnClient(c->edges(screen,image,where));
+            }
+        }
+        if(checked<200)throw new AssertionError("Research line edge check sampled too few line positions: "+checked);
+        game.setScreen(()->null);
+    }
+    private static int edges(ResearchScreen screen,java.awt.image.BufferedImage image,String where){
+        int gui=(int)Math.round(net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale()),thick=ResearchTreeLines.drawnThickness,size=thick*gui;
+        if(size<8)return 0;
+        var layout=(ResearchLayout)field(screen,"layout");int top=(int)field(screen,"treeTop"),bottom=(int)field(screen,"treeBottom");double sx=(double)field(screen,"scrollX"),sy=(double)field(screen,"scrollY");
+        var font=net.minecraft.client.Minecraft.getInstance().font;var covers=new ArrayList<java.awt.Rectangle>();
+        for(var n:layout.nodes())covers.add(new java.awt.Rectangle((int)(n.x()-sx)-thick,(int)(top+n.y()-sy)-thick,n.width()+2*thick,n.height()+2*thick));
+        @SuppressWarnings("unchecked") var labels=(List<ResearchTreeLabels.ResearchLabel>)field(screen,"referenceLabels");
+        for(var l:labels)covers.add(new java.awt.Rectangle((int)(l.x()-sx)-thick,(int)(top+l.y()-sy)-thick,Math.max(l.width(),font.width(l.text()))+2*thick,Math.max(l.height(),font.lineHeight)+2*thick));
+        if(ResearchSourceLayout.applies(layout)){
+            int reach=(int)Math.round(24*ResearchSourceLayout.scale(layout));
+            for(var choice:ResearchSourceLayout.choices(layout))covers.add(new java.awt.Rectangle((int)(choice.x()-sx)-reach,(int)(top+choice.y()-sy)-reach,2*reach,2*reach));
+            for(var group:ResearchSourceLayout.groups(layout))if(!group.caption().isEmpty())covers.add(new java.awt.Rectangle((int)(group.x()+group.width()-sx),(int)(top+group.y()+group.height()/2-sy)-30,100,60));
+        }
+        var segments=ResearchTreeLines.drawn.stream().flatMap(p->p.segments().stream()).toList();int checked=0;
+        for(var s:segments){
+            boolean horizontal=s.y1()==s.y2();if(!horizontal&&s.x1()!=s.x2())continue;
+            int low=horizontal?Math.min(s.x1(),s.x2()):Math.min(s.y1(),s.y2()),high=horizontal?Math.max(s.x1(),s.x2()):Math.max(s.y1(),s.y2()),across=(horizontal?s.y1():s.x1())-thick/2;
+            for(double f:new double[]{.2,.4,.6,.8}){
+                int along=(int)Math.round(low+(high-low)*f),x=horizontal?along:s.x1(),y=horizontal?s.y1():along;
+                if(along-low<2*thick||high-along<2*thick||y<top+2*thick||y>bottom-2*thick||x<2*thick||x>screen.width-2*thick||covers.stream().anyMatch(r->r.contains(x,y)))continue;
+                if(segments.stream().anyMatch(o->o!=s&&!(horizontal?o.y1()==o.y2()&&o.y1()==s.y1():o.x1()==o.x2()&&o.x1()==s.x1())&&x>=Math.min(o.x1(),o.x2())-2*thick&&x<=Math.max(o.x1(),o.x2())+2*thick&&y>=Math.min(o.y1(),o.y2())-2*thick&&y<=Math.max(o.y1(),o.y2())+2*thick))continue;
+                int[] texel=ResearchTreeLines.texels(size),rows={-1,-1,-1,-1},lum=new int[4];
+                for(int r=0;r<size;r++){if(texel[r]<=1)rows[0]=r;if((texel[r]==2||texel[r]==3)&&rows[1]<0)rows[1]=r;if(texel[r]==12||texel[r]==13)rows[2]=r;if(texel[r]>=14&&rows[3]<0)rows[3]=r;}
+                for(int i=0;i<4;i++){int rgb=horizontal?image.getRGB(along*gui,across*gui+rows[i]):image.getRGB(across*gui+rows[i],along*gui);lum[i]=((rgb>>16&255)+(rgb>>8&255)+(rgb&255))/3;}
+                boolean border=lum[1]>50&&lum[2]>50,shadow=!horizontal||lum[0]<lum[1]-15&&lum[3]<lum[2]-15;
+                if(!border||!shadow)throw new AssertionError("Research line edge lost in "+where+" at "+x+","+y+(horizontal?" horizontal":" vertical")+" thickness "+size+": "+Arrays.toString(lum));
+                checked++;
+            }
+        }
+        return checked;
     }
     private static void slotArtwork(ClientGameTestContext game,ResearchView view,int width) {
         var ids=List.of("hoi:tfr/technology/mechanised_infantry3","hoi:tfr/technology/motorised_infantry2","hoi:tfr/technology/artillery1");

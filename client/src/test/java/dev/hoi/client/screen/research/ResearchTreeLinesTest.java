@@ -36,6 +36,27 @@ class ResearchTreeLinesTest {
         assertTrue(cross.contains(new ResearchJoint(10, 0, "all", AVAILABLE)), cross.toString());
         assertTrue(ResearchTreeLines.joints(List.of(path(LOCKED, 0, 0, 30, 0), path(AVAILABLE, 10, -10, 10, 10))).isEmpty());
     }
+    @Test void lineEdgesKeepBothShadowAndBorderRowsAtEveryThickness() {
+        for (int size = 1; size <= 64; size++) {
+            var rows = new ArrayList<Integer>();int next = 0;
+            for (var chunk : ResearchTreeLines.cross(size)) {
+                assertEquals(next, chunk[0], "rows must be contiguous at " + size);next = chunk[0] + chunk[1];
+                assertTrue(chunk[3] == chunk[1] || chunk[3] == 1, "a chunk is drawn one texel per pixel or stretches a single texel at " + size);
+                assertTrue(chunk[2] >= 0 && chunk[2] + chunk[3] <= 16, "chunk stays inside the 16 texel cross-section at " + size);
+                for (int i = 0; i < chunk[1]; i++) rows.add(chunk[3] == 1 ? chunk[2] : chunk[2] + i);
+            }
+            assertEquals(size, next, "chunks fill the line thickness at " + size);
+            assertEquals(Arrays.stream(ResearchTreeLines.texels(size)).boxed().toList(), rows, "chunks draw the planned texel of every row at " + size);
+            for (int i = 1; i < rows.size(); i++) assertTrue(rows.get(i) >= rows.get(i - 1), "rows keep the source order at " + size);
+            if (size >= 8) {
+                assertTrue(rows.getFirst() == 0 && rows.getLast() == 15 && rows.contains(1) && rows.contains(14), "both shadow rows stay at " + size);
+                assertTrue(rows.stream().anyMatch(t -> t == 2 || t == 3) && rows.stream().anyMatch(t -> t == 12 || t == 13), "both grey border rows stay at " + size);
+                assertEquals(rows.stream().filter(t -> t <= 3).count(), rows.stream().filter(t -> t >= 12).count(), "edges stay symmetric at " + size);
+            }
+        }
+        assertEquals(List.of(0, 1, 2, 4, 5, 7, 8, 10, 11, 13, 14, 15), Arrays.stream(ResearchTreeLines.texels(12)).boxed().toList());
+        assertEquals(10, Arrays.stream(ResearchTreeLines.texels(20)).filter(t -> t >= 4 && t <= 11).count(), "the 8 texel colour band keeps its half of a 20 px line");
+    }
     @Test void straightRunsAndLineEndsNeedNoCentrePiece() {
         assertTrue(ResearchTreeLines.joints(List.of(path(COMPLETED, 0, 0, 10, 0, 30, 0), path(LOCKED, 5, 5, 5, 5))).isEmpty());
     }
