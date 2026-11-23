@@ -57,7 +57,7 @@ public final class InputMapInfo {
         if(dev.hoi.client.map.commander.CommanderInsigniaWindow.click(centre)){dev.hoi.client.map.commander.CommanderInsigniaWindow.release();return true;}
         if(dev.hoi.client.map.commander.CommanderBattleHud.click(centre)){dev.hoi.client.map.commander.CommanderBattleHud.release();return true;}
         if(dev.hoi.client.map.commander.CommanderCombatLogHud.click(centre)){dev.hoi.client.map.commander.CommanderCombatLogHud.release();return true;}
-        if(dev.hoi.client.map.commander.CommanderShipHud.click(centre)){dev.hoi.client.map.commander.CommanderShipHud.release();return true;}if(dev.hoi.client.map.commander.CommanderAirWingHud.click(centre)){dev.hoi.client.map.commander.CommanderAirWingHud.release();return true;}
+        if(dev.hoi.client.map.commander.CommanderShipHud.click(centre)){dev.hoi.client.map.commander.CommanderShipHud.release();return true;}if(dev.hoi.client.map.commander.CommanderAirWingHud.click(centre)){dev.hoi.client.map.commander.CommanderAirWingHud.release();return true;}if(dev.hoi.client.screen.commander.CommanderDivisionHud.click(centre,false)){dev.hoi.client.screen.commander.CommanderDivisionHud.release();return true;}
         if(dev.hoi.client.map.commander.CommanderHud.clickAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
         if(dev.hoi.client.map.commander.CommanderBattleMarkers.click(centre.x(),centre.y(),centre.button()))return true;
         if(dev.hoi.client.map.commander.CommanderUnitHud.selectAt(client.getWindow().getGuiScaledWidth()/2.0,client.getWindow().getGuiScaledHeight()/2.0))return true;
