@@ -20,6 +20,7 @@ import net.minecraft.resources.Identifier;
 public final class CommanderInsigniaWindow {
     static final int WIDTH=317,HEIGHT=444,COLUMNS=6,SLOT_W=42,SLOT_H=44,GRID_X=27,GRID_Y=88,GRID_W=252,GRID_H=206,BAR_X=20,KNOB=16,TRAVEL=192;
     static final int[] BARS={316,344,373};
+    static final double NAME_Y=56;
     private static final String ART="commander/commands/",SAT=ART+"sat_slider_background/frame_0";
     private static String target="";
     private static UiMenuStyle.Frame frame;
@@ -108,8 +109,8 @@ public final class CommanderInsigniaWindow {
         frame.art(g,ART+"group_name_bg/frame_0",25,44);
         int color=rgb();var set=set(kind(card));
         UiAssets.drawExact(g,shield(card),frame.x(18),frame.y(41),frame.size(33),frame.size(32),tint(card,color));
-        if(editor!=null)editor.extractRenderState(g,mx,my,0);
-        else{float scale=UiText.scale(font);UiText.marquee(g,font,name(card),frame.x(57),frame.y(56.5)-font.lineHeight*scale/2,frame.size(231),scale,UiMenuStyle.TEXT,true,-1);}
+        if(editor!=null){float top=frame.y(NAME_Y)-font.lineHeight/2f;editor.setY((int)Math.floor(top));g.pose().pushMatrix();g.pose().translate(0,top-editor.getY());editor.extractRenderState(g,mx,my,0);g.pose().popMatrix();}
+        else{float scale=UiText.scale(font);UiText.marquee(g,font,name(card),frame.x(57),frame.y(NAME_Y)-font.lineHeight*scale/2,frame.size(231),scale,UiMenuStyle.TEXT,true,-1);}
         frame.art(g,ART+"parch_bg/frame_0",14,73);
         offset=Math.clamp(offset,0,maximum(card));
         g.enableScissor(frame.ix(GRID_X),frame.iy(GRID_Y),frame.ix(GRID_X+GRID_W),frame.iy(GRID_Y+GRID_H));
@@ -185,7 +186,7 @@ public final class CommanderInsigniaWindow {
     }
     private static void editName(Card card) {
         var client=Minecraft.getInstance();if(!(client.gui.screen() instanceof MapCursor cursor))return;var font=client.font;
-        editor=new EditBox(font,frame.ix(57),frame.iy(56.5)-font.lineHeight/2,frame.len(231),font.lineHeight+1,net.minecraft.network.chat.Component.literal(name(card)));
+        editor=new EditBox(font,frame.ix(57),(int)Math.floor(frame.y(NAME_Y)-font.lineHeight/2f),frame.len(231),font.lineHeight+1,net.minecraft.network.chat.Component.literal(name(card)));
         editor.setBordered(false);editor.setMaxLength(dev.hoi.protocol.commander.CommanderOrderPayloads.Command.TEXT_LIMIT);editor.setValue(name(card));
         editor.setResponder(value->{String clean=value.replaceAll("[§£$]","");if(editor!=null&&!clean.equals(value))editor.setValue(clean);});
         cursor.edit(editor);
