@@ -163,7 +163,7 @@ public final class CommanderDivisionWindow {
             frame.art(g, "commander/commands/unit_stats_view_tabs/frame_" + (tab == i ? 0 : 1), box.x(), box.y(), box.w(), box.h());
             text(g, font, label(TABS[i]), box.x(), box.y() + 2, box.w(), box.h() - 4, 0, UiMenuStyle.TEXT);
         }
-        UiMenuStyle.title(g, font, frame, label("UNIT_STATS"), 35, 17.5, 330, -1, UiMenuStyle.TEXT);
+        UiMenuStyle.title(g, font, frame, label("UNIT_STATS"), 35, 17.5, 330, -1, UiMenuStyle.TEXT, true);
         frame.art(g, "commander/commands/nv_btn_delete/frame_0", 560, 2, 31, 31);
         frame.art(g, "commander/commands/nv_btn_close/frame_0", 822, 2, 31, 31);
         if (view == null) return;
@@ -203,7 +203,7 @@ public final class CommanderDivisionWindow {
     }
     private void stats(GuiGraphicsExtractor g, Font font) {
         for (int c = 0; c < GROUPS.length; c++) {
-            UiMenuStyle.title(g, font, frame, label(TITLES[c]), COLUMNS[c][0], 87, 160, -1, UiMenuStyle.TEXT);
+            UiMenuStyle.title(g, font, frame, label(TITLES[c]), COLUMNS[c][0], 87, 160, -1, UiMenuStyle.TEXT, true);
             int row = 0;
             for (var stat : view.stats()) {
                 if (!stat.group().equals(GROUPS[c]) || row >= ROWS.length) continue;
@@ -265,7 +265,7 @@ public final class CommanderDivisionWindow {
     private void history(GuiGraphicsExtractor g, Font font) {
         var history = history();
         measure(font);
-        UiMenuStyle.title(g, font, frame, label("HISTORY_ENTRY_LABEL"), HEADERS[0][0], 87, HEADERS[0][1], 0, UiMenuStyle.TEXT);
+        UiMenuStyle.title(g, font, frame, label("HISTORY_ENTRY_LABEL"), HEADERS[0][0], 87, HEADERS[0][1], 0, UiMenuStyle.TEXT, true);
         for (int i = 1; i < 3; i++) { var box = headerBox(i); text(g, font, i == 1 ? history.casualties() : history.experience(), box.x(), box.y() + 1, box.w(), box.h(), 0, UiMenuStyle.TEXT); }
         frame.art(g, "commander/commands/deployment_binding/frame_0", 9, 103, 533, 35);
         text(g, font, label("INSTANCED_MEDALS"), 27, 114, 100, 20, -1, UiMenuStyle.TEXT);
@@ -287,8 +287,8 @@ public final class CommanderDivisionWindow {
                 if (history.blocked().isEmpty()) frame.art(g, ADD_MEDAL, button.x(), button.y(), button.w(), button.h());
                 else UiAssets.drawGrayscale(g, ADD_MEDAL, frame.ix(button.x()), frame.iy(button.y()), frame.len(button.w()), frame.len(button.h()));
             }
-            UiText.left(g, font, Tooltips.officerText(entry.date()), frame.ix(row.x() + 75), frame.iy(row.y() + 5), frame.len(71), frame.len(row.h() - 12), UiMenuStyle.TEXT);
-            UiText.left(g, font, Tooltips.officerText(entry.description()), frame.ix(row.x() + 174), frame.iy(row.y() + 5), frame.len(320), frame.len(row.h() - 12), UiMenuStyle.TEXT);
+            UiText.left(g, font, Tooltips.officerText(entry.date()), frame.ix(row.x() + 75), frame.iy(row.y() + 5), frame.len(71), frame.len(row.h() - 12), UiMenuStyle.TEXT, true);
+            UiText.left(g, font, Tooltips.officerText(entry.description()), frame.ix(row.x() + 174), frame.iy(row.y() + 5), frame.len(320), frame.len(row.h() - 12), UiMenuStyle.TEXT, true);
         }
         g.disableScissor();
         if (maxHistoryScroll() > 0) historyBar().draw(g, Math.round(frame.size(historyScroll)));
@@ -376,7 +376,7 @@ public final class CommanderDivisionWindow {
         if (value == null || value.isEmpty()) return;
         var line = net.minecraft.locale.Language.getInstance().getVisualOrder(Tooltips.officerText(value));
         float scale = UiText.scale(font);
-        UiText.marquee(g, font, line, frame.x(x), UiText.centeredY(font, line, frame.y(y), frame.size(h), scale), frame.size(w), scale, color, false, align);
+        UiText.outlined(g, font, line, frame.x(x), UiText.centeredY(font, line, frame.y(y), frame.size(h), scale), frame.size(w), scale, color, false, align);
     }
     private static String adjustment(IndustryTankDesigner.Adjustment value, int only) {
         var lines = new ArrayList<String>();

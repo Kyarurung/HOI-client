@@ -1,6 +1,7 @@
 package dev.hoi.client.ui;
 
 import dev.hoi.client.ui.tooltip.Tooltips;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -40,6 +41,12 @@ public final class UiText {
     }
     public static void marquee(GuiGraphicsExtractor g, Font font, String text, float x, float y, float width, float scale, int color, boolean shadow, int align) {
         marquee(g, font, Component.literal(text), x, y, width, scale, color, shadow, align);
+    }
+    public static void outlined(GuiGraphicsExtractor g, Font font, FormattedCharSequence text, float x, float y, float width, float scale, int color, boolean shadow, int align) {
+        FormattedCharSequence edge = sink -> text.accept((index, style, point) -> sink.accept(index, style.withColor(0), point));
+        float pixel = 1f / Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
+        for (int i = 0; i < 9; i++) if (i != 4) marquee(g, font, edge, x + (i % 3 - 1) * pixel, y + (i / 3 - 1) * pixel, width, scale, 0xFF000000, shadow, align);
+        marquee(g, font, text, x, y, width, scale, color, shadow, align);
     }
     public static void cell(GuiGraphicsExtractor g, Font font, String value, int x, int y, int width, int height, int color, boolean right, boolean shadow) {
         float scale = scale(font);
@@ -132,10 +139,16 @@ public final class UiText {
         return (int)Math.round(24 * Math.clamp(phase <= travel + 1 ? phase - 1 : 2 * travel + 2 - phase, 0, travel));
     }
     public static void left(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
+        left(g, font, text, x, y, width, height, color, false);
+    }
+    public static void left(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color, boolean outline) {
         var lines = Tooltips.split(font,text, Math.max(1, (int)(width / scale(font))));
         int count = Math.min(lines.size(), Math.max(1, height / (MIN_HEIGHT + 1)));
         int top = y + (height - count * (MIN_HEIGHT + 1) + 1) / 2;
-        for (int i = 0; i < count; i++) text(g, font, lines.get(i), x, top + i * (MIN_HEIGHT + 1), color);
+        for (int i = 0; i < count; i++) {
+            if (outline) outlined(g, font, lines.get(i), x, top + i * (MIN_HEIGHT + 1), width, scale(font), color, true, -1);
+            else text(g, font, lines.get(i), x, top + i * (MIN_HEIGHT + 1), color);
+        }
     }
     public static void centeredSingleLine(GuiGraphicsExtractor g, Font font, Component text, int x, int y, int width, int height, int color) {
         marqueeCell(g, font, text, x, y, width, height, color, true, 0);

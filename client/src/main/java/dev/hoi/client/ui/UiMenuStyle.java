@@ -79,8 +79,13 @@ public final class UiMenuStyle {
         title(g, font, frame, text, window.titleX() + 2, window.headerY() + HEADER_CENTER, window.titleWidth() - 2, -1, TEXT);
     }
     public static void title(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font, Frame frame, String text, int x, double center, int width, int align, int color) {
+        title(g, font, frame, text, x, center, width, align, color, false);
+    }
+    public static void title(GuiGraphicsExtractor g, net.minecraft.client.gui.Font font, Frame frame, String text, int x, double center, int width, int align, int color, boolean outline) {
         float scale = (font.lineHeight + 2f) / font.lineHeight;
-        UiText.marquee(g, font, net.minecraft.locale.Language.getInstance().getVisualOrder(Tooltips.officerText(text, true)), frame.x(x), frame.y(center) - 4.5f * scale, frame.size(width), scale, color, true, align);
+        var line = net.minecraft.locale.Language.getInstance().getVisualOrder(Tooltips.officerText(text, true));
+        if (outline) UiText.outlined(g, font, line, frame.x(x), frame.y(center) - 4.5f * scale, frame.size(width), scale, color, true, align);
+        else UiText.marquee(g, font, line, frame.x(x), frame.y(center) - 4.5f * scale, frame.size(width), scale, color, true, align);
     }
     public static UiMenuButton close(Window window, Frame frame, Runnable action) {
         return new UiMenuButton("×", frame.ix(window.closeX()), frame.iy(window.closeY()), frame.len(32), frame.len(33), action)

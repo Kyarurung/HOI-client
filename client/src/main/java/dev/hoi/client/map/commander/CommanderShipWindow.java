@@ -75,7 +75,7 @@ public final class CommanderShipWindow {
             frame.art(g, "commander/commands/unit_stats_view_tabs/frame_" + (tab == i ? 0 : 1), box.x(), box.y(), box.w(), box.h());
             text(g, font, label(TABS[i]), box.x(), box.y() + 2, box.w(), box.h() - 4, 0, UiMenuStyle.TEXT);
         }
-        UiMenuStyle.title(g, font, frame, label("SHIP_UNIT_STATS"), 35, 17.5, 330, -1, UiMenuStyle.TEXT);
+        UiMenuStyle.title(g, font, frame, label("SHIP_UNIT_STATS"), 35, 17.5, 330, -1, UiMenuStyle.TEXT, true);
         frame.art(g, "commander/commands/nv_btn_delete/frame_0", 560, 3, 31, 31);
         frame.art(g, "commander/commands/nv_btn_close/frame_0", 822, 3, 31, 31);
         if (view == null || !view.error().isEmpty()) return;
@@ -100,8 +100,7 @@ public final class CommanderShipWindow {
     }
     private void stats(GuiGraphicsExtractor g, Font font) {
         for (int c = 0; c < COLUMN_X.length; c++) {
-            int column = c;
-            outlined((dx, dy, color) -> UiMenuStyle.title(g, font, frame, label(TITLES[column]), TITLE_X[column] + dx, 86.5 + dy, 160, -1, color), UiMenuStyle.TEXT);
+            UiMenuStyle.title(g, font, frame, label(TITLES[c]), TITLE_X[c], 86.5, 160, -1, UiMenuStyle.TEXT, true);
             var stats = stats(c);
             for (int r = 0; r < Math.min(ROWS.length, stats.size()); r++) {
                 var stat = stats.get(r);
@@ -110,8 +109,8 @@ public final class CommanderShipWindow {
                 int indent = UiAssets.imageSize(icon)[0] > 0 ? 20 : 0;
                 if (indent > 0) UiAssets.drawAlignedContent(g, icon, icon, frame.x(x), frame.y(y + 1), frame.size(18), frame.size(18));
                 double width = Math.min(90, font.width(value) * UiText.scale(font) / frame.scale() + 4);
-                outlined((dx, dy, color) -> text(g, font, IndustryEquipmentDesigns.statName(stat.id()).strip(), x + indent + dx, y + dy, VALUE_RIGHT - indent - width, 20, -1, color), UiMenuStyle.TEXT);
-                outlined((dx, dy, color) -> text(g, font, value, x + VALUE_RIGHT - width + dx, y + dy, width, 20, 1, color), stat.id().equals("hit_profile") ? UiMenuStyle.TEXT : Tooltips.GOLD | 0xFF000000);
+                text(g, font, IndustryEquipmentDesigns.statName(stat.id()).strip(), x + indent, y, VALUE_RIGHT - indent - width, 20, -1, UiMenuStyle.TEXT);
+                text(g, font, value, x + VALUE_RIGHT - width, y, width, 20, 1, stat.id().equals("hit_profile") ? UiMenuStyle.TEXT : Tooltips.GOLD | 0xFF000000);
             }
         }
         text(g, font, view.designName(), 148, 279, 245, 20, 0, UiMenuStyle.TEXT);
@@ -151,16 +150,11 @@ public final class CommanderShipWindow {
         g.disableScissor();
         if (maxScroll() > 0) bar().draw(g, Math.round(frame.size(scroll)));
     }
-    private interface Pen { void draw(int dx, int dy, int color); }
-    private static void outlined(Pen pen, int color) {
-        for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) if (dx != 0 || dy != 0) pen.draw(dx, dy, 0xFF000000);
-        pen.draw(0, 0, color);
-    }
     private void text(GuiGraphicsExtractor g, Font font, String value, double x, double y, double w, double h, int align, int color) {
         if (value == null || value.isEmpty()) return;
         var line = net.minecraft.locale.Language.getInstance().getVisualOrder(Tooltips.officerText(value));
         float scale = UiText.scale(font);
-        UiText.marquee(g, font, line, frame.x(x), UiText.centeredY(font, line, frame.y(y), frame.size(h), scale), frame.size(w), scale, color, false, align);
+        UiText.outlined(g, font, line, frame.x(x), UiText.centeredY(font, line, frame.y(y), frame.size(h), scale), frame.size(w), scale, color, false, align);
     }
     String tooltip(double mx, double my) {
         if (frame == null || view == null || !view.error().isEmpty()) return "";
