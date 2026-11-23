@@ -1,6 +1,6 @@
 # RTK for HOI repositories
 
-Installed tool: [rtk-ai/rtk](https://github.com/rtk-ai/rtk), Windows release 1.2.0. This is a project adaptation of its generated Codex guidance.
+Installed tool: [rtk-ai/rtk](https://github.com/rtk-ai/rtk), Windows release 1.2.1. This is a project adaptation of its generated Codex guidance.
 
 Use `rtk git status`, `rtk git diff` and other filters supported by `rtk --help` when compressed output is sufficient. Search source with `rg` first; use native output for exact matches, complete diffs, JSON, hashes and failure details. Do not blindly prefix PowerShell cmdlets or unsupported commands. Keep the actual process exit status when judging success. RTK filters output; it does not replace the repository's validation commands or grant permission to execute them.
 
