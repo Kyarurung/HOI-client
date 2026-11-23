@@ -29,7 +29,7 @@ public final class CommanderConfirmation extends DialogScreen implements dev.hoi
     public CommanderConfirmation(DialogView view){super(view);}
     public CommanderConfirmation(DialogView view,BiConsumer<DialogView,String> send){super(view,send);}
     static boolean division(DialogView view){return view.image().isEmpty()&&view.tiles().isEmpty()&&List.of("CONFIRMDELETEUNIT","CONFIRMDELETEUNITS","CONFIRMDELETESHIP","CONFIRMCHANGE_UNIT_TEMPLATE").stream().anyMatch(key->view.title().equals(UiCommandLabels.text(key,"")));}
-    public static boolean matches(DialogView view){return view.kind()==DialogView.Kind.COMMANDER&&(division(view)||Set.of("commander/advisor-confirm","commander/advisor-promote").contains(view.image())||view.tiles().size()==1&&view.tiles().getFirst().section().equals("promote")&&view.choices().stream().anyMatch(c->c.id().equals("cancel")));}
+    public static boolean matches(DialogView view){return view.kind()==DialogView.Kind.COMMANDER&&(division(view)||Set.of("commander/advisor-confirm","commander/advisor-promote","commander/medal-confirm").contains(view.image())||view.tiles().size()==1&&view.tiles().getFirst().section().equals("promote")&&view.choices().stream().anyMatch(c->c.id().equals("cancel")));}
     public AbstractWidget choiceButton(String id){return buttons.get(id);}
     @Override public net.minecraft.network.chat.Component bodyText(){return TooltipKeywordIcons.decorateLines(Tooltips.sourceSpacing(parent instanceof AgencyScreen?Tooltips.officerText(view().body(),false):confirmationText(view().body())),false);}
     private net.minecraft.network.chat.Component confirmationText(String text){

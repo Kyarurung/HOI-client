@@ -127,6 +127,7 @@ final class CommanderDivisionWindowTest {
                 check(gone.equals(fixture.label("CLOSE")), "The close button shows its tooltip");
             });
             interactions(game, overview, fixture, requests, opened);
+            history(game, overview, new Snapshot(Files.readString(Path.of(directory, "kor-division-history.json"))).view(), fixture, requests);
             for (int[] size : new int[][]{{1280, 720, 2}, {1920, 1080, 2}, {2560, 1440, 3}}) {
                 game.getInput().resizeWindow(size[0], size[1]);
                 game.runOnClient(c -> c.options.guiScale().set(size[2]));
@@ -208,6 +209,53 @@ final class CommanderDivisionWindowTest {
             overview.mouseReleased(again);
         });
     }
+    private static void history(ClientGameTestContext game, CommanderOverview overview, View history, View fixture, List<Request> requests) throws IOException {
+        var entries = history.history().entries();
+        int awardable = 0;
+        while (!entries.get(awardable).awardable()) awardable++;
+        int target = awardable;
+        game.runOnClient(c -> {
+            var frame = overview.details().frame();
+            click(overview, frame.x(250 + 56), frame.y(487 + 18));
+            check(overview.details().tab() == 2, "The history tab opens");
+        });
+        var empty = capture(game, "hoi-division-window-history-empty-gui2");
+        game.runOnClient(c -> overview.accept(view(history, requests.getLast().token(), overview.details().division(), history.officer())));
+        var shown = capture(game, "hoi-division-window-history-gui2");
+        int[] area = game.computeOnClient(c -> { var frame = overview.details().frame(); return new int[]{frame.ix(17), frame.iy(127), frame.ix(17 + 496), frame.iy(127 + 4 * 56)}; });
+        check(changed(empty, shown, area) > .05, "The history rows draw their dividers, medals, dates and texts");
+        int[] honors = game.computeOnClient(c -> { var frame = overview.details().frame(); return new int[]{frame.ix(109), frame.iy(104), frame.ix(109 + 28), frame.iy(104 + 42)}; });
+        check(changed(empty, shown, honors) > .05, "The officer's honor draws beside the honors label");
+        game.runOnClient(c -> {
+            var frame = overview.details().frame();
+            check(overview.details().tooltip(frame.x(123), frame.y(125)).equals(history.history().honors().getFirst().tooltip()), "The honor shows its original tooltip");
+            check(overview.details().tooltip(frame.x(50), frame.y(127 + 30)).equals(entries.getFirst().tooltip()) && !entries.getFirst().tooltip().isEmpty(), "An awarded medal shows its original tooltip");
+            check(overview.details().tooltip(frame.x(57), frame.y(127 + target * 56 + 26)).equals(entries.get(target).tooltip()), "The add medal button shows its original tooltip");
+            check(overview.details().tooltip(frame.x(300), frame.y(127 + target * 56 + 26)).isEmpty(), "The history text itself has no tooltip");
+            click(overview, frame.x(57), frame.y(127 + target * 56 + 26));
+            check(overview.details().medalEntry() == target, "The add medal button opens the medal list");
+        });
+        var list = capture(game, "hoi-division-window-medals-gui2");
+        int[] drop = game.computeOnClient(c -> { var frame = overview.details().frame(); return new int[]{frame.ix(15), frame.iy(127 + target * 56 + 44), frame.ix(15 + 520), frame.iy(127 + target * 56 + 44 + 120)}; });
+        check(changed(shown, list, drop) > .05, "The medal list draws its rows above the history");
+        game.runOnClient(c -> {
+            var frame = overview.details().frame();var medal = history.history().medals().getFirst();var entry = entries.get(target);
+            double rowY = 127 + target * 56 + 44 + 14;
+            String expected = dev.hoi.protocol.ProtocolTooltip.delayed(medal.tooltip().replace("$LOCATION$", entry.location()).replace("$TEXT$", entry.description()), "\n\n", medal.detail());
+            check(overview.details().tooltip(frame.x(150), frame.y(rowY + 24)).equals(expected) && !expected.contains("$"), "A medal row shows the original award tooltip for that entry: " + overview.details().tooltip(frame.x(150), frame.y(rowY + 24)));
+            check(overview.details().tooltip(frame.x(24 + 440), frame.y(rowY + 24)).equals(medal.costTooltip()), "The medal cost shows its original breakdown");
+            click(overview, frame.x(450), frame.y(95));
+            check(overview.details().medalEntry() == -1, "Clicking elsewhere closes the medal list");
+            click(overview, frame.x(57), frame.y(127 + target * 56 + 26));
+            int sent = requests.size();
+            click(overview, frame.x(150), frame.y(rowY + 24));
+            check(requests.size() == sent + 1 && requests.getLast().action() == Action.AWARD && requests.getLast().entry() == target && requests.getLast().medal().equals(medal.id()) && overview.details().medalEntry() == -1, "Choosing a medal asks the server to award it");
+            overview.accept(view(fixture, requests.getLast().token(), overview.details().division()));
+            click(overview, frame.x(10 + 56), frame.y(487 + 18));
+            var confirm = new dev.hoi.protocol.dialog.DialogView("", 0, dev.hoi.protocol.dialog.DialogView.Kind.COMMANDER, "훈장 수여", "", "본문", "", "commander/medal-confirm", "", List.of(), List.of(new dev.hoi.protocol.dialog.DialogView.Choice("award", "OK"), new dev.hoi.protocol.dialog.DialogView.Choice("cancel", "취소")));
+            check(CommanderConfirmation.matches(confirm), "The medal confirmation opens as the commander confirmation");
+        });
+    }
     private static void observe(ClientGameTestContext game, Consumer<CommanderHudPayloads.Open> observer) {
         game.runOnClient(c -> {
             try { var field = CommanderHud.class.getDeclaredField("requestObserver"); field.setAccessible(true); field.set(null, observer); }
@@ -238,7 +286,7 @@ final class CommanderDivisionWindowTest {
     private static View view(View source, String token, String division) { return view(source, token, division, source.officer()); }
     private static View view(View source, String token, String division, Officer officer) {
         return new View(token, division, source.country(), source.name(), source.custom(), source.template(), source.templateId(), source.locked(), source.priority(), source.templates(), source.tooltips(), source.icon(), source.obsolete(), source.level(), source.experience(), source.manpower(), source.equipment(), officer,
-                source.stats(), source.equipmentRows(), source.columns(), source.support(), source.combatWidth(), source.hardness(), source.terrains(), source.labels(), source.error());
+                source.stats(), source.equipmentRows(), source.columns(), source.support(), source.combatWidth(), source.hardness(), source.terrains(), source.labels(), source.error(), source.history());
     }
     private static void click(CommanderOverview screen, double x, double y) {
         var event = new MouseButtonEvent(x, y, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
