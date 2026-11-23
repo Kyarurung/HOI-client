@@ -289,8 +289,8 @@ public final class CommanderOverview extends Screen implements InputSidebarMovem
                 bar(g, STRENGTH, x + 86, y + 30, row.strength());
                 art(g, "commander/commands/unit_level/frame_" + row.level(), x + 93, y + 4, 27, 27);
                 text(g, row.name(), x + 127, y + 2, 170, 23, false);
-                text(g, row.location(), x + 309, y + 1, 140, 16, false);
-                text(g, row.group(), x + 309, y + 17, 140, 16, false);
+                if (row.group().isEmpty()) text(g, row.location(), x + 309, y + 2, 140, 23, false);
+                else { text(g, row.location(), x + 309, y + 1, 140, 16, false); text(g, row.group(), x + 309, y + 17, 140, 16, false); }
                 if (row.color() != null) UiAssets.drawExact(g, "commander/commands/theatre_army_shield/frame_" + Objects.requireNonNullElse(row.insignia(), 0), frame.x(x + 461), frame.y(y + 2), frame.size(33), frame.size(32), 0xFF000000 | row.color());
             }
             case NAVY -> {

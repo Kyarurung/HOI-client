@@ -36,7 +36,8 @@ public final class CommanderOverviewTest {
                     check(screen.rows().size() == fixture.rows().size(), tab + " overview lists every authoritative row");
                     check(screen.rows().equals(fixture.rows().stream().sorted(Comparator.comparing(Row::type).thenComparing(Row::name).thenComparing(Row::id)).toList()), tab + " rows start sorted by type like the original");
                 });
-                game.takeScreenshot("hoi-overview-" + tab.name().toLowerCase(Locale.ROOT) + "-gui2");
+                var shot = game.takeScreenshot("hoi-overview-" + tab.name().toLowerCase(Locale.ROOT) + "-gui2");
+                if (tab != Tab.AIR) aligned(game, screen, shot, tab);
                 modifiers(game, screen, views.get(tab), tab);
                 CommanderFieldEquipmentWindowTest.run(game, screen, views.get(tab), directory, "-2560x1440-gui2");
             }
@@ -174,6 +175,25 @@ public final class CommanderOverviewTest {
         var event = new MouseButtonEvent(screen.frame().x(x), screen.frame().y(y), new MouseButtonInfo(button, modifiers));
         screen.mouseClicked(event, false);
         screen.mouseReleased(event);
+    }
+    private static void aligned(ClientGameTestContext game, CommanderOverview screen, Path shot, Tab tab) {
+        int index = game.computeOnClient(c -> { for (int i = 0; i < screen.rows().size(); i++) if (screen.rows().get(i).group().isEmpty() && !screen.rows().get(i).location().isEmpty()) return i; return -1; });
+        check(index >= 0 && index < 8, tab + " overview shows a single-line location row");
+        double[] box = game.computeOnClient(c -> { var f = screen.frame(); double y = CommanderOverview.LAYOUTS.get(tab).rowY() + index * CommanderOverview.ROW_HEIGHT - screen.scroll(), x = CommanderOverview.ROW_X;
+            return tab == Tab.ARMY ? new double[]{f.x(x + 127), f.x(x + 297), f.x(x + 309), f.x(x + 449), f.y(y), f.y(y + 35)} : new double[]{f.x(x + 169), f.x(x + 317), f.x(x + 328), f.x(x + 450), f.y(y), f.y(y + 35)}; });
+        try {
+            var image = javax.imageio.ImageIO.read(shot.toFile());
+            double name = center(image, box[0], box[1], box[4], box[5]), location = center(image, box[2], box[3], box[4], box[5]);
+            check(!Double.isNaN(name) && !Double.isNaN(location) && Math.abs(name - location) <= 2, tab + " location text shares the name's vertical center: " + name + " vs " + location);
+        } catch (IOException error) { throw new AssertionError(error); }
+    }
+    private static double center(java.awt.image.BufferedImage image, double left, double right, double top, double bottom) {
+        int first = -1, last = -1;
+        for (int y = (int)Math.ceil(top * 2); y < (int)Math.floor(bottom * 2); y++) for (int x = (int)Math.ceil(left * 2); x < (int)Math.floor(right * 2); x++) {
+            int rgb = image.getRGB(x, y);
+            if (Math.min(rgb >> 16 & 255, Math.min(rgb >> 8 & 255, rgb & 255)) > 170) { if (first < 0) first = y; last = y; break; }
+        }
+        return first < 0 ? Double.NaN : (first + last) / 2.0;
     }
     private static void clickRow(CommanderOverview screen, int index, int button, int modifiers) {
         click(screen, 13 + 200, CommanderOverview.LAYOUTS.get(screen.tab()).rowY() + index * CommanderOverview.ROW_HEIGHT + 17 - screen.scroll(), button, modifiers);

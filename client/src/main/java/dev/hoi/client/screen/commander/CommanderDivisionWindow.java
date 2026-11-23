@@ -31,12 +31,12 @@ import net.minecraft.network.chat.Component;
 
 public final class CommanderDivisionWindow {
     static final int WIDTH = 856, HEIGHT = 522, LIST_X = 560, LIST_Y = 118, LIST_W = 296, LIST_H = 359, HEADER = 30, ENTRY = 50, NAME = 0xFF3FAF3F, ADJUST_X = 10, ADJUST_Y = 353, ADJUST_W = 545, ADJUST_H = 132, SLOT_W = 110, SLOT_H = 62,
-            VALUE_RIGHT = 161, DROP_X = 10, DROP_Y = 65, DROP_W = 219, DROP_H = 300, DROP_ENTRY = 50, HISTORY_X = 17, HISTORY_Y = 127, HISTORY_W = 498, HISTORY_H = 260, HISTORY_ROW = 52, HISTORY_PITCH = 56,
+            VALUE_RIGHT = 161, DROP_X = 10, DROP_Y = 65, DROP_W = 219, DROP_H = 300, DROP_ENTRY = 50, HISTORY_X = 17, HISTORY_Y = 127, HISTORY_W = 498, HISTORY_H = 197, HISTORY_BAR = 139, HISTORY_ROW = 52, HISTORY_PITCH = 56,
             MEDAL_W = 520, MEDAL_H = 234, MEDAL_ROW = 52;
     private static final String ADD_MEDAL = "commander/commands/add_medal_button/frame_0";
     private static final String PROMOTE = "commander/commands/leader_selection_button/frame_0";
     static final String[] TABS = {"UNIT_STATS_STATS_TAB", "UNIT_STATS_TEMPLATE_TAB", "UNIT_STATS_HISTORY_TAB"}, TITLES = {"DESIGNER_BASE_STATS_LABEL", "DESIGNER_COMBAT_STATS_LABEL", "FE_MISC_STATS"}, GROUPS = {"BASE", "COMBAT", "MISC"};
-    static final int[][] COLUMNS = {{18, 18}, {192, 192}, {367, 364}};
+    static final int[][] COLUMNS = {{18, 18}, {192, 192}, {367, 364}}, HEADERS = {{12, 170}, {188, 169}, {363, 170}};
     static final double[] ROWS = {115.5, 135.5, 155, 175, 195, 215, 235, 254.5, 274, 294, 313};
     public static Consumer<Request> requestObserver;
     interface Host { void edit(EditBox box); void release(EditBox box); }
@@ -61,6 +61,7 @@ public final class CommanderDivisionWindow {
     int scroll() { return scroll; }
     boolean dropdown() { return dropdown; }
     int medalEntry() { return medalEntry; }
+    int historyScroll() { return historyScroll; }
     boolean editing() { return editor != null; }
     EditBox editor() { return editor; }
     UiMenuStyle.Frame frame() { return frame; }
@@ -135,7 +136,10 @@ public final class CommanderDivisionWindow {
     private Box medalIcon(int index) { var row = entryBox(index); return new Box(row.x() + 8, row.y() - 11, 56 * .92, 84 * .92); }
     private static Box honorBox(int index) { return new Box(109 + index % 9 * 40, 104 + index / 9 * 60, 28, 42); }
     private int maxHistoryScroll() { return Math.max(0, historyHeight() - HISTORY_H); }
-    private UiScrollBar historyBar() { return new UiScrollBar(frame.ix(538), frame.iy(142), frame.iy(142 + 320), Math.round(frame.size(HISTORY_H)), Math.round(frame.size(HISTORY_H + maxHistoryScroll()))); }
+    private double historyTop() { return HISTORY_Y + Math.min(historyScroll, HISTORY_BAR - 1 - HISTORY_Y); }
+    private Box historyList() { double top = historyTop(); return new Box(HISTORY_X, top, HISTORY_W, HISTORY_Y + HISTORY_H - top); }
+    private UiScrollBar historyBar() { return new UiScrollBar(frame.ix(ADJUST_X + ADJUST_W - 20), frame.iy(HISTORY_BAR), frame.iy(HISTORY_Y + HISTORY_H), Math.round(frame.size(HISTORY_H)), Math.round(frame.size(HISTORY_H + maxHistoryScroll()))); }
+    private static Box headerBox(int index) { return new Box(HEADERS[index][0], 74, HEADERS[index][1], 24); }
     private Box medalDrop() { var row = entryBox(Math.max(0, medalEntry)); return new Box(row.x() - 2, row.y() + row.h() - 8, MEDAL_W, MEDAL_H); }
     private Box medalRow(int index) { var drop = medalDrop(); return new Box(drop.x() + 9, drop.y() + 14 + index * MEDAL_ROW - medalScroll, 485, 48); }
     private static Box costBox(Box row) { return new Box(row.x() + 380, row.y(), 105, 48); }
@@ -171,7 +175,7 @@ public final class CommanderDivisionWindow {
         frame.art(g, "commander/commands/unitlist_unitinfo_button/frame_0", 18, 37, 76, 31);
         String icon = CommanderPanels.armyUnitIcon(view.icon());
         if (UiAssets.imageSize(icon)[0] > 0) frame.art(g, icon, 20, 35, 60.8, 33.6);
-        if (!view.locked()) frame.art(g, "commander/commands/change_template_icon/frame_0", 79, 40, 11.9, 17.5);
+        if (!view.expeditionary()) frame.art(g, "commander/commands/change_template_icon/frame_0", 79, 40, 11.9, 17.5);
         if (view.obsolete()) frame.art(g, "commander/commands/obsolete_template_warning/frame_0", 23, 40, 16, 14);
         frame.art(g, "commander/commands/unitlist_priority_icon_strip/frame_" + view.priority(), 93, 36);
         if (editor == null) text(g, font, view.name(), 114, 42, view.custom() ? 238 : 258, 20, -1, view.custom() ? NAME : UiMenuStyle.TEXT);
@@ -261,9 +265,8 @@ public final class CommanderDivisionWindow {
     private void history(GuiGraphicsExtractor g, Font font) {
         var history = history();
         measure(font);
-        text(g, font, label("HISTORY_ENTRY_LABEL"), 29, 72, 180, 20, -1, UiMenuStyle.TEXT);
-        text(g, font, history.casualties(), 289, 60, 260, 20, -1, UiMenuStyle.TEXT);
-        text(g, font, history.experience(), 289, 80, 260, 20, -1, UiMenuStyle.TEXT);
+        UiMenuStyle.title(g, font, frame, label("HISTORY_ENTRY_LABEL"), HEADERS[0][0], 87, HEADERS[0][1], 0, UiMenuStyle.TEXT);
+        for (int i = 1; i < 3; i++) { var box = headerBox(i); text(g, font, i == 1 ? history.casualties() : history.experience(), box.x(), box.y() + 1, box.w(), box.h(), 0, UiMenuStyle.TEXT); }
         frame.art(g, "commander/commands/deployment_binding/frame_0", 9, 103, 533, 35);
         text(g, font, label("INSTANCED_MEDALS"), 27, 114, 100, 20, -1, UiMenuStyle.TEXT);
         for (int i = 0; i < history.honors().size(); i++) {
@@ -271,7 +274,7 @@ public final class CommanderDivisionWindow {
             frame.art(g, honor.icon(), box.x(), box.y(), box.w(), box.h());
             if (honor.count() > 1) text(g, font, label("NUM_OF_MEDALS_UI").replace("$VALUE$", Integer.toString(honor.count())), box.x() + 4, box.y() + 18, 40, 20, 0, UiMenuStyle.TEXT);
         }
-        g.enableScissor(frame.ix(HISTORY_X), frame.iy(HISTORY_Y), frame.ix(HISTORY_X + HISTORY_W + 22), frame.iy(HISTORY_Y + HISTORY_H));
+        g.enableScissor(frame.ix(HISTORY_X), frame.iy(historyTop()), frame.ix(HISTORY_X + HISTORY_W + 22), frame.iy(HISTORY_Y + HISTORY_H));
         for (int i = 0; i < history.entries().size(); i++) {
             var row = entryBox(i);
             if (row.y() + row.h() <= HISTORY_Y || row.y() >= HISTORY_Y + HISTORY_H) continue;
@@ -315,7 +318,8 @@ public final class CommanderDivisionWindow {
     private String historyTooltip(double mx, double my) {
         var history = history();
         for (int i = 0; i < history.honors().size(); i++) if (gui(honorBox(i)).contains(mx, my)) return history.honors().get(i).tooltip();
-        if (!gui(new Box(HISTORY_X, HISTORY_Y, HISTORY_W, HISTORY_H)).contains(mx, my)) return "";
+        if (gui(headerBox(2)).contains(mx, my)) return history.experienceTooltip();
+        if (!gui(historyList()).contains(mx, my)) return "";
         for (int i = 0; i < history.entries().size(); i++) {
             var entry = history.entries().get(i);
             if (!entry.icon().isEmpty() && gui(medalIcon(i)).contains(mx, my) || entry.icon().isEmpty() && entry.awardable() && gui(medalButton(i)).contains(mx, my)) return entry.tooltip();
@@ -498,7 +502,7 @@ public final class CommanderDivisionWindow {
         for (int i = 0; i < TABS.length; i++) if (gui(tabBox(i)).contains(event.x(), event.y())) { tab = i; medalEntry = -1; return true; }
         if (tab == 2) {
             var history = history();
-            if (gui(new Box(HISTORY_X, HISTORY_Y, HISTORY_W, HISTORY_H)).contains(event.x(), event.y())) for (int i = 0; i < history.entries().size(); i++) {
+            if (gui(historyList()).contains(event.x(), event.y())) for (int i = 0; i < history.entries().size(); i++) {
                 var entry = history.entries().get(i);
                 if (!entry.awardable() || !entry.icon().isEmpty() || !gui(medalButton(i)).contains(event.x(), event.y())) continue;
                 if (!history.blocked().isEmpty() || history.medals().isEmpty()) return true;
@@ -506,7 +510,7 @@ public final class CommanderDivisionWindow {
                 return true;
             }
             if (maxHistoryScroll() > 0 && historyBar().contains(event.x(), event.y())) {
-                if (historyBar().arrow(event.y())) historyScroll = Math.clamp(historyScroll + (event.y() < frame.y(142) + 8 ? -HISTORY_PITCH : HISTORY_PITCH), 0, maxHistoryScroll());
+                if (historyBar().arrow(event.y())) historyScroll = Math.clamp(historyScroll + (event.y() < frame.y(HISTORY_BAR) + 8 ? -HISTORY_PITCH : HISTORY_PITCH), 0, maxHistoryScroll());
                 else { historyDragging = true; historyScroll = Math.clamp(Math.round(historyBar().offset(event.y()) / frame.scale()), 0, maxHistoryScroll()); }
                 return true;
             }

@@ -51,12 +51,17 @@ public final class CommanderDivisionPayloads {
     public record Medal(String id,String icon,String name,String summary,String cost,boolean affordable,String tooltip,String detail,String costTooltip) {
         public Medal {identifier(id);asset(icon);text(name,160);text(summary,400);text(cost,40);text(tooltip,4000);text(detail,1200);text(costTooltip,2000);}
     }
-    public record History(String casualties,String experience,List<Honor> honors,List<Entry> entries,List<Medal> medals,String blocked) {
+    public record History(String casualties,String experience,List<Honor> honors,List<Entry> entries,List<Medal> medals,String blocked,String experienceTooltip) {
         public static final History EMPTY=new History("","",List.of(),List.of(),List.of(),"");
-        public History {text(casualties,200);text(experience,200);honors=List.copyOf(honors);entries=List.copyOf(entries);medals=List.copyOf(medals);text(blocked,400);if(honors.size()>HISTORY_LIMIT||entries.size()>HISTORY_LIMIT||medals.size()>HISTORY_LIMIT)throw new IllegalArgumentException("Invalid division history");}
+        public History(String casualties,String experience,List<Honor> honors,List<Entry> entries,List<Medal> medals,String blocked) {this(casualties,experience,honors,entries,medals,blocked,"");}
+        public History {text(casualties,200);text(experience,200);experienceTooltip=experienceTooltip==null?"":experienceTooltip;text(experienceTooltip,1200);honors=List.copyOf(honors);entries=List.copyOf(entries);medals=List.copyOf(medals);text(blocked,400);if(honors.size()>HISTORY_LIMIT||entries.size()>HISTORY_LIMIT||medals.size()>HISTORY_LIMIT)throw new IllegalArgumentException("Invalid division history");}
     }
     public record View(String token,String division,String country,String name,boolean custom,String template,String templateId,boolean locked,int priority,List<Template> templates,Map<String,String> tooltips,String icon,boolean obsolete,int level,double experience,String manpower,String equipment,Officer officer,
-            List<Stat> stats,List<Equipment> equipmentRows,List<List<Unit>> columns,List<Unit> support,int combatWidth,double hardness,List<IndustryTankDesigner.Adjustment> terrains,Map<String,String> labels,String error,History history) {
+            List<Stat> stats,List<Equipment> equipmentRows,List<List<Unit>> columns,List<Unit> support,int combatWidth,double hardness,List<IndustryTankDesigner.Adjustment> terrains,Map<String,String> labels,String error,History history,boolean expeditionary) {
+        public View(String token,String division,String country,String name,boolean custom,String template,String templateId,boolean locked,int priority,List<Template> templates,Map<String,String> tooltips,String icon,boolean obsolete,int level,double experience,String manpower,String equipment,Officer officer,
+                List<Stat> stats,List<Equipment> equipmentRows,List<List<Unit>> columns,List<Unit> support,int combatWidth,double hardness,List<IndustryTankDesigner.Adjustment> terrains,Map<String,String> labels,String error,History history) {
+            this(token,division,country,name,custom,template,templateId,locked,priority,templates,tooltips,icon,obsolete,level,experience,manpower,equipment,officer,stats,equipmentRows,columns,support,combatWidth,hardness,terrains,labels,error,history,false);
+        }
         public View(String token,String division,String country,String name,boolean custom,String template,String templateId,boolean locked,int priority,List<Template> templates,Map<String,String> tooltips,String icon,boolean obsolete,int level,double experience,String manpower,String equipment,Officer officer,
                 List<Stat> stats,List<Equipment> equipmentRows,List<List<Unit>> columns,List<Unit> support,int combatWidth,double hardness,List<IndustryTankDesigner.Adjustment> terrains,Map<String,String> labels,String error) {
             this(token,division,country,name,custom,template,templateId,locked,priority,templates,tooltips,icon,obsolete,level,experience,manpower,equipment,officer,stats,equipmentRows,columns,support,combatWidth,hardness,terrains,labels,error,History.EMPTY);

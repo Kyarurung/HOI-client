@@ -224,11 +224,33 @@ final class CommanderDivisionWindowTest {
         var shown = capture(game, "hoi-division-window-history-gui2");
         int[] area = game.computeOnClient(c -> { var frame = overview.details().frame(); return new int[]{frame.ix(17), frame.iy(127), frame.ix(17 + 496), frame.iy(127 + 4 * 56)}; });
         check(changed(empty, shown, area) > .05, "The history rows draw their dividers, medals, dates and texts");
+        int[] lower = game.computeOnClient(c -> { var frame = overview.details().frame(); return new int[]{frame.ix(17), frame.iy(326), frame.ix(17 + 496), frame.iy(480)}; });
+        same(empty, shown, lower, .002, "History rows stay inside the list above the lower panel");
+        for (int[] box : new int[][]{{12, 170}, {188, 169}, {363, 170}}) {
+            int[] header = game.computeOnClient(c -> { var frame = overview.details().frame(); return new int[]{frame.ix(box[0]), frame.iy(74), frame.ix(box[0] + box[1]), frame.iy(98)}; });
+            check(count(shown, header, rgb -> (rgb >> 16 & 255) > 170 || (rgb >> 16 & 255) > 150 && (rgb >> 8 & 255) < 90) > 20, "The command history, casualties and officer experience sit in the three header boxes: " + box[0]);
+        }
+        int[] change = game.computeOnClient(c -> { var frame = overview.details().frame(); return new int[]{frame.ix(79), frame.iy(40), frame.ix(91), frame.iy(58)}; });
+        check(!history.expeditionary() && count(shown, change, rgb -> (rgb >> 8 & 255) > (rgb >> 16 & 255) + 25 && (rgb >> 8 & 255) > (rgb & 255) + 25) > 4, "The change-template arrows draw for every division that is not expeditionary, locked templates included");
         int[] honors = game.computeOnClient(c -> { var frame = overview.details().frame(); return new int[]{frame.ix(109), frame.iy(104), frame.ix(109 + 28), frame.iy(104 + 42)}; });
         check(changed(empty, shown, honors) > .05, "The officer's honor draws beside the honors label");
         game.runOnClient(c -> {
             var frame = overview.details().frame();
             check(overview.details().tooltip(frame.x(123), frame.y(125)).equals(history.history().honors().getFirst().tooltip()), "The honor shows its original tooltip");
+            check(overview.details().tooltip(frame.x(448), frame.y(86)).equals(history.history().experienceTooltip()) && !history.history().experienceTooltip().isEmpty(), "The officer experience box shows the original experience gain tooltip");
+            check(overview.details().tooltip(frame.x(272), frame.y(86)).isEmpty(), "The casualty count has no tooltip like the original");
+            click(overview, frame.x(535 + 4), frame.y(127 + 197 - 4));
+            check(overview.details().historyScroll() > 0, "The scroll button moves the history down");
+        });
+        var scrolled = capture(game, "hoi-division-window-history-scrolled-gui2");
+        check(changed(shown, scrolled, area) > .05, "Scrolling moves the history rows inside the list");
+        same(empty, scrolled, lower, .002, "Scrolled history rows stay inside the list above the lower panel");
+        int[] label = game.computeOnClient(c -> { var frame = overview.details().frame(); return new int[]{frame.ix(9), frame.iy(103), frame.ix(100), frame.iy(137)}; });
+        same(empty, scrolled, label, .002, "Scrolled history rows stay below the honors band");
+        game.runOnClient(c -> {
+            var frame = overview.details().frame();
+            click(overview, frame.x(535 + 4), frame.y(139 + 4));
+            check(overview.details().historyScroll() == 0, "The upper scroll button moves the history back to the top");
             check(overview.details().tooltip(frame.x(50), frame.y(127 + 30)).equals(entries.getFirst().tooltip()) && !entries.getFirst().tooltip().isEmpty(), "An awarded medal shows its original tooltip");
             check(overview.details().tooltip(frame.x(57), frame.y(127 + target * 56 + 26)).equals(entries.get(target).tooltip()), "The add medal button shows its original tooltip");
             check(overview.details().tooltip(frame.x(300), frame.y(127 + target * 56 + 26)).isEmpty(), "The history text itself has no tooltip");
@@ -276,6 +298,11 @@ final class CommanderDivisionWindowTest {
         }
         return count / (double)total;
     }
+    private static int count(BufferedImage image, int[] gui, java.util.function.IntPredicate pixel) {
+        int count = 0;
+        for (int y = gui[1] * 2; y < gui[3] * 2; y++) for (int x = gui[0] * 2; x < gui[2] * 2; x++) if (pixel.test(image.getRGB(x, y))) count++;
+        return count;
+    }
     private static void same(BufferedImage first, BufferedImage second, int[] gui, double limit, String message) {
         double ratio = changed(first, second, gui);
         check(ratio <= limit, message + ": " + ratio + " of " + Arrays.toString(gui));
@@ -286,7 +313,7 @@ final class CommanderDivisionWindowTest {
     private static View view(View source, String token, String division) { return view(source, token, division, source.officer()); }
     private static View view(View source, String token, String division, Officer officer) {
         return new View(token, division, source.country(), source.name(), source.custom(), source.template(), source.templateId(), source.locked(), source.priority(), source.templates(), source.tooltips(), source.icon(), source.obsolete(), source.level(), source.experience(), source.manpower(), source.equipment(), officer,
-                source.stats(), source.equipmentRows(), source.columns(), source.support(), source.combatWidth(), source.hardness(), source.terrains(), source.labels(), source.error(), source.history());
+                source.stats(), source.equipmentRows(), source.columns(), source.support(), source.combatWidth(), source.hardness(), source.terrains(), source.labels(), source.error(), source.history(), source.expeditionary());
     }
     private static void click(CommanderOverview screen, double x, double y) {
         var event = new MouseButtonEvent(x, y, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
