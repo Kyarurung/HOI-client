@@ -77,7 +77,7 @@ public final class CommanderOrders {
         if(heldClosing&&context.pending().isEmpty()){if(afterHeld!=null){var command=afterHeld;if(CommanderAvailability.waiting(command.action(),command.selection()))return;heldClosing=false;afterHeld=null;resume=null;send(command.action(),command.selection(),List.of());return;}heldClosing=false;}
         if(heldAction.isEmpty()&&resume!=null&&context.pending().isEmpty()){var saved=resume;if(CommanderAvailability.waiting(saved.action(),saved.selection()))return;resume=null;send(saved.action(),saved.selection(),List.of());}
     }
-    public static boolean pointMode(){return Set.of("LAND/DELETE_PLAN","LAND/ASSIGN_UNITS","LAND/EDIT_PLAN","LAND/AREA_STATES","NAVAL_AREAS/REMOVE").contains(pending());}
+    public static boolean pointMode(){return Set.of("LAND/INVASION","LAND/INVASION/TARGET","LAND/DELETE_PLAN","LAND/ASSIGN_UNITS","LAND/EDIT_PLAN","LAND/AREA_STATES","NAVAL_AREAS/REMOVE").contains(pending());}
     public static boolean clicksBorder(){return pending().equals("LAND/FRONT");}
     public static boolean editsPoint(){return pending().startsWith("LAND/EDIT_PLAN/");}
     public static boolean confirmDraft(){return CommanderPanels.armyCommandVisible()&&pending().equals("LAND/AREA_STATES")&&send("CONFIRM",List.of(),List.of());}
@@ -139,7 +139,7 @@ public final class CommanderOrders {
         if(!heldAction.isEmpty()&&(!heldOwned||!context.pending().startsWith(heldAction)&&!context.pending().equals("LAND/AREA_STATES"))){var targets=heldAction.equals("LAND/ASSIGN_UNITS")?selected:CommanderPanels.armyIds();if(targets.isEmpty())return false;var queued=new HeldMap(heldAction,selected,points,context.revision());if(send(heldAction,targets,List.of())){heldOwned=true;heldMap=queued;return true;}return false;}
         return send(pointEdit&&editsPoint()?"MAP/POINT":"MAP",selected,pointEdit&&editsPoint()?List.of(rays.getFirst(),rays.getLast()):points);
     }
-    static void land(String type,List<String> armies){if(pending().equals("LAND/"+type)){cancelTarget();return;}if(!CommanderAvailability.allow("LAND/"+type,armies))return;resume=null;latched=new ModeRequest("LAND/"+type,armies);if(!armies.isEmpty())send("LAND/"+type,armies,List.of());}
+    static void land(String type,List<String> armies){if(pending().equals("LAND/"+type)||pending().startsWith("LAND/"+type+"/")){cancelTarget();return;}if(!CommanderAvailability.allow("LAND/"+type,armies))return;resume=null;latched=new ModeRequest("LAND/"+type,armies);if(!armies.isEmpty())send("LAND/"+type,armies,List.of());}
     static void assignSelected(){var ids=CommanderPanels.commandSelection();if(ids.isEmpty())return;land("ASSIGN_UNITS",ids);}
     static void formation(String action,String target,List<String> selection){
         if(selection.isEmpty())return;
