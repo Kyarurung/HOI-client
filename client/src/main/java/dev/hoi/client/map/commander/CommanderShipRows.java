@@ -1,5 +1,6 @@
 package dev.hoi.client.map.commander;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.hoi.client.ui.UiAssets;
 import dev.hoi.client.ui.UiMenuStyle;
 import dev.hoi.client.ui.UiText;
@@ -49,7 +50,10 @@ final class CommanderShipRows {
         out.add(hit(frame, 23, 2, 84, 43, data.label("CLICK_NAVY_SEE_DETAILS"), () -> CommanderShipHud.open(ship.id()), "ui.click", "ship_details/" + ship.id()));
         out.add(hit(frame, 5, 4, 9, 34, ship.organizationTooltip(), select, "", "ship_organization/" + ship.id()));
         out.add(hit(frame, 14, 4, 9, 34, ship.strengthTooltip(), select, "", "ship_strength/" + ship.id()));
-        out.add(hit(frame, 0, 0, 493, 41, "§e" + ship.name() + "§r\n" + ship.type(), select, "ui.fleet.select", "ship_row/" + ship.id()));
+        out.add(hit(frame, 0, 0, 493, 41, ship.tooltip(), select, (button, twice) -> {
+            if (button == InputConstants.MOUSE_BUTTON_LEFT) select.run();
+            else if (button == InputConstants.MOUSE_BUTTON_RIGHT) CommanderShipHud.send(new Request(UUID.randomUUID().toString(), Action.FOCUS, ship.id()));
+        }, "ui.fleet.select", "ship_row/" + ship.id()));
     }
     private static void text(GuiGraphicsExtractor g, UiMenuStyle.Frame frame, String value, double y) {
         var font = Minecraft.getInstance().font;
@@ -58,7 +62,10 @@ final class CommanderShipRows {
         UiText.marquee(g, font, line, frame.x(184), UiText.centeredY(font, line, frame.y(y), frame.size(18), scale), frame.size(262), scale, UiMenuStyle.TEXT, false, -1);
     }
     private static CommanderPanels.Hit hit(UiMenuStyle.Frame frame, double x, double y, double w, double h, String tip, Runnable action, String sound, String icon) {
+        return hit(frame, x, y, w, h, tip, action, null, sound, icon);
+    }
+    private static CommanderPanels.Hit hit(UiMenuStyle.Frame frame, double x, double y, double w, double h, String tip, Runnable action, java.util.function.BiConsumer<Integer, Boolean> gesture, String sound, String icon) {
         int left = frame.ix(x), top = frame.iy(y);
-        return new CommanderPanels.Hit(left, top, frame.ix(x + w) - left, frame.iy(y + h) - top, tip, action, null, sound, icon);
+        return new CommanderPanels.Hit(left, top, frame.ix(x + w) - left, frame.iy(y + h) - top, tip, action, gesture, sound, icon);
     }
 }

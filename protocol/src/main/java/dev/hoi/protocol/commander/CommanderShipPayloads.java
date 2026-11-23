@@ -15,15 +15,16 @@ public final class CommanderShipPayloads {
     private static boolean registered;
     public static final int ROWS=256;
     private CommanderShipPayloads() {}
-    public enum Action { LIST, OPEN, CLOSE_LIST, CLOSE }
+    public enum Action { LIST, OPEN, CLOSE_LIST, CLOSE, FOCUS }
     public record Request(String token,Action action,String target) implements CustomPacketPayload {
         public Request {UUID.fromString(token);Objects.requireNonNull(action);identifier(target);if(target.isEmpty())throw new IllegalArgumentException("Missing ship target");}
-        public static final Type<Request> TYPE=new Type<>(Identifier.parse("hoi:commander_ship_request_v1"));
+        public static final Type<Request> TYPE=new Type<>(Identifier.parse("hoi:commander_ship_request_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf,Request> CODEC=StreamCodec.of((b,p)->{b.writeUtf(p.token,36);b.writeEnum(p.action);b.writeUtf(p.target,160);},b->new Request(b.readUtf(36),b.readEnum(Action.class),b.readUtf(160)));
         @Override public Type<Request> type(){return TYPE;}
     }
-    public record Row(String id,String name,String type,String icon,int level,double progress,double strength,double organization,String strengthTooltip,String organizationTooltip) {
-        public Row {identifier(id);text(name,160);text(type,200);asset(icon);text(strengthTooltip,400);text(organizationTooltip,400);if(level<0||level>4||!ratio(progress)||!ratio(strength)||!ratio(organization))throw new IllegalArgumentException("Invalid ship row");}
+    public record Row(String id,String name,String type,String icon,int level,double progress,double strength,double organization,String strengthTooltip,String organizationTooltip,String tooltip) {
+        public Row(String id,String name,String type,String icon,int level,double progress,double strength,double organization,String strengthTooltip,String organizationTooltip){this(id,name,type,icon,level,progress,strength,organization,strengthTooltip,organizationTooltip,"");}
+        public Row {tooltip=tooltip==null?"":tooltip;identifier(id);text(name,160);text(type,200);asset(icon);text(strengthTooltip,400);text(organizationTooltip,400);text(tooltip,1000);if(level<0||level>4||!ratio(progress)||!ratio(strength)||!ratio(organization))throw new IllegalArgumentException("Invalid ship row");}
     }
     public record Force(String token,String force,List<Row> ships,Map<String,String> labels,String error) {
         public Force {UUID.fromString(token);identifier(force);ships=List.copyOf(ships);labels=Map.copyOf(labels);text(error,400);if(ships.size()>ROWS||labels.size()>16)throw new IllegalArgumentException("Invalid ship list");labels.forEach((key,value)->{identifier(key);text(value,1000);});}

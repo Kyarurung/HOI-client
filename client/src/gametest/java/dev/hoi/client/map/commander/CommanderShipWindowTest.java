@@ -90,8 +90,11 @@ final class CommanderShipWindowTest {
                     var details = control("ship_details/" + ship.id()); var row = control("ship_row/" + ship.id());
                     check(details.tip().equals(force.label("CLICK_NAVY_SEE_DETAILS")) && control("ship_organization/" + ship.id()).tip().equals(ship.organizationTooltip()) && control("ship_strength/" + ship.id()).tip().equals(ship.strengthTooltip()), "Ship row tooltips are the original ones");
                     check(details.x() >= row.x() && details.x() + details.w() <= row.x() + row.w(), "The ship picture stays inside its row");
+                    check(row.tip().equals(ship.tooltip()) && ship.tooltip().startsWith("§e") && ship.tooltip().contains(dev.hoi.protocol.ProtocolTooltip.DELAYED + "\n\n§a우클릭§r"), "The ship row shows the original design, hull and delayed right-click lines: " + row.tip());
                 }
                 for (int i = 1; i < rows().size(); i++) check(rows().get(i).y() >= rows().get(i - 1).y() + rows().get(i - 1).h() - 1, "Ship rows do not overlap");
+                var focused = rows().getFirst(); int sent = requests.size();
+                check(client.gui.screen().mouseClicked(new MouseButtonEvent(focused.x() + focused.w() - 20, focused.y() + focused.h() / 2., new MouseButtonInfo(InputConstants.MOUSE_BUTTON_RIGHT, 0)), false) && requests.size() == sent + 1 && requests.getLast().action() == Action.FOCUS && focused.icon().equals("ship_row/" + requests.getLast().target()), "Right-clicking a ship row moves the camera to its task force or port: " + requests);
                 click(client.gui.screen(), control("ship_details/" + fixture.ship()));
                 check(CommanderShipHud.window() != null && CommanderShipHud.window().ship().equals(fixture.ship()) && requests.getLast().action() == Action.OPEN && requests.getLast().target().equals(fixture.ship()), "The ship picture opens its details");
                 CommanderShipHud.accept(view(fixture, requests.getLast().token(), fixture.officer()));
